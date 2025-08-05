@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -101,19 +102,31 @@ public final class ConfigProvider {
 
   public String getString(String key, String defaultValue, String... aliases) {
     int seqId = ConfigSetting.DEFAULT_SEQ_ID;
+    ConfigOrigin usedOrigin = null;
+    String value = null;
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
-    String value = null;
     for (ConfigProvider.Source source : sources) {
       seqId++;
-      String tmp = source.get(key, aliases);
-      if (tmp != null) {
-        value = tmp;
+      try {
+        String tmp = source.get(key, aliases);
+        if (tmp != null) {
+          value = tmp;
+          usedOrigin = source.origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, tmp, source.origin(), seqId);
+          }
+        }
+      } catch (ConfigSourceException e) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), seqId);
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
         }
       }
+    }
+    // Re-report the used value to ensure it has the highest seqId
+    if (collectConfig && value != null && usedOrigin != null) {
+      ConfigCollector.get().put(key, value, usedOrigin, seqId + 1);
     }
     return value != null ? value : defaultValue;
   }
@@ -124,19 +137,31 @@ public final class ConfigProvider {
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
     int seqId = ConfigSetting.DEFAULT_SEQ_ID;
+    ConfigOrigin usedOrigin = null;
+    String value = null;
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
-    String value = null;
     for (ConfigProvider.Source source : sources) {
       seqId++;
-      String tmp = source.get(key, aliases);
-      if (tmp != null && !tmp.trim().isEmpty()) {
-        value = tmp;
+      try {
+        String tmp = source.get(key, aliases);
+        if (tmp != null && !tmp.trim().isEmpty()) {
+          value = tmp;
+          usedOrigin = source.origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, tmp, source.origin(), seqId);
+          }
+        }
+      } catch (ConfigSourceException e) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), seqId);
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
         }
       }
+    }
+    // Re-report the used value to ensure it has the highest seqId
+    if (collectConfig && value != null && usedOrigin != null) {
+      ConfigCollector.get().put(key, value, usedOrigin, seqId + 1);
     }
     return value != null ? value : defaultValue;
   }
@@ -147,22 +172,34 @@ public final class ConfigProvider {
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
     int seqId = ConfigSetting.DEFAULT_SEQ_ID;
+    ConfigOrigin usedOrigin = null;
+    String value = null;
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
-    String value = null;
     for (ConfigProvider.Source source : sources) {
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
       seqId++;
-      String tmp = source.get(key, aliases);
-      if (tmp != null) {
-        value = tmp;
+      try {
+        String tmp = source.get(key, aliases);
+        if (tmp != null) {
+          value = tmp;
+          usedOrigin = source.origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, tmp, source.origin(), seqId);
+          }
+        }
+      } catch (ConfigSourceException e) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), seqId);
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
         }
       }
+    }
+    // Re-report the used value to ensure it has the highest seqId
+    if (collectConfig && value != null && usedOrigin != null) {
+      ConfigCollector.get().put(key, value, usedOrigin, seqId + 1);
     }
     return value != null ? value : defaultValue;
   }
@@ -226,24 +263,39 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     int seqId = ConfigSetting.DEFAULT_SEQ_ID;
+    ConfigOrigin usedOrigin = null;
+    String usedSourceValue = null;
+    T value = null;
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
-    T value = null;
     for (ConfigProvider.Source source : sources) {
+      seqId++;
       try {
-        seqId++;
         String sourceValue = source.get(key, aliases);
         T tmp = ConfigConverter.valueOf(sourceValue, type);
         if (tmp != null) {
           value = tmp;
+          usedOrigin = source.origin();
+          usedSourceValue = sourceValue;
           if (collectConfig) {
             ConfigCollector.get().put(key, sourceValue, source.origin(), seqId);
           }
         }
+      } catch (ConfigSourceException e) {
+        if (Objects.equals(key, "CONFIG_NAME")) {
+          System.out.println("MTOFF: exception thrown");
+        }
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
+        }
       } catch (NumberFormatException ex) {
         // continue
       }
+    }
+    // Re-report the used value to ensure it has the highest seqId
+    if (collectConfig && value != null && usedOrigin != null && usedSourceValue != null) {
+      ConfigCollector.get().put(key, usedSourceValue, usedOrigin, seqId + 1);
     }
     return value != null ? value : defaultValue;
   }
@@ -293,15 +345,21 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We iterate in order so higher precedence sources overwrite lower precedence
     for (Source source : sources) {
-      String value = source.get(key, aliases);
-      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
-      if (!parsedMap.isEmpty()) {
-        origin = source.origin();
+      try {
+        String value = source.get(key, aliases);
+        Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+        if (!parsedMap.isEmpty()) {
+          origin = source.origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, parsedMap, origin, seqId);
+          }
+        }
+        merged.putAll(parsedMap);
+      } catch (ConfigSourceException e) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, parsedMap, origin, seqId);
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
         }
       }
-      merged.putAll(parsedMap);
       seqId++;
     }
     if (collectConfig) {
@@ -325,16 +383,22 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We iterate in order so higher precedence sources overwrite lower precedence
     for (Source source : sources) {
-      String value = source.get(key, aliases);
-      Map<String, String> parsedMap =
-          ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
-      if (!parsedMap.isEmpty()) {
-        origin = source.origin();
+      try {
+        String value = source.get(key, aliases);
+        Map<String, String> parsedMap =
+            ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
+        if (!parsedMap.isEmpty()) {
+          origin = source.origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, parsedMap, origin, seqId);
+          }
+        }
+        merged.putAll(parsedMap);
+      } catch (ConfigSourceException e) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, parsedMap, origin, seqId);
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
         }
       }
-      merged.putAll(parsedMap);
       seqId++;
     }
     if (collectConfig) {
@@ -356,19 +420,26 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We iterate in order so higher precedence sources overwrite lower precedence
     for (Source source : sources) {
-      String value = source.get(key);
-      Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
-      if (!parsedMap.isEmpty()) {
-        origin = source.origin();
+      try {
+        String value = source.get(key);
+        Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
+        if (!parsedMap.isEmpty()) {
+          origin = source.origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, parsedMap, origin, seqId);
+          }
+        }
+        merged.putAll(parsedMap);
+      } catch (ConfigSourceException e) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, parsedMap, origin, seqId);
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
         }
       }
-      merged.putAll(parsedMap);
       seqId++;
     }
     if (collectConfig) {
       if (origin != null) {
+        // TO DISCUSS: But if multiple sources have been set, origin isn't exactly accurate here...?
         ConfigCollector.get().put(key, merged, origin, seqId);
       } else {
         ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
@@ -388,16 +459,23 @@ public final class ConfigProvider {
     // We iterate in order so higher precedence sources overwrite lower precedence
     for (String key : keys) {
       for (Source source : sources) {
-        String value = source.get(key);
-        Map<String, String> parsedMap =
-            ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
-        if (!parsedMap.isEmpty()) {
-          origin = source.origin();
+        try {
+          String value = source.get(key);
+          Map<String, String> parsedMap =
+              ConfigConverter.parseMapWithOptionalMappings(
+                  value, key, defaultPrefix, lowercaseKeys);
+          if (!parsedMap.isEmpty()) {
+            origin = source.origin();
+            if (collectConfig) {
+              ConfigCollector.get().put(key, parsedMap, origin, seqId);
+            }
+          }
+          merged.putAll(parsedMap);
+        } catch (ConfigSourceException e) {
           if (collectConfig) {
-            ConfigCollector.get().put(key, parsedMap, origin, seqId);
+            ConfigCollector.get().put(key, e.getRawValue(), source.origin(), seqId);
           }
         }
-        merged.putAll(parsedMap);
         seqId++;
       }
       if (collectConfig) {
@@ -580,7 +658,7 @@ public final class ConfigProvider {
   }
 
   public abstract static class Source {
-    public final String get(String key, String... aliases) {
+    public final String get(String key, String... aliases) throws ConfigSourceException {
       String value = get(key);
       if (value != null) {
         return value;
@@ -594,7 +672,7 @@ public final class ConfigProvider {
       return null;
     }
 
-    protected abstract String get(String key);
+    protected abstract String get(String key) throws ConfigSourceException;
 
     public abstract ConfigOrigin origin();
   }

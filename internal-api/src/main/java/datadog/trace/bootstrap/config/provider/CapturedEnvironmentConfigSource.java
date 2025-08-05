@@ -15,8 +15,15 @@ public final class CapturedEnvironmentConfigSource extends ConfigProvider.Source
   }
 
   @Override
-  protected String get(String key) {
-    return env.getProperties().get(key);
+  protected String get(String key) throws ConfigSourceException {
+    Object value = env.getProperties().get(key);
+    if (value == null) {
+      return null;
+    }
+    if (!(value instanceof String)) {
+      throw new ConfigSourceException(value);
+    }
+    return (String) value;
   }
 
   @Override

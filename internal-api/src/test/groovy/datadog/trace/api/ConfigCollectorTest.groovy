@@ -254,7 +254,7 @@ class ConfigCollectorTest extends DDSpecification {
     "trace.sample.rate"      | "0.3"
   }
 
-  def "getAppliedConfigSetting returns the setting with the highest seqId for a key"() {
+  def "getHighestSeqIdConfig returns the setting with the highest seqId for a key"() {
     setup:
     def collector = ConfigCollector.get()
     collector.collect() // clear previous state
@@ -264,7 +264,7 @@ class ConfigCollectorTest extends DDSpecification {
     collector.put('test.key', 'jvm', ConfigOrigin.JVM_PROP, 3)
 
     when:
-    def applied = collector.getAppliedConfigSetting('test.key')
+    def applied = collector.getHighestSeqIdConfig('test.key')
 
     then:
     applied != null
@@ -273,7 +273,7 @@ class ConfigCollectorTest extends DDSpecification {
     applied.origin == ConfigOrigin.REMOTE
 
     when: "no settings for a key"
-    def none = collector.getAppliedConfigSetting('nonexistent.key')
+    def none = collector.getHighestSeqIdConfig('nonexistent.key')
 
     then:
     none == null

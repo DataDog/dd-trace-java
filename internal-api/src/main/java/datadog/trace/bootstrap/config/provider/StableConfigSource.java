@@ -47,12 +47,18 @@ public final class StableConfigSource extends ConfigProvider.Source {
     this.config = cfg;
   }
 
-  @Override
-  public String get(String key) {
+  public String get(String key) throws ConfigSourceException {
     if (this.config == StableConfig.EMPTY) {
       return null;
     }
-    return this.config.get(propertyNameToEnvironmentVariableName(key));
+    Object value = this.config.get(propertyNameToEnvironmentVariableName(key));
+    if (value == null) {
+      return null;
+    }
+    if (!(value instanceof String)) {
+      throw new ConfigSourceException(value);
+    }
+    return (String) value;
   }
 
   @Override
@@ -78,9 +84,8 @@ public final class StableConfigSource extends ConfigProvider.Source {
       this.apmConfiguration = configMap;
     }
 
-    public String get(String key) {
-      Object value = this.apmConfiguration.get(key);
-      return (value == null) ? null : String.valueOf(value);
+    public Object get(String key) {
+      return this.apmConfiguration.get(key);
     }
 
     public Set<String> getKeys() {

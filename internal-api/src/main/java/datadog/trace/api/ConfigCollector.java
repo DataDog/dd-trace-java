@@ -58,10 +58,10 @@ public class ConfigCollector {
   }
 
   /**
-   * Returns the {@link ConfigSetting} with the highest precedence for the given key, or {@code
-   * null} if no setting exists for that key.
+   * Returns the {@link ConfigSetting} with the highest seq_id for the given key, or {@code null} if
+   * no setting exists for that key.
    */
-  public ConfigSetting getAppliedConfigSetting(String key) {
+  public ConfigSetting getHighestSeqIdConfig(String key) {
     Map<ConfigOrigin, ConfigSetting> originMap = collected.get(key);
     if (originMap == null || originMap.isEmpty()) {
       return null;
