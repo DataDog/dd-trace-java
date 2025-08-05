@@ -216,4 +216,12 @@ public interface AgentSpan
   default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
   }
+
+  @Override
+  default Context with(@Nullable ImplicitContextKeyed value) {
+    if (value instanceof AgentSpan) {
+      return (AgentSpan) value;
+    }
+    return Context.super.with(value);
+  }
 }
