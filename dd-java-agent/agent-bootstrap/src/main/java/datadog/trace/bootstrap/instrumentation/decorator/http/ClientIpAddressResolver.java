@@ -100,6 +100,14 @@ public class ClientIpAddressResolver {
       result = coalesce(result, addr);
     }
 
+    addr = tryHeader(context.getForwarded(), FORWARDED_PARSER);
+    if (addr != null) {
+      if (!isIpAddrPrivate(addr)) {
+        return addr;
+      }
+      result = coalesce(result, addr);
+    }
+
     addr = tryHeader(context.getXClusterClientIp(), PLAIN_IP_ADDRESS_PARSER);
     if (addr != null) {
       if (!isIpAddrPrivate(addr)) {
@@ -196,95 +204,99 @@ public class ClientIpAddressResolver {
 
     @Override
     public InetAddress apply(String headerValue) {
-      InetAddress resultPrivate = null;
-      ForwardedParseState state = ForwardedParseState.BETWEEN;
-
-      // https://datatracker.ietf.org/doc/html/rfc7239#section-4
-      int pos = 0;
-      int end = headerValue.length();
-      // compiler requires that these two be initialized:
-      int start = 0;
-      boolean considerValue = false;
-      while (pos < end) {
-        char c = headerValue.charAt(pos);
-        switch (state) {
-          case BETWEEN:
-            if (c == ' ' || c == ';' || c == ',') {
-              break;
-            }
-            start = pos;
-            state = ForwardedParseState.KEY;
-            break;
-          case KEY:
-            if (c != '=') {
-              break;
-            }
-
-            state = ForwardedParseState.BEFORE_VALUE;
-            if (pos - start == 3) {
-              String key = headerValue.substring(start, pos);
-              considerValue = key.equalsIgnoreCase("for");
-            } else {
-              considerValue = false;
-            }
-            break;
-          case BEFORE_VALUE:
-            if (c == '"') {
-              start = pos + 1;
-              state = ForwardedParseState.VALUE_QUOTED;
-            } else if (c == ' ' || c == ';' || c == ',') {
-              // empty value
-              state = ForwardedParseState.BETWEEN;
-            } else {
-              start = pos;
-              state = ForwardedParseState.VALUE_TOKEN;
-            }
-            break;
-          case VALUE_TOKEN:
-            {
-              int tokenEnd;
+      String[] entries = headerValue.split(",");
+      for (int i = entries.length - 1; i >= 0; i--) {
+        String entry = entries[i].trim();
+        InetAddress resultPrivate = null;
+        ForwardedParseState state = ForwardedParseState.BETWEEN;
+        // https://datatracker.ietf.org/doc/html/rfc7239#section-4
+        int pos = 0;
+        int end = entry.length();
+        // compiler requires that these two be initialized:
+        int start = 0;
+        boolean considerValue = false;
+        while (pos < end) {
+          char c = entry.charAt(pos);
+          switch (state) {
+            case BETWEEN:
               if (c == ' ' || c == ';' || c == ',') {
-                tokenEnd = pos;
-              } else if (pos + 1 == end) {
-                tokenEnd = end;
-              } else {
+                break;
+              }
+              start = pos;
+              state = ForwardedParseState.KEY;
+              break;
+            case KEY:
+              if (c != '=') {
                 break;
               }
 
-              if (considerValue) {
-                InetAddress ipAddr =
-                    parseIpAddressAndMaybePort(headerValue.substring(start, tokenEnd));
-                if (ipAddr != null) {
-                  if (isIpAddrPrivate(ipAddr)) {
-                    if (resultPrivate == null) {
-                      resultPrivate = ipAddr;
+              state = ForwardedParseState.BEFORE_VALUE;
+              if (pos - start == 3) {
+                String key = entry.substring(start, pos);
+                considerValue = key.equalsIgnoreCase("for");
+              } else {
+                considerValue = false;
+              }
+              break;
+            case BEFORE_VALUE:
+              if (c == '"') {
+                start = pos + 1;
+                state = ForwardedParseState.VALUE_QUOTED;
+              } else if (c == ' ' || c == ';' || c == ',') {
+                // empty value
+                state = ForwardedParseState.BETWEEN;
+              } else {
+                start = pos;
+                state = ForwardedParseState.VALUE_TOKEN;
+              }
+              break;
+            case VALUE_TOKEN:
+              {
+                int tokenEnd;
+                if (c == ' ' || c == ';' || c == ',') {
+                  tokenEnd = pos;
+                } else if (pos + 1 == end) {
+                  tokenEnd = end;
+                } else {
+                  break;
+                }
+
+                if (considerValue) {
+                  InetAddress ipAddr = parseIpAddressAndMaybePort(entry.substring(start, tokenEnd));
+                  if (ipAddr != null) {
+                    if (isIpAddrPrivate(ipAddr)) {
+                      if (resultPrivate == null) {
+                        resultPrivate = ipAddr;
+                      }
+                    } else {
+                      return ipAddr;
                     }
-                  } else {
+                  }
+                }
+                state = ForwardedParseState.BETWEEN;
+                break;
+              }
+            case VALUE_QUOTED:
+              if (c == '"') {
+                if (considerValue) {
+                  InetAddress ipAddr = parseIpAddressAndMaybePort(entry.substring(start, pos));
+                  if (ipAddr != null && !isIpAddrPrivate(ipAddr)) {
                     return ipAddr;
                   }
                 }
+                state = ForwardedParseState.BETWEEN;
+              } else if (c == '\\') {
+                pos++;
               }
-              state = ForwardedParseState.BETWEEN;
               break;
-            }
-          case VALUE_QUOTED:
-            if (c == '"') {
-              if (considerValue) {
-                InetAddress ipAddr = parseIpAddressAndMaybePort(headerValue.substring(start, pos));
-                if (ipAddr != null && !isIpAddrPrivate(ipAddr)) {
-                  return ipAddr;
-                }
-              }
-              state = ForwardedParseState.BETWEEN;
-            } else if (c == '\\') {
-              pos++;
-            }
-            break;
+          }
+          pos++;
         }
-        pos++;
+        if (resultPrivate != null) {
+          return resultPrivate;
+        }
       }
-
-      return resultPrivate;
+      return null;
     }
   }
 

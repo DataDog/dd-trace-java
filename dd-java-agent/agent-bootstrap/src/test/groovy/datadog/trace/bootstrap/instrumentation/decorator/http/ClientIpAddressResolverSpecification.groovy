@@ -70,6 +70,14 @@ class ClientIpAddressResolverSpecification extends Specification {
     'fastly-client-ip' | '3.3.3.3' | '3.3.3.3'
     'cf-connecting-ip' | '4.4.4.4' | '4.4.4.4'
     'cf-connecting-ipv6' | '2001::2' | '2001::2'
+
+    'forwarded' | 'for=192.0.2.60;proto=http;by=203.0.113.43' | '192.0.2.60'
+    'forwarded' | 'For="[2001:db8:cafe::17]:4711"' | '2001:db8:cafe::17'
+    'forwarded' | 'for=192.0.2.43, for=198.51.100.17' | '198.51.100.17'
+    'forwarded' | 'for=192.0.2.43;proto=https;by=203.0.113.43' | '192.0.2.43'
+    'forwarded' | 'for="_gazonk"' | null
+    'forwarded' | 'for=unknown, for=8.8.8.8' | '8.8.8.8'
+    'forwarded' | 'for="[::ffff:192.0.2.128]";proto=http' | '192.0.2.128'
   }
 
   void 'test recognition strategy with custom header'() {
@@ -112,6 +120,9 @@ class ClientIpAddressResolverSpecification extends Specification {
 
     then:
     1 * context.getForwardedFor() >> null
+
+    then:
+    1 * context.getForwarded() >> null
 
     then:
     1 * context.getXClusterClientIp() >> null
