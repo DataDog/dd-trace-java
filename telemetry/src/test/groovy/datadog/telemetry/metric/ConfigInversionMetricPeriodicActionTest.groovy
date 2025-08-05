@@ -6,7 +6,7 @@ import spock.lang.Specification
 
 class ConfigInversionMetricPeriodicActionTest extends Specification{
 
-  void 'test otel env var hiding metric'() {
+  void 'test undocumented env var metric'() {
     setup:
     final telemetryService = Mock(TelemetryService)
     final action = new ConfigInversionMetricPeriodicAction()
