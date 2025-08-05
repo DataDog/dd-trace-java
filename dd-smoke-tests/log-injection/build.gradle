@@ -353,11 +353,10 @@ generateTestingJar('Flogger', 'Slf4jToLogbackLatest',
 tasks.withType(Test).configureEach {
   dependsOn tasks.withType(ShadowJar)
 
-  if (System.getenv("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE") != null) {
-    maxParallelForks = Integer.valueOf(System.getenv("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE"))
-  } else {
-    maxParallelForks = Math.max(1, (Runtime.getRuntime().availableProcessors() / 2) as int)
-  }
+  // Runtime.getRuntime().availableProcessors() is used to scale the parallelism by default,
+  // but it returns weird values in Gitlab/kubernetes, so fix to a specific value when available
+  def override = System.getenv("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+  maxParallelForks = override?.toInteger() ?: Math.max(1, (Runtime.runtime.availableProcessors() / 2).toInteger())
 }
 
 
