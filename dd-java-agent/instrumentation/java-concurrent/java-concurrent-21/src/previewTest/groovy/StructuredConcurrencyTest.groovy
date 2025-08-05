@@ -225,7 +225,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
           }
           writer.write("==============================================\n")
         }
-      }, 10001, 60000, TimeUnit.MILLISECONDS)
+      }, 10002, 60000, TimeUnit.MILLISECONDS)
     }
 
     void heapDump(String kind) {
