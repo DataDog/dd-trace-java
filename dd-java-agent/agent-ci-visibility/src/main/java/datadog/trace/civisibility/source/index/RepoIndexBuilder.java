@@ -104,6 +104,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final RepoIndexingStats indexingStats;
     private final Path repoRoot;
     private final AtomicInteger sourceRootCounter;
+    private final boolean followSymlinks;
 
     private RepoIndexingFileVisitor(
         Config config,
@@ -120,27 +121,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
       sourceRootCounter = new AtomicInteger();
+      followSymlinks = config.isCiVisibilityRepoIndexFollowSymlinks();
     }
 
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-      if (Files.isSymbolicLink(dir) && readSymbolicLink(dir).startsWith(repoRoot)) {
-        // The path is a symlink that points inside the repo.
-        // We'll visit the folder that it points to anyway,
-        // moreover, we don't want two different results for one file
-        // (one containing the symlink, the other - the actual folder).
+      if (Files.isSymbolicLink(dir) && !followSymlinks) {
         return FileVisitResult.SKIP_SUBTREE;
       }
       return FileVisitResult.CONTINUE;
-    }
-
-    private static Path readSymbolicLink(Path path) {
-      try {
-        return Files.readSymbolicLink(path);
-      } catch (Exception e) {
-        log.debug("Could not read symbolic link {}", path, e);
-        return path;
-      }
     }
 
     @Override
