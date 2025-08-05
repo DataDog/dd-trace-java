@@ -17,6 +17,7 @@ sourceSets {
 dependencies {
   "generatorImplementation"("com.fasterxml.jackson.core:jackson-databind:2.15.2")
   "generatorImplementation"("org.slf4j:slf4j-api:1.7.36")
+  implementation(project(":dd-trace-api"))
 }
 
 apply(from = "$rootDir/gradle/java.gradle")

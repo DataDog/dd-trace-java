@@ -1,5 +1,6 @@
 package datadog.environment;
 
+import datadog.trace.api.ConfigInversionStrictStyle;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,16 +8,16 @@ import java.util.Map;
 
 @SuppressForbidden
 public class ConfigHelper {
-  private static boolean configInversionStrict;
+  private static ConfigInversionStrictStyle configInversionStrict;
 
   // Default to production source
   private static SupportedConfigurationSource configSource = new SupportedConfigurationSource();
 
-  public static void setConfigInversionStrict(boolean configInversionStrict) {
+  public static void setConfigInversionStrict(ConfigInversionStrictStyle configInversionStrict) {
     ConfigHelper.configInversionStrict = configInversionStrict;
   }
 
-  public static boolean isConfigInversionStrict() {
+  public static ConfigInversionStrictStyle configInversionStrictFlag() {
     return configInversionStrict;
   }
 
@@ -28,7 +29,7 @@ public class ConfigHelper {
   /** Reset all configuration data to the generated defaults. Useful for cleaning up after tests. */
   static void resetToDefaults() {
     configSource = new SupportedConfigurationSource();
-    configInversionStrict = false;
+    configInversionStrict = ConfigInversionStrictStyle.WARNING;
   }
 
   public static Map<String, String> getEnvironmentVariables() {
@@ -73,9 +74,14 @@ public class ConfigHelper {
     if ((name.startsWith("DD_") || name.startsWith("OTEL_"))
         && !configSource.getAliasMapping().containsKey(name)
         && !configSource.getSupportedConfigurations().contains(name)) {
-      System.err.println(
-          "Warning: Missing environment variable " + name + " from supported-configurations.json.");
-      if (configInversionStrict) {
+      if (configInversionStrict != ConfigInversionStrictStyle.TEST) {
+        System.err.println(
+            "Warning: Missing environment variable "
+                + name
+                + " from supported-configurations.json.");
+      }
+
+      if (configInversionStrict == ConfigInversionStrictStyle.STRICT) {
         return null; // If strict mode is enabled, return null for unsupported configs
       }
     }

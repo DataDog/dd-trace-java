@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.trace.api.ConfigInversionStrictStyle;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,7 +32,7 @@ public class ConfigHelperTest {
   private static final String NON_DD_ALIAS_VAR = "TEST_CONFIG_ALIAS";
   private static final String NON_DD_ALIAS_VAL = "test_alias_val_non_dd";
 
-  private static boolean strictness;
+  private static ConfigInversionStrictStyle strictness;
   private static TestSupportedConfigurationSource testSource;
 
   @BeforeAll
@@ -52,8 +53,8 @@ public class ConfigHelperTest {
         new TestSupportedConfigurationSource(
             testSupported, testAliases, testAliasMapping, new HashMap<>());
     ConfigHelper.setConfigurationSource(testSource);
-    strictness = ConfigHelper.isConfigInversionStrict();
-    ConfigHelper.setConfigInversionStrict(true);
+    strictness = ConfigHelper.configInversionStrictFlag();
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.STRICT);
   }
 
   @AfterAll
@@ -145,14 +146,14 @@ public class ConfigHelperTest {
 
   @Test
   void testUnsupportedButNotStrict() {
-    ConfigHelper.setConfigInversionStrict(false);
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.WARNING);
     setEnvVar(UNSUPPORTED_DD_VAR, "loose");
 
     // Should fall through and return the env var even though it's unsupported
     assertEquals("loose", ConfigHelper.getEnvironmentVariable(UNSUPPORTED_DD_VAR));
 
     // Cleanup
-    ConfigHelper.setConfigInversionStrict(true);
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.STRICT);
     setEnvVar(UNSUPPORTED_DD_VAR, null);
   }
 

@@ -1204,7 +1204,7 @@ public class Config {
 
   private final boolean telemetryDebugRequestsEnabled;
 
-  private final boolean configInversionStrict;
+  private final ConfigInversionStrictStyle configInversionStrict;
 
   private final boolean agentlessLogSubmissionEnabled;
   private final int agentlessLogSubmissionQueueSize;
@@ -2011,7 +2011,7 @@ public class Config {
             DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
-    configInversionStrict = ConfigHelper.isConfigInversionStrict();
+    configInversionStrict = ConfigHelper.configInversionStrictFlag();
 
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -3488,7 +3488,7 @@ public class Config {
     return clientIpEnabled;
   }
 
-  public boolean isConfigInversionStrict() {
+  public ConfigInversionStrictStyle isConfigInversionStrict() {
     return configInversionStrict;
   }
 

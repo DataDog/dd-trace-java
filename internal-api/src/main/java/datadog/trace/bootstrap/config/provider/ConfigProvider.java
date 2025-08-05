@@ -6,6 +6,7 @@ import static datadog.trace.api.config.GeneralConfig.CONFIG_INVERSION_STRICT;
 import datadog.environment.ConfigHelper;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigInversionStrictStyle;
 import datadog.trace.api.ConfigOrigin;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
@@ -381,7 +382,10 @@ public final class ConfigProvider {
 
     // TODO: Set default value to false before merging
     ConfigHelper.setConfigInversionStrict(
-        minimalProvider.getBoolean(CONFIG_INVERSION_STRICT, true));
+        minimalProvider.getEnum(
+            CONFIG_INVERSION_STRICT,
+            ConfigInversionStrictStyle.class,
+            ConfigInversionStrictStyle.STRICT));
 
     Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
@@ -410,7 +414,10 @@ public final class ConfigProvider {
             false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource());
     // TODO: Set default value to false before merging
     ConfigHelper.setConfigInversionStrict(
-        minimalProvider.getBoolean(CONFIG_INVERSION_STRICT, true));
+        minimalProvider.getEnum(
+            CONFIG_INVERSION_STRICT,
+            ConfigInversionStrictStyle.class,
+            ConfigInversionStrictStyle.STRICT));
 
     Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
@@ -445,7 +452,10 @@ public final class ConfigProvider {
 
     // TODO: Set default value to false before merging
     ConfigHelper.setConfigInversionStrict(
-        minimalProvider.getBoolean(CONFIG_INVERSION_STRICT, true));
+        minimalProvider.getEnum(
+            CONFIG_INVERSION_STRICT,
+            ConfigInversionStrictStyle.class,
+            ConfigInversionStrictStyle.STRICT));
 
     Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
