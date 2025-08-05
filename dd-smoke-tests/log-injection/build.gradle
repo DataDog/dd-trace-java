@@ -4,11 +4,6 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  // TODO: Fix for Java 25. Gradle Test Executor failed. Update givenGradleVersionIsCompatibleWithCurrentJvm() when Gradle releases Java 25 support: https://docs.gradle.org/current/userguide/compatibility.html#java_runtime
-  maxJavaVersionForTests = JavaVersion.VERSION_24
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Log injection Smoke Tests.'
 
@@ -357,6 +352,11 @@ generateTestingJar('Flogger', 'Slf4jToLogbackLatest',
 
 tasks.withType(Test).configureEach {
   dependsOn tasks.withType(ShadowJar)
+
+  // Runtime.getRuntime().availableProcessors() is used to scale the parallelism by default,
+  // but it returns weird values in Gitlab/kubernetes, so fix to a specific value when available
+  def override = System.getenv("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+  maxParallelForks = override?.toInteger() ?: Math.max(1, (Runtime.runtime.availableProcessors() / 2).toInteger())
 }
 
 
