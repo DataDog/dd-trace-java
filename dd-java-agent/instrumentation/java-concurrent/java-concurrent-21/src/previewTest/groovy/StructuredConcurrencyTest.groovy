@@ -211,7 +211,6 @@ class StructuredConcurrencyTest extends AgentTestRunner {
 
     void start() {
       new File(outputDir, "${System.currentTimeMillis()}-start-mark.txt") << testName
-      heapDump("initial")
 
       task = scheduler.scheduleAtFixedRate({
         heapDump("test")

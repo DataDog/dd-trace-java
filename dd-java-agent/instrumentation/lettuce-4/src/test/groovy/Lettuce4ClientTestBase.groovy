@@ -126,7 +126,6 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
     void start() {
       new File(outputDir, "${System.currentTimeMillis()}-start-mark.txt") << testName
-      heapDump("initial")
 
       task = scheduler.scheduleAtFixedRate({
         heapDump("test")
