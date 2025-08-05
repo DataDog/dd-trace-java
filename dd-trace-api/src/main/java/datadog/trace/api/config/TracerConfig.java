@@ -38,7 +38,7 @@ public final class TracerConfig {
       "trace.experimental.features.enabled";
 
   public static final String SPAN_TAGS = "trace.span.tags";
-  public static final String TRACE_ANALYTICS_ENABLED = "trace.1analytics.enabled";
+  public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
 
   @Deprecated
   public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
