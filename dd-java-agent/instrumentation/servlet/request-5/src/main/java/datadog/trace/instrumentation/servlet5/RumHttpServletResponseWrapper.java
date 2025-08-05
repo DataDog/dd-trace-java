@@ -13,7 +13,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private final RumInjector rumInjector;
   private ServletOutputStream outputStream;
   private PrintWriter printWriter;
-  private boolean shouldInject = false;
+  private boolean shouldInject = true;
 
   public RumHttpServletResponseWrapper(HttpServletResponse response) {
     super(response);
@@ -67,7 +67,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   public void reset() {
     this.outputStream = null;
     this.printWriter = null;
-    this.shouldInject = false;
+    this.shouldInject = true;
     super.reset();
   }
 
@@ -75,7 +75,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   public void resetBuffer() {
     this.outputStream = null;
     this.printWriter = null;
-    this.shouldInject = false;
+    this.shouldInject = true;
     super.resetBuffer();
   }
 
