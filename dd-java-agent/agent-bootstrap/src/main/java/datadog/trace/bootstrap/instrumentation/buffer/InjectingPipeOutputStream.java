@@ -154,7 +154,7 @@ public class InjectingPipeOutputStream extends OutputStream {
 
   private void drain() throws IOException {
     if (count > 0) {
-      boolean tmpFilter = filter;
+      boolean wasFiltering = filter;
       filter = false;
       wasDraining = true;
       int start = (pos - count + lookbehind.length) % lookbehind.length;
@@ -163,7 +163,7 @@ public class InjectingPipeOutputStream extends OutputStream {
         downstream.write(lookbehind[(start + i) % lookbehind.length]);
         count--;
       }
-      filter = tmpFilter;
+      filter = wasFiltering;
       wasDraining = false;
     }
   }
