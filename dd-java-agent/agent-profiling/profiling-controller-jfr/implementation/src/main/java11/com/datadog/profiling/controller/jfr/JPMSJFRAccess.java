@@ -129,6 +129,12 @@ public class JPMSJFRAccess extends JFRAccess {
       // task
       return;
     }
+
+    patchJfrModule(inst);
+    patchManagementModule(inst);
+  }
+
+  private static void patchJfrModule(Instrumentation inst) {
     Module unnamedModule = JFRAccess.class.getClassLoader().getUnnamedModule();
     Module targetModule = Event.class.getModule();
 
@@ -142,6 +148,14 @@ public class JPMSJFRAccess extends JFRAccess {
         extraOpens,
         Collections.emptySet(),
         Collections.emptyMap());
+  }
+
+  private static void patchManagementModule(Instrumentation inst) {
+    Module unnamedModule = JFRAccess.class.getClassLoader().getUnnamedModule();
+    ModuleLayer.boot().findModule("java.management").ifPresent(m -> {
+      Map<String, Set<Module>> extraOpens = Map.of("sun.management", Set.of(unnamedModule));
+      inst.redefineModule(m, Collections.emptySet(), extraOpens, extraOpens, Collections.emptySet(), Collections.emptyMap());
+    });
   }
 
   @Override

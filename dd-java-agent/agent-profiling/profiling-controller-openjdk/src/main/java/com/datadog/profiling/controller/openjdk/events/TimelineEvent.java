@@ -4,8 +4,12 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import datadog.trace.api.Stateful;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.lang.reflect.Method;
 import java.util.concurrent.atomic.LongAdder;
 
 import jdk.jfr.Category;
@@ -28,42 +32,61 @@ public class TimelineEvent extends Event {
   public static final class Holder implements Stateful {
     private final TimelineEvent event;
 
+    private static final MethodHandle selfThreadCpuTimeMh;
     private static final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     private static final boolean isThreadCpuTimeSupported;
 
     static {
       boolean cpuTimeSupported = threadMXBean.isThreadCpuTimeSupported();
+      // default to a method handle that always returns -1
+      MethodHandle opHandle = MethodHandles.constant(long.class, -1L);
+
       if (cpuTimeSupported) {
-        // a trivial benchmark
-        final int iterations = 20_000;
-        long ts = System.nanoTime();
-        long sum = 0;
-        for (int i = 0; i < iterations; ++i) {
-          sum += threadMXBean.getThreadCpuTime(Thread.currentThread().getId());
-          if (i % 1_000 == 0) {
-            // sanity test to bail out quickly if the call to get thread cpu time is unexpectedly slow
-            if (System.nanoTime() - ts > 500_000_000L) {
-              log.warn("Obtaining thread CPU time is exceptionally slow. Disabling.");
-              cpuTimeSupported = false;
-              break;
+        try {
+          Class<?> callTarget = Class.forName("sun.management.ThreadImpl");
+          Method targetMethod = callTarget.getDeclaredMethod("getThreadTotalCpuTime0", long.class);
+          targetMethod.setAccessible(true);
+
+          // Replace the opHandle with the real method to get the thread cpu time.
+          // The target method is 'sun.management.ThreadImpl.getThreadTotalCpuTime0(tid)` -
+          // but for the self thread cpu time the tid will always be 0
+          opHandle = MethodHandles.insertArguments(MethodHandles.lookup().unreflect(targetMethod),0, 0L);
+
+          // a trivial benchmark
+          final int iterations = 20_000;
+          long ts = System.nanoTime();
+          long sum = 0;
+          for (int i = 0; i < iterations; ++i) {
+            sum += (long)opHandle.invokeExact();
+            if (i % 1_000 == 0) {
+              // sanity test to bail out quickly if the call to get thread cpu time is unexpectedly slow
+              if (System.nanoTime() - ts > 500_000_000L) {
+                log.warn("Obtaining thread CPU time is exceptionally slow. Disabling.");
+                cpuTimeSupported = false;
+                break;
+              }
             }
           }
+          double avg = (System.nanoTime() - ts) / (double) iterations;
+          // This, practically, will always be true; we just need to make sure JIT does not optimize
+          // the summing code away
+          if (sum > 0) {
+            cpuTimeSupported = avg < 1_000; // less than 5us for getting thread cpu time sounds fair
+          }
+          log.debug(
+              SEND_TELEMETRY,
+              "Thread cpu time cost: "
+                  + avg
+                  + "ns, cpu time collection "
+                  + (cpuTimeSupported ? "enabled" : "disabled"));
+        } catch (Throwable t) {
+          log.debug("Boom", t);
+          cpuTimeSupported = false;
         }
-        double avg = (System.nanoTime() - ts) / (double) iterations;
-        // This, practically, will always be true; we just need to make sure JIT does not optimize
-        // the summing code away
-        if (sum > 0) {
-          cpuTimeSupported = avg < 1_000; // less than 5us for getting thread cpu time sounds fair
-        }
-        log.debug(
-            SEND_TELEMETRY,
-            "Thread cpu time cost: "
-                + avg
-                + "ns, cpu time collection "
-                + (cpuTimeSupported ? "enabled" : "disabled"));
       } else {
         log.debug(SEND_TELEMETRY, "Thread cpu time not supported");
       }
+      selfThreadCpuTimeMh = opHandle;
       isThreadCpuTimeSupported = cpuTimeSupported;
     }
 
