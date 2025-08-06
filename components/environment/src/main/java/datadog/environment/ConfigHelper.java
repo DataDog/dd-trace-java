@@ -56,12 +56,14 @@ public class ConfigHelper {
             }
           }
         }
-        //        if (deprecatedConfigurations.containsKey(key)) {
+
+        // TODO: Follow-up - Add deprecation handling
+        //        if (configSource.getDeprecatedConfigurations().containsKey(key)) {
         //          String warning = "Environment variable " + key + " is deprecated. " +
-        //              (aliasMapping.containsKey(key)
-        //                  ? "Please use " + aliasMapping.get(key) + " instead."
-        //                  : deprecatedConfigurations.get(key));
-        //          System.err.println(warning); // TODO: REPLACE with log call
+        //              (configSource.getAliasMapping().containsKey(key)
+        //                  ? "Please use " + configSource.getAliasMapping().get(key) + " instead."
+        //                  : configSource.getDeprecatedConfigurations().get(key));
+        //          System.err.println(warning);
         //        }
       } else {
         configs.put(key, value);

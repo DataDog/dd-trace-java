@@ -58,10 +58,12 @@ tasks.shadowJar {
 extra.set("minimumInstructionCoverage", 0.7)
 val excludedClassesCoverage by extra {
   listOf(
+    "datadog.environment.GeneratedSupportedConfigurations", // generated static file
     "datadog.environment.JavaVirtualMachine", // depends on OS and JVM vendor
     "datadog.environment.JavaVirtualMachine.JvmOptionsHolder", // depends on OS and JVM vendor
     "datadog.environment.JvmOptions", // depends on OS and JVM vendor
     "datadog.environment.OperatingSystem", // depends on OS
+    "datadog.environment.SupportedConfigurationSource", // wrapper class
   )
 }
 val excludedClassesBranchCoverage by extra {

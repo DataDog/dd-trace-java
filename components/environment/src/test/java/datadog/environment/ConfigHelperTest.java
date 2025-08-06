@@ -32,6 +32,10 @@ public class ConfigHelperTest {
   private static final String NON_DD_ALIAS_VAR = "TEST_CONFIG_ALIAS";
   private static final String NON_DD_ALIAS_VAL = "test_alias_val_non_dd";
 
+  private static final String NEW_ALIAS_TARGET = "DD_NEW_ALIAS_TARGET";
+  private static final String NEW_ALIAS_KEY_1 = "DD_NEW_ALIAS_KEY_1";
+  private static final String NEW_ALIAS_KEY_2 = "DD_NEW_ALIAS_KEY_2";
+
   private static ConfigInversionStrictStyle strictness;
   private static TestSupportedConfigurationSource testSource;
 
@@ -43,10 +47,12 @@ public class ConfigHelperTest {
 
     Map<String, List<String>> testAliases = new HashMap<>();
     testAliases.put(TEST_DD_VAR, Arrays.asList(ALIAS_DD_VAR, NON_DD_ALIAS_VAR));
+    testAliases.put(NEW_ALIAS_TARGET, Arrays.asList(NEW_ALIAS_KEY_1));
 
     Map<String, String> testAliasMapping = new HashMap<>();
     testAliasMapping.put(ALIAS_DD_VAR, TEST_DD_VAR);
     testAliasMapping.put(NON_DD_ALIAS_VAR, TEST_DD_VAR);
+    testAliasMapping.put(NEW_ALIAS_KEY_2, NEW_ALIAS_TARGET);
 
     // Create and set test configuration source
     testSource =
@@ -184,6 +190,19 @@ public class ConfigHelperTest {
     // Cleanup
     setEnvVar(TEST_DD_VAR, null);
     setEnvVar(NON_DD_ALIAS_VAR, null);
+  }
+
+  @Test
+  void testInconsistentAliasesAndAliasMapping() {
+    setEnvVar(NEW_ALIAS_KEY_2, "some_value");
+
+    Map<String, String> result = ConfigHelper.getEnvironmentVariables();
+
+    assertFalse(result.containsKey(NEW_ALIAS_KEY_2));
+    assertFalse(result.containsKey(NEW_ALIAS_TARGET));
+
+    // Cleanup
+    setEnvVar(NEW_ALIAS_KEY_2, null);
   }
 
   // Copied from utils.TestHelper

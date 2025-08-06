@@ -11,6 +11,7 @@ val minimumBranchCoverage by extra(0.8)
 val excludedClassesCoverage by extra(
   listOf(
     "datadog.trace.api.ConfigDefaults",
+    "datadog.trace.api.ConfigInversionStrictStyle",
     "datadog.trace.api.CorrelationIdentifier",
     "datadog.trace.api.DDSpanTypes",
     "datadog.trace.api.DDTags",

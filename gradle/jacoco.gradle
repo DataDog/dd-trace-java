@@ -37,9 +37,7 @@ if (!project.ext.hasProperty('excludedClassesBranchCoverage')) {
 }
 
 if (!project.ext.hasProperty('excludedClassesInstructionCoverage')) {
-  project.ext.excludedClassesInstructionCoverage = [
-    "datadog.environment.GeneratedSupportedConfigurations",
-    "datadog.environment.SupportedConfigurationSource"] // Generated static file
+  project.ext.excludedClassesInstructionCoverage = []
 }
 
 // defaults can be overridden per project:
