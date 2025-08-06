@@ -114,12 +114,12 @@ public class InjectingPipeWriter extends Writer {
           write(array[i]);
         }
         drain();
-        boolean tmpFilter = filter;
+        boolean wasFiltering = filter;
 
         // will be reset if no errors after the following write
         filter = false;
         downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
-        filter = tmpFilter;
+        filter = wasFiltering;
 
         for (int i = len - marker.length + 1; i < len; i++) {
           write(array[i]);
@@ -155,7 +155,7 @@ public class InjectingPipeWriter extends Writer {
 
   private void drain() throws IOException {
     if (count > 0) {
-      boolean tmpFilter = filter;
+      boolean wasFiltering = filter;
       filter = false;
       wasDraining = true;
       int start = (pos - count + lookbehind.length) % lookbehind.length;
@@ -164,7 +164,7 @@ public class InjectingPipeWriter extends Writer {
         downstream.write(lookbehind[(start + i) % lookbehind.length]);
         count--;
       }
-      filter = tmpFilter;
+      filter = wasFiltering;
       wasDraining = false;
     }
   }
