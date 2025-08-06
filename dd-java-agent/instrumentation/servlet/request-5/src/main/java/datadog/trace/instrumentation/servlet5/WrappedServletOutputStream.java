@@ -4,10 +4,9 @@ import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import java.io.IOException;
-import java.io.OutputStream;
 
 public class WrappedServletOutputStream extends ServletOutputStream {
-  private final OutputStream filtered;
+  private final InjectingPipeOutputStream filtered;
   private final ServletOutputStream delegate;
 
   public WrappedServletOutputStream(
@@ -29,6 +28,10 @@ public class WrappedServletOutputStream extends ServletOutputStream {
   @Override
   public void write(byte[] b, int off, int len) throws IOException {
     filtered.write(b, off, len);
+  }
+
+  public void commit() throws IOException {
+    filtered.commit();
   }
 
   @Override
