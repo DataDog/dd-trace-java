@@ -127,10 +127,10 @@ class ClientIpAddressResolverSpecification extends Specification {
     1 * context.getXClientIp() >> null
 
     then:
-    1 * context.getForwardedFor() >> null
+    1 * context.getForwarded() >> null
 
     then:
-    1 * context.getForwarded() >> null
+    1 * context.getForwardedFor() >> null
 
     then:
     1 * context.getXClusterClientIp() >> null
