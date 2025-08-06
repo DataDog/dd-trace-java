@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -75,6 +76,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
+        @Advice.AllArguments(typing = DYNAMIC) Object[] args,
         @Advice.This final Statement statement) {
       // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
@@ -127,6 +129,21 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           // context_info and v$session.action respectively.
           // we should not also inject it into SQL comments to avoid duplication
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
+
+          boolean appendComment = StatementInstrumentation.appendComment;
+
+          // There is a bug in the SQL Server JDBC driver that prevents
+          // the generated keys from being returned when the
+          // SQL comment is prepended to the SQL query.
+          // We only append in this case to avoid the comment from being truncated.
+          // @see https://github.com/microsoft/mssql-jdbc/issues/2729
+          if (isSqlServer
+              && args.length == 2
+              && args[1] instanceof Integer
+              && (Integer) args[1] == Statement.RETURN_GENERATED_KEYS) {
+            appendComment = true;
+          }
+
           sql =
               SQLCommenter.inject(
                   sql,

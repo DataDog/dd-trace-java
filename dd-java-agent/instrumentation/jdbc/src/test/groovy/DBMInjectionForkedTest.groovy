@@ -47,4 +47,16 @@ class DBMInjectionForkedTest extends AgentTestRunner {
     then:
     assert statement.sql == "/*${fullInjection}*/ ${query}"
   }
+
+  def "single query with generated keys"() {
+    setup:
+    def connection = new TestConnection(false)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.executeUpdate(query, 1)
+
+    then:
+    assert statement.sql == "${query} /*${fullInjection}*/"
+  }
 }
