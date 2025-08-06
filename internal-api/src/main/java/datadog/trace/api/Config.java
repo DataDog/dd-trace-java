@@ -4746,7 +4746,7 @@ public class Config {
       return "https://intake.profile." + site + "/api/v2/profile";
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
-      return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";
+      return getAgentUrl() + "/profiling/v1/input";
     }
   }
 
