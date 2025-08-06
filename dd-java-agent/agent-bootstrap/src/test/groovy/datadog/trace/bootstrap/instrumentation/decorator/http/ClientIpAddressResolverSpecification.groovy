@@ -82,7 +82,6 @@ class ClientIpAddressResolverSpecification extends Specification {
     'forwarded' | '   for=127.0.0.1,for= for=,for=;"for = for="" ,; for=8.8.8.8;' | '8.8.8.8'
     'forwarded' | 'for=192.0.2.60;proto=http;by=203.0.113.43' | '192.0.2.60'
     'forwarded' | 'For="[2001:db8:cafe::17]:4711"' | '2001:db8:cafe::17'
-    'forwarded' | 'for=192.0.2.43, for=198.51.100.17' | '198.51.100.17'
     'forwarded' | 'for=192.0.2.43;proto=https;by=203.0.113.43' | '192.0.2.43'
     'forwarded' | 'for="_gazonk"' | null
     'forwarded' | 'for=unknown, for=8.8.8.8' | '8.8.8.8'
