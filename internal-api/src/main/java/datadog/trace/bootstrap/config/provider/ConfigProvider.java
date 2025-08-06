@@ -12,6 +12,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -75,19 +76,22 @@ public final class ConfigProvider {
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
+    String foundValue = null;
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
-        return value;
+        if (foundValue == null) {
+          foundValue = value;
+        }
       }
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   /**
@@ -95,19 +99,22 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    String foundValue = null;
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null && !value.trim().isEmpty()) {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
-        return value;
+        if (foundValue == null) {
+          foundValue = value;
+        }
       }
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   public String getStringExcludingSource(
@@ -115,7 +122,9 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
+    String foundValue = null;
     for (ConfigProvider.Source source : sources) {
+      // Do we still want to report telemetry in this case?
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
@@ -125,13 +134,15 @@ public final class ConfigProvider {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
-        return value;
+        if (foundValue == null) {
+          foundValue = value;
+        }
       }
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   public boolean isSet(String key) {
@@ -192,6 +203,7 @@ public final class ConfigProvider {
   }
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
+    T foundValue = null;
     for (ConfigProvider.Source source : sources) {
       try {
         String sourceValue = source.get(key, aliases);
@@ -200,7 +212,9 @@ public final class ConfigProvider {
           if (collectConfig) {
             ConfigCollector.get().put(key, sourceValue, source.origin());
           }
-          return value;
+          if (foundValue == null) {
+            foundValue = value;
+          }
         }
       } catch (NumberFormatException ex) {
         // continue
@@ -209,7 +223,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   public List<String> getList(String key) {
@@ -256,11 +270,14 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        if (collectConfig) {
+          ConfigCollector.get().put(key, parsedMap, origin);
+        }
       }
       merged.putAll(parsedMap);
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+    if (collectConfig && merged.isEmpty()) {
+      ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT);
     }
     return merged;
   }
@@ -278,11 +295,14 @@ public final class ConfigProvider {
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        if (collectConfig) {
+          ConfigCollector.get().put(key, parsedMap, origin);
+        }
       }
       merged.putAll(parsedMap);
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+    if (collectConfig && merged.isEmpty()) {
+      ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT);
     }
     return merged;
   }
@@ -299,11 +319,14 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        if (collectConfig) {
+          ConfigCollector.get().put(key, parsedMap, origin);
+        }
       }
       merged.putAll(parsedMap);
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+    if (collectConfig && merged.isEmpty()) {
+      ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT);
     }
     return merged;
   }
@@ -323,11 +346,14 @@ public final class ConfigProvider {
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
           origin = sources[i].origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, parsedMap, origin);
+          }
         }
         merged.putAll(parsedMap);
       }
-      if (collectConfig) {
-        ConfigCollector.get().put(key, merged, origin);
+      if (collectConfig && merged.isEmpty()) {
+        ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT);
       }
     }
     return merged;
