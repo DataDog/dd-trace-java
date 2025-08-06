@@ -46,6 +46,7 @@ tasks.named("check").configure {
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation libs.bundles.spock24
 }
 
 // Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
