@@ -17,6 +17,8 @@ jobs:
       - name: Add milestone to merged pull requests
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # 7.0.1
         with:
+          retries: 3
+          retry-exempt-status-codes: 400,401
           script: |
             // Get project milestones
             const response = await github.rest.issues.listMilestones({

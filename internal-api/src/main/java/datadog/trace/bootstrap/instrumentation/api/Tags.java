@@ -113,6 +113,7 @@ public class Tags {
   public static final String CI_PIPELINE_NUMBER = "ci.pipeline.number";
   public static final String CI_PIPELINE_URL = "ci.pipeline.url";
   public static final String CI_STAGE_NAME = "ci.stage.name";
+  public static final String CI_JOB_ID = "ci.job.id";
   public static final String CI_JOB_NAME = "ci.job.name";
   public static final String CI_JOB_URL = "ci.job.url";
   public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
@@ -132,6 +133,8 @@ public class Tags {
   public static final String GIT_TAG = "git.tag";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull_request.base_branch";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
+  public static final String GIT_PULL_REQUEST_BASE_BRANCH_HEAD_SHA =
+      "git.pull_request.base_branch_head_sha";
   public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
   public static final String GIT_COMMIT_HEAD_AUTHOR_NAME = "git.commit.head.author.name";
   public static final String GIT_COMMIT_HEAD_AUTHOR_EMAIL = "git.commit.head.author.email";
@@ -166,4 +169,6 @@ public class Tags {
   public static final String LLMOBS_TASK_SPAN_KIND = "task";
   public static final String LLMOBS_AGENT_SPAN_KIND = "agent";
   public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
+  public static final String LLMOBS_EMBEDDING_SPAN_KIND = "embedding";
+  public static final String LLMOBS_RETRIEVAL_SPAN_KIND = "retrieval";
 }

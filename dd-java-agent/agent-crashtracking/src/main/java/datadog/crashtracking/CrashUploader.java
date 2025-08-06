@@ -12,6 +12,7 @@ import datadog.common.container.ContainerInfo;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.crashtracking.dto.CrashLog;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -302,7 +303,9 @@ public final class CrashUploader {
         writer.beginObject();
         writer.name("env").value(config.getEnv());
         writer.name("language_name").value("jvm");
-        writer.name("language_version").value(System.getProperty("java.version", "unknown"));
+        writer
+            .name("language_version")
+            .value(SystemProperties.getOrDefault("java.version", "unknown"));
         writer.name("service_name").value(config.getServiceName());
         writer.name("service_version").value(config.getVersion());
         writer.name("tracer_version").value(VersionInfo.VERSION);

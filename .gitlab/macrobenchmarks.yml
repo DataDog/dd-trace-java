@@ -80,7 +80,10 @@ check-slo-breaches:
   interruptible: true
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
-  when: on_success
+  rules:
+    - if: $POPULATE_CACHE
+      when: never
+    - when: on_success
   needs:
     - job: baseline
       artifacts: true
@@ -133,6 +136,9 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: macrobenchmarks
   needs: ["check-slo-breaches"]
-  when: always
+  rules:
+    - if: $POPULATE_CACHE
+      when: never
+    - when: always
   variables:
     CHANNEL: "apm-release-platform"

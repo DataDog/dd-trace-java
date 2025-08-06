@@ -31,7 +31,6 @@ import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
@@ -139,15 +138,18 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
-    Properties systemProperties = System.getProperties();
-    for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-      String propertyName = (String) e.getKey();
-      Object propertyValue = e.getValue();
-      if ((propertyName.startsWith(Config.PREFIX)
-              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
-          && propertyValue != null) {
-        propagatedSystemProperties.put(propertyName, propertyValue.toString());
+    try {
+      Properties systemProperties = System.getProperties();
+      for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
+        String propertyName = (String) e.getKey();
+        Object propertyValue = e.getValue();
+        if ((propertyName.startsWith(Config.PREFIX)
+                || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
+            && propertyValue != null) {
+          propagatedSystemProperties.put(propertyName, propertyValue.toString());
+        }
       }
+    } catch (SecurityException ignored) {
     }
 
     propagatedSystemProperties.put(
@@ -301,7 +303,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+    tagsPropagator.mergeTestFrameworks(result.getTestFrameworks());
 
     return AckResponse.INSTANCE;
   }

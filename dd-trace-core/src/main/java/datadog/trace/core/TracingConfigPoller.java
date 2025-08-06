@@ -246,7 +246,7 @@ final class TracingConfigPoller {
 
     Map<String, String> resultMap = new HashMap<>(input.size());
     for (String s : input) {
-      int colonIndex = s.indexOf(":");
+      int colonIndex = s.indexOf(':');
       if (colonIndex > -1
           && colonIndex < s.length() - 1) { // ensure there's a colon that's not at the start or end
         String key = s.substring(0, colonIndex);

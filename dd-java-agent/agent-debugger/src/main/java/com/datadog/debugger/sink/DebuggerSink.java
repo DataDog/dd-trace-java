@@ -23,6 +23,11 @@ public class DebuggerSink {
   private static final long LOW_RATE_INITIAL_FLUSH_INTERVAL = 1000;
   static final long LOW_RATE_STEP_SIZE = 200;
   private static final String PREFIX = "debugger.sink.";
+  private static final String DROPPED_REQ_METRIC = PREFIX + "dropped.requests";
+  private static final String UPLOAD_REMAINING_CAP_METRIC =
+      PREFIX + "upload.queue.remaining.capacity";
+  private static final String CURRENT_FLUSH_INTERVAL_METRIC = PREFIX + "current.flush.interval";
+  private static final String SKIP_METRIC = PREFIX + "skip";
 
   private final ProbeStatusSink probeStatusSink;
   private final SnapshotSink snapshotSink;
@@ -109,7 +114,7 @@ public class DebuggerSink {
   public void addSnapshot(Snapshot snapshot) {
     boolean added = snapshotSink.addLowRate(snapshot);
     if (!added) {
-      debuggerMetrics.count(PREFIX + "dropped.requests", 1);
+      debuggerMetrics.count(DROPPED_REQ_METRIC, 1);
     } else {
       probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
     }
@@ -120,7 +125,7 @@ public class DebuggerSink {
     if (!added) {
       long dropped = highRateDropped.incrementAndGet();
       if (dropped % 100 == 0) {
-        debuggerMetrics.count(PREFIX + "dropped.requests", 100);
+        debuggerMetrics.count(DROPPED_REQ_METRIC, 100);
       }
     } else {
       probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
@@ -151,9 +156,8 @@ public class DebuggerSink {
   }
 
   private void reconsiderLowRateFlushInterval(DebuggerSink debuggerSink) {
-    debuggerMetrics.histogram(
-        PREFIX + "upload.queue.remaining.capacity", snapshotSink.remainingCapacity());
-    debuggerMetrics.histogram(PREFIX + "current.flush.interval", currentLowRateFlushInterval);
+    debuggerMetrics.histogram(UPLOAD_REMAINING_CAP_METRIC, snapshotSink.remainingCapacity());
+    debuggerMetrics.histogram(CURRENT_FLUSH_INTERVAL_METRIC, currentLowRateFlushInterval);
     doReconsiderLowRateFlushInterval();
   }
 
@@ -225,7 +229,7 @@ public class DebuggerSink {
 
   /** Notifies the snapshot was skipped for one of the SkipCause reason */
   public void skipSnapshot(String probeId, SkipCause cause) {
-    debuggerMetrics.incrementCounter(PREFIX + "skip", cause.tag(), "probe_id:" + probeId);
+    debuggerMetrics.incrementCounter(SKIP_METRIC, cause.tag(), "probe_id:" + probeId);
   }
 
   long getCurrentLowRateFlushInterval() {

@@ -36,7 +36,7 @@ class CiVisibilityRepoServicesTest extends Specification {
     setup:
     def expectedInfo = new PullRequestInfo(
       "master",
-      "baseSha",
+      "baseSha", null,
       new CommitInfo(
       "sourceSha",
       new PersonInfo("john", "john@doe.com", "never"),
@@ -47,25 +47,19 @@ class CiVisibilityRepoServicesTest extends Specification {
       )
 
     def config = Stub(Config)
-    config.getGitPullRequestBaseBranch() >> expectedInfo.getPullRequestBaseBranch()
+    config.getGitPullRequestBaseBranch() >> expectedInfo.getBaseBranch()
 
     def environment = Stub(CiEnvironment)
     environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA) >> "targetSha"
-    environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA) >> expectedInfo.getGitCommitHead().getSha()
+    environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA) >> expectedInfo.getHeadCommit().getSha()
 
     def repoUnshallow = Stub(GitRepoUnshallow)
     def ciProviderInfo = Stub(CIProviderInfo)
-    ciProviderInfo.buildPullRequestInfo() >> new PullRequestInfo(null, null, CommitInfo.NOOP, expectedInfo.getPullRequestNumber())
+    ciProviderInfo.buildPullRequestInfo() >> new PullRequestInfo(null, null, null, CommitInfo.NOOP, expectedInfo.getPullRequestNumber())
 
     def gitClient = Stub(GitClient)
-    gitClient.getMergeBase("targetSha", "sourceSha") >> expectedInfo.getPullRequestBaseBranchSha()
-    gitClient.getAuthorName("sourceSha") >> expectedInfo.getGitCommitHead().getAuthor().getName()
-    gitClient.getAuthorEmail("sourceSha") >> expectedInfo.getGitCommitHead().getAuthor().getEmail()
-    gitClient.getAuthorDate("sourceSha") >> expectedInfo.getGitCommitHead().getAuthor().getIso8601Date()
-    gitClient.getCommitterName("sourceSha") >> expectedInfo.getGitCommitHead().getCommitter().getName()
-    gitClient.getCommitterEmail("sourceSha") >> expectedInfo.getGitCommitHead().getCommitter().getEmail()
-    gitClient.getCommitterDate("sourceSha") >> expectedInfo.getGitCommitHead().getCommitter().getIso8601Date()
-    gitClient.getFullMessage("sourceSha") >> expectedInfo.getGitCommitHead().getFullMessage()
+    gitClient.getMergeBase("targetSha", "sourceSha") >> expectedInfo.getBaseBranchSha()
+    gitClient.getCommitInfo("sourceSha", true) >> expectedInfo.getHeadCommit()
 
     expect:
     CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient, repoUnshallow) == expectedInfo

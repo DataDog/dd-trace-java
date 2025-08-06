@@ -60,6 +60,7 @@ workflow:
       - "11"
       - "17"
       - "21"
+      - "25"
       - "stable"
       - "semeru11"
       - "oracle8"
@@ -68,6 +69,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
+    CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
@@ -141,6 +143,8 @@ default:
     CACHE_COMPRESSION_LEVEL: "slowest"
 
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
   cache:
     - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
@@ -191,10 +195,10 @@ default:
   after_script:
     - *cgroup_info
 
-# Checks and fail early if central credentials are incorrect, indeed, when a new token is generated
-# on the central publisher protal, it invalidates the old one. This checks prevents going further.
+# Check and fail early if maven central credentials are incorrect. When a new token is generated
+# on the central publisher portal, it invalidates the old one. This check prevents going further.
 # See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
-pre-release-checks:
+maven-central-pre-release-check:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
   rules:
@@ -213,9 +217,37 @@ pre-release-checks:
         exit 1
       fi
 
+dd-octo-sts-pre-release-check:
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  stage: .pre
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+      allow_failure: false
+  before_script:
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > test-github-token.txt
+  script:
+    - gh auth login --with-token < test-github-token.txt
+    - gh auth status
+  after_script:
+    - dd-octo-sts revoke -t $(cat test-github-token.txt)
+  retry:
+    max: 2
+    when: always
+
 build:
   needs:
-    - job: pre-release-checks
+    - job: maven-central-pre-release-check
+      optional: true
+    - job: dd-octo-sts-pre-release-check
       optional: true
   extends: .gradle_build
   variables:
@@ -223,7 +255,7 @@ build:
     CACHE_TYPE: lib
     DEPENDENCY_CACHE_POLICY: pull
   script:
-    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks; fi
+    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
@@ -570,11 +602,12 @@ agent_integration_tests:
     GRADLE_TARGET: "traceAgentTest"
     CACHE_TYPE: "base"
   services:
-    - name: datadog/agent:7.34.0
+    - name: registry.ddbuild.io/images/mirror/datadog/agent:7.40.1
       alias: local-agent
       variables:
         DD_APM_ENABLED: "true"
         DD_BIND_HOST: "0.0.0.0"
+        DD_HOSTNAME: "local-agent"
         DD_API_KEY: "invalid_key_but_this_is_fine"
 
 test_base:
@@ -802,7 +835,11 @@ deploy_to_maven_central:
 
 deploy_artifacts_to_github:
   stage: publish
-  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -814,16 +851,21 @@ deploy_artifacts_to_github:
     - job: deploy_to_maven_central
       # The deploy_to_maven_central job is not run for release candidate versions
       optional: true
+  before_script:
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
   script:
-    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
     - gh auth login --with-token < github-token.txt
-    - gh auth status  # Maybe helpful to have this output in logs?
+    - gh auth status
     - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
-    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # upload two filenames
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt)
   retry:
     max: 2
     when: always

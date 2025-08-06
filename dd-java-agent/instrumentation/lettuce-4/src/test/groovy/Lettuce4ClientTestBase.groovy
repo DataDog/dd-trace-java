@@ -52,7 +52,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     dbUriNonExistent = "redis://" + dbAddrNonExistent
     embeddedDbUri = "redis://" + dbAddr
 
-    redisServer = RedisServer.builder()
+    redisServer = RedisServer.newRedisServer()
       // bind to localhost to avoid firewall popup
       .setting("bind " + HOST)
       // set max memory to avoid problems in CI

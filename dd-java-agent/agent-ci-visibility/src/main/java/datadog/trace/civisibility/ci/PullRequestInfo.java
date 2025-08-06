@@ -8,35 +8,42 @@ import javax.annotation.Nonnull;
 public class PullRequestInfo {
 
   public static final PullRequestInfo EMPTY =
-      new PullRequestInfo(null, null, CommitInfo.NOOP, null);
+      new PullRequestInfo(null, null, null, CommitInfo.NOOP, null);
 
-  private final String pullRequestBaseBranch;
-  private final String pullRequestBaseBranchSha;
-  @Nonnull private final CommitInfo gitCommitHead;
+  private final String baseBranch;
+  private final String baseBranchSha;
+  private final String baseBranchHeadSha;
+  @Nonnull private final CommitInfo headCommit;
   private final String pullRequestNumber;
 
   public PullRequestInfo(
-      String pullRequestBaseBranch,
-      String pullRequestBaseBranchSha,
-      @Nonnull CommitInfo gitCommitHead,
+      String baseBranch,
+      String baseBranchSha,
+      String baseBranchHeadSha,
+      @Nonnull CommitInfo headCommit,
       String pullRequestNumber) {
-    this.pullRequestBaseBranch = pullRequestBaseBranch;
-    this.pullRequestBaseBranchSha = pullRequestBaseBranchSha;
-    this.gitCommitHead = gitCommitHead;
+    this.baseBranch = baseBranch;
+    this.baseBranchSha = baseBranchSha;
+    this.baseBranchHeadSha = baseBranchHeadSha;
+    this.headCommit = headCommit;
     this.pullRequestNumber = pullRequestNumber;
   }
 
-  public String getPullRequestBaseBranch() {
-    return pullRequestBaseBranch;
+  public String getBaseBranch() {
+    return baseBranch;
   }
 
-  public String getPullRequestBaseBranchSha() {
-    return pullRequestBaseBranchSha;
+  public String getBaseBranchSha() {
+    return baseBranchSha;
+  }
+
+  public String getBaseBranchHeadSha() {
+    return baseBranchHeadSha;
   }
 
   @Nonnull
-  public CommitInfo getGitCommitHead() {
-    return gitCommitHead;
+  public CommitInfo getHeadCommit() {
+    return headCommit;
   }
 
   public String getPullRequestNumber() {
@@ -44,38 +51,36 @@ public class PullRequestInfo {
   }
 
   public boolean isEmpty() {
-    return Strings.isBlank(pullRequestBaseBranch)
-        && Strings.isBlank(pullRequestBaseBranchSha)
-        && gitCommitHead.isEmpty()
+    return Strings.isBlank(baseBranch)
+        && Strings.isBlank(baseBranchSha)
+        && Strings.isBlank(baseBranchHeadSha)
+        && headCommit.isEmpty()
         && Strings.isBlank(pullRequestNumber);
   }
 
   public boolean isComplete() {
-    return Strings.isNotBlank(pullRequestBaseBranch)
-        && Strings.isNotBlank(pullRequestBaseBranchSha)
-        && gitCommitHead.isComplete()
+    return Strings.isNotBlank(baseBranch)
+        && Strings.isNotBlank(baseBranchSha)
+        && Strings.isNotBlank(baseBranchHeadSha)
+        && headCommit.isComplete()
         && Strings.isNotBlank(pullRequestNumber);
   }
 
   /**
-   * Merges info by completing the empty information fields with the fallback's
+   * Combine infos by completing the empty information fields in {@code first} with {@code second}'s
    *
-   * @param info Base PR info
-   * @param fallback Fallback PR info
-   * @return Completed PR info
+   * @param first Base PR info
+   * @param second Fallback PR info
+   * @return Combined PR info
    */
-  public static PullRequestInfo merge(PullRequestInfo info, PullRequestInfo fallback) {
+  public static PullRequestInfo coalesce(
+      final PullRequestInfo first, final PullRequestInfo second) {
     return new PullRequestInfo(
-        Strings.isNotBlank(info.pullRequestBaseBranch)
-            ? info.pullRequestBaseBranch
-            : fallback.pullRequestBaseBranch,
-        Strings.isNotBlank(info.pullRequestBaseBranchSha)
-            ? info.pullRequestBaseBranchSha
-            : fallback.pullRequestBaseBranchSha,
-        CommitInfo.merge(info.gitCommitHead, fallback.gitCommitHead),
-        Strings.isNotBlank(info.pullRequestNumber)
-            ? info.pullRequestNumber
-            : fallback.pullRequestNumber);
+        Strings.coalesce(first.baseBranch, second.baseBranch),
+        Strings.coalesce(first.baseBranchSha, second.baseBranchSha),
+        Strings.coalesce(first.baseBranchHeadSha, second.baseBranchHeadSha),
+        CommitInfo.coalesce(first.headCommit, second.headCommit),
+        Strings.coalesce(first.pullRequestNumber, second.pullRequestNumber));
   }
 
   @Override
@@ -87,29 +92,32 @@ public class PullRequestInfo {
       return false;
     }
     PullRequestInfo that = (PullRequestInfo) o;
-    return Objects.equals(pullRequestBaseBranch, that.pullRequestBaseBranch)
-        && Objects.equals(pullRequestBaseBranchSha, that.pullRequestBaseBranchSha)
-        && Objects.equals(gitCommitHead, that.gitCommitHead)
+    return Objects.equals(baseBranch, that.baseBranch)
+        && Objects.equals(baseBranchSha, that.baseBranchSha)
+        && Objects.equals(baseBranchHeadSha, that.baseBranchHeadSha)
+        && Objects.equals(headCommit, that.headCommit)
         && Objects.equals(pullRequestNumber, that.pullRequestNumber);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(
-        pullRequestBaseBranch, pullRequestBaseBranchSha, gitCommitHead, pullRequestNumber);
+    return Objects.hash(baseBranch, baseBranchSha, headCommit, pullRequestNumber);
   }
 
   @Override
   public String toString() {
     return "PR{"
         + "baseBranch='"
-        + pullRequestBaseBranch
+        + baseBranch
         + '\''
         + ", baseSHA='"
-        + pullRequestBaseBranchSha
+        + baseBranchSha
         + '\''
-        + ", commitSHA='"
-        + gitCommitHead
+        + ", baseHeadSHA='"
+        + baseBranchHeadSha
+        + '\''
+        + ", headCommit='"
+        + headCommit
         + '\''
         + ", prNumber='"
         + pullRequestNumber

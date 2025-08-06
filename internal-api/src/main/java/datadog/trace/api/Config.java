@@ -151,6 +151,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
@@ -584,6 +585,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH;
@@ -631,8 +633,10 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
@@ -825,6 +829,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
+  private final List<String> traceBaggageTagKeys;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1166,6 +1171,7 @@ public class Config {
 
   private final boolean azureAppServices;
   private final boolean azureFunctions;
+  private final boolean awsServerless;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -1239,7 +1245,7 @@ public class Config {
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled =
         configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
-    runtimeVersion = System.getProperty("java.version", "unknown");
+    runtimeVersion = SystemProperties.getOrDefault("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -1485,6 +1491,9 @@ public class Config {
     azureFunctions =
         getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
 
+    awsServerless =
+        getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
+
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
@@ -1697,6 +1706,11 @@ public class Config {
         // If we have a new setting, we log a warning
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
+
+      // Parse the baggage tag keys configuration
+      traceBaggageTagKeys =
+          configProvider.getList(TRACE_BAGGAGE_TAG_KEYS, DEFAULT_TRACE_BAGGAGE_TAG_KEYS);
+
       // Now we can check if we should pick the default injection/extraction
 
       tracePropagationStylesToExtract =
@@ -2971,6 +2985,10 @@ public class Config {
     return baggageMapping;
   }
 
+  public List<String> getTraceBaggageTagKeys() {
+    return traceBaggageTagKeys;
+  }
+
   public Map<String, String> getHttpServerPathResourceNameMapping() {
     return httpServerPathResourceNameMapping;
   }
@@ -3402,7 +3420,7 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     if (!JavaVirtualMachine.isJ9() && isJavaVersion(8)) {
-      String arch = System.getProperty("os.arch");
+      String arch = SystemProperties.get("os.arch");
       if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
@@ -4277,6 +4295,10 @@ public class Config {
     return azureAppServices;
   }
 
+  public boolean isAwsServerless() {
+    return awsServerless;
+  }
+
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
   }
@@ -4462,12 +4484,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"),
+        SystemProperties.get("java.runtime.name"),
+        SystemProperties.get("java.version"),
+        SystemProperties.get("java.vendor"),
+        SystemProperties.get("os.arch"),
+        SystemProperties.get("os.name"),
+        SystemProperties.get("os.version"),
         isServiceNameSetByUser() ? "true" : "false");
   }
 
@@ -4648,7 +4670,7 @@ public class Config {
     // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
     // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
     String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
-    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf('+');
 
     // The subscription ID of the site instance in Azure App Services
     String subscriptionId = null;
@@ -5206,7 +5228,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = System.getenv(name);
+    String value = EnvironmentVariables.get(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
@@ -5229,7 +5251,7 @@ public class Config {
   }
 
   private static String getProp(String name, String def) {
-    String value = System.getProperty(name, def);
+    String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
@@ -5391,6 +5413,8 @@ public class Config {
         + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
+        + ", traceBaggageTagKeys="
+        + traceBaggageTagKeys
         + ", tracePropagationStylesToExtract="
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="

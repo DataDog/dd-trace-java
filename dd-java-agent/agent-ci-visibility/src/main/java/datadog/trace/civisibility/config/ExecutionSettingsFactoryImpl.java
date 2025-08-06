@@ -404,12 +404,12 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return Collections.emptyMap();
     }
     try {
-      if (Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getSha())
-          && Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getFullMessage())) {
+      if (Strings.isNotBlank(pullRequestInfo.getHeadCommit().getSha())
+          && Strings.isNotBlank(pullRequestInfo.getHeadCommit().getFullMessage())) {
         return configurationApi.getTestManagementTestsByModule(
             tracerEnvironment,
-            pullRequestInfo.getGitCommitHead().getSha(),
-            pullRequestInfo.getGitCommitHead().getFullMessage());
+            pullRequestInfo.getHeadCommit().getSha(),
+            pullRequestInfo.getHeadCommit().getFullMessage());
       } else {
         return configurationApi.getTestManagementTestsByModule(
             tracerEnvironment, tracerEnvironment.getSha(), tracerEnvironment.getCommitMessage());
@@ -429,16 +429,21 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     try {
       if (repositoryRoot != null) {
         // ensure repo is not shallow before attempting to get git diff
-        gitRepoUnshallow.unshallow(false);
+        gitRepoUnshallow.unshallow();
 
-        String baseCommitSha = pullRequestInfo.getPullRequestBaseBranchSha();
-        if (baseCommitSha == null) {
+        String baseCommitSha = pullRequestInfo.getBaseBranchSha();
+        if (baseCommitSha == null && pullRequestInfo.getBaseBranchHeadSha() != null) {
           baseCommitSha =
-              gitClient.getBaseCommitSha(pullRequestInfo.getPullRequestBaseBranch(), defaultBranch);
+              gitClient.getMergeBase(
+                  pullRequestInfo.getBaseBranchHeadSha(), pullRequestInfo.getHeadCommit().getSha());
         }
 
-        Diff diff =
-            gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getGitCommitHead().getSha());
+        if (baseCommitSha == null) {
+          baseCommitSha =
+              gitClient.getBaseCommitSha(pullRequestInfo.getBaseBranch(), defaultBranch);
+        }
+
+        Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getHeadCommit().getSha());
         if (diff != null) {
           return diff;
         }
