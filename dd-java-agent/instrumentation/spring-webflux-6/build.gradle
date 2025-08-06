@@ -53,7 +53,7 @@ dependencies {
   }
   bootTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
   // our default version of spock is too old
-  bootTestImplementation libs.bundles.spock24.spring
+  bootTestImplementation libs.bundles.spock.spring
 
   latestDepBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '3.+'
   latestDepBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+', {
@@ -62,7 +62,7 @@ dependencies {
   }
   latestDepBootTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
   // our default version of spock is too old
-  latestDepBootTestImplementation libs.bundles.spock24.spring
+  latestDepBootTestImplementation libs.bundles.spock.spring
 
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
@@ -80,6 +80,6 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
 
   // our default version of spock is too old
-  iastTestImplementation libs.bundles.spock24.spring
+  iastTestImplementation libs.bundles.spock.spring
 }
 

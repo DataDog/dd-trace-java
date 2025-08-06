@@ -19,6 +19,9 @@ dependencies {
   implementation project(':dd-trace-api')
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+
+  // Spock 2.4 requires
+  testRuntimeOnly("org.junit.platform:junit-platform-engine:1.12.2")
 }
 
 tasks.withType(Test).configureEach {
