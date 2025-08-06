@@ -69,7 +69,25 @@ dependencies {
 }
 
 configurations.testImplementation {
-  exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
+  exclude group: 'com.typesafe.play', module: "play-test_$scalaVer"
+}
+
+// Fix for flaky error: Source directory '/dd-smoke-tests/play-2.8/build/src/play/routes' is not a directory.
+tasks.register('cleanRoutes') {
+  description = 'Deletes routes path if it is a file instead of directory'
+  group = 'build cleanup'
+
+  doFirst {
+    def routesPath = layout.buildDirectory.dir('src/play/routes').get().asFile
+    if (routesPath.exists() && !routesPath.isDirectory()) {
+      logger.lifecycle("Removing file that blocks routes directory: ${routesPath}")
+      routesPath.delete()
+    }
+  }
+}
+
+tasks.named('compileScala') {
+  dependsOn tasks.named('cleanRoutes')
 }
 
 tasks.named('compileTestGroovy').configure {
