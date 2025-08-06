@@ -126,10 +126,29 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-      if (Files.isSymbolicLink(dir) && !followSymlinks) {
-        return FileVisitResult.SKIP_SUBTREE;
+      if (Files.isSymbolicLink(dir)) {
+        if (!followSymlinks) {
+          // Configured to skip symlinks
+          return FileVisitResult.SKIP_SUBTREE;
+        }
+        if (readSymbolicLink(dir).startsWith(repoRoot)) {
+          // The path is a symlink that points inside the repo.
+          // We'll visit the folder that it points to anyway,
+          // moreover, we don't want two different results for one file
+          // (one containing the symlink, the other - the actual folder).
+          return FileVisitResult.SKIP_SUBTREE;
+        }
       }
       return FileVisitResult.CONTINUE;
+    }
+
+    private static Path readSymbolicLink(Path path) {
+      try {
+        return Files.readSymbolicLink(path);
+      } catch (Exception e) {
+        log.debug("Could not read symbolic link {}", path, e);
+        return path;
+      }
     }
 
     @Override
