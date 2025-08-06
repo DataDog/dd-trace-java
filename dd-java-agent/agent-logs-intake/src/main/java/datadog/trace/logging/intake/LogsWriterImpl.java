@@ -4,10 +4,10 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
-import datadog.communication.BackendApiFactory.Intake;
 import datadog.trace.api.Config;
 import datadog.trace.api.logging.intake.LogsWriter;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.api.intake.AgentlessIntake;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -87,7 +87,7 @@ public class LogsWriterImpl implements LogsWriter {
   }
 
   private void logPollingLoop() {
-    BackendApi backendApi = apiFactory.createBackendApi(Intake.LOGS);
+    BackendApi backendApi = apiFactory.createBackendApi(AgentlessIntake.LOGS);
     LogsDispatcher logsDispatcher = new LogsDispatcher(backendApi);
 
     while (!Thread.currentThread().isInterrupted()) {

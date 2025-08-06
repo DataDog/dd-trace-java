@@ -34,6 +34,7 @@ import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.index.*;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import datadog.trace.api.intake.AgentlessIntake;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
@@ -84,7 +85,7 @@ public class CiVisibilityServices {
     this.config = config;
     this.metricCollector = metricCollector;
     this.backendApi =
-        new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.API);
+        new BackendApiFactory(config, sco).createBackendApi(AgentlessIntake.API);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 

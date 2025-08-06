@@ -640,6 +640,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.intake.AgentlessIntake;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
@@ -4110,19 +4111,18 @@ public class Config {
 
   public String getFinalDebuggerSnapshotUrl() {
     if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
-      // Used in Failed Test Replay agentless
-      String agentlessUrl = getCiVisibilityAgentlessUrl();
-      if (Strings.isBlank(agentlessUrl)) {
-        agentlessUrl = "https://http-intake.logs." + getSite();
-      }
-      return agentlessUrl + "/api/v2/logs";
+      return AgentlessIntake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
     }
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+    if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
+      return AgentlessIntake.LOGS.getAgentlessUrl(this) + "logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+    }
   }
 
   public String getDynamicInstrumentationProbeFile() {

@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.config
 
 import datadog.communication.BackendApi
-import datadog.communication.BackendApiFactory
 import datadog.communication.EvpProxyApi
 import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
@@ -12,6 +11,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.CiVisibilityTestUtils
+import datadog.trace.api.intake.AgentlessIntake
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
@@ -273,7 +273,7 @@ class ConfigurationApiImplTest extends Specification {
   }
 
   private BackendApi givenIntakeApi(URI address, boolean responseCompression) {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", address.toString(), BackendApiFactory.Intake.API.version))
+    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", address.toString(), AgentlessIntake.API.getVersion()))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
