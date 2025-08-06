@@ -14,8 +14,8 @@ class RumServlet extends HttpServlet {
 
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    resp.setContentType(mimeType)
     try (def writer = resp.getWriter()) {
+      resp.setContentType(mimeType)
       writer.println("\n" +
       "<!doctype html>\n" +
       "<html>\n" +
