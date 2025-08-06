@@ -171,6 +171,9 @@ public final class OpenJdkController implements Controller {
       disableEvent(recordingSettings, "jdk.ExecutionSample", CPUTIME_SAMPLE_JDK25);
       enableEvent(recordingSettings, "jdk.CPUTimeSample", CPUTIME_SAMPLE_JDK25);
       enableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", CPUTIME_SAMPLE_JDK25);
+      
+      // enable experimental events
+      recordingSettings.put("jdk.jfr.event.experimental", "true");
     }
 
     // Toggle settings from override args
