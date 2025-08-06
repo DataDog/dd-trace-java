@@ -5,7 +5,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
-import datadog.trace.api.intake.AgentlessIntake;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -25,7 +25,7 @@ public class BackendApiFactory {
     this.sharedCommunicationObjects = sharedCommunicationObjects;
   }
 
-  public @Nullable BackendApi createBackendApi(AgentlessIntake intake) {
+  public @Nullable BackendApi createBackendApi(Intake intake) {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     if (intake.isAgentlessEnabled(config)) {

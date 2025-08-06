@@ -3,7 +3,7 @@ package datadog.trace.api.intake;
 import datadog.trace.api.Config;
 import java.util.function.Function;
 
-public enum AgentlessIntake {
+public enum Intake {
   API("api", "v2", Config::isCiVisibilityAgentlessEnabled, Config::getCiVisibilityAgentlessUrl),
   LLMOBS_API("api", "v2", Config::isLlmObsAgentlessEnabled, Config::getLlMObsAgentlessUrl),
   LOGS(
@@ -17,7 +17,7 @@ public enum AgentlessIntake {
   public final Function<Config, Boolean> agentlessModeEnabled;
   public final Function<Config, String> customUrl;
 
-  AgentlessIntake(
+  Intake(
       String urlPrefix,
       String version,
       Function<Config, Boolean> agentlessModeEnabled,

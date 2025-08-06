@@ -644,7 +644,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
-import datadog.trace.api.intake.AgentlessIntake;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
@@ -4129,7 +4129,7 @@ public class Config {
 
   public String getFinalDebuggerSnapshotUrl() {
     if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
-      return AgentlessIntake.LOGS.getAgentlessUrl(this) + "logs";
+      return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
     }
@@ -4137,7 +4137,7 @@ public class Config {
 
   public String getFinalDebuggerSymDBUrl() {
     if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
-      return AgentlessIntake.LOGS.getAgentlessUrl(this) + "logs";
+      return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
     }
