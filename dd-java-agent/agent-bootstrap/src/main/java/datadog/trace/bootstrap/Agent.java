@@ -632,7 +632,7 @@ public class Agent {
       }
 
       maybeStartAppSec(scoClass, sco);
-      // start before debugger to enable Failed Test Replay correctly
+      // start civisibility before debugger to enable Failed Test Replay correctly in headless mode
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLLMObs(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
