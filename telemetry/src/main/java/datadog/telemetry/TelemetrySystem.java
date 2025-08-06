@@ -10,6 +10,7 @@ import datadog.telemetry.endpoint.EndpointPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
+import datadog.telemetry.metric.ConfigInversionMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
@@ -51,6 +52,7 @@ public class TelemetrySystem {
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
       actions.add(new OtelEnvMetricPeriodicAction());
+      actions.add(new ConfigInversionMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
