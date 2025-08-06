@@ -114,13 +114,12 @@ public class InjectingPipeOutputStream extends OutputStream {
           write(array[i]);
         }
         drain();
-        boolean tmpFilter = filter;
+        boolean wasFiltering = filter;
 
         // will be reset if no errors after the following write
         filter = false;
         downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
-        filter = tmpFilter;
-
+        filter = wasFiltering;
         for (int i = len - marker.length + 1; i < len; i++) {
           write(array[i]);
         }
