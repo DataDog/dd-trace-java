@@ -205,6 +205,21 @@ public class ConfigHelperTest {
     setEnvVar(NEW_ALIAS_KEY_2, null);
   }
 
+  // TODO: Update to verify telemetry when implemented
+  @Test
+  void testUnsupportedEnvWarningNotInTestMode() {
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST);
+
+    setEnvVar("DD_FAKE_VAR", "banana");
+
+    // Should allow unsupported variable in TEST mode
+    assertEquals("banana", ConfigHelper.getEnvironmentVariable("DD_FAKE_VAR"));
+
+    // Cleanup
+    setEnvVar("DD_FAKE_VAR", null);
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.STRICT);
+  }
+
   // Copied from utils.TestHelper
   @SuppressWarnings("unchecked")
   private static void setEnvVar(String envName, String envValue) {
