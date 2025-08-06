@@ -119,22 +119,36 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
   }
 
-  void 'setHeader with Content-Length reports response size'() {
+  void 'response sizes are reported correctly'() {
+    setup:
+    def downstream = Mock(java.io.OutputStream)
+    def marker = "</head>".getBytes("UTF-8")
+    def contentToInject = "<script></script>".getBytes("UTF-8")
+    def onBytesWritten = Mock(java.util.function.LongConsumer)
+    def stream = new datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream(
+      downstream, marker, contentToInject, null, onBytesWritten)
+
     when:
-    wrapper.setHeader("Content-Length", "1024")
+    stream.write("test".getBytes("UTF-8"))
+    stream.write("content".getBytes("UTF-8"))
+    stream.close()
 
     then:
-    1 * mockTelemetryCollector.onInjectionResponseSize(1024)
-    1 * mockResponse.setHeader("Content-Length", "1024")
+    1 * onBytesWritten.accept(11)
   }
 
-  void 'setContentLength method reports response size'() {
+  void 'injection timing is reported when injection is successful'() {
+    setup:
+    wrapper.setContentType("text/html")
+
     when:
-    wrapper.setContentLength(1024)
+    try {
+      wrapper.getOutputStream() // set injectionStartTime
+    } catch (Exception ignored) {} // expect failure due to improper setup
+    Thread.sleep(1) // ensure some time passes
+    wrapper.onInjected() // report timing when injection "is successful"
 
     then:
-    1 * mockTelemetryCollector.onInjectionResponseSize(1024)
+    1 * mockTelemetryCollector.onInjectionTime({ it > 0 })
   }
-
-  // test injection timing?
 }

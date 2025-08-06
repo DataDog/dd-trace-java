@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.buffer;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.function.LongConsumer;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
@@ -23,18 +24,22 @@ public class InjectingPipeOutputStream extends OutputStream {
   private final Runnable onContentInjected;
   private final int bulkWriteThreshold;
   private final OutputStream downstream;
+  private final LongConsumer onBytesWritten;
+  private long bytesWritten = 0;
 
   /**
    * @param downstream the delegate output stream
    * @param marker the marker to find in the stream. Must at least be one byte.
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
+   * @param onBytesWritten callback called when stream is closed to report total bytes written.
    */
   public InjectingPipeOutputStream(
       final OutputStream downstream,
       final byte[] marker,
       final byte[] contentToInject,
-      final Runnable onContentInjected) {
+      final Runnable onContentInjected,
+      final LongConsumer onBytesWritten) {
     this.downstream = downstream;
     this.marker = marker;
     this.lookbehind = new byte[marker.length];
@@ -46,11 +51,13 @@ public class InjectingPipeOutputStream extends OutputStream {
     this.filter = true;
     this.contentToInject = contentToInject;
     this.onContentInjected = onContentInjected;
+    this.onBytesWritten = onBytesWritten;
     this.bulkWriteThreshold = marker.length * 2 - 2;
   }
 
   @Override
   public void write(int b) throws IOException {
+    bytesWritten++;
     if (!filter) {
       if (wasDraining) {
         // continue draining
@@ -85,6 +92,7 @@ public class InjectingPipeOutputStream extends OutputStream {
 
   @Override
   public void write(byte[] array, int off, int len) throws IOException {
+    bytesWritten += len;
     if (!filter) {
       if (wasDraining) {
         // needs drain
@@ -113,6 +121,7 @@ public class InjectingPipeOutputStream extends OutputStream {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
         // sequentially
         for (int i = off; i < off + marker.length - 1; i++) {
+          bytesWritten--; // avoid double counting
           write(array[i]);
         }
         drain();
@@ -123,12 +132,14 @@ public class InjectingPipeOutputStream extends OutputStream {
         downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
         filter = wasFiltering;
         for (int i = len - marker.length + 1; i < len; i++) {
+          bytesWritten--; // avoid double counting
           write(array[i]);
         }
       }
     } else {
       // use slow path because the length to write is small and within the lookbehind buffer size
       for (int i = off; i < off + len; i++) {
+        bytesWritten--; // avoid double counting
         write(array[i]);
       }
     }
@@ -185,6 +196,11 @@ public class InjectingPipeOutputStream extends OutputStream {
   public void close() throws IOException {
     try {
       commit();
+      // report the size of the original HTTP response before injecting via callback
+      if (onBytesWritten != null) {
+        onBytesWritten.accept(bytesWritten);
+      }
+      bytesWritten = 0;
     } finally {
       downstream.close();
     }
