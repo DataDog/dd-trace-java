@@ -64,6 +64,7 @@ class InitializationTelemetryTest extends Specification {
     result.exitCode == 0
     !result.telemetryJson.contains('library_entrypoint.complete')
     result.telemetryJson.contains('error_type:java.lang.IllegalStateException')
+    assert false
   }
 
   def "block forwarder env var"() {
