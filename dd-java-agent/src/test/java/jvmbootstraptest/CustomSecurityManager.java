@@ -502,6 +502,9 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   final boolean checkPropertyPermission(PropertyPermission perm, Object ctx) {
+    if ("otel.javaagent.configuration-file".equals(perm.getName())) {
+      System.out.println("What?");
+    }
     switch (perm.getActions()) {
       case "read":
         return checkPropertyReadPermission(perm, ctx, perm.getName());
