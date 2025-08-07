@@ -51,6 +51,17 @@ public class ConfigCollector {
       return Collections.emptyMap();
     }
   }
-}
 
-// public ConfigSetting getAppliedConfigSetting(String key) {}
+  public ConfigSetting getAppliedConfigSetting(String key) {
+    ConfigSetting best = null;
+    for (Map<String, ConfigSetting> configMap : collected.values()) {
+      ConfigSetting setting = configMap.get(key);
+      if (setting != null) {
+        if (best == null || setting.seqId > best.seqId) {
+          best = setting;
+        }
+      }
+    }
+    return best;
+  }
+}
