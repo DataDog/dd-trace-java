@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.WritableFormatter;
@@ -9,8 +8,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.util.TraceUtils;
-import java.util.Map;
+import java.util.List;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
@@ -126,19 +124,11 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(key.getSpanKind());
 
     writer.writeUTF8(PEER_TAGS);
-    Map<String, String> peerTags = key.getPeerTags();
+    final List<UTF8BytesString> peerTags = key.getPeerTags();
     writer.startArray(peerTags.size());
 
-    StringBuilder peerTagBuilder = new StringBuilder();
-    for (Map.Entry<String, String> peerTag : peerTags.entrySet()) {
-      peerTagBuilder.setLength(0);
-      String toWrite =
-          peerTagBuilder
-              .append(peerTag.getKey())
-              .append(':')
-              .append(TraceUtils.normalizeTag(peerTag.getValue()))
-              .toString();
-      writer.writeUTF8(toWrite.getBytes(UTF_8));
+    for (UTF8BytesString peerTag : peerTags) {
+      writer.writeUTF8(peerTag);
     }
 
     writer.writeUTF8(HITS);
