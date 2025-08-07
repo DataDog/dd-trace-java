@@ -233,11 +233,6 @@ public class JettyBlockingHelper {
     if (span == null || (rba = span.getRequestBlockingAction()) == null) {
       return false;
     }
-    return block(request, response, rba, span);
-  }
-
-  public static boolean block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
     return block(
         span.getRequestContext().getTraceSegment(),
         request,
@@ -247,9 +242,8 @@ public class JettyBlockingHelper {
         rba.getExtraHeaders());
   }
 
-  public static void blockAndThrowOnFailure(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
-    if (!block(request, response, rba, span)) {
+  public static void blockAndThrowOnFailure(Request request, Response response, Context context) {
+    if (!block(request, response, context)) {
       throw new BlockingException("Throwing after being unable to commit blocking response");
     }
   }
