@@ -67,6 +67,8 @@ class InitializationTelemetryTest extends Specification {
     result.exitCode == 0
     !result.telemetryJson.contains('library_entrypoint.complete')
     result.telemetryJson.contains('error_type:')
+
+    assert false
   }
 
   @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
