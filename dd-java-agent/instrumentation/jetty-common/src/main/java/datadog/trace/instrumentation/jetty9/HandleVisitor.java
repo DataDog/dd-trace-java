@@ -141,7 +141,7 @@ public class HandleVisitor extends MethodVisitor {
         && descriptor.equals("(Lorg/eclipse/jetty/server/HttpChannel;)V")) {
       debug("handle bytecode found");
       DelayCertainInsMethodVisitor mv = delayVisitorDelegate();
-      List<Function> savedVisitations = mv.transferVisitations();
+      List<Runnable> savedVisitations = mv.transferVisitations();
       /*
        * Saved visitations should be for:
        *
@@ -156,8 +156,9 @@ public class HandleVisitor extends MethodVisitor {
         return;
       }
 
+      // Declare label to insert after Server.handle() call
       Label afterHandle = new Label();
-
+      // Inject blocking helper call
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
@@ -181,10 +182,12 @@ public class HandleVisitor extends MethodVisitor {
               + Type.getDescriptor(Context.class)
               + ")Z",
           false);
+      // Inject jump to after Server.handle() call if blocked
       super.visitJumpInsn(Opcodes.IFNE, afterHandle);
-
+      // Inject getServer() and Server.handle() calls
       mv.commitVisitations(savedVisitations);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+      // Inject label after Server.handle() call to jump here when blocked
       super.visitLabel(afterHandle);
       super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
       debug("handle bytecode injected");
@@ -200,7 +203,7 @@ public class HandleVisitor extends MethodVisitor {
                 "(Ljakarta/servlet/DispatcherType;Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;)V"))) {
 
       DelayCertainInsMethodVisitor mv = delayVisitorDelegate();
-      List<Function> savedVisitations = mv.transferVisitations();
+      List<Runnable> savedVisitations = mv.transferVisitations();
 
       // check that we've queued up what we're supposed to
       if (!checkDispatchMethodState(savedVisitations)) {
@@ -237,7 +240,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
       // dispatch with a Dispatchable created from JettyBlockingHelper::block
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
-      List<Function> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
+      List<Runnable> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
       mv.commitVisitations(loadThisAndEnum);
       // set up the arguments to the method underlying the lambda (Request, Response,
       // RequestBlockingAction, AgentSpan)
@@ -309,7 +312,7 @@ public class HandleVisitor extends MethodVisitor {
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }
 
-  private boolean checkDispatchMethodState(final List<Function> savedVisitations) {
+  private boolean checkDispatchMethodState(final List<Runnable> savedVisitations) {
     if (savedVisitations.size() != 4) {
       return false;
     }
@@ -329,7 +332,7 @@ public class HandleVisitor extends MethodVisitor {
       return false;
     }
 
-    final Function last = savedVisitations.get(3);
+    final Runnable last = savedVisitations.get(3);
     // jetty < 11.16.0
     //  this.dispatch(DispatcherType.REQUEST, () -> { ... });
     if (last instanceof DelayCertainInsMethodVisitor.InvokeDynamicInsn) {
