@@ -1,16 +1,18 @@
 package datadog.trace.instrumentation.jetty9;
 
-import static java.lang.Math.max;
 import static net.bytebuddy.jar.asm.Opcodes.ALOAD;
 import static net.bytebuddy.jar.asm.Opcodes.ASTORE;
-import static net.bytebuddy.jar.asm.Opcodes.DUP;
 import static net.bytebuddy.jar.asm.Opcodes.F_SAME;
 import static net.bytebuddy.jar.asm.Opcodes.GOTO;
 import static net.bytebuddy.jar.asm.Opcodes.H_INVOKESTATIC;
+import static net.bytebuddy.jar.asm.Opcodes.IFNE;
+import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
+import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
 
 import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
@@ -30,19 +32,24 @@ import org.slf4j.LoggerFactory;
  * Instruments the handle (or run) method to put the calls to <code>getServer().handle(this)</code>
  * under a condition, for the {@link org.eclipse.jetty.server.HttpChannel} class.
  *
- * <p>In particular, for earlier versions of jetty: <code>
+ * <p>In particular, for earlier versions of jetty:
+ * <pre>
  *   case REQUEST_DISPATCH:
  *   // ...
  *   getServer().handle(this);
- * </code> is replaced with: <code>
+ * </pre>
+ * is replaced with:
+ * <pre>
  *   case REQUEST_DISPATCH:
  *   // ...
- *   if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), context)) {
+ *   if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), Java8BytecodeBridge.getCurrentContext())) {
  *     // nothing
  *   } else {
  *     getServer().handle(this);
  *   }
- * </code> And for later versions of Jetty before 11.16.0, <code>
+ * </pre>
+ * And for later versions of Jetty before 11.16.0,
+ * <pre>
  *   case DISPATCH:
  *   {
  *     // ...
@@ -51,7 +58,9 @@ import org.slf4j.LoggerFactory;
  *         // ...
  *         getServer().handle(HttpChannel.this);
  *       });
- * </code> is replaced with: <code>
+ * </pre>
+ * is replaced with:
+ * <pre>
  *   case DISPATCH:
  *   {
  *     // ...
@@ -68,12 +77,16 @@ import org.slf4j.LoggerFactory;
  *         getServer().handle(HttpChannel.this);
  *       });
  *   }
- * </code> And for later versions of Jetty, <code>
+ * </pre>
+ * And for later versions of Jetty,
+ * <pre>
  *   case DISPATCH:
  *   {
  *     // ...
  *     dispatch(DispatcherType.REQUEST, _requestDispatcher);
- * </code> is replaced with: <code>
+ * </pre>
+ * is replaced with:
+ * <pre>
  *   case DISPATCH:
  *   {
  *     // ...
@@ -87,16 +100,17 @@ import org.slf4j.LoggerFactory;
  *     } else {
  *       dispatch(DispatcherType.REQUEST, _requestDispatcher);
  *   }
- * </code>
+ * </pre>
  */
 public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);
-  private static final int CONTEXT_VAR = 100;
+  private static final int CONTEXT_VAR = 1000;
 
   /** Whether the next store is supposed to store the Context variable. */
   private boolean lookForStore;
   /** Whether the Context variable was stored to local index {@link #CONTEXT_VAR}. */
   private boolean contextStored;
+//  private int contextVarIndex = -1;
   /** Whether the handle() method injection was successful .*/
   private boolean success;
   private final String methodName;
@@ -129,13 +143,13 @@ public class HandleVisitor extends MethodVisitor {
     return (DelayCertainInsMethodVisitor) this.mv;
   }
 
-  @Override
-  public void visitLocalVariable(String name, String descriptor, String signature, Label start, Label end, int index) {
-    if (contextStored && index == CONTEXT_VAR) {
-      super.visitLocalVariable("context", Type.getDescriptor(Context.class), null, start, end, CONTEXT_VAR);
-    }
-    super.visitLocalVariable(name, descriptor, signature, start, end, index);
-  }
+//  @Override
+//  public void visitLocalVariable(String name, String descriptor, String signature, Label start, Label end, int index) {
+//    if (contextStored && index == CONTEXT_VAR) {
+//      super.visitLocalVariable("context", Type.getDescriptor(Context.class), null, start, end, CONTEXT_VAR);
+//    }
+//    super.visitLocalVariable(name, descriptor, signature, start, end, index);
+//  }
 
   @Override
   public void visitMethodInsn(
@@ -147,14 +161,14 @@ public class HandleVisitor extends MethodVisitor {
     if (!contextStored) {
       lookForStore =
           !lookForStore
-              && opcode == Opcodes.INVOKEVIRTUAL
+              && opcode == INVOKEVIRTUAL
               && name.equals("startSpan")
               && descriptor.endsWith("Ldatadog/context/Context;");
       if (lookForStore) {
         debug("Found store");
       }
     } else if (!success
-        && opcode == Opcodes.INVOKEVIRTUAL
+        && opcode == INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
         && descriptor.equals("(Lorg/eclipse/jetty/server/HttpChannel;)V")) {
@@ -177,24 +191,34 @@ public class HandleVisitor extends MethodVisitor {
 
       // Declare label to insert after Server.handle() call
       Label afterHandle = new Label();
-      // Inject blocking helper call
+      // Inject blocking helper call and get its three parameters onto the stack:
+      // - Request
+      // - Response
+      // - Context -- retrieved from current as attached just earlier from tracing instrumentation
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
-          Opcodes.INVOKEVIRTUAL,
+          INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
           false);
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
-          Opcodes.INVOKEVIRTUAL,
+          INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitMethodInsn(
-          Opcodes.INVOKESTATIC,
+          INVOKESTATIC,
+          Type.getInternalName(Java8BytecodeBridge.class),
+          "getCurrentContext",
+          "()Ldatadog/context/Context;",
+          false
+      );
+//      super.visitVarInsn(ALOAD, CONTEXT_VAR);
+      super.visitMethodInsn(
+          INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
@@ -202,7 +226,7 @@ public class HandleVisitor extends MethodVisitor {
               + ")Z",
           false);
       // Inject jump to after Server.handle() call if blocked
-      super.visitJumpInsn(Opcodes.IFNE, afterHandle);
+      super.visitJumpInsn(IFNE, afterHandle);
       // Inject getServer() and Server.handle() calls
       mv.commitVisitations(savedVisitations);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -213,7 +237,7 @@ public class HandleVisitor extends MethodVisitor {
       this.success = true;
       return;
     } else if (!success
-        && (opcode == Opcodes.INVOKESPECIAL || opcode == Opcodes.INVOKEVIRTUAL)
+        && (opcode == Opcodes.INVOKESPECIAL || opcode == INVOKEVIRTUAL)
         && owner.equals("org/eclipse/jetty/server/HttpChannel")
         && name.equals("dispatch")
         && (descriptor.equals(
@@ -265,14 +289,14 @@ public class HandleVisitor extends MethodVisitor {
       // RequestBlockingAction, AgentSpan)
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
-          Opcodes.INVOKEVIRTUAL,
+          INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
           false);
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
-          Opcodes.INVOKEVIRTUAL,
+          INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
@@ -369,18 +393,19 @@ public class HandleVisitor extends MethodVisitor {
       debug("Found context");
       contextStored = true;
       lookForStore = false;
+//      contextVarIndex = varIndex;
       // Duplicate on stack and store to its own local var
-      super.visitInsn(DUP);
-      super.visitVarInsn(ASTORE, CONTEXT_VAR);
+//      super.visitInsn(DUP);
+//      super.visitVarInsn(ASTORE, CONTEXT_VAR);
     }
     super.visitVarInsn(opcode, varIndex);
   }
 
-  @Override
-  public void visitMaxs(int maxStack, int maxLocals) {
-    debug("VisitMaxs stack: " + maxStack + ", locals: " + maxLocals);
-    super.visitMaxs(maxStack, max(maxLocals, CONTEXT_VAR + 1));
-  }
+//  @Override
+//  public void visitMaxs(int maxStack, int maxLocals) {
+//    debug("VisitMaxs stack: " + maxStack + ", locals: " + maxLocals);
+//    super.visitMaxs(maxStack, max(maxLocals, CONTEXT_VAR + 1));
+//  }
 
   @Override
   public void visitEnd() {
