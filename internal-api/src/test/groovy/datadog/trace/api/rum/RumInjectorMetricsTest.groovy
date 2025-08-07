@@ -85,9 +85,27 @@ class RumInjectorMetricsTest extends Specification {
     metrics.close()
   }
 
+  def "test onInitializationSucceed"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
+
+    when:
+    metrics.onInitializationSucceed()
+    latch.await(5, TimeUnit.SECONDS)
+
+    then:
+    1 * statsD.count('rum.injection.initialization.succeed', 1, _)
+    0 * _
+
+    cleanup:
+    metrics.close()
+  }
+
   def "test multiple events"() {
     setup:
-    def latch = new CountDownLatch(4) // expecting 4 metric types
+    def latch = new CountDownLatch(5) // expecting 5 metric types
     def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
     metrics.start()
 
@@ -96,6 +114,7 @@ class RumInjectorMetricsTest extends Specification {
     metrics.onInjectionFailed()
     metrics.onInjectionSkipped()
     metrics.onContentSecurityPolicyDetected()
+    metrics.onInitializationSucceed()
     latch.await(5, TimeUnit.SECONDS)
 
     then:
@@ -103,6 +122,7 @@ class RumInjectorMetricsTest extends Specification {
     1 * statsD.count('rum.injection.failed', 1, _)
     1 * statsD.count('rum.injection.skipped', 1, _)
     1 * statsD.count('rum.injection.content_security_policy', 1, _)
+    1 * statsD.count('rum.injection.initialization.succeed', 1, _)
     0 * _
 
     cleanup:
@@ -142,6 +162,7 @@ class RumInjectorMetricsTest extends Specification {
     metrics.onInjectionSucceed()
     metrics.onInjectionSkipped()
     metrics.onContentSecurityPolicyDetected()
+    metrics.onInitializationSucceed()
     def summary = metrics.summary()
 
     then:
@@ -149,6 +170,7 @@ class RumInjectorMetricsTest extends Specification {
     summary.contains("injectionFailed=2")
     summary.contains("injectionSkipped=1")
     summary.contains("contentSecurityPolicyDetected=2")
+    summary.contains("initializationSucceed=1")
     0 * _
   }
 
@@ -161,6 +183,7 @@ class RumInjectorMetricsTest extends Specification {
     summary.contains("injectionFailed=0")
     summary.contains("injectionSkipped=0")
     summary.contains("contentSecurityPolicyDetected=0")
+    summary.contains("initializationSucceed=0")
     0 * _
   }
 

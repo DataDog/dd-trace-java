@@ -118,6 +118,20 @@ class RumInjectorTest extends DDSpecification {
     RumInjector.getTelemetryCollector() == RumTelemetryCollector.NO_OP
   }
 
+  void 'content security policy HTTP response detected'() {
+    when:
+    RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+    telemetryCollector.onContentSecurityPolicyDetected()
+    def summary = telemetryCollector.summary()
+
+    then:
+    summary.contains("contentSecurityPolicyDetected=1")
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
+  }
+
   void 'telemetry integration works end-to-end'() {
     when:
     // simulate CoreTracer enabling telemetry
@@ -140,6 +154,7 @@ class RumInjectorTest extends DDSpecification {
     summary.contains("injectionFailed=1")
     summary.contains("injectionSkipped=1")
     summary.contains("contentSecurityPolicyDetected=1")
+    summary.contains("initializationSucceed=0") // rum injector not initialized in test environment
 
     cleanup:
     RumInjector.shutdownTelemetry()
@@ -212,6 +227,20 @@ class RumInjectorTest extends DDSpecification {
     summary.contains("injectionFailed=50")
     summary.contains("injectionSkipped=50")
     summary.contains("contentSecurityPolicyDetected=50")
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
+  }
+
+  void 'initialize rum injector successfully'() {
+    when:
+    RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+    telemetryCollector.onInitializationSucceed()
+    def summary = telemetryCollector.summary()
+
+    then:
+    summary.contains("initializationSucceed=1")
 
     cleanup:
     RumInjector.shutdownTelemetry()

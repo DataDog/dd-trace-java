@@ -19,6 +19,9 @@ public interface RumTelemetryCollector {
         public void onInjectionSkipped() {}
 
         @Override
+        public void onInitializationSucceed() {}
+
+        @Override
         public void onContentSecurityPolicyDetected() {}
 
         @Override
@@ -46,6 +49,9 @@ public interface RumTelemetryCollector {
 
   // call when RUM injection is skipped
   void onInjectionSkipped();
+
+  // call when RUM injector initialization succeeds
+  void onInitializationSucceed();
 
   // call when a Content Security Policy header is detected
   void onContentSecurityPolicyDetected();

@@ -132,6 +132,10 @@ public final class RumInjector {
       RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
       metrics.start();
       telemetryCollector = metrics;
+
+      if (INSTANCE.isEnabled()) {
+        telemetryCollector.onInitializationSucceed();
+      }
     } else {
       telemetryCollector = RumTelemetryCollector.NO_OP;
     }

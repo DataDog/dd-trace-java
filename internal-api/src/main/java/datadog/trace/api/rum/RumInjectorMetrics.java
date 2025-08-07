@@ -24,6 +24,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   private final AtomicLong injectionFailed = new AtomicLong();
   private final AtomicLong injectionSkipped = new AtomicLong();
   private final AtomicLong contentSecurityPolicyDetected = new AtomicLong();
+  private final AtomicLong initializationSucceed = new AtomicLong();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -63,6 +64,11 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   }
 
   @Override
+  public void onInitializationSucceed() {
+    initializationSucceed.incrementAndGet();
+  }
+
+  @Override
   public void onContentSecurityPolicyDetected() {
     contentSecurityPolicyDetected.incrementAndGet();
   }
@@ -93,12 +99,14 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
         + "\ninjectionSkipped="
         + injectionSkipped.get()
         + "\ncontentSecurityPolicyDetected="
-        + contentSecurityPolicyDetected.get();
+        + contentSecurityPolicyDetected.get()
+        + "\ninitializationSucceed="
+        + initializationSucceed.get();
   }
 
   private static class Flush implements AgentTaskScheduler.Task<RumInjectorMetrics> {
 
-    private final long[] previousCounts = new long[4]; // one per counter
+    private final long[] previousCounts = new long[5]; // one per counter
     private int countIndex;
 
     @Override
@@ -112,6 +120,11 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
             target.statsd,
             "rum.injection.content_security_policy",
             target.contentSecurityPolicyDetected,
+            NO_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "rum.injection.initialization.succeed",
+            target.initializationSucceed,
             NO_TAGS);
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
