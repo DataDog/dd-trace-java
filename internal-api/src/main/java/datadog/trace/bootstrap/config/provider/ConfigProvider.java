@@ -261,7 +261,8 @@ public final class ConfigProvider {
     String list = getString(key);
     if (null == list) {
       if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+        ConfigCollector.get()
+            .put(key, defaultValue, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
       }
       return defaultValue;
     } else {
@@ -394,7 +395,8 @@ public final class ConfigProvider {
       log.warn("Invalid configuration for {}", key, e);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get()
+          .put(key, defaultValue, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
     }
     return defaultValue;
   }

@@ -563,7 +563,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       newState = asm.enabled;
       // Report AppSec activation change via telemetry when modified via remote config
-      ConfigCollector.get().put(APPSEC_ENABLED, asm.enabled, ConfigOrigin.REMOTE);
+      ConfigCollector.get()
+          .put(APPSEC_ENABLED, asm.enabled, ConfigOrigin.REMOTE); // TODO: Report seq id?
     }
     if (AppSecSystem.isActive() != newState) {
       log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");

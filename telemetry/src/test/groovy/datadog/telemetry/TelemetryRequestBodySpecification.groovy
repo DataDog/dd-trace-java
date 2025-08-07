@@ -102,7 +102,7 @@ class TelemetryRequestBodySpecification extends DDSpecification {
     req.endConfiguration()
 
     then:
-    drainToString(req) == ',"configuration":[{"name":"this_is_a_key","value":"value","origin":"remote_config"}]'
+    drainToString(req) == ',"configuration":[{"name":"this_is_a_key","value":"value","origin":"remote_config","seq_id":0}]'
   }
 
   def 'add debug flag'() {

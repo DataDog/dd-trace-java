@@ -12,6 +12,7 @@ public final class ConfigSetting {
   public final Object value;
   public final ConfigOrigin origin;
   public final int seqId;
+  public final boolean error;
 
   public static final int DEFAULT_SEQ_ID = 1;
   private static final int ABSENT_SEQ_ID = 0;
@@ -21,18 +22,24 @@ public final class ConfigSetting {
           Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
-    return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID);
+    return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, false);
   }
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin, int seqId) {
-    return new ConfigSetting(key, value, origin, seqId);
+    return new ConfigSetting(key, value, origin, seqId, false);
   }
 
-  private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId) {
+  public static ConfigSetting of(
+      String key, Object value, ConfigOrigin origin, int seqId, boolean error) {
+    return new ConfigSetting(key, value, origin, seqId, error);
+  }
+
+  private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, boolean error) {
     this.key = key;
     this.value = CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
     this.origin = origin;
     this.seqId = seqId;
+    this.error = error;
   }
 
   public String normalizedKey() {
@@ -111,7 +118,8 @@ public final class ConfigSetting {
     return key.equals(that.key)
         && Objects.equals(value, that.value)
         && origin == that.origin
-        && seqId == that.seqId;
+        && seqId == that.seqId
+        && error == that.error;
   }
 
   @Override
@@ -132,5 +140,6 @@ public final class ConfigSetting {
         + ", seqId="
         + seqId
         + '}';
+    // whether to write errors
   }
 }
