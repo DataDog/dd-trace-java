@@ -4,6 +4,10 @@ import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -86,9 +90,28 @@ public class HandleVisitor extends MethodVisitor {
   private boolean success;
   private final String methodName;
 
+  private BufferedWriter debugWriter;
+
+  private void debug(String msg) {
+    if (debugWriter == null) {
+      return;
+    }
+    try {
+      debugWriter.write(msg);
+      debugWriter.newLine();
+    } catch (IOException ignored) {
+    }
+  }
+
   public HandleVisitor(int api, DelayCertainInsMethodVisitor methodVisitor, String methodName) {
     super(api, methodVisitor);
     this.methodName = methodName;
+    try {
+      String path = "/Users/bruce.bujon/go/src/github.com/DataDog/dd-trace-java/bbujon/debug/HandleVisitor-" + System.nanoTime() + ".txt";
+      this.debugWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(path)));
+      debug("Initializing");
+    } catch (IOException ignored) {
+    }
   }
 
   DelayCertainInsMethodVisitor delayVisitorDelegate() {
@@ -98,18 +121,25 @@ public class HandleVisitor extends MethodVisitor {
   @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
+    debug("visitMethodInsn");
+    debug(">> contextVar: " + contextVar);
+    debug(">> success: " + success);
+    debug(">> opcode: " + opcode + ", owner: " + owner + ", name: " + name + ", descriptor: " + descriptor);
     if (contextVar == -1) {
       lookForStore =
           !lookForStore
               && opcode == Opcodes.INVOKEVIRTUAL
               && name.equals("startSpan")
-              && descriptor.endsWith("Ldatadog.context.Context;");
               && descriptor.endsWith("Ldatadog/context/Context;");
+      if (lookForStore) {
+        debug("Found store");
+      }
     } else if (!success
         && opcode == Opcodes.INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
         && descriptor.equals("(Lorg/eclipse/jetty/server/HttpChannel;)V")) {
+      debug("handle bytecode found");
       DelayCertainInsMethodVisitor mv = delayVisitorDelegate();
       List<Function> savedVisitations = mv.transferVisitations();
       /*
@@ -119,6 +149,7 @@ public class HandleVisitor extends MethodVisitor {
        * invokevirtual #78                 // Method getServer:()Lorg/eclipse/jetty/server/Server;
        * aload_0
        */
+      debug("Saved visitation size: "+savedVisitations.size());
       if (savedVisitations.size() != 3) {
         mv.commitVisitations(savedVisitations);
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -156,6 +187,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       super.visitLabel(afterHandle);
       super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+      debug("handle bytecode injected");
       this.success = true;
       return;
     } else if (!success
@@ -312,6 +344,7 @@ public class HandleVisitor extends MethodVisitor {
   @Override
   public void visitVarInsn(int opcode, int varIndex) {
     if (lookForStore && opcode == Opcodes.ASTORE) {
+      debug("Found context");
       contextVar = varIndex;
       lookForStore = false;
     }
@@ -324,6 +357,12 @@ public class HandleVisitor extends MethodVisitor {
     if (!success && !"run".equals(methodName)) {
       log.warn(
           "Transformation of Jetty's connection class was not successful. Blocking will likely not work");
+    }
+    if (this.debugWriter != null) {
+      try {
+        this.debugWriter.close();
+      } catch (IOException ignored) {
+      }
     }
     super.visitEnd();
   }
