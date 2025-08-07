@@ -1,7 +1,7 @@
 package datadog.trace.logging.ddlogger;
 
-import datadog.environment.SystemProperties;
 import datadog.environment.ConfigHelper;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Platform;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;

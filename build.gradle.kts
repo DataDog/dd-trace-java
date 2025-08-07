@@ -53,6 +53,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
+apply(from = rootDir.resolve("gradle/configInversionLinter.gradle"))
 
 val compileTask = tasks.register("compile")
 

@@ -17,7 +17,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.environment.ConfigHelper;
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;

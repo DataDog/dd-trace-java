@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
 import datadog.environment.ConfigHelper;
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.util.Strings;
 import java.util.Map;

@@ -1,7 +1,6 @@
 package datadog.environment;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
