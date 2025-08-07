@@ -86,4 +86,8 @@ public class WrappedServletOutputStream extends ServletOutputStream {
   public void commit() throws IOException {
     filtered.commit();
   }
+
+  public void setFilter(boolean filter) {
+    filtered.setFilter(filter);
+  }
 }

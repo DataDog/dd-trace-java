@@ -173,7 +173,6 @@ public class InjectingPipeWriter extends Writer {
 
   public void commit() throws IOException {
     if (filter || wasDraining) {
-      filter = false;
       drain();
     }
   }
@@ -190,5 +189,9 @@ public class InjectingPipeWriter extends Writer {
     } finally {
       downstream.close();
     }
+  }
+
+  public void setFilter(boolean filter) {
+    this.filter = filter;
   }
 }

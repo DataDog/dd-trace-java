@@ -53,4 +53,8 @@ public class WrappedServletOutputStream extends ServletOutputStream {
   public void setWriteListener(WriteListener writeListener) {
     delegate.setWriteListener(writeListener);
   }
+
+  public void setFilter(boolean filter) {
+    filtered.setFilter(filter);
+  }
 }
