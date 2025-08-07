@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci.env;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.Map;
 
@@ -11,6 +12,7 @@ public class CiEnvironmentImpl implements CiEnvironment {
     this.env = env;
   }
 
+  @SuppressForbidden
   public static CiEnvironment local() {
     Map<String, String> env;
     try {
