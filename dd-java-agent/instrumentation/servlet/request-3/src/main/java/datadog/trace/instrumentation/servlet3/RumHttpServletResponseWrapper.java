@@ -131,6 +131,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     }
     if (!shouldInject) {
       commit();
+      stopFiltering();
     }
     super.setContentType(type);
   }
@@ -147,6 +148,16 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
         outputStream.commit();
       } catch (Throwable ignored) {
       }
+    }
+  }
+
+  public void stopFiltering() {
+    shouldInject = false;
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.setFilter(false);
+    }
+    if (outputStream != null) {
+      outputStream.setFilter(false);
     }
   }
 }

@@ -121,7 +121,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -472,7 +471,6 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.RumConfig.RUM_APPLICATION_ID;
 import static datadog.trace.api.config.RumConfig.RUM_CLIENT_TOKEN;
 import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
-import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
 import static datadog.trace.api.config.RumConfig.RUM_ENVIRONMENT;
 import static datadog.trace.api.config.RumConfig.RUM_MAJOR_VERSION;
 import static datadog.trace.api.config.RumConfig.RUM_REMOTE_CONFIGURATION_ID;
@@ -2745,7 +2743,7 @@ public class Config {
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
-    this.rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
+    this.rumEnabled = InstrumenterConfig.get().isRumEnabled();
     this.rumInjectorConfig = parseRumConfig(configProvider);
 
     log.debug("New instance: {}", this);

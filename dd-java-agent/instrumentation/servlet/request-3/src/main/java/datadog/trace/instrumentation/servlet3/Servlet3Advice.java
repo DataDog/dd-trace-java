@@ -46,11 +46,16 @@ public class Servlet3Advice {
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     HttpServletResponse httpServletResponse = (HttpServletResponse) response;
 
-    if (RumInjector.get().isEnabled() && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
-      httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
-      rumServletWrapper = new RumHttpServletResponseWrapper(httpServletResponse);
-      httpServletResponse = rumServletWrapper;
-      response = httpServletResponse;
+    if (RumInjector.get().isEnabled()) {
+      final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
+      if (maybeRumWrapper instanceof RumHttpServletResponseWrapper) {
+        rumServletWrapper = (RumHttpServletResponseWrapper) maybeRumWrapper;
+      } else {
+        rumServletWrapper = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+        httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
+        response = rumServletWrapper;
+        request = new RumHttpServletRequestWrapper(httpServletRequest, rumServletWrapper);
+      }
     }
 
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
