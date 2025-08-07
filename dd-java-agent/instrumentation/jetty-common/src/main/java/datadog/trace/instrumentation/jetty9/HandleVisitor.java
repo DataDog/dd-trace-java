@@ -1,5 +1,13 @@
 package datadog.trace.instrumentation.jetty9;
 
+import static java.lang.Math.max;
+import static net.bytebuddy.jar.asm.Opcodes.ALOAD;
+import static net.bytebuddy.jar.asm.Opcodes.ASTORE;
+import static net.bytebuddy.jar.asm.Opcodes.DUP;
+import static net.bytebuddy.jar.asm.Opcodes.F_SAME;
+import static net.bytebuddy.jar.asm.Opcodes.GOTO;
+import static net.bytebuddy.jar.asm.Opcodes.H_INVOKESTATIC;
+
 import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -10,7 +18,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
@@ -84,9 +91,13 @@ import org.slf4j.LoggerFactory;
  */
 public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);
+  private static final int CONTEXT_VAR = 100;
 
+  /** Whether the next store is supposed to store the Context variable. */
   private boolean lookForStore;
-  private int contextVar = -1;
+  /** Whether the Context variable was stored to local index {@link #CONTEXT_VAR}. */
+  private boolean contextStored;
+  /** Whether the handle() method injection was successful .*/
   private boolean success;
   private final String methodName;
 
@@ -119,13 +130,21 @@ public class HandleVisitor extends MethodVisitor {
   }
 
   @Override
+  public void visitLocalVariable(String name, String descriptor, String signature, Label start, Label end, int index) {
+    if (contextStored && index == CONTEXT_VAR) {
+      super.visitLocalVariable("context", Type.getDescriptor(Context.class), null, start, end, CONTEXT_VAR);
+    }
+    super.visitLocalVariable(name, descriptor, signature, start, end, index);
+  }
+
+  @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
     debug("visitMethodInsn");
-    debug(">> contextVar: " + contextVar);
+    debug(">> contextStored: " + contextStored);
     debug(">> success: " + success);
     debug(">> opcode: " + opcode + ", owner: " + owner + ", name: " + name + ", descriptor: " + descriptor);
-    if (contextVar == -1) {
+    if (!contextStored) {
       lookForStore =
           !lookForStore
               && opcode == Opcodes.INVOKEVIRTUAL
@@ -159,21 +178,21 @@ public class HandleVisitor extends MethodVisitor {
       // Declare label to insert after Server.handle() call
       Label afterHandle = new Label();
       // Inject blocking helper call
-      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
@@ -189,7 +208,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       // Inject label after Server.handle() call to jump here when blocked
       super.visitLabel(afterHandle);
-      super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+      super.visitFrame(F_SAME, 0, null, 0, null);
       debug("handle bytecode injected");
       this.success = true;
       return;
@@ -224,9 +243,9 @@ public class HandleVisitor extends MethodVisitor {
       Label beforeRegularDispatch = new Label();
       Label afterRegularDispatch = new Label();
 
-      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitJumpInsn(Opcodes.IFNULL, beforeRegularDispatch);
-      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
@@ -234,38 +253,38 @@ public class HandleVisitor extends MethodVisitor {
           "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
       super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
-      super.visitJumpInsn(Opcodes.GOTO, beforeRegularDispatch);
+      super.visitJumpInsn(GOTO, beforeRegularDispatch);
 
       super.visitLabel(doBlockLabel);
-      super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+      super.visitFrame(F_SAME, 0, null, 0, null);
       // dispatch with a Dispatchable created from JettyBlockingHelper::block
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
       List<Runnable> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
       mv.commitVisitations(loadThisAndEnum);
       // set up the arguments to the method underlying the lambda (Request, Response,
       // RequestBlockingAction, AgentSpan)
-      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
           "getRequestBlockingAction",
           "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
-      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+      super.visitVarInsn(ALOAD, CONTEXT_VAR);
 
       // create the lambda
       super.visitInvokeDynamicInsn(
@@ -275,7 +294,7 @@ public class HandleVisitor extends MethodVisitor {
               + Type.getDescriptor(AgentSpan.class)
               + ")Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
           new Handle(
-              Opcodes.H_INVOKESTATIC,
+              H_INVOKESTATIC,
               "java/lang/invoke/LambdaMetafactory",
               "metafactory",
               "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
@@ -283,7 +302,7 @@ public class HandleVisitor extends MethodVisitor {
           new Object[] {
             Type.getType("()V"),
             new Handle(
-                Opcodes.H_INVOKESTATIC,
+                H_INVOKESTATIC,
                 Type.getInternalName(JettyBlockingHelper.class),
                 "blockAndThrowOnFailure",
                 "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
@@ -297,14 +316,14 @@ public class HandleVisitor extends MethodVisitor {
       // invoke the dispatch method
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
 
-      super.visitJumpInsn(Opcodes.GOTO, afterRegularDispatch);
+      super.visitJumpInsn(GOTO, afterRegularDispatch);
 
       super.visitLabel(beforeRegularDispatch);
-      super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+      super.visitFrame(F_SAME, 0, null, 0, null);
       mv.commitVisitations(savedVisitations);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       super.visitLabel(afterRegularDispatch);
-      super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+      super.visitFrame(F_SAME, 0, null, 0, null);
       this.success = true;
       return;
     }
@@ -346,13 +365,21 @@ public class HandleVisitor extends MethodVisitor {
 
   @Override
   public void visitVarInsn(int opcode, int varIndex) {
-    if (lookForStore && opcode == Opcodes.ASTORE) {
+    if (lookForStore && opcode == ASTORE) {
       debug("Found context");
-      contextVar = varIndex;
+      contextStored = true;
       lookForStore = false;
+      // Duplicate on stack and store to its own local var
+      super.visitInsn(DUP);
+      super.visitVarInsn(ASTORE, CONTEXT_VAR);
     }
-
     super.visitVarInsn(opcode, varIndex);
+  }
+
+  @Override
+  public void visitMaxs(int maxStack, int maxLocals) {
+    debug("VisitMaxs stack: " + maxStack + ", locals: " + maxLocals);
+    super.visitMaxs(maxStack, max(maxLocals, CONTEXT_VAR + 1));
   }
 
   @Override
