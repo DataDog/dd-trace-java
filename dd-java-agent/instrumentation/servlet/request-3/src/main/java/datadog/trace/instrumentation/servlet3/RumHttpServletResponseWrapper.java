@@ -2,10 +2,13 @@ package datadog.trace.instrumentation.servlet3;
 
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter;
+import datadog.trace.util.MethodHandles;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.invoke.MethodHandle;
 import java.nio.charset.Charset;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
@@ -15,6 +18,21 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private PrintWriter printWriter;
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
+
+  private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
+
+  private static MethodHandle getMh(final String name) {
+    try {
+      return new MethodHandles(ServletResponse.class.getClassLoader())
+          .method(ServletResponse.class, name);
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
+  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
+  }
 
   public RumHttpServletResponseWrapper(HttpServletResponse response) {
     super(response);
@@ -72,8 +90,12 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
 
   @Override
   public void setContentLengthLong(long len) {
-    if (!shouldInject) {
-      super.setContentLengthLong(len);
+    if (!shouldInject && SET_CONTENT_LENGTH_LONG != null) {
+      try {
+        SET_CONTENT_LENGTH_LONG.invoke(getResponse(), len);
+      } catch (Throwable t) {
+        sneakyThrow(t);
+      }
     }
   }
 
