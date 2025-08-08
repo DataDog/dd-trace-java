@@ -20,7 +20,8 @@ public final class Selector {
   public static Selector from(Map<?, ?> map) {
     Object originObj = map.get("origin");
     if (originObj == null) {
-      throw new StableConfigMappingException("Missing 'origin' in selector: " + map);
+      throw new StableConfigMappingException(
+          "Missing 'origin' in selector: " + StableConfigMappingException.safeToString(map));
     }
     if (!(originObj instanceof String)) {
       throw new StableConfigMappingException(
@@ -48,7 +49,8 @@ public final class Selector {
 
     Object operatorObj = map.get("operator");
     if (operatorObj == null) {
-      throw new StableConfigMappingException("Missing 'operator' in selector: " + map);
+      throw new StableConfigMappingException(
+          "Missing 'operator' in selector: " + StableConfigMappingException.safeToString(map));
     }
     if (!(operatorObj instanceof String)) {
       throw new StableConfigMappingException(

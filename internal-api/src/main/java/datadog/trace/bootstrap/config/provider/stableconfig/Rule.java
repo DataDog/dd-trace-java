@@ -28,7 +28,8 @@ public final class Rule {
   public static Rule from(Map<?, ?> map) {
     Object selectorsObj = map.get("selectors");
     if (selectorsObj == null) {
-      throw new StableConfigMappingException("Missing 'selectors' in rule: " + map);
+      throw new StableConfigMappingException(
+          "Missing 'selectors' in rule: " + StableConfigMappingException.safeToString(map));
     }
 
     if (!(selectorsObj instanceof List)) {
@@ -59,7 +60,8 @@ public final class Rule {
 
     Object configObj = map.get("configuration");
     if (configObj == null) {
-      throw new StableConfigMappingException("Missing 'configuration' in rule: " + map);
+      throw new StableConfigMappingException(
+          "Missing 'configuration' in rule: " + StableConfigMappingException.safeToString(map));
     }
     if (!(configObj instanceof Map)) {
       throw new StableConfigMappingException(
