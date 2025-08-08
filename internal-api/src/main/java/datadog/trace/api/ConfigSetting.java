@@ -32,6 +32,7 @@ public final class ConfigSetting {
     this.key = key;
     this.value = CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
     this.origin = origin;
+    this.seqId = seqId;
   }
 
   public String normalizedKey() {
