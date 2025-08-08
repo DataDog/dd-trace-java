@@ -36,7 +36,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
   def 'should filter a buffer and inject if found #found'() {
     setup:
     def downstream = new ByteArrayOutputStream()
-    def piped = new OutputStreamWriter(new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null),
+    def piped = new OutputStreamWriter(new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null, null),
     "UTF-8")
     when:
     try (def closeme = piped) {
@@ -55,7 +55,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     setup:
     def baos = new ByteArrayOutputStream()
     def downstream = new GlitchedOutputStream(baos, glichesAt)
-    def piped = new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null)
+    def piped = new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null, null)
     when:
     try {
       for (String line : body) {
