@@ -127,6 +127,7 @@ include(
 // iast
 include(
   ":dd-java-agent:agent-iast",
+  ":dd-java-agent:agent-iast:iast-testing",
 )
 
 include(
