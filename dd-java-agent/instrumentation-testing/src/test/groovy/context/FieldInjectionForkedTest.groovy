@@ -39,7 +39,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
       "Aborting transform for class name = " + typeName + ", loader = " + classLoader)
     }
 
-    super.onDiscovery(typeName, classLoader, module, loaded)
+    Object.onDiscovery(typeName, classLoader, module, loaded)
   }
 
   def "#keyClassName structure modified = #shouldModifyStructure"() {
@@ -72,12 +72,12 @@ class FieldInjectionForkedTest extends AgentTestRunner {
 
     where:
     keyClass                            | shouldModifyStructure | isInstrumented
-    KeyClass                            | true                  | true
-    UntransformableKeyClass             | false                 | false
-    ValidSerializableKeyClass           | true                  | true
-    InvalidSerializableKeyClass         | true                  | true
-    ValidInheritsSerializableKeyClass   | true                  | true
-    InvalidInheritsSerializableKeyClass | true                  | true
+    KeyClass                            | true  | true
+    UntransformableKeyClass             | false | false
+    ValidSerializableKeyClass           | true  | true
+    InvalidSerializableKeyClass         | true  | true
+    ValidInheritsSerializableKeyClass   | true  | true
+    InvalidInheritsSerializableKeyClass | true  | true
 
     keyClassName = keyClass.getSimpleName()
   }

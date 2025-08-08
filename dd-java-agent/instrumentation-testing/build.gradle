@@ -13,4 +13,15 @@ dependencies {
   implementation project(':dd-java-agent:agent-debugger')
 
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+
+  testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+
+  testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
+  // test instrumenting java 1.1 bytecode
+  testImplementation group: 'net.sf.jt400', name: 'jt400', version: '6.1'
+
+  // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
+  testAnnotationProcessor libs.autoservice.processor
+  testCompileOnly libs.autoservice.annotation
 }
