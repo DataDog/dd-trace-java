@@ -1,24 +1,66 @@
 package datadog.trace.api.rum;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.StatsDClient;
-import datadog.trace.util.AgentTaskScheduler;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // This class implements the RumTelemetryCollector interface, which is used to collect telemetry
-// from the RumInjector. Metrics are then reported via StatsDClient.
+// from the RumInjector. Metrics are then reported via StatsDClient with tagging. See:
+// https://github.com/DataDog/dd-go/blob/prod/trace/apps/tracer-telemetry-intake/telemetry-metrics/static/common_metrics.json
+// for common metrics and tags.
 public class RumInjectorMetrics implements RumTelemetryCollector {
   private static final Logger log = LoggerFactory.getLogger(RumInjectorMetrics.class);
 
   private static final String[] NO_TAGS = new String[0];
 
-  private final AtomicBoolean started = new AtomicBoolean(false);
-  private volatile AgentTaskScheduler.Scheduled<RumInjectorMetrics> cancellation;
+  // Use static tags for common combinations so that we don't have to build them for each metric
+  private static final String[] CSP_SERVLET3_TAGS =
+      new String[] {
+        "injector_version:0.1.0",
+        "integration_name:servlet",
+        "integration_version:3",
+        "kind:header",
+        "reason:csp_header_found",
+        "status:seen"
+      };
+
+  private static final String[] CSP_SERVLET5_TAGS =
+      new String[] {
+        "injector_version:0.1.0",
+        "integration_name:servlet",
+        "integration_version:5",
+        "kind:header",
+        "reason:csp_header_found",
+        "status:seen"
+      };
+
+  private static final String[] INIT_TAGS =
+      new String[] {
+        "injector_version:0.1.0", "integration_name:servlet", "integration_version:3,5"
+      };
+
+  private static final String[] TIME_SERVLET3_TAGS =
+      new String[] {"injector_version:0.1.0", "integration_name:servlet", "integration_version:3"};
+
+  private static final String[] TIME_SERVLET5_TAGS =
+      new String[] {"injector_version:0.1.0", "integration_name:servlet", "integration_version:5"};
+
+  private static final String[] RESPONSE_SERVLET3_TAGS =
+      new String[] {
+        "injector_version:0.1.0",
+        "integration_name:servlet",
+        "integration_version:3",
+        "response_kind:header"
+      };
+
+  private static final String[] RESPONSE_SERVLET5_TAGS =
+      new String[] {
+        "injector_version:0.1.0",
+        "integration_name:servlet",
+        "integration_version:5",
+        "response_kind:header"
+      };
 
   private final AtomicLong injectionSucceed = new AtomicLong();
   private final AtomicLong injectionFailed = new AtomicLong();
@@ -27,121 +69,128 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   private final AtomicLong initializationSucceed = new AtomicLong();
 
   private final StatsDClient statsd;
-  private final long interval;
-  private final TimeUnit units;
 
-  public void start() {
-    if (started.compareAndSet(false, true)) {
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new Flush(), this, interval, interval, units);
+  private final String applicationId;
+  private final String remoteConfigUsed;
+
+  public RumInjectorMetrics(final StatsDClient statsd) {
+    this.statsd = statsd;
+
+    // Get RUM config values (applicationId and remoteConfigUsed) for tagging
+    RumInjector rumInjector = RumInjector.get();
+    if (rumInjector.isEnabled()) {
+      datadog.trace.api.Config config = datadog.trace.api.Config.get();
+      RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
+      if (injectorConfig != null) {
+        this.applicationId = injectorConfig.applicationId;
+        this.remoteConfigUsed = injectorConfig.remoteConfigurationId != null ? "true" : "false";
+      } else {
+        this.applicationId = "unknown";
+        this.remoteConfigUsed = "false";
+      }
+    } else {
+      this.applicationId = "unknown";
+      this.remoteConfigUsed = "false";
     }
   }
 
-  public RumInjectorMetrics(final StatsDClient statsd) {
-    this(statsd, 30, SECONDS);
-  }
-
-  public RumInjectorMetrics(final StatsDClient statsd, long interval, TimeUnit units) {
-    this.statsd = statsd;
-    this.interval = interval;
-    this.units = units;
-  }
-
   @Override
-  public void onInjectionSucceed() {
+  public void onInjectionSucceed(String integrationVersion) {
     injectionSucceed.incrementAndGet();
+
+    String[] tags =
+        new String[] {
+          "application_id:" + applicationId,
+          "injector_version:0.1.0",
+          "integration_name:servlet",
+          "integration_version:" + integrationVersion,
+          "remote_config_used:" + remoteConfigUsed
+        };
+
+    statsd.count("rum.injection.succeed", 1, tags);
   }
 
   @Override
-  public void onInjectionFailed() {
+  public void onInjectionFailed(String integrationVersion, String contentEncoding) {
     injectionFailed.incrementAndGet();
+
+    String[] tags =
+        new String[] {
+          "application_id:" + applicationId,
+          "content_encoding:" + contentEncoding,
+          "injector_version:0.1.0",
+          "integration_name:servlet",
+          "integration_version:" + integrationVersion,
+          "reason:failed_to_return_response_wrapper",
+          "remote_config_used:" + remoteConfigUsed
+        };
+
+    statsd.count("rum.injection.failed", 1, tags);
   }
 
   @Override
-  public void onInjectionSkipped() {
+  public void onInjectionSkipped(String integrationVersion) {
     injectionSkipped.incrementAndGet();
+
+    String[] tags =
+        new String[] {
+          "application_id:" + applicationId,
+          "injector_version:0.1.0",
+          "integration_name:servlet",
+          "integration_version:" + integrationVersion,
+          "reason:should_not_inject",
+          "remote_config_used:" + remoteConfigUsed
+        };
+
+    statsd.count("rum.injection.skipped", 1, tags);
   }
 
   @Override
   public void onInitializationSucceed() {
     initializationSucceed.incrementAndGet();
+    statsd.count("rum.injection.initialization.succeed", 1, INIT_TAGS);
   }
 
   @Override
-  public void onContentSecurityPolicyDetected() {
+  public void onContentSecurityPolicyDetected(String integrationVersion) {
     contentSecurityPolicyDetected.incrementAndGet();
+
+    String[] tags = "5".equals(integrationVersion) ? CSP_SERVLET5_TAGS : CSP_SERVLET3_TAGS;
+    statsd.count("rum.injection.content_security_policy", 1, tags);
   }
 
   @Override
-  public void onInjectionResponseSize(long bytes) {
-    // report distribution metric immediately
-    statsd.distribution("rum.injection.response.bytes", bytes, NO_TAGS);
+  public void onInjectionResponseSize(String integrationVersion, long bytes) {
+    String[] tags =
+        "5".equals(integrationVersion) ? RESPONSE_SERVLET5_TAGS : RESPONSE_SERVLET3_TAGS;
+    statsd.distribution("rum.injection.response.bytes", bytes, tags);
   }
 
   @Override
-  public void onInjectionTime(long milliseconds) {
-    // report distribution metric immediately
-    statsd.distribution("rum.injection.ms", milliseconds, NO_TAGS);
+  public void onInjectionTime(String integrationVersion, long milliseconds) {
+    String[] tags = "5".equals(integrationVersion) ? TIME_SERVLET5_TAGS : TIME_SERVLET3_TAGS;
+    statsd.distribution("rum.injection.ms", milliseconds, tags);
   }
 
+  @Override
   public void close() {
-    if (null != cancellation) {
-      cancellation.cancel();
-    }
+    injectionSucceed.set(0);
+    injectionFailed.set(0);
+    injectionSkipped.set(0);
+    contentSecurityPolicyDetected.set(0);
+    initializationSucceed.set(0);
   }
 
   public String summary() {
-    return "injectionSucceed="
+    return "\ninitializationSucceed="
+        + initializationSucceed.get()
+        + "\ninjectionSucceed="
         + injectionSucceed.get()
         + "\ninjectionFailed="
         + injectionFailed.get()
         + "\ninjectionSkipped="
         + injectionSkipped.get()
         + "\ncontentSecurityPolicyDetected="
-        + contentSecurityPolicyDetected.get()
-        + "\ninitializationSucceed="
-        + initializationSucceed.get();
-  }
-
-  private static class Flush implements AgentTaskScheduler.Task<RumInjectorMetrics> {
-
-    private final long[] previousCounts = new long[5]; // one per counter
-    private int countIndex;
-
-    @Override
-    public void run(RumInjectorMetrics target) {
-      countIndex = -1;
-      try {
-        reportIfChanged(target.statsd, "rum.injection.succeed", target.injectionSucceed, NO_TAGS);
-        reportIfChanged(target.statsd, "rum.injection.failed", target.injectionFailed, NO_TAGS);
-        reportIfChanged(target.statsd, "rum.injection.skipped", target.injectionSkipped, NO_TAGS);
-        reportIfChanged(
-            target.statsd,
-            "rum.injection.content_security_policy",
-            target.contentSecurityPolicyDetected,
-            NO_TAGS);
-        reportIfChanged(
-            target.statsd,
-            "rum.injection.initialization.succeed",
-            target.initializationSucceed,
-            NO_TAGS);
-      } catch (ArrayIndexOutOfBoundsException e) {
-        log.warn(
-            "previousCounts array needs resizing to at least {}, was {}",
-            countIndex + 1,
-            previousCounts.length);
-      }
-    }
-
-    private void reportIfChanged(
-        StatsDClient statsDClient, String aspect, AtomicLong counter, String[] tags) {
-      long count = counter.get();
-      long delta = count - previousCounts[++countIndex];
-      if (delta > 0) {
-        statsDClient.count(aspect, delta, tags);
-        previousCounts[countIndex] = count;
-      }
-    }
+        + contentSecurityPolicyDetected.get();
   }
 }

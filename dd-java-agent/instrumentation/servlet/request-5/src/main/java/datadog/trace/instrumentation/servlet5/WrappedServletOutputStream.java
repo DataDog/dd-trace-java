@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.function.LongConsumer;
 
 public class WrappedServletOutputStream extends ServletOutputStream {

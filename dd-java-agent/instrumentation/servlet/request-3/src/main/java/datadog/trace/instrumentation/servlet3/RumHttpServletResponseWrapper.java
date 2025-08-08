@@ -19,6 +19,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
   private long injectionStartTime = -1;
+  private String contentEncoding = "none";
 
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
 
@@ -46,7 +47,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return outputStream;
     }
     if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped();
+      RumInjector.getTelemetryCollector().onInjectionSkipped("3");
       return super.getOutputStream();
     }
     // start timing injection
@@ -63,9 +64,10 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               super.getOutputStream(),
               rumInjector.getMarkerBytes(encoding),
               rumInjector.getSnippetBytes(encoding),
-              this::onInjected);
+              this::onInjected,
+              bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize("3", bytes));
     } catch (Exception e) {
-      RumInjector.getTelemetryCollector().onInjectionFailed();
+      RumInjector.getTelemetryCollector().onInjectionFailed("3", contentEncoding);
       throw e;
     }
 
@@ -78,7 +80,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return printWriter;
     }
     if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped();
+      RumInjector.getTelemetryCollector().onInjectionSkipped("3");
       return super.getWriter();
     }
     // start timing injection
@@ -94,7 +96,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected);
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
-      RumInjector.getTelemetryCollector().onInjectionFailed();
+      RumInjector.getTelemetryCollector().onInjectionFailed("3", contentEncoding);
       throw e;
     }
 
@@ -104,8 +106,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   @Override
   public void setHeader(String name, String value) {
     if (name != null) {
-      if (name.toLowerCase().startsWith("content-security-policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected();
+      String lowerName = name.toLowerCase();
+      if (lowerName.startsWith("content-security-policy")) {
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected("3");
+      } else if (lowerName.equals("content-encoding")) {
+        this.contentEncoding = value;
       }
     }
     super.setHeader(name, value);
@@ -114,8 +119,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   @Override
   public void addHeader(String name, String value) {
     if (name != null) {
-      if (name.toLowerCase().startsWith("content-security-policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected();
+      String lowerName = name.toLowerCase();
+      if (lowerName.startsWith("content-security-policy")) {
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected("3");
+      } else if (lowerName.equals("content-encoding")) {
+        this.contentEncoding = value;
       }
     }
     super.addHeader(name, value);
@@ -159,13 +167,13 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   public void onInjected() {
-    RumInjector.getTelemetryCollector().onInjectionSucceed();
+    RumInjector.getTelemetryCollector().onInjectionSucceed("3");
 
     // report injection time
     if (injectionStartTime != -1) {
       long nanoseconds = System.nanoTime() - injectionStartTime;
       long milliseconds = nanoseconds / 1_000_000L;
-      RumInjector.getTelemetryCollector().onInjectionTime(milliseconds);
+      RumInjector.getTelemetryCollector().onInjectionTime("3", milliseconds);
       injectionStartTime = -1;
     }
 

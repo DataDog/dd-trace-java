@@ -28,7 +28,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.onInjected()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSucceed()
+    1 * mockTelemetryCollector.onInjectionSucceed("5")
   }
 
   void 'getOutputStream with non-HTML content reports skipped'() {
@@ -39,7 +39,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.getOutputStream()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSkipped()
+    1 * mockTelemetryCollector.onInjectionSkipped("5")
     1 * mockResponse.getOutputStream()
   }
 
@@ -51,7 +51,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.getWriter()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSkipped()
+    1 * mockTelemetryCollector.onInjectionSkipped("5")
     1 * mockResponse.getWriter()
   }
 
@@ -66,7 +66,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     } catch (IOException ignored) {}
 
     then:
-    1 * mockTelemetryCollector.onInjectionFailed()
+    1 * mockTelemetryCollector.onInjectionFailed("5", "none")
   }
 
   void 'getWriter exception reports failure'() {
@@ -80,7 +80,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     } catch (IOException ignored) {}
 
     then:
-    1 * mockTelemetryCollector.onInjectionFailed()
+    1 * mockTelemetryCollector.onInjectionFailed("5", "none")
   }
 
   void 'setHeader with Content-Security-Policy reports CSP detected'() {
@@ -88,7 +88,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.setHeader("Content-Security-Policy", "test")
 
     then:
-    1 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    1 * mockTelemetryCollector.onContentSecurityPolicyDetected("5")
     1 * mockResponse.setHeader("Content-Security-Policy", "test")
   }
 
@@ -97,7 +97,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.addHeader("Content-Security-Policy", "test")
 
     then:
-    1 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    1 * mockTelemetryCollector.onContentSecurityPolicyDetected("5")
     1 * mockResponse.addHeader("Content-Security-Policy", "test")
   }
 
@@ -119,7 +119,29 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
   }
 
-  void 'response sizes are reported correctly'() {
+  // Callback is created in the RumHttpServletResponseWrapper and passed to InjectingPipeOutputStream via WrappedServletOutputStream.
+  // When the stream is closed, the callback is called with the total number of bytes written to the stream.
+  void 'response sizes are reported to the telemetry collector via the WrappedServletOutputStream callback'() {
+    setup:
+    def downstream = Mock(jakarta.servlet.ServletOutputStream)
+    def marker = "</head>".getBytes("UTF-8")
+    def contentToInject = "<script></script>".getBytes("UTF-8")
+    def onBytesWritten = { bytes ->
+      mockTelemetryCollector.onInjectionResponseSize("5", bytes)
+    }
+    def wrappedStream = new datadog.trace.instrumentation.servlet5.WrappedServletOutputStream(
+      downstream, marker, contentToInject, null, onBytesWritten)
+
+    when:
+    wrappedStream.write("test".getBytes("UTF-8"))
+    wrappedStream.write("content".getBytes("UTF-8"))
+    wrappedStream.close()
+
+    then:
+    1 * mockTelemetryCollector.onInjectionResponseSize("5", 11)
+  }
+
+  void 'response sizes are reported by the InjectingPipeOutputStream callback'() {
     setup:
     def downstream = Mock(java.io.OutputStream)
     def marker = "</head>".getBytes("UTF-8")
@@ -149,6 +171,6 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.onInjected() // report timing when injection "is successful"
 
     then:
-    1 * mockTelemetryCollector.onInjectionTime({ it > 0 })
+    1 * mockTelemetryCollector.onInjectionTime("5", { it >= 0 })
   }
 }

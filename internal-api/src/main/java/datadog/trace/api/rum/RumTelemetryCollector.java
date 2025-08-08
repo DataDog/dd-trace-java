@@ -7,28 +7,25 @@ public interface RumTelemetryCollector {
   RumTelemetryCollector NO_OP =
       new RumTelemetryCollector() {
         @Override
-        public void start() {}
+        public void onInjectionSucceed(String integrationVersion) {}
 
         @Override
-        public void onInjectionSucceed() {}
+        public void onInjectionFailed(String integrationVersion, String contentEncoding) {}
 
         @Override
-        public void onInjectionFailed() {}
-
-        @Override
-        public void onInjectionSkipped() {}
+        public void onInjectionSkipped(String integrationVersion) {}
 
         @Override
         public void onInitializationSucceed() {}
 
         @Override
-        public void onContentSecurityPolicyDetected() {}
+        public void onContentSecurityPolicyDetected(String integrationVersion) {}
 
         @Override
-        public void onInjectionResponseSize(long bytes) {}
+        public void onInjectionResponseSize(String integrationVersion, long bytes) {}
 
         @Override
-        public void onInjectionTime(long milliseconds) {}
+        public void onInjectionTime(String integrationVersion, long milliseconds) {}
 
         @Override
         public void close() {}
@@ -39,28 +36,26 @@ public interface RumTelemetryCollector {
         }
       };
 
-  default void start() {}
-
   // call when RUM injection succeeds
-  void onInjectionSucceed();
+  void onInjectionSucceed(String integrationVersion);
 
   // call when RUM injection fails
-  void onInjectionFailed();
+  void onInjectionFailed(String integrationVersion, String contentEncoding);
 
   // call when RUM injection is skipped
-  void onInjectionSkipped();
+  void onInjectionSkipped(String integrationVersion);
 
   // call when RUM injector initialization succeeds
   void onInitializationSucceed();
 
   // call when a Content Security Policy header is detected
-  void onContentSecurityPolicyDetected();
+  void onContentSecurityPolicyDetected(String integrationVersion);
 
   // call to get the response size before RUM injection
-  void onInjectionResponseSize(long bytes);
+  void onInjectionResponseSize(String integrationVersion, long bytes);
 
   // call to report the time it takes to inject the RUM SDK
-  void onInjectionTime(long milliseconds);
+  void onInjectionTime(String integrationVersion, long milliseconds);
 
   default void close() {}
 

@@ -122,7 +122,7 @@ class RumInjectorTest extends DDSpecification {
     when:
     RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
     def telemetryCollector = RumInjector.getTelemetryCollector()
-    telemetryCollector.onContentSecurityPolicyDetected()
+    telemetryCollector.onContentSecurityPolicyDetected("3")
     def summary = telemetryCollector.summary()
 
     then:
@@ -139,12 +139,12 @@ class RumInjectorTest extends DDSpecification {
 
     // simulate reporting successful injection
     def telemetryCollector = RumInjector.getTelemetryCollector()
-    telemetryCollector.onInjectionSucceed()
-    telemetryCollector.onInjectionFailed()
-    telemetryCollector.onInjectionSkipped()
-    telemetryCollector.onContentSecurityPolicyDetected()
-    telemetryCollector.onInjectionResponseSize(256)
-    telemetryCollector.onInjectionTime(5L)
+    telemetryCollector.onInjectionSucceed("3")
+    telemetryCollector.onInjectionFailed("3", "gzip")
+    telemetryCollector.onInjectionSkipped("3")
+    telemetryCollector.onContentSecurityPolicyDetected("3")
+    telemetryCollector.onInjectionResponseSize("3", 256)
+    telemetryCollector.onInjectionTime("3", 5L)
 
     // verify metrics are collected
     def summary = telemetryCollector.summary()
@@ -154,7 +154,7 @@ class RumInjectorTest extends DDSpecification {
     summary.contains("injectionFailed=1")
     summary.contains("injectionSkipped=1")
     summary.contains("contentSecurityPolicyDetected=1")
-    summary.contains("initializationSucceed=0") // rum injector not initialized in test environment
+    summary.contains("initializationSucceed=0") // RUM injector not enabled in test environment
 
     cleanup:
     RumInjector.shutdownTelemetry()
@@ -168,9 +168,9 @@ class RumInjectorTest extends DDSpecification {
     RumInjector.enableTelemetry(mockStatsDClient)
 
     def telemetryCollector = RumInjector.getTelemetryCollector()
-    telemetryCollector.onInjectionResponseSize(256)
-    telemetryCollector.onInjectionResponseSize(512)
-    telemetryCollector.onInjectionResponseSize(2048)
+    telemetryCollector.onInjectionResponseSize("3", 256)
+    telemetryCollector.onInjectionResponseSize("3", 512)
+    telemetryCollector.onInjectionResponseSize("5", 2048)
 
     then:
     // response sizes are reported immediately as distribution metrics
@@ -188,9 +188,9 @@ class RumInjectorTest extends DDSpecification {
     RumInjector.enableTelemetry(mockStatsDClient)
 
     def telemetryCollector = RumInjector.getTelemetryCollector()
-    telemetryCollector.onInjectionTime(5L)
-    telemetryCollector.onInjectionTime(10L)
-    telemetryCollector.onInjectionTime(20L)
+    telemetryCollector.onInjectionTime("5", 5L)
+    telemetryCollector.onInjectionTime("5", 10L)
+    telemetryCollector.onInjectionTime("3", 20L)
 
     then:
     // injection times are reported immediately as distribution metrics
@@ -210,12 +210,12 @@ class RumInjectorTest extends DDSpecification {
     // simulate multiple threads calling telemetry methods
     (1..50).each { i ->
       threads << Thread.start {
-        telemetryCollector.onInjectionSucceed()
-        telemetryCollector.onInjectionFailed()
-        telemetryCollector.onInjectionSkipped()
-        telemetryCollector.onContentSecurityPolicyDetected()
-        telemetryCollector.onInjectionResponseSize(256)
-        telemetryCollector.onInjectionTime(5L)
+        telemetryCollector.onInjectionSucceed("3")
+        telemetryCollector.onInjectionFailed("3", "gzip")
+        telemetryCollector.onInjectionSkipped("3")
+        telemetryCollector.onContentSecurityPolicyDetected("3")
+        telemetryCollector.onInjectionResponseSize("3", 256)
+        telemetryCollector.onInjectionTime("3", 5L)
       }
     }
     threads*.join()

@@ -130,7 +130,6 @@ public final class RumInjector {
   public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
     if (statsDClient != null) {
       RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
-      metrics.start();
       telemetryCollector = metrics;
 
       if (INSTANCE.isEnabled()) {
