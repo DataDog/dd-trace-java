@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.buffer;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * An OutputStream containing a circular buffer with a lookbehind buffer of n bytes. The first time
@@ -9,6 +10,7 @@ import java.io.OutputStream;
  * thrown by the downstream, the buffer will be lost unless the error occurred when draining it. In
  * this case the draining will be resumed.
  */
+@NotThreadSafe
 public class InjectingPipeOutputStream extends OutputStream {
   private final byte[] lookbehind;
   private int pos;
@@ -168,6 +170,13 @@ public class InjectingPipeOutputStream extends OutputStream {
     }
   }
 
+  public void commit() throws IOException {
+    if (filter || wasDraining) {
+      filter = false;
+      drain();
+    }
+  }
+
   @Override
   public void flush() throws IOException {
     downstream.flush();
@@ -176,9 +185,7 @@ public class InjectingPipeOutputStream extends OutputStream {
   @Override
   public void close() throws IOException {
     try {
-      if (filter || wasDraining) {
-        drain();
-      }
+      commit();
     } finally {
       downstream.close();
     }

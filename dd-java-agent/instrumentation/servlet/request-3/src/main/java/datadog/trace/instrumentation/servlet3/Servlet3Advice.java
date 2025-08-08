@@ -35,7 +35,8 @@ public class Servlet3Advice {
       @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
-      @Advice.Local("contextScope") ContextScope scope) {
+      @Advice.Local("contextScope") ContextScope scope,
+      @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
     final boolean invalidRequest =
         !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
     if (invalidRequest) {
@@ -47,7 +48,8 @@ public class Servlet3Advice {
 
     if (RumInjector.get().isEnabled() && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
       httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
-      httpServletResponse = new RumHttpServletResponseWrapper(httpServletResponse);
+      rumServletWrapper = new RumHttpServletResponseWrapper(httpServletResponse);
+      httpServletResponse = rumServletWrapper;
       response = httpServletResponse;
     }
 
@@ -108,7 +110,11 @@ public class Servlet3Advice {
       @Advice.Local("contextScope") final ContextScope scope,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
+      @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper,
       @Advice.Thrown final Throwable throwable) {
+    if (rumServletWrapper != null) {
+      rumServletWrapper.commit();
+    }
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
     if (Config.get().isServletPrincipalEnabled()
