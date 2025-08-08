@@ -13,12 +13,13 @@ import net.bytebuddy.jar.asm.TypePath;
  * This method visitor delays the following instructions:
  *
  * <ul>
- *   <li>Local variable instruction: {@code ALOAD},</li>
- *   <li>field instructions: {@code GETSTATIC}, {@code GETFIELD}</li>
- *   <li>method instructions: {@code INVOKEVIRTUAL}</li>
+ *   <li>Local variable instruction: {@code ALOAD},
+ *   <li>field instructions: {@code GETSTATIC}, {@code GETFIELD}
+ *   <li>method instructions: {@code INVOKEVIRTUAL}
  * </ul>
  *
- * They can be queried using {@link #transferVisitations()} and manually commited using {@link #commitVisitations(List)}.
+ * They can be queried using {@link #transferVisitations()} and manually commited using {@link
+ * #commitVisitations(List)}.
  */
 public class DelayCertainInsMethodVisitor extends MethodVisitor {
   private final List<Runnable> heldVisitations = new ArrayList<>();

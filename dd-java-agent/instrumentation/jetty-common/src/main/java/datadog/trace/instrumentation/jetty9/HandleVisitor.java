@@ -12,9 +12,7 @@ import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import java.io.BufferedWriter;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.jar.asm.Handle;
@@ -30,12 +28,15 @@ import org.slf4j.LoggerFactory;
  * under a condition, for the {@link org.eclipse.jetty.server.HttpChannel} class.
  *
  * <p>In particular, for earlier versions of jetty:
+ *
  * <pre>
  *   case REQUEST_DISPATCH:
  *   // ...
  *   getServer().handle(this);
  * </pre>
+ *
  * is replaced with:
+ *
  * <pre>
  *   case REQUEST_DISPATCH:
  *   // ...
@@ -45,7 +46,9 @@ import org.slf4j.LoggerFactory;
  *     getServer().handle(this);
  *   }
  * </pre>
+ *
  * And for later versions of Jetty before 11.16.0,
+ *
  * <pre>
  *   case DISPATCH:
  *   {
@@ -56,7 +59,9 @@ import org.slf4j.LoggerFactory;
  *         getServer().handle(HttpChannel.this);
  *       });
  * </pre>
+ *
  * is replaced with:
+ *
  * <pre>
  *   case DISPATCH:
  *   {
@@ -75,14 +80,18 @@ import org.slf4j.LoggerFactory;
  *       });
  *   }
  * </pre>
+ *
  * And for later versions of Jetty,
+ *
  * <pre>
  *   case DISPATCH:
  *   {
  *     // ...
  *     dispatch(DispatcherType.REQUEST, _requestDispatcher);
  * </pre>
+ *
  * is replaced with:
+ *
  * <pre>
  *   case DISPATCH:
  *   {
@@ -104,12 +113,13 @@ public class HandleVisitor extends MethodVisitor {
   private static final int CONTEXT_VAR = 1000;
 
   /** Whether the next store is supposed to store the Context variable. */
-//  private boolean lookForStore;
+  //  private boolean lookForStore;
   /** Whether the Context variable was stored to local index {@link #CONTEXT_VAR}. */
-//  private boolean contextStored;
-//  private int contextVarIndex = -1;
-  /** Whether the handle() method injection was successful .*/
+  //  private boolean contextStored;
+  //  private int contextVarIndex = -1;
+  /** Whether the handle() method injection was successful . */
   private boolean success;
+
   private final String methodName;
 
   private BufferedWriter debugWriter;
@@ -128,44 +138,58 @@ public class HandleVisitor extends MethodVisitor {
   public HandleVisitor(int api, DelayCertainInsMethodVisitor methodVisitor, String methodName) {
     super(api, methodVisitor);
     this.methodName = methodName;
-    try {
-      String path = "/Users/bruce.bujon/go/src/github.com/DataDog/dd-trace-java/bbujon/debug/HandleVisitor-" + System.nanoTime() + ".txt";
-      this.debugWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(path)));
-      debug("Initializing");
-    } catch (IOException ignored) {
-    }
+    // try {
+    //   String path =
+    //
+    // "/Users/bruce.bujon/go/src/github.com/DataDog/dd-trace-java/bbujon/debug/HandleVisitor-"
+    //           + System.nanoTime()
+    //           + ".txt";
+    //   this.debugWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(path)));
+    //   debug("Initializing");
+    // } catch (IOException ignored) {
+    // }
   }
 
   DelayCertainInsMethodVisitor delayVisitorDelegate() {
     return (DelayCertainInsMethodVisitor) this.mv;
   }
 
-//  @Override
-//  public void visitLocalVariable(String name, String descriptor, String signature, Label start, Label end, int index) {
-//    if (contextStored && index == CONTEXT_VAR) {
-//      super.visitLocalVariable("context", Type.getDescriptor(Context.class), null, start, end, CONTEXT_VAR);
-//    }
-//    super.visitLocalVariable(name, descriptor, signature, start, end, index);
-//  }
+  //  @Override
+  //  public void visitLocalVariable(String name, String descriptor, String signature, Label start,
+  // Label end, int index) {
+  //    if (contextStored && index == CONTEXT_VAR) {
+  //      super.visitLocalVariable("context", Type.getDescriptor(Context.class), null, start, end,
+  // CONTEXT_VAR);
+  //    }
+  //    super.visitLocalVariable(name, descriptor, signature, start, end, index);
+  //  }
 
   @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
     debug("visitMethodInsn");
-//    debug(">> contextStored: " + contextStored);
+    //    debug(">> contextStored: " + contextStored);
     debug(">> success: " + success);
-    debug(">> opcode: " + opcode + ", owner: " + owner + ", name: " + name + ", descriptor: " + descriptor);
-//    if (!contextStored) {
-//      lookForStore =
-//          !lookForStore
-//              && opcode == INVOKEVIRTUAL
-//              && name.equals("startSpan")
-//              && descriptor.endsWith("Ldatadog/context/Context;");
-//      if (lookForStore) {
-//        debug("Found store");
-//      }
-//    } else
-      if (!success
+    debug(
+        ">> opcode: "
+            + opcode
+            + ", owner: "
+            + owner
+            + ", name: "
+            + name
+            + ", descriptor: "
+            + descriptor);
+    //    if (!contextStored) {
+    //      lookForStore =
+    //          !lookForStore
+    //              && opcode == INVOKEVIRTUAL
+    //              && name.equals("startSpan")
+    //              && descriptor.endsWith("Ldatadog/context/Context;");
+    //      if (lookForStore) {
+    //        debug("Found store");
+    //      }
+    //    } else
+    if (!success
         && opcode == INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
@@ -180,7 +204,7 @@ public class HandleVisitor extends MethodVisitor {
        * invokevirtual #78                 // Method getServer:()Lorg/eclipse/jetty/server/Server;
        * aload_0
        */
-      debug("Saved visitation size: "+savedVisitations.size());
+      debug("Saved visitation size: " + savedVisitations.size());
       if (savedVisitations.size() != 3) {
         mv.commitVisitations(savedVisitations);
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -212,9 +236,8 @@ public class HandleVisitor extends MethodVisitor {
           Type.getInternalName(Java8BytecodeBridge.class),
           "getCurrentContext",
           "()Ldatadog/context/Context;",
-          false
-      );
-//      super.visitVarInsn(ALOAD, CONTEXT_VAR);
+          false);
+      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
@@ -265,17 +288,17 @@ public class HandleVisitor extends MethodVisitor {
       Label beforeRegularDispatch = new Label();
       Label afterRegularDispatch = new Label();
 
-//      super.visitVarInsn(ALOAD, CONTEXT_VAR);
-//      super.visitJumpInsn(Opcodes.IFNULL, beforeRegularDispatch);
-//      super.visitVarInsn(ALOAD, CONTEXT_VAR);
-//      super.visitMethodInsn(
-//          Opcodes.INVOKEINTERFACE,
-//          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-//          "getRequestBlockingAction",
-//          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-//          true);
-//      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
-//      super.visitJumpInsn(GOTO, beforeRegularDispatch);
+      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
+      //      super.visitJumpInsn(Opcodes.IFNULL, beforeRegularDispatch);
+      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
+      //      super.visitMethodInsn(
+      //          Opcodes.INVOKEINTERFACE,
+      //          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
+      //          "getRequestBlockingAction",
+      //          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
+      //          true);
+      //      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
+      //      super.visitJumpInsn(GOTO, beforeRegularDispatch);
 
       super.visitLabel(doBlockLabel);
       super.visitFrame(F_SAME, 0, null, 0, null);
@@ -299,21 +322,20 @@ public class HandleVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-//      super.visitVarInsn(ALOAD, CONTEXT_VAR);
-//      super.visitMethodInsn(
-//          Opcodes.INVOKEINTERFACE,
-//          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-//          "getRequestBlockingAction",
-//          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-//          true);
+      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
+      //      super.visitMethodInsn(
+      //          Opcodes.INVOKEINTERFACE,
+      //          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
+      //          "getRequestBlockingAction",
+      //          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
+      //          true);
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
           "getCurrentContext",
           "()Ldatadog/context/Context;",
-          false
-      );
-//      super.visitVarInsn(ALOAD, CONTEXT_VAR);
+          false);
+      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
 
       // create the lambda
       super.visitInvokeDynamicInsn(
@@ -394,25 +416,25 @@ public class HandleVisitor extends MethodVisitor {
     return last instanceof DelayCertainInsMethodVisitor.GetFieldInsn;
   }
 
-//  @Override
-//  public void visitVarInsn(int opcode, int varIndex) {
-//    if (lookForStore && opcode == ASTORE) {
-//      debug("Found context");
-//      contextStored = true;
-//      lookForStore = false;
-////      contextVarIndex = varIndex;
-//      // Duplicate on stack and store to its own local var
-////      super.visitInsn(DUP);
-////      super.visitVarInsn(ASTORE, CONTEXT_VAR);
-//    }
-//    super.visitVarInsn(opcode, varIndex);
-//  }
+  //  @Override
+  //  public void visitVarInsn(int opcode, int varIndex) {
+  //    if (lookForStore && opcode == ASTORE) {
+  //      debug("Found context");
+  //      contextStored = true;
+  //      lookForStore = false;
+  ////      contextVarIndex = varIndex;
+  //      // Duplicate on stack and store to its own local var
+  ////      super.visitInsn(DUP);
+  ////      super.visitVarInsn(ASTORE, CONTEXT_VAR);
+  //    }
+  //    super.visitVarInsn(opcode, varIndex);
+  //  }
 
-//  @Override
-//  public void visitMaxs(int maxStack, int maxLocals) {
-//    debug("VisitMaxs stack: " + maxStack + ", locals: " + maxLocals);
-//    super.visitMaxs(maxStack, max(maxLocals, CONTEXT_VAR + 1));
-//  }
+  //  @Override
+  //  public void visitMaxs(int maxStack, int maxLocals) {
+  //    debug("VisitMaxs stack: " + maxStack + ", locals: " + maxLocals);
+  //    super.visitMaxs(maxStack, max(maxLocals, CONTEXT_VAR + 1));
+  //  }
 
   @Override
   public void visitEnd() {
