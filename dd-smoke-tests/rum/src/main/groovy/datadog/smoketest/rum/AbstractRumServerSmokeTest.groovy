@@ -58,6 +58,6 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
     def content = response.body().string()
     System.err.println(content)
     assert !content.contains('https://www.datadoghq-browser-agent.com'): 'RUM script unexpectedly injected'
-    assert content.endsWith('</response>')
+    assert content.endsWith('</response>'): 'Response not fully flushed'
   }
 }
