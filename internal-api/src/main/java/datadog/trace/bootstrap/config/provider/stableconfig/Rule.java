@@ -38,6 +38,7 @@ public final class Rule {
               + ", value: "
               + StableConfigMappingException.safeToString(selectorsObj));
     }
+
     List<Selector> selectors =
         unmodifiableList(
             ((List<?>) selectorsObj)
