@@ -30,6 +30,7 @@ public final class Rule {
     if (selectorsObj == null) {
       throw new StableConfigMappingException("Missing 'selectors' in rule: " + map);
     }
+
     if (!(selectorsObj instanceof List)) {
       throw new StableConfigMappingException(
           "'selectors' must be a list, but got: "
