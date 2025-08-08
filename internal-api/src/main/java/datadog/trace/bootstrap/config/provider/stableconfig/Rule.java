@@ -47,14 +47,14 @@ public final class Rule {
                     .filter(Objects::nonNull)
                     .map(
                         s -> {
-                          if (!(s instanceof Map)) {
-                            throw new StableConfigMappingException(
-                                "Each selector must be a map, but got: "
-                                    + s.getClass().getSimpleName()
-                                    + ", value: "
-                                    + StableConfigMappingException.safeToString(s));
+                          if (s instanceof Map) {
+                            return Selector.from((Map<?, ?>) s);
                           }
-                          return Selector.from((Map<?, ?>) s);
+                          throw new StableConfigMappingException(
+                              "Each selector must be a map, but got: "
+                                  + s.getClass().getSimpleName()
+                                  + ", value: "
+                                  + StableConfigMappingException.safeToString(s));
                         })
                     .collect(toList()));
 
