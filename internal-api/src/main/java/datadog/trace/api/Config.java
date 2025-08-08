@@ -1224,7 +1224,6 @@ public class Config {
   private final boolean optimizedMapEnabled;
   private final int stackTraceLengthLimit;
 
-  private final boolean rumEnabled;
   private final RumInjectorConfig rumInjectorConfig;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -2743,14 +2742,13 @@ public class Config {
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
-    this.rumEnabled = InstrumenterConfig.get().isRumEnabled();
     this.rumInjectorConfig = parseRumConfig(configProvider);
 
     log.debug("New instance: {}", this);
   }
 
   private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
-    if (!this.rumEnabled) {
+    if (!instrumenterConfig.isRumEnabled()) {
       return null;
     }
     try {
@@ -5034,10 +5032,6 @@ public class Config {
     return cloudPayloadTaggingMaxTags;
   }
 
-  public boolean isRumEnabled() {
-    return this.rumEnabled;
-  }
-
   public RumInjectorConfig getRumInjectorConfig() {
     return this.rumInjectorConfig;
   }
@@ -5722,8 +5716,6 @@ public class Config {
         + cloudResponsePayloadTagging
         + ", experimentalPropagateProcessTagsEnabled="
         + experimentalPropagateProcessTagsEnabled
-        + ", rumEnabled="
-        + rumEnabled
         + ", rumInjectorConfig="
         + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + '}';
