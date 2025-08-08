@@ -14,9 +14,9 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
     "-Ddd.rum.remote.configuration.id=12345",
   ]
 
-  void 'test RUM SDK injection on html'() {
+  void 'test RUM SDK injection on html for path #servletPath'() {
     given:
-    def url = "http://localhost:${httpPort}/html"
+    def url = "http://localhost:${httpPort}/${servletPath}"
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -28,6 +28,8 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
     then:
     response.code() == 200
     assertRumInjected(response)
+    where:
+    servletPath << ["html", "html_async"]
   }
 
   void 'test RUM SDK injection skip on unsupported mime type'() {
