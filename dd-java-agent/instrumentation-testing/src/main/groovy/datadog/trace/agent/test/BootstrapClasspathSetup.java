@@ -11,12 +11,9 @@ import datadog.trace.bootstrap.BootstrapProxy;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
@@ -29,16 +26,15 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
 
   @Override
   public void launcherSessionOpened(LauncherSession session) {
-    // do nothing
+    // this method is only needed to trigger this class' static initializer before JUnit does
+    // classpath scanning
   }
 
-  /**
-   * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
-   *
-   * <p>This list is needed to initialize the bootstrap classpath because Utils' static initializer
-   * references bootstrap classes (e.g. DatadogClassLoader).
-   */
-  public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
+  private static final String[] TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES = {
+    "ch.qos.logback.classic.servlet", // this draws javax.servlet deps that are not needed
+  };
+
+  private static final String[] TEST_BOOTSTRAP_PREFIXES = {
     "datadog.slf4j",
     "datadog.context",
     "datadog.environment",
@@ -51,32 +47,14 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
     "datadog.trace.instrumentation.api",
     "datadog.trace.logging",
     "datadog.trace.util",
+    "org.slf4j",
+    "ch.qos.logback",
   };
 
-  private static final String[] TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES = {
-    "ch.qos.logback.classic.servlet", // this draws javax.servlet deps that are not needed
-  };
-
-  private static final String[] TEST_BOOTSTRAP_PREFIXES;
-
-  public static final ClassPath TEST_CLASSPATH;
+  public static final ClassPath TEST_CLASSPATH = computeTestClasspath();
 
   static {
     ByteBuddyAgent.install();
-    final String[] testBS = {
-      "org.slf4j", "ch.qos.logback",
-    };
-
-    TEST_BOOTSTRAP_PREFIXES =
-        Arrays.copyOf(
-            BOOTSTRAP_PACKAGE_PREFIXES_COPY,
-            BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + testBS.length);
-    for (int i = 0; i < testBS.length; ++i) {
-      TEST_BOOTSTRAP_PREFIXES[i + BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = testBS[i];
-    }
-
-    TEST_CLASSPATH = computeTestClasspath();
-
     setupBootstrapClasspath();
   }
 
@@ -116,41 +94,6 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
     return new URLClassLoader(urls.build().toArray(new URL[0]), null);
   }
 
-  public static void assertNoBootstrapClassesInTestClass(final Class<?> testClass) {
-    for (final Field field : testClass.getDeclaredFields()) {
-      assertNotBootstrapClass(testClass, field.getType());
-    }
-    for (final Method method : testClass.getDeclaredMethods()) {
-      assertNotBootstrapClass(testClass, method.getReturnType());
-      for (final Class<?> paramType : method.getParameterTypes()) {
-        assertNotBootstrapClass(testClass, paramType);
-      }
-    }
-  }
-
-  private static void assertNotBootstrapClass(final Class<?> testClass, final Class<?> clazz) {
-    if (!clazz.isPrimitive() && isBootstrapClass(clazz.getName())) {
-      throw new IllegalStateException(
-          testClass.getName()
-              + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "
-              + clazz.getName());
-    }
-  }
-
-  private static boolean isBootstrapClass(final String name) {
-    for (String prefix : TEST_BOOTSTRAP_PREFIXES) {
-      if (name.startsWith(prefix)) {
-        for (String excluded : TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES) {
-          if (name.startsWith(excluded)) {
-            return false;
-          }
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-
   private static void setupBootstrapClasspath() {
     // Ensure there weren't any bootstrap classes loaded prematurely.
     Set<String> prematureBootstrapClasses = new TreeSet<>();
@@ -172,8 +115,6 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
       final File bootstrapJar = createBootstrapJar();
       ByteBuddyAgent.getInstrumentation()
           .appendToBootstrapClassLoaderSearch(new JarFile(bootstrapJar));
-      // Utils cannot be referenced before this line, as its static initializers load bootstrap
-      // classes (for example, the bootstrap proxy).
       BootstrapProxy.addBootstrapResource(bootstrapJar.toURI().toURL());
     } catch (final IOException e) {
       throw new RuntimeException(e);
@@ -191,5 +132,19 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
         ClasspathUtils.createJarWithClasses(
             SpockExtension.class.getClassLoader(), bootstrapClasses.toArray(new String[0]));
     return new File(jar.getFile());
+  }
+
+  public static boolean isBootstrapClass(final String name) {
+    for (String prefix : TEST_BOOTSTRAP_PREFIXES) {
+      if (name.startsWith(prefix)) {
+        for (String excluded : TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES) {
+          if (name.startsWith(excluded)) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    return false;
   }
 }
