@@ -67,6 +67,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected,
               bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize("3", bytes));
     } catch (Exception e) {
+      injectionStartTime = -1;
       RumInjector.getTelemetryCollector().onInjectionFailed("3", contentEncoding);
       throw e;
     }
@@ -96,6 +97,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected);
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
+      injectionStartTime = -1;
       RumInjector.getTelemetryCollector().onInjectionFailed("3", contentEncoding);
       throw e;
     }
@@ -109,7 +111,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       String lowerName = name.toLowerCase();
       if (lowerName.startsWith("content-security-policy")) {
         RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected("3");
-      } else if (lowerName.equals("content-encoding")) {
+      } else if (lowerName.contains("content-encoding")) {
         this.contentEncoding = value;
       }
     }
@@ -122,7 +124,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       String lowerName = name.toLowerCase();
       if (lowerName.startsWith("content-security-policy")) {
         RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected("3");
-      } else if (lowerName.equals("content-encoding")) {
+      } else if (lowerName.contains("content-encoding")) {
         this.contentEncoding = value;
       }
     }
@@ -169,7 +171,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   public void onInjected() {
     RumInjector.getTelemetryCollector().onInjectionSucceed("3");
 
-    // report injection time
+    // calculate total injection time
     if (injectionStartTime != -1) {
       long nanoseconds = System.nanoTime() - injectionStartTime;
       long milliseconds = nanoseconds / 1_000_000L;

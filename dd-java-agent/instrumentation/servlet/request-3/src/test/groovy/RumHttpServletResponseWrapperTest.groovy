@@ -106,7 +106,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.setHeader("X-Content-Security-Policy", "test")
 
     then:
-    0 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    0 * mockTelemetryCollector.onContentSecurityPolicyDetected("3")
     1 * mockResponse.setHeader("X-Content-Security-Policy", "test")
   }
 
@@ -115,7 +115,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.addHeader("X-Content-Security-Policy", "test")
 
     then:
-    0 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    0 * mockTelemetryCollector.onContentSecurityPolicyDetected("3")
     1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
   }
 
@@ -161,16 +161,14 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
 
   void 'injection timing is reported when injection is successful'() {
     setup:
-    wrapper.setContentType("text/html")
+    // set the injection start time to simulate timing
+    wrapper.@injectionStartTime = System.nanoTime() - 2_000_000L
 
     when:
-    try {
-      wrapper.getOutputStream() // set injectionStartTime
-    } catch (Exception ignored) {} // expect failure due to improper setup
-    Thread.sleep(1) // ensure some time passes
-    wrapper.onInjected() // report timing when injection "is successful"
+    wrapper.onInjected() // report timing when injection is successful
 
     then:
-    1 * mockTelemetryCollector.onInjectionTime("3", { it >= 0 })
+    1 * mockTelemetryCollector.onInjectionSucceed("3")
+    1 * mockTelemetryCollector.onInjectionTime("3", { it > 0 })
   }
 }

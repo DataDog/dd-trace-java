@@ -29,7 +29,6 @@ public final class RumInjector {
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
 
-  // telemetry collector defaults to NO_OP
   private static volatile RumTelemetryCollector telemetryCollector = RumTelemetryCollector.NO_OP;
 
   RumInjector(Config config, InstrumenterConfig instrumenterConfig) {
@@ -126,7 +125,11 @@ public final class RumInjector {
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 
-  // start telemetry collection and report metrics via the given StatsDClient
+  /**
+   * Starts telemetry collection and reports metrics via StatsDClient.
+   *
+   * @param statsDClient The StatsDClient to report metrics to.
+   */
   public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
     if (statsDClient != null) {
       RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
@@ -140,18 +143,26 @@ public final class RumInjector {
     }
   }
 
-  // shutdown telemetry and reset to NO_OP
+  /** Shuts down telemetry collection and resets the telemetry collector to NO_OP. */
   public static void shutdownTelemetry() {
     telemetryCollector.close();
     telemetryCollector = RumTelemetryCollector.NO_OP;
   }
 
-  // set the telemetry collector
+  /**
+   * Sets the telemetry collector.
+   *
+   * @param collector The telemetry collector to set or {@code null} to reset to NO_OP.
+   */
   public static void setTelemetryCollector(RumTelemetryCollector collector) {
     telemetryCollector = collector != null ? collector : RumTelemetryCollector.NO_OP;
   }
 
-  // get the telemetry collector. this is used to directly report telemetry
+  /**
+   * Gets the telemetry collector.
+   *
+   * @return The telemetry collector used to report telemetry.
+   */
   public static RumTelemetryCollector getTelemetryCollector() {
     return telemetryCollector;
   }

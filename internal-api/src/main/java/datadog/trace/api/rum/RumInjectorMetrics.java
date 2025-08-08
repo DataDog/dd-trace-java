@@ -2,18 +2,12 @@ package datadog.trace.api.rum;
 
 import datadog.trace.api.StatsDClient;
 import java.util.concurrent.atomic.AtomicLong;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // This class implements the RumTelemetryCollector interface, which is used to collect telemetry
 // from the RumInjector. Metrics are then reported via StatsDClient with tagging. See:
 // https://github.com/DataDog/dd-go/blob/prod/trace/apps/tracer-telemetry-intake/telemetry-metrics/static/common_metrics.json
 // for common metrics and tags.
 public class RumInjectorMetrics implements RumTelemetryCollector {
-  private static final Logger log = LoggerFactory.getLogger(RumInjectorMetrics.class);
-
-  private static final String[] NO_TAGS = new String[0];
-
   // Use static tags for common combinations so that we don't have to build them for each metric
   private static final String[] CSP_SERVLET3_TAGS =
       new String[] {
@@ -79,8 +73,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     // Get RUM config values (applicationId and remoteConfigUsed) for tagging
     RumInjector rumInjector = RumInjector.get();
     if (rumInjector.isEnabled()) {
-      datadog.trace.api.Config config = datadog.trace.api.Config.get();
-      RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
+      RumInjectorConfig injectorConfig = datadog.trace.api.Config.get().getRumInjectorConfig();
       if (injectorConfig != null) {
         this.applicationId = injectorConfig.applicationId;
         this.remoteConfigUsed = injectorConfig.remoteConfigurationId != null ? "true" : "false";
