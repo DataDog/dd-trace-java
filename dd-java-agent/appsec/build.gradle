@@ -4,7 +4,6 @@ import groovy.json.JsonSlurper
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -26,11 +25,7 @@ dependencies {
   testImplementation libs.logback.classic
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
 
-  testFixturesApi project(':dd-java-agent:instrumentation-testing')
-}
-
-configurations.testFixturesApi {
-  exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  testImplementation project(':utils:test-utils')
 }
 
 shadowJar {

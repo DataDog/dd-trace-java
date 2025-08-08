@@ -15,7 +15,7 @@ final springBootVersion = '2.6.0'
 dependencies {
   compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: springSecurityVersion
 
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:appsec:appsec-testing')
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: springBootVersion
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: springBootVersion

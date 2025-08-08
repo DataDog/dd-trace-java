@@ -47,7 +47,7 @@ dependencies {
   jersey2JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  jersey2JettyTestImplementation testFixtures(project(':dd-java-agent:appsec'))
+  jersey2JettyTestImplementation project(':dd-java-agent:appsec:appsec-testing')
   jersey2JettyTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
   jersey2JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey2Version
   jersey2JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: jersey2Version
@@ -61,7 +61,7 @@ dependencies {
   jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  jersey3JettyTestImplementation testFixtures(project(':dd-java-agent:appsec'))
+  jersey3JettyTestImplementation project(':dd-java-agent:appsec:appsec-testing')
   jersey3JettyTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey3Version
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: jersey3Version

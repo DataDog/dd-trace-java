@@ -50,7 +50,7 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-web', version: vertxVersion
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: vertxVersion
 
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:appsec:appsec-testing')
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')

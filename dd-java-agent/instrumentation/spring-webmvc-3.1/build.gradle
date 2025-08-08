@@ -46,7 +46,7 @@ dependencies {
     exclude(module: 'jetty-server') // incompatible servlet api
   }
 
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:appsec:appsec-testing')
 
   // Include spring-beans instrumentation to test repairing bean definitions
   testImplementation project(':dd-java-agent:instrumentation:spring-beans')
