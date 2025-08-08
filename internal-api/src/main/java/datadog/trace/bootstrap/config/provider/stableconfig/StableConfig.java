@@ -60,8 +60,7 @@ public final class StableConfig {
         }
       }
       return unmodifiableList(rules);
-    } else {
-      return emptyList();
     }
+    return emptyList();
   }
 }
