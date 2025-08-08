@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.jetty;
 
+import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
+
 import datadog.context.Context;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.util.List;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
@@ -26,11 +31,24 @@ import org.slf4j.LoggerFactory;
 public class HandleRequestVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleRequestVisitor.class);
 
-  private boolean lookForStore;
-  private int contextVar = -1;
+  //  private boolean lookForStore;
+  //  private int contextVar = -1;
   private final int classVersion;
   private final String connClassInternalName;
   private boolean success;
+
+  private BufferedWriter debugWriter;
+
+  private void debug(String msg) {
+    if (debugWriter == null) {
+      return;
+    }
+    try {
+      debugWriter.write(msg);
+      debugWriter.newLine();
+    } catch (IOException ignored) {
+    }
+  }
 
   public HandleRequestVisitor(
       int api,
@@ -40,6 +58,18 @@ public class HandleRequestVisitor extends MethodVisitor {
     super(api, methodVisitor);
     this.classVersion = classVersion;
     this.connClassInternalName = connClassInternalName;
+
+    //    try {
+    //      String path =
+    //
+    // "/Users/bruce.bujon/go/src/github.com/DataDog/dd-trace-java/bbujon/debug/HandleRequestVisitor-"
+    //              + System.nanoTime()
+    //              + ".txt";
+    //      this.debugWriter = new BufferedWriter(new OutputStreamWriter(new
+    // FileOutputStream(path)));
+    //      debug("Initializing");
+    //    } catch (IOException ignored) {
+    //    }
   }
 
   DelayLoadsMethodVisitor delayVisitorDelegate() {
@@ -49,18 +79,30 @@ public class HandleRequestVisitor extends MethodVisitor {
   @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
-    if (contextVar == -1) {
-      lookForStore =
-          !lookForStore
-              && opcode == Opcodes.INVOKEVIRTUAL
-              && name.equals("startSpan")
-              && descriptor.endsWith("Ldatadog.context.Context;");
-    } else if (opcode == Opcodes.INVOKEVIRTUAL
+    //    if (contextVar == -1) {
+    //      lookForStore =
+    //          !lookForStore
+    //              && opcode == Opcodes.INVOKEVIRTUAL
+    //              && name.equals("startSpan")
+    //              && descriptor.endsWith("Ldatadog.context.Context;");
+    //    } else
+    if (opcode == Opcodes.INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
         && descriptor.equals("(L" + this.connClassInternalName + ";)V")) {
       DelayLoadsMethodVisitor mv = delayVisitorDelegate();
       List<Integer> savedLoads = mv.transferLoads();
+      debug("visitMethodInsn");
+      debug(
+          "opcode: "
+              + opcode
+              + " owner: "
+              + owner
+              + " name: "
+              + name
+              + " descriptor: "
+              + descriptor);
+      debug("savedLoads size: " + savedLoads.size());
       if (savedLoads.size() != 2) {
         mv.commitLoads(savedLoads);
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -83,7 +125,15 @@ public class HandleRequestVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+
+      super.visitMethodInsn(
+          INVOKESTATIC,
+          Type.getInternalName(Java8BytecodeBridge.class),
+          "getCurrentContext",
+          "()Ldatadog/context/Context;",
+          false);
+      //      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
@@ -106,22 +156,28 @@ public class HandleRequestVisitor extends MethodVisitor {
 
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }
-
-  @Override
-  public void visitVarInsn(int opcode, int varIndex) {
-    if (lookForStore && opcode == Opcodes.ASTORE) {
-      contextVar = varIndex;
-      lookForStore = false;
-    }
-
-    super.visitVarInsn(opcode, varIndex);
-  }
+  //
+  //  @Override
+  //  public void visitVarInsn(int opcode, int varIndex) {
+  //    if (lookForStore && opcode == Opcodes.ASTORE) {
+  //      contextVar = varIndex;
+  //      lookForStore = false;
+  //    }
+  //
+  //    super.visitVarInsn(opcode, varIndex);
+  //  }
 
   @Override
   public void visitEnd() {
     if (!success) {
       log.warn(
           "Transformation of Jetty's connection class was not successful. Blocking will likely not work");
+    }
+    if (this.debugWriter != null) {
+      try {
+        this.debugWriter.close();
+      } catch (IOException ignored) {
+      }
     }
     super.visitEnd();
   }
