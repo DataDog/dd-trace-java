@@ -68,7 +68,8 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan before(
         @Advice.Argument(0) final ServletRequest request,
-        @Advice.Argument(value = 1, readOnly = false) ServletResponse response) {
+        @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
+        @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
       if (!(request instanceof HttpServletRequest)) {
         return null;
       }
@@ -79,7 +80,8 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
         if (RumInjector.get().isEnabled()
             && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
           httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
-          response = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+          rumServletWrapper = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+          response = rumServletWrapper;
         }
       }
 
@@ -95,9 +97,14 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentSpan span, @Advice.Argument(0) final ServletRequest request) {
+        @Advice.Enter final AgentSpan span,
+        @Advice.Argument(0) final ServletRequest request,
+        @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
       if (span == null) {
         return;
+      }
+      if (rumServletWrapper != null) {
+        rumServletWrapper.commit();
       }
 
       CallDepthThreadLocalMap.reset(HttpServletRequest.class);

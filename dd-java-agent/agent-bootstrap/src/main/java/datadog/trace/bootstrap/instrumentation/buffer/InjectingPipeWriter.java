@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.buffer;
 
 import java.io.IOException;
 import java.io.Writer;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * A Writer containing a circular buffer with a lookbehind buffer of n bytes. The first time that
@@ -9,6 +10,7 @@ import java.io.Writer;
  * thrown by the downstream, the buffer will be lost unless the error occurred when draining it. In
  * this case the draining will be resumed.
  */
+@NotThreadSafe
 public class InjectingPipeWriter extends Writer {
   private final char[] lookbehind;
   private int pos;
@@ -169,6 +171,13 @@ public class InjectingPipeWriter extends Writer {
     }
   }
 
+  public void commit() throws IOException {
+    if (filter || wasDraining) {
+      filter = false;
+      drain();
+    }
+  }
+
   @Override
   public void flush() throws IOException {
     downstream.flush();
@@ -177,9 +186,7 @@ public class InjectingPipeWriter extends Writer {
   @Override
   public void close() throws IOException {
     try {
-      if (filter || wasDraining) {
-        drain();
-      }
+      commit();
     } finally {
       downstream.close();
     }
