@@ -51,13 +51,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
 
-  private static final DDCache<String, UTF8BytesString> SPAN_KINDS = DDCaches.newFixedSizeCache(16);
+  private static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS =
+      DDCaches.newFixedSizeCache(16);
   private static final DDCache<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE =
-          DDCaches.newUnboundedCache(
+          DDCaches.newFixedSizeCache(
               64); // it can be unbounded since those values are returned by the agent and should be
-  // under control.
+  // under control. 64 entries is enough in this case to contain all the peer tags.
   private static final Function<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE_ADDER =
@@ -268,7 +269,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getHttpStatusCode(),
             isSynthetic(span),
             span.isTopLevel(),
-            SPAN_KINDS.computeIfAbsent(span.getTag(SPAN_KIND, ""), UTF8_ENCODE),
+            SPAN_KINDS.computeIfAbsent(span.getTag(SPAN_KIND, ""), UTF8BytesString::create),
             getPeerTags(span));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
