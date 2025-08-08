@@ -76,12 +76,18 @@ public final class ConfigProvider {
 
   public String getString(String key, String defaultValue, String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+      try {
+        String value = source.get(key, aliases);
+        if (value != null) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, value, source.origin());
+          }
+          return value;
         }
-        return value;
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin());
+        }
       }
     }
     if (collectConfig) {
@@ -96,12 +102,18 @@ public final class ConfigProvider {
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      if (value != null && !value.trim().isEmpty()) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+      try {
+        String value = source.get(key, aliases);
+        if (value != null && !value.trim().isEmpty()) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, value, source.origin());
+          }
+          return value;
         }
-        return value;
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin());
+        }
       }
     }
     if (collectConfig) {
@@ -119,13 +131,18 @@ public final class ConfigProvider {
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
-
-      String value = source.get(key, aliases);
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+      try {
+        String value = source.get(key, aliases);
+        if (value != null) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, value, source.origin());
+          }
+          return value;
         }
-        return value;
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin());
+        }
       }
     }
     if (collectConfig) {
@@ -202,6 +219,10 @@ public final class ConfigProvider {
           }
           return value;
         }
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), source.origin());
+        }
       } catch (NumberFormatException ex) {
         // continue
       }
@@ -252,12 +273,18 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
-      String value = sources[i].get(key, aliases);
-      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
-      if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
+      try {
+        String value = sources[i].get(key, aliases);
+        Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+        if (!parsedMap.isEmpty()) {
+          origin = sources[i].origin();
+        }
+        merged.putAll(parsedMap);
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), sources[i].origin());
+        }
       }
-      merged.putAll(parsedMap);
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, merged, origin);
@@ -273,13 +300,19 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
-      String value = sources[i].get(key, aliases);
-      Map<String, String> parsedMap =
-          ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
-      if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
+      try {
+        String value = sources[i].get(key, aliases);
+        Map<String, String> parsedMap =
+            ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
+        if (!parsedMap.isEmpty()) {
+          origin = sources[i].origin();
+        }
+        merged.putAll(parsedMap);
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), sources[i].origin());
+        }
       }
-      merged.putAll(parsedMap);
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, merged, origin);
@@ -295,12 +328,18 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
-      String value = sources[i].get(key);
-      Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
-      if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
+      try {
+        String value = sources[i].get(key);
+        Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
+        if (!parsedMap.isEmpty()) {
+          origin = sources[i].origin();
+        }
+        merged.putAll(parsedMap);
+      } catch (ConfigSourceException e) {
+        if (collectConfig) {
+          ConfigCollector.get().put(key, e.getRawValue(), sources[i].origin());
+        }
       }
-      merged.putAll(parsedMap);
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, merged, origin);
@@ -318,13 +357,20 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (String key : keys) {
       for (int i = sources.length - 1; 0 <= i; i--) {
-        String value = sources[i].get(key);
-        Map<String, String> parsedMap =
-            ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
-        if (!parsedMap.isEmpty()) {
-          origin = sources[i].origin();
+        try {
+          String value = sources[i].get(key);
+          Map<String, String> parsedMap =
+              ConfigConverter.parseMapWithOptionalMappings(
+                  value, key, defaultPrefix, lowercaseKeys);
+          if (!parsedMap.isEmpty()) {
+            origin = sources[i].origin();
+          }
+          merged.putAll(parsedMap);
+        } catch (ConfigSourceException e) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, e.getRawValue(), sources[i].origin());
+          }
         }
-        merged.putAll(parsedMap);
       }
       if (collectConfig) {
         ConfigCollector.get().put(key, merged, origin);
@@ -500,7 +546,7 @@ public final class ConfigProvider {
   }
 
   public abstract static class Source {
-    public final String get(String key, String... aliases) {
+    public final String get(String key, String... aliases) throws ConfigSourceException {
       String value = get(key);
       if (value != null) {
         return value;
@@ -514,7 +560,7 @@ public final class ConfigProvider {
       return null;
     }
 
-    protected abstract String get(String key);
+    protected abstract String get(String key) throws ConfigSourceException;
 
     public abstract ConfigOrigin origin();
   }
