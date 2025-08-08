@@ -38,12 +38,12 @@ dependencies {
   compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
   implementation project(':dd-java-agent:instrumentation:servlet-common')
 
-  testFixturesApi(project(':dd-java-agent:testing')) {
+  testFixturesApi(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testFixturesCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty-7.0') // See if there's any conflicts.
