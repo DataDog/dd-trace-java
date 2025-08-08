@@ -66,7 +66,7 @@ dependencies {
 
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
-  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
   iastTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')

@@ -38,7 +38,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testImplementation project(':dd-java-agent:agent-iast:iast-testing')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
 

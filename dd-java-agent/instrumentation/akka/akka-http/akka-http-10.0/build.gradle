@@ -116,7 +116,7 @@ dependencies {
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.11', version: '10.0.10'
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.11', version: '10.0.10'
 
-  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
@@ -131,13 +131,13 @@ dependencies {
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.1.+'
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.12', version: '10.1.+'
 
-  version101IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  version101IastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
 
   version102IastTestImplementation libs.scala212
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.2.+'
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.6.+'
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.2.+'
-  version102IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  version102IastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
 
   version102Scala213TestImplementation libs.scala213
   version102Scala213TestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.+'
@@ -161,7 +161,7 @@ dependencies {
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.8.+'
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.8.+'
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '[10.+,10.5.2)'
-  latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  latestDepIastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
   latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
 
   lagomTestImplementation libs.scala211

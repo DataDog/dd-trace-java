@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.jetty
 
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.gateway.RequestContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Response
@@ -12,7 +14,6 @@ import javax.servlet.ServletOutputStream
 
 import static datadog.appsec.api.blocking.BlockingContentType.AUTO
 
-// WARNING: Test is never found nor run
 class JettyBlockingHelperSpecification extends Specification {
   def 'block completes successfully'() {
     setup:
@@ -34,7 +35,6 @@ class JettyBlockingHelperSpecification extends Specification {
     JettyBlockingHelper.block(req, resp, span)
 
     then:
-    false == true // Proof test is never run
     1 * resp.isCommitted() >> false
     1 * resp.setStatus(402)
     1 * req.getHeader('Accept') >> 'text/html'

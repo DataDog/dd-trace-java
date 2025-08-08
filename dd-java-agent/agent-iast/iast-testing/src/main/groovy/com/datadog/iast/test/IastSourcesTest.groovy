@@ -14,7 +14,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test header source'() {
     when:
     final url = "${address}/iast/sources/header"
-    final request = new Request.Builder().url(url).header('name', 'value').get().build()
+    final request = new Builder().url(url).header('name', 'value').get().build()
     final response = client.newCall(request).execute()
 
     then:
@@ -34,7 +34,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test cookie source'() {
     when:
     final url = "${address}/iast/sources/cookie"
-    final request = new Request.Builder().url(url).header('Cookie', 'name=value').get().build()
+    final request = new Builder().url(url).header('Cookie', 'name=value').get().build()
     final response = client.newCall(request).execute()
 
     then:
@@ -54,7 +54,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test path source'() {
     when:
     final url = "${address}/iast/sources/path/value"
-    final request = new Request.Builder().url(url).get().build()
+    final request = new Builder().url(url).get().build()
     final response = client.newCall(request).execute()
 
     then:
@@ -74,7 +74,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test parameter source'() {
     when:
     final url = "${address}/iast/sources/parameter?name=value"
-    final request = new Request.Builder().url(url).get().build()
+    final request = new Builder().url(url).get().build()
     final response = client.newCall(request).execute()
 
     then:
@@ -94,8 +94,8 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test form source'() {
     when:
     final url = "${address}/iast/sources/form"
-    final body = new FormBody.Builder().add('name', 'value').build()
-    final request = new Request.Builder().url(url).post(body).build()
+    final body = new Builder().add('name', 'value').build()
+    final request = new Builder().url(url).post(body).build()
     final response = client.newCall(request).execute()
 
     then:
@@ -116,7 +116,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
     when:
     final url = "${address}/iast/sources/body/string"
     final body = RequestBody.create(MediaType.get('text/plain'), 'string_body')
-    final request = new Request.Builder().url(url).post(body).build()
+    final request = new Builder().url(url).post(body).build()
     final response = client.newCall(request).execute()
 
     then:
@@ -137,7 +137,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
     when:
     final url = "${address}/iast/sources/body/json"
     final body = RequestBody.create(MediaType.get('application/json'), '{ "name": "value" }')
-    final request = new Request.Builder().url(url).post(body).build()
+    final request = new Builder().url(url).post(body).build()
     final response = client.newCall(request).execute()
 
     then:

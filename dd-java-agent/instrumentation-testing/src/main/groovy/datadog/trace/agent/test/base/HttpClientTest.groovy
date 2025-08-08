@@ -106,7 +106,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
   @Override
   protected void configurePreAgent() {
-    Object.configurePreAgent()
+    super.configurePreAgent()
     // we inject this config because it's statically assigned and we cannot inject this at test level without forking
     // not starting with "/" made full url (http://..) matching but not the path portion (because starting with /)
     // this settings should not affect test results
