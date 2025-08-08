@@ -268,7 +268,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getHttpStatusCode(),
             isSynthetic(span),
             span.isTopLevel(),
-            span.getTag(SPAN_KIND, ""),
+            SPAN_KINDS.computeIfAbsent(span.getTag(SPAN_KIND, ""), UTF8_ENCODE),
             getPeerTags(span));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
