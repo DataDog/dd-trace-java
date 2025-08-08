@@ -72,26 +72,22 @@ configurations.testImplementation {
   exclude group: 'com.typesafe.play', module: "play-test_$scalaVer"
 }
 
-// Fix for flaky test on CI: Source directory '/dd-smoke-tests/play-2.8/build/src/play/routes' is not a directory.
+// Fix for flaky error: Source directory '/dd-smoke-tests/play-2.8/build/src/play/routes' is not a directory.
 // Probably, GitLab somehow creates (or restores from cache) file instead of folder.
-def isCI = System.getenv("CI") != null
+tasks.register('fixPlayRoutesDirectory') {
+  group = 'build cleanup'
+  description = 'Deletes routes path if it is a file instead of directory'
 
-if (isCI) {
-  tasks.register('fixPlayRoutesDirectory') {
-    description = 'Deletes routes path if it is a file instead of directory'
-    group = 'build cleanup'
+  def routesPath = layout.buildDirectory.dir('src/play/routes')
+  destroyables.register(routesPath)
 
-    doFirst {
-      def routesPath = layout.buildDirectory.dir('src/play/routes').get().asFile
-      if (routesPath.exists() && !routesPath.isDirectory()) {
-        logger.lifecycle("Removing file that blocks routes directory: ${routesPath}")
-        routesPath.delete()
-      }
+  doFirst {
+    def routesPathFile = routesPath.get().asFile
+
+    if (routesPathFile.exists() && !routesPathFile.isDirectory()) {
+      logger.lifecycle("Removing file that blocks routes directory: ${routesPathFile}")
+      project.delete(routesPathFile)
     }
-  }
-
-  tasks.named('compileScala') {
-    dependsOn tasks.named('fixPlayRoutesDirectory')
   }
 }
 
