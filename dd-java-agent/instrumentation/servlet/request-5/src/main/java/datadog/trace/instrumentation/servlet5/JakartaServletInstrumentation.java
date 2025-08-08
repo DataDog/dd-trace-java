@@ -42,7 +42,9 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RumHttpServletResponseWrapper", packageName + ".WrappedServletOutputStream",
+      packageName + ".RumHttpServletRequestWrapper",
+      packageName + ".RumHttpServletResponseWrapper",
+      packageName + ".WrappedServletOutputStream",
     };
   }
 
@@ -67,8 +69,9 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
   public static class JakartaServletAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan before(
-        @Advice.Argument(0) final ServletRequest request,
-        @Advice.Argument(value = 1, readOnly = false) ServletResponse response) {
+        @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
+        @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
+        @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
       if (!(request instanceof HttpServletRequest)) {
         return null;
       }
@@ -76,10 +79,16 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
       if (response instanceof HttpServletResponse) {
         final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
-        if (RumInjector.get().isEnabled()
-            && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
-          httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
-          response = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+        if (RumInjector.get().isEnabled()) {
+          final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
+          if (maybeRumWrapper instanceof RumHttpServletResponseWrapper) {
+            rumServletWrapper = (RumHttpServletResponseWrapper) maybeRumWrapper;
+          } else {
+            rumServletWrapper = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+            httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
+            response = rumServletWrapper;
+            request = new RumHttpServletRequestWrapper(httpServletRequest, rumServletWrapper);
+          }
         }
       }
 
@@ -95,9 +104,14 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentSpan span, @Advice.Argument(0) final ServletRequest request) {
+        @Advice.Enter final AgentSpan span,
+        @Advice.Argument(0) final ServletRequest request,
+        @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
       if (span == null) {
         return;
+      }
+      if (rumServletWrapper != null) {
+        rumServletWrapper.commit();
       }
 
       CallDepthThreadLocalMap.reset(HttpServletRequest.class);

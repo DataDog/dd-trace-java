@@ -73,8 +73,8 @@ class FootprintForkedTest extends DDSpecification {
     assert latch.await(30, SECONDS)
 
     then:
-    def layout = footprint(aggregator, features)
-    layout.totalSize() - baseline.totalSize() <= 10 * 1024 * 1024
+    def after = footprint(aggregator, features)
+    after - baseline <= 10 * 1024 * 1024
 
     cleanup:
     aggregator.close()
@@ -137,15 +137,17 @@ class FootprintForkedTest extends DDSpecification {
     }
   }
 
-
-  static GraphLayout footprint(Object root, Object... excludedRootFieldInstance) {
+  static long footprint(Object root, Object... excludedRootFieldInstance) {
     GraphLayout layout = GraphLayout.parseInstance(root)
+    def size = layout.totalSize()
 
     excludedRootFieldInstance.each {
-      layout = layout.subtract(GraphLayout.parseInstance(it))
+      def excludedLayout = GraphLayout.parseInstance(it)
+      layout = layout.subtract(excludedLayout)
+      size -= excludedLayout.totalSize()
     }
 
-    println layout.toFootprint()
-    return layout
+    println(layout.toFootprint())
+    return size
   }
 }
