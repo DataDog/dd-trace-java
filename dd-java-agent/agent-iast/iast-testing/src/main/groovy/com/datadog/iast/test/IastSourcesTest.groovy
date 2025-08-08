@@ -1,7 +1,6 @@
 package com.datadog.iast.test
 
 import datadog.trace.api.iast.SourceTypes
-import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -94,7 +93,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test form source'() {
     when:
     final url = "${address}/iast/sources/form"
-    final body = new FormBody.Builder().add('name', 'value').build()
+    final body = new Request.Builder().add('name', 'value').build()
     final request = new Request.Builder().url(url).post(body).build()
     final response = client.newCall(request).execute()
 

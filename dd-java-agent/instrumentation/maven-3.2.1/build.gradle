@@ -14,7 +14,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly 'org.apache.maven:maven-embedder:3.2.1'
 
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-testing')
 
   // this is not the earliest version of Maven that we support,
   // but using the earliest one is not possible here because of dependency conflicts

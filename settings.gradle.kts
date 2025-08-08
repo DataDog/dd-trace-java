@@ -112,11 +112,13 @@ include(
 
 include(
   ":dd-java-agent:appsec",
+  ":dd-java-agent:appsec:appsec-testing",
 )
 
 // ci-visibility
 include(
   ":dd-java-agent:agent-ci-visibility",
+  ":dd-java-agent:agent-ci-visibility:civisibility-testing",
 )
 
 // llm-observability
@@ -127,6 +129,7 @@ include(
 // iast
 include(
   ":dd-java-agent:agent-iast",
+  ":dd-java-agent:agent-iast:iast-testing",
 )
 
 include(
@@ -238,6 +241,11 @@ include(
 // annotation processor for checking instrumentation advice
 include(
   ":dd-java-agent:instrumentation-annotation-processor",
+)
+
+// utilities and fixtures for instrumentation tests
+include(
+  ":dd-java-agent:instrumentation-testing",
 )
 
 // instrumentation:

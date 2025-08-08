@@ -43,7 +43,7 @@ trait IastRequestContextPreparationTrait {
   }
 
   static void iastSystemCleanup() {
-    get().getSubscriptionService(RequestContextSlot.IAST).reset()
+    datadog.trace.bootstrap.instrumentation.api.AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST).reset()
     InstrumentationBridge.clearIastModules()
   }
 
@@ -75,8 +75,8 @@ trait IastRequestContextPreparationTrait {
 
       private static Logger withLogger(final String name) {
         final logger = LoggerFactory.getLogger(name)
-        if (logger instanceof ch.qos.logback.classic.Logger) {
-          ((ch.qos.logback.classic.Logger) logger).level = ch.qos.logback.classic.Level.DEBUG
+        if (logger instanceof Logger) {
+          ((Logger) logger).level = ch.qos.logback.classic.Level.DEBUG
         }
         return logger
       }
