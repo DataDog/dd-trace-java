@@ -2,6 +2,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.metrics.AggregateMetric
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.MetricKey
@@ -34,11 +35,11 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
     writer.add(
-      new MetricKey("resource1", "service1", "operation1", "sql", 0, false, true, "xyzzy", ["grault":"quux"]),
+      new MetricKey("resource1", "service1", "operation1", "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")]),
       new AggregateMetric().recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
       )
     writer.add(
-      new MetricKey("resource2", "service2", "operation2", "web", 200, false, true, "xyzzy", ["grault":"quux"]),
+      new MetricKey("resource2", "service2", "operation2", "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")]),
       new AggregateMetric().recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
       )
     writer.finishBucket()

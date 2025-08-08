@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Collections;
-import java.util.Map;
+import java.util.List;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
@@ -17,7 +17,7 @@ public final class MetricKey {
   private final int hash;
   private final boolean isTraceRoot;
   private final UTF8BytesString spanKind;
-  private final Map<String, String> peerTags;
+  private final List<UTF8BytesString> peerTags;
 
   public MetricKey(
       CharSequence resource,
@@ -28,7 +28,7 @@ public final class MetricKey {
       boolean synthetics,
       boolean isTraceRoot,
       CharSequence spanKind,
-      Map<String, String> peerTags) {
+      List<UTF8BytesString> peerTags) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
@@ -37,7 +37,7 @@ public final class MetricKey {
     this.synthetics = synthetics;
     this.isTraceRoot = isTraceRoot;
     this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
-    this.peerTags = peerTags == null ? Collections.emptyMap() : peerTags;
+    this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
 
     // Unrolled polynomial hashcode to avoid varargs allocation
     // and eliminate data dependency between iterations as in Arrays.hashCode.
@@ -90,7 +90,7 @@ public final class MetricKey {
     return spanKind;
   }
 
-  public Map<String, String> getPeerTags() {
+  public List<UTF8BytesString> getPeerTags() {
     return peerTags;
   }
 

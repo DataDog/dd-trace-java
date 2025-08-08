@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.Pair
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -53,7 +54,11 @@ class SerializingMetricWriterTest extends DDSpecification {
         false,
         false,
         "client",
-        ["country":"canada", "georegion":"amer", "peer.service":"remote-service"]
+        [
+          UTF8BytesString.create("country:canada"),
+          UTF8BytesString.create("georegion:amer"),
+          UTF8BytesString.create("peer.service:remote-service")
+        ]
         ),
         new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
         ),
@@ -67,7 +72,11 @@ class SerializingMetricWriterTest extends DDSpecification {
         true,
         false,
         "producer",
-        ["country":"canada", "georegion":"amer", "peer.service":"remote-service"]
+        [
+          UTF8BytesString.create("country:canada"),
+          UTF8BytesString.create("georegion:amer"),
+          UTF8BytesString.create("peer.service:remote-service")
+        ],
         ),
         new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
         )
@@ -83,7 +92,7 @@ class SerializingMetricWriterTest extends DDSpecification {
           false,
           false,
           "producer",
-          ["messaging.destination" : "dest" + i]
+          [UTF8BytesString.create("messaging.destination:dest" + i)]
           ),
           new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
           )
