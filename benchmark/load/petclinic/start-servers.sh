@@ -24,5 +24,6 @@ start_server "profiling" "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Dser
 start_server "appsec" "-javaagent:${TRACER} -Ddd.appsec.enabled=true -Dserver.port=8083" "taskset -c 37-38 " &
 start_server "iast" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Dserver.port=8084" "taskset -c 39-40 " &
 start_server "code_origins" "-javaagent:${TRACER} -Ddd.code.origin.for.spans.enabled=true -Dserver.port=8085" "taskset -c 41-42 " &
+start_server "config_sources" "-javaagent:${TRACER} -Ddd.service=myservice -Ddd.env=myenv -Ddd.version=1.2.3" "taskset -c 43-44 " &
 
 wait
