@@ -172,7 +172,6 @@ public class InjectingPipeOutputStream extends OutputStream {
 
   public void commit() throws IOException {
     if (filter || wasDraining) {
-      filter = false;
       drain();
     }
   }
@@ -189,5 +188,9 @@ public class InjectingPipeOutputStream extends OutputStream {
     } finally {
       downstream.close();
     }
+  }
+
+  public void setFilter(boolean filter) {
+    this.filter = filter;
   }
 }
