@@ -61,8 +61,8 @@ jar {
   from sourceSets.main_play25.output
 }
 project.afterEvaluate { p ->
-  instrumentJava.dependsOn compileMain_play25Java
-  forbiddenApisMain_play25.dependsOn instrumentMain_play25Java
+//  instrumentJava.dependsOn compileMain_play25Java  // TODO remove
+  forbiddenApisMain_play25.dependsOn compileMain_play25Java
 }
 instrument {
   additionalClasspath = [
