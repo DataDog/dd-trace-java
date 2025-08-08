@@ -27,7 +27,7 @@ public final class MetricKey {
       int httpStatusCode,
       boolean synthetics,
       boolean isTraceRoot,
-      UTF8BytesString spanKind,
+      CharSequence spanKind,
       List<UTF8BytesString> peerTags) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
@@ -36,7 +36,7 @@ public final class MetricKey {
     this.httpStatusCode = httpStatusCode;
     this.synthetics = synthetics;
     this.isTraceRoot = isTraceRoot;
-    this.spanKind = spanKind;
+    this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
 
     // Unrolled polynomial hashcode to avoid varargs allocation
