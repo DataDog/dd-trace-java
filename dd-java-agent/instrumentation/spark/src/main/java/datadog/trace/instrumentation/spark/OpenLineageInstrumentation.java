@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
+import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkConf;
 import org.slf4j.Logger;
@@ -69,7 +70,12 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
             "OpenLineage - Data Jobs integration disabled. Not manipulating OpenLineageSparkListener");
         return;
       }
-      InstanceStore.of(SparkConf.class).put("openLineageSparkConf", conf);
+      Object olSparkConf = ReflectiveFieldValueResolver.resolve(self, SparkConf.class, "conf");
+      if (olSparkConf instanceof SparkConf) {
+        InstanceStore.of(SparkConf.class).put("openLineageSparkConf", (SparkConf) olSparkConf);
+      } else {
+        log.warn("Unable to inject datadog config into OpenLineage listener");
+      }
     }
   }
 }
