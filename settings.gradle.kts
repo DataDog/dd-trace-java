@@ -112,6 +112,7 @@ include(
 
 include(
   ":dd-java-agent:appsec",
+  ":dd-java-agent:appsec:appsec-testing",
 )
 
 // ci-visibility
