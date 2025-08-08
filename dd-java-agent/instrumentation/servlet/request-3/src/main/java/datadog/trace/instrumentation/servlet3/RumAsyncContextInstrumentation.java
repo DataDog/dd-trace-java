@@ -41,8 +41,8 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return super.defaultEnabled() && InstrumenterConfig.get().isRumEnabled();
+  public boolean isEnabled() {
+    return super.isEnabled() && InstrumenterConfig.get().isRumEnabled();
   }
 
   @Override
