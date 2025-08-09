@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.environment.ConfigHelper
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
@@ -896,8 +897,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.trace.test-prop.enabled", "true")
     System.setProperty("dd.trace.disabled-prop.enabled", "false")
 
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
+
     expect:
     Config.get().isRuleEnabled(name) == enabled
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -927,8 +934,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.jmxfetch.test-prop.enabled", "true")
     System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
 
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
+
     expect:
     Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -969,8 +982,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.alias-prop.analytics.enabled", "false")
     System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
 
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
+
     expect:
     Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -1011,8 +1030,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.garbage.test", "garbage")
     System.setProperty("dd.negative.test", "-1")
 
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
+
     expect:
     Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     name              | expected
@@ -1042,8 +1067,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.garbage.test", "garbage")
     System.setProperty("dd.negative.test", "-1")
 
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
+
     expect:
     Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -1383,12 +1414,18 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
     System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
 
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
+
     when:
     String[] array = services.toArray(new String[0])
     def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
 
     then:
     value == expected
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     // spotless:off

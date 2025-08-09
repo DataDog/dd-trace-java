@@ -1,4 +1,7 @@
 package datadog.trace.bootstrap.config.provider
+
+import datadog.environment.ConfigHelper
+import datadog.trace.api.ConfigInversionStrictStyle
 import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files
 import java.nio.file.Path
@@ -269,9 +272,14 @@ apm_configuration_rules:
     if (envKey != null) {
       injectEnvConfig(envKey, envVal)
     }
+    def strictness = ConfigHelper.configInversionStrictFlag()
+    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
 
     then:
     StableConfigParser.processTemplate(templateVar) == expect
+
+    cleanup:
+    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     templateVar                                                                                                 | envKey   | envVal  | expect

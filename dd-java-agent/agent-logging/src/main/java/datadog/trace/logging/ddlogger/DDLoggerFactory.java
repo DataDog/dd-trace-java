@@ -1,6 +1,6 @@
 package datadog.trace.logging.ddlogger;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.environment.ConfigHelper;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Platform;
 import datadog.trace.logging.LogLevel;
@@ -108,7 +108,7 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     if ("false".equalsIgnoreCase(value)) {
       return false;
     }
-    value = EnvironmentVariables.get(envVar);
+    value = ConfigHelper.getEnvironmentVariable(envVar);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }

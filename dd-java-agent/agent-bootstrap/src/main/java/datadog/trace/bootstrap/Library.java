@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.environment.ConfigHelper;
 import java.util.EnumSet;
 import org.slf4j.Logger;
 
@@ -16,7 +16,7 @@ public enum Library {
   public static EnumSet<Library> detectLibraries(final Logger log) {
     final EnumSet<Library> libraries = EnumSet.noneOf(Library.class);
 
-    final String jbossHome = EnvironmentVariables.get("JBOSS_HOME");
+    final String jbossHome = ConfigHelper.getEnvironmentVariable("JBOSS_HOME");
     if (jbossHome != null) {
       log.debug("Env - jboss: {}", jbossHome);
       libraries.add(WILDFLY);
