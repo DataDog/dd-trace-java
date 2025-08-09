@@ -22,6 +22,7 @@ addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  implementation project(':utils:container-utils')
 
   // jdbc unit testing
   testImplementation group: 'com.h2database', name: 'h2', version: '[1.3.168,1.3.169]'// first jdk 1.6 compatible
