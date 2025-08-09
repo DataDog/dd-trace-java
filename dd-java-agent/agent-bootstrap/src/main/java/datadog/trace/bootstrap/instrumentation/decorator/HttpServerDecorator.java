@@ -118,6 +118,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
+  /**
+   * Extracts context from an upstream service.
+   *
+   * @param carrier The request carrier to get the context from.
+   * @return The extracted context, {@code Context#root()} if no valid context to extract.
+   */
   public Context extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
@@ -126,11 +132,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return Propagators.defaultPropagator().extract(root(), carrier, getter);
   }
 
-  public AgentSpan startSpan(
-      String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+  /**
+   * Starts a span.
+   *
+   * @param carrier The request carrier.
+   * @param context The parent context of the span to create.
+   * @return A new context bundling the span, child of the given parent context.
+   */
+  public Context startSpan(
+      String unused, // TODO Remove
+      REQUEST_CARRIER carrier,
+      Context context) { // TODO Rename "context" to "parent"?
+    String instrumentationName =
+        instrumentationNames().length == 0 ? "http-server" : instrumentationNames()[0];
+    AgentSpanContext.Extracted spanContext = getExtractedSpanContext(context);
     AgentSpan span =
         tracer()
-            .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
+            .startSpan(instrumentationName, spanName(), callIGCallbackStart(spanContext))
             .setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
@@ -140,12 +158,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null != carrier && null != getter) {
       tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     }
-    return span;
+    return context.with(span);
   }
 
-  public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
-    return startSpan("http-server", carrier, getExtractedSpanContext(context));
-  }
+  //  /**
+  //   * Use {@code startSpan(String instrumentationName, REQUEST_CARRIER carrier, Context context)}
+  // instead.
+  //   */
+  //  @Deprecated
+  //  public Context startSpan(REQUEST_CARRIER carrier, Context context) {
+  //    return startSpan("http-server", carrier, context);
+  //  }
 
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
@@ -375,19 +398,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  //  @Override
-  //  public Span onError(final Span span, final Throwable throwable) {
-  //    assert span != null;
-  //    // FIXME
-  //    final Object status = span.getTag("http.status");
-  //    if (status == null || status.equals(200)) {
-  //      // Ensure status set correctly
-  //      span.setTag("http.status", 500);
-  //    }
-  //    return super.onError(span, throwable);
-  //  }
-
-  private AgentSpanContext.Extracted callIGCallbackStart(AgentSpanContext.Extracted context) {
+  private AgentSpanContext.Extracted callIGCallbackStart(final AgentSpanContext.Extracted context) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());

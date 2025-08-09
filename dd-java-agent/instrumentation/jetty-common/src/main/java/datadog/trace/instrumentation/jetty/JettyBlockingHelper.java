@@ -6,10 +6,12 @@ import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -225,8 +227,12 @@ public class JettyBlockingHelper {
     return true;
   }
 
-  public static boolean block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
+  public static boolean block(Request request, Response response, Context context) {
+    AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
+    Flow.Action.RequestBlockingAction rba;
+    if (span == null || (rba = span.getRequestBlockingAction()) == null) {
+      return false;
+    }
     return block(
         span.getRequestContext().getTraceSegment(),
         request,
@@ -236,9 +242,8 @@ public class JettyBlockingHelper {
         rba.getExtraHeaders());
   }
 
-  public static void blockAndThrowOnFailure(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
-    if (!block(request, response, rba, span)) {
+  public static void blockAndThrowOnFailure(Request request, Response response, Context context) {
+    if (!block(request, response, context)) {
       throw new BlockingException("Throwing after being unable to commit blocking response");
     }
   }

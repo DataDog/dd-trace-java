@@ -1,7 +1,11 @@
 package datadog.trace.instrumentation.jetty;
 
-import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
+
+import datadog.context.Context;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.util.List;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
@@ -15,26 +19,36 @@ import org.slf4j.LoggerFactory;
  * and replaces it with:
  *
  * <pre>
- * if (span != null && span.getRequestBlockingAction() &&
- *     JettyBlockingHelper.block(
- *         this.getRequest(), this.getResponse(),
- *         span.getRequestBlockingAction(), span) {
+ * if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), context) {
  *   // nothing
  * } else {
  *   server.handle(this);
  * }
  * </pre>
  *
- * <p>It needs first to get the index of the span variable that's set when a new span is created.
+ * <p>It needs first to get the index of the context variable that's set when a new span is created.
  */
 public class HandleRequestVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleRequestVisitor.class);
 
-  private boolean lookForStore;
-  private int agentSpanVar = -1;
+  //  private boolean lookForStore;
+  //  private int contextVar = -1;
   private final int classVersion;
   private final String connClassInternalName;
   private boolean success;
+
+  private BufferedWriter debugWriter;
+
+  private void debug(String msg) {
+    if (debugWriter == null) {
+      return;
+    }
+    try {
+      debugWriter.write(msg);
+      debugWriter.newLine();
+    } catch (IOException ignored) {
+    }
+  }
 
   public HandleRequestVisitor(
       int api,
@@ -44,6 +58,18 @@ public class HandleRequestVisitor extends MethodVisitor {
     super(api, methodVisitor);
     this.classVersion = classVersion;
     this.connClassInternalName = connClassInternalName;
+
+    //    try {
+    //      String path =
+    //
+    // "/Users/bruce.bujon/go/src/github.com/DataDog/dd-trace-java/bbujon/debug/HandleRequestVisitor-"
+    //              + System.nanoTime()
+    //              + ".txt";
+    //      this.debugWriter = new BufferedWriter(new OutputStreamWriter(new
+    // FileOutputStream(path)));
+    //      debug("Initializing");
+    //    } catch (IOException ignored) {
+    //    }
   }
 
   DelayLoadsMethodVisitor delayVisitorDelegate() {
@@ -53,44 +79,38 @@ public class HandleRequestVisitor extends MethodVisitor {
   @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
-    if (agentSpanVar == -1) {
-      lookForStore =
-          !lookForStore
-              && opcode == Opcodes.INVOKEVIRTUAL
-              && name.equals("startSpan")
-              && descriptor.endsWith("Ldatadog/trace/bootstrap/instrumentation/api/AgentSpan;");
-    } else if (opcode == Opcodes.INVOKEVIRTUAL
+    //    if (contextVar == -1) {
+    //      lookForStore =
+    //          !lookForStore
+    //              && opcode == Opcodes.INVOKEVIRTUAL
+    //              && name.equals("startSpan")
+    //              && descriptor.endsWith("Ldatadog.context.Context;");
+    //    } else
+    if (opcode == Opcodes.INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
         && descriptor.equals("(L" + this.connClassInternalName + ";)V")) {
       DelayLoadsMethodVisitor mv = delayVisitorDelegate();
       List<Integer> savedLoads = mv.transferLoads();
+      debug("visitMethodInsn");
+      debug(
+          "opcode: "
+              + opcode
+              + " owner: "
+              + owner
+              + " name: "
+              + name
+              + " descriptor: "
+              + descriptor);
+      debug("savedLoads size: " + savedLoads.size());
       if (savedLoads.size() != 2) {
         mv.commitLoads(savedLoads);
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         return;
       }
 
-      Label doBlockLabel = new Label();
-      Label beforeHandle = new Label();
       Label afterHandle = new Label();
 
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
-      super.visitJumpInsn(Opcodes.IFNULL, beforeHandle);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
-      super.visitMethodInsn(
-          Opcodes.INVOKEINTERFACE,
-          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "getRequestBlockingAction",
-          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-          true);
-      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
-      super.visitJumpInsn(Opcodes.GOTO, beforeHandle);
-
-      super.visitLabel(doBlockLabel);
-      if (needsStackFrames()) {
-        super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-      }
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
@@ -105,29 +125,25 @@ public class HandleRequestVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+
       super.visitMethodInsn(
-          Opcodes.INVOKEINTERFACE,
-          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "getRequestBlockingAction",
-          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-          true);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+          INVOKESTATIC,
+          Type.getInternalName(Java8BytecodeBridge.class),
+          "getCurrentContext",
+          "()Ldatadog/context/Context;",
+          false);
+      //      super.visitVarInsn(Opcodes.ALOAD, contextVar);
+
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-              + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
-              + Type.getDescriptor(AgentSpan.class)
+              + Type.getDescriptor(Context.class)
               + ")Z",
           false);
       super.visitJumpInsn(Opcodes.IFNE, afterHandle);
 
-      super.visitLabel(beforeHandle);
-      if (needsStackFrames()) {
-        super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-      }
       mv.commitLoads(savedLoads);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       super.visitLabel(afterHandle);
@@ -140,22 +156,28 @@ public class HandleRequestVisitor extends MethodVisitor {
 
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }
-
-  @Override
-  public void visitVarInsn(int opcode, int varIndex) {
-    if (lookForStore && opcode == Opcodes.ASTORE) {
-      agentSpanVar = varIndex;
-      lookForStore = false;
-    }
-
-    super.visitVarInsn(opcode, varIndex);
-  }
+  //
+  //  @Override
+  //  public void visitVarInsn(int opcode, int varIndex) {
+  //    if (lookForStore && opcode == Opcodes.ASTORE) {
+  //      contextVar = varIndex;
+  //      lookForStore = false;
+  //    }
+  //
+  //    super.visitVarInsn(opcode, varIndex);
+  //  }
 
   @Override
   public void visitEnd() {
     if (!success) {
       log.warn(
           "Transformation of Jetty's connection class was not successful. Blocking will likely not work");
+    }
+    if (this.debugWriter != null) {
+      try {
+        this.debugWriter.close();
+      } catch (IOException ignored) {
+      }
     }
     super.visitEnd();
   }
