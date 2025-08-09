@@ -1652,6 +1652,19 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == "https://some.new.url/goes/here"
   }
 
+  def "ipv6 profiling url"() {
+    setup:
+    def configuredUrl = "http://[2600:1f14:1cfc:5f07::38d4]:8126"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == configuredUrl + "/profiling/v1/input"
+  }
+
   def "fallback to DD_TAGS"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
