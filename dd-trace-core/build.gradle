@@ -72,6 +72,8 @@ dependencies {
   implementation project(':utils:socket-utils')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  // for llmobs
+  compileOnly project(':dd-java-agent:agent-llmobs')
 
   implementation libs.slf4j
   implementation libs.moshi

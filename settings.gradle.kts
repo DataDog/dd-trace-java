@@ -459,6 +459,7 @@ include(
   ":dd-java-agent:instrumentation:okhttp-2",
   ":dd-java-agent:instrumentation:okhttp-3",
   ":dd-java-agent:instrumentation:ognl-appsec",
+  ":dd-java-agent:instrumentation:openai-client",
   ":dd-java-agent:instrumentation:opensearch",
   ":dd-java-agent:instrumentation:opensearch:rest",
   ":dd-java-agent:instrumentation:opensearch:transport",
