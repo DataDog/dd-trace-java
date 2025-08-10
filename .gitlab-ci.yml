@@ -703,6 +703,7 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
+  rules: *master_only
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"
