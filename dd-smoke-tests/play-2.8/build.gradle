@@ -91,6 +91,10 @@ tasks.register('fixPlayRoutesDirectory') {
   }
 }
 
+tasks.named('compilePlayRoutes') {
+  dependsOn tasks.named('fixPlayRoutesDirectory')
+}
+
 tasks.named('compileTestGroovy').configure {
   dependsOn 'stageMainDist'
   outputs.upToDateWhen {
