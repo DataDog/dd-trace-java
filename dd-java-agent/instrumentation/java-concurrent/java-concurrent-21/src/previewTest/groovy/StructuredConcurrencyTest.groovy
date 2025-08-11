@@ -1,14 +1,46 @@
+import com.sun.management.HotSpotDiagnosticMXBean
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 
+import javax.management.MBeanServer
+import java.lang.management.ManagementFactory
 import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.StructuredTaskScope
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
 class StructuredConcurrencyTest extends AgentTestRunner {
+  ThreadDumpLogger threadDumpLogger
+
+  def setup() {
+    File reportDir = new File("build")
+    String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
+    "dd-trace-java/workspace/dd-java-agent")
+
+    reportDir = new File(fullPath)
+    if (!reportDir.exists()) {
+      println("Folder not found: " + fullPath)
+      reportDir.mkdirs()
+    } else println("Folder found: " + fullPath)
+
+    // Use the current feature name as the test name
+    String testName = "${specificationContext?.currentSpec?.name ?: "unknown-spec"} : ${specificationContext?.currentFeature?.name ?: "unknown-test"}"
+
+    threadDumpLogger = new ThreadDumpLogger(testName, reportDir)
+    threadDumpLogger.start()
+  }
+
+  def cleanup() {
+    threadDumpLogger.stop()
+  }
+
+
   /**
    * Tests the structured task scope with a single task.
    */
@@ -20,12 +52,12 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     when:
     runUnderTrace("parent") {
       def task = taskScope.fork(new Callable<Boolean>() {
-          @Trace(operationName = "child")
-          @Override
-          Boolean call() throws Exception {
-            return true
-          }
-        })
+        @Trace(operationName = "child")
+        @Override
+        Boolean call() throws Exception {
+          return true
+        }
+      })
       taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
       result = task.get()
     }
@@ -162,6 +194,50 @@ class StructuredConcurrencyTest extends AgentTestRunner {
           }
         }
       }
+    }
+  }
+  // 🔒 Private helper class for thread dump logging
+  private static class ThreadDumpLogger {
+    private final String testName
+    private final File outputDir
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor()
+    private ScheduledFuture<?> task
+
+    ThreadDumpLogger(String testName, File outputDir) {
+      this.testName = testName
+      this.outputDir = outputDir
+    }
+
+    void start() {
+      task = scheduler.scheduleAtFixedRate({
+        heapDump("test_1")
+
+        def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
+        try (def writer = new FileWriter(reportFile)) {
+          writer.write("=== Test: ${testName} ===\n")
+          writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+          Thread.getAllStackTraces().each { thread, stack ->
+            writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+            stack.each { writer.write("\tat ${it}\n") }
+          }
+          writer.write("==============================================\n")
+        }
+
+        heapDump("test_2")
+      }, 10000, 60000, TimeUnit.MILLISECONDS)
+    }
+
+    void heapDump(String kind) {
+      def heapDumpFile = new File(outputDir, "${System.currentTimeMillis()}-heap-dump-${kind}.hprof").absolutePath
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer()
+      HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
+      server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
+      mxBean.dumpHeap(heapDumpFile, true)
+    }
+
+    void stop() {
+      task?.cancel(false)
+      scheduler.shutdownNow()
     }
   }
 }
