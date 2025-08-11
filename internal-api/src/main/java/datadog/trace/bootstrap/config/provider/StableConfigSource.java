@@ -38,21 +38,24 @@ public final class StableConfigSource extends ConfigProvider.Source {
     try {
       log.debug("Stable configuration file found at path: {}", file);
       cfg = StableConfigParser.parse(filePath);
-    } catch (StableConfigMappingException
-        | IllegalArgumentException
-        | ClassCastException
-        | NullPointerException e) {
-      log.warn("YAML mapping error in stable configuration file {}: {}", filePath, e.getMessage());
-      cfg = StableConfig.EMPTY;
-    } catch (Exception e) {
-      if (log.isDebugEnabled()) {
+    } catch (Throwable e) {
+      if (e instanceof StableConfigMappingException
+          || e instanceof IllegalArgumentException
+          || e instanceof ClassCastException
+          || e instanceof NullPointerException) {
+        log.warn(
+            "YAML mapping error in stable configuration file {}: {}", filePath, e.getMessage());
+        cfg = StableConfig.EMPTY;
+      } else if (log.isDebugEnabled()) {
         log.error("Unexpected error while reading stable configuration file {}: {}", filePath, e);
+        cfg = StableConfig.EMPTY;
       } else {
         log.error(
             "Unexpected error while reading stable configuration file {}: {}",
             filePath,
             e.getMessage());
       }
+
       cfg = StableConfig.EMPTY;
     }
     this.config = cfg;
