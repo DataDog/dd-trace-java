@@ -129,7 +129,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(
           DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getExtractedSpanContext(parentContext));
 
-      final Context context = DECORATE.startSpan("tomcat", req, parentContext);
+      final Context context = DECORATE.startSpan(req, parentContext);
       final ContextScope scope = context.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.

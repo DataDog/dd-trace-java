@@ -139,10 +139,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @param context The parent context of the span to create.
    * @return A new context bundling the span, child of the given parent context.
    */
-  public Context startSpan(
-      String unused, // TODO Remove
-      REQUEST_CARRIER carrier,
-      Context context) { // TODO Rename "context" to "parent"?
+  public Context startSpan(REQUEST_CARRIER carrier, Context context) {
     String instrumentationName =
         instrumentationNames().length == 0 ? "http-server" : instrumentationNames()[0];
     AgentSpanContext.Extracted spanContext = getExtractedSpanContext(context);

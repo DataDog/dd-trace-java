@@ -115,7 +115,7 @@ public class GrizzlyDecorator
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
     Context parentContext = DECORATE.extract(httpRequest);
-    Context context = DECORATE.startSpan("grizzly", httpRequest, parentContext);
+    Context context = DECORATE.startSpan(httpRequest, parentContext);
     ContextScope scope = context.attach();
     AgentSpan span = spanFromContext(context);
     DECORATE.afterStart(span);

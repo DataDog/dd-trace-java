@@ -59,7 +59,7 @@ public class HttpServerDecoratorBenchmark {
             .build();
     GlobalTracer.forceRegister(tracer);
     decorator = new BenchmarkHttpServerDecorator();
-    Context context = decorator.startSpan("benchmark", Collections.emptyMap(), Context.root());
+    Context context = decorator.startSpan(Collections.emptyMap(), Context.root());
     span = fromContext(context);
   }
 
@@ -101,7 +101,7 @@ public class HttpServerDecoratorBenchmark {
 
     @Override
     protected String[] instrumentationNames() {
-      return new String[0];
+      return new String[] {"benchmark"};
     }
 
     @Override

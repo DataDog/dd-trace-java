@@ -68,7 +68,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
       Context parentContext = DECORATE.extract(request);
-      Context context = DECORATE.startSpan("synapse", request, parentContext);
+      Context context = DECORATE.startSpan(request, parentContext);
       ContextScope scope = context.attach();
       AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);

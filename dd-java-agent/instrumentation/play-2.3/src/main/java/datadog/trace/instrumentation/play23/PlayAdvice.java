@@ -26,7 +26,7 @@ public class PlayAdvice {
     if (activeSpan() == null) {
       Headers headers = req.headers();
       final Context parentContext = DECORATE.extract(headers);
-      final Context context = DECORATE.startSpan("play", headers, parentContext);
+      final Context context = DECORATE.startSpan(headers, parentContext);
       span = spanFromContext(context);
       scope = context.attach();
     } else {

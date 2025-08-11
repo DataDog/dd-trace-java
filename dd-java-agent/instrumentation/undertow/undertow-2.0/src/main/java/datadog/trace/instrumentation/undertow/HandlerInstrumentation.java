@@ -95,7 +95,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       }
 
       final Context parentContext = DECORATE.extract(exchange);
-      final Context context = DECORATE.startSpan("undertow", exchange, parentContext);
+      final Context context = DECORATE.startSpan(exchange, parentContext);
       scope = context.attach();
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);

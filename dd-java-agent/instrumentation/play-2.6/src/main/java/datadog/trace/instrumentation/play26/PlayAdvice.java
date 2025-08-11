@@ -33,7 +33,7 @@ public class PlayAdvice {
     if (activeSpan() == null) {
       final Headers headers = req.headers();
       extractedContext = DECORATE.extract(headers);
-      final Context context = DECORATE.startSpan("play", headers, extractedContext);
+      final Context context = DECORATE.startSpan(headers, extractedContext);
       span = spanFromContext(context);
       scope = context.attach();
     } else {

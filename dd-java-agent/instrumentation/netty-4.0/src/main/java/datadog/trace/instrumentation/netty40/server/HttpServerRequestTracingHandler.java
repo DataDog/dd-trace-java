@@ -41,9 +41,9 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
     final Context parentContext = DECORATE.extract(headers);
-    final Context context = DECORATE.startSpan("netty", headers, parentContext);
+    final Context context = DECORATE.startSpan(headers, parentContext);
 
-    try (final ContextScope scope = context.attach()) {
+    try (final ContextScope ignored = context.attach()) {
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, parentContext);

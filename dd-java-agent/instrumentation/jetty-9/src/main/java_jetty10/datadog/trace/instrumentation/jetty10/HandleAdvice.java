@@ -25,7 +25,7 @@ public class HandleAdvice {
     }
 
     final Context parentContext = DECORATE.extract(req);
-    final Context context = DECORATE.startSpan("jetty", req, parentContext);
+    final Context context = DECORATE.startSpan(req, parentContext);
     span = spanFromContext(context);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, parentContext);

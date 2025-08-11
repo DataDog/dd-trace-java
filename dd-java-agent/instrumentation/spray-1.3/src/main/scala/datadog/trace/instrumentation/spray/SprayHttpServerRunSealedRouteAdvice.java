@@ -26,7 +26,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
       final HttpRequest request = ctx.request();
       Context parentContext = DECORATE.extract(request);
       extractedSpanContext = DECORATE.getExtractedSpanContext(parentContext);
-      context = DECORATE.startSpan("spray", request, parentContext);
+      context = DECORATE.startSpan(request, parentContext);
       span = spanFromContext(context);
     } else {
       extractedSpanContext = null;

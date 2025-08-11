@@ -29,8 +29,8 @@ public class JettyServerAdvice {
       }
 
       final Context parentContext = DECORATE.extract(req);
-      final Context context = DECORATE.startSpan("jetty", req, parentContext);
-      try (final ContextScope scope = context.attach()) {
+      final Context context = DECORATE.startSpan(req, parentContext);
+      try (final ContextScope ignored = context.attach()) {
         final AgentSpan span = spanFromContext(context);
         span.setMeasured(true);
         DECORATE.afterStart(span);

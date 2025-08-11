@@ -108,7 +108,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
 
       final Context parentContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, parentContext);
-      final Context context = DECORATE.startSpan("liberty", request, parentContext);
+      final Context context = DECORATE.startSpan(request, parentContext);
       scope = context.attach();
       final AgentSpan span = spanFromContext(context);
       if (Config.get().isJeeSplitByDeployment()) {

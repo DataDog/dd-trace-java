@@ -73,7 +73,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
       }
 
       final Context parentContext = DECORATE.extract(request);
-      final Context context = DECORATE.startSpan("grizzly", request, parentContext);
+      final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);

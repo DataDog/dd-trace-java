@@ -498,7 +498,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator(mTracer, null)
 
     when:
-    decorator.startSpan("test", headers, root())
+    decorator.startSpan(headers, root())
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan
