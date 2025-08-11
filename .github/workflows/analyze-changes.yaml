@@ -3,9 +3,6 @@ name: Analyze changes
 on:
   push:
     branches: [ master ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ master ]
 
 # Cancel long-running jobs when a new commit is pushed
 concurrency:
@@ -15,8 +12,6 @@ concurrency:
 jobs:
   codeql:
     name: Analyze changes with GitHub CodeQL
-    # Don’t run on PR, only when pushing to master
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -61,8 +56,6 @@ jobs:
 
   trivy:
     name: Analyze changes with Trivy
-    # Don’t run on PR, only when pushing to master
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       actions: read
