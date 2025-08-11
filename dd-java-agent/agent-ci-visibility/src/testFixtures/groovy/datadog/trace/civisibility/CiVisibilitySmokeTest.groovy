@@ -52,4 +52,38 @@ abstract class CiVisibilitySmokeTest extends Specification {
     // an even more basic smoke check for distributions: assert that we received some
     assert !receivedTelemetryDistributions.isEmpty()
   }
+
+  protected static verifySnapshotLogs(List<Map<String, Object>> receivedLogs, int expectedSnapshots) {
+    def logsPerSnapshot = 4 // 3 probe statuses + 1 snapshot log are expected per snapshot
+
+    assert receivedLogs.size() == logsPerSnapshot * expectedSnapshots
+
+    def probeStatusLogs = receivedLogs.findAll { it.containsKey("message") }
+    def snapshotLogs = receivedLogs.findAll { !it.containsKey("message") }
+
+    verifyProbeStatuses(probeStatusLogs, expectedSnapshots)
+    verifySnapshots(snapshotLogs)
+  }
+
+  private static verifyProbeStatuses(List<Map<String, Object>> logs, int expectedCount) {
+    assert logs.findAll { log -> ((String) log.message).startsWith("Received probe") }.size() == expectedCount
+    assert logs.findAll { log -> ((String) log.message).startsWith("Installed probe") }.size() == expectedCount
+    assert logs.findAll { log -> ((String) log.message).endsWith("is emitting.") }.size() == expectedCount
+  }
+
+  private static verifySnapshots(List<Map<String, Object>> logs) {
+    def requiredLogFields = ["logger.name", "logger.method", "dd.spanid", "dd.traceid"]
+    def requiredSnapshotFields = ["captures", "exceptionId", "probe", "stack"]
+
+    logs.each { log ->
+      assert log.product == "test_optimization"
+      requiredLogFields.each { field -> log.containsKey(field) }
+
+      Map<String, Object> debuggerMap = log.debugger as Map<String, Object>
+      Map<String, Object> snapshotContent = debuggerMap.snapshot as Map<String, Object>
+
+      assert snapshotContent != null
+      requiredSnapshotFields.each { field -> snapshotContent.containsKey(field) }
+    }
+  }
 }

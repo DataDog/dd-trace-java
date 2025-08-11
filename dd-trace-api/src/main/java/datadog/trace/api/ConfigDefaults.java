@@ -189,7 +189,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED = false;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT = 30; // seconds
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
-  static final int DEFAULT_FAILED_TEST_REPLAY_UPLOAD_FLUSH_INTERVAL = 200; // ms, 0 = dynamic
+  static final int DEFAULT_FAILED_TEST_REPLAY_UPLOAD_FLUSH_INTERVAL = 1000; // ms, 0 = dynamic
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED = false;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL = 1; // seconds
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds

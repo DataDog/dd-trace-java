@@ -61,8 +61,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.6.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
     verifyEventsAndCoverages(projectName, "junit-console", "headless", mockBackend.waitForEvents(5), mockBackend.waitForCoverages(0), additionalDynamicTags)
-    //TODO: add verification of the logs payload
-    //mockBackend.waitForLogs(8)
+    verifySnapshotLogs(mockBackend.waitForLogs(4), 1)
 
     where:
     projectName = "test_junit_console_failed_test_replay"

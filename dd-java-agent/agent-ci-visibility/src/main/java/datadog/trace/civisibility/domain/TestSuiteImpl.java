@@ -6,6 +6,7 @@ import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.execution.TestStatus;
@@ -219,6 +220,8 @@ public class TestSuiteImpl implements DDTestSuite {
 
       AgentTracer.closeActive();
     }
+
+    InstrumentationTestBridge.fireBeforeSuiteEnd();
 
     onSpanFinish.accept(span);
 
