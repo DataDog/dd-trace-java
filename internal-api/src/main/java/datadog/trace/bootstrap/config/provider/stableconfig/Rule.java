@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
+import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
 import static java.util.Collections.*;
 import static java.util.stream.Collectors.toList;
 
@@ -28,12 +29,11 @@ public final class Rule {
   public static Rule from(Map<?, ?> map) {
     Object selectorsObj = map.get("selectors");
     if (selectorsObj == null) {
-      StableConfigMappingException.throwStableConfigMappingException(
-          "Missing 'selectors' in rule", map);
+      throwStableConfigMappingException("Missing 'selectors' in rule", map);
     }
 
     if (!(selectorsObj instanceof List)) {
-      StableConfigMappingException.throwStableConfigMappingException(
+      throwStableConfigMappingException(
           "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName(),
           selectorsObj);
     }
@@ -48,7 +48,7 @@ public final class Rule {
                           if (s instanceof Map) {
                             return Selector.from((Map<?, ?>) s);
                           }
-                          StableConfigMappingException.throwStableConfigMappingException(
+                          throwStableConfigMappingException(
                               "Each selector must be a map, but got: "
                                   + s.getClass().getSimpleName(),
                               s);
@@ -58,11 +58,10 @@ public final class Rule {
 
     Object configObj = map.get("configuration");
     if (configObj == null) {
-      StableConfigMappingException.throwStableConfigMappingException(
-          "Missing 'configuration' in rule:", map);
+      throwStableConfigMappingException("Missing 'configuration' in rule:", map);
     }
     if (!(configObj instanceof Map)) {
-      StableConfigMappingException.throwStableConfigMappingException(
+      throwStableConfigMappingException(
           "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName(),
           configObj);
     }

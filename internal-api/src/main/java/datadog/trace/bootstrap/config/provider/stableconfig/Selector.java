@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
+import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,11 +22,10 @@ public final class Selector {
   public static Selector from(Map<?, ?> map) {
     Object originObj = map.get("origin");
     if (originObj == null) {
-      StableConfigMappingException.throwStableConfigMappingException(
-          "Missing 'origin' in selector:", map);
+      throwStableConfigMappingException("Missing 'origin' in selector:", map);
     }
     if (!(originObj instanceof String)) {
-      StableConfigMappingException.throwStableConfigMappingException(
+      throwStableConfigMappingException(
           "'origin' must be a string, but got: " + originObj.getClass().getSimpleName(), originObj);
     }
     String origin = (String) originObj;
@@ -34,7 +35,7 @@ public final class Selector {
 
     Object matchesObj = map.get("matches");
     if (matchesObj != null && !(matchesObj instanceof List)) {
-      StableConfigMappingException.throwStableConfigMappingException(
+      throwStableConfigMappingException(
           "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName(),
           matchesObj);
     }
@@ -44,11 +45,10 @@ public final class Selector {
 
     Object operatorObj = map.get("operator");
     if (operatorObj == null) {
-      StableConfigMappingException.throwStableConfigMappingException(
-          "Missing 'operator' in selector:", map);
+      throwStableConfigMappingException("Missing 'operator' in selector:", map);
     }
     if (!(operatorObj instanceof String)) {
-      StableConfigMappingException.throwStableConfigMappingException(
+      throwStableConfigMappingException(
           "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName(),
           operatorObj);
     }

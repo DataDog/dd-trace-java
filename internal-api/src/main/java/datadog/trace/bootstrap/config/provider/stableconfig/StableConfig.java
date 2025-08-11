@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
+import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
@@ -51,7 +52,7 @@ public final class StableConfig {
         if (ruleObj instanceof Map) {
           rules.add(Rule.from((Map<?, ?>) ruleObj));
         } else {
-          StableConfigMappingException.throwStableConfigMappingException(
+          throwStableConfigMappingException(
               "Rule must be a map, but got: " + ruleObj.getClass().getSimpleName(), ruleObj);
           return emptyList();
         }
