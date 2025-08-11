@@ -185,12 +185,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED),
         Boolean.toString(executionSettings.getTestManagementSettings().isEnabled()));
 
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED),
+        Boolean.toString(executionSettings.isFailedTestReplayEnabled()));
+
     // enable exception replay if failed test replay is enabled
     if (executionSettings.isFailedTestReplayEnabled()) {
-      propagatedSystemProperties.put(
-          Strings.propertyNameToSystemPropertyName(
-              CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED),
-          "true");
       propagatedSystemProperties.put(
           Strings.propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED),
           "true");

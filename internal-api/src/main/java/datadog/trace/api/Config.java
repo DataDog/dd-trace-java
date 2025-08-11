@@ -80,6 +80,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FAILED_TEST_REPLAY_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -1031,7 +1032,8 @@ public class Config {
   private final String gitPullRequestBaseBranch;
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
-  private boolean ciVisibilityFailedTestReplayEnabled;
+  private final boolean ciVisibilityFailedTestReplayEnabled;
+  private boolean ciVisibilityFailedTestReplayActive = false; // propagates setting to DI
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -2311,7 +2313,7 @@ public class Config {
     gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
     ciVisibilityFailedTestReplayEnabled =
-        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, false);
+        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -3715,12 +3717,16 @@ public class Config {
     return ciVisibilityCodeCoverageEnabled;
   }
 
-  /** @return {@code true} if code coverage line-granularity is explicitly enabled */
+  /**
+   * @return {@code true} if code coverage line-granularity is explicitly enabled
+   */
   public boolean isCiVisibilityCoverageLinesEnabled() {
     return ciVisibilityCoverageLinesEnabled != null && ciVisibilityCoverageLinesEnabled;
   }
 
-  /** @return {@code true} if code coverage line-granularity is explicitly disabled */
+  /**
+   * @return {@code true} if code coverage line-granularity is explicitly disabled
+   */
   public boolean isCiVisibilityCoverageLinesDisabled() {
     return ciVisibilityCoverageLinesEnabled != null && !ciVisibilityCoverageLinesEnabled;
   }
@@ -3942,8 +3948,12 @@ public class Config {
     return ciVisibilityFailedTestReplayEnabled;
   }
 
-  public void setCiVisibilityFailedTestReplayEnabled(boolean enabled) {
-    ciVisibilityFailedTestReplayEnabled = enabled;
+  public boolean isCiVisibilityFailedTestReplayActive() {
+    return ciVisibilityFailedTestReplayActive;
+  }
+
+  public void setCiVisibilityFailedTestReplayActive(boolean enabled) {
+    ciVisibilityFailedTestReplayActive = enabled;
   }
 
   public String getGitPullRequestBaseBranch() {
@@ -4003,7 +4013,9 @@ public class Config {
   }
 
   public int getDynamicInstrumentationUploadFlushInterval() {
-    return dynamicInstrumentationUploadFlushInterval;
+    return isCiVisibilityFailedTestReplayActive()
+        ? DEFAULT_FAILED_TEST_REPLAY_UPLOAD_FLUSH_INTERVAL
+        : dynamicInstrumentationUploadFlushInterval;
   }
 
   public boolean isDynamicInstrumentationClassFileDumpEnabled() {
@@ -4067,7 +4079,7 @@ public class Config {
   }
 
   public boolean isDebuggerExceptionEnabled() {
-    return debuggerExceptionEnabled || ciVisibilityFailedTestReplayEnabled;
+    return debuggerExceptionEnabled || isCiVisibilityFailedTestReplayActive();
   }
 
   public int getDebuggerMaxExceptionPerSecond() {
@@ -4128,7 +4140,7 @@ public class Config {
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
+    if (isCiVisibilityFailedTestReplayActive() && isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
@@ -4136,7 +4148,7 @@ public class Config {
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
+    if (isCiVisibilityFailedTestReplayActive() && isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
@@ -4441,7 +4453,9 @@ public class Config {
     return stackTraceLengthLimit;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
 

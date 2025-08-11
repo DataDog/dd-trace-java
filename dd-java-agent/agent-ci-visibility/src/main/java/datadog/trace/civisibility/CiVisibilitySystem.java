@@ -102,7 +102,8 @@ public class CiVisibilitySystem {
       }
 
       if (executionSettings.isFailedTestReplayEnabled()) {
-        config.setCiVisibilityFailedTestReplayEnabled(true);
+        // only marks the feature as active in child or headless processes
+        config.setCiVisibilityFailedTestReplayActive(true);
       }
 
       CiVisibilityCoverageServices.Child coverageServices =

@@ -164,55 +164,55 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder)
 
     where:
-    testcaseName                      | projectName                                                | mavenVersion | surefireVersion | flakyTests | knownTests                                                                                               | expectedOrder                                                                                                                                                | eventsNumber
-    "junit4-provider"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | "3.0.0"         | [
+    testcaseName                       | projectName                                                | mavenVersion | surefireVersion                 | flakyTests                                           | knownTests | expectedOrder                                                                       | eventsNumber
+    "junit4-provider"                  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | "3.0.0"                         | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                        | [
+    ]                                                                                                                                                                                                       | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                                                                                                                                   | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                                                                                                                                                                                                                                                                                          | 15
-    "junit47-provider" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | "3.0.0"         | [test("datadog.smoke.TestSucceedC", "test_succeed")]                                                                                        | [
+    ]                                                                                                                                                                                                                                                                                                          | 15
+    "junit47-provider"                 | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | "3.0.0"                         | [test("datadog.smoke.TestSucceedC", "test_succeed")] | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | 12
-    "junit4-provider-latest-surefire"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | getLatestMavenSurefireVersion()         | [
+    ]                                                                                                                                                                                                                                                                                                          | 12
+    "junit4-provider-latest-surefire"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | getLatestMavenSurefireVersion() | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                        | [
+    ]                                                                                                                                                                                                       | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                                                                                                                                   | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                                                                                                                                                                                                                                                                                          | 15
-    "junit47-provider-latest-surefire" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | getLatestMavenSurefireVersion()         | [test("datadog.smoke.TestSucceedC", "test_succeed")]                                                                                        | [
+    ]                                                                                                                                                                                                                                                                                                          | 15
+    "junit47-provider-latest-surefire" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | getLatestMavenSurefireVersion() | [test("datadog.smoke.TestSucceedC", "test_succeed")] | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | 12
+    ]                                                                                                                                                                                                                                                                                                          | 12
   }
 
   def "test service name is propagated to child processes"() {
@@ -227,8 +227,34 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1), additionalDynamicPaths)
 
     where:
-    projectName                                | mavenVersion
+    projectName                                           | mavenVersion
     "test_successful_maven_run_child_service_propagation" | "3.9.9"
+  }
+
+  def "test failed test replay"() {
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles(projectName)
+    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+
+    mockBackend.givenFlakyRetries(true)
+    mockBackend.givenFlakyTest("Maven Smoke Tests Project maven-surefire-plugin default-test", "com.example.TestFailed", "test_failed")
+    mockBackend.givenFailedTestReplay(true)
+
+    def exitCode = whenRunningMavenBuild([
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=2" as String,
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String],
+      [],
+      [:])
+    assert exitCode == 1
+
+    def additionalDynamicTags = ["content.meta.['_dd.debug.error.3.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(0), additionalDynamicTags)
+    //TODO: add verification of the logs payload
+    //mockBackend.waitForLogs(8)
+
+    where:
+    projectName                            | mavenVersion
+    "test_failed_maven_failed_test_replay" | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -467,10 +493,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static String getLatestMavenSurefireVersion() {
     OkHttpClient client = new OkHttpClient()
     Request request =
-    new Request.Builder()
-    .url(
-    "https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml")
-    .build()
+      new Request.Builder()
+        .url(
+          "https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml")
+        .build()
     try (Response response = client.newCall(request).execute()) {
       if (response.isSuccessful()) {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance()
@@ -488,10 +514,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         }
       } else {
         LOGGER.warn(
-        "Could not get latest Maven Surefire version, response from repo.maven.apache.org is "
-        + response.code()
-        + ":"
-        + response.body().string())
+          "Could not get latest Maven Surefire version, response from repo.maven.apache.org is "
+            + response.code()
+            + ":"
+            + response.body().string())
       }
     } catch (Exception e) {
       LOGGER.warn("Could not get latest Maven Surefire version", e)

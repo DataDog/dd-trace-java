@@ -75,7 +75,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   @Override
   public void handleException(Throwable t, AgentSpan span) {
     // CIVIS Failed Test Replay acts on errors
-    if (t instanceof Error && !Config.get().isCiVisibilityFailedTestReplayEnabled()) {
+    if (t instanceof Error && !Config.get().isCiVisibilityFailedTestReplayActive()) {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("Skip handling error: {}", t.toString());
       }
@@ -114,7 +114,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          if (Config.get().isCiVisibilityFailedTestReplayEnabled()) {
+          if (Config.get().isCiVisibilityFailedTestReplayActive()) {
             // Assume Exception Replay is working under Failed Test Replay logic,
             // instrumentation applied sync for immediate test retries
             applyExceptionConfiguration(fingerprint);
