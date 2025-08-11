@@ -51,12 +51,9 @@ public final class StableConfig {
         if (ruleObj instanceof Map) {
           rules.add(Rule.from((Map<?, ?>) ruleObj));
         } else {
-          // Log or throw with a detailed message
-          throw new StableConfigMappingException(
-              "Rule must be a map, but got: "
-                  + (ruleObj == null ? "null" : ruleObj.getClass().getSimpleName())
-                  + ", value: "
-                  + StableConfigMappingException.safeToString(ruleObj));
+          StableConfigMappingException.throwStableConfigMappingException(
+              "Rule must be a map, but got: " + ruleObj.getClass().getSimpleName(), ruleObj);
+          return emptyList();
         }
       }
       return unmodifiableList(rules);

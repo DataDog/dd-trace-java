@@ -20,15 +20,12 @@ public final class Selector {
   public static Selector from(Map<?, ?> map) {
     Object originObj = map.get("origin");
     if (originObj == null) {
-      throw new StableConfigMappingException(
-          "Missing 'origin' in selector: " + StableConfigMappingException.safeToString(map));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "Missing 'origin' in selector", map);
     }
     if (!(originObj instanceof String)) {
-      throw new StableConfigMappingException(
-          "'origin' must be a string, but got: "
-              + originObj.getClass().getSimpleName()
-              + ", value: "
-              + StableConfigMappingException.safeToString(originObj));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "'origin' must be a string, but got: " + originObj.getClass().getSimpleName(), originObj);
     }
     String origin = (String) originObj;
 
@@ -37,11 +34,9 @@ public final class Selector {
 
     Object matchesObj = map.get("matches");
     if (matchesObj != null && !(matchesObj instanceof List)) {
-      throw new StableConfigMappingException(
-          "'matches' must be a list, but got: "
-              + matchesObj.getClass().getSimpleName()
-              + ", value: "
-              + StableConfigMappingException.safeToString(matchesObj));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName(),
+          matchesObj);
     }
     List<String> rawMatches = (List<String>) matchesObj;
     List<String> matches =
@@ -49,15 +44,13 @@ public final class Selector {
 
     Object operatorObj = map.get("operator");
     if (operatorObj == null) {
-      throw new StableConfigMappingException(
-          "Missing 'operator' in selector: " + StableConfigMappingException.safeToString(map));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "Missing 'operator' in selector", map);
     }
     if (!(operatorObj instanceof String)) {
-      throw new StableConfigMappingException(
-          "'operator' must be a string, but got: "
-              + operatorObj.getClass().getSimpleName()
-              + ", value: "
-              + StableConfigMappingException.safeToString(operatorObj));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName(),
+          operatorObj);
     }
     String operator = (String) operatorObj;
 

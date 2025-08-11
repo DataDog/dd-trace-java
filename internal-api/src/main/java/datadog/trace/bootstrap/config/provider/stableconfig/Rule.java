@@ -28,16 +28,14 @@ public final class Rule {
   public static Rule from(Map<?, ?> map) {
     Object selectorsObj = map.get("selectors");
     if (selectorsObj == null) {
-      throw new StableConfigMappingException(
-          "Missing 'selectors' in rule: " + StableConfigMappingException.safeToString(map));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "Missing 'selectors' in rule", map);
     }
 
     if (!(selectorsObj instanceof List)) {
-      throw new StableConfigMappingException(
-          "'selectors' must be a list, but got: "
-              + selectorsObj.getClass().getSimpleName()
-              + ", value: "
-              + StableConfigMappingException.safeToString(selectorsObj));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName(),
+          selectorsObj);
     }
 
     List<Selector> selectors =
@@ -50,25 +48,23 @@ public final class Rule {
                           if (s instanceof Map) {
                             return Selector.from((Map<?, ?>) s);
                           }
-                          throw new StableConfigMappingException(
+                          StableConfigMappingException.throwStableConfigMappingException(
                               "Each selector must be a map, but got: "
-                                  + s.getClass().getSimpleName()
-                                  + ", value: "
-                                  + StableConfigMappingException.safeToString(s));
+                                  + s.getClass().getSimpleName(),
+                              s);
+                          return null;
                         })
                     .collect(toList()));
 
     Object configObj = map.get("configuration");
     if (configObj == null) {
-      throw new StableConfigMappingException(
-          "Missing 'configuration' in rule: " + StableConfigMappingException.safeToString(map));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "Missing 'configuration' in rule", map);
     }
     if (!(configObj instanceof Map)) {
-      throw new StableConfigMappingException(
-          "'configuration' must be a map, but got: "
-              + configObj.getClass().getSimpleName()
-              + ", value: "
-              + StableConfigMappingException.safeToString(configObj));
+      StableConfigMappingException.throwStableConfigMappingException(
+          "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName(),
+          configObj);
     }
     Map<String, Object> configuration = (Map<String, Object>) configObj;
 
