@@ -59,7 +59,7 @@ public final class Rule {
     Object configObj = map.get("configuration");
     if (configObj == null) {
       StableConfigMappingException.throwStableConfigMappingException(
-          "Missing 'configuration' in rule", map);
+          "Missing 'configuration' in rule:", map);
     }
     if (!(configObj instanceof Map)) {
       StableConfigMappingException.throwStableConfigMappingException(
