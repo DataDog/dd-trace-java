@@ -242,9 +242,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     def exitCode = whenRunningMavenBuild([
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=2" as String,
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String],
-      [],
-      [:])
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String
+    ],
+    [],
+    [:])
     assert exitCode == 1
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.3.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
@@ -493,10 +494,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static String getLatestMavenSurefireVersion() {
     OkHttpClient client = new OkHttpClient()
     Request request =
-      new Request.Builder()
-        .url(
-          "https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml")
-        .build()
+    new Request.Builder()
+    .url(
+    "https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml")
+    .build()
     try (Response response = client.newCall(request).execute()) {
       if (response.isSuccessful()) {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance()
@@ -514,10 +515,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         }
       } else {
         LOGGER.warn(
-          "Could not get latest Maven Surefire version, response from repo.maven.apache.org is "
-            + response.code()
-            + ":"
-            + response.body().string())
+        "Could not get latest Maven Surefire version, response from repo.maven.apache.org is "
+        + response.code()
+        + ":"
+        + response.body().string())
       }
     } catch (Exception e) {
       LOGGER.warn("Could not get latest Maven Surefire version", e)

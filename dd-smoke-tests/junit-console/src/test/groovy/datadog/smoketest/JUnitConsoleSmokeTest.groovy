@@ -21,7 +21,8 @@ import spock.lang.TempDir
 import spock.util.environment.Jvm
 
 class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
-
+  // CodeNarc incorrectly thinks ".class" is unnecessary in getLogger
+  @SuppressWarnings('UnnecessaryDotClass')
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitConsoleSmokeTest.class)
 
   private static final String TEST_SERVICE_NAME = "test-headless-service"
@@ -53,8 +54,10 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     def exitCode = whenRunningJUnitConsole([
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=2" as String,
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String],
-      [:])
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String
+    ],
+    [:])
+    assert exitCode == 1
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.6.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
     verifyEventsAndCoverages(projectName, "junit-console", "headless", mockBackend.waitForEvents(5), mockBackend.waitForCoverages(0), additionalDynamicTags)
@@ -73,20 +76,20 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
   private void copyFolder(Path src, Path dest) throws IOException {
     Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
-      @Override
-      FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+        @Override
+        FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
         throws IOException {
-        Files.createDirectories(dest.resolve(src.relativize(dir)))
-        return FileVisitResult.CONTINUE
-      }
+          Files.createDirectories(dest.resolve(src.relativize(dir)))
+          return FileVisitResult.CONTINUE
+        }
 
-      @Override
-      FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+        @Override
+        FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
         throws IOException {
-        Files.copy(file, dest.resolve(src.relativize(file)))
-        return FileVisitResult.CONTINUE
-      }
-    })
+          Files.copy(file, dest.resolve(src.relativize(file)))
+          return FileVisitResult.CONTINUE
+        }
+      })
 
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectHome.resolve(".git"))
@@ -153,14 +156,14 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     List<String> javaFiles = []
     Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
-      @Override
-      FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        if (file.toString().endsWith(".java")) {
-          javaFiles.add(file.toString())
+        @Override
+        FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+          if (file.toString().endsWith(".java")) {
+            javaFiles.add(file.toString())
+          }
+          return FileVisitResult.CONTINUE
         }
-        return FileVisitResult.CONTINUE
-      }
-    })
+      })
 
     return javaFiles
   }
@@ -173,15 +176,15 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     return runProcess(processBuilder.start())
   }
 
-  private static runProcess(Process p, int timeout_secs = PROCESS_TIMEOUT_SECS) {
+  private static runProcess(Process p, int timeoutSecs = PROCESS_TIMEOUT_SECS) {
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
     outputGobbler.start()
     errorGobbler.start()
 
-    if (!p.waitFor(timeout_secs, TimeUnit.SECONDS)) {
+    if (!p.waitFor(timeoutSecs , TimeUnit.SECONDS)) {
       p.destroyForcibly()
-      throw new TimeoutException("Instrumented process failed to exit within $timeout_secs seconds")
+      throw new TimeoutException("Instrumented process failed to exit within $timeoutSecs  seconds")
     }
 
     return p.exitValue()
@@ -194,7 +197,10 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     command.add(javaPath())
     command.addAll((String[]) ["-jar", JUNIT_CONSOLE_JAR_PATH])
     command.addAll(consoleCommand)
-    command.addAll(["--class-path", [projectHome.resolve("target/classes").toString(), projectHome.resolve("target/test-classes")].join(":")])
+    command.addAll([
+      "--class-path",
+      [projectHome.resolve("target/classes").toString(), projectHome.resolve("target/test-classes")].join(":")
+    ])
     command.add("--scan-class-path")
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -255,9 +261,8 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   private static String buildJavaHome() {
     if (Jvm.current.isJava8()) {
       return System.getenv("JAVA_8_HOME")
-    } else {
-      return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
     }
+    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
   }
 
   private static class StreamConsumer extends Thread {

@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl;
@@ -34,7 +35,6 @@ import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.index.*;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
-import datadog.trace.api.intake.Intake;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
@@ -84,8 +84,7 @@ public class CiVisibilityServices {
     this.processHierarchy = new ProcessHierarchy();
     this.config = config;
     this.metricCollector = metricCollector;
-    this.backendApi =
-        new BackendApiFactory(config, sco).createBackendApi(Intake.API);
+    this.backendApi = new BackendApiFactory(config, sco).createBackendApi(Intake.API);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 
