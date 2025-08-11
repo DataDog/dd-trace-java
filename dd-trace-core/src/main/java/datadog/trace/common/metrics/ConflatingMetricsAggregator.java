@@ -15,6 +15,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.Pair;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -25,8 +26,8 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.SpmcArrayQueue;
@@ -50,6 +52,21 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
 
+  private static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS =
+      DDCaches.newFixedSizeCache(16);
+  private static final DDCache<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      PEER_TAGS_CACHE =
+          DDCaches.newFixedSizeCache(
+              64); // it can be unbounded since those values are returned by the agent and should be
+  // under control. 64 entries is enough in this case to contain all the peer tags.
+  private static final Function<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      PEER_TAGS_CACHE_ADDER =
+          key ->
+              Pair.of(
+                  DDCaches.newFixedSizeCache(512),
+                  value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
   private final Set<String> ignoredResources;
@@ -276,7 +293,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getHttpStatusCode(),
             isSynthetic(span),
             span.isTopLevel(),
-            span.getTag(SPAN_KIND, ""),
+            SPAN_KINDS.computeIfAbsent(span.getTag(SPAN_KIND, ""), UTF8BytesString::create),
             getPeerTags(span));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
@@ -312,12 +329,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return isNewKey || span.getError() > 0;
   }
 
-  private Map<String, String> getPeerTags(CoreSpan<?> span) {
-    Map<String, String> peerTags = new HashMap<>();
+  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span) {
+    List<UTF8BytesString> peerTags = new ArrayList<>();
     for (String peerTag : features.peerTags()) {
       Object value = span.getTag(peerTag);
       if (value != null) {
-        peerTags.put(peerTag, value.toString());
+        final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> pair =
+            PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
+        peerTags.add(pair.getLeft().computeIfAbsent(value.toString(), pair.getRight()));
       }
     }
     return peerTags;
