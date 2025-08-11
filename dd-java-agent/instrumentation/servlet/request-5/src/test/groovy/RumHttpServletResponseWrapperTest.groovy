@@ -159,6 +159,24 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * onBytesWritten.accept(11)
   }
 
+  void 'response sizes are reported by the InjectingPipeWriter callback'() {
+    setup:
+    def downstream = Mock(java.io.Writer)
+    def marker = "</head>".toCharArray()
+    def contentToInject = "<script></script>".toCharArray()
+    def onBytesWritten = Mock(java.util.function.LongConsumer)
+    def writer = new datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter(
+      downstream, marker, contentToInject, null, onBytesWritten)
+
+    when:
+    writer.write("test".toCharArray())
+    writer.write("content".toCharArray())
+    writer.close()
+
+    then:
+    1 * onBytesWritten.accept(11)
+  }
+
   void 'injection timing is reported when injection is successful'() {
     setup:
     // set the injection start time to simulate timing

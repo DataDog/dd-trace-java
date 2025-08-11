@@ -36,7 +36,7 @@ class InjectingPipeWriterTest extends DDSpecification {
   def 'should filter a buffer and inject if found #found using write'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null))
+    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null, null))
     when:
     try (def closeme = piped) {
       piped.write(body)
@@ -53,7 +53,7 @@ class InjectingPipeWriterTest extends DDSpecification {
   def 'should filter a buffer and inject if found #found using append'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null))
+    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null, null))
     when:
     try (def closeme = piped) {
       piped.append(body)
@@ -71,7 +71,7 @@ class InjectingPipeWriterTest extends DDSpecification {
     setup:
     def writer = new StringWriter()
     def downstream = new GlitchedWriter(writer, glichesAt)
-    def piped = new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null)
+    def piped = new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null, null)
     when:
     try {
       for (String line : body) {
@@ -102,5 +102,95 @@ class InjectingPipeWriterTest extends DDSpecification {
     ["<html>", "<body/>", "</html>"]                                | "</head>"         | "<something/>"          | 10        | "<html><body/></h</html>"
     // expected broken since the real write happens at close (drain) being the content smaller than the buffer. And retry on close is not a common practice. Hence, we suppose loosing content
     ["<foo/>"]                                                      | "<longerThanFoo>" | "<nothing>"             | 3         | "<f"
+  }
+
+  def 'should count bytes correctly when writing characters'() {
+    setup:
+    def downstream = new StringWriter()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeWriter(downstream, "</head>".toCharArray(), "<script></script>".toCharArray(), null, onBytesWritten)
+
+    when:
+    piped.write("test content".toCharArray())
+    piped.close()
+
+    then:
+    bytesWritten.size() == 1
+    bytesWritten[0] == 12
+    downstream.toString() == "test content"
+  }
+
+  def 'should count bytes correctly when writing characters individually'() {
+    setup:
+    def downstream = new StringWriter()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeWriter(downstream, "</head>".toCharArray(), "<script></script>".toCharArray(), null, onBytesWritten)
+
+    when:
+    def content = "test"
+    for (int i = 0; i < content.length(); i++) {
+      piped.write((int) content.charAt(i))
+    }
+    piped.close()
+
+    then:
+    bytesWritten.size() == 1
+    bytesWritten[0] == 4
+    downstream.toString() == "test"
+  }
+
+  def 'should count bytes correctly with multiple writes'() {
+    setup:
+    def downstream = new StringWriter()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeWriter(downstream, "</head>".toCharArray(), "<script></script>".toCharArray(), null, onBytesWritten)
+
+    when:
+    piped.write("test".toCharArray())
+    piped.write(" ".toCharArray())
+    piped.write("content".toCharArray())
+    piped.close()
+
+    then:
+    bytesWritten.size() == 1
+    bytesWritten[0] == 12
+    downstream.toString() == "test content"
+  }
+
+  def 'should be resilient to exceptions when onBytesWritten callback is null'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, "</head>".toCharArray(), "<script></script>".toCharArray(), null, null)
+
+    when:
+    piped.write("test content".toCharArray())
+    piped.close()
+
+    then:
+    noExceptionThrown()
+    downstream.toString() == "test content"
+  }
+
+  def 'should reset byte count after close'() {
+    setup:
+    def downstream = new StringWriter()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeWriter(downstream, "</head>".toCharArray(), "<script></script>".toCharArray(), null, onBytesWritten)
+
+    when:
+    piped.write("test".toCharArray())
+    piped.close()
+
+    piped.write("content".toCharArray())
+    piped.close()
+
+    then:
+    bytesWritten.size() == 2
+    bytesWritten[0] == 4
+    bytesWritten[1] == 7
   }
 }

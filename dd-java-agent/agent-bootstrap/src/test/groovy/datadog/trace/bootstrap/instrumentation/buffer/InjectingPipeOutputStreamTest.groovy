@@ -87,4 +87,94 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     // expected broken since the real write happens at close (drain) being the content smaller than the buffer. And retry on close is not a common practice. Hence, we suppose loosing content
     ["<foo/>"]                                                      | "<longerThanFoo>" | "<nothing>"             | 3         | "<f"
   }
+
+  def 'should count bytes correctly when writing byte arrays'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+
+    when:
+    piped.write("test content".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    bytesWritten.size() == 1
+    bytesWritten[0] == 12
+    downstream.toByteArray() == "test content".getBytes("UTF-8")
+  }
+
+  def 'should count bytes correctly when writing bytes individually'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+
+    when:
+    def bytes = "test".getBytes("UTF-8")
+    for (int i = 0; i < bytes.length; i++) {
+      piped.write((int) bytes[i])
+    }
+    piped.close()
+
+    then:
+    bytesWritten.size() == 1
+    bytesWritten[0] == 4
+    downstream.toByteArray() == "test".getBytes("UTF-8")
+  }
+
+  def 'should count bytes correctly with multiple writes'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+
+    when:
+    piped.write("test".getBytes("UTF-8"))
+    piped.write(" ".getBytes("UTF-8"))
+    piped.write("content".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    bytesWritten.size() == 1
+    bytesWritten[0] == 12
+    downstream.toByteArray() == "test content".getBytes("UTF-8")
+  }
+
+  def 'should be resilient to exceptions when onBytesWritten callback is null'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, null)
+
+    when:
+    piped.write("test content".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    noExceptionThrown()
+    downstream.toByteArray() == "test content".getBytes("UTF-8")
+  }
+
+  def 'should reset byte count after close'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def bytesWritten = []
+    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
+    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+
+    when:
+    piped.write("test".getBytes("UTF-8"))
+    piped.close()
+
+    piped.write("content".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    bytesWritten.size() == 2
+    bytesWritten[0] == 4
+    bytesWritten[1] == 7
+  }
 }

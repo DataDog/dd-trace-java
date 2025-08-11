@@ -75,7 +75,8 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               super.getWriter(),
               rumInjector.getMarkerChars(),
               rumInjector.getSnippetChars(),
-              this::onInjected);
+              this::onInjected,
+              bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize("5", bytes));
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
       injectionStartTime = -1;
