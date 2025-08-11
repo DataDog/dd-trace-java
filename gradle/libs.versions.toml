@@ -69,7 +69,6 @@ objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Sp
 spock24-core = { module = "org.spockframework:spock-core", version.ref = "spock24" }
 spock24-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock24" }
 spock24-spring = { module = "org.spockframework:spock-spring", version.ref = "spock24" }
-objenesis34 = { module = "org.objenesis:objenesis", version = "3.4" }
 
 groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
 groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }
@@ -108,7 +107,6 @@ asm = ["asm", "asmcommons"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 # Testing
 spock = ["spock-core", "spock-junit4", "objenesis"]
-spock24 = ["spock24-core", "spock24-junit4", "objenesis34"]
 spock24-spring = ["spock24-core", "spock24-junit4", "spock24-spring"]
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "byte-buddy", "byte-buddy-agent"]

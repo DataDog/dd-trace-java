@@ -46,7 +46,11 @@ tasks.named("check").configure {
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-  testImplementation libs.bundles.spock24
+
+  // Using Spock 2.4-M6 because it contains fix for deadlock when blocking in mock response generators.
+  // See: https://github.com/spockframework/spock/pull/1910
+  testImplementation libs.spock24.core
+  testImplementation libs.spock24.junit4
 }
 
 // Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
