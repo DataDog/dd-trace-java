@@ -144,7 +144,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["client", "server", "producer", "consumer"]
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
@@ -183,6 +182,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     where:
     kind                             | statsComputed
     "client"                         | true
+    "producer"                       | true
+    "consumer"                       | true
     UTF8BytesString.create("server") | true
     "internal"                       | false
     null                             | false
@@ -194,7 +195,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["grault"]
     features.peerTags() >>> [["country"], ["country", "georegion"],]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
@@ -203,9 +203,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
-      new SimpleSpan("service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK)
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
       .setTag(SPAN_KIND, "grault").setTag("country", "france").setTag("georegion", "europe"),
-      new SimpleSpan("service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK)
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
       .setTag(SPAN_KIND, "grault").setTag("country", "france").setTag("georegion", "europe")
     ])
     aggregator.report()
@@ -302,7 +302,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["baz"]
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
@@ -368,7 +367,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["baz"]
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
@@ -428,7 +426,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["baz"]
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
@@ -491,7 +488,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         true,
         "baz",
         []
-        ),{ AggregateMetric value ->
+        ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
     }
@@ -519,7 +516,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["quux"]
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
@@ -576,7 +572,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["garply"]
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)

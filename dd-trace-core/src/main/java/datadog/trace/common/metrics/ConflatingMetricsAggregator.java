@@ -3,6 +3,10 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
@@ -10,6 +14,7 @@ import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -27,7 +32,9 @@ import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -68,6 +75,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   DDCaches.newFixedSizeCache(512),
                   value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
+
+  private static final Set<String> ELIGIBLE_SPAN_KINDS =
+      unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  SPAN_KIND_SERVER, SPAN_KIND_CLIENT, SPAN_KIND_CONSUMER, SPAN_KIND_PRODUCER)));
 
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
@@ -280,7 +293,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private boolean spanKindEligible(CoreSpan<?> span) {
     final Object spanKind = span.getTag(SPAN_KIND);
     // use toString since it could be a CharSequence...
-    return spanKind != null && features.spanKindsToComputedStats().contains(spanKind.toString());
+    return spanKind != null && ELIGIBLE_SPAN_KINDS.contains(spanKind.toString());
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
