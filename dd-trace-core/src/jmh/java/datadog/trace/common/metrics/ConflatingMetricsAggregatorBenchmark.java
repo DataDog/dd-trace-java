@@ -88,11 +88,6 @@ public class ConflatingMetricsAggregatorBenchmark {
     public Set<String> peerTags() {
       return peerTags;
     }
-
-    @Override
-    public Set<String> spanKindsToComputedStats() {
-      return spanKinds;
-    }
   }
 
   @Benchmark
