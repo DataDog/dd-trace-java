@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jetty9;
 
 import static net.bytebuddy.jar.asm.Opcodes.ALOAD;
 import static net.bytebuddy.jar.asm.Opcodes.F_SAME;
+import static net.bytebuddy.jar.asm.Opcodes.GOTO;
 import static net.bytebuddy.jar.asm.Opcodes.H_INVOKESTATIC;
 import static net.bytebuddy.jar.asm.Opcodes.IFEQ;
 import static net.bytebuddy.jar.asm.Opcodes.IFNE;
@@ -287,7 +288,7 @@ public class HandleVisitor extends MethodVisitor {
 
       // Label doBlockLabel = new Label();
       Label beforeRegularDispatch = new Label();
-      // Label afterRegularDispatch = new Label();
+      Label afterRegularDispatch = new Label();
 
       // Add current context to the stack
       super.visitMethodInsn(
@@ -303,7 +304,7 @@ public class HandleVisitor extends MethodVisitor {
           "hasRequestBlockingAction",
           "(" + Type.getDescriptor(Context.class) + ")Z",
           false);
-      // If no request blocking action, jump befor the regular dispatch
+      // If no request blocking action, jump before the regular dispatch
       super.visitJumpInsn(IFEQ, beforeRegularDispatch);
 
       //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
@@ -386,14 +387,14 @@ public class HandleVisitor extends MethodVisitor {
       // invoke the dispatch method
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
 
-      // super.visitJumpInsn(GOTO, afterRegularDispatch);
+      super.visitJumpInsn(GOTO, afterRegularDispatch);
 
       super.visitLabel(beforeRegularDispatch);
       super.visitFrame(F_SAME, 0, null, 0, null);
       mv.commitVisitations(savedVisitations);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-      // super.visitLabel(afterRegularDispatch);
-      // super.visitFrame(F_SAME, 0, null, 0, null);
+      super.visitLabel(afterRegularDispatch);
+      super.visitFrame(F_SAME, 0, null, 0, null);
       this.success = true;
       return;
     }
