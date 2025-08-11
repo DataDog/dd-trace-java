@@ -142,11 +142,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public Context startSpan(REQUEST_CARRIER carrier, Context context) {
     String instrumentationName =
         instrumentationNames().length == 0 ? "http-server" : instrumentationNames()[0];
-    AgentSpanContext.Extracted spanContext = getExtractedSpanContext(context);
+    AgentSpanContext.Extracted extracted = callIGCallbackStart(context);
     AgentSpan span =
-        tracer()
-            .startSpan(instrumentationName, spanName(), callIGCallbackStart(spanContext))
-            .setMeasured(true);
+        tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
       span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
@@ -158,26 +156,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return context.with(span);
   }
 
-  //  /**
-  //   * Use {@code startSpan(String instrumentationName, REQUEST_CARRIER carrier, Context context)}
-  // instead.
-  //   */
-  //  @Deprecated
-  //  public Context startSpan(REQUEST_CARRIER carrier, Context context) {
-  //    return startSpan("http-server", carrier, context);
-  //  }
-
-  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
-    AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
-  }
-
   public AgentSpan onRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
       final Context context) {
     return onRequest(span, connection, request, getExtractedSpanContext(context));
+  }
+
+  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
+    AgentSpan extractedSpan = AgentSpan.fromContext(context);
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
   public AgentSpan onRequest(
@@ -395,7 +384,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  private AgentSpanContext.Extracted callIGCallbackStart(final AgentSpanContext.Extracted context) {
+  private AgentSpanContext.Extracted callIGCallbackStart(final Context context) {
+    AgentSpanContext.Extracted extracted = getExtractedSpanContext(context);
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -403,14 +393,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         tracer.getCallbackProvider(RequestContextSlot.IAST).getCallback(EVENTS.requestStarted());
 
     if (startedCbAppSec == null && startedCbIast == null) {
-      return context;
+      return extracted;
     }
 
     TagContext tagContext = null;
-    if (context == null) {
+    if (extracted == null) {
       tagContext = new TagContext();
-    } else if (context instanceof TagContext) {
-      tagContext = (TagContext) context;
+    } else if (extracted instanceof TagContext) {
+      tagContext = (TagContext) extracted;
     }
 
     if (tagContext != null) {
@@ -423,7 +413,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return tagContext;
     }
 
-    return context;
+    return extracted;
   }
 
   @Override
