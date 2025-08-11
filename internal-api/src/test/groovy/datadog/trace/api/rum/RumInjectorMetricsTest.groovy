@@ -36,7 +36,7 @@ class RumInjectorMetricsTest extends Specification {
   def "test onInjectionFailed"() {
     when:
     metrics.onInjectionFailed("3", "gzip")
-    metrics.onInjectionFailed("5", "none")
+    metrics.onInjectionFailed("5", null)
 
     then:
     1 * statsD.count('rum.injection.failed', 1, _) >> { args ->
@@ -49,7 +49,7 @@ class RumInjectorMetricsTest extends Specification {
     }
     1 * statsD.count('rum.injection.failed', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("content_encoding:none")
+      assert tags.contains("content_encoding:null")
       assert tags.contains("injector_version:0.1.0")
       assert tags.contains("integration_name:servlet")
       assert tags.contains("integration_version:5")
@@ -173,7 +173,7 @@ class RumInjectorMetricsTest extends Specification {
     metrics.onInjectionSkipped("5")
     metrics.onInjectionFailed("3", "gzip")
     metrics.onInjectionSucceed("3")
-    metrics.onInjectionFailed("5", "none")
+    metrics.onInjectionFailed("5", null)
     metrics.onInjectionSucceed("3")
     metrics.onInjectionSkipped("3")
     metrics.onContentSecurityPolicyDetected("5")

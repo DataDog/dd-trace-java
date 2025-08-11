@@ -150,7 +150,7 @@ public final class RumInjector {
   }
 
   /**
-   * Sets the telemetry collector.
+   * Sets the telemetry collector. This is used for testing purposes only.
    *
    * @param collector The telemetry collector to set or {@code null} to reset to NO_OP.
    */

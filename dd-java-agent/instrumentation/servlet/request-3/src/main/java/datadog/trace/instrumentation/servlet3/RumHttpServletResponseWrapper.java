@@ -19,9 +19,10 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
   private long injectionStartTime = -1;
-  private String contentEncoding = "none";
+  private String contentEncoding = null;
 
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
+  private static final String SERVLET_VERSION = "3";
 
   private static MethodHandle getMh(final String name) {
     try {
@@ -47,7 +48,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return outputStream;
     }
     if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped("3");
+      RumInjector.getTelemetryCollector().onInjectionSkipped(SERVLET_VERSION);
       return super.getOutputStream();
     }
     // start timing injection
@@ -65,10 +66,12 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               rumInjector.getMarkerBytes(encoding),
               rumInjector.getSnippetBytes(encoding),
               this::onInjected,
-              bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize("3", bytes));
+              bytes ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionResponseSize(SERVLET_VERSION, bytes));
     } catch (Exception e) {
       injectionStartTime = -1;
-      RumInjector.getTelemetryCollector().onInjectionFailed("3", contentEncoding);
+      RumInjector.getTelemetryCollector().onInjectionFailed(SERVLET_VERSION, contentEncoding);
       throw e;
     }
 
@@ -81,7 +84,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return printWriter;
     }
     if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped("3");
+      RumInjector.getTelemetryCollector().onInjectionSkipped(SERVLET_VERSION);
       return super.getWriter();
     }
     // start timing injection
@@ -95,11 +98,13 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               rumInjector.getMarkerChars(),
               rumInjector.getSnippetChars(),
               this::onInjected,
-              bytes -> RumInjector.getTelemetryCollector().onInjectionResponseSize("3", bytes));
+              bytes ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionResponseSize(SERVLET_VERSION, bytes));
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
       injectionStartTime = -1;
-      RumInjector.getTelemetryCollector().onInjectionFailed("3", contentEncoding);
+      RumInjector.getTelemetryCollector().onInjectionFailed(SERVLET_VERSION, contentEncoding);
       throw e;
     }
 
@@ -111,7 +116,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     if (name != null) {
       String lowerName = name.toLowerCase();
       if (lowerName.startsWith("content-security-policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected("3");
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(SERVLET_VERSION);
       } else if (lowerName.contains("content-encoding")) {
         this.contentEncoding = value;
       }
@@ -124,7 +129,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     if (name != null) {
       String lowerName = name.toLowerCase();
       if (lowerName.startsWith("content-security-policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected("3");
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(SERVLET_VERSION);
       } else if (lowerName.contains("content-encoding")) {
         this.contentEncoding = value;
       }
@@ -170,13 +175,13 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   public void onInjected() {
-    RumInjector.getTelemetryCollector().onInjectionSucceed("3");
+    RumInjector.getTelemetryCollector().onInjectionSucceed(SERVLET_VERSION);
 
     // calculate total injection time
     if (injectionStartTime != -1) {
       long nanoseconds = System.nanoTime() - injectionStartTime;
       long milliseconds = nanoseconds / 1_000_000L;
-      RumInjector.getTelemetryCollector().onInjectionTime("3", milliseconds);
+      RumInjector.getTelemetryCollector().onInjectionTime(SERVLET_VERSION, milliseconds);
       injectionStartTime = -1;
     }
 

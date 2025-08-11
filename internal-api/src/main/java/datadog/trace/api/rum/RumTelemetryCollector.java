@@ -1,7 +1,9 @@
 package datadog.trace.api.rum;
 
-// Collect RUM injection telemetry from the RumInjector
-// This is implemented by the RumInjectorMetrics class
+/**
+ * Collect RUM injection telemetry from the RumInjector This is implemented by the
+ * RumInjectorMetrics class
+ */
 public interface RumTelemetryCollector {
 
   RumTelemetryCollector NO_OP =

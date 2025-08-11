@@ -7,6 +7,7 @@ import spock.lang.Subject
 import jakarta.servlet.http.HttpServletResponse
 
 class RumHttpServletResponseWrapperTest extends AgentTestRunner {
+  private static final String SERVLET_VERSION = "5"
 
   def mockResponse = Mock(HttpServletResponse)
   def mockTelemetryCollector = Mock(RumTelemetryCollector)
@@ -28,7 +29,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.onInjected()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSucceed("5")
+    1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)
   }
 
   void 'getOutputStream with non-HTML content reports skipped'() {
@@ -39,7 +40,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.getOutputStream()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSkipped("5")
+    1 * mockTelemetryCollector.onInjectionSkipped(SERVLET_VERSION)
     1 * mockResponse.getOutputStream()
   }
 
@@ -51,7 +52,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.getWriter()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSkipped("5")
+    1 * mockTelemetryCollector.onInjectionSkipped(SERVLET_VERSION)
     1 * mockResponse.getWriter()
   }
 
@@ -66,7 +67,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     } catch (IOException ignored) {}
 
     then:
-    1 * mockTelemetryCollector.onInjectionFailed("5", "none")
+    1 * mockTelemetryCollector.onInjectionFailed(SERVLET_VERSION, null)
   }
 
   void 'getWriter exception reports failure'() {
@@ -80,7 +81,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     } catch (IOException ignored) {}
 
     then:
-    1 * mockTelemetryCollector.onInjectionFailed("5", "none")
+    1 * mockTelemetryCollector.onInjectionFailed(SERVLET_VERSION, null)
   }
 
   void 'setHeader with Content-Security-Policy reports CSP detected'() {
@@ -88,7 +89,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.setHeader("Content-Security-Policy", "test")
 
     then:
-    1 * mockTelemetryCollector.onContentSecurityPolicyDetected("5")
+    1 * mockTelemetryCollector.onContentSecurityPolicyDetected(SERVLET_VERSION)
     1 * mockResponse.setHeader("Content-Security-Policy", "test")
   }
 
@@ -97,7 +98,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.addHeader("Content-Security-Policy", "test")
 
     then:
-    1 * mockTelemetryCollector.onContentSecurityPolicyDetected("5")
+    1 * mockTelemetryCollector.onContentSecurityPolicyDetected(SERVLET_VERSION)
     1 * mockResponse.addHeader("Content-Security-Policy", "test")
   }
 
@@ -106,7 +107,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.setHeader("X-Content-Security-Policy", "test")
 
     then:
-    0 * mockTelemetryCollector.onContentSecurityPolicyDetected("5")
+    0 * mockTelemetryCollector.onContentSecurityPolicyDetected(SERVLET_VERSION)
     1 * mockResponse.setHeader("X-Content-Security-Policy", "test")
   }
 
@@ -115,7 +116,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.addHeader("X-Content-Security-Policy", "test")
 
     then:
-    0 * mockTelemetryCollector.onContentSecurityPolicyDetected("5")
+    0 * mockTelemetryCollector.onContentSecurityPolicyDetected(SERVLET_VERSION)
     1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
   }
 
@@ -127,7 +128,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def marker = "</head>".getBytes("UTF-8")
     def contentToInject = "<script></script>".getBytes("UTF-8")
     def onBytesWritten = { bytes ->
-      mockTelemetryCollector.onInjectionResponseSize("5", bytes)
+      mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, bytes)
     }
     def wrappedStream = new datadog.trace.instrumentation.servlet5.WrappedServletOutputStream(
       downstream, marker, contentToInject, null, onBytesWritten)
@@ -138,7 +139,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrappedStream.close()
 
     then:
-    1 * mockTelemetryCollector.onInjectionResponseSize("5", 11)
+    1 * mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, 11)
   }
 
   void 'response sizes are reported by the InjectingPipeOutputStream callback'() {
@@ -186,7 +187,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     wrapper.onInjected() // report timing when injection is successful
 
     then:
-    1 * mockTelemetryCollector.onInjectionSucceed("5")
-    1 * mockTelemetryCollector.onInjectionTime("5", { it > 0 })
+    1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)
+    1 * mockTelemetryCollector.onInjectionTime(SERVLET_VERSION, { it > 0 })
   }
 }

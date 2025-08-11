@@ -9,7 +9,7 @@ class RumTelemetryCollectorTest extends Specification {
     RumTelemetryCollector.NO_OP.onInjectionSucceed("3")
     RumTelemetryCollector.NO_OP.onInjectionSucceed("5")
     RumTelemetryCollector.NO_OP.onInjectionFailed("3", "gzip")
-    RumTelemetryCollector.NO_OP.onInjectionFailed("5", "none")
+    RumTelemetryCollector.NO_OP.onInjectionFailed("5", null)
     RumTelemetryCollector.NO_OP.onInjectionSkipped("3")
     RumTelemetryCollector.NO_OP.onInjectionSkipped("5")
     RumTelemetryCollector.NO_OP.onInitializationSucceed()

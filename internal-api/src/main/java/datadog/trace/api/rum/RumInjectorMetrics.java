@@ -1,12 +1,17 @@
 package datadog.trace.api.rum;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import java.util.concurrent.atomic.AtomicLong;
 
-// This class implements the RumTelemetryCollector interface, which is used to collect telemetry
-// from the RumInjector. Metrics are then reported via StatsDClient with tagging. See:
-// https://github.com/DataDog/dd-go/blob/prod/trace/apps/tracer-telemetry-intake/telemetry-metrics/static/common_metrics.json
-// for common metrics and tags.
+/**
+ * This class implements the RumTelemetryCollector interface, which is used to collect telemetry
+ * from the RumInjector. Metrics are then reported via StatsDClient with tagging.
+ *
+ * @see <a
+ *     href="https://github.com/DataDog/dd-go/blob/prod/trace/apps/tracer-telemetry-intake/telemetry-metrics/static/common_metrics.json">common
+ *     metrics and tags</a>
+ */
 public class RumInjectorMetrics implements RumTelemetryCollector {
   // Use static tags for common combinations so that we don't have to build them for each metric
   private static final String[] CSP_SERVLET3_TAGS =
@@ -72,15 +77,10 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
     // Get RUM config values (applicationId and remoteConfigUsed) for tagging
     RumInjector rumInjector = RumInjector.get();
-    if (rumInjector.isEnabled()) {
-      RumInjectorConfig injectorConfig = datadog.trace.api.Config.get().getRumInjectorConfig();
-      if (injectorConfig != null) {
-        this.applicationId = injectorConfig.applicationId;
-        this.remoteConfigUsed = injectorConfig.remoteConfigurationId != null ? "true" : "false";
-      } else {
-        this.applicationId = "unknown";
-        this.remoteConfigUsed = "false";
-      }
+    RumInjectorConfig injectorConfig = Config.get().getRumInjectorConfig();
+    if (rumInjector.isEnabled() && injectorConfig != null) {
+      this.applicationId = injectorConfig.applicationId;
+      this.remoteConfigUsed = injectorConfig.remoteConfigurationId != null ? "true" : "false";
     } else {
       this.applicationId = "unknown";
       this.remoteConfigUsed = "false";

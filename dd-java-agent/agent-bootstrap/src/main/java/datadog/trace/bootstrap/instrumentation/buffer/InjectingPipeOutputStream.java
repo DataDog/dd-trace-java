@@ -57,18 +57,19 @@ public class InjectingPipeOutputStream extends OutputStream {
 
   @Override
   public void write(int b) throws IOException {
-    bytesWritten++;
     if (!filter) {
       if (wasDraining) {
         // continue draining
         drain();
       }
       downstream.write(b);
+      bytesWritten++;
       return;
     }
 
     if (count == lookbehind.length) {
       downstream.write(lookbehind[pos]);
+      bytesWritten++;
     } else {
       count++;
     }
@@ -92,13 +93,13 @@ public class InjectingPipeOutputStream extends OutputStream {
 
   @Override
   public void write(byte[] array, int off, int len) throws IOException {
-    bytesWritten += len;
     if (!filter) {
       if (wasDraining) {
         // needs drain
         drain();
       }
       downstream.write(array, off, len);
+      bytesWritten += len;
       return;
     }
 
@@ -112,16 +113,17 @@ public class InjectingPipeOutputStream extends OutputStream {
         filter = false;
         drain();
         downstream.write(array, off, idx);
+        bytesWritten += idx;
         downstream.write(contentToInject);
         if (onContentInjected != null) {
           onContentInjected.run();
         }
         downstream.write(array, off + idx, len - idx);
+        bytesWritten += (len - idx);
       } else {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
         // sequentially
         for (int i = off; i < off + marker.length - 1; i++) {
-          bytesWritten--; // avoid double counting
           write(array[i]);
         }
         drain();
@@ -130,16 +132,15 @@ public class InjectingPipeOutputStream extends OutputStream {
         // will be reset if no errors after the following write
         filter = false;
         downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
+        bytesWritten += (len - bulkWriteThreshold);
         filter = wasFiltering;
         for (int i = len - marker.length + 1; i < len; i++) {
-          bytesWritten--; // avoid double counting
           write(array[i]);
         }
       }
     } else {
       // use slow path because the length to write is small and within the lookbehind buffer size
       for (int i = off; i < off + len; i++) {
-        bytesWritten--; // avoid double counting
         write(array[i]);
       }
     }
@@ -174,6 +175,7 @@ public class InjectingPipeOutputStream extends OutputStream {
       int cnt = count;
       for (int i = 0; i < cnt; i++) {
         downstream.write(lookbehind[(start + i) % lookbehind.length]);
+        bytesWritten++;
         count--;
       }
       filter = wasFiltering;
