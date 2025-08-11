@@ -12,8 +12,6 @@ import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
-import java.io.BufferedWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.jar.asm.Handle;
@@ -67,12 +65,12 @@ import org.slf4j.LoggerFactory;
  *   case DISPATCH:
  *   {
  *     // ...
- *     if (span != null && span.getBlockingAction() != null) {
+ *     if (JettyBlockingHelper.hasBlockingRequest(Java8BytecodeBridge.getCurrentContext()) {
  *       Request req = getRequest(); // actually on the stack only
  *       Response resp = getResponse(); // idem
+ *       Context context = Java8BytecodeBridge.getCurrentContext() // idem
  *       dispatch(DispatcherType.REQUEST, () -> {
- *         JettyBlockingHelper.blockAndThrowOnFailure(
- *             request, response, span.getBlockingAction(), span);
+ *         JettyBlockingHelper.blockAndThrowOnFailure(request, response, context);
  *       });
  *     } else {
  *       dispatch(DispatcherType.REQUEST, () -> {
@@ -97,12 +95,12 @@ import org.slf4j.LoggerFactory;
  *   case DISPATCH:
  *   {
  *     // ...
- *     if (span != null && span.getBlockingAction() != null) {
+ *     if (JettyBlockingHelper.hasBlockingRequest(Java8BytecodeBridge.getCurrentContext()) {
  *       Request req = getRequest(); // actually on the stack only
  *       Response resp = getResponse(); // idem
+ *       Context context = Java8BytecodeBridge.getCurrentContext() // idem
  *       dispatch(DispatcherType.REQUEST, () -> {
- *         JettyBlockingHelper.blockAndThrowOnFailure(
- *             request, response, span.getBlockingAction(), span);
+ *         JettyBlockingHelper.blockAndThrowOnFailure(request, response, context);
  *       });
  *     } else {
  *       dispatch(DispatcherType.REQUEST, _requestDispatcher);
@@ -111,91 +109,28 @@ import org.slf4j.LoggerFactory;
  */
 public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);
-  private static final int CONTEXT_VAR = 1000;
-
-  /** Whether the next store is supposed to store the Context variable. */
-  //  private boolean lookForStore;
-  /** Whether the Context variable was stored to local index {@link #CONTEXT_VAR}. */
-  //  private boolean contextStored;
-  //  private int contextVarIndex = -1;
   /** Whether the handle() method injection was successful . */
   private boolean success;
 
   private final String methodName;
 
-  private BufferedWriter debugWriter;
-
-  private void debug(String msg) {
-    if (debugWriter == null) {
-      return;
-    }
-    try {
-      debugWriter.write(msg);
-      debugWriter.newLine();
-    } catch (IOException ignored) {
-    }
-  }
-
   public HandleVisitor(int api, DelayCertainInsMethodVisitor methodVisitor, String methodName) {
     super(api, methodVisitor);
     this.methodName = methodName;
-    // try {
-    //   String path =
-    //
-    // "/Users/bruce.bujon/go/src/github.com/DataDog/dd-trace-java/bbujon/debug/HandleVisitor-"
-    //           + System.nanoTime()
-    //           + ".txt";
-    //   this.debugWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(path)));
-    //   debug("Initializing");
-    // } catch (IOException ignored) {
-    // }
   }
 
   DelayCertainInsMethodVisitor delayVisitorDelegate() {
     return (DelayCertainInsMethodVisitor) this.mv;
   }
 
-  //  @Override
-  //  public void visitLocalVariable(String name, String descriptor, String signature, Label start,
-  // Label end, int index) {
-  //    if (contextStored && index == CONTEXT_VAR) {
-  //      super.visitLocalVariable("context", Type.getDescriptor(Context.class), null, start, end,
-  // CONTEXT_VAR);
-  //    }
-  //    super.visitLocalVariable(name, descriptor, signature, start, end, index);
-  //  }
-
   @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
-    debug("visitMethodInsn");
-    //    debug(">> contextStored: " + contextStored);
-    debug(">> success: " + success);
-    debug(
-        ">> opcode: "
-            + opcode
-            + ", owner: "
-            + owner
-            + ", name: "
-            + name
-            + ", descriptor: "
-            + descriptor);
-    //    if (!contextStored) {
-    //      lookForStore =
-    //          !lookForStore
-    //              && opcode == INVOKEVIRTUAL
-    //              && name.equals("startSpan")
-    //              && descriptor.endsWith("Ldatadog/context/Context;");
-    //      if (lookForStore) {
-    //        debug("Found store");
-    //      }
-    //    } else
     if (!success
         && opcode == INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
         && descriptor.equals("(Lorg/eclipse/jetty/server/HttpChannel;)V")) {
-      debug("handle bytecode found");
       DelayCertainInsMethodVisitor mv = delayVisitorDelegate();
       List<Runnable> savedVisitations = mv.transferVisitations();
       /*
@@ -205,7 +140,6 @@ public class HandleVisitor extends MethodVisitor {
        * invokevirtual #78                 // Method getServer:()Lorg/eclipse/jetty/server/Server;
        * aload_0
        */
-      debug("Saved visitation size: " + savedVisitations.size());
       if (savedVisitations.size() != 3) {
         mv.commitVisitations(savedVisitations);
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -255,7 +189,6 @@ public class HandleVisitor extends MethodVisitor {
       // Inject label after Server.handle() call to jump here when blocked
       super.visitLabel(afterHandle);
       super.visitFrame(F_SAME, 0, null, 0, null);
-      debug("handle bytecode injected");
       this.success = true;
       return;
     } else if (!success
@@ -276,17 +209,6 @@ public class HandleVisitor extends MethodVisitor {
         return;
       }
 
-      // TODO Could be moved to #checkDispatchMethodState
-      DelayCertainInsMethodVisitor.GetStaticFieldInsn getStaticFieldInsn =
-          (DelayCertainInsMethodVisitor.GetStaticFieldInsn) savedVisitations.get(1);
-      if ((!getStaticFieldInsn.owner.equals("javax/servlet/DispatcherType")
-              && !getStaticFieldInsn.owner.equals("jakarta/servlet/DispatcherType"))
-          || !getStaticFieldInsn.name.equals("REQUEST")) {
-        super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-        return;
-      }
-
-      // Label doBlockLabel = new Label();
       Label beforeRegularDispatch = new Label();
       Label afterRegularDispatch = new Label();
 
@@ -307,20 +229,6 @@ public class HandleVisitor extends MethodVisitor {
       // If no request blocking action, jump before the regular dispatch
       super.visitJumpInsn(IFEQ, beforeRegularDispatch);
 
-      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
-      //      super.visitJumpInsn(Opcodes.IFNULL, beforeRegularDispatch);
-      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
-      //      super.visitMethodInsn(
-      //          Opcodes.INVOKEINTERFACE,
-      //          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-      //          "getRequestBlockingAction",
-      //          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-      //          true);
-      //      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
-      //      super.visitJumpInsn(GOTO, beforeRegularDispatch);
-
-      //      super.visitLabel(doBlockLabel);
-      //      super.visitFrame(F_SAME, 0, null, 0, null);
       // dispatch with a Dispatchable created from JettyBlockingHelper::block
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
       List<Runnable> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
@@ -340,20 +248,12 @@ public class HandleVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
-      //      super.visitMethodInsn(
-      //          Opcodes.INVOKEINTERFACE,
-      //          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-      //          "getRequestBlockingAction",
-      //          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-      //          true);
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
           "getCurrentContext",
           "()Ldatadog/context/Context;",
           false);
-      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
 
       // create the lambda
       super.visitInvokeDynamicInsn(
@@ -415,6 +315,13 @@ public class HandleVisitor extends MethodVisitor {
     if (!(savedVisitations.get(1) instanceof DelayCertainInsMethodVisitor.GetStaticFieldInsn)) {
       return false;
     }
+    DelayCertainInsMethodVisitor.GetStaticFieldInsn getStaticFieldInsn =
+        (DelayCertainInsMethodVisitor.GetStaticFieldInsn) savedVisitations.get(1);
+    if ((!getStaticFieldInsn.owner.equals("javax/servlet/DispatcherType")
+            && !getStaticFieldInsn.owner.equals("jakarta/servlet/DispatcherType"))
+        || !getStaticFieldInsn.name.equals("REQUEST")) {
+      return false;
+    }
 
     // push this to the stack (to create the lambda or access the instance field, which depends on
     // this)
@@ -434,37 +341,11 @@ public class HandleVisitor extends MethodVisitor {
     return last instanceof DelayCertainInsMethodVisitor.GetFieldInsn;
   }
 
-  //  @Override
-  //  public void visitVarInsn(int opcode, int varIndex) {
-  //    if (lookForStore && opcode == ASTORE) {
-  //      debug("Found context");
-  //      contextStored = true;
-  //      lookForStore = false;
-  ////      contextVarIndex = varIndex;
-  //      // Duplicate on stack and store to its own local var
-  ////      super.visitInsn(DUP);
-  ////      super.visitVarInsn(ASTORE, CONTEXT_VAR);
-  //    }
-  //    super.visitVarInsn(opcode, varIndex);
-  //  }
-
-  //  @Override
-  //  public void visitMaxs(int maxStack, int maxLocals) {
-  //    debug("VisitMaxs stack: " + maxStack + ", locals: " + maxLocals);
-  //    super.visitMaxs(maxStack, max(maxLocals, CONTEXT_VAR + 1));
-  //  }
-
   @Override
   public void visitEnd() {
     if (!success && !"run".equals(methodName)) {
       log.warn(
           "Transformation of Jetty's connection class was not successful. Blocking will likely not work");
-    }
-    if (this.debugWriter != null) {
-      try {
-        this.debugWriter.close();
-      } catch (IOException ignored) {
-      }
     }
     super.visitEnd();
   }
