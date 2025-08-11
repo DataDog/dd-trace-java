@@ -45,10 +45,8 @@ public final class StableConfigSource extends ConfigProvider.Source {
           || e instanceof NullPointerException) {
         log.warn(
             "YAML mapping error in stable configuration file {}: {}", filePath, e.getMessage());
-        cfg = StableConfig.EMPTY;
       } else if (log.isDebugEnabled()) {
         log.error("Unexpected error while reading stable configuration file {}: {}", filePath, e);
-        cfg = StableConfig.EMPTY;
       } else {
         log.error(
             "Unexpected error while reading stable configuration file {}: {}",
