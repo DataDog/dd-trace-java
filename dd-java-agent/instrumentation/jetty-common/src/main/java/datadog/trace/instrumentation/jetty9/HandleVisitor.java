@@ -172,7 +172,6 @@ public class HandleVisitor extends MethodVisitor {
           "getCurrentContext",
           "()Ldatadog/context/Context;",
           false);
-      //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
@@ -259,8 +258,6 @@ public class HandleVisitor extends MethodVisitor {
       super.visitInvokeDynamicInsn(
           "dispatch",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-              // + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
-              // + Type.getDescriptor(AgentSpan.class)
               + Type.getDescriptor(Context.class)
               + ")Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
           new Handle(
@@ -276,8 +273,6 @@ public class HandleVisitor extends MethodVisitor {
                 Type.getInternalName(JettyBlockingHelper.class),
                 "blockAndThrowOnFailure",
                 "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-                    // + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
-                    // + Type.getDescriptor(AgentSpan.class)
                     + Type.getDescriptor(Context.class)
                     + ")V",
                 false),
