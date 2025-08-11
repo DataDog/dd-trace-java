@@ -124,6 +124,27 @@ public class DebuggerSinkTest {
     }
   }
 
+  @ParameterizedTest(name = "Add Failed Test Replay product ''{0}''")
+  @ValueSource(booleans = {true, false})
+  public void addProductTag(boolean failedTestReplayActive) throws IOException {
+    when(config.isCiVisibilityFailedTestReplayActive()).thenReturn(failedTestReplayActive);
+    ProcessTags.reset(config);
+    DebuggerSink sink = createDefaultDebuggerSink();
+    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+    Snapshot snapshot = createSnapshot();
+    sink.addSnapshot(snapshot);
+    sink.lowRateFlush(sink);
+    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+    System.out.println(strPayload);
+    JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
+    if (failedTestReplayActive) {
+      assertEquals(JsonSnapshotSerializer.TEST_OPT_PRODUCT, intakeRequest.getProduct());
+    } else {
+      assertNull(intakeRequest.getProduct());
+    }
+  }
+
   @Test
   public void addMultipleSnapshots() throws IOException {
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(2);
