@@ -146,7 +146,7 @@ default:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   cache:
-    - key: dependency-test-$CACHE_TYPE # Dependencies cache
+    - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for gradle
         - .gradle/wrapper
