@@ -28,7 +28,7 @@ dependencies {
     exclude module: 'okhttp'
   }
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude module: 'okhttp'
   }
   testImplementation(project(':dd-java-agent:instrumentation:java-concurrent')) {

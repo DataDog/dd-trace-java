@@ -54,7 +54,7 @@ class TaintedObjectCollection {
       } else if (obj instanceof Pattern) {
         valueMatcher = Matchers.matchesPattern(obj)
       } else {
-        valueMatcher = equalTo(obj)
+        valueMatcher = org.hamcrest.Matchers.equalTo(obj)
       }
     }
 
@@ -62,11 +62,11 @@ class TaintedObjectCollection {
       if (obj instanceof Matcher) {
         obj
       } else if (obj instanceof Pattern) {
-        matchesPattern(obj)
+        org.hamcrest.Matchers.matchesPattern(obj)
       } else if (obj == null) {
-        nullValue()
+        org.hamcrest.Matchers.nullValue()
       } else {
-        equalTo(obj)
+        org.hamcrest.Matchers.equalTo(obj)
       }
     }
 
@@ -79,7 +79,7 @@ class TaintedObjectCollection {
     }
 
     void range(int start, int length, SourceMatcher source) {
-      ranges << new RangeMatcher(start, equalTo(length), source)
+      ranges << new RangeMatcher(start, org.hamcrest.Matchers.equalTo(length), source)
     }
 
     void range(int start, Matcher<Integer> length, SourceMatcher source) {
@@ -87,7 +87,7 @@ class TaintedObjectCollection {
     }
 
     void range(SourceMatcher source) {
-      ranges << new RangeMatcher(0, greaterThan(0), source)
+      ranges << new RangeMatcher(0, org.hamcrest.Matchers.greaterThan(0), source)
     }
 
     @Override

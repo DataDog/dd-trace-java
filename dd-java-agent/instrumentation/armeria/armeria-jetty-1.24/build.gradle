@@ -76,7 +76,7 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-11'))
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   // always mix everything up

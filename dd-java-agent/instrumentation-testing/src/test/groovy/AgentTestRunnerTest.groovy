@@ -1,7 +1,6 @@
 import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.SpockRunner
-import datadog.trace.agent.test.utils.ClasspathUtils
+import datadog.trace.agent.test.BootstrapClasspathSetup
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.Constants
@@ -37,14 +36,14 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
   def "spock runner bootstrap prefixes correct for test setup"() {
     expect:
-    SpockRunner.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
+    BootstrapClasspathSetup.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
   }
 
   def "classpath setup"() {
     setup:
     boolean jfrSupported = isJFRSupported()
     final List<String> bootstrapClassesIncorrectlyLoaded = []
-    for (ClassPath.ClassInfo info : ClasspathUtils.getTestClasspath().getAllClasses()) {
+    for (ClassPath.ClassInfo info : BootstrapClasspathSetup.TEST_CLASSPATH.getAllClasses()) {
       for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
           if (!jfrSupported && info.name.startsWith("datadog.trace.bootstrap.instrumentation.jfr.")) {

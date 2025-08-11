@@ -83,7 +83,7 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
       && throwable.message.startsWith("Illegal access: this web application instance has been stopped already. Could not load")) {
       println "Ignoring class load error at shutdown"
     } else {
-      super.onError(typeName, classLoader, module, loaded, throwable)
+      Object.onError(typeName, classLoader, module, loaded, throwable)
     }
   }
 

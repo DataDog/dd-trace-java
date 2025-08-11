@@ -53,7 +53,7 @@ addTestSuiteForDir('cxf3LatestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.apache.cxf', name: 'cxf-api', version: '2.1'
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testImplementation group: 'org.apache.cxf', name: 'cxf-rt-frontend-jaxrs', version: '3.0.0'
