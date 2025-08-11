@@ -1,11 +1,13 @@
 package datadog.trace.civisibility;
 
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 
-import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.util.Properties;
 import javax.annotation.Nullable;
@@ -69,8 +71,8 @@ public class ProcessHierarchy {
   }
 
   private boolean isMavenParent() {
-    return System.getProperty("maven.home") != null
-            && System.getProperty("classworlds.conf") != null
+    return SystemProperties.get("maven.home") != null
+            && SystemProperties.get("classworlds.conf") != null
         // when using Maven Wrapper
         || ClassLoader.getSystemClassLoader()
                 .getResource("org/apache/maven/wrapper/WrapperExecutor.class")
@@ -82,7 +84,7 @@ public class ProcessHierarchy {
                 .getResource("org/gradle/launcher/daemon/bootstrap/GradleDaemon.class")
             != null
         // double-check this is not a Gradle Worker
-        && System.getProperties().getProperty("org.gradle.internal.worker.tmpdir") == null;
+        && SystemProperties.get("org.gradle.internal.worker.tmpdir") == null;
   }
 
   private boolean isGradleLauncher() {
@@ -93,16 +95,12 @@ public class ProcessHierarchy {
 
   @Nullable
   public InetSocketAddress getSignalServerAddress() {
-    // System.getProperty is used rather than Config,
+    // System properties are used rather than Config,
     // because system variables can be set after config was initialized
     String host =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
+        SystemProperties.get(propertyNameToSystemPropertyName(CIVISIBILITY_SIGNAL_SERVER_HOST));
     String port =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
+        SystemProperties.get(propertyNameToSystemPropertyName(CIVISIBILITY_SIGNAL_SERVER_PORT));
     if (host != null && port != null) {
       return new InetSocketAddress(host, Integer.parseInt(port));
     } else {

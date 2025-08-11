@@ -69,7 +69,30 @@ dependencies {
 }
 
 configurations.testImplementation {
-  exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
+  exclude group: 'com.typesafe.play', module: "play-test_$scalaVer"
+}
+
+// Fix for flaky error: Source directory '/dd-smoke-tests/play-2.8/build/src/play/routes' is not a directory.
+// Probably, GitLab somehow creates (or restores from cache) file instead of folder.
+tasks.register('fixPlayRoutesDirectory') {
+  group = 'build cleanup'
+  description = 'Deletes routes path if it is a file instead of directory'
+
+  def routesPath = layout.buildDirectory.dir('src/play/routes')
+  destroyables.register(routesPath)
+
+  doFirst {
+    def routesPathFile = routesPath.get().asFile
+
+    if (routesPathFile.exists() && !routesPathFile.isDirectory()) {
+      logger.lifecycle("Removing file that blocks routes directory: ${routesPathFile}")
+      project.delete(routesPathFile)
+    }
+  }
+}
+
+tasks.named('compilePlayRoutes') {
+  dependsOn tasks.named('fixPlayRoutesDirectory')
 }
 
 tasks.named('compileTestGroovy').configure {

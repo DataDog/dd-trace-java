@@ -1,5 +1,6 @@
 package com.example;
 
+import jakarta.servlet.ServletRegistration;
 import java.io.File;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
@@ -26,6 +27,10 @@ public class Main {
     context.addServletContainerInitializer(
         (c, ctx) -> {
           ctx.addServlet("htmlServlet", new HtmlServlet()).addMapping("/html");
+          final ServletRegistration.Dynamic registration =
+              ctx.addServlet("htmlAsyncServlet", new HtmlAsyncServlet());
+          registration.addMapping("/html_async");
+          registration.setAsyncSupported(true);
           ctx.addServlet("xmlServlet", new XmlServlet()).addMapping("/xml");
         },
         null);

@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.environment.SystemProperties;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -27,6 +28,6 @@ public enum OperatingSystem {
   }
 
   public static OperatingSystem current() {
-    return OperatingSystem.of(System.getProperty("os.name"));
+    return OperatingSystem.of(SystemProperties.get("os.name"));
   }
 }

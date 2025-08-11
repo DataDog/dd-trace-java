@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -69,7 +70,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.SmapEntryEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory$SmapParseErrorEvent:build_time,"
-              + "com.datadog.profiling.controller.TempLocationManager$SingletonHolder:run_time,"
               + "com.datadog.profiling.ddprof.JavaProfilerLoader:run_time,"
               + "datadog.environment.JavaVirtualMachine:rerun,"
               + "datadog.trace.agent.tooling.WeakMaps$Adapter:build_time,"
@@ -153,6 +153,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.logging.LogReporter:build_time,"
               + "datadog.trace.logging.PrintStreamWrapper:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"
+              + "datadog.trace.util.TempLocationManager$SingletonHolder:run_time,"
               + "datadog.slf4j.helpers.NOPLoggerFactory:build_time,"
               + "datadog.slf4j.helpers.SubstituteLoggerFactory:build_time,"
               + "datadog.slf4j.impl.StaticLoggerBinder:build_time,"
@@ -167,7 +168,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
         // Specific GraalVM versions have different flags for enabling JFR
         // We don't want to drag in internal-api via Platform class, so we just read the system
         // property directly
-        String version = System.getProperty("java.specification.version");
+        String version = SystemProperties.getOrDefault("java.specification.version", "");
         if (version.startsWith("17")) {
           args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
         } else {

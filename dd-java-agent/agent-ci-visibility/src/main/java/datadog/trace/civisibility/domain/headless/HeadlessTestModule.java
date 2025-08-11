@@ -27,7 +27,6 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -183,6 +182,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         coverageStoreFactory,
         executionResults,
         capabilities,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        tagsPropagator::propagateCiVisibilityTags);
   }
 }

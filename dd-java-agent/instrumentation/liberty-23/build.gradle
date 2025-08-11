@@ -41,8 +41,7 @@ dependencies {
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
-  webappCompileOnly project(':dd-java-agent:instrumentation:servlet:request-5')
-    .tasks['compileTestFixturesJava'].classpath
+  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
   webappImplementation files(
     project(':dd-java-agent:instrumentation:servlet:request-5')

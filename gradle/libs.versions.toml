@@ -10,7 +10,7 @@ spock = "2.3-groovy-3.0"
 spock24 = "2.4-M6-groovy-3.0"
 groovy = "3.0.24"
 junit5 = "5.9.2"
-logback = "1.2.3"
+logback = "1.2.13"
 bytebuddy = "1.17.5"
 scala = "2.11.12" # Last version to support Java 7 (2.12+ require Java 8+)
 scala211 = "2.11.12"
@@ -29,7 +29,7 @@ jctools = '3.3.0'
 moshi = '1.11.0'
 testcontainers = '1.20.1'
 jmc = "8.1.0"
-autoservice = "1.0-rc7"
+autoservice = "1.1.1"
 ddprof = "1.29.0"
 asm = "9.8"
 cafe_crypto = "0.1.0"
@@ -68,7 +68,7 @@ objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Sp
 
 spock24-core = { module = "org.spockframework:spock-core", version.ref = "spock24" }
 spock24-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock24" }
-spock24-spring = { module = "org.spockframework:spock-spring", version = "spock24" }
+spock24-spring = { module = "org.spockframework:spock-spring", version.ref = "spock24" }
 
 groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
 groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }
