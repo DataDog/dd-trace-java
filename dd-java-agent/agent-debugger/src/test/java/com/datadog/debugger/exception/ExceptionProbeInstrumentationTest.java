@@ -3,7 +3,6 @@ package com.datadog.debugger.exception;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_HASH;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID;
-import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.getValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,6 +37,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -157,7 +157,7 @@ public class ExceptionProbeInstrumentationTest {
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(fingerprint, span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_HASH));
-    assertEquals(Boolean.TRUE, span.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
+    assertEquals(Boolean.TRUE, span.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot0.getId(), span.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
@@ -198,11 +198,11 @@ public class ExceptionProbeInstrumentationTest {
     assertExceptionMsg("illegal argument", snapshot1);
     MutableSpan span0 = traceInterceptor.getAllTraces().get(0).get(0);
     assertEquals(snapshot0.getExceptionId(), span0.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
-    assertEquals(Boolean.TRUE, span0.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
+    assertEquals(Boolean.TRUE, span0.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot0.getId(), span0.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
     MutableSpan span1 = traceInterceptor.getAllTraces().get(1).get(0);
     assertEquals(snapshot1.getExceptionId(), span1.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
-    assertEquals(Boolean.TRUE, span1.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
+    assertEquals(Boolean.TRUE, span1.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot1.getId(), span1.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
   }
 

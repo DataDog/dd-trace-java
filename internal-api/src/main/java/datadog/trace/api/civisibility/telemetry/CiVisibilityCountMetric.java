@@ -54,8 +54,7 @@ public enum CiVisibilityCountMetric {
       Provider.class,
       AutoInjected.class,
       AgentlessLogSubmissionEnabled.class,
-      FailFastTestOrderEnabled.class,
-      FailedTestReplayEnabled.SessionMetric.class),
+      FailFastTestOrderEnabled.class),
   /** The number of events created */
   EVENT_CREATED(
       "event_created",

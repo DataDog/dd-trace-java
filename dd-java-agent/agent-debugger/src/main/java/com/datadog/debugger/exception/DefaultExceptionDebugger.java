@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -32,7 +33,6 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   public static final String DD_DEBUG_ERROR_EXCEPTION_ID = DD_DEBUG_ERROR_PREFIX + "exception_id";
   public static final String DD_DEBUG_ERROR_EXCEPTION_HASH =
       DD_DEBUG_ERROR_PREFIX + "exception_hash";
-  public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
   public static final String SNAPSHOT_ID_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.snapshot_id";
 
   // Test Optimization / Failed Test Replay specific
@@ -179,19 +179,21 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       span.setTag(tagName, snapshot.getId());
       LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
 
-      StackTraceElement stackFrame = innerTrace[currentIdx];
-      String fileTag = String.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
-      String lineTag = String.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
-      span.setTag(fileTag, stackFrame.getFileName());
-      span.setTag(lineTag, stackFrame.getLineNumber());
+      if (Config.get().isCiVisibilityFailedTestReplayActive()) {
+        StackTraceElement stackFrame = innerTrace[currentIdx];
+        String fileTag = String.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
+        String lineTag = String.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
+        span.setTag(fileTag, stackFrame.getFileName());
+        span.setTag(lineTag, stackFrame.getLineNumber());
 
-      LOGGER.debug(
-          "add ftr debug tags to span[{}]: {}={}, {}={}",
-          span.getSpanId(),
-          fileTag,
-          stackFrame.getFileName(),
-          lineTag,
-          stackFrame.getLineNumber());
+        LOGGER.debug(
+            "add ftr debug tags to span[{}]: {}={}, {}={}",
+            span.getSpanId(),
+            fileTag,
+            stackFrame.getFileName(),
+            lineTag,
+            stackFrame.getLineNumber());
+      }
 
       if (!state.isSnapshotSent()) {
         DebuggerAgent.getSink().addSnapshot(snapshot);
@@ -206,7 +208,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
           span.getSpanId(),
           DD_DEBUG_ERROR_EXCEPTION_ID,
           state.getExceptionId());
-      span.setTag(ERROR_DEBUG_INFO_CAPTURED, true);
+      span.setTag(Tags.ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
     }
   }
