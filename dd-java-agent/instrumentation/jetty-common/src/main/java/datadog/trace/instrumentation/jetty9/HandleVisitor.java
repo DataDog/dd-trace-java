@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.jetty9;
 
 import static net.bytebuddy.jar.asm.Opcodes.ALOAD;
 import static net.bytebuddy.jar.asm.Opcodes.F_SAME;
-import static net.bytebuddy.jar.asm.Opcodes.GOTO;
 import static net.bytebuddy.jar.asm.Opcodes.H_INVOKESTATIC;
+import static net.bytebuddy.jar.asm.Opcodes.IFEQ;
 import static net.bytebuddy.jar.asm.Opcodes.IFNE;
 import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
 import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
@@ -275,6 +275,7 @@ public class HandleVisitor extends MethodVisitor {
         return;
       }
 
+      // TODO Could be moved to #checkDispatchMethodState
       DelayCertainInsMethodVisitor.GetStaticFieldInsn getStaticFieldInsn =
           (DelayCertainInsMethodVisitor.GetStaticFieldInsn) savedVisitations.get(1);
       if ((!getStaticFieldInsn.owner.equals("javax/servlet/DispatcherType")
@@ -284,9 +285,26 @@ public class HandleVisitor extends MethodVisitor {
         return;
       }
 
-      Label doBlockLabel = new Label();
+      // Label doBlockLabel = new Label();
       Label beforeRegularDispatch = new Label();
-      Label afterRegularDispatch = new Label();
+      // Label afterRegularDispatch = new Label();
+
+      // Add current context to the stack
+      super.visitMethodInsn(
+          INVOKESTATIC,
+          Type.getInternalName(Java8BytecodeBridge.class),
+          "getCurrentContext",
+          "()Ldatadog/context/Context;",
+          false);
+      // Call JettyBlockingHelper.hasRequestBlockingAction(context)
+      super.visitMethodInsn(
+          INVOKESTATIC,
+          Type.getInternalName(JettyBlockingHelper.class),
+          "hasRequestBlockingAction",
+          "(" + Type.getDescriptor(Context.class) + ")Z",
+          false);
+      // If no request blocking action, jump befor the regular dispatch
+      super.visitJumpInsn(IFEQ, beforeRegularDispatch);
 
       //      super.visitVarInsn(ALOAD, CONTEXT_VAR);
       //      super.visitJumpInsn(Opcodes.IFNULL, beforeRegularDispatch);
@@ -300,14 +318,13 @@ public class HandleVisitor extends MethodVisitor {
       //      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
       //      super.visitJumpInsn(GOTO, beforeRegularDispatch);
 
-      super.visitLabel(doBlockLabel);
-      super.visitFrame(F_SAME, 0, null, 0, null);
+      //      super.visitLabel(doBlockLabel);
+      //      super.visitFrame(F_SAME, 0, null, 0, null);
       // dispatch with a Dispatchable created from JettyBlockingHelper::block
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
       List<Runnable> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
       mv.commitVisitations(loadThisAndEnum);
-      // set up the arguments to the method underlying the lambda (Request, Response,
-      // RequestBlockingAction, AgentSpan)
+      // set up the arguments to the method underlying the lambda (Request, Response, Context)
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           INVOKEVIRTUAL,
@@ -369,14 +386,14 @@ public class HandleVisitor extends MethodVisitor {
       // invoke the dispatch method
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
 
-      super.visitJumpInsn(GOTO, afterRegularDispatch);
+      // super.visitJumpInsn(GOTO, afterRegularDispatch);
 
       super.visitLabel(beforeRegularDispatch);
       super.visitFrame(F_SAME, 0, null, 0, null);
       mv.commitVisitations(savedVisitations);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-      super.visitLabel(afterRegularDispatch);
-      super.visitFrame(F_SAME, 0, null, 0, null);
+      // super.visitLabel(afterRegularDispatch);
+      // super.visitFrame(F_SAME, 0, null, 0, null);
       this.success = true;
       return;
     }

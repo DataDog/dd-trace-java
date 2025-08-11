@@ -242,6 +242,11 @@ public class JettyBlockingHelper {
         rba.getExtraHeaders());
   }
 
+  public static boolean hasRequestBlockingAction(Context context) {
+    AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
+    return span != null && span.getRequestBlockingAction() != null;
+  }
+
   public static void blockAndThrowOnFailure(Request request, Response response, Context context) {
     if (!block(request, response, context)) {
       throw new BlockingException("Throwing after being unable to commit blocking response");
