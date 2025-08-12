@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static java.lang.invoke.MethodHandles.collectArguments;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
@@ -11,7 +12,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -228,7 +228,7 @@ public class JettyBlockingHelper {
   }
 
   public static boolean block(Request request, Response response, Context context) {
-    AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
+    AgentSpan span = spanFromContext(context);
     Flow.Action.RequestBlockingAction rba;
     if (span == null || (rba = span.getRequestBlockingAction()) == null) {
       return false;
@@ -243,7 +243,7 @@ public class JettyBlockingHelper {
   }
 
   public static boolean hasRequestBlockingAction(Context context) {
-    AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
+    AgentSpan span = spanFromContext(context);
     return span != null && span.getRequestBlockingAction() != null;
   }
 

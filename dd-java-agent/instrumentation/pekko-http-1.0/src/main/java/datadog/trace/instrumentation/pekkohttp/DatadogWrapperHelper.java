@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.pekkohttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -13,7 +13,7 @@ public class DatadogWrapperHelper {
   public static ContextScope createSpan(final HttpRequest request) {
     final Context parentContext = DECORATE.extract(request);
     final Context context = DECORATE.startSpan(request, parentContext);
-    final AgentSpan span = spanFromContext(context);
+    final AgentSpan span = fromContext(context);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, parentContext);
 

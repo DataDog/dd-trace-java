@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jetty12;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
 
@@ -31,7 +31,7 @@ public class JettyServerAdvice {
       final Context parentContext = DECORATE.extract(req);
       final Context context = DECORATE.startSpan(req, parentContext);
       try (final ContextScope ignored = context.attach()) {
-        final AgentSpan span = spanFromContext(context);
+        final AgentSpan span = fromContext(context);
         span.setMeasured(true);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, req, req, parentContext);

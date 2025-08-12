@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.liberty20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.liberty20.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_SPAN_ATTRIBUTE;
@@ -108,7 +108,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, parentContext);
       final Context context = DECORATE.startSpan(request, parentContext);
       scope = context.attach();
-      final AgentSpan span = spanFromContext(context);
+      final AgentSpan span = fromContext(context);
       if (Config.get().isJeeSplitByDeployment()) {
         final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
         if (dispatcherContext != null) {
@@ -164,7 +164,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         // this has the unfortunate consequence that service name (as set via the tag interceptor)
         // of the top span won't match that of its child spans, because it's instead the original
         // one that will propagate
-        DECORATE.getPath(spanFromContext(scope.context()), request);
+        DECORATE.getPath(fromContext(scope.context()), request);
         scope.close();
       }
     }

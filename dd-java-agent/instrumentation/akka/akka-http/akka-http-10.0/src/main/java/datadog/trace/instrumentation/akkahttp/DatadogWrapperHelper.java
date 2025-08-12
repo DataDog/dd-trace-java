@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 
 import akka.http.scaladsl.model.HttpRequest;
@@ -13,7 +13,7 @@ public class DatadogWrapperHelper {
   public static ContextScope createSpan(final HttpRequest request) {
     final Context parentContext = DECORATE.extract(request);
     final Context context = DECORATE.startSpan(request, parentContext);
-    final AgentSpan span = spanFromContext(context);
+    final AgentSpan span = fromContext(context);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, parentContext);
 
