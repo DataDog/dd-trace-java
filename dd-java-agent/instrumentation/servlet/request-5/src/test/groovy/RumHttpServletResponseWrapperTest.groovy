@@ -12,6 +12,16 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
   def mockResponse = Mock(HttpServletResponse)
   def mockTelemetryCollector = Mock(RumTelemetryCollector)
 
+  // injector needs to be enabled in order to check headers
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("rum.enabled", "true")
+    injectSysConfig("rum.application.id", "test")
+    injectSysConfig("rum.client.token", "secret")
+    injectSysConfig("rum.remote.configuration.id", "12345")
+  }
+
   @Subject
   RumHttpServletResponseWrapper wrapper
 
@@ -118,6 +128,36 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     then:
     0 * mockTelemetryCollector.onContentSecurityPolicyDetected(SERVLET_VERSION)
     1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
+  }
+
+  void 'setCharacterEncoding sets content-encoding tag with value when injection fails'() {
+    setup:
+    wrapper.setContentType("text/html")
+    wrapper.setCharacterEncoding("UTF-8")
+    mockResponse.getOutputStream() >> { throw new IOException("stream error") }
+
+    when:
+    try {
+      wrapper.getOutputStream()
+    } catch (IOException ignored) {}
+
+    then:
+    1 * mockTelemetryCollector.onInjectionFailed(SERVLET_VERSION, "UTF-8")
+  }
+
+  void 'setCharacterEncoding with null does not set content-encoding tag when injection fails'() {
+    setup:
+    wrapper.setContentType("text/html")
+    wrapper.setCharacterEncoding(null)
+    mockResponse.getOutputStream() >> { throw new IOException("stream error") }
+
+    when:
+    try {
+      wrapper.getOutputStream()
+    } catch (IOException ignored) {}
+
+    then:
+    1 * mockTelemetryCollector.onInjectionFailed(SERVLET_VERSION, null)
   }
 
   // Callback is created in the RumHttpServletResponseWrapper and passed to InjectingPipeOutputStream via WrappedServletOutputStream.

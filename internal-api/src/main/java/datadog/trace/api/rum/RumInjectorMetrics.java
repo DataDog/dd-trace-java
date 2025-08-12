@@ -107,16 +107,29 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   public void onInjectionFailed(String integrationVersion, String contentEncoding) {
     injectionFailed.incrementAndGet();
 
-    String[] tags =
-        new String[] {
-          "application_id:" + applicationId,
-          "content_encoding:" + contentEncoding,
-          "injector_version:0.1.0",
-          "integration_name:servlet",
-          "integration_version:" + integrationVersion,
-          "reason:failed_to_return_response_wrapper",
-          "remote_config_used:" + remoteConfigUsed
-        };
+    String[] tags;
+    if (contentEncoding != null) {
+      tags =
+          new String[] {
+            "application_id:" + applicationId,
+            "content_encoding:" + contentEncoding,
+            "injector_version:0.1.0",
+            "integration_name:servlet",
+            "integration_version:" + integrationVersion,
+            "reason:failed_to_return_response_wrapper",
+            "remote_config_used:" + remoteConfigUsed
+          };
+    } else {
+      tags =
+          new String[] {
+            "application_id:" + applicationId,
+            "injector_version:0.1.0",
+            "integration_name:servlet",
+            "integration_version:" + integrationVersion,
+            "reason:failed_to_return_response_wrapper",
+            "remote_config_used:" + remoteConfigUsed
+          };
+    }
 
     statsd.count("rum.injection.failed", 1, tags);
   }

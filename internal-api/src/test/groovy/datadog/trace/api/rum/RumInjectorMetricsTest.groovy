@@ -49,7 +49,7 @@ class RumInjectorMetricsTest extends Specification {
     }
     1 * statsD.count('rum.injection.failed', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("content_encoding:null")
+      assert !tags.any { it.startsWith("content_encoding:") }
       assert tags.contains("injector_version:0.1.0")
       assert tags.contains("integration_name:servlet")
       assert tags.contains("integration_version:5")

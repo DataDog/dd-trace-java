@@ -95,28 +95,22 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
 
   @Override
   public void setHeader(String name, String value) {
-    if (name != null) {
-      String lowerName = name.toLowerCase();
-      if (lowerName.startsWith("content-security-policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(SERVLET_VERSION);
-      } else if (lowerName.contains("content-encoding")) {
-        this.contentEncoding = value;
-      }
-    }
+    checkForContentSecurityPolicy(name);
     super.setHeader(name, value);
   }
 
   @Override
   public void addHeader(String name, String value) {
-    if (name != null) {
-      String lowerName = name.toLowerCase();
-      if (lowerName.startsWith("content-security-policy")) {
+    checkForContentSecurityPolicy(name);
+    super.addHeader(name, value);
+  }
+
+  private void checkForContentSecurityPolicy(String name) {
+    if (name != null && rumInjector.isEnabled()) {
+      if (name.startsWith("Content-Security-Policy")) {
         RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(SERVLET_VERSION);
-      } else if (lowerName.contains("content-encoding")) {
-        this.contentEncoding = value;
       }
     }
-    super.addHeader(name, value);
   }
 
   @Override
@@ -132,6 +126,14 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     if (!shouldInject) {
       super.setContentLengthLong(len);
     }
+  }
+
+  @Override
+  public void setCharacterEncoding(String charset) {
+    if (charset != null && rumInjector.isEnabled()) {
+      this.contentEncoding = charset;
+    }
+    super.setCharacterEncoding(charset);
   }
 
   @Override
