@@ -163,6 +163,8 @@ public class SharedCommunicationObjects {
             }
           }
           featuresDiscovery = ret;
+        } else {
+          return featuresDiscovery;
         }
       }
     }
