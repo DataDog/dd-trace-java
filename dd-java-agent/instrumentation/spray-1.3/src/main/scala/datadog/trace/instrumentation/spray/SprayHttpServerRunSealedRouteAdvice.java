@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.spray;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -23,13 +24,13 @@ public class SprayHttpServerRunSealedRouteAdvice {
       // Propagate context in case income request was going through several routes
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
-      Context extractedContext = DECORATE.extract(request);
-      extractedSpanContext = DECORATE.getExtractedSpanContext(extractedContext);
-      span = DECORATE.startSpan(request, extractedContext);
-      context = extractedContext.with(span);
+      Context parentContext = DECORATE.extract(request);
+      extractedSpanContext = DECORATE.getExtractedSpanContext(parentContext);
+      context = DECORATE.startSpan(request, parentContext);
+      span = spanFromContext(context);
     } else {
       extractedSpanContext = null;
-      span = startSpan(DECORATE.spanName());
+      span = startSpan("spray", DECORATE.spanName());
       context = span;
     }
 
