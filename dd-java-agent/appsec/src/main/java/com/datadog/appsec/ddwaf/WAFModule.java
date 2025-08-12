@@ -74,6 +74,7 @@ public class WAFModule implements AppSecModule {
   public static final int MAX_DEPTH = 20;
   public static final int MAX_ELEMENTS = 256;
   public static final int MAX_STRING_SIZE = 4096;
+  private static final int MAX_COLLECTED_HEADERS_DEFAULT = 50;
   private static volatile Waf.Limits LIMITS;
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(WAFModule.class.getClassLoader(), Set.class);
@@ -395,6 +396,26 @@ public class WAFModule implements AppSecModule {
             } else {
               log.debug("Ignoring action with type generate_stack (disabled by config)");
             }
+          } else if ("extended_data_collection".equals(actionInfo.type)) {
+            // Extended data collection is handled by the GatewayBridge
+            reqCtx.setExtendedDataCollection(true);
+            // Handle max_collected_headers parameter which can come as Number or String
+            // representation of a number
+            // Default to 50 if parameter is missing or cannot be parsed
+            int maxHeaders = MAX_COLLECTED_HEADERS_DEFAULT;
+            Object maxHeadersParam =
+                actionInfo.parameters.getOrDefault(
+                    "max_collected_headers", MAX_COLLECTED_HEADERS_DEFAULT);
+            if (maxHeadersParam instanceof Number) {
+              maxHeaders = ((Number) maxHeadersParam).intValue();
+            } else if (maxHeadersParam instanceof String) {
+              try {
+                maxHeaders = Integer.parseInt((String) maxHeadersParam);
+              } catch (NumberFormatException e) {
+                log.debug("Failed to parse max_collected_headers value: {}", maxHeadersParam);
+              }
+            }
+            reqCtx.setExtendedDataCollectionMaxHeaders(maxHeaders);
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
             if (!gwCtx.isRasp) {
