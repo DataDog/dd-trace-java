@@ -18,7 +18,10 @@ public class StableConfigMappingException extends RuntimeException {
     if (value == null) return "null";
     String str = value.toString();
     if (str.length() > MAX_LEN) {
-      return str.substring(0, MAX_LEN) + "...(truncated)";
+      int partLen = MAX_LEN / 2;
+      return str.substring(0, partLen)
+          + "...(truncated)..."
+          + str.substring(str.length() - partLen);
     }
     return str;
   }

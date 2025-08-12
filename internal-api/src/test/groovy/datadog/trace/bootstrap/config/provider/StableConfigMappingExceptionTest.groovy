@@ -30,6 +30,6 @@ class StableConfigMappingExceptionTest extends Specification {
     given:
     def longStr = "a" * 101
     expect:
-    StableConfigMappingException.safeToString(longStr) == ("a" * 100) + "...(truncated)"
+    StableConfigMappingException.safeToString(longStr) == ("a" * 50) + "...(truncated)..." + ("a" * 51).substring(1)
   }
 }
