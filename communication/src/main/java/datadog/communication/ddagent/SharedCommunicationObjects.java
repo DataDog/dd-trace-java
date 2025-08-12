@@ -142,7 +142,7 @@ public class SharedCommunicationObjects {
     DDAgentFeaturesDiscovery ret = featuresDiscovery;
     if (ret == null) {
       synchronized (this) {
-        if (featuresDiscovery == null) {
+        if ((ret = featuresDiscovery) == null) {
           createRemaining(config);
           ret =
               new DDAgentFeaturesDiscovery(
@@ -163,8 +163,6 @@ public class SharedCommunicationObjects {
             }
           }
           featuresDiscovery = ret;
-        } else {
-          return featuresDiscovery;
         }
       }
     }
