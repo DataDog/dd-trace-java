@@ -135,88 +135,85 @@ class StableConfigSourceTest extends DDSpecification {
 
     where:
     yaml                                                                                           | expectedLogSubstring
-    //    '''apm_configuration_rules:
-    //          - selectors:
-    //              - key: "someKey"
-    //                matches: ["someValue"]
-    //                operator: equals
-    //            configuration:
-    //              DD_SERVICE: "test"
-    //     '''                                                                                             | "Missing 'origin' in selector"
-    //    '''apm_configuration_rules:
-    //          - selectors:
-    //              - origin: process_arguments
-    //                key: "-Dfoo"
-    //                matches: ["bar"]
-    //                operator: equals
-    //     '''                                                                                             | "Missing 'configuration' in rule"
-    //    '''apm_configuration_rules:
-    //         - configuration:
-    //             DD_SERVICE: "test"
-    //    '''                                                                                             | "Missing 'selectors' in rule"
-    //    '''apm_configuration_rules:
-    //          - selectors: "not-a-list"
-    //            configuration:
-    //              DD_SERVICE: "test"
-    //     '''                                                                                             | "'selectors' must be a list, but got: String"
-    //    '''apm_configuration_rules:
-    //          - selectors:
-    //              - "not-a-map"
-    //     '''                                                                                             | "Each selector must be a map, but got: String"
-    //    '''apm_configuration_rules:
-    //          - selectors:
-    //              - origin: process_arguments
-    //                key: "-Dfoo"
-    //                matches: ["bar"]
-    //                operator: equals
-    //            configuration: "not-a-map"
-    //     '''                                                                                             | "'configuration' must be a map, but got: String"
-    //    '''apm_configuration_rules:
-    //          - selectors:
-    //              - origin: process_arguments
-    //                key: "-Dfoo"
-    //                matches: ["bar"]
-    //                operator: equals
-    //            configuration: 12345
-    //     '''                                                                                             | "'configuration' must be a map, but got: Integer"
-    //    '''apm_configuration_rules:
-    //          - "not-a-map"
-    //     '''                                                                                             | "Rule must be a map, but got: String"
-    //    '''apm_configuration_rules:
-    //         - selectors:
-    //             - origin: process_arguments
-    //               key: "-Dfoo"
-    //               matches: "not-a-list"
-    //               operator: equals
-    //           configuration:
-    //             DD_SERVICE: "test"
-    //    '''                                                                                             | "'matches' must be a list, but got: String"
-    //    '''apm_configuration_rules:
-    //         - selectors:
-    //             - origin: process_arguments
-    //               key: "-Dfoo"
-    //               matches: ["bar"]
-    //               operator: 12345
-    //           configuration:
-    //             DD_SERVICE: "test"
-    //    '''                                                                                             | "Missing 'operator' in selector"
-    //    '''apm_configuration_rules:
-    //         - selectors:
-    //             - origin: process_arguments
-    //               key: "-Dfoo"
-    //               matches: ["bar"]
-    //               operator: 12345
-    //           configuration:
-    //             DD_SERVICE: "test"
-    //    '''                                                                                             | "'operator' must be a string, but got: Integer"                                                                                       | "Exception while parsing stable config"
     '''apm_configuration_rules:
           - selectors:
-                # origin is missing entirely, should trigger NullPointerException
-              - key: "-Dfoo"
-                matches: ["bar"]
+              - key: "someKey"
+                matches: ["someValue"]
                 operator: equals
             configuration:
               DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'origin' in selector"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+    '''                                                                                             | "Missing 'configuration' in rule"
+    '''apm_configuration_rules:
+         - configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'selectors' in rule"
+    '''apm_configuration_rules:
+          - selectors: "not-a-list"
+            configuration:
+              DD_SERVICE: "test"
+    '''                                                                                             | "'selectors' must be a list, but got: String"
+    '''apm_configuration_rules:
+          - selectors:
+              - "not-a-map"
+    '''                                                                                             | "Each selector must be a map, but got: String"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+            configuration: "not-a-map"
+    '''                                                                                             | "'configuration' must be a map, but got: String"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+            configuration: 12345
+    '''                                                                                             | "'configuration' must be a map, but got: Integer"
+    '''apm_configuration_rules:
+          - "not-a-map"
+    '''                                                                                             | "Rule must be a map, but got: String"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: "not-a-list"
+               operator: equals
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'matches' must be a list, but got: String"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                            | "Missing 'operator' in selector"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+               operator: 12345
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'operator' must be a string, but got: Integer"
+    '''apm_configuration_rules:
+          - selectors:
+              # origin is missing entirely, should trigger NullPointerException
+              - key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
     '''                                                                                             | "YAML mapping error in stable configuration file"
   }
 
