@@ -711,6 +711,7 @@ test_ssi_smoke:
   parallel:
     matrix: *test_matrix_4
 
+
 test_smoke_graalvm:
   extends: .test_job
   tags: [ "arch:amd64" ]
