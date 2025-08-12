@@ -37,8 +37,6 @@ val generateSupportedConfigurations by tasks.registering(JavaExec::class) {
     outputFile.get().asFile.parentFile.mkdirs()
   }
 }
-// Ensure Java compilation depends on the generated sources
-sourceSets["main"].java.srcDir(layout.buildDirectory.dir("generated/sources/supported"))
 
 tasks.named("compileJava") {
   dependsOn(generateSupportedConfigurations)

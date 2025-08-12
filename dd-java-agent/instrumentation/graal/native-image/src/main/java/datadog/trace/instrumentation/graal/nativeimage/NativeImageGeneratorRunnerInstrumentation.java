@@ -73,6 +73,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.datadog.profiling.controller.TempLocationManager$SingletonHolder:run_time,"
               + "com.datadog.profiling.ddprof.JavaProfilerLoader:run_time,"
               + "datadog.environment.JavaVirtualMachine:rerun,"
+              + "datadog.environment.GeneratedSupportedConfigurations:build_time,"
               + "datadog.trace.agent.tooling.WeakMaps$Adapter:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
