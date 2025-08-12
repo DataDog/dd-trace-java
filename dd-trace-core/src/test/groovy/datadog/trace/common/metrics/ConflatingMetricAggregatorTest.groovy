@@ -204,9 +204,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "grault").setTag("country", "france").setTag("georegion", "europe"),
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe"),
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "grault").setTag("country", "france").setTag("georegion", "europe")
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
     ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
@@ -223,7 +223,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       HTTP_OK,
       false,
       false,
-      "grault",
+      "client",
       [UTF8BytesString.create("country:france")]
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
@@ -237,7 +237,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       HTTP_OK,
       false,
       false,
-      "grault",
+      "client",
       [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")]
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
@@ -246,6 +246,55 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     cleanup:
     aggregator.close()
+  }
+
+  def "should aggregate the right peer tags for kind #kind"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> ["peer.hostname", "_dd.base_service"]
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, kind).setTag("peer.hostname", "localhost").setTag("_dd.base_service", "test")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      kind,
+      expectedPeerTags
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+
+    where:
+    kind       | expectedPeerTags
+    "client"   | [UTF8BytesString.create("peer.hostname:localhost"), UTF8BytesString.create("_dd.base_service:test")]
+    "internal" | [UTF8BytesString.create("_dd.base_service:test")]
+    "server"   | []
   }
 
   def "measured spans do not contribute to top level count"() {
