@@ -44,19 +44,22 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final ClassNameFilter classNameFiltering;
   private final CircuitBreaker circuitBreaker;
   private final int maxCapturedFrames;
+  private final boolean applyConfigAsync;
+  private final boolean isFailedTestReplayActive;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
-      Duration captureInterval,
-      int maxExceptionPerSecond,
-      int maxCapturedFrames) {
+      Config config) {
     this(
-        new ExceptionProbeManager(classNameFiltering, captureInterval),
+        new ExceptionProbeManager(
+            classNameFiltering, Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
         configurationUpdater,
         classNameFiltering,
-        maxExceptionPerSecond,
-        maxCapturedFrames);
+        config.getDebuggerMaxExceptionPerSecond(),
+        config.getDebuggerExceptionMaxCapturedFrames(),
+        config.isDebuggerExceptionAsyncConfig(),
+        config.isCiVisibilityFailedTestReplayActive());
   }
 
   DefaultExceptionDebugger(
@@ -64,18 +67,22 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
       int maxExceptionPerSecond,
-      int maxCapturedFrames) {
+      int maxCapturedFrames,
+      boolean applyConfigAsync,
+      boolean isFailedTestReplayActive) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
     this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
     this.maxCapturedFrames = maxCapturedFrames;
+    this.applyConfigAsync = applyConfigAsync;
+    this.isFailedTestReplayActive = isFailedTestReplayActive;
   }
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
     // CIVIS Failed Test Replay acts on errors
-    if (t instanceof Error && !Config.get().isCiVisibilityFailedTestReplayActive()) {
+    if (t instanceof Error && !isFailedTestReplayActive) {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("Skip handling error: {}", t.toString());
       }
@@ -103,7 +110,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         return;
       }
       processSnapshotsAndSetTags(
-          t, span, state, chainedExceptionsList, fingerprint, maxCapturedFrames);
+          t,
+          span,
+          state,
+          chainedExceptionsList,
+          fingerprint,
+          maxCapturedFrames,
+          isFailedTestReplayActive);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
@@ -114,9 +127,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          if (Config.get().isCiVisibilityFailedTestReplayActive()) {
-            // Assume Exception Replay is working under Failed Test Replay logic,
-            // instrumentation applied sync for immediate test retries
+          if (isFailedTestReplayActive || !applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
           } else {
             AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
@@ -147,7 +158,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ThrowableState state,
       List<Throwable> chainedExceptions,
       String fingerprint,
-      int maxCapturedFrames) {
+      int maxCapturedFrames,
+      boolean isFailedTestReplayActive) {
     if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
@@ -179,7 +191,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       span.setTag(tagName, snapshot.getId());
       LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
 
-      if (Config.get().isCiVisibilityFailedTestReplayActive()) {
+      if (isFailedTestReplayActive) {
         StackTraceElement stackFrame = innerTrace[currentIdx];
         String fileTag = String.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
         String lineTag = String.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
