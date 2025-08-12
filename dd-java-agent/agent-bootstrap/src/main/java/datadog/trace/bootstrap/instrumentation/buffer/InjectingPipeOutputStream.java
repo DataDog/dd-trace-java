@@ -32,6 +32,20 @@ public class InjectingPipeOutputStream extends OutputStream {
    * @param marker the marker to find in the stream. Must at least be one byte.
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
+   */
+  public InjectingPipeOutputStream(
+      final OutputStream downstream,
+      final byte[] marker,
+      final byte[] contentToInject,
+      final Runnable onContentInjected) {
+    this(downstream, marker, contentToInject, onContentInjected, null);
+  }
+
+  /**
+   * @param downstream the delegate output stream
+   * @param marker the marker to find in the stream. Must at least be one byte.
+   * @param contentToInject the content to inject once before the marker if found.
+   * @param onContentInjected callback called when and if the content is injected.
    * @param onBytesWritten callback called when stream is closed to report total bytes written.
    */
   public InjectingPipeOutputStream(

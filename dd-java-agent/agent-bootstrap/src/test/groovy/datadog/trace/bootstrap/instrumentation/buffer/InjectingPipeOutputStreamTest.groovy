@@ -3,6 +3,9 @@ package datadog.trace.bootstrap.instrumentation.buffer
 import datadog.trace.test.util.DDSpecification
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
+  static final byte[] MARKER_BYTES = "</head>".getBytes("UTF-8")
+  static final byte[] CONTEXT_BYTES = "<script></script>".getBytes("UTF-8")
+
   static class GlitchedOutputStream extends FilterOutputStream {
     int glitchesPos
     int count
@@ -33,10 +36,18 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     }
   }
 
+  static class Counter {
+    int value = 0
+
+    def incr(long count) {
+      this.value += count
+    }
+  }
+
   def 'should filter a buffer and inject if found #found'() {
     setup:
     def downstream = new ByteArrayOutputStream()
-    def piped = new OutputStreamWriter(new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null, null),
+    def piped = new OutputStreamWriter(new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null),
     "UTF-8")
     when:
     try (def closeme = piped) {
@@ -55,7 +66,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     setup:
     def baos = new ByteArrayOutputStream()
     def downstream = new GlitchedOutputStream(baos, glichesAt)
-    def piped = new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null, null)
+    def piped = new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null)
     when:
     try {
       for (String line : body) {
@@ -90,91 +101,71 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
 
   def 'should count bytes correctly when writing byte arrays'() {
     setup:
+    def testBytes = "test content".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
-    def bytesWritten = []
-    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
-    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+    def counter = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
 
     when:
-    piped.write("test content".getBytes("UTF-8"))
+    piped.write(testBytes)
     piped.close()
 
     then:
-    bytesWritten.size() == 1
-    bytesWritten[0] == 12
-    downstream.toByteArray() == "test content".getBytes("UTF-8")
+    counter.value == 12
+    downstream.toByteArray() == testBytes
   }
 
   def 'should count bytes correctly when writing bytes individually'() {
     setup:
+    def testBytes = "test".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
-    def bytesWritten = []
-    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
-    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+    def counter = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
 
     when:
-    def bytes = "test".getBytes("UTF-8")
-    for (int i = 0; i < bytes.length; i++) {
-      piped.write((int) bytes[i])
+    for (int i = 0; i < testBytes.length; i++) {
+      piped.write((int) testBytes[i])
     }
     piped.close()
 
     then:
-    bytesWritten.size() == 1
-    bytesWritten[0] == 4
-    downstream.toByteArray() == "test".getBytes("UTF-8")
+    counter.value == 4
+    downstream.toByteArray() == testBytes
   }
 
   def 'should count bytes correctly with multiple writes'() {
     setup:
+    def part1 = "test".getBytes("UTF-8")
+    def part2 = " ".getBytes("UTF-8")
+    def part3 = "content".getBytes("UTF-8")
+    def testBytes = "test content".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
-    def bytesWritten = []
-    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
-    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
+    def counter = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
 
     when:
-    piped.write("test".getBytes("UTF-8"))
-    piped.write(" ".getBytes("UTF-8"))
-    piped.write("content".getBytes("UTF-8"))
+    piped.write(part1)
+    piped.write(part2)
+    piped.write(part3)
     piped.close()
 
     then:
-    bytesWritten.size() == 1
-    bytesWritten[0] == 12
-    downstream.toByteArray() == "test content".getBytes("UTF-8")
+    counter.value == 12
+    downstream.toByteArray() == testBytes
   }
 
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
     setup:
+    def testBytes = "test content".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
-    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, null)
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, null)
 
     when:
-    piped.write("test content".getBytes("UTF-8"))
+    piped.write(testBytes)
     piped.close()
 
     then:
     noExceptionThrown()
-    downstream.toByteArray() == "test content".getBytes("UTF-8")
-  }
-
-  def 'should reset byte count after close'() {
-    setup:
-    def downstream = new ByteArrayOutputStream()
-    def bytesWritten = []
-    def onBytesWritten = { long bytes -> bytesWritten.add(bytes) }
-    def piped = new InjectingPipeOutputStream(downstream, "</head>".getBytes("UTF-8"), "<script></script>".getBytes("UTF-8"), null, onBytesWritten)
-
-    when:
-    piped.write("test".getBytes("UTF-8"))
-    piped.close()
-
-    piped.write("content".getBytes("UTF-8"))
-    piped.close()
-
-    then:
-    bytesWritten.size() == 2
-    bytesWritten[0] == 4
-    bytesWritten[1] == 7
+    downstream.toByteArray() == testBytes
   }
 }

@@ -10,6 +10,12 @@ class RumInjectorMetricsTest extends Specification {
   @Subject
   def metrics = new RumInjectorMetrics(statsD)
 
+  void assertTags(String[] args, String... expectedTags) {
+    expectedTags.each { expectedTag ->
+      assert args.contains(expectedTag), "Expected tag '$expectedTag' not found in tags: ${args as List}"
+    }
+  }
+
   // Note: application_id and remote_config_used are dynamic runtime values that depend on
   // the RUM configuration state, so we do not test them here.
   def "test onInjectionSucceed"() {
@@ -20,15 +26,11 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.count('rum.injection.succeed', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3")
+      assertTags(tags, "integration_name:servlet", "integration_version:3")
     }
     1 * statsD.count('rum.injection.succeed', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:5")
+      assertTags(tags, "integration_name:servlet", "integration_version:5")
     }
     0 * _
   }
@@ -41,19 +43,12 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.count('rum.injection.failed', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("content_encoding:gzip")
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3")
-      assert tags.contains("reason:failed_to_return_response_wrapper")
+      assertTags(tags, "content_encoding:gzip", "integration_name:servlet", "integration_version:3", "reason:failed_to_return_response_wrapper")
     }
     1 * statsD.count('rum.injection.failed', 1, _) >> { args ->
       def tags = args[2] as String[]
       assert !tags.any { it.startsWith("content_encoding:") }
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:5")
-      assert tags.contains("reason:failed_to_return_response_wrapper")
+      assertTags(tags, "integration_name:servlet", "integration_version:5", "reason:failed_to_return_response_wrapper")
     }
     0 * _
   }
@@ -66,17 +61,11 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.count('rum.injection.skipped', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3")
-      assert tags.contains("reason:should_not_inject")
+      assertTags(tags, "integration_name:servlet", "integration_version:3", "reason:should_not_inject")
     }
     1 * statsD.count('rum.injection.skipped', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:5")
-      assert tags.contains("reason:should_not_inject")
+      assertTags(tags, "integration_name:servlet", "integration_version:5", "reason:should_not_inject")
     }
     0 * _
   }
@@ -89,21 +78,11 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.count('rum.injection.content_security_policy', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3")
-      assert tags.contains("kind:header")
-      assert tags.contains("reason:csp_header_found")
-      assert tags.contains("status:seen")
+      assertTags(tags, "integration_name:servlet", "integration_version:3", "kind:header", "reason:csp_header_found", "status:seen")
     }
     1 * statsD.count('rum.injection.content_security_policy', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:5")
-      assert tags.contains("kind:header")
-      assert tags.contains("reason:csp_header_found")
-      assert tags.contains("status:seen")
+      assertTags(tags, "integration_name:servlet", "integration_version:5", "kind:header", "reason:csp_header_found", "status:seen")
     }
     0 * _
   }
@@ -115,9 +94,7 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.count('rum.injection.initialization.succeed', 1, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3,5")
+      assertTags(tags, "integration_name:servlet", "integration_version:3,5")
     }
     0 * _
   }
@@ -130,17 +107,11 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.distribution('rum.injection.response.bytes', 256, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3")
-      assert tags.contains("response_kind:header")
+      assertTags(tags, "integration_name:servlet", "integration_version:3", "response_kind:header")
     }
     1 * statsD.distribution('rum.injection.response.bytes', 512, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:5")
-      assert tags.contains("response_kind:header")
+      assertTags(tags, "integration_name:servlet", "integration_version:5", "response_kind:header")
     }
     0 * _
   }
@@ -153,15 +124,11 @@ class RumInjectorMetricsTest extends Specification {
     then:
     1 * statsD.distribution('rum.injection.ms', 5L, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:5")
+      assertTags(tags, "integration_name:servlet", "integration_version:5")
     }
     1 * statsD.distribution('rum.injection.ms', 10L, _) >> { args ->
       def tags = args[2] as String[]
-      assert tags.contains("injector_version:0.1.0")
-      assert tags.contains("integration_name:servlet")
-      assert tags.contains("integration_version:3")
+      assertTags(tags, "integration_name:servlet", "integration_version:3")
     }
     0 * _
   }

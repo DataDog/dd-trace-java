@@ -14,9 +14,9 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class RumInjectorMetrics implements RumTelemetryCollector {
   // Use static tags for common combinations so that we don't have to build them for each metric
+  // Note that injector_version tags are not included because we do not use the rust injector
   private static final String[] CSP_SERVLET3_TAGS =
       new String[] {
-        "injector_version:0.1.0",
         "integration_name:servlet",
         "integration_version:3",
         "kind:header",
@@ -26,7 +26,6 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
   private static final String[] CSP_SERVLET5_TAGS =
       new String[] {
-        "injector_version:0.1.0",
         "integration_name:servlet",
         "integration_version:5",
         "kind:header",
@@ -35,31 +34,19 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
       };
 
   private static final String[] INIT_TAGS =
-      new String[] {
-        "injector_version:0.1.0", "integration_name:servlet", "integration_version:3,5"
-      };
+      new String[] {"integration_name:servlet", "integration_version:3,5"};
 
   private static final String[] TIME_SERVLET3_TAGS =
-      new String[] {"injector_version:0.1.0", "integration_name:servlet", "integration_version:3"};
+      new String[] {"integration_name:servlet", "integration_version:3"};
 
   private static final String[] TIME_SERVLET5_TAGS =
-      new String[] {"injector_version:0.1.0", "integration_name:servlet", "integration_version:5"};
+      new String[] {"integration_name:servlet", "integration_version:5"};
 
   private static final String[] RESPONSE_SERVLET3_TAGS =
-      new String[] {
-        "injector_version:0.1.0",
-        "integration_name:servlet",
-        "integration_version:3",
-        "response_kind:header"
-      };
+      new String[] {"integration_name:servlet", "integration_version:3", "response_kind:header"};
 
   private static final String[] RESPONSE_SERVLET5_TAGS =
-      new String[] {
-        "injector_version:0.1.0",
-        "integration_name:servlet",
-        "integration_version:5",
-        "response_kind:header"
-      };
+      new String[] {"integration_name:servlet", "integration_version:5", "response_kind:header"};
 
   private final AtomicLong injectionSucceed = new AtomicLong();
   private final AtomicLong injectionFailed = new AtomicLong();
@@ -94,7 +81,6 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     String[] tags =
         new String[] {
           "application_id:" + applicationId,
-          "injector_version:0.1.0",
           "integration_name:servlet",
           "integration_version:" + integrationVersion,
           "remote_config_used:" + remoteConfigUsed
@@ -113,7 +99,6 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
           new String[] {
             "application_id:" + applicationId,
             "content_encoding:" + contentEncoding,
-            "injector_version:0.1.0",
             "integration_name:servlet",
             "integration_version:" + integrationVersion,
             "reason:failed_to_return_response_wrapper",
@@ -123,7 +108,6 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
       tags =
           new String[] {
             "application_id:" + applicationId,
-            "injector_version:0.1.0",
             "integration_name:servlet",
             "integration_version:" + integrationVersion,
             "reason:failed_to_return_response_wrapper",
@@ -141,7 +125,6 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     String[] tags =
         new String[] {
           "application_id:" + applicationId,
-          "injector_version:0.1.0",
           "integration_name:servlet",
           "integration_version:" + integrationVersion,
           "reason:should_not_inject",

@@ -1,9 +1,13 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.rum.RumTelemetryCollector
+import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream
+import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter
 import datadog.trace.instrumentation.servlet3.RumHttpServletResponseWrapper
+import datadog.trace.instrumentation.servlet3.WrappedServletOutputStream
 import spock.lang.Subject
 
+import java.util.function.LongConsumer
 import javax.servlet.http.HttpServletResponse
 
 class RumHttpServletResponseWrapperTest extends AgentTestRunner {
@@ -130,7 +134,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
   }
 
-  void 'setCharacterEncoding sets content-encoding tag with value when injection fails'() {
+  void 'setCharacterEncoding reports the content-encoding tag with value when injection fails'() {
     setup:
     wrapper.setContentType("text/html")
     wrapper.setCharacterEncoding("UTF-8")
@@ -145,7 +149,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * mockTelemetryCollector.onInjectionFailed(SERVLET_VERSION, "UTF-8")
   }
 
-  void 'setCharacterEncoding with null does not set content-encoding tag when injection fails'() {
+  void 'setCharacterEncoding reports the content-encoding tag with null when injection fails'() {
     setup:
     wrapper.setContentType("text/html")
     wrapper.setCharacterEncoding(null)
@@ -170,7 +174,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def onBytesWritten = { bytes ->
       mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, bytes)
     }
-    def wrappedStream = new datadog.trace.instrumentation.servlet3.WrappedServletOutputStream(
+    def wrappedStream = new WrappedServletOutputStream(
       downstream, marker, contentToInject, null, onBytesWritten)
 
     when:
@@ -187,8 +191,8 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def downstream = Mock(java.io.OutputStream)
     def marker = "</head>".getBytes("UTF-8")
     def contentToInject = "<script></script>".getBytes("UTF-8")
-    def onBytesWritten = Mock(java.util.function.LongConsumer)
-    def stream = new datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream(
+    def onBytesWritten = Mock(LongConsumer)
+    def stream = new InjectingPipeOutputStream(
       downstream, marker, contentToInject, null, onBytesWritten)
 
     when:
@@ -205,8 +209,8 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def downstream = Mock(java.io.Writer)
     def marker = "</head>".toCharArray()
     def contentToInject = "<script></script>".toCharArray()
-    def onBytesWritten = Mock(java.util.function.LongConsumer)
-    def writer = new datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter(
+    def onBytesWritten = Mock(LongConsumer)
+    def writer = new InjectingPipeWriter(
       downstream, marker, contentToInject, null, onBytesWritten)
 
     when:
@@ -220,11 +224,14 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
 
   void 'injection timing is reported when injection is successful'() {
     setup:
-    // set the injection start time to simulate timing
-    wrapper.@injectionStartTime = System.nanoTime() - 2_000_000L
+    wrapper.setContentType("text/html")
+    def mockWriter = Mock(java.io.PrintWriter)
+    mockResponse.getWriter() >> mockWriter
 
     when:
-    wrapper.onInjected() // report timing when injection is successful
+    wrapper.getWriter()
+    Thread.sleep(1) // ensure measurable time passes
+    wrapper.onInjected()
 
     then:
     1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)

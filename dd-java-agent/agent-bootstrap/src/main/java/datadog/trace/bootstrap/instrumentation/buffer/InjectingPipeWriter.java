@@ -32,6 +32,20 @@ public class InjectingPipeWriter extends Writer {
    * @param marker the marker to find in the stream. Must at least be one char.
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
+   */
+  public InjectingPipeWriter(
+      final Writer downstream,
+      final char[] marker,
+      final char[] contentToInject,
+      final Runnable onContentInjected) {
+    this(downstream, marker, contentToInject, onContentInjected, null);
+  }
+
+  /**
+   * @param downstream the delegate writer
+   * @param marker the marker to find in the stream. Must at least be one char.
+   * @param contentToInject the content to inject once before the marker if found.
+   * @param onContentInjected callback called when and if the content is injected.
    * @param onBytesWritten callback called when writer is closed to report total bytes written.
    */
   public InjectingPipeWriter(
