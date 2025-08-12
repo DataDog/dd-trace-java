@@ -91,7 +91,7 @@ tasks.register('fixPlayRoutesDirectory') {
   }
 }
 
-tasks.named('compilePlayRoutes') {
+tasks.named('processResources') {
   dependsOn tasks.named('fixPlayRoutesDirectory')
 }
 
