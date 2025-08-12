@@ -34,7 +34,7 @@ public final class Rule {
 
     if (!(selectorsObj instanceof List)) {
       throwStableConfigMappingException(
-          "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName(),
+          "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName() + ": ",
           selectorsObj);
     }
 
@@ -50,7 +50,8 @@ public final class Rule {
                           }
                           throwStableConfigMappingException(
                               "Each selector must be a map, but got: "
-                                  + s.getClass().getSimpleName(),
+                                  + s.getClass().getSimpleName()
+                                  + ": ",
                               s);
                           return null;
                         })
@@ -62,7 +63,7 @@ public final class Rule {
     }
     if (!(configObj instanceof Map)) {
       throwStableConfigMappingException(
-          "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName(),
+          "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName() + ": ",
           configObj);
     }
     Map<String, Object> configuration = (Map<String, Object>) configObj;

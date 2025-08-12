@@ -53,7 +53,7 @@ public final class StableConfig {
           rules.add(Rule.from((Map<?, ?>) ruleObj));
         } else {
           throwStableConfigMappingException(
-              "Rule must be a map, but got: " + ruleObj.getClass().getSimpleName(), ruleObj);
+              "Rule must be a map, but got: " + ruleObj.getClass().getSimpleName() + ": ", ruleObj);
           return emptyList();
         }
       }

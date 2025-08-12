@@ -26,7 +26,8 @@ public final class Selector {
     }
     if (!(originObj instanceof String)) {
       throwStableConfigMappingException(
-          "'origin' must be a string, but got: " + originObj.getClass().getSimpleName(), originObj);
+          "'origin' must be a string, but got: " + originObj.getClass().getSimpleName() + ": ",
+          originObj);
     }
     String origin = (String) originObj;
 
@@ -36,7 +37,7 @@ public final class Selector {
     Object matchesObj = map.get("matches");
     if (matchesObj != null && !(matchesObj instanceof List)) {
       throwStableConfigMappingException(
-          "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName(),
+          "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName() + ": ",
           matchesObj);
     }
     List<String> rawMatches = (List<String>) matchesObj;
@@ -49,7 +50,7 @@ public final class Selector {
     }
     if (!(operatorObj instanceof String)) {
       throwStableConfigMappingException(
-          "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName(),
+          "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName() + ": ",
           operatorObj);
     }
     String operator = (String) operatorObj;
