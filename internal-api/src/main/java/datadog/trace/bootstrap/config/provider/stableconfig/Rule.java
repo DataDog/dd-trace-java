@@ -29,7 +29,7 @@ public final class Rule {
   public static Rule from(Map<?, ?> map) {
     Object selectorsObj = map.get("selectors");
     if (selectorsObj == null) {
-      throwStableConfigMappingException("Missing 'selectors' in rule", map);
+      throwStableConfigMappingException("Missing 'selectors' in rule:", map);
     }
 
     if (!(selectorsObj instanceof List)) {
