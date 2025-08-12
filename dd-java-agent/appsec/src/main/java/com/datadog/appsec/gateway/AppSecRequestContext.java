@@ -97,6 +97,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int peerPort;
   private String inferredClientIp;
 
+  private boolean extendedDataCollection = false;
+  private boolean extendedDataCollectionRedactionEnabled = true;
+  private int extendedDataCollectionMaxHeaders = 50;
+
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
 
@@ -238,6 +242,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public int getRaspTimeouts() {
     return raspTimeouts;
+  }
+
+  public boolean isExtendedDataCollection() {
+    return extendedDataCollection;
+  }
+
+  public void setExtendedDataCollection(boolean extendedDataCollection) {
+    this.extendedDataCollection = extendedDataCollection;
+  }
+
+  public boolean isExtendedDataCollectionRedactionEnabled() {
+    return extendedDataCollectionRedactionEnabled;
+  }
+
+  public void setExtendedDataCollectionRedactionEnabled(boolean extendedDataCollectionRedactionEnabled) {
+    this.extendedDataCollectionRedactionEnabled = extendedDataCollectionRedactionEnabled;
+  }
+
+  public int getExtendedDataCollectionMaxHeaders() {
+    return extendedDataCollectionMaxHeaders;
+  }
+
+  public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
+    this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
   public WafContext getOrCreateWafContext(
