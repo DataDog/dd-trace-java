@@ -72,6 +72,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+  private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
 
   private final boolean traceClientIpResolverEnabled =
       Config.get().isTraceClientIpResolverEnabled();
@@ -140,8 +141,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @return A new context bundling the span, child of the given parent context.
    */
   public Context startSpan(REQUEST_CARRIER carrier, Context context) {
+    String[] instrumentationNames = instrumentationNames();
     String instrumentationName =
-        instrumentationNames().length == 0 ? "http-server" : instrumentationNames()[0];
+        instrumentationNames != null && instrumentationNames.length > 0
+            ? instrumentationNames[0]
+            : DEFAULT_INSTRUMENTATION_NAME;
     AgentSpanContext.Extracted extracted = callIGCallbackStart(context);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
