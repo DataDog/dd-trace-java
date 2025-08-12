@@ -224,7 +224,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
         }
 
         heapDump("test_2")
-      }, 10001, 60000, TimeUnit.MILLISECONDS)
+      }, 10002, 60001, TimeUnit.MILLISECONDS)
     }
 
     void heapDump(String kind) {
