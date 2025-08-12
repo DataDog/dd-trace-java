@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
@@ -19,9 +20,8 @@ import scala.concurrent.Future;
 
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(
-      @Advice.Argument(value = 0, readOnly = false) Request<?> req,
-      @Advice.Local("extractedContext") Context extractedContext) {
+  public static ContextScope onEnter(@Advice.Argument(value = 0, readOnly = false) Request<?> req) {
+    final Context parentContext;
     final AgentSpan span;
     final ContextScope scope;
 
@@ -32,13 +32,14 @@ public class PlayAdvice {
 
     if (activeSpan() == null) {
       final Headers headers = req.headers();
-      extractedContext = DECORATE.extract(headers);
-      final Context context = DECORATE.startSpan(headers, extractedContext);
+      parentContext = DECORATE.extract(headers);
+      final Context context = DECORATE.startSpan(headers, parentContext);
       span = spanFromContext(context);
       scope = context.attach();
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
+      parentContext = Java8BytecodeBridge.getRootContext();
       span = startSpan("play", PLAY_REQUEST);
       scope = span.attach();
     }
@@ -50,7 +51,7 @@ public class PlayAdvice {
 
     // Moved from OnMethodExit
     // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(span, req, req, extractedContext);
+    DECORATE.onRequest(span, req, req, parentContext);
 
     return scope;
   }
@@ -58,7 +59,6 @@ public class PlayAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopTraceOnResponse(
       @Advice.Enter final ContextScope playControllerScope,
-      @Advice.Local("extractedContext") Context extractedContext,
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request<?> req,
