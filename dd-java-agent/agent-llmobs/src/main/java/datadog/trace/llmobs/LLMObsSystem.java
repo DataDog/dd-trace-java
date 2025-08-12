@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
 import datadog.trace.llmobs.domain.LLMObsInternal;
+import java.lang.instrument.Instrumentation;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -21,7 +22,7 @@ public class LLMObsSystem {
 
   private static final String CUSTOM_MODEL_VAL = "custom";
 
-  public static void start(SharedCommunicationObjects sco) {
+  public static void start(@Nullable Instrumentation inst, SharedCommunicationObjects sco) {
     Config config = Config.get();
     if (!config.isLlmObsEnabled()) {
       LOGGER.debug("LLM Observability is disabled");
