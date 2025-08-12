@@ -791,7 +791,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
     if (config.isLlmObsEnabled()) {
-      LLMObsSystem.start(null, sharedCommunicationObjects);
+      LLMObsSystem.start(sharedCommunicationObjects);
     }
 
     // Register context propagators

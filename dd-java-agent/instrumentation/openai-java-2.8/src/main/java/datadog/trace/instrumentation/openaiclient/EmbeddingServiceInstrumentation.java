@@ -22,12 +22,13 @@ public class EmbeddingServiceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public EmbeddingServiceInstrumentation() {
-    super("openai", "openai-java", "openai-2.8");
+    super("openai-java", "openai-java-2.8", "openai-client");
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("openai"), false);
+    return super.defaultEnabled()
+        && InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("openai"), false);
   }
 
   @Override
