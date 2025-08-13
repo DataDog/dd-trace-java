@@ -82,10 +82,11 @@ public final class ConfigProvider {
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
-      value = source.get(key, aliases);
-      if (value != null) {
+      String candidate = source.get(key, aliases);
+      if (candidate != null) {
+        value = candidate;
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), seqId);
+          ConfigCollector.get().put(key, candidate, source.origin(), seqId);
         }
       }
       seqId++;
@@ -105,10 +106,13 @@ public final class ConfigProvider {
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
-      value = source.get(key, aliases);
-      if (value != null && !value.trim().isEmpty()) {
+      String candidate = source.get(key, aliases);
+      if (candidate != null && !candidate.trim().isEmpty()) {
+        if (value == null) {
+          value = candidate;
+        }
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), seqId);
+          ConfigCollector.get().put(key, candidate, source.origin(), seqId);
         }
       }
       seqId++;
@@ -132,10 +136,11 @@ public final class ConfigProvider {
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
-      value = source.get(key, aliases);
-      if (value != null) {
+      String candidate = source.get(key, aliases);
+      if (candidate != null) {
+        value = candidate;
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), seqId);
+          ConfigCollector.get().put(key, candidate, source.origin(), seqId);
         }
       }
       seqId++;
@@ -205,25 +210,31 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     T value = null;
+    ConfigOrigin origin = null;
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       try {
         String sourceValue = source.get(key, aliases);
-        value = ConfigConverter.valueOf(sourceValue, type);
-        if (value != null) {
-          if (collectConfig) {
-            ConfigCollector.get().put(key, sourceValue, source.origin(), seqId);
-          }
-          break;
+        if (sourceValue != null && collectConfig) {
+          ConfigCollector.get().put(key, sourceValue, source.origin(), seqId);
+        }
+        T candidate = ConfigConverter.valueOf(sourceValue, type);
+        if (candidate != null) {
+          value = candidate;
+          origin = source.origin();
         }
       } catch (NumberFormatException ex) {
-        // TODO: Report error to telemetry
+        // continue
       }
       seqId++;
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      // Re-report the chosen value and origin to ensure its seqId is higher than any error configs
+      if (value != null && origin != null) {
+        ConfigCollector.get().put(key, value, origin, seqId + 1);
+      }
     }
     return value != null ? value : defaultValue;
   }

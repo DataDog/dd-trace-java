@@ -88,4 +88,47 @@ class ConfigProviderTest extends DDSpecification {
     value == jvmSetting.stringValue()
 
   }
+
+  def "ConfigProvider reports highest seqId for chosen value and origin regardless of conversion errors"() {
+    setup:
+    ConfigCollector.get().collect() // clear previous state
+
+    // Set up: default, env (valid), jvm (invalid for integer)
+    injectEnvConfig("DD_TEST_INT", "42")
+    injectSysConfig("test.int", "notAnInt")
+    def provider = ConfigProvider.createDefault()
+
+    when:
+    def value = provider.getInteger("test.int", 7)
+    def collected = ConfigCollector.get().collect()
+
+    then:
+    // Default
+    def defaultSetting = collected.get(ConfigOrigin.DEFAULT).get("test.int")
+    defaultSetting.key == "test.int"
+    defaultSetting.stringValue() == "7"
+    defaultSetting.origin == ConfigOrigin.DEFAULT
+    defaultSetting.seqId == ConfigSetting.DEFAULT_SEQ_ID
+
+    // ENV (valid)
+    def envSetting = collected.get(ConfigOrigin.ENV).get("test.int")
+    envSetting.key == "test.int"
+    envSetting.stringValue() == "42"
+    envSetting.origin == ConfigOrigin.ENV
+
+    // JVM_PROP (invalid, should still be reported)
+    def jvmSetting = collected.get(ConfigOrigin.JVM_PROP).get("test.int")
+    jvmSetting.key == "test.int"
+    jvmSetting.stringValue() == "notAnInt"
+    jvmSetting.origin == ConfigOrigin.JVM_PROP
+
+    // The chosen value (from ENV) should be re-reported with the highest seqId
+    def maxSeqId = [defaultSetting.seqId, envSetting.seqId, jvmSetting.seqId].max()
+    def chosenSetting = [defaultSetting, envSetting, jvmSetting].find { it.seqId == maxSeqId }
+    chosenSetting.stringValue() == "42"
+    chosenSetting.origin == ConfigOrigin.ENV
+
+    // The value returned by provider should be the valid one
+    value == 42
+  }
 }
