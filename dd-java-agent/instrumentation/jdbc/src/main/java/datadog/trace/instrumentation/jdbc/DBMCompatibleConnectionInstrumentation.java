@@ -116,7 +116,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         if (callDepth > 0) {
           return null;
         }
-        final String inputSql = sql;
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
@@ -125,16 +124,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
           dbService =
               traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
         }
-        if (dbInfo.getType().equals("sqlserver")) { // TODO why it's decided here?
-          sql =
-              SQLCommenter.append(
-                  sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());
-        } else {
-          sql =
-              SQLCommenter.prepend(
-                  sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());
-        }
-        return inputSql;
+        boolean append = "sqlserver".equals(dbInfo.getType());
+        return SQLCommenter.inject(
+            sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
       }
       return sql;
     }

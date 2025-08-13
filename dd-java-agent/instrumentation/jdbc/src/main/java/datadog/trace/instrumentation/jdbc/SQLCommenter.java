@@ -17,6 +17,17 @@ public class SQLCommenter {
 
   private static final Logger log = LoggerFactory.getLogger(SQLCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
+
+  private static final char EQUALS = '=';
+  private static final char COMMA = ',';
+  private static final char QUOTE = '\'';
+  private static final char SPACE = ' ';
+  private static final String OPEN_COMMENT = "/*";
+  private static final int OPEN_COMMENT_LEN = OPEN_COMMENT.length();
+  private static final String CLOSE_COMMENT = "*/";
+
+  // Injected fields. When adding a new one, be sure to update all the methods below.
+  private static final int NUMBER_OF_FIELDS = 9;
   private static final String PARENT_SERVICE = encode("ddps");
   private static final String DATABASE_SERVICE = encode("dddbs");
   private static final String DD_HOSTNAME = encode("ddh");
@@ -24,35 +35,12 @@ public class SQLCommenter {
   private static final String DD_PEER_SERVICE = "ddprs";
   private static final String DD_ENV = encode("dde");
   private static final String DD_VERSION = encode("ddpv");
-  private static final String DD_SERVICE_HASH = encode("ddsh");
   private static final String TRACEPARENT = encode("traceparent");
-  private static final char EQUALS = '=';
-  private static final char COMMA = ',';
-  private static final char QUOTE = '\'';
-  private static final char SPACE = ' ';
-  private static final String OPEN_COMMENT = "/*";
-  private static final String CLOSE_COMMENT = "*/";
+  private static final String DD_SERVICE_HASH = encode("ddsh");
+
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String append(
-      final String sql,
-      final String dbService,
-      final String dbType,
-      final String hostname,
-      final String dbName) {
-    return inject(sql, dbService, dbType, hostname, dbName, null, false, true);
-  }
-
-  public static String prepend(
-      final String sql,
-      final String dbService,
-      final String dbType,
-      final String hostname,
-      final String dbName) {
-    return inject(sql, dbService, dbType, hostname, dbName, null, false, false);
-  }
-
-  public static String getFirstWord(String sql) {
+  protected static String getFirstWord(String sql) {
     int beginIndex = 0;
     while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
       beginIndex++;
@@ -65,14 +53,14 @@ public class SQLCommenter {
   }
 
   public static String inject(
-      final String sql,
-      final String dbService,
-      final String dbType,
-      final String hostname,
-      final String dbName,
-      final String traceParent,
-      final boolean injectTrace,
-      boolean appendComment) {
+      String sql,
+      String dbService,
+      String dbType,
+      String hostname,
+      String dbName,
+      String traceParent,
+      boolean preferAppend) {
+    boolean appendComment = preferAppend;
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
@@ -98,14 +86,13 @@ public class SQLCommenter {
       }
 
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored
-      // procedure
-      // invocation but they seem ok with it after so we force append mode
+      // procedure invocation, but they seem ok with it after so we force append mode
       if (firstWord.equalsIgnoreCase("call")) {
         appendComment = true;
       }
 
       // Append the comment in the case of a pg_hint_plan extension
-      if (dbType.startsWith("postgres") && containsPgHint(sql)) {
+      if (dbType.startsWith("postgres") && sql.indexOf("/*+") > 0) {
         appendComment = true;
       }
     }
@@ -124,51 +111,46 @@ public class SQLCommenter {
     final String serviceHash =
         Long.toString(ServiceHash.getBaseHash(parentService, env, containerTagsHash));
     //        config.isDbDbmInjectServiceHash() ; // TODO && baseHash != null
-    final int commentSize = capacity(traceParent, parentService, dbService, env, version);
-    StringBuilder sb = new StringBuilder(sql.length() + commentSize);
-    boolean commentAdded = false;
     String peerService = peerServiceObj != null ? peerServiceObj.toString() : null;
+
+    final int commentSize =
+        capacity(
+            parentService,
+            dbService,
+            hostname,
+            dbName,
+            peerService,
+            env,
+            version,
+            traceParent,
+            serviceHash);
+    StringBuilder sb = new StringBuilder(sql.length() + commentSize);
 
     if (appendComment) {
       sb.append(sql);
       sb.append(SPACE);
-      sb.append(OPEN_COMMENT);
-      commentAdded =
-          toComment(
-              sb,
-              injectTrace,
-              parentService,
-              dbService,
-              hostname,
-              dbName,
-              peerService,
-              env,
-              version,
-              traceParent,
-              serviceHash);
-      sb.append(CLOSE_COMMENT);
-    } else {
-      sb.append(OPEN_COMMENT);
-      commentAdded =
-          toComment(
-              sb,
-              injectTrace,
-              parentService,
-              dbService,
-              hostname,
-              dbName,
-              peerService,
-              env,
-              version,
-              traceParent,
-              serviceHash);
-
-      sb.append(CLOSE_COMMENT);
+    }
+    sb.append(OPEN_COMMENT);
+    int initSize = sb.length();
+    append(sb, PARENT_SERVICE, parentService, initSize);
+    append(sb, DATABASE_SERVICE, dbService, initSize);
+    append(sb, DD_HOSTNAME, hostname, initSize);
+    append(sb, DD_DB_NAME, dbName, initSize);
+    append(sb, DD_PEER_SERVICE, peerService, initSize);
+    append(sb, DD_ENV, env, initSize);
+    append(sb, DD_VERSION, version, initSize);
+    append(sb, TRACEPARENT, traceParent, initSize);
+    // TODO only if DB_DBM_INJECT_SERVICE_HASH_ENABLED
+    //    append(sb, DD_SERVICE_HASH, serviceHash, initSize);
+    if (initSize == sb.length()) {
+      // no comment was added
+      // TODO Is it even possible for all the fields to be unset?
+      return sql;
+    }
+    sb.append(CLOSE_COMMENT);
+    if (!appendComment) {
       sb.append(SPACE);
       sb.append(sql);
-    }
-    if (!commentAdded) {
-      return sql;
     }
     return sb.toString();
   }
@@ -180,30 +162,22 @@ public class SQLCommenter {
       return false;
     }
     // else check to see if it's a DBM trace sql comment
-    int startIdx = 2;
+    int startIdx = OPEN_COMMENT_LEN;
     if (appendComment) {
-      startIdx = sql.lastIndexOf(OPEN_COMMENT) + 2;
+      startIdx = sql.lastIndexOf(OPEN_COMMENT) + OPEN_COMMENT_LEN;
     }
     int startComment = appendComment ? startIdx : sql.length();
-    boolean found = false;
-    if (startComment > 2) {
-      if (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)) {
-        found = true;
-      } else if (hasMatchingSubstring(sql, startIdx, DATABASE_SERVICE)) {
-        found = true;
-      } else if (hasMatchingSubstring(sql, startIdx, DD_HOSTNAME)) {
-        found = true;
-      } else if (hasMatchingSubstring(sql, startIdx, DD_DB_NAME)) {
-        found = true;
-      } else if (hasMatchingSubstring(sql, startIdx, DD_ENV)) {
-        found = true;
-      } else if (hasMatchingSubstring(sql, startIdx, DD_VERSION)) {
-        found = true;
-      } else if (hasMatchingSubstring(sql, startIdx, TRACEPARENT)) {
-        found = true;
-      }
-    }
-    return found;
+    // TODO isn't the parent service always exits? if so there is no need to do other checks here
+    return startComment > OPEN_COMMENT_LEN
+        && (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)
+            || hasMatchingSubstring(sql, startIdx, DATABASE_SERVICE)
+            || hasMatchingSubstring(sql, startIdx, DD_HOSTNAME)
+            || hasMatchingSubstring(sql, startIdx, DD_DB_NAME)
+            || hasMatchingSubstring(sql, startIdx, DD_PEER_SERVICE)
+            || hasMatchingSubstring(sql, startIdx, DD_ENV)
+            || hasMatchingSubstring(sql, startIdx, DD_VERSION)
+            || hasMatchingSubstring(sql, startIdx, TRACEPARENT)
+            || hasMatchingSubstring(sql, startIdx, DD_SERVICE_HASH));
   }
 
   private static boolean hasMatchingSubstring(String sql, int startIndex, String substring) {
@@ -225,76 +199,63 @@ public class SQLCommenter {
     return val;
   }
 
-  protected static boolean toComment(
-      StringBuilder sb,
-      final boolean injectTrace,
-      final String parentService,
-      final String dbService,
-      final String hostname,
-      final String dbName,
-      final String peerService,
-      final String env,
-      final String version,
-      final String traceparent,
-      final String serviceHash) {
-    int emptySize = sb.length();
-    append(sb, PARENT_SERVICE, parentService, false);
-    append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
-    append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
-    append(sb, DD_DB_NAME, dbName, sb.length() > emptySize);
-    if (peerService != null) {
-      append(sb, DD_PEER_SERVICE, peerService, sb.length() > emptySize);
+  private static void append(StringBuilder sb, String key, String value, int initSize) {
+    if (null == value || value.isEmpty()) {
+      return;
     }
-    append(sb, DD_ENV, env, sb.length() > emptySize);
-    append(sb, DD_VERSION, version, sb.length() > emptySize);
-    if (injectTrace) {
-      append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
-    }
-    // TODO only if DB_DBM_INJECT_SERVICE_HASH_ENABLED
-    append(sb, DD_SERVICE_HASH, serviceHash, sb.length() > emptySize);
-    return sb.length() > emptySize;
-  }
-
-  private static void append(StringBuilder sb, String key, String value, boolean prependComma) {
-    if (null != value && !value.isEmpty()) {
-      try {
-        if (prependComma) {
-          sb.append(COMMA);
-        }
-        sb.append(key);
-        sb.append(EQUALS);
-        sb.append(QUOTE);
-        sb.append(URLEncoder.encode(value, UTF8));
-        sb.append(QUOTE);
-      } catch (UnsupportedEncodingException e) {
-        if (log.isDebugEnabled()) {
-          log.debug("exception thrown while encoding sql comment %s", e);
-        }
+    String encodedValue;
+    try {
+      encodedValue = URLEncoder.encode(value, UTF8);
+    } catch (UnsupportedEncodingException e) {
+      if (log.isDebugEnabled()) {
+        log.debug("exception thrown while encoding sql comment %s", e);
       }
+      return;
     }
+
+    if (sb.length() > initSize) {
+      sb.append(COMMA);
+    }
+    sb.append(key).append(EQUALS).append(QUOTE).append(encodedValue).append(QUOTE);
   }
 
   private static int capacity(
-      final String traceparent,
       final String parentService,
       final String dbService,
+      String hostname,
+      String dbName,
+      String peerService,
       final String env,
-      final String version) {
+      final String version,
+      final String traceparent,
+      String serviceHash) {
     int len = INITIAL_CAPACITY;
-    if (null != traceparent) {
-      len += traceparent.length();
-    }
     if (null != parentService) {
       len += parentService.length();
     }
     if (null != dbService) {
       len += dbService.length();
     }
+    if (null != hostname) {
+      len += hostname.length();
+    }
+    if (null != dbName) {
+      len += dbName.length();
+    }
+    if (null != peerService) {
+      len += peerService.length();
+    }
     if (null != env) {
       len += env.length();
     }
     if (null != version) {
       len += version.length();
+    }
+    if (null != traceparent) {
+      len += traceparent.length();
+    }
+    if (null != serviceHash) {
+      len += serviceHash.length();
     }
     return len;
   }
@@ -305,19 +266,15 @@ public class SQLCommenter {
             + DATABASE_SERVICE.length()
             + DD_HOSTNAME.length()
             + DD_DB_NAME.length()
+            + DD_PEER_SERVICE.length()
             + DD_ENV.length()
             + DD_VERSION.length()
-            + TRACEPARENT.length();
+            + TRACEPARENT.length()
+            + DD_SERVICE_HASH.length();
     int extraCharsLen =
-        4 * 5
+        4 * NUMBER_OF_FIELDS // two quotes, one equals & one comma * number of fields
             + OPEN_COMMENT.length()
-            + CLOSE_COMMENT.length(); // two quotes, one equals & one comma * 5 + \* */
+            + CLOSE_COMMENT.length();
     return tagKeysLen + extraCharsLen;
-  }
-
-  // pg_hint_plan extension works by checking the first block comment
-  // we'll have to append the traced comment if there is a pghint
-  private static boolean containsPgHint(String sql) {
-    return sql.indexOf("/*+") > 0;
   }
 }
