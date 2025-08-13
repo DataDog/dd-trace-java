@@ -78,17 +78,14 @@ public final class ConfigProvider {
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
-    String foundValue = null;
+    String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
-    for (int i = sources.length; i >= 0; i--) {
+    for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
-      String value = source.get(key, aliases);
+      value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin(), seqId);
-        }
-        if (foundValue == null) {
-          foundValue = value;
         }
       }
       seqId++;
@@ -96,7 +93,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
-    return foundValue != null ? foundValue : defaultValue;
+    return value != null ? value : defaultValue;
   }
 
   /**
@@ -104,17 +101,14 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
-    String foundValue = null;
+    String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
-    for (int i = sources.length; i >= 0; i--) {
+    for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
-      String value = source.get(key, aliases);
+      value = source.get(key, aliases);
       if (value != null && !value.trim().isEmpty()) {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin(), seqId);
-        }
-        if (foundValue == null) {
-          foundValue = value;
         }
       }
       seqId++;
@@ -122,7 +116,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
-    return foundValue != null ? foundValue : defaultValue;
+    return value != null ? value : defaultValue;
   }
 
   public String getStringExcludingSource(
@@ -130,21 +124,18 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
-    String foundValue = null;
+    String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
-    for (int i = sources.length; i >= 0; i--) {
+    for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       // Do we still want to report telemetry in this case?
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
-      String value = source.get(key, aliases);
+      value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin(), seqId);
-        }
-        if (foundValue == null) {
-          foundValue = value;
         }
       }
       seqId++;
@@ -152,7 +143,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
-    return foundValue != null ? foundValue : defaultValue;
+    return value != null ? value : defaultValue;
   }
 
   public boolean isSet(String key) {
@@ -213,20 +204,18 @@ public final class ConfigProvider {
   }
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
-    T foundValue = null;
+    T value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
-    for (int i = sources.length; i >= 0; i--) {
+    for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       try {
         String sourceValue = source.get(key, aliases);
-        T value = ConfigConverter.valueOf(sourceValue, type);
+        value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
             ConfigCollector.get().put(key, sourceValue, source.origin(), seqId);
           }
-          if (foundValue == null) {
-            foundValue = value;
-          }
+          break;
         }
       } catch (NumberFormatException ex) {
         // TODO: Report error to telemetry
@@ -236,7 +225,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
-    return foundValue != null ? foundValue : defaultValue;
+    return value != null ? value : defaultValue;
   }
 
   public List<String> getList(String key) {
