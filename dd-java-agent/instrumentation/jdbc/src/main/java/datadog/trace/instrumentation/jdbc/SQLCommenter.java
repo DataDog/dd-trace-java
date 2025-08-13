@@ -38,7 +38,12 @@ public class SQLCommenter {
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
 
-  private static final int INITIAL_CAPACITY = computeInitialCapacity();
+  private static final int KEY_AND_SEPARATORS_ESTIMATED_SIZE = 10;
+  private static final int VALUE_ESTIMATED_SIZE = 10;
+  private static final int TRACE_PARENT_EXTRA_ESTIMATED_SIZE = 50;
+  private static final int INJECTED_COMMENT_ESTIMATED_SIZE =
+      NUMBER_OF_FIELDS * (KEY_AND_SEPARATORS_ESTIMATED_SIZE + VALUE_ESTIMATED_SIZE)
+          + TRACE_PARENT_EXTRA_ESTIMATED_SIZE;
 
   protected static String getFirstWord(String sql) {
     int beginIndex = 0;
@@ -113,18 +118,7 @@ public class SQLCommenter {
     //        config.isDbDbmInjectServiceHash() ; // TODO && baseHash != null
     String peerService = peerServiceObj != null ? peerServiceObj.toString() : null;
 
-    final int commentSize =
-        capacity(
-            parentService,
-            dbService,
-            hostname,
-            dbName,
-            peerService,
-            env,
-            version,
-            traceParent,
-            serviceHash);
-    StringBuilder sb = new StringBuilder(sql.length() + commentSize);
+    StringBuilder sb = new StringBuilder(sql.length() + INJECTED_COMMENT_ESTIMATED_SIZE);
 
     if (appendComment) {
       sb.append(sql);
@@ -217,64 +211,5 @@ public class SQLCommenter {
       sb.append(COMMA);
     }
     sb.append(key).append(EQUALS).append(QUOTE).append(encodedValue).append(QUOTE);
-  }
-
-  private static int capacity(
-      final String parentService,
-      final String dbService,
-      String hostname,
-      String dbName,
-      String peerService,
-      final String env,
-      final String version,
-      final String traceparent,
-      String serviceHash) {
-    int len = INITIAL_CAPACITY;
-    if (null != parentService) {
-      len += parentService.length();
-    }
-    if (null != dbService) {
-      len += dbService.length();
-    }
-    if (null != hostname) {
-      len += hostname.length();
-    }
-    if (null != dbName) {
-      len += dbName.length();
-    }
-    if (null != peerService) {
-      len += peerService.length();
-    }
-    if (null != env) {
-      len += env.length();
-    }
-    if (null != version) {
-      len += version.length();
-    }
-    if (null != traceparent) {
-      len += traceparent.length();
-    }
-    if (null != serviceHash) {
-      len += serviceHash.length();
-    }
-    return len;
-  }
-
-  private static int computeInitialCapacity() {
-    int tagKeysLen =
-        PARENT_SERVICE.length()
-            + DATABASE_SERVICE.length()
-            + DD_HOSTNAME.length()
-            + DD_DB_NAME.length()
-            + DD_PEER_SERVICE.length()
-            + DD_ENV.length()
-            + DD_VERSION.length()
-            + TRACEPARENT.length()
-            + DD_SERVICE_HASH.length();
-    int extraCharsLen =
-        4 * NUMBER_OF_FIELDS // two quotes, one equals & one comma * number of fields
-            + OPEN_COMMENT.length()
-            + CLOSE_COMMENT.length();
-    return tagKeysLen + extraCharsLen;
   }
 }
