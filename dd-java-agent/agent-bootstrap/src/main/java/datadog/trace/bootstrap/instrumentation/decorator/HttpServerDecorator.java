@@ -45,6 +45,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,7 +147,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         instrumentationNames != null && instrumentationNames.length > 0
             ? instrumentationNames[0]
             : DEFAULT_INSTRUMENTATION_NAME;
-    AgentSpanContext.Extracted extracted = callIGCallbackStart(context);
+    AgentSpanContext.Extracted extracted = callIGCallbackStart(getExtractedSpanContext(context));
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
@@ -182,7 +183,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    AgentSpanContext.Extracted extracted = callIGCallbackStart(context);
+    AgentSpanContext.Extracted extracted = getExtractedSpanContext(context);
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
     if (extracted != null) {
@@ -380,8 +381,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  private AgentSpanContext.Extracted callIGCallbackStart(final Context context) {
-    AgentSpanContext.Extracted extracted = getExtractedSpanContext(context);
+  private AgentSpanContext.Extracted callIGCallbackStart(
+      @Nullable final AgentSpanContext.Extracted extracted) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
