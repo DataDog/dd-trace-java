@@ -1,10 +1,9 @@
-package datadog.environment;
+package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import datadog.trace.api.ConfigInversionStrictStyle;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;

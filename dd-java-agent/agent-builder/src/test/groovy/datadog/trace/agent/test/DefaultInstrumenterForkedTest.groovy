@@ -1,6 +1,6 @@
 package datadog.trace.agent.test
 
-import datadog.environment.ConfigHelper
+import datadog.trace.api.ConfigHelper
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade

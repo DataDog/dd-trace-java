@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.environment.ConfigHelper;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;

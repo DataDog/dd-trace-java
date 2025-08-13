@@ -1,6 +1,6 @@
 package datadog.trace.api
 
-import datadog.environment.ConfigHelper
+
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter

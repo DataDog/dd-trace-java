@@ -1,6 +1,6 @@
 package datadog.trace.api
 
-import datadog.environment.ConfigHelper
+
 import datadog.trace.test.util.DDSpecification
 
 class InstrumenterConfigTest extends DDSpecification {

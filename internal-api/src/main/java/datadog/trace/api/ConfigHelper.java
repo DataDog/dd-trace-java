@@ -1,6 +1,6 @@
-package datadog.environment;
+package datadog.trace.api;
 
-import datadog.trace.api.ConfigInversionStrictStyle;
+import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.LinkedHashMap;
 import java.util.List;

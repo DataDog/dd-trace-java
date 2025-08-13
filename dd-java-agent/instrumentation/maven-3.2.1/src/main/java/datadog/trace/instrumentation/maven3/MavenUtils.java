@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
-import datadog.environment.ConfigHelper;
+import datadog.trace.api.ConfigHelper;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;

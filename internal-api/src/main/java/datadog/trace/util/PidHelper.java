@@ -1,8 +1,8 @@
 package datadog.trace.util;
 
-import datadog.environment.ConfigHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.trace.api.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;

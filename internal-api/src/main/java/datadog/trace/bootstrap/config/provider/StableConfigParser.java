@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.environment.ConfigHelper;
 import datadog.environment.SystemProperties;
+import datadog.trace.api.ConfigHelper;
 import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;

@@ -1,5 +1,6 @@
-package datadog.environment;
+package datadog.trace.api;
 
+import datadog.environment.GeneratedSupportedConfigurations;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

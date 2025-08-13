@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.config.provider
 
-import datadog.environment.ConfigHelper
+import datadog.trace.api.ConfigHelper
 import datadog.trace.api.ConfigInversionStrictStyle
 import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files

@@ -3,9 +3,9 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIG_INVERSION_STRICT;
 
-import datadog.environment.ConfigHelper;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigHelper;
 import datadog.trace.api.ConfigInversionStrictStyle;
 import datadog.trace.api.ConfigOrigin;
 import de.thetaphi.forbiddenapis.SuppressForbidden;

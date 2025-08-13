@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.config.provider
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import datadog.trace.api.ConfigInversionStrictStyle
-import datadog.environment.ConfigHelper
+import datadog.trace.api.ConfigHelper
 
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING
 

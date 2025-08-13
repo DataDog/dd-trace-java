@@ -1,7 +1,7 @@
 package datadog.trace.api.env;
 
-import datadog.environment.ConfigHelper;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.ConfigHelper;
 import datadog.trace.api.config.GeneralConfig;
 import java.io.File;
 import java.util.HashMap;

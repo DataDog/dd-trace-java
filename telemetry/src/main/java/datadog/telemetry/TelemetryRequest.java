@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.environment.ConfigHelper;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -10,6 +9,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigHelper;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;

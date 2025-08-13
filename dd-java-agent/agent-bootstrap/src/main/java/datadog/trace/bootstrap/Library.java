@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.environment.ConfigHelper;
+import datadog.trace.api.ConfigHelper;
 import java.util.EnumSet;
 import org.slf4j.Logger;
 
