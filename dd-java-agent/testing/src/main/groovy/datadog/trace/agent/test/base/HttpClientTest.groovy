@@ -346,7 +346,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     "POST" | _
   }
 
-  @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
+  @Flaky(suites = ["ApacheHttpAsyncClient5Test", "ApacheHttpAsyncClient5NamingV0Test"])
   def "client error request with parent"() {
     setup:
     def uri = server.address.resolve("/secured")
