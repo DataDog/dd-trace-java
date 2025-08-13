@@ -73,7 +73,7 @@ class HttpChannelAppSecTest extends AgentTestRunner {
 
     @Override
     void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      if ('datadog/trace/bootstrap/instrumentation/api/AgentSpan' == owner && 'getRequestBlockingAction' == name) {
+      if ('datadog/trace/instrumentation/jetty/JettyBlockingHelper' == owner && 'hasRequestBlockingAction' == name) {
         blockApplied = true
       }
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)

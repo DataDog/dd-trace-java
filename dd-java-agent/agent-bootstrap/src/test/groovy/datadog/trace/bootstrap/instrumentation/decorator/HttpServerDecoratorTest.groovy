@@ -25,6 +25,7 @@ import datadog.trace.core.datastreams.DataStreamsMonitoring
 import java.util.function.Function
 import java.util.function.Supplier
 
+import static datadog.context.Context.root
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
@@ -497,7 +498,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator(mTracer, null)
 
     when:
-    decorator.startSpan("test", headers, null)
+    decorator.startSpan(headers, root())
 
     then:
     1 * mSpan.setMeasured(true) >> mSpan

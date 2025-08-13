@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -58,7 +59,8 @@ public class HttpServerDecoratorBenchmark {
             .build();
     GlobalTracer.forceRegister(tracer);
     decorator = new BenchmarkHttpServerDecorator();
-    span = decorator.startSpan(Collections.emptyMap(), (Context) null);
+    Context context = decorator.startSpan(Collections.emptyMap(), Context.root());
+    span = fromContext(context);
   }
 
   @Benchmark
@@ -99,7 +101,7 @@ public class HttpServerDecoratorBenchmark {
 
     @Override
     protected String[] instrumentationNames() {
-      return new String[0];
+      return new String[] {"benchmark"};
     }
 
     @Override
