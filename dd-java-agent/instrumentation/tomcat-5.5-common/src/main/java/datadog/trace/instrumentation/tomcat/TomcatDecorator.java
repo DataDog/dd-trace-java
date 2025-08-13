@@ -20,7 +20,7 @@ public class TomcatDecorator
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");
 
   public static final TomcatDecorator DECORATE = new TomcatDecorator();
-  public static final String DD_EXTRACTED_CONTEXT_ATTRIBUTE = "datadog.extracted-context";
+  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
   public static final String DD_REAL_STATUS_CODE = "datadog.servlet.real_status_code";
