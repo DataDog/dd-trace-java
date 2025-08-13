@@ -25,8 +25,9 @@ class FootprintForkedTest extends DDSpecification {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
     ValidatingSink sink = new ValidatingSink(latch)
-    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
-    features.supportsMetrics() >> true
+    DDAgentFeaturesDiscovery features = Stub(DDAgentFeaturesDiscovery) {
+      it.supportsMetrics() >> true
+    }
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
@@ -35,8 +36,10 @@ class FootprintForkedTest extends DDSpecification {
       1000,
       1000,
       100,
-      SECONDS)
-    long baseline = footprint(aggregator)
+      SECONDS
+      )
+    // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
+    def baseline = footprint(aggregator, features)
     aggregator.start()
 
     when: "lots of traces are published"
@@ -70,7 +73,8 @@ class FootprintForkedTest extends DDSpecification {
     assert latch.await(30, SECONDS)
 
     then:
-    footprint(aggregator) - baseline <= 10 * 1024 * 1024
+    def after = footprint(aggregator, features)
+    after - baseline <= 10 * 1024 * 1024
 
     cleanup:
     aggregator.close()
@@ -133,10 +137,17 @@ class FootprintForkedTest extends DDSpecification {
     }
   }
 
+  static long footprint(Object root, Object... excludedRootFieldInstance) {
+    GraphLayout layout = GraphLayout.parseInstance(root)
+    def size = layout.totalSize()
 
-  static long footprint(Object o) {
-    GraphLayout layout = GraphLayout.parseInstance(o)
-    System.err.println(layout.toFootprint())
-    return layout.totalSize()
+    excludedRootFieldInstance.each {
+      def excludedLayout = GraphLayout.parseInstance(it)
+      layout = layout.subtract(excludedLayout)
+      size -= excludedLayout.totalSize()
+    }
+
+    println(layout.toFootprint())
+    return size
   }
 }

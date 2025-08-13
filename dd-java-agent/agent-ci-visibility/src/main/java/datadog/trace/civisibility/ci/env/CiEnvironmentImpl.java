@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci.env;
 
+import java.util.Collections;
 import java.util.Map;
 
 public class CiEnvironmentImpl implements CiEnvironment {
@@ -8,6 +9,16 @@ public class CiEnvironmentImpl implements CiEnvironment {
 
   public CiEnvironmentImpl(Map<String, String> env) {
     this.env = env;
+  }
+
+  public static CiEnvironment local() {
+    Map<String, String> env;
+    try {
+      env = System.getenv();
+    } catch (SecurityException e) {
+      env = Collections.emptyMap();
+    }
+    return new CiEnvironmentImpl(env);
   }
 
   @Override

@@ -8,11 +8,11 @@ plugins {
   id("com.github.spotbugs") version "5.0.14"
   id("de.thetaphi.forbiddenapis") version "3.8"
 
-  id("org.shipkit.shipkit-auto-version") version "2.1.2"
+  id("tracer-version")
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 
   id("com.gradleup.shadow") version "8.3.6" apply false
-  id("me.champeau.jmh") version "0.7.0" apply false
+  id("me.champeau.jmh") version "0.7.3" apply false
   id("org.gradle.playframework") version "0.13" apply false
   id("info.solidsoft.pitest") version "1.9.11" apply false
 }
@@ -56,11 +56,8 @@ apply(from = rootDir.resolve("gradle/spotless.gradle"))
 
 val compileTask = tasks.register("compile")
 
-val repoVersion = version
-
 allprojects {
   group = "com.datadoghq"
-  version = repoVersion
 
   if (isCI.isPresent) {
     layout.buildDirectory = providers.provider {
