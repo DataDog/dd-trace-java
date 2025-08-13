@@ -17,7 +17,7 @@ public final class StableConfig {
 
   public StableConfig(Object yaml) {
     Map<Object, Object> map = (Map<Object, Object>) yaml;
-    this.configId = String.valueOf(map.get("config_id"));
+    this.configId = map.get("config_id") == null ? null : String.valueOf(map.get("config_id"));
     this.apmConfigurationDefault =
         unmodifiableMap(
             (Map<String, Object>) map.getOrDefault("apm_configuration_default", emptyMap()));
