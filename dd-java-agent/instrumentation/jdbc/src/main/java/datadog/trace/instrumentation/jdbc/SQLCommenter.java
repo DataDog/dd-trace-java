@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SQLCommenter {
-
   private static final Logger log = LoggerFactory.getLogger(SQLCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
 
@@ -26,7 +25,7 @@ public class SQLCommenter {
   private static final int OPEN_COMMENT_LEN = OPEN_COMMENT.length();
   private static final String CLOSE_COMMENT = "*/";
 
-  // Injected fields. When adding a new one, be sure to update all the methods below.
+  // Injected fields. When adding a new one, be sure to update this and the methods below.
   private static final int NUMBER_OF_FIELDS = 9;
   private static final String PARENT_SERVICE = encode("ddps");
   private static final String DATABASE_SERVICE = encode("dddbs");

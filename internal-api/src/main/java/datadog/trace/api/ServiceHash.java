@@ -29,7 +29,7 @@ public final class ServiceHash {
       String primaryTag,
       CharSequence processTags,
       String containerTagsHash) {
-    StringBuilder builder = new StringBuilder();
+    StringBuilder builder = new StringBuilder(64);
     builder.append(serviceName);
     builder.append(env);
 
