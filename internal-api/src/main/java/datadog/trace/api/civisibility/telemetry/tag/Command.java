@@ -13,6 +13,7 @@ public enum Command implements TagValue {
   PACK_OBJECTS,
   DIFF,
   BASE_COMMIT_SHA,
+  FETCH_COMMIT,
   OTHER;
 
   private final String s;

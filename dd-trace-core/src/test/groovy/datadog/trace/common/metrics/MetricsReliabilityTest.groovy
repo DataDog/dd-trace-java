@@ -51,7 +51,7 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     agent.start()
     def props = new Properties()
     props.put("trace.agent.url", agent.getAddress().toString())
-    props.put("trace.tracer.metrics.enabled", "true")
+    props.put("trace.stats.computation.enabled", "true")
     def config = Config.get(props)
     def sharedComm = new SharedCommunicationObjects()
     sharedComm.createRemaining(config)

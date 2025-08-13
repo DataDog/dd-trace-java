@@ -23,6 +23,9 @@ import spock.lang.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 
+@IgnoreIf(reason = "TODO: Fix for Java 25. Gradle does not support Java 25 yet: https://docs.gradle.org/current/userguide/compatibility.html#java_runtime", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(25)
+})
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
@@ -256,9 +259,20 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
-    def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
-    buildResult
+    try {
+      def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
+      return buildResult
+
+    } catch (Exception e) {
+      def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
+      if (daemonLog != null) {
+        println "=============================================================="
+        println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
+        println "=============================================================="
+      }
+      throw e
+    }
   }
 
   private void assertBuildSuccessful(buildResult) {

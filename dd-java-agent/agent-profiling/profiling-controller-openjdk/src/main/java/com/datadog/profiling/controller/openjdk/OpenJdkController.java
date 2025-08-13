@@ -30,7 +30,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
-import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
@@ -40,6 +39,7 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
 import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
+import datadog.trace.util.TempLocationManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -205,17 +205,27 @@ public final class OpenJdkController implements Controller {
       }
     }
 
-    if (!configProvider.getBoolean(
+    if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED,
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "datadog.SmapEntry", "User disabled smaps collection");
-    } else if (!configProvider.getBoolean(
+      enableEvent(
+          recordingSettings, "datadog.SmapEntry", "Smaps collection is enabled in the config");
+    } else {
+      disableEvent(
+          recordingSettings, "datadog.SmapEntry", "Smaps collection is disabled in the config");
+    }
+    if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED,
         ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT)) {
+      enableEvent(
+          recordingSettings,
+          "datadog.AggregatedSmapEntry",
+          "Aggregated smaps collection is enabled in the config");
+    } else {
       disableEvent(
           recordingSettings,
           "datadog.AggregatedSmapEntry",
-          "User disabled aggregated smaps collection");
+          "Aggregated smaps collection is disabled in the config");
     }
 
     // Warn users for expensive events

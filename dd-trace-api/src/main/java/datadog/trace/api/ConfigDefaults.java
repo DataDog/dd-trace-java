@@ -84,6 +84,8 @@ public final class ConfigDefaults {
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
   static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
+  static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
+      Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
@@ -190,7 +192,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED = false;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL = 1; // seconds
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
-  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED = true;
+  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED = false;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE = 100;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE = true;

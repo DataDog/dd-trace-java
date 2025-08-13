@@ -2,6 +2,7 @@ plugins {
   groovy
   `java-gradle-plugin`
   `kotlin-dsl`
+  `jvm-test-suite`
   id("com.diffplug.spotless") version "6.13.0"
 }
 
@@ -25,6 +26,10 @@ gradlePlugin {
       id = "call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
+    create("tracer-version-plugin") {
+      id = "tracer-version"
+      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
   }
 }
 
@@ -42,19 +47,46 @@ dependencies {
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
+  implementation("com.github.zafarkhaja:java-semver:0.10.2")
+
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.8")
   implementation("org.ow2.asm", "asm-tree", "9.8")
-
-  testImplementation("org.spockframework", "spock-core", "2.3-groovy-3.0")
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
 }
 
 tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
-tasks.test {
-  useJUnitPlatform()
-  enabled = project.hasProperty("runBuildSrcTests")
+testing {
+  @Suppress("UnstableApiUsage")
+  suites {
+    val test by getting(JvmTestSuite::class) {
+      dependencies {
+        implementation(libs.spock.core)
+        implementation(libs.groovy)
+      }
+      targets.configureEach {
+        testTask.configure {
+          enabled = project.hasProperty("runBuildSrcTests")
+        }
+      }
+    }
+
+    val integTest by registering(JvmTestSuite::class) {
+      dependencies {
+        implementation(gradleTestKit())
+        implementation("org.assertj:assertj-core:3.25.3")
+      }
+      // Makes the gradle plugin publish its declared plugins to this source set
+      gradlePlugin.testSourceSet(sources)
+    }
+
+    withType(JvmTestSuite::class).configureEach {
+      useJUnitJupiter(libs.versions.junit5)
+      targets.configureEach {
+        testTask
+      }
+    }
+  }
 }

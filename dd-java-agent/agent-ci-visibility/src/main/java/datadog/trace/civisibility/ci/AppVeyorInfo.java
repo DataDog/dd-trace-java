@@ -91,6 +91,7 @@ class AppVeyorInfo implements CIProviderInfo {
       return new PullRequestInfo(
           normalizeBranch(environment.get(APPVEYOR_REPO_BRANCH)),
           null,
+          null,
           new CommitInfo(environment.get(APPVEYOR_PR_HEAD_COMMIT)),
           environment.get(APPVEYOR_PR_NUMBER));
     } else {

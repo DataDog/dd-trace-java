@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
@@ -521,7 +522,7 @@ class SymbolExtractionTransformerTest {
         19);
     Scope supplierClosureScope = classScope.getScopes().get(3);
     assertScope(
-        supplierClosureScope, ScopeType.CLOSURE, "lambda$process$1", 20, 21, SOURCE_FILE, 1, 0);
+        supplierClosureScope, ScopeType.CLOSURE, "lambda$process$*", 20, 21, SOURCE_FILE, 1, 0);
     Scope supplierClosureLocalScope = supplierClosureScope.getScopes().get(0);
     assertScope(supplierClosureLocalScope, ScopeType.LOCAL, null, 20, 21, SOURCE_FILE, 0, 1);
     assertSymbol(
@@ -676,7 +677,7 @@ class SymbolExtractionTransformerTest {
         fooMethodScope.getSymbols().get(0), SymbolType.ARG, "arg", Integer.TYPE.getTypeName(), 17);
     Scope lambdaFoo3MethodScope = classScope.getScopes().get(3);
     assertScope(
-        lambdaFoo3MethodScope, ScopeType.CLOSURE, "lambda$foo$3", 19, 19, SOURCE_FILE, 0, 1);
+        lambdaFoo3MethodScope, ScopeType.CLOSURE, "lambda$foo$*", 19, 19, SOURCE_FILE, 0, 1);
     assertSymbol(
         lambdaFoo3MethodScope.getSymbols().get(0),
         SymbolType.ARG,
@@ -685,7 +686,7 @@ class SymbolExtractionTransformerTest {
         19);
     Scope lambdaFoo2MethodScope = classScope.getScopes().get(4);
     assertScope(
-        lambdaFoo2MethodScope, ScopeType.CLOSURE, "lambda$foo$2", 19, 19, SOURCE_FILE, 0, 1);
+        lambdaFoo2MethodScope, ScopeType.CLOSURE, "lambda$foo$*", 19, 19, SOURCE_FILE, 0, 1);
     assertSymbol(
         lambdaFoo2MethodScope.getSymbols().get(0),
         SymbolType.ARG,
@@ -856,7 +857,7 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
+  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21, JRE.JAVA_24})
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
@@ -991,7 +992,12 @@ class SymbolExtractionTransformerTest {
       int nbScopes,
       int nbSymbols) {
     assertEquals(scopeType, scope.getScopeType());
-    assertEquals(name, scope.getName());
+    if (name != null && name.endsWith("*")) {
+      name = name.substring(0, name.length() - 1);
+      assertTrue(scope.getName().startsWith(name));
+    } else {
+      assertEquals(name, scope.getName());
+    }
     assertEquals(startLine, scope.getStartLine());
     assertEquals(endLine, scope.getEndLine());
     assertEquals(sourceFile, scope.getSourceFile());

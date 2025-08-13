@@ -125,7 +125,10 @@ class AgentPreCheckTest extends Specification {
     "language_name": "jvm",
     "runtime_version": "1.6.0_45",
     "language_version": "1.6.0_45",
-    "tracer_version": "1.50"
+    "tracer_version": "1.50",
+    "result": "abort",
+    "result_class": "unknown",
+    "result_reason": "incompatible_runtime"
   },
   "points": [
     {

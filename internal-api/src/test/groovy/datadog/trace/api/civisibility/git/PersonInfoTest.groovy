@@ -28,9 +28,9 @@ class PersonInfoTest extends Specification {
     new PersonInfo("name", "email", "date") | true
   }
 
-  def "test info merge"() {
+  def 'test info coalesce'() {
     expect:
-    PersonInfo.merge(infoA, infoB) == result
+    PersonInfo.coalesce(infoA, infoB) == result
     where:
     infoA                                      | infoB                                      | result
     new PersonInfo("nameA", "emailA", "dateA") | new PersonInfo("nameB", "emailB", "dateB") | new PersonInfo("nameA", "emailA", "dateA")

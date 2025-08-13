@@ -478,7 +478,9 @@ public class DebuggerAgent {
             "SymbolDB stats:",
             symbolDBStats,
             "Exception Fingerprints:",
-            exceptionFingerprints);
+            exceptionFingerprints,
+            "SourceFile tracking entries:",
+            String.valueOf(classesToRetransformFinder.getClassNamesBySourceFile().size()));
     TracerFlare.addText(zip, "dynamic_instrumentation.txt", content);
   }
 }

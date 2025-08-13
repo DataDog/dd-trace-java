@@ -4,8 +4,10 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
+import datadog.trace.api.TagMap
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -54,7 +56,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer)
 
     then:
     context.isStarted()
@@ -69,18 +71,21 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(
-      fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    def tags = DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound, "topic", "group", null)
+    context.setCheckpoint(fromTags(tags), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 2
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      tags.group == "group:group"
+      tags.topic == "topic:topic"
+      tags.type == "type:kafka"
+      tags.getDirection() == "direction:out"
+      tags.nonNullSize() == 4
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
@@ -96,15 +101,17 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     timeSource.advance(25)
     context.setCheckpoint(
-      create(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), 0, 72),
+      create(DataStreamsTags.create("kafka", null, "topic", "group", null), 0, 72),
       pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 1
     with(pointConsumer.points[0]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      tags.getGroup() == "group:group"
+      tags.getTopic() == "topic:topic"
+      tags.getType() == "type:kafka"
+      tags.nonNullSize() == 3
       hash != 0
       payloadSizeBytes == 72
     }
@@ -117,29 +124,34 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["direction": "out", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound)), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(
-      fromTags(new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    def tg = DataStreamsTags.create("kafka", DataStreamsTags.Direction.Inbound, "topic", "group", null)
+    context.setCheckpoint(fromTags(tg), pointConsumer)
     timeSource.advance(30)
-    context.setCheckpoint(
-      fromTags(new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(tg), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      tags.nonNullSize() == 4
+      tags.direction == "direction:in"
+      tags.group == "group:group"
+      tags.topic == "topic:topic"
+      tags.type == "type:kafka"
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags == ["direction:in", "group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 4
+      tags.nonNullSize() == 4
+      tags.direction == "direction:in"
+      tags.group == "group:group"
+      tags.topic == "topic:topic"
+      tags.type == "type:kafka"
       // this point should have the first point as parent,
       // as the loop protection will reset the parent if two identical
       // points (same hash for tag values) are about to form a hierarchy
@@ -169,19 +181,20 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "in"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.Inbound, null, "my_object.csv", "my_bucket")), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "out"])), pointConsumer)
+    def tg = DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.Outbound, null, "my_object.csv", "my_bucket")
+    context.setCheckpoint(fromTags(tg), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
 
     // all points should have datasetHash, which is not equal to hash or 0
-    for (var i = 0; i < pointConsumer.points.size(); i++){
+    for (def i = 0; i < pointConsumer.points.size(); i++){
       pointConsumer.points[i].aggregationHash != pointConsumer.points[i].hash
       pointConsumer.points[i].aggregationHash != 0
     }
@@ -195,20 +208,22 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", null, "topic", "group", null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
 
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      tags.nonNullSize() == 3
+      tags.getGroup() == "group:group"
+      tags.getType() == "type:kafka"
+      tags.getTopic() == "topic:topic"
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(27)
@@ -222,13 +237,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     def timeFromQueue = timeSource.getCurrentTimeMillis() - 200
     when:
-    context.setCheckpoint(create(["type": "internal"], timeFromQueue, 0), pointConsumer)
+    context.setCheckpoint(create(DataStreamsTags.create("internal", null), timeFromQueue, 0), pointConsumer)
     then:
     context.isStarted()
     pointConsumer.points.size() == 1
     with(pointConsumer.points[0]) {
-      edgeTags == ["type:internal"]
-      edgeTags.size() == 1
+      tags.getType() == "type:internal"
+      tags.nonNullSize() == 1
       parentHash == 0
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(200)
@@ -244,20 +259,23 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
 
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound, "topic", "group", null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      tags.group == "group:group"
+      tags.topic == "topic:topic"
+      tags.type == "type:kafka"
+      tags.direction == "direction:out"
+      tags.nonNullSize() == 4
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -269,14 +287,17 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.decode(timeSource, baseHash, null, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Inbound, "topicB", "group", null)), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 3
+      tags.group == "group:group"
+      tags.topic == "topic:topicB"
+      tags.type == "type:kafka"
+      tags.direction == "direction:in"
+      tags.nonNullSize() == 4
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -293,21 +314,24 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
 
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound, "topic", "group", null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      tags.nonNullSize() == 4
+      tags.group == "group:group"
+      tags.topic == "topic:topic"
+      tags.type == "type:kafka"
+      tags.direction == "direction:out"
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -320,14 +344,17 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Inbound, "topicB", "group", null)), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
-      edgeTags.size() == 3
+      tags.nonNullSize() == 4
+      tags.group == "group:group"
+      tags.topic == "topic:topicB"
+      tags.type == "type:kafka"
+      tags.direction == "direction:in"
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -344,21 +371,23 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
 
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["topic": "topic", "type": "sqs"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, "topic", null, null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags == ["topic:topic", "type:sqs"]
-      edgeTags.size() == 2
+      tags.direction == "direction:out"
+      tags.topic == "topic:topic"
+      tags.type == "type:sqs"
+      tags.nonNullSize() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(26)
@@ -371,14 +400,15 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["topic": "topicB", "type": "sqs"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.Inbound, "topicB", null, null)), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags == ["topic:topicB", "type:sqs"]
-      edgeTags.size() == 2
+      tags.type == "type:sqs"
+      tags.topic == "topic:topicB"
+      tags.nonNullSize() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == MILLISECONDS.toNanos(58)
@@ -393,26 +423,29 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "type"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic", "group", null)), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>()), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create(null, null)), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:type"]
-      edgeTags.size() == 3
+      tags.type ==  "type:type"
+      tags.topic == "topic:topic"
+      tags.group == "group:group"
+      tags.direction == "direction:out"
+      tags.nonNullSize() == 4
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags.size() == 0
+      tags.nonNullSize() == 0
       parentHash == pointConsumer.points[1].hash
       hash != 0
       pathwayLatencyNano == 50
@@ -469,16 +502,16 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
+    DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     def encoded = context.encode()
     Map<String, String> carrier = [
       (PROPAGATION_KEY_BASE64): encoded,
       "someotherkey": "someothervalue"
     ]
     def contextVisitor = new Base64MapContextVisitor()
-
     def propagator = dataStreams.propagator()
 
     when:
@@ -486,6 +519,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
+    encoded == "L+lDG/Pa9hRkZA=="
     !dynamicConfigEnabled || extractedSpan != null
     if (dynamicConfigEnabled) {
       def extracted = extractedSpan.context()
@@ -514,12 +548,20 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> { return globalDsmEnabled }
     }
 
+    def tracerApi = Mock(AgentTracer.TracerAPI) {
+      captureTraceConfig() >> globalTraceConfig
+    }
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    AgentTracer.forceRegister(tracerApi)
+
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
+    DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     def encoded = context.encode()
+
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
     def propagator = dataStreams.propagator()
@@ -529,6 +571,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
+    encoded == "L+lDG/Pa9hRkZA=="
     if (globalDsmEnabled) {
       extractedSpan != null
       def extracted = extractedSpan.context()
@@ -538,6 +581,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     } else {
       extractedSpan == null
     }
+
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
 
     where:
     globalDsmEnabled << [true, false]
@@ -556,18 +602,26 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> { return globalDsmEnabled }
     }
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def tracerApi = Mock(AgentTracer.TracerAPI) {
+      captureTraceConfig() >> globalTraceConfig
+    }
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    AgentTracer.forceRegister(tracerApi)
 
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig },
+    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, null, DATADOG)
+    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0,
+      null, (TagMap)null, null, null, globalTraceConfig, DATADOG)
     def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
     def propagator = dataStreams.propagator()
-
 
     when:
     def extractedContext = propagator.extract(baseContext, carrier, contextVisitor)
@@ -581,12 +635,16 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     then:
     extracted != null
+    encoded == "L+lDG/Pa9hRkZA=="
     if (globalDsmEnabled) {
       extracted.pathwayContext != null
       extracted.pathwayContext.isStarted()
     } else {
       extracted.pathwayContext == null
     }
+
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
 
     where:
     globalDsmEnabled << [true, false]
@@ -605,7 +663,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> true
     }
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig },
+    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()

@@ -320,18 +320,25 @@ public class TelemetryRequestBody extends RequestBody {
 
   public void writeEndpoint(final Endpoint endpoint) throws IOException {
     bodyWriter.beginObject();
-    bodyWriter.name("type").value(endpoint.getType());
-    bodyWriter.name("method").value(endpoint.getMethod());
-    bodyWriter.name("path").value(endpoint.getPath());
-    bodyWriter.name("operation-name").value(endpoint.getOperation());
+    if (endpoint.getType() != null) {
+      bodyWriter.name("type").value(endpoint.getType());
+    }
+    if (endpoint.getMethod() != null) {
+      bodyWriter.name("method").value(endpoint.getMethod());
+    }
+    if (endpoint.getPath() != null) {
+      bodyWriter.name("path").value(endpoint.getPath());
+    }
+    bodyWriter.name("operation_name").value(endpoint.getOperation());
+    bodyWriter.name("resource_name").value(endpoint.getResource());
     if (endpoint.getRequestBodyType() != null) {
       bodyWriter.name("request-body-type").jsonValue(endpoint.getRequestBodyType());
     }
     if (endpoint.getResponseBodyType() != null) {
-      bodyWriter.name("response-body-type").jsonValue(endpoint.getResponseBodyType());
+      bodyWriter.name("response_body_type").jsonValue(endpoint.getResponseBodyType());
     }
     if (endpoint.getResponseCode() != null) {
-      bodyWriter.name("response-code").jsonValue(endpoint.getResponseCode());
+      bodyWriter.name("response_code").jsonValue(endpoint.getResponseCode());
     }
     if (endpoint.getAuthentication() != null) {
       bodyWriter.name("authentication").jsonValue(endpoint.getAuthentication());

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git.tree;
 
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -16,7 +17,7 @@ public interface GitClient {
 
   boolean isShallow() throws IOException, TimeoutException, InterruptedException;
 
-  void unshallow(@Nullable String remoteCommitReference, boolean parentOnly)
+  void unshallow(@Nullable String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable
@@ -40,27 +41,9 @@ public interface GitClient {
   @Nullable
   String getSha(String reference) throws IOException, TimeoutException, InterruptedException;
 
-  @Nullable
-  String getFullMessage(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getAuthorName(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getAuthorEmail(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getAuthorDate(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getCommitterName(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getCommitterEmail(String commit)
+  @Nonnull
+  CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
       throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getCommitterDate(String commit) throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull
   List<String> getLatestCommits() throws IOException, TimeoutException, InterruptedException;
