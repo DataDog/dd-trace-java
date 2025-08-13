@@ -127,14 +127,16 @@ public class InjectingPipeOutputStream extends OutputStream {
         // we have a full match. just write everything
         filter = false;
         drain();
-        downstream.write(array, off, idx);
-        bytesWritten += idx;
+        int bytesToWrite = idx;
+        downstream.write(array, off, bytesToWrite);
+        bytesWritten += bytesToWrite;
         downstream.write(contentToInject);
         if (onContentInjected != null) {
           onContentInjected.run();
         }
-        downstream.write(array, off + idx, len - idx);
-        bytesWritten += (len - idx);
+        bytesToWrite = len - idx;
+        downstream.write(array, off + idx, bytesToWrite);
+        bytesWritten += bytesToWrite;
       } else {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
         // sequentially
@@ -146,8 +148,9 @@ public class InjectingPipeOutputStream extends OutputStream {
 
         // will be reset if no errors after the following write
         filter = false;
-        downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
-        bytesWritten += (len - bulkWriteThreshold);
+        int bytesToWrite = len - bulkWriteThreshold;
+        downstream.write(array, off + marker.length - 1, bytesToWrite);
+        bytesWritten += bytesToWrite;
         filter = wasFiltering;
         for (int i = len - marker.length + 1; i < len; i++) {
           write(array[i]);
