@@ -28,7 +28,7 @@ public class ConfigCollector {
   }
 
   public void put(String key, Object value, ConfigOrigin origin, String configId) {
-    ConfigSetting setting = ConfigSetting.of(key, value, origin);
+    ConfigSetting setting = ConfigSetting.of(key, value, origin, configId);
     collected.put(key, setting);
   }
 
