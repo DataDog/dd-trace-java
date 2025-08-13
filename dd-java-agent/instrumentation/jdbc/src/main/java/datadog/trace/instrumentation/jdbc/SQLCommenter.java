@@ -69,10 +69,6 @@ public class SQLCommenter {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
-    if (hasDDComment(sql, appendComment)) {
-      return sql;
-    }
-
     if (dbType != null) {
       final String firstWord = getFirstWord(sql);
 
@@ -97,9 +93,12 @@ public class SQLCommenter {
       }
 
       // Append the comment in the case of a pg_hint_plan extension
-      if (dbType.startsWith("postgres") && sql.indexOf("/*+") > 0) {
+      if (dbType.startsWith("postgres") && sql.contains("/*+")) {
         appendComment = true;
       }
+    }
+    if (hasDDComment(sql, appendComment)) {
+      return sql;
     }
 
     AgentSpan currSpan = activeSpan();
@@ -150,28 +149,23 @@ public class SQLCommenter {
   }
 
   private static boolean hasDDComment(String sql, final boolean appendComment) {
-    // first check to see if sql ends with a comment
     if ((!(sql.endsWith(CLOSE_COMMENT)) && appendComment)
         || ((!(sql.startsWith(OPEN_COMMENT))) && !appendComment)) {
       return false;
     }
-    // else check to see if it's a DBM trace sql comment
     int startIdx = OPEN_COMMENT_LEN;
     if (appendComment) {
-      startIdx = sql.lastIndexOf(OPEN_COMMENT) + OPEN_COMMENT_LEN;
+      startIdx += sql.lastIndexOf(OPEN_COMMENT);
     }
-    int startComment = appendComment ? startIdx : sql.length();
-    // TODO isn't the parent service always exits? if so there is no need to do other checks here
-    return startComment > OPEN_COMMENT_LEN
-        && (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)
-            || hasMatchingSubstring(sql, startIdx, DATABASE_SERVICE)
-            || hasMatchingSubstring(sql, startIdx, DD_HOSTNAME)
-            || hasMatchingSubstring(sql, startIdx, DD_DB_NAME)
-            || hasMatchingSubstring(sql, startIdx, DD_PEER_SERVICE)
-            || hasMatchingSubstring(sql, startIdx, DD_ENV)
-            || hasMatchingSubstring(sql, startIdx, DD_VERSION)
-            || hasMatchingSubstring(sql, startIdx, TRACEPARENT)
-            || hasMatchingSubstring(sql, startIdx, DD_SERVICE_HASH));
+    return hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)
+        || hasMatchingSubstring(sql, startIdx, DATABASE_SERVICE)
+        || hasMatchingSubstring(sql, startIdx, DD_HOSTNAME)
+        || hasMatchingSubstring(sql, startIdx, DD_DB_NAME)
+        || hasMatchingSubstring(sql, startIdx, DD_PEER_SERVICE)
+        || hasMatchingSubstring(sql, startIdx, DD_ENV)
+        || hasMatchingSubstring(sql, startIdx, DD_VERSION)
+        || hasMatchingSubstring(sql, startIdx, TRACEPARENT)
+        || hasMatchingSubstring(sql, startIdx, DD_SERVICE_HASH);
   }
 
   private static boolean hasMatchingSubstring(String sql, int startIndex, String substring) {
