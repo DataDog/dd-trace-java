@@ -15,6 +15,7 @@ public final class CapturedEnvironmentConfigSource extends ConfigProvider.Source
   }
 
   @Override
+  // I don't think this needs to throw ConfigSourceException, ever?
   protected String get(String key) {
     return env.getProperties().get(key);
   }
