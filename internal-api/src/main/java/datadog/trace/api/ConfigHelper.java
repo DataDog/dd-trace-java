@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.environment.EnvironmentVariables;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.Map;
 public class ConfigHelper {
   private static ConfigInversionStrictStyle configInversionStrict;
 
+  private static final ConfigInversionMetricCollector configInversionMetricCollector =
+      ConfigInversionMetricCollector.getInstance();
   // Default to production source
   private static SupportedConfigurationSource configSource = new SupportedConfigurationSource();
 
@@ -77,6 +80,7 @@ public class ConfigHelper {
         && !configSource.getAliasMapping().containsKey(name)
         && !configSource.getSupportedConfigurations().contains(name)) {
       if (configInversionStrict != ConfigInversionStrictStyle.TEST) {
+        configInversionMetricCollector.setUndocumentedEnvVarMetric(name);
         System.err.println(
             "Warning: Missing environment variable "
                 + name
