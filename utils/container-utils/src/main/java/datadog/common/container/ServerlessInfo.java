@@ -1,6 +1,6 @@
 package datadog.common.container;
 
-import datadog.environment.ConfigHelper;
+import datadog.trace.api.ConfigHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 

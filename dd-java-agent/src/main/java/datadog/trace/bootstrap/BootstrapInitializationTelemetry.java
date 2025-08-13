@@ -3,8 +3,8 @@ package datadog.trace.bootstrap;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
-import datadog.environment.ConfigHelper;
 import datadog.json.JsonWriter;
+import datadog.trace.api.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
