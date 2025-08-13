@@ -108,9 +108,7 @@ public final class ConfigProvider {
       ConfigProvider.Source source = sources[i];
       String candidate = source.get(key, aliases);
       if (candidate != null && !candidate.trim().isEmpty()) {
-        if (value == null) {
-          value = candidate;
-        }
+        value = candidate;
         if (collectConfig) {
           ConfigCollector.get().put(key, candidate, source.origin(), seqId);
         }
