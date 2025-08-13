@@ -28,20 +28,21 @@ public class InjectingPipeWriter extends Writer {
   private long bytesWritten = 0;
 
   /**
+   * This constructor is typically used for testing where we care about the logic and not the
+   * telemetry.
+   *
    * @param downstream the delegate writer
    * @param marker the marker to find in the stream. Must at least be one char.
    * @param contentToInject the content to inject once before the marker if found.
-   * @param onContentInjected callback called when and if the content is injected.
    */
   public InjectingPipeWriter(
-      final Writer downstream,
-      final char[] marker,
-      final char[] contentToInject,
-      final Runnable onContentInjected) {
-    this(downstream, marker, contentToInject, onContentInjected, null);
+      final Writer downstream, final char[] marker, final char[] contentToInject) {
+    this(downstream, marker, contentToInject, null, null);
   }
 
   /**
+   * This constructor contains the full set of parameters.
+   *
    * @param downstream the delegate writer
    * @param marker the marker to find in the stream. Must at least be one char.
    * @param contentToInject the content to inject once before the marker if found.

@@ -28,20 +28,21 @@ public class InjectingPipeOutputStream extends OutputStream {
   private long bytesWritten = 0;
 
   /**
+   * This constructor is typically used for testing where we care about the logic and not the
+   * telemetry.
+   *
    * @param downstream the delegate output stream
    * @param marker the marker to find in the stream. Must at least be one byte.
    * @param contentToInject the content to inject once before the marker if found.
-   * @param onContentInjected callback called when and if the content is injected.
    */
   public InjectingPipeOutputStream(
-      final OutputStream downstream,
-      final byte[] marker,
-      final byte[] contentToInject,
-      final Runnable onContentInjected) {
-    this(downstream, marker, contentToInject, onContentInjected, null);
+      final OutputStream downstream, final byte[] marker, final byte[] contentToInject) {
+    this(downstream, marker, contentToInject, null, null);
   }
 
   /**
+   * This constructor contains the full set of parameters.
+   *
    * @param downstream the delegate output stream
    * @param marker the marker to find in the stream. Must at least be one byte.
    * @param contentToInject the content to inject once before the marker if found.

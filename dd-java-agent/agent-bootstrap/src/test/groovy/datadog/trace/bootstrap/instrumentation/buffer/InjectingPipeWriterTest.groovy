@@ -47,7 +47,7 @@ class InjectingPipeWriterTest extends DDSpecification {
   def 'should filter a buffer and inject if found #found using write'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null))
+    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray()))
     when:
     try (def closeme = piped) {
       piped.write(body)
@@ -64,7 +64,7 @@ class InjectingPipeWriterTest extends DDSpecification {
   def 'should filter a buffer and inject if found #found using append'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null))
+    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray()))
     when:
     try (def closeme = piped) {
       piped.append(body)
@@ -82,7 +82,7 @@ class InjectingPipeWriterTest extends DDSpecification {
     setup:
     def writer = new StringWriter()
     def downstream = new GlitchedWriter(writer, glichesAt)
-    def piped = new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null, null)
+    def piped = new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray())
     when:
     try {
       for (String line : body) {
@@ -168,7 +168,7 @@ class InjectingPipeWriterTest extends DDSpecification {
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null)
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
 
     when:
     piped.write("test content".toCharArray())
