@@ -352,6 +352,7 @@ include(
   ":dd-java-agent:instrumentation:java-concurrent",
   ":dd-java-agent:instrumentation:java-concurrent:java-completablefuture",
   ":dd-java-agent:instrumentation:java-concurrent:java-concurrent-21",
+  ":dd-java-agent:instrumentation:java-concurrent:java-concurrent-25",
   ":dd-java-agent:instrumentation:java-concurrent:lambda-testing",
   ":dd-java-agent:instrumentation:java-directbytebuffer",
   ":dd-java-agent:instrumentation:java-http-client",
