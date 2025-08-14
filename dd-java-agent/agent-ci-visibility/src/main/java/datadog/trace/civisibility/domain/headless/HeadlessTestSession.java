@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.domain.headless;
 
+import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.LibraryCapability;
@@ -19,7 +21,6 @@ import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionStrategy;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
 import javax.annotation.Nonnull;
@@ -82,22 +83,21 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         coverageStoreFactory,
         executionStrategy,
         capabilities,
-        this::propagateModuleTags);
+        this::onModuleFinish);
   }
 
-  private void propagateModuleTags(AgentSpan moduleSpan) {
-    SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
-    SpanUtils.propagateTags(
-        span,
+  private void onModuleFinish(AgentSpan moduleSpan) {
+    tagPropagator.propagateCiVisibilityTags(moduleSpan);
+    tagPropagator.propagateTags(
         moduleSpan,
-        Tags.TEST_CODE_COVERAGE_ENABLED,
-        Tags.TEST_ITR_TESTS_SKIPPING_ENABLED,
-        Tags.TEST_ITR_TESTS_SKIPPING_TYPE,
-        Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
-        Tags.TEST_EARLY_FLAKE_ENABLED,
-        Tags.TEST_EARLY_FLAKE_ABORT_REASON,
-        DDTags.CI_ITR_TESTS_SKIPPED,
-        Tags.TEST_TEST_MANAGEMENT_ENABLED);
+        TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT),
+        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED),
+        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
+        TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED),
+        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED));
   }
 
   @Override

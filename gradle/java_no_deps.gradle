@@ -1,6 +1,9 @@
 import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
+import java.nio.file.Files
+import java.nio.file.Paths
+
 apply plugin: 'java-library'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
@@ -164,17 +167,22 @@ project.afterEvaluate {
     testJvm = javaVersions.max().toString()
   }
   if (testJvm) {
-    def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
-    if (!matcher.matches()) {
-      throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+    def testJvmHomePath
+    if (Files.exists(Paths.get(testJvm))) {
+      testJvmHomePath = getJavaHomePath(testJvm)
+    } else {
+      def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
+      if (!matcher.matches()) {
+        throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+      }
+      def testJvmLanguageVersion = matcher.group(2) as Integer
+      def testJvmEnv = "JAVA_${testJvm}_HOME"
+      def testJvmHome = System.getenv(testJvmEnv)
+      if (!testJvmHome) {
+        throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
+      }
+      testJvmHomePath = getJavaHomePath(testJvmHome)
     }
-    def testJvmLanguageVersion = matcher.group(2) as Integer
-    def testJvmEnv = "JAVA_${testJvm}_HOME"
-    def testJvmHome = System.getenv(testJvmEnv)
-    if (!testJvmHome) {
-      throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
-    }
-    def testJvmHomePath = getJavaHomePath(testJvmHome)
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
       def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))

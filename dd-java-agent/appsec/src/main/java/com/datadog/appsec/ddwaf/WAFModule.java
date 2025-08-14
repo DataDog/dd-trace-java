@@ -1,5 +1,6 @@
 package com.datadog.appsec.ddwaf;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -557,6 +558,10 @@ public class WAFModule implements AppSecModule {
   }
 
   private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
+    if (actionWithData.data == null) {
+      log.debug(SEND_TELEMETRY, "WAF result data is null");
+      return Collections.emptyList();
+    }
     Collection<WAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);

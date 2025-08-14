@@ -13,7 +13,19 @@
 /.gitlab-ci.yml                        @DataDog/apm-release-platform
 
 # @DataDog/apm-sdk-api-java
-/dd-trace-ot/                          @DataDog/apm-sdk-api-java
+/dd-java-agent/agent-otel                                       @DataDog/apm-sdk-api-java
+/dd-smoke-tests/sample-trace                                    @DataDog/apm-sdk-api-java
+/dd-trace-core/src/main/java/datadog/trace/core/baggage         @DataDog/apm-sdk-api-java
+/dd-trace-core/src/test/groovy/datadog/trace/core/baggage       @DataDog/apm-sdk-api-java
+/dd-trace-core/src/main/java/datadog/trace/core/propagation     @DataDog/apm-sdk-api-java
+/dd-trace-core/src/test/groovy/datadog/trace/core/propagation   @DataDog/apm-sdk-api-java
+/dd-trace-core/src/main/java/datadog/trace/core/scopemanager    @DataDog/apm-sdk-api-java
+/dd-trace-core/src/test/groovy/datadog/trace/core/scopemanager  @DataDog/apm-sdk-api-java
+/dd-trace-ot/                                                   @DataDog/apm-sdk-api-java
+/internal-api/src/main/java/datadog/trace/bootstrap             @DataDog/apm-sdk-api-java
+/internal-api/src/test/groovy/datadog/trace/bootstrap           @DataDog/apm-sdk-api-java
+/internal-api/src/main/java/datadog/trace/api/sampling          @DataDog/apm-sdk-api-java
+/internal-api/src/test/groovy/datadog/trace/api/sampling        @DataDog/apm-sdk-api-java
 
 # @DataDog/apm-serverless
 /dd-trace-core/src/main/java/datadog/trace/lambda/ @DataDog/apm-serverless
