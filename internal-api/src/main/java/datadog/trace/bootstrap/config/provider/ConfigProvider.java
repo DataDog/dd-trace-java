@@ -79,12 +79,7 @@ public final class ConfigProvider {
       String value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
-          if (source instanceof StableConfigSource) {
-            String configId = ((StableConfigSource) source).getConfigId();
-            ConfigCollector.get().put(key, value, source.origin(), configId);
-          } else {
-            ConfigCollector.get().put(key, value, source.origin());
-          }
+          ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
         }
         return value;
       }
@@ -203,12 +198,7 @@ public final class ConfigProvider {
         T value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
-            if (source instanceof StableConfigSource) {
-              String configId = ((StableConfigSource) source).getConfigId();
-              ConfigCollector.get().put(key, value, source.origin(), configId);
-            } else {
-              ConfigCollector.get().put(key, value, source.origin());
-            }
+            ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
           }
           return value;
         }
@@ -266,19 +256,13 @@ public final class ConfigProvider {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
-        if (sources[i] instanceof StableConfigSource) {
-          configId = ((StableConfigSource) sources[i]).getConfigId();
-        }
         origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      if (originReportsConfigId(origin)) {
-        ConfigCollector.get().put(key, merged, origin, configId);
-      } else {
-        ConfigCollector.get().put(key, merged, origin);
-      }
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -296,19 +280,13 @@ public final class ConfigProvider {
       Map<String, String> parsedMap =
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
-        if (sources[i] instanceof StableConfigSource) {
-          configId = ((StableConfigSource) sources[i]).getConfigId();
-        }
         origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      if (originReportsConfigId(origin)) {
-        ConfigCollector.get().put(key, merged, origin, configId);
-      } else {
-        ConfigCollector.get().put(key, merged, origin);
-      }
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -325,19 +303,13 @@ public final class ConfigProvider {
       String value = sources[i].get(key);
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
-        if (sources[i] instanceof StableConfigSource) {
-          configId = ((StableConfigSource) sources[i]).getConfigId();
-        }
         origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      if (originReportsConfigId(origin)) {
-        ConfigCollector.get().put(key, merged, origin, configId);
-      } else {
-        ConfigCollector.get().put(key, merged, origin);
-      }
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -357,19 +329,13 @@ public final class ConfigProvider {
         Map<String, String> parsedMap =
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
-          if (sources[i] instanceof StableConfigSource) {
-            configId = ((StableConfigSource) sources[i]).getConfigId();
-          }
           origin = sources[i].origin();
+          configId = getConfigIdFromSource(sources[i]);
         }
         merged.putAll(parsedMap);
       }
       if (collectConfig) {
-        if (originReportsConfigId(origin)) {
-          ConfigCollector.get().put(key, merged, origin, configId);
-        } else {
-          ConfigCollector.get().put(key, merged, origin);
-        }
+        ConfigCollector.get().put(key, merged, origin, configId);
       }
     }
     return merged;
@@ -541,8 +507,11 @@ public final class ConfigProvider {
     return properties;
   }
 
-  private static boolean originReportsConfigId(ConfigOrigin origin) {
-    return origin == ConfigOrigin.FLEET_STABLE_CONFIG || origin == ConfigOrigin.LOCAL_STABLE_CONFIG;
+  private static String getConfigIdFromSource(Source source) {
+    if (source instanceof StableConfigSource) {
+      return ((StableConfigSource) source).getConfigId();
+    }
+    return null;
   }
 
   public abstract static class Source {
