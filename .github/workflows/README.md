@@ -150,9 +150,10 @@ find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; |
 
 ## Testing
 
-Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/).
+Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/). Docker and GiHub CLI need also to be installed.
 The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
 
 > [!WARNING]
-> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.
-> Pay extra attention to the workflow jobs you trigger to not create development disruption.
+> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.  
+> For example, running 'tests/add-milestone-to-pull-requests/test-pull-request.sh' locally will add a milestone, on this github repository, to the PR whose ID is written in 'tests/add-milestone-to-pull-requests/payload-pull-request.json' as 'pull_request.number', if it hasn't one already.  
+> Pay extra attention to the workflow jobs you trigger to not create development disruption.  
