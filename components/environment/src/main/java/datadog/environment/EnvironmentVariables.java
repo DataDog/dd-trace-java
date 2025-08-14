@@ -56,6 +56,7 @@ public final class EnvironmentVariables {
    * @return All environment variables captured in an unmodifiable {@link Map}, or an empty {@link
    *     Map} if they can't be retrieved.
    */
+  @SuppressForbidden
   public static Map<String, String> getAll() {
     try {
       return unmodifiableMap(new HashMap<>(System.getenv()));
