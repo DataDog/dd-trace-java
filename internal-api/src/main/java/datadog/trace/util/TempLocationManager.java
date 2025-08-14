@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.ConfigHelper;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
@@ -305,7 +306,7 @@ public final class TempLocationManager {
 
   // @VisibleForTesting
   static String getBaseTempDirName() {
-    String userName = System.getProperty("user.name");
+    String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
     userName = userName == null ? ConfigHelper.getEnvironmentVariable("USER") : userName;
     // make sure we do not have any illegal characters in the user name

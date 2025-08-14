@@ -1,5 +1,10 @@
 package datadog.environment;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
+
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -39,6 +44,24 @@ public final class SystemProperties {
       return System.getProperty(property, defaultValue);
     } catch (SecurityException ignored) {
       return defaultValue;
+    }
+  }
+
+  /**
+   * Convert system properties to an unmodifiable {@link Map}.
+   *
+   * @return All system properties captured in an unmodifiable {@link Map}, or an empty {@link Map}
+   *     if they can't be retrieved.
+   */
+  public static Map<String, String> asStringMap() {
+    try {
+      Map<String, String> map = new HashMap<>();
+      for (String propertyName : System.getProperties().stringPropertyNames()) {
+        map.put(propertyName, System.getProperty(propertyName));
+      }
+      return unmodifiableMap(map);
+    } catch (SecurityException ignored) {
+      return emptyMap();
     }
   }
 

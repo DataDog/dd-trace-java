@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.environment.EnvironmentVariables;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
@@ -29,8 +31,7 @@ public class ProcessTags {
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
 
   // visible for testing
-  static Function<String, String> envGetter = ConfigHelper::getEnvironmentVariable;
-  //  static Function<String, String> envGetter = System::getenv;
+  static Function<String, String> envGetter = EnvironmentVariables::get;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
@@ -61,18 +62,10 @@ public class ProcessTags {
 
     private static void insertTagFromSysPropIfPresent(
         Map<String, String> tags, String propKey, String tagKey) {
-      String value = maybeGetSystemProperty(propKey);
+      String value = SystemProperties.get(propKey);
       if (value != null) {
         tags.put(tagKey, value);
       }
-    }
-
-    private static String maybeGetSystemProperty(String propKey) {
-      try {
-        return System.getProperty(propKey);
-      } catch (Throwable ignored) {
-      }
-      return null;
     }
 
     private static boolean insertTagFromEnvIfPresent(
@@ -105,11 +98,7 @@ public class ProcessTags {
     }
 
     private static boolean hasSystemProperty(String propKey) {
-      try {
-        return System.getProperties().containsKey(propKey);
-      } catch (Throwable ignored) {
-      }
-      return false;
+      return SystemProperties.get(propKey) != null;
     }
 
     private static void fillBaseTags(Map<String, String> tags) {
@@ -126,12 +115,12 @@ public class ProcessTags {
         insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), ENTRYPOINT_BASEDIR);
       }
 
-      insertLastPathSegmentIfPresent(tags, maybeGetSystemProperty("user.dir"), ENTRYPOINT_WORKDIR);
+      insertLastPathSegmentIfPresent(tags, SystemProperties.get("user.dir"), ENTRYPOINT_WORKDIR);
     }
 
     private static boolean fillJbossTags(Map<String, String> tags) {
       if (insertLastPathSegmentIfPresent(
-          tags, maybeGetSystemProperty("jboss.home.dir"), "jboss.home")) {
+          tags, SystemProperties.get("jboss.home.dir"), "jboss.home")) {
         insertTagFromSysPropIfPresent(tags, "jboss.server.name", SERVER_NAME);
         tags.put("jboss.mode", hasSystemProperty("[Standalone]") ? "standalone" : "domain");
         tags.put(SERVER_TYPE, "jboss");

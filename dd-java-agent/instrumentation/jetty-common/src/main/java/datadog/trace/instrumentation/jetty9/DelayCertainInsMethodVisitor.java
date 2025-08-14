@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jetty9;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;
@@ -10,22 +9,34 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.TypePath;
 
+/**
+ * This method visitor delays the following instructions:
+ *
+ * <ul>
+ *   <li>Local variable instruction: {@code ALOAD},
+ *   <li>field instructions: {@code GETSTATIC}, {@code GETFIELD}
+ *   <li>method instructions: {@code INVOKEVIRTUAL}
+ * </ul>
+ *
+ * They can be queried using {@link #transferVisitations()} and manually commited using {@link
+ * #commitVisitations(List)}.
+ */
 public class DelayCertainInsMethodVisitor extends MethodVisitor {
-  private final List<Function> heldVisitations = new ArrayList();
+  private final List<Runnable> heldVisitations = new ArrayList<>();
 
   public DelayCertainInsMethodVisitor(int api, MethodVisitor methodVisitor) {
     super(api, methodVisitor);
   }
 
-  public void commitVisitations(List<Function> heldVisitations) {
-    for (Function fun : heldVisitations) {
-      fun.apply(null);
+  public void commitVisitations(List<Runnable> heldVisitations) {
+    for (Runnable r : heldVisitations) {
+      r.run();
     }
     heldVisitations.clear();
   }
 
-  public List<Function> transferVisitations() {
-    ArrayList<Function> copy = new ArrayList<>(this.heldVisitations);
+  public List<Runnable> transferVisitations() {
+    ArrayList<Runnable> copy = new ArrayList<>(this.heldVisitations);
     this.heldVisitations.clear();
     return copy;
   }
@@ -207,7 +218,7 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     super.visitEnd();
   }
 
-  public class InvokeDynamicInsn implements Function {
+  public class InvokeDynamicInsn implements Runnable {
     public final String name;
     public final String descriptor;
     public final Handle bootstrapMethodHandle;
@@ -225,13 +236,12 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     }
 
     @Override
-    public Object apply(Object input) {
+    public void run() {
       mv.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
-      return null;
     }
   }
 
-  public class VirtualMethodInsn implements Function {
+  public class VirtualMethodInsn implements Runnable {
     public final int opcode;
     public final String owner;
     public final String name;
@@ -248,13 +258,12 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     }
 
     @Override
-    public Object apply(Object input) {
+    public void run() {
       mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-      return null;
     }
   }
 
-  public class GetStaticFieldInsn implements Function {
+  public class GetStaticFieldInsn implements Runnable {
     public final int opcode;
     public final String owner;
     public final String name;
@@ -268,13 +277,12 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     }
 
     @Override
-    public Object apply(Object input) {
+    public void run() {
       mv.visitFieldInsn(opcode, owner, name, descriptor);
-      return null;
     }
   }
 
-  public class GetFieldInsn implements Function {
+  public class GetFieldInsn implements Runnable {
     public final int opcode;
     public final String owner;
     public final String name;
@@ -288,13 +296,12 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     }
 
     @Override
-    public Object apply(Object input) {
+    public void run() {
       mv.visitFieldInsn(opcode, owner, name, descriptor);
-      return null;
     }
   }
 
-  public class ALoadVarInsn implements Function {
+  public class ALoadVarInsn implements Runnable {
     public final int opcode;
     public final int varIndex;
 
@@ -304,9 +311,8 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     }
 
     @Override
-    public Object apply(Object input) {
+    public void run() {
       mv.visitVarInsn(opcode, varIndex);
-      return null;
     }
   }
 }
