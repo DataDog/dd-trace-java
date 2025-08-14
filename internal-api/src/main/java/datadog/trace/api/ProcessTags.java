@@ -168,6 +168,10 @@ public class ProcessTags {
 
   private ProcessTags() {}
 
+  public static boolean isEnabled() {
+    return enabled;
+  }
+
   // need to be synchronized on writing. As optimization, it does not need to be sync on read.
   public static void addTag(String key, String value) {
     if (enabled) {

@@ -2,16 +2,7 @@ package datadog.trace.api;
 
 import datadog.trace.util.FNV64Hash;
 
-public final class ServiceHash {
-
-  public static long getBaseHash(WellKnownTags wellKnownTags, String containerTagsHash) {
-    return getBaseHash(
-        wellKnownTags.getService(),
-        wellKnownTags.getEnv(),
-        Config.get().getPrimaryTag(),
-        ProcessTags.getTagsForSerialization(),
-        containerTagsHash);
-  }
+public final class BaseHash {
 
   public static long getBaseHash(
       CharSequence serviceName, CharSequence env, String containerTagsHash) {

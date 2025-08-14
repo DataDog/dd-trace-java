@@ -7,10 +7,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
-import datadog.common.container.ContainerInfo;
 import datadog.context.propagation.CarrierVisitor;
-import datadog.trace.api.ServiceHash;
-import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -266,10 +263,6 @@ public class DefaultPathwayContext implements PathwayContext {
         edgeStartNanoTicks,
         hash,
         serviceNameOverride);
-  }
-
-  public static long getBaseHash(WellKnownTags wellKnownTags) {
-    return ServiceHash.getBaseHash(wellKnownTags, ContainerInfo.get().getContainerTagsHash());
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {

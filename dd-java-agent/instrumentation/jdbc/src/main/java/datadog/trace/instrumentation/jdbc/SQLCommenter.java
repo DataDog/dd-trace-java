@@ -3,8 +3,9 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.common.container.ContainerInfo;
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
-import datadog.trace.api.ServiceHash;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
@@ -64,10 +65,10 @@ public class SQLCommenter {
       String dbName,
       String traceParent,
       boolean preferAppend) {
-    boolean appendComment = preferAppend;
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
+    boolean appendComment = preferAppend;
     if (dbType != null) {
       final String firstWord = getFirstWord(sql);
 
@@ -100,24 +101,20 @@ public class SQLCommenter {
       return sql;
     }
 
-    AgentSpan currSpan = activeSpan();
-    Object peerServiceObj = null;
-    if (currSpan != null) {
-      peerServiceObj = currSpan.getTag(Tags.PEER_SERVICE);
+    Config config = Config.get();
+    String parentService = config.getServiceName();
+    String env = config.getEnv();
+    String serviceHash = null;
+    String containerTagsHash = ContainerInfo.get().getContainerTagsHash();
+    // TODO so we only inject if both container tags and process tags are available?
+    if (config.isDbmInjectSqlBaseHash()
+        && containerTagsHash != null
+        && ProcessTags.getTagsForSerialization() != null) {
+      long baseHash = BaseHash.getBaseHash(parentService, env, containerTagsHash);
+      serviceHash = Long.toString(baseHash);
     }
 
-    final Config config = Config.get();
-    final String parentService = config.getServiceName();
-    final String env = config.getEnv();
-    final String version = config.getVersion();
-    String containerTagsHash = ContainerInfo.get().getContainerTagsHash();
-    final String serviceHash =
-        Long.toString(ServiceHash.getBaseHash(parentService, env, containerTagsHash));
-    //        config.isDbDbmInjectServiceHash() ; // TODO && baseHash != null
-    String peerService = peerServiceObj != null ? peerServiceObj.toString() : null;
-
     StringBuilder sb = new StringBuilder(sql.length() + INJECTED_COMMENT_ESTIMATED_SIZE);
-
     if (appendComment) {
       sb.append(sql);
       sb.append(SPACE);
@@ -128,15 +125,13 @@ public class SQLCommenter {
     append(sb, DATABASE_SERVICE, dbService, initSize);
     append(sb, DD_HOSTNAME, hostname, initSize);
     append(sb, DD_DB_NAME, dbName, initSize);
-    append(sb, DD_PEER_SERVICE, peerService, initSize);
+    append(sb, DD_PEER_SERVICE, getPeerService(), initSize);
     append(sb, DD_ENV, env, initSize);
-    append(sb, DD_VERSION, version, initSize);
+    append(sb, DD_VERSION, config.getVersion(), initSize);
     append(sb, TRACEPARENT, traceParent, initSize);
-    // TODO only if DB_DBM_INJECT_SERVICE_HASH_ENABLED
-    //    append(sb, DD_SERVICE_HASH, serviceHash, initSize);
+    append(sb, DD_SERVICE_HASH, serviceHash, initSize);
     if (initSize == sb.length()) {
       // no comment was added
-      // TODO Is it even possible for all the fields to be unset?
       return sql;
     }
     sb.append(CLOSE_COMMENT);
@@ -147,9 +142,18 @@ public class SQLCommenter {
     return sb.toString();
   }
 
-  private static boolean hasDDComment(String sql, final boolean appendComment) {
-    if ((!(sql.endsWith(CLOSE_COMMENT)) && appendComment)
-        || ((!(sql.startsWith(OPEN_COMMENT))) && !appendComment)) {
+  private static String getPeerService() {
+    AgentSpan span = activeSpan();
+    Object peerService = null;
+    if (span != null) {
+      peerService = span.getTag(Tags.PEER_SERVICE);
+    }
+    return peerService != null ? peerService.toString() : null;
+  }
+
+  private static boolean hasDDComment(String sql, boolean appendComment) {
+    if ((!sql.endsWith(CLOSE_COMMENT) && appendComment)
+        || ((!sql.startsWith(OPEN_COMMENT)) && !appendComment)) {
       return false;
     }
     int startIdx = OPEN_COMMENT_LEN;
@@ -168,14 +172,14 @@ public class SQLCommenter {
   }
 
   private static boolean hasMatchingSubstring(String sql, int startIndex, String substring) {
-    final boolean tooLong = startIndex + substring.length() >= sql.length();
+    boolean tooLong = startIndex + substring.length() >= sql.length();
     if (tooLong || !(sql.charAt(startIndex + substring.length()) == EQUALS)) {
       return false;
     }
     return sql.startsWith(substring, startIndex);
   }
 
-  private static String encode(final String val) {
+  private static String encode(String val) {
     try {
       return URLEncoder.encode(val, UTF8);
     } catch (UnsupportedEncodingException exe) {
