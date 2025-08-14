@@ -81,6 +81,7 @@ tasks.register('checkEnvironmentVariablesUsage') {
       // Exclude specific files (relative to projectDir)
       exclude '**/build/**'
       exclude 'internal-api/src/main/java/datadog/trace/api/ConfigHelper.java'
+      exclude 'dd-java-agent/agent-bootstrap/**'
     }
 
     def matches = []

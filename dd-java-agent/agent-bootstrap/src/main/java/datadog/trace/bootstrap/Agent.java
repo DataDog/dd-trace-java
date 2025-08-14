@@ -22,7 +22,6 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
-import datadog.trace.api.ConfigHelper;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
@@ -1360,7 +1359,7 @@ public class Agent {
     } else {
       logLevel = ddGetProperty("dd.log.level");
       if (null == logLevel) {
-        logLevel = ConfigHelper.getEnvironmentVariable("OTEL_LOG_LEVEL");
+        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
       }
     }
 
@@ -1574,7 +1573,7 @@ public class Agent {
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
-    return ConfigHelper.getEnvironmentVariable(toEnvVar(sysProp));
+    return EnvironmentVariables.get(toEnvVar(sysProp));
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
