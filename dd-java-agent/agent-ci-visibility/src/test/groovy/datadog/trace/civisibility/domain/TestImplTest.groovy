@@ -18,7 +18,6 @@ import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.NoOpSourcePathResolver
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.test.ExecutionResults
-import datadog.trace.civisibility.utils.SpanUtils
 
 class TestImplTest extends SpanWriterTest {
   def "test span is generated and tags populated"() {
@@ -143,7 +142,7 @@ class TestImplTest extends SpanWriterTest {
       coverageStoreFactory,
       executionResults,
       libraryCapabilities,
-      SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
+      SpanTagsPropagator.NOOP_PROPAGATOR
       )
   }
 }

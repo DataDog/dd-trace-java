@@ -9,7 +9,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 public class GradleDaemonInjectionUtils {
 
@@ -28,20 +27,16 @@ public class GradleDaemonInjectionUtils {
     Path agentJarPath = agentJar.toPath();
     StringBuilder agentArg = new StringBuilder("-javaagent:").append(agentJarPath).append('=');
 
-    try {
-      Properties systemProperties = System.getProperties();
-      for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-        String propertyName = (String) e.getKey();
-        Object propertyValue = e.getValue();
-        if (propertyName.startsWith(Config.PREFIX)) {
-          agentArg
-              .append(propertyName)
-              .append("='")
-              .append(String.valueOf(propertyValue).replace("'", "'\\''"))
-              .append("',");
-        }
+    for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
+      String propertyName = p.getKey();
+      String propertyValue = p.getValue();
+      if (propertyName.startsWith(Config.PREFIX)) {
+        agentArg
+            .append(propertyName)
+            .append("='")
+            .append(propertyValue.replace("'", "'\\''"))
+            .append("',");
       }
-    } catch (SecurityException ignored) {
     }
 
     // creating a new map in case jvmOptions is immutable

@@ -70,6 +70,22 @@ class ClientIpAddressResolverSpecification extends Specification {
     'fastly-client-ip' | '3.3.3.3' | '3.3.3.3'
     'cf-connecting-ip' | '4.4.4.4' | '4.4.4.4'
     'cf-connecting-ipv6' | '2001::2' | '2001::2'
+
+    'forwarded' | 'for="[2001::1]:1111"' | '2001::1'
+    'forwarded' | 'fOr="[2001::1]:1111"' | '2001::1'
+    'forwarded' | 'for=some_host' | null
+    'forwarded' | 'for=127.0.0.1, FOR=1.1.1.1' | '1.1.1.1'
+    'forwarded' |'for="\"foobar";proto=http,FOR="1.1.1.1"' | '1.1.1.1'
+    'forwarded' | 'for="8.8.8.8:2222",' | '8.8.8.8'
+    'forwarded' | 'for="8.8.8.8' | null  // quote not closed
+    'forwarded' | 'far="8.8.8.8",for=4.4.4.4;' | '4.4.4.4'
+    'forwarded' | '   for=127.0.0.1,for= for=,for=;"for = for="" ,; for=8.8.8.8;' | '8.8.8.8'
+    'forwarded' | 'for=192.0.2.60;proto=http;by=203.0.113.43' | '192.0.2.60'
+    'forwarded' | 'For="[2001:db8:cafe::17]:4711"' | '2001:db8:cafe::17'
+    'forwarded' | 'for=192.0.2.43;proto=https;by=203.0.113.43' | '192.0.2.43'
+    'forwarded' | 'for="_gazonk"' | null
+    'forwarded' | 'for=unknown, for=8.8.8.8' | '8.8.8.8'
+    'forwarded' | 'for="[::ffff:192.0.2.128]";proto=http' | '192.0.2.128'
   }
 
   void 'test recognition strategy with custom header'() {
@@ -109,6 +125,9 @@ class ClientIpAddressResolverSpecification extends Specification {
 
     then:
     1 * context.getXClientIp() >> null
+
+    then:
+    1 * context.getForwarded() >> null
 
     then:
     1 * context.getForwardedFor() >> null
@@ -162,6 +181,7 @@ class ClientIpAddressResolverSpecification extends Specification {
     1 * context.getXForwardedFor() >> '127.0.0.1'
     1 * context.getXRealIp() >> '127.0.0.2'
     1 * context.getXClientIp() >> '127.0.0.3'
+    1 * context.getForwarded() >> 'for=127.0.0.4'
     1 * context.getXClusterClientIp() >> '127.0.0.5'
     1 * context.getForwardedFor() >> '127.0.0.6'
     1 * context.getTrueClientIp() >> '127.0.0.9'

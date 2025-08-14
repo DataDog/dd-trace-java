@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.communication.ddagent.TracerVersion;
 import datadog.context.propagation.CarrierSetter;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
@@ -30,7 +31,6 @@ import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
@@ -38,7 +38,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -138,18 +137,14 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
-    try {
-      Properties systemProperties = System.getProperties();
-      for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-        String propertyName = (String) e.getKey();
-        Object propertyValue = e.getValue();
-        if ((propertyName.startsWith(Config.PREFIX)
-                || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
-            && propertyValue != null) {
-          propagatedSystemProperties.put(propertyName, propertyValue.toString());
-        }
+    for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
+      String propertyName = p.getKey();
+      String propertyValue = p.getValue();
+      if ((propertyName.startsWith(Config.PREFIX)
+              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
+          && propertyValue != null) {
+        propagatedSystemProperties.put(propertyName, propertyValue);
       }
-    } catch (SecurityException ignored) {
     }
 
     propagatedSystemProperties.put(
@@ -292,7 +287,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+    tagsPropagator.mergeTestFrameworks(result.getTestFrameworks());
 
     return AckResponse.INSTANCE;
   }

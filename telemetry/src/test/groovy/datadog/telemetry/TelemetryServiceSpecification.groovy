@@ -26,7 +26,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423).count(1)
   def productChange = new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(true)
-  def endpoint = new Endpoint().first(true).type('REST').method("GET").operation('http.request').resource("GET /test").path("/test")
+  def endpoint = new Endpoint().first(true).type('REST').method("GET").operation('http.request').resource("GET /test").path("/test").requestBodyType(['application/json']).responseBodyType(['application/json']).responseCode([200]).authentication(['JWT'])
 
   def 'happy path without data'() {
     setup:

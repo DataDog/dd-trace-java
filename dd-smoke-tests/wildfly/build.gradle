@@ -14,9 +14,9 @@ repositories {
       // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
       // we download the full EE profile and not the servlet minimal one
       artifact '/[organisation]/[revision]/[organisation]-[revision].[ext]'
-      metadataSources {
-        artifact()
-      }
+    }
+    metadataSources {
+      it.artifact()
     }
   }
 }

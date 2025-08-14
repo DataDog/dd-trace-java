@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.metrics.CoreCounter;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetricsImpl;
@@ -16,6 +17,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   private static final String INTEGRATION_NAME_TAG = "integration_name:";
   private static final CoreMetricCollector INSTANCE = new CoreMetricCollector();
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
+  private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
 
   private final BlockingQueue<CoreMetric> metricsQueue;
 
@@ -29,6 +31,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
 
   @Override
   public void prepareMetrics() {
+    // Collect span metrics
     for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
       String tag = INTEGRATION_NAME_TAG + spanMetrics.getInstrumentationName();
       for (CoreCounter counter : spanMetrics.getCounters()) {
@@ -43,6 +46,23 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
           // Stop adding metrics if the queue is full
           break;
         }
+      }
+    }
+
+    // Collect baggage metrics
+    for (BaggageMetrics.TaggedCounter counter : this.baggageMetrics.getTaggedCounters()) {
+      long value = counter.getValueAndReset();
+      if (value == 0) {
+        // Skip not updated counters
+        continue;
+      }
+      // Use the specific tag for each baggage metric
+      String tag = counter.getTag();
+      CoreMetric metric =
+          new CoreMetric(METRIC_NAMESPACE, true, counter.getName(), "count", value, tag);
+      if (!this.metricsQueue.offer(metric)) {
+        // Stop adding metrics if the queue is full
+        break;
       }
     }
   }
