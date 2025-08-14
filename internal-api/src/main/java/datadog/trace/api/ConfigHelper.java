@@ -36,7 +36,7 @@ public class ConfigHelper {
   }
 
   public static Map<String, String> getEnvironmentVariables() {
-    Map<String, String> env = System.getenv();
+    Map<String, String> env = EnvironmentVariables.getAll();
     Map<String, String> configs = new LinkedHashMap<>();
     for (Map.Entry<String, String> entry : env.entrySet()) {
       String key = entry.getKey();

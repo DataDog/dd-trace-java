@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.environment.EnvironmentVariables;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
