@@ -81,6 +81,8 @@ jobs:
         run: |
           git commit --message "feat(ci): Update Docker build image" .gitlab-ci.yml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
       - name: Push changes
         uses: Asana/push-signed-commits@d615ca88d8e1a946734c24970d1e7a6c56f34897
         if: ${{ steps.create-commit.outputs.commit != '' }}
