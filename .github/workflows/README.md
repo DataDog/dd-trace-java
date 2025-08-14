@@ -155,6 +155,5 @@ Docker and [GiHub CLI](https://cli.github.com/) need also to be installed.
 The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
 
 > [!WARNING]
-> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.  
-> For example, running 'tests/add-milestone-to-pull-requests/test-pull-request.sh' locally will add a milestone, on this github repository, to the PR whose ID is written in 'tests/add-milestone-to-pull-requests/payload-pull-request.json' as 'pull_request.number', if it hasn't one already.  
-> Pay extra attention to the workflow jobs you trigger to not create development disruption.  
+> Local workflow tests run against the repository and will potentially alter existing issues, milestones and releases.  
+> Pay extra attention to the workflow jobs you trigger to not create development disruption.
