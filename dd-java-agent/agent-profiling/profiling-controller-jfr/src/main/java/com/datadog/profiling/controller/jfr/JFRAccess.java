@@ -1,7 +1,6 @@
 package com.datadog.profiling.controller.jfr;
 
 import com.datadog.profiling.utils.Timestamper;
-import java.lang.instrument.Instrumentation;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -38,7 +37,7 @@ public abstract class JFRAccess implements Timestamper {
    */
   public interface Factory {
     @Nullable
-    JFRAccess create(@Nullable Instrumentation inst);
+    JFRAccess create();
   }
 
   private static volatile JFRAccess INSTANCE = NOOP;
@@ -55,18 +54,14 @@ public abstract class JFRAccess implements Timestamper {
   /**
    * Sets up the JFR access.<br>
    * The method is expected to be called once, before any other method of this class is called.
-   *
-   * @param inst the instrumentation instance, may be {@code null}
    */
-  public static void setup(@Nullable Instrumentation inst) {
+  public static void setup() {
     JFRAccess access = NOOP;
-    if (inst != null) {
-      for (Factory factory : ServiceLoader.load(Factory.class, JFRAccess.class.getClassLoader())) {
-        JFRAccess candidate = factory.create(inst);
-        if (candidate != null) {
-          access = candidate;
-          break;
-        }
+    for (Factory factory : ServiceLoader.load(Factory.class, JFRAccess.class.getClassLoader())) {
+      JFRAccess candidate = factory.create();
+      if (candidate != null) {
+        access = candidate;
+        break;
       }
     }
     log.debug("JFR access: {}", access.getClass().getName());

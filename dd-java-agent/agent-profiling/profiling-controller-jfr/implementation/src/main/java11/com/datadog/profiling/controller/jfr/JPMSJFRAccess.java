@@ -1,6 +1,7 @@
 package com.datadog.profiling.controller.jfr;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.util.ModulePatcher;
 import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -19,14 +20,24 @@ import org.slf4j.LoggerFactory;
 public class JPMSJFRAccess extends JFRAccess {
   private static final Logger log = LoggerFactory.getLogger(JPMSJFRAccess.class);
 
+  public static final class JPMSJFRPatcher implements ModulePatcher.Impl {
+    @Override
+    public ModulePatcher.ModulePatch patchModule() {
+      return new ModulePatcher.ModulePatch(JPMSJFRAccess.class, "jdk.jfr")
+          .addOpen("jdk.jfr.internal", ModulePatcher.SELF_MODULE_NAME)
+          .addExport("jdk.jfr.internal", ModulePatcher.SELF_MODULE_NAME);
+    }
+  }
+
+  // Registered via META-INF/services
   public static final class FactoryImpl implements JFRAccess.Factory {
     private static final Logger log = LoggerFactory.getLogger(FactoryImpl.class);
 
     @Override
-    public JFRAccess create(Instrumentation inst) {
+    public JFRAccess create() {
       if (!JavaVirtualMachine.isJ9() && JavaVirtualMachine.isJavaVersionAtLeast(9)) {
         try {
-          return new JPMSJFRAccess(inst);
+          return new JPMSJFRAccess();
         } catch (Exception e) {
           log.debug("Unable to obtain JFR internal access", e);
         }
@@ -46,9 +57,7 @@ public class JPMSJFRAccess extends JFRAccess {
   private final MethodHandle counterTimeMH;
   private final MethodHandle getTimeConversionFactorMH;
 
-  public JPMSJFRAccess(Instrumentation inst) throws Exception {
-    patchModuleAccess(inst);
-
+  public JPMSJFRAccess() throws Exception {
     jvmClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
     repositoryClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.Repository");
     safePathClass = safePathClass();

@@ -22,6 +22,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
+import datadog.trace.api.JPMSPatcher;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
@@ -48,6 +49,7 @@ import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
+import datadog.trace.bootstrap.ebpf.ProcessContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -201,6 +203,9 @@ public class Agent {
 
     createAgentClassloader(agentJarURL);
 
+    // patch JPMS modules if necessary
+    JPMSPatcher.patchModules(inst, AGENT_CLASSLOADER);
+
     if (Platform.isNativeImageBuilder()) {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
@@ -302,6 +307,9 @@ public class Agent {
       StaticEventLogger.end("crashtracking");
     }
     startDatadogAgent(initTelemetry, inst);
+
+    // all config is set up, let's hook the ebpf process context
+    ProcessContext.publish(Config.get());
 
     final EnumSet<Library> libraries = detectLibraries(log);
 

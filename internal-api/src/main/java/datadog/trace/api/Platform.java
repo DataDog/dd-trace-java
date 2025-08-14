@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
@@ -44,7 +43,7 @@ public final class Platform {
        * Note: as of version 0.49.0 of J9 the JVM contains JFR classes, but it is not fully functional
        */
       return ((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 272) || (isJavaVersionAtLeast(11))))
-          && !isJ9()
+          //          && !isJ9()
           && !isOracleJDK8();
     } catch (Throwable e) {
       return false;

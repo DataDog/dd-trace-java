@@ -45,6 +45,7 @@ compileMain_java11Java.configure {
 
 dependencies {
   main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly project(':internal-api:internal-api-9')
   main_java11CompileOnly sourceSets.main.output
 }
 
@@ -72,5 +73,18 @@ project.afterEvaluate {
     if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
       jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
     }
+    
+    // Provide immediate and verbose JUnit output
+    testLogging {
+      events "passed", "skipped", "failed", "standard_out", "standard_error"
+      exceptionFormat "full"
+      showStandardStreams = true
+      showCauses = true
+      showExceptions = true
+      showStackTraces = true
+    }
+    
+    // Output test results immediately as they happen
+    outputs.upToDateWhen { false }
   }
 }

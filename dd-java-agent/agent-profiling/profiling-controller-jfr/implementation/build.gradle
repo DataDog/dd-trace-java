@@ -25,6 +25,7 @@ compileMain_java11Java.configure {
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
   main_java11CompileOnly project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
+  main_java11CompileOnly project(':internal-api:internal-api-9')
 
   implementation project(':components:environment')
   implementation libs.slf4j

@@ -31,7 +31,7 @@ public class JFRAccessTest {
 
     // just do a sanity check that it is possible to instantiate the class and call
     // 'setStackDepth()'
-    JPMSJFRAccess jfrAccess = new JPMSJFRAccess(null);
+    JPMSJFRAccess jfrAccess = new JPMSJFRAccess();
     assertTrue(jfrAccess.setStackDepth(42));
   }
 
@@ -40,7 +40,7 @@ public class JFRAccessTest {
     assumeTrue(isJ9());
 
     // need to run a bogus setup first
-    JFRAccess.setup(null);
+    JFRAccess.setup();
     // make sure that an attempt to get the instance returns the NOOP implementation and does not
     // throw exceptions
     assertEquals(JFRAccess.NOOP, JFRAccess.instance());

@@ -120,7 +120,7 @@ public class ProfilingAgent {
       }
 
       try {
-        JFRAccess.setup(inst);
+        JFRAccess.setup();
         Timestamper.override(JFRAccess.instance());
         ControllerContext context = new ControllerContext();
         final Controller controller = CompositeController.build(configProvider, context);
