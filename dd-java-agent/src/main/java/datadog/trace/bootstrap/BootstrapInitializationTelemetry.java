@@ -3,8 +3,8 @@ package datadog.trace.bootstrap;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.json.JsonWriter;
-import datadog.trace.api.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
@@ -147,7 +147,7 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     private int maxTags() {
-      String maxTags = ConfigHelper.getEnvironmentVariable("DD_TELEMETRY_FORWARDER_MAX_TAGS");
+      String maxTags = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_MAX_TAGS");
 
       if (maxTags != null) {
         try {

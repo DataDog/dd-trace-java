@@ -82,6 +82,7 @@ tasks.register('checkEnvironmentVariablesUsage') {
       exclude '**/build/**'
       exclude 'internal-api/src/main/java/datadog/trace/api/ConfigHelper.java'
       exclude 'dd-java-agent/agent-bootstrap/**'
+      exclude 'dd-java-agent/src/main/java/datadog/trace/bootstrap/BootstrapInitializationTelemetry.java'
     }
 
     def matches = []
