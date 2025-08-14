@@ -181,6 +181,10 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     // Add org level config (priority 1) - should set service mapping
     updater.accept(orgKey, """
       {
+        "service_target": {
+          "service": "*",
+          "env": "*"
+        },
         "lib_config": {
           "tracing_service_mapping": [
             {
@@ -249,6 +253,113 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     // Should have no configs
     tracer.captureTraceConfig().serviceMapping == [:]
     tracer.captureTraceConfig().traceSampleRate == null
+
+    cleanup:
+    tracer?.close()
+  }
+
+  def "test actual config commit with cluster and org level configs"() {
+    setup:
+    def orgKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config")
+    def clusterKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/cluster_config/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+    tracer.captureTraceConfig().tracingTags == [:]
+
+    when:
+    // Add org level config (priority 1) - should set service mapping and sampling rate
+    updater.accept(orgKey, """
+      {
+        "lib_config": {
+          "tracing_service_mapping": [
+            {
+              "from_key": "org-service",
+              "to_name": "org-mapped"
+            }
+          ],
+          "tracing_sampling_rate": 0.8,
+          "tracing_tags": ["org:tag", "level:org"]
+        }
+      }
+    """.getBytes(StandardCharsets.UTF_8), null)
+
+    // Add cluster level config (priority 2) - should override org level configs
+    updater.accept(clusterKey, """
+      {
+        "k8s_target_v2": {
+          "cluster_targets": [
+            {
+              "cluster_name": "test-cluster",
+              "enabled": true,
+              "enabled_namespaces": ["default", "kube-system"]
+            }
+          ]
+        },
+        "lib_config": {
+          "tracing_service_mapping": [
+            {
+              "from_key": "cluster-service",
+              "to_name": "cluster-mapped"
+            }
+          ],
+          "tracing_sampling_rate": 0.4,
+          "tracing_tags": ["cluster:tag", "level:cluster"]
+        }
+      }
+    """.getBytes(StandardCharsets.UTF_8), null)
+
+    // Commit both configs
+    updater.commit()
+
+    then:
+    // Cluster level config should take precedence due to higher priority (2 vs 1)
+    tracer.captureTraceConfig().serviceMapping == ["cluster-service":"cluster-mapped"]
+    tracer.captureTraceConfig().traceSampleRate == 0.4
+    tracer.captureTraceConfig().tracingTags == ["cluster":"tag", "level":"cluster"]
+
+    when:
+    // Remove cluster level config
+    updater.remove(clusterKey, null)
+    updater.commit()
+
+    then:
+    // Should fall back to org level config
+    tracer.captureTraceConfig().serviceMapping == ["org-service":"org-mapped"]
+    tracer.captureTraceConfig().traceSampleRate == 0.8
+    tracer.captureTraceConfig().tracingTags == ["org":"tag", "level":"org"]
+
+    when:
+    // Remove org level config
+    updater.remove(orgKey, null)
+    updater.commit()
+
+    then:
+    // Should have no configs
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+    tracer.captureTraceConfig().tracingTags == [:]
 
     cleanup:
     tracer?.close()
