@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -57,7 +58,7 @@ public class VertxDecorator
       final AgentSpan span,
       final RoutingContext connection,
       final RoutingContext routingContext,
-      final datadog.context.Context context) {
+      final Context context) {
     return span;
   }
 
