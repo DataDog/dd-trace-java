@@ -101,6 +101,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.ResolverCacheConfig$3:build_time,"
               + "datadog.trace.api.ResolverCacheConfig$4:build_time,"
               + "datadog.trace.api.ResolverCacheConfig$5:build_time,"
+              + "datadog.trace.api.SupportedConfigurationSource:build_time,"
               + "datadog.trace.api.TracePropagationStyle:build_time,"
               + "datadog.trace.api.TracePropagationBehaviorExtract:build_time,"
               + "datadog.trace.api.telemetry.ConfigInversionMetricCollector:build_time,"
