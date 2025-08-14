@@ -7,8 +7,6 @@ import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
-import datadog.trace.api.Config
-import datadog.trace.api.DynamicConfig
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
