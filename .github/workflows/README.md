@@ -150,7 +150,8 @@ find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; |
 
 ## Testing
 
-Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/). Docker and GiHub CLI need also to be installed.
+Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/).
+Docker and [GiHub CLI](https://cli.github.com/) need also to be installed.
 The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
 
 > [!WARNING]
