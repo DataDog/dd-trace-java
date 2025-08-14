@@ -38,25 +38,6 @@ public final class Rule {
           selectorsObj);
     }
 
-    List<Selector> selectors =
-        unmodifiableList(
-            ((List<?>) selectorsObj)
-                .stream()
-                    .filter(Objects::nonNull)
-                    .map(
-                        s -> {
-                          if (s instanceof Map) {
-                            return Selector.from((Map<?, ?>) s);
-                          }
-                          throwStableConfigMappingException(
-                              "Each selector must be a map, but got: "
-                                  + s.getClass().getSimpleName()
-                                  + ": ",
-                              s);
-                          return null;
-                        })
-                    .collect(toList()));
-
     Object configObj = map.get("configuration");
     if (configObj == null) {
       throwStableConfigMappingException("Missing 'configuration' in rule:", map);
@@ -66,9 +47,26 @@ public final class Rule {
           "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName() + ": ",
           configObj);
     }
-    Map<String, Object> configuration = (Map<String, Object>) configObj;
 
-    return new Rule(selectors, configuration);
+    List<Selector> selectors =
+        ((List<?>) selectorsObj)
+            .stream()
+                .filter(Objects::nonNull)
+                .map(
+                    s -> {
+                      if (!(s instanceof Map)) {
+                        throwStableConfigMappingException(
+                            "Each selector must be a map, but got: "
+                                + s.getClass().getSimpleName()
+                                + ": ",
+                            s);
+                      }
+
+                      return Selector.from((Map<?, ?>) s);
+                    })
+                .collect(toList());
+
+    return new Rule(unmodifiableList(selectors), (Map<String, Object>) configObj);
   }
 
   public List<Selector> getSelectors() {

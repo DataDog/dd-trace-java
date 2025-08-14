@@ -160,9 +160,11 @@ class StableConfigSourceTest extends DDSpecification {
               DD_SERVICE: "test"
     '''                                                                                             | "'selectors' must be a list, but got: String"
     '''apm_configuration_rules:
-          - selectors:
-              - "not-a-map"
-    '''                                                                                             | "Each selector must be a map, but got: String"
+           - selectors:
+               - "not-a-map"
+             configuration:
+               DD_SERVICE: "test"
+     '''                                                                                             | "Each selector must be a map, but got: String"
     '''apm_configuration_rules:
           - selectors:
               - origin: process_arguments
