@@ -2,9 +2,12 @@ package datadog.environment;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class EnvironmentVariablesTest {
@@ -35,5 +38,14 @@ class EnvironmentVariablesTest {
     assertEquals(DEFAULT_VALUE, EnvironmentVariables.getOrDefault(null, DEFAULT_VALUE));
     assertDoesNotThrow(() -> EnvironmentVariables.getOrDefault(MISSING_ENV_VAR, null));
     assertNull(EnvironmentVariables.getOrDefault(MISSING_ENV_VAR, null));
+  }
+
+  @Test
+  void testGetAll() {
+    Map<String, String> all = EnvironmentVariables.getAll();
+    assertNotNull(all);
+    assertFalse(all.isEmpty());
+    // Unmodifiable collection
+    assertThrows(UnsupportedOperationException.class, all::clear);
   }
 }
