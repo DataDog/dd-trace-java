@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.buffer;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.function.LongConsumer;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
@@ -23,18 +24,37 @@ public class InjectingPipeOutputStream extends OutputStream {
   private final Runnable onContentInjected;
   private final int bulkWriteThreshold;
   private final OutputStream downstream;
+  private final LongConsumer onBytesWritten;
+  private long bytesWritten = 0;
 
   /**
+   * This constructor is typically used for testing where we care about the logic and not the
+   * telemetry.
+   *
+   * @param downstream the delegate output stream
+   * @param marker the marker to find in the stream. Must at least be one byte.
+   * @param contentToInject the content to inject once before the marker if found.
+   */
+  public InjectingPipeOutputStream(
+      final OutputStream downstream, final byte[] marker, final byte[] contentToInject) {
+    this(downstream, marker, contentToInject, null, null);
+  }
+
+  /**
+   * This constructor contains the full set of parameters.
+   *
    * @param downstream the delegate output stream
    * @param marker the marker to find in the stream. Must at least be one byte.
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
+   * @param onBytesWritten callback called when stream is closed to report total bytes written.
    */
   public InjectingPipeOutputStream(
       final OutputStream downstream,
       final byte[] marker,
       final byte[] contentToInject,
-      final Runnable onContentInjected) {
+      final Runnable onContentInjected,
+      final LongConsumer onBytesWritten) {
     this.downstream = downstream;
     this.marker = marker;
     this.lookbehind = new byte[marker.length];
@@ -46,6 +66,7 @@ public class InjectingPipeOutputStream extends OutputStream {
     this.filter = true;
     this.contentToInject = contentToInject;
     this.onContentInjected = onContentInjected;
+    this.onBytesWritten = onBytesWritten;
     this.bulkWriteThreshold = marker.length * 2 - 2;
   }
 
@@ -57,11 +78,13 @@ public class InjectingPipeOutputStream extends OutputStream {
         drain();
       }
       downstream.write(b);
+      bytesWritten++;
       return;
     }
 
     if (count == lookbehind.length) {
       downstream.write(lookbehind[pos]);
+      bytesWritten++;
     } else {
       count++;
     }
@@ -91,6 +114,7 @@ public class InjectingPipeOutputStream extends OutputStream {
         drain();
       }
       downstream.write(array, off, len);
+      bytesWritten += len;
       return;
     }
 
@@ -103,12 +127,16 @@ public class InjectingPipeOutputStream extends OutputStream {
         // we have a full match. just write everything
         filter = false;
         drain();
-        downstream.write(array, off, idx);
+        int bytesToWrite = idx;
+        downstream.write(array, off, bytesToWrite);
+        bytesWritten += bytesToWrite;
         downstream.write(contentToInject);
         if (onContentInjected != null) {
           onContentInjected.run();
         }
-        downstream.write(array, off + idx, len - idx);
+        bytesToWrite = len - idx;
+        downstream.write(array, off + idx, bytesToWrite);
+        bytesWritten += bytesToWrite;
       } else {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
         // sequentially
@@ -120,7 +148,9 @@ public class InjectingPipeOutputStream extends OutputStream {
 
         // will be reset if no errors after the following write
         filter = false;
-        downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
+        int bytesToWrite = len - bulkWriteThreshold;
+        downstream.write(array, off + marker.length - 1, bytesToWrite);
+        bytesWritten += bytesToWrite;
         filter = wasFiltering;
         for (int i = len - marker.length + 1; i < len; i++) {
           write(array[i]);
@@ -163,6 +193,7 @@ public class InjectingPipeOutputStream extends OutputStream {
       int cnt = count;
       for (int i = 0; i < cnt; i++) {
         downstream.write(lookbehind[(start + i) % lookbehind.length]);
+        bytesWritten++;
         count--;
       }
       filter = wasFiltering;
@@ -185,6 +216,11 @@ public class InjectingPipeOutputStream extends OutputStream {
   public void close() throws IOException {
     try {
       commit();
+      // report the size of the original HTTP response before injecting via callback
+      if (onBytesWritten != null) {
+        onBytesWritten.accept(bytesWritten);
+      }
+      bytesWritten = 0;
     } finally {
       downstream.close();
     }

@@ -3,6 +3,9 @@ package datadog.trace.bootstrap.instrumentation.buffer
 import datadog.trace.test.util.DDSpecification
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
+  static final byte[] MARKER_BYTES = "</head>".getBytes("UTF-8")
+  static final byte[] CONTEXT_BYTES = "<script></script>".getBytes("UTF-8")
+
   static class GlitchedOutputStream extends FilterOutputStream {
     int glitchesPos
     int count
@@ -33,10 +36,18 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     }
   }
 
+  static class Counter {
+    int value = 0
+
+    def incr(long count) {
+      this.value += count
+    }
+  }
+
   def 'should filter a buffer and inject if found #found'() {
     setup:
     def downstream = new ByteArrayOutputStream()
-    def piped = new OutputStreamWriter(new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null),
+    def piped = new OutputStreamWriter(new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8")),
     "UTF-8")
     when:
     try (def closeme = piped) {
@@ -55,7 +66,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     setup:
     def baos = new ByteArrayOutputStream()
     def downstream = new GlitchedOutputStream(baos, glichesAt)
-    def piped = new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"), null)
+    def piped = new InjectingPipeOutputStream(downstream, marker.getBytes("UTF-8"), contentToInject.getBytes("UTF-8"))
     when:
     try {
       for (String line : body) {
@@ -86,5 +97,75 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     ["<html>", "<body/>", "</html>"]                                | "</head>"         | "<something/>"          | 10        | "<html><body/></h</html>"
     // expected broken since the real write happens at close (drain) being the content smaller than the buffer. And retry on close is not a common practice. Hence, we suppose loosing content
     ["<foo/>"]                                                      | "<longerThanFoo>" | "<nothing>"             | 3         | "<f"
+  }
+
+  def 'should count bytes correctly when writing byte arrays'() {
+    setup:
+    def testBytes = "test content".getBytes("UTF-8")
+    def downstream = new ByteArrayOutputStream()
+    def counter = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
+
+    when:
+    piped.write(testBytes)
+    piped.close()
+
+    then:
+    counter.value == 12
+    downstream.toByteArray() == testBytes
+  }
+
+  def 'should count bytes correctly when writing bytes individually'() {
+    setup:
+    def testBytes = "test".getBytes("UTF-8")
+    def downstream = new ByteArrayOutputStream()
+    def counter = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
+
+    when:
+    for (int i = 0; i < testBytes.length; i++) {
+      piped.write((int) testBytes[i])
+    }
+    piped.close()
+
+    then:
+    counter.value == 4
+    downstream.toByteArray() == testBytes
+  }
+
+  def 'should count bytes correctly with multiple writes'() {
+    setup:
+    def part1 = "test".getBytes("UTF-8")
+    def part2 = " ".getBytes("UTF-8")
+    def part3 = "content".getBytes("UTF-8")
+    def testBytes = "test content".getBytes("UTF-8")
+    def downstream = new ByteArrayOutputStream()
+    def counter = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
+
+    when:
+    piped.write(part1)
+    piped.write(part2)
+    piped.write(part3)
+    piped.close()
+
+    then:
+    counter.value == 12
+    downstream.toByteArray() == testBytes
+  }
+
+  def 'should be resilient to exceptions when onBytesWritten callback is null'() {
+    setup:
+    def testBytes = "test content".getBytes("UTF-8")
+    def downstream = new ByteArrayOutputStream()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES)
+
+    when:
+    piped.write(testBytes)
+    piped.close()
+
+    then:
+    noExceptionThrown()
+    downstream.toByteArray() == testBytes
   }
 }
