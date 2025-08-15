@@ -39,6 +39,8 @@ final class ConfigConverter {
       return (T) LOOKUP.get(tClass).invoke(value);
     } catch (final NumberFormatException e) {
       throw e;
+    } catch (final IllegalArgumentException e) {
+      throw e;
     } catch (final Throwable e) {
       log.debug("Can't parse: ", e);
       throw new NumberFormatException(e.toString());
@@ -413,8 +415,15 @@ final class ConfigConverter {
   public static Boolean booleanValueOf(String value) {
     if ("1".equals(value)) {
       return Boolean.TRUE;
+    } else if ("0".equals(value)) {
+      return Boolean.FALSE;
+    } else if ("true".equalsIgnoreCase(value)) {
+      return Boolean.TRUE;
+    } else if ("false".equalsIgnoreCase(value)) {
+      return Boolean.FALSE;
     } else {
-      return Boolean.valueOf(value);
+      // Throw exception for invalid boolean values
+      throw new IllegalArgumentException("Invalid boolean value: " + value);
     }
   }
 
