@@ -56,7 +56,7 @@ class EventSourceTest extends DDSpecification{
 
     where:
     eventType             | eventQueueName            | eventInstance
-    "Config Change"       | "configChangeQueue"       | new ConfigSetting("key", "value", ConfigOrigin.ENV)
+    "Config Change"       | "configChangeQueue"       | ConfigSetting.of("key", "value", ConfigOrigin.ENV)
     "Integration"         | "integrationQueue"        | new Integration("name", true)
     "Dependency"          | "dependencyQueue"         | new Dependency("name", "version", "type", null)
     "Metric"              | "metricQueue"             | new Metric()

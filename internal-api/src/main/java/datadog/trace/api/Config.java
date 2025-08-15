@@ -5209,6 +5209,7 @@ public class Config {
   private static String getEnv(String name) {
     String value = EnvironmentVariables.get(name);
     if (value != null) {
+      // TODO: Report seqID?
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
     return value;
@@ -5232,6 +5233,7 @@ public class Config {
   private static String getProp(String name, String def) {
     String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
+      // TODO: Report seqId?
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
     return value;
