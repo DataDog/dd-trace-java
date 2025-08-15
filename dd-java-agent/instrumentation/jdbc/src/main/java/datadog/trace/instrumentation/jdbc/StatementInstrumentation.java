@@ -61,9 +61,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
     return new String[] {packageName + ".JDBCDecorator", packageName + ".SQLCommenter"};
   }
 
-  // prepend mode will prepend the SQL comment to the raw sql query
-  private static final boolean appendComment = false;
-
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
@@ -129,7 +126,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           // we should not also inject it into SQL comments to avoid duplication
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
 
-          boolean appendComment = StatementInstrumentation.appendComment;
+          // prepend mode will prepend the SQL comment to the raw sql query
+          boolean appendComment = false;
 
           // There is a bug in the SQL Server JDBC driver that prevents
           // the generated keys from being returned when the
