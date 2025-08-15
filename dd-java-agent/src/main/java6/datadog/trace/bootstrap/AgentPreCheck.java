@@ -89,6 +89,7 @@ public class AgentPreCheck {
     return compatible(javaVersion, javaHome, System.err);
   }
 
+  @SuppressForbidden
   // Reachable for testing
   static boolean compatible(String javaVersion, String javaHome, PrintStream output) {
     int majorJavaVersion = parseJavaMajorVersion(javaVersion);

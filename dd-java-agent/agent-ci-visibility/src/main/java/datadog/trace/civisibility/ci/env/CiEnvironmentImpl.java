@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ci.env;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.trace.api.ConfigHelper;
 import java.util.Map;
 
 public class CiEnvironmentImpl implements CiEnvironment {
@@ -12,7 +12,7 @@ public class CiEnvironmentImpl implements CiEnvironment {
   }
 
   public static CiEnvironment local() {
-    return new CiEnvironmentImpl(EnvironmentVariables.getAll());
+    return new CiEnvironmentImpl(ConfigHelper.getEnvironmentVariables());
   }
 
   @Override

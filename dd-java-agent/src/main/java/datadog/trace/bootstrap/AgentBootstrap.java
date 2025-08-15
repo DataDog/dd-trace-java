@@ -2,7 +2,7 @@ package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.trace.bootstrap.environment.EnvironmentVariables;
+import datadog.environment.EnvironmentVariables;
 import datadog.trace.bootstrap.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -44,6 +44,7 @@ import java.util.jar.JarFile;
  *   <li>Do dot touch any logging facilities here so we can configure them later
  * </ul>
  */
+@SuppressForbidden
 public final class AgentBootstrap {
   static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
   static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
