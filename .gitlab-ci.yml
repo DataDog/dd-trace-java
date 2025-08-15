@@ -950,6 +950,7 @@ verify_maven_central_deployment:
       done
 
 publishing-gate:
+  stage: publish
   needs:
     - job: verify_maven_central_deployment
       optional: true
