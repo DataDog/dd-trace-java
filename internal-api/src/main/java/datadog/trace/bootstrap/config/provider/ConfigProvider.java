@@ -202,7 +202,7 @@ public final class ConfigProvider {
           }
           return value;
         }
-      } catch (NumberFormatException ex) {
+      } catch (NumberFormatException | IllegalArgumentException ex) {
         // continue
       }
     }

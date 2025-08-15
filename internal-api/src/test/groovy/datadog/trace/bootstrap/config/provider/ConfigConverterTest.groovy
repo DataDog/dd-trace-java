@@ -23,6 +23,31 @@ class ConfigConverterTest extends DDSpecification {
     "0"         | false
   }
 
+  def "Convert boolean properties throws exception for invalid values"() {
+    when:
+    ConfigConverter.valueOf(invalidValue, Boolean)
+
+    then:
+    def exception = thrown(IllegalArgumentException)
+    exception.message.contains("Invalid boolean value:")
+
+    where:
+    invalidValue << [
+      "42.42",
+      "tru",
+      "truee",
+      "true ",
+      " true",
+      " true ",
+      "   true  ",
+      "notABool",
+      "yes",
+      "no",
+      "on",
+      "off"
+    ]
+  }
+
   def "parse map properly for #mapString"() {
     when:
     def result = ConfigConverter.parseMap(mapString, "test")
