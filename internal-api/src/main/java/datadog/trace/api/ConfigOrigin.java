@@ -21,7 +21,7 @@ public enum ConfigOrigin {
   UNKNOWN("unknown"),
   /** set when the user has not set any configuration for the key (defaults to a value) */
   DEFAULT("default"),
-  /** set when the config is calculated from other configs */
+  /** set when the config is calculated from multiple configs */
   CALCULATED("calculated");
 
   public final String value;
