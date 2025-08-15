@@ -820,7 +820,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
     recordedBaggageTags == [
-      "baggage.user.id": "test-user",
+      "baggage.user.id"   : "test-user",
       "baggage.session.id": "test-session",
       "baggage.account.id": "test-account"
       // "baggage.language" should NOT be present since it's not in default config
@@ -1510,7 +1510,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
   }
-
 
   def 'test instrumentation gateway multipart request body'() {
     setup:
@@ -2231,7 +2230,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   /**
    * This test should be done in a forked test class
-   * @return
    */
   def "test rum injection in head for mime #mime"() {
     setup:
@@ -2251,7 +2249,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   // to be overridden for more specific asserts
-  void assertEndpointDiscovery(final List<?> endpoints) { }
+  void assertEndpointDiscovery(final List<?> endpoints) {}
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
@@ -2325,7 +2323,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+          if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
             "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
             "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
           } else {
