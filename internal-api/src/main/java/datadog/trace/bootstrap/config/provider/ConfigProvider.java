@@ -108,17 +108,25 @@ public final class ConfigProvider {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
     String value = null;
+    ConfigOrigin origin = null;
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       String candidate = source.get(key, aliases);
+      if (collectConfig) {
+        ConfigCollector.get().put(key, candidate, source.origin(), seqId);
+      }
       if (candidate != null && !candidate.trim().isEmpty()) {
         value = candidate;
-        if (collectConfig) {
-          ConfigCollector.get().put(key, candidate, source.origin(), seqId);
-        }
+        origin = source.origin();
       }
       seqId++;
+    }
+    if (collectConfig) {
+      // Re-report the chosen value post-trim, with the highest seqId
+      if (value != null && origin != null) {
+        ConfigCollector.get().put(key, value, origin, seqId + 1);
+      }
     }
     return value != null ? value : defaultValue;
   }
@@ -208,6 +216,22 @@ public final class ConfigProvider {
     return get(key, defaultValue, Double.class);
   }
 
+  /**
+   * TEMPORARY helper method to detect if a string value would be considered an "invalid" boolean
+   * (i.e., not a legitimate boolean value but just gets converted to false by default). This is
+   * useful for testing conversion error scenarios.
+   */
+  private boolean isInvalidBooleanValue(String value) {
+    if (value == null || value.trim().isEmpty()) {
+      return false; // null/empty are valid (converted to null)
+    }
+    // Valid boolean values that should convert properly
+    return !"1".equals(value)
+        && !"0".equals(value)
+        && !"true".equalsIgnoreCase(value)
+        && !"false".equalsIgnoreCase(value);
+  }
+
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
@@ -222,6 +246,14 @@ public final class ConfigProvider {
         if (sourceValue != null && collectConfig) {
           ConfigCollector.get().put(key, sourceValue, source.origin(), seqId);
         }
+
+        // TEMPORARY special handling for Boolean type to simulate conversion errors
+        if (Boolean.class.equals(type) && isInvalidBooleanValue(sourceValue)) {
+          // Treat invalid boolean values as conversion errors (like NumberFormatException)
+          // but still report them to the collector
+          throw new NumberFormatException("Invalid boolean value: " + sourceValue);
+        }
+
         T candidate = ConfigConverter.valueOf(sourceValue, type);
         if (candidate != null) {
           value = candidate;
@@ -299,7 +331,7 @@ public final class ConfigProvider {
     }
 
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
       if (!merged.isEmpty()) {
         ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
       }
@@ -330,7 +362,7 @@ public final class ConfigProvider {
     }
 
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
       if (!merged.isEmpty()) {
         ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
       }
@@ -359,7 +391,7 @@ public final class ConfigProvider {
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
       if (!merged.isEmpty()) {
         ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
       }
