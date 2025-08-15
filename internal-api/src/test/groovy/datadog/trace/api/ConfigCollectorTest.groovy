@@ -64,22 +64,26 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "should collect merged data from multiple sources"() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(configKey), configValue1)
-    injectSysConfig(configKey, configValue2)
+    injectEnvConfig(Strings.toEnvVar(configKey), envValue)
+    if (jvmValue != null) {
+      injectSysConfig(configKey, jvmValue)
+    }
 
     expect:
     def setting = ConfigCollector.get().collect().get(configKey)
     setting.stringValue() == expectedValue
-    setting.origin == ConfigOrigin.JVM_PROP
+    setting.origin == expectedOrigin
 
     where:
-    configKey                                                 | configValue1                                   | configValue2              | expectedValue
+    configKey                                                 | envValue                                       | jvmValue                  | expectedValue                                                          | expectedOrigin
     // ConfigProvider.getMergedMap
-    TracerConfig.TRACE_PEER_SERVICE_MAPPING                   | "service1:best_service,userService:my_service" | "service2:backup_service" | "service2:backup_service,service1:best_service,userService:my_service"
+    TracerConfig.TRACE_PEER_SERVICE_MAPPING                   | "service1:best_service,userService:my_service" | "service2:backup_service" | "service2:backup_service,service1:best_service,userService:my_service" | ConfigOrigin.CALCULATED
     // ConfigProvider.getOrderedMap
-    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING | "/asdf/*:/test,/b:some"                        | "/a:prop"                 | "/asdf/*:/test,/b:some,/a:prop"
+    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING | "/asdf/*:/test,/b:some"                        | "/a:prop"                 | "/asdf/*:/test,/b:some,/a:prop"                                        | ConfigOrigin.CALCULATED
     // ConfigProvider.getMergedMapWithOptionalMappings
-    TracerConfig.HEADER_TAGS                                  | "j:ten"                                        | "e:five,b:six"            | "e:five,j:ten,b:six"
+    TracerConfig.HEADER_TAGS                                  | "j:ten"                                        | "e:five,b:six"            | "e:five,j:ten,b:six"                                                   | ConfigOrigin.CALCULATED
+    // ConfigProvider.getMergedMap, but only one source
+    TracerConfig.TRACE_PEER_SERVICE_MAPPING                   | "service1:best_service,userService:my_service" | null                      | "service1:best_service,userService:my_service"                         | ConfigOrigin.ENV
   }
 
   def "default not-null config settings are collected"() {
