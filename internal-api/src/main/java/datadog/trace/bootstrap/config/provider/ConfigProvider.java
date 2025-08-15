@@ -202,8 +202,8 @@ public final class ConfigProvider {
           }
           return value;
         }
-      } catch (NumberFormatException | IllegalArgumentException ex) {
-        // continue
+      } catch (IllegalArgumentException ex) {
+        // continue - covers both NumberFormatException and IllegalArgumentException
       }
     }
     if (collectConfig) {
