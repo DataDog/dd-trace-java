@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.play26.server
 
 import datadog.trace.agent.test.base.HttpServer
+import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static org.junit.Assume.assumeTrue
 
 class PlayServerWithErrorHandlerTest extends PlayServerTest {
   @Override
@@ -16,9 +16,9 @@ class PlayServerWithErrorHandlerTest extends PlayServerTest {
     true
   }
 
+  @IgnoreIf({ !instance.testException() })
   def "test exception with custom status"() {
     setup:
-    assumeTrue(testException())
     def request = request(CUSTOM_EXCEPTION, 'GET', null).build()
     def response = client.newCall(request).execute()
 

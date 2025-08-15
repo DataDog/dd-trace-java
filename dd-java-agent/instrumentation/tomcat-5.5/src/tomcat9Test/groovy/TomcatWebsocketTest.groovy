@@ -1,3 +1,5 @@
+import spock.lang.IgnoreIf
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -7,7 +9,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
-import static org.junit.Assume.assumeTrue
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
@@ -274,9 +275,9 @@ abstract class TomcatWebsocketTest extends HttpServerTest<Tomcat> {
     context.addFilterMap(filterMap)
   }
 
+  @IgnoreIf({ !instance.testException() })
   def "test exception with custom status"() {
     setup:
-    assumeTrue(testException())
     def request = request(CUSTOM_EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 

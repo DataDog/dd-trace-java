@@ -6,6 +6,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import okhttp3.RequestBody
+import spock.lang.IgnoreIf
 
 import javax.servlet.Servlet
 
@@ -18,7 +19,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
-import static org.junit.Assume.assumeTrue
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
@@ -139,9 +139,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     super.request(uri, method, body)
   }
 
+  @IgnoreIf({ !instance.testException() })
   def "test exception with custom status"() {
     setup:
-    assumeTrue(testException())
     def request = request(CUSTOM_EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 

@@ -9,7 +9,6 @@ import datadog.trace.core.DDSpan
 import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static org.junit.Assume.assumeTrue
 
 abstract class Liberty23Test extends HttpServerTest<Server> {
 
@@ -117,10 +116,9 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
     true
   }
 
+  @IgnoreIf({ !instance.testBlockingOnResponse() })
   def 'test blocking on response with commit during the response'() {
     setup:
-    assumeTrue(testBlockingOnResponse())
-
     def request = request(SUCCESS, 'GET', null)
       .header(IG_BLOCK_RESPONSE_HEADER, 'json')
       .header('x-commit-during-response', 'true')

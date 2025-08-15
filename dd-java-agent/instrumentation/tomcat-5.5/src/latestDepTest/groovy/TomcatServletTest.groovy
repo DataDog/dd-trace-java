@@ -19,6 +19,7 @@ import org.apache.catalina.valves.ErrorReportValve
 import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
+import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -26,11 +27,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
-import static org.junit.Assume.assumeTrue
 
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
-
-
   @Override
   boolean hasExtraErrorInformation() {
     true
@@ -165,9 +163,9 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
       WEBSOCKET.path).build())
   }
 
+  @IgnoreIf({ !instance.testException() })
   def "test exception with custom status"() {
     setup:
-    assumeTrue(testException())
     def request = request(CUSTOM_EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 
