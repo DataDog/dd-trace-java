@@ -3,7 +3,6 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
@@ -16,13 +15,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
-
 import java.util.function.Consumer
-
 import static datadog.context.Context.root
 import static datadog.trace.api.TracePropagationStyle.DATADOG
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
-import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static datadog.trace.api.datastreams.DataStreamsContext.create
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64
@@ -451,34 +446,6 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       pathwayLatencyNano == 50
       edgeLatencyNano == 25
     }
-  }
-
-  def "Primary tag used in hash calculation"() {
-    when:
-    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    injectSysConfig(PRIMARY_TAG, "region-2")
-    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    then:
-    firstBaseHash != secondBaseHash
-  }
-
-  def "Process Tags used in hash calculation"() {
-    when:
-    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    ProcessTags.reset()
-    ProcessTags.addTag("000", "first")
-    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    then:
-    firstBaseHash != secondBaseHash
-    assert ProcessTags.getTagsForSerialization().startsWithAny("000:first,")
-    cleanup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
-    ProcessTags.reset()
   }
 
   def "Check context extractor decorator behavior"() {

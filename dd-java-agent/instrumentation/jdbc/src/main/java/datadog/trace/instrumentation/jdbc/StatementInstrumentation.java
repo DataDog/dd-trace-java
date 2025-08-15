@@ -134,8 +134,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   dbInfo.getType(),
                   dbInfo.getHost(),
                   dbInfo.getDb(),
-                  traceParent,
-                  injectTraceInComment,
+                  injectTraceInComment ? traceParent : null,
                   appendComment);
         }
         DECORATE.onStatement(span, copy);

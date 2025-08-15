@@ -7,9 +7,11 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MON
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
@@ -113,7 +115,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
+    this.hashOfKnownTags =
+        BaseHash.getBaseHash(
+            wellKnownTags.getService(),
+            wellKnownTags.getEnv(),
+            ContainerInfo.get().getContainerTagsHash());
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
 
