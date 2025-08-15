@@ -20,7 +20,9 @@ public enum ConfigOrigin {
   /** set for cases where it is difficult/not possible to determine the source of a config. */
   UNKNOWN("unknown"),
   /** set when the user has not set any configuration for the key (defaults to a value) */
-  DEFAULT("default");
+  DEFAULT("default"),
+  /** set when the config is calculated from other configs */
+  CALCULATED("calculated");
 
   public final String value;
 
