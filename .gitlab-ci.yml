@@ -953,10 +953,10 @@ publishing-gate:
   stage: publish
   needs:
     - job: verify_maven_central_deployment
-      optional: true
+      optional: true # Required for releases only
   rules:
     - if: '$POPULATE_CACHE'
-      when: never
+      when: on_success
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
     - when: manual
