@@ -1,10 +1,10 @@
 package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
-import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static org.junit.Assume.assumeTrue
 
 // TODO: add a test for a longer chain of promises
 abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
@@ -146,9 +146,9 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     value << [true, false]
   }
 
-  @IgnoreIf({ !instance.picksUpCompletingScope() })
   def "test call with no parent (completing scope)"() {
     setup:
+    assumeTrue(picksUpCompletingScope())
     def promise = newPromise()
 
     when:
