@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.trace.bootstrap.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -91,7 +92,7 @@ public final class AgentBootstrap {
   }
 
   private static BootstrapInitializationTelemetry createInitializationTelemetry() {
-    String forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
+    String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
       return BootstrapInitializationTelemetry.noOpInstance();
     }
@@ -165,12 +166,12 @@ public final class AgentBootstrap {
   static boolean getConfig(String configName) {
     switch (configName) {
       case LIB_INJECTION_ENABLED_ENV_VAR:
-        return System.getenv(LIB_INJECTION_ENABLED_ENV_VAR) != null;
+        return EnvironmentVariables.get(LIB_INJECTION_ENABLED_ENV_VAR) != null;
       case LIB_INJECTION_FORCE_SYS_PROP:
         {
           String envVarName =
               LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
-          String injectionForceFlag = System.getenv(envVarName);
+          String injectionForceFlag = EnvironmentVariables.get(envVarName);
           if (injectionForceFlag == null) {
             injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
           }
