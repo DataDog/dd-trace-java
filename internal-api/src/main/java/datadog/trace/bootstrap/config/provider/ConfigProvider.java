@@ -79,7 +79,7 @@ public final class ConfigProvider {
       String value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
         }
         return value;
       }
@@ -198,7 +198,7 @@ public final class ConfigProvider {
         T value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
-            ConfigCollector.get().put(key, sourceValue, source.origin());
+            ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
           }
           return value;
         }
@@ -247,6 +247,7 @@ public final class ConfigProvider {
   public Map<String, String> getMergedMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -256,11 +257,12 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -268,6 +270,7 @@ public final class ConfigProvider {
   public Map<String, String> getMergedTagsMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -278,11 +281,12 @@ public final class ConfigProvider {
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -290,6 +294,7 @@ public final class ConfigProvider {
   public Map<String, String> getOrderedMap(String key) {
     LinkedHashMap<String, String> merged = new LinkedHashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -299,11 +304,12 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -312,6 +318,7 @@ public final class ConfigProvider {
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -323,11 +330,12 @@ public final class ConfigProvider {
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
           origin = sources[i].origin();
+          configId = getConfigIdFromSource(sources[i]);
         }
         merged.putAll(parsedMap);
       }
       if (collectConfig) {
-        ConfigCollector.get().put(key, merged, origin);
+        ConfigCollector.get().put(key, merged, origin, configId);
       }
     }
     return merged;
@@ -497,6 +505,13 @@ public final class ConfigProvider {
     properties.setProperty(PropertiesConfigSource.CONFIG_FILE_STATUS, configurationFilePath);
 
     return properties;
+  }
+
+  private static String getConfigIdFromSource(Source source) {
+    if (source instanceof StableConfigSource) {
+      return ((StableConfigSource) source).getConfigId();
+    }
+    return null;
   }
 
   public abstract static class Source {
