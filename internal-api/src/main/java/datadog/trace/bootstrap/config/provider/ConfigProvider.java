@@ -62,6 +62,12 @@ public final class ConfigProvider {
 
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
     String value = getString(key);
+    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // is the most accurate one
+    if (collectConfig) {
+      String defaultValueString = defaultValue == null ? null : defaultValue.name();
+      ConfigCollector.get().put(key, defaultValueString, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     if (null != value) {
       try {
         return Enum.valueOf(enumType, value);
@@ -70,14 +76,13 @@ public final class ConfigProvider {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
     }
-    if (collectConfig) {
-      String valueStr = defaultValue == null ? null : defaultValue.name();
-      ConfigCollector.get().put(key, valueStr, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
-    }
     return defaultValue;
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
@@ -91,9 +96,6 @@ public final class ConfigProvider {
       }
       seqId++;
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
-    }
     return value != null ? value : defaultValue;
   }
 
@@ -102,6 +104,9 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
@@ -115,9 +120,6 @@ public final class ConfigProvider {
       }
       seqId++;
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
-    }
     return value != null ? value : defaultValue;
   }
 
@@ -126,6 +128,9 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
@@ -142,9 +147,6 @@ public final class ConfigProvider {
         }
       }
       seqId++;
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
     return value != null ? value : defaultValue;
   }
@@ -207,6 +209,9 @@ public final class ConfigProvider {
   }
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     T value = null;
     ConfigOrigin origin = null;
     int seqId = DEFAULT_SEQ_ID + 1;
@@ -228,7 +233,6 @@ public final class ConfigProvider {
       seqId++;
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
       // Re-report the chosen value and origin to ensure its seqId is higher than any error configs
       if (value != null && origin != null) {
         ConfigCollector.get().put(key, value, origin, seqId + 1);
@@ -243,10 +247,12 @@ public final class ConfigProvider {
 
   public List<String> getList(String key, List<String> defaultValue) {
     String list = getString(key);
+    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // is the most accurate one
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     if (null == list) {
-      if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
-      }
       return defaultValue;
     } else {
       return ConfigConverter.parseList(list);
@@ -255,10 +261,12 @@ public final class ConfigProvider {
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
+    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // is the most accurate one
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     if (null == list) {
-      if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
-      }
       return defaultValue;
     } else {
       return new HashSet(ConfigConverter.parseList(list));
@@ -289,9 +297,12 @@ public final class ConfigProvider {
       }
       merged.putAll(parsedMap);
     }
-    // TODO: Report telemetry about the final, mergedMap value with new origin: calculated
-    if (collectConfig && merged.isEmpty()) {
+
+    if (collectConfig) {
       ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      if (!merged.isEmpty()) {
+        ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
+      }
     }
     return merged;
   }
@@ -318,8 +329,11 @@ public final class ConfigProvider {
       merged.putAll(parsedMap);
     }
 
-    if (collectConfig && merged.isEmpty()) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      if (!merged.isEmpty()) {
+        ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
+      }
     }
     return merged;
   }
@@ -344,9 +358,11 @@ public final class ConfigProvider {
       }
       merged.putAll(parsedMap);
     }
-    // TODO: Report telemetry about the final, mergedMap value with new origin: calculated
-    if (collectConfig && merged.isEmpty()) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      if (!merged.isEmpty()) {
+        ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
+      }
     }
     return merged;
   }
@@ -374,10 +390,12 @@ public final class ConfigProvider {
         }
         merged.putAll(parsedMap);
       }
-      // TODO: Report telemetry about the final, mergedMap value with new origin: calculated
-      if (collectConfig && merged.isEmpty()) {
+      if (collectConfig) {
         ConfigCollector.get()
             .put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+        if (!merged.isEmpty()) {
+          ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
+        }
       }
     }
     return merged;
@@ -385,15 +403,17 @@ public final class ConfigProvider {
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
     final String value = getString(key, null, aliases);
+    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // is the most accurate one
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    }
     try {
       if (value != null) {
         return ConfigConverter.parseIntegerRangeSet(value, key);
       }
     } catch (final NumberFormatException e) {
       log.warn("Invalid configuration for {}", key, e);
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }
     return defaultValue;
   }

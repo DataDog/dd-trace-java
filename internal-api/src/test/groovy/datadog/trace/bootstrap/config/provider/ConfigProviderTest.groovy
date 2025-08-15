@@ -84,9 +84,8 @@ class ConfigProviderTest extends DDSpecification {
     jvmSetting.seqId > envSetting.seqId
     envSetting.seqId > defaultSetting.seqId
 
-    // The value returned by provider should be the highest precedence value
+    // The value returned by ConfigProvider should be the highest precedence value
     value == jvmSetting.stringValue()
-
   }
 
   def "ConfigProvider reports highest seqId for chosen value and origin regardless of conversion errors"() {
@@ -122,7 +121,7 @@ class ConfigProviderTest extends DDSpecification {
     jvmSetting.stringValue() == "notAnInt"
     jvmSetting.origin == ConfigOrigin.JVM_PROP
 
-    // The chosen value (from ENV) should be re-reported with the highest seqId
+    // The chosen value (from ENV) should have been re-reported with the highest seqId
     def maxSeqId = [defaultSetting.seqId, envSetting.seqId, jvmSetting.seqId].max()
     def chosenSetting = [defaultSetting, envSetting, jvmSetting].find { it.seqId == maxSeqId }
     chosenSetting.stringValue() == "42"

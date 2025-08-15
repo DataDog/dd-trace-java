@@ -240,12 +240,12 @@ class ConfigCollectorTest extends DDSpecification {
     "trace.sample.rate"      | "0.3"
   }
 
-  def "config collector assigns creates ConfigSettings with correct seqId"() {
+  def "config collector creates ConfigSettings with correct seqId"() {
     setup:
     ConfigCollector.get().collect() // clear previous state
 
     when:
-    // Simulate three sources with increasing precedence and a default
+    // Simulate sources with increasing precedence and a default
     ConfigCollector.get().put("test.key", "default", ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID)
     ConfigCollector.get().put("test.key", "env", ConfigOrigin.ENV, 2)
     ConfigCollector.get().put("test.key", "jvm", ConfigOrigin.JVM_PROP, 3)
@@ -259,13 +259,9 @@ class ConfigCollectorTest extends DDSpecification {
     def remoteSetting = collected.get(ConfigOrigin.REMOTE).get("test.key")
 
     defaultSetting.seqId == ConfigSetting.DEFAULT_SEQ_ID
-    envSetting.seqId == 2
-    jvmSetting.seqId == 3
-    remoteSetting.seqId == 4
-
     // Higher precedence = higher seqId
-    assert remoteSetting.seqId > jvmSetting.seqId
-    assert jvmSetting.seqId > envSetting.seqId
-    assert envSetting.seqId > defaultSetting.seqId
+    defaultSetting.seqId < envSetting.seqId
+    envSetting.seqId < jvmSetting.seqId
+    jvmSetting.seqId < remoteSetting.seqId
   }
 }
