@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +76,7 @@ public class StableConfigParser {
             return new StableConfigSource.StableConfig(configId, mergedConfigMap);
           }
         }
+        log.debug("No matching rule found in stable configuration file {}", filePath);
       }
       // If configs were found in apm_configuration_default, use them
       if (!configMap.isEmpty()) {
@@ -85,7 +87,6 @@ public class StableConfigParser {
       if (configId != null) {
         return new StableConfigSource.StableConfig(configId, Collections.emptyMap());
       }
-
     } catch (IOException e) {
       log.debug("Failed to read the stable configuration file: {}", filePath, e);
     }
@@ -117,22 +118,32 @@ public class StableConfigParser {
       return false;
     }
     value = value.toLowerCase(Locale.ROOT);
+
+    Predicate<String> comparator;
+    switch (operator) {
+      case "equals":
+        comparator = value::equals;
+        break;
+      case "starts_with":
+        comparator = value::startsWith;
+        break;
+      case "ends_with":
+        comparator = value::endsWith;
+        break;
+      case "contains":
+        comparator = value::contains;
+        break;
+      default:
+        return false;
+    }
+
     for (String match : matches) {
       if (match == null) {
         continue;
       }
       match = match.toLowerCase(Locale.ROOT);
-      switch (operator) {
-        case "equals":
-          return value.equals(match);
-        case "starts_with":
-          return value.startsWith(match);
-        case "ends_with":
-          return value.endsWith(match);
-        case "contains":
-          return value.contains(match);
-        default:
-          return false;
+      if (comparator.test(match)) {
+        return true;
       }
     }
     return false;
