@@ -15,6 +15,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -105,11 +107,11 @@ public class OtelSpan implements Span, WithAgentSpan {
     if (this.recording) {
       if (this.statusCode == UNSET) {
         this.statusCode = statusCode;
-        this.delegate.setError(statusCode == ERROR);
+        this.delegate.setError(statusCode == ERROR, ErrorPriorities.MANUAL_INSTRUMENTATION);
         this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
       } else if (this.statusCode == ERROR && statusCode == OK) {
         this.statusCode = statusCode;
-        this.delegate.setError(false);
+        this.delegate.setError(false, ErrorPriorities.MANUAL_INSTRUMENTATION);
         this.delegate.setErrorMessage(null);
       }
     }
@@ -132,7 +134,7 @@ public class OtelSpan implements Span, WithAgentSpan {
   @Override
   public Span updateName(String name) {
     if (this.recording) {
-      this.delegate.setResourceName(name);
+      this.delegate.setResourceName(name, ResourceNamePriorities.MANUAL_INSTRUMENTATION);
     }
     return this;
   }
