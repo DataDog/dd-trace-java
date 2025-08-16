@@ -62,6 +62,7 @@ jobs:
       scenarios_groups: tracer-release
       excluded_scenarios: CROSSED_TRACING_LIBRARIES,INTEGRATIONS_AWS,APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # require AWS and datadog credentials 
       skip_empty_scenarios: true
+      ref: bbujon/context
 
   # Ensure the main job is run to completion
   check:

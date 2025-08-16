@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.play26;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_REQUEST;
@@ -9,7 +10,6 @@ import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
@@ -39,7 +39,7 @@ public class PlayAdvice {
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
-      parentContext = Java8BytecodeBridge.getRootContext();
+      parentContext = getRootContext();
       span = startSpan("play", PLAY_REQUEST);
       scope = span.attach();
     }

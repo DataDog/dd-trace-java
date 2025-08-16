@@ -4,10 +4,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -22,7 +23,6 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
@@ -124,11 +124,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
 
       final Context parentContext = DECORATE.extract(req);
-      // TODO: Migrate setting DD_EXTRACTED_CONTEXT_ATTRIBUTE from AgentSpanContext.Extracted to
-      // Context
-      req.setAttribute(
-          DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getExtractedSpanContext(parentContext));
-
+      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
       final Context context = DECORATE.startSpan(req, parentContext);
       final ContextScope scope = context.attach();
 
@@ -171,12 +167,9 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         AgentSpan span = (AgentSpan) spanObj;
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
         req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
-        Object ctxObj = req.getAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE);
-        AgentSpanContext.Extracted ctx =
-            ctxObj instanceof AgentSpanContext.Extracted
-                ? (AgentSpanContext.Extracted) ctxObj
-                : null;
-        DECORATE.onRequest(span, req, req, ctx);
+        Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+        Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : getRootContext();
+        DECORATE.onRequest(span, req, req, parentContext);
         Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
         if (rba != null) {
           TomcatBlockingHelper.commitBlockingResponse(
