@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.BlockingDeque
@@ -51,7 +52,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG | TOP_LEVEL_TAG))
 
-    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0, false))
+    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")]))
     batch.add(0L, 10)
     batch.add(0L, 10)
     batch.add(0L, 10)
@@ -126,7 +127,7 @@ class AggregateMetricTest extends DDSpecification {
   def "consistent under concurrent attempts to read and write"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0, false)
+    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")])
     BlockingDeque<Batch> queue = new LinkedBlockingDeque<>(1000)
     ExecutorService reader = Executors.newSingleThreadExecutor()
     int writerCount = 10
