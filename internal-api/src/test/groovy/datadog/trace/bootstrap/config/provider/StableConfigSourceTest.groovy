@@ -9,6 +9,10 @@ import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig
 import datadog.trace.test.util.DDSpecification
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -26,18 +30,17 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   def "test empty file"() {
-    when:
+    given:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
-    then:
-    if (filePath == null) {
-      throw new AssertionError("Failed to create: " + filePath)
-    }
 
     when:
     StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
     then:
     config.getKeys().size() == 0
     config.getConfigId() == null
+
+    cleanup:
+    Files.delete(filePath)
   }
 
   def "test file invalid format"() {
@@ -56,6 +59,8 @@ class StableConfigSourceTest extends DDSpecification {
     then:
     stableCfg.getConfigId() == null
     stableCfg.getKeys().size() == 0
+
+    cleanup:
     Files.delete(filePath)
 
     where:
@@ -65,12 +70,8 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   def "test file valid format"() {
-    when:
+    given:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
-    then:
-    if (filePath == null) {
-      throw new AssertionError("Failed to create: " + filePath)
-    }
 
     when:
     StableConfig stableConfigYaml = new StableConfig(configId, defaultConfigs)
@@ -100,12 +101,122 @@ class StableConfigSourceTest extends DDSpecification {
         !cfgKeys.contains(keyString)
       }
     }
+
+    cleanup:
     Files.delete(filePath)
 
     where:
     configId | defaultConfigs                             | ruleConfigs
     ""       | [:]                                        | Arrays.asList(new Rule())
     "12345"  | ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
+  }
+
+  def "test parse invalid logs mapping errors"() {
+    given:
+    Logger logbackLogger = (Logger) LoggerFactory.getLogger(StableConfigSource)
+    def listAppender = new ListAppender<ILoggingEvent>()
+    listAppender.start()
+    logbackLogger.addAppender(listAppender)
+
+    def tempFile = File.createTempFile("testFile_", ".yaml")
+    tempFile.text = yaml
+
+    when:
+    def stableCfg = new StableConfigSource(tempFile.absolutePath, ConfigOrigin.LOCAL_STABLE_CONFIG)
+
+    then:
+    stableCfg.config == StableConfigSource.StableConfig.EMPTY
+    def warnLogs = listAppender.list.findAll { it.level.toString() == 'WARN' }
+    warnLogs.any { it.formattedMessage.contains(expectedLogSubstring) }
+
+    cleanup:
+    tempFile.delete()
+    logbackLogger.detachAppender(listAppender)
+
+    where:
+    yaml                                                                                           | expectedLogSubstring
+    '''apm_configuration_rules:
+          - selectors:
+              - key: "someKey"
+                matches: ["someValue"]
+                operator: equals
+            configuration:
+              DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'origin' in selector"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+    '''                                                                                             | "Missing 'configuration' in rule"
+    '''apm_configuration_rules:
+         - configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'selectors' in rule"
+    '''apm_configuration_rules:
+          - selectors: "not-a-list"
+            configuration:
+              DD_SERVICE: "test"
+    '''                                                                                             | "'selectors' must be a list, but got: String"
+    '''apm_configuration_rules:
+           - selectors:
+               - "not-a-map"
+             configuration:
+               DD_SERVICE: "test"
+     '''                                                                                             | "Each selector must be a map, but got: String"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+            configuration: "not-a-map"
+    '''                                                                                             | "'configuration' must be a map, but got: String"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+            configuration: 12345
+    '''                                                                                             | "'configuration' must be a map, but got: Integer"
+    '''apm_configuration_rules:
+          - "not-a-map"
+    '''                                                                                             | "Rule must be a map, but got: String"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: "not-a-list"
+               operator: equals
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'matches' must be a list, but got: String"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                            | "Missing 'operator' in selector"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+               operator: 12345
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'operator' must be a string, but got: Integer"
+    '''apm_configuration_rules:
+          - selectors:
+              # origin is missing entirely, should trigger NullPointerException
+              - key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+    '''                                                                                             | "YAML mapping error in stable configuration file"
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability

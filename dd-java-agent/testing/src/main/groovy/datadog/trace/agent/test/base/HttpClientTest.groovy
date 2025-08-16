@@ -275,6 +275,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     body = (1..10000).join(" ")
   }
 
+  @Flaky(suites = ["ApacheHttpAsyncClient5NamingV0Test"])
   def "basic #method request with parent"() {
     when:
     def status = runUnderTrace("parent") {
@@ -308,7 +309,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     body = (1..10000).join(" ")
   }
 
-  @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
+  @Flaky(suites = ["ApacheHttpAsyncClient5NamingV0Test"])
   def "server error request with parent"() {
     setup:
     def uri = server.address.resolve("/error")
@@ -346,7 +347,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     "POST" | _
   }
 
-  @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
+  @Flaky(suites = ["ApacheHttpAsyncClient5NamingV0Test"])
   def "client error request with parent"() {
     setup:
     def uri = server.address.resolve("/secured")
@@ -415,7 +416,6 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "HEAD"
   }
 
-  @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
   def "trace request without propagation"() {
     when:
     injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
