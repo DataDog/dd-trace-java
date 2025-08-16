@@ -40,7 +40,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -210,13 +209,7 @@ public class DebuggerAgent {
     Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
-    exceptionDebugger =
-        new DefaultExceptionDebugger(
-            configurationUpdater,
-            classNameFilter,
-            Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond(),
-            config.getDebuggerExceptionMaxCapturedFrames());
+    exceptionDebugger = new DefaultExceptionDebugger(configurationUpdater, classNameFilter, config);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }

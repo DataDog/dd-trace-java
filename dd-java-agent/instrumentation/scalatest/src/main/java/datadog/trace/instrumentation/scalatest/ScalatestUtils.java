@@ -24,6 +24,7 @@ public abstract class ScalatestUtils {
           LibraryCapability.EFD,
           LibraryCapability.ATR,
           LibraryCapability.IMPACTED,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX);

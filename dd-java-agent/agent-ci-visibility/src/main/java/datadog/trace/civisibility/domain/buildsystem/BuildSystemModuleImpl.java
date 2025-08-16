@@ -13,6 +13,7 @@ import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -179,6 +180,18 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED),
         Boolean.toString(executionSettings.getTestManagementSettings().isEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED),
+        Boolean.toString(executionSettings.isFailedTestReplayEnabled()));
+
+    // enable exception replay if failed test replay is enabled
+    if (executionSettings.isFailedTestReplayEnabled()) {
+      propagatedSystemProperties.put(
+          Strings.propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED),
+          "true");
+    }
 
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,

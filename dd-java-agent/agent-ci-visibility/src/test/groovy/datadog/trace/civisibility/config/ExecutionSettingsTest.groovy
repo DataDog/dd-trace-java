@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.config
 
 import datadog.trace.api.civisibility.CIConstants
-import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
@@ -9,7 +8,6 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.test.util.DDSpecification
 
-import java.util.stream.Collectors
 
 import static datadog.trace.civisibility.TestUtils.lines
 
@@ -26,6 +24,7 @@ class ExecutionSettingsTest extends DDSpecification {
     where:
     settings << [
       new ExecutionSettings(
+      false,
       false,
       false,
       false,
@@ -49,6 +48,7 @@ class ExecutionSettingsTest extends DDSpecification {
       false,
       true,
       true,
+      true,
       new EarlyFlakeDetectionSettings(true, [], 10),
       new TestManagementSettings(true, 20),
       "",
@@ -68,6 +68,7 @@ class ExecutionSettingsTest extends DDSpecification {
       true,
       false,
       true,
+      false,
       new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(10, 20)], 10),
       new TestManagementSettings(true, 20),
       "itrCorrelationId",
@@ -86,6 +87,7 @@ class ExecutionSettingsTest extends DDSpecification {
       ),
 
       new ExecutionSettings(
+      true,
       true,
       true,
       true,
@@ -122,6 +124,7 @@ class ExecutionSettingsTest extends DDSpecification {
     earlyFlakeDetectionSettings.isEnabled() >> settingsEnabled
 
     return new ExecutionSettings(
+    settingsEnabled,
     settingsEnabled,
     settingsEnabled,
     settingsEnabled,

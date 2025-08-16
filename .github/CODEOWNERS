@@ -87,6 +87,7 @@
 /dd-java-agent/instrumentation/maven-surefire/      @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/weaver/              @DataDog/ci-app-libraries-java
 /dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries-java
+/dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries-java
 /dd-smoke-tests/maven/                              @DataDog/ci-app-libraries-java
 /internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries-java
 **/civisibility/                                    @DataDog/ci-app-libraries-java
