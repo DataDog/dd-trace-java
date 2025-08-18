@@ -3,13 +3,15 @@ package datadog.trace.instrumentation.aws.v0;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.CONTEXT_CONTEXT_KEY;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
-import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SPAN_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
 import com.amazonaws.handlers.RequestHandler2;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -54,12 +56,15 @@ public class AWSHttpClientInstrumentation
       }
 
       if (throwable != null && request != null) {
-        final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
-        if (span != null) {
-          request.addHandlerContext(SPAN_CONTEXT_KEY, null);
-          DECORATE.onError(span, throwable);
-          DECORATE.beforeFinish(span);
-          span.finish();
+        final Context context = request.getHandlerContext(CONTEXT_CONTEXT_KEY);
+        if (context != null) {
+          request.addHandlerContext(CONTEXT_CONTEXT_KEY, null);
+          final AgentSpan span = spanFromContext(context);
+          if (span != null) {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            span.finish();
+          }
         }
       }
     }
