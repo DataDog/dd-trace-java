@@ -529,31 +529,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
 
         reportIfChanged(
-            target.statsd,
-            "client-stats.processed.traces",
-            target.clientStatsProcessedTraces,
-            NO_TAGS);
+            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
 
+        reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
         reportIfChanged(
-            target.statsd,
-            "client-stats.processed.spans",
-            target.clientStatsProcessedSpans,
-            NO_TAGS);
+            target.statsd, "stats.p0_dropped_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
         reportIfChanged(
-            target.statsd,
-            "client-stats.p0-dropped.traces",
-            target.clientStatsP0DroppedTraces,
-            NO_TAGS);
+            target.statsd, "stats.p0_dropped_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
         reportIfChanged(
-            target.statsd,
-            "client-stats.p0-dropped.spans",
-            target.clientStatsP0DroppedSpans,
-            NO_TAGS);
+            target.statsd, "stats.flushed_payloads", target.clientStatsRequests, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
         reportIfChanged(
-            target.statsd, "client-stats.requests", target.clientStatsRequests, NO_TAGS);
-        reportIfChanged(target.statsd, "client-stats.errors", target.clientStatsErrors, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "client-stats.downgrades", target.clientStatsDowngrades, NO_TAGS);
+            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
