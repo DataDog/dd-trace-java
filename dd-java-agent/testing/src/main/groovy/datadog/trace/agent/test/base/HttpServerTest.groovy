@@ -102,7 +102,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static java.nio.charset.StandardCharsets.UTF_8
-import static org.junit.Assume.assumeTrue
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
