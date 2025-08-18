@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
+import java.util.function.LongConsumer
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
   static final byte[] MARKER_BYTES = "</head>".getBytes("UTF-8")
@@ -104,7 +105,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     def testBytes = "test content".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
     def counter = new Counter()
-    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
     piped.write(testBytes)
@@ -120,7 +121,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     def testBytes = "test".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
     def counter = new Counter()
-    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
     for (int i = 0; i < testBytes.length; i++) {
@@ -141,7 +142,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     def testBytes = "test content".getBytes("UTF-8")
     def downstream = new ByteArrayOutputStream()
     def counter = new Counter()
-    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) })
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
     piped.write(part1)
@@ -167,5 +168,50 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     then:
     noExceptionThrown()
     downstream.toByteArray() == testBytes
+  }
+
+  def 'should call timing callback when injection happens'() {
+    setup:
+    def downstream = Mock(OutputStream) {
+      write(_) >> { args ->
+        Thread.sleep(1) // simulate slow write
+      }
+    }
+    def timingCallback = Mock(LongConsumer)
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, null, timingCallback)
+
+    when:
+    piped.write("<html><head></head><body></body></html>".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    1 * timingCallback.accept({ it > 0 })
+  }
+
+  def 'should not call timing callback when no injection happens'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def timingCallback = Mock(LongConsumer)
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, null, timingCallback)
+
+    when:
+    piped.write("no marker here".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    0 * timingCallback.accept(_)
+  }
+
+  def 'should be resilient to exceptions when timing callback is null'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, null, null)
+
+    when:
+    piped.write("<html><head></head><body></body></html>".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    noExceptionThrown()
   }
 }

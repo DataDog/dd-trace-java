@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
+import java.util.function.LongConsumer
 
 class InjectingPipeWriterTest extends DDSpecification {
   static final char[] MARKER_CHARS = "</head>".toCharArray()
@@ -119,7 +120,7 @@ class InjectingPipeWriterTest extends DDSpecification {
     setup:
     def downstream = new StringWriter()
     def counter = new Counter()
-    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) })
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
     piped.write("test content".toCharArray())
@@ -134,7 +135,7 @@ class InjectingPipeWriterTest extends DDSpecification {
     setup:
     def downstream = new StringWriter()
     def counter = new Counter()
-    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) })
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
     def content = "test"
@@ -152,7 +153,7 @@ class InjectingPipeWriterTest extends DDSpecification {
     setup:
     def downstream = new StringWriter()
     def counter = new Counter()
-    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) })
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
     piped.write("test".toCharArray())
@@ -177,5 +178,50 @@ class InjectingPipeWriterTest extends DDSpecification {
     then:
     noExceptionThrown()
     downstream.toString() == "test content"
+  }
+
+  def 'should call timing callback when injection happens'() {
+    setup:
+    def downstream = Mock(Writer) {
+      write(_) >> { args ->
+        Thread.sleep(1) // simulate slow write
+      }
+    }
+    def timingCallback = Mock(LongConsumer)
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, timingCallback)
+
+    when:
+    piped.write("<html><head></head><body></body></html>".toCharArray())
+    piped.close()
+
+    then:
+    1 * timingCallback.accept({ it > 0 })
+  }
+
+  def 'should not call timing callback when no injection happens'() {
+    setup:
+    def downstream = new StringWriter()
+    def timingCallback = Mock(LongConsumer)
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, timingCallback)
+
+    when:
+    piped.write("no marker here".toCharArray())
+    piped.close()
+
+    then:
+    0 * timingCallback.accept(_)
+  }
+
+  def 'should be resilient to exceptions when timing callback is null'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, null)
+
+    when:
+    piped.write("<html><head></head><body></body></html>".toCharArray())
+    piped.close()
+
+    then:
+    noExceptionThrown()
   }
 }

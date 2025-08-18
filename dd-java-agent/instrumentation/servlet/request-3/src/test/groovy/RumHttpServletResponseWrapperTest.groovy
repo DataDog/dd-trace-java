@@ -171,7 +171,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
   }
 
   // Callback is created in the RumHttpServletResponseWrapper and passed to InjectingPipeOutputStream via WrappedServletOutputStream.
-  // When the stream is closed, the callback is called with the total number of bytes written to the stream.
+  // When the stream is closed, the callback is called with the number of bytes written to the stream and the time taken to write the injection content.
   void 'response sizes are reported to the telemetry collector via the WrappedServletOutputStream callback'() {
     setup:
     def downstream = Mock(javax.servlet.ServletOutputStream)
@@ -199,7 +199,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def contentToInject = "<script></script>".getBytes("UTF-8")
     def onBytesWritten = Mock(LongConsumer)
     def stream = new InjectingPipeOutputStream(
-      downstream, marker, contentToInject, null, onBytesWritten)
+      downstream, marker, contentToInject, null, onBytesWritten, null)
 
     when:
     stream.write("test".getBytes("UTF-8"))
@@ -217,7 +217,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def contentToInject = "<script></script>".toCharArray()
     def onBytesWritten = Mock(LongConsumer)
     def writer = new InjectingPipeWriter(
-      downstream, marker, contentToInject, null, onBytesWritten)
+      downstream, marker, contentToInject, null, onBytesWritten, null)
 
     when:
     writer.write("test".toCharArray())
@@ -228,19 +228,45 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * onBytesWritten.accept(11)
   }
 
-  void 'injection timing is reported when injection is successful'() {
+  void 'injection timing is reported by the InjectingPipeOutputStream callback'() {
     setup:
-    wrapper.setContentType("text/html")
-    def mockWriter = Mock(java.io.PrintWriter)
-    mockResponse.getWriter() >> mockWriter
+    def downstream = Mock(java.io.OutputStream) {
+      write(_) >> { args ->
+        Thread.sleep(1) // simulate slow write
+      }
+    }
+    def marker = "</head>".getBytes("UTF-8")
+    def contentToInject = "<script></script>".getBytes("UTF-8")
+    def onInjectionTime = Mock(LongConsumer)
+    def stream = new InjectingPipeOutputStream(
+      downstream, marker, contentToInject, null, null, onInjectionTime)
 
     when:
-    wrapper.getWriter()
-    Thread.sleep(1) // ensure measurable time passes
-    wrapper.onInjected()
+    stream.write("<html><head></head><body>content</body></html>".getBytes("UTF-8"))
+    stream.close()
 
     then:
-    1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)
-    1 * mockTelemetryCollector.onInjectionTime(SERVLET_VERSION, { it > 0 })
+    1 * onInjectionTime.accept({ it > 0 })
+  }
+
+  void 'injection timing is reported by the InjectingPipeWriter callback'() {
+    setup:
+    def downstream = Mock(java.io.Writer) {
+      write(_) >> { args ->
+        Thread.sleep(1) // simulate slow write
+      }
+    }
+    def marker = "</head>".toCharArray()
+    def contentToInject = "<script></script>".toCharArray()
+    def onInjectionTime = Mock(LongConsumer)
+    def writer = new InjectingPipeWriter(
+      downstream, marker, contentToInject, null, null, onInjectionTime)
+
+    when:
+    writer.write("<html><head></head><body>content</body></html>".toCharArray())
+    writer.close()
+
+    then:
+    1 * onInjectionTime.accept({ it > 0 })
   }
 }

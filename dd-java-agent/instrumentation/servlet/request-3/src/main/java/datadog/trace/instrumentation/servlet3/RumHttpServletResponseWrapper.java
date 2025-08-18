@@ -21,7 +21,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private PrintWriter printWriter;
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
-  private long injectionStartTime = -1;
   private String contentEncoding = null;
 
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
@@ -63,10 +62,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
       return super.getOutputStream();
     }
-    // start timing injection
-    if (injectionStartTime == -1) {
-      injectionStartTime = System.nanoTime();
-    }
     try {
       String encoding = getCharacterEncoding();
       if (encoding == null) {
@@ -80,9 +75,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected,
               bytes ->
                   RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes));
+                      .onInjectionResponseSize(servletVersion, bytes),
+              milliseconds ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionTime(servletVersion, milliseconds));
     } catch (Exception e) {
-      injectionStartTime = -1;
       RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
       throw e;
     }
@@ -99,10 +96,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
       return super.getWriter();
     }
-    // start timing injection
-    if (injectionStartTime == -1) {
-      injectionStartTime = System.nanoTime();
-    }
     try {
       wrappedPipeWriter =
           new InjectingPipeWriter(
@@ -112,10 +105,12 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected,
               bytes ->
                   RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes));
+                      .onInjectionResponseSize(servletVersion, bytes),
+              milliseconds ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionTime(servletVersion, milliseconds));
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
-      injectionStartTime = -1;
       RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
       throw e;
     }
@@ -176,7 +171,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     this.wrappedPipeWriter = null;
     this.printWriter = null;
     this.shouldInject = false;
-    this.injectionStartTime = -1;
     super.reset();
   }
 
@@ -190,15 +184,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
 
   public void onInjected() {
     RumInjector.getTelemetryCollector().onInjectionSucceed(servletVersion);
-
-    // calculate total injection time
-    if (injectionStartTime != -1) {
-      long nanoseconds = System.nanoTime() - injectionStartTime;
-      long milliseconds = nanoseconds / 1_000_000L;
-      RumInjector.getTelemetryCollector().onInjectionTime(servletVersion, milliseconds);
-      injectionStartTime = -1;
-    }
-
     try {
       setHeader("x-datadog-rum-injected", "1");
     } catch (Throwable ignored) {

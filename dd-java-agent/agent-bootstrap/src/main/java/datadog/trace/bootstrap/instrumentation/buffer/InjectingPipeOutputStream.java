@@ -25,6 +25,7 @@ public class InjectingPipeOutputStream extends OutputStream {
   private final int bulkWriteThreshold;
   private final OutputStream downstream;
   private final LongConsumer onBytesWritten;
+  private final LongConsumer onInjectionTime;
   private long bytesWritten = 0;
 
   /**
@@ -37,7 +38,7 @@ public class InjectingPipeOutputStream extends OutputStream {
    */
   public InjectingPipeOutputStream(
       final OutputStream downstream, final byte[] marker, final byte[] contentToInject) {
-    this(downstream, marker, contentToInject, null, null);
+    this(downstream, marker, contentToInject, null, null, null);
   }
 
   /**
@@ -48,13 +49,16 @@ public class InjectingPipeOutputStream extends OutputStream {
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
    * @param onBytesWritten callback called when stream is closed to report total bytes written.
+   * @param onInjectionTime callback called with the time in milliseconds taken to write the
+   *     injection content.
    */
   public InjectingPipeOutputStream(
       final OutputStream downstream,
       final byte[] marker,
       final byte[] contentToInject,
       final Runnable onContentInjected,
-      final LongConsumer onBytesWritten) {
+      final LongConsumer onBytesWritten,
+      final LongConsumer onInjectionTime) {
     this.downstream = downstream;
     this.marker = marker;
     this.lookbehind = new byte[marker.length];
@@ -67,6 +71,7 @@ public class InjectingPipeOutputStream extends OutputStream {
     this.contentToInject = contentToInject;
     this.onContentInjected = onContentInjected;
     this.onBytesWritten = onBytesWritten;
+    this.onInjectionTime = onInjectionTime;
     this.bulkWriteThreshold = marker.length * 2 - 2;
   }
 
@@ -95,7 +100,12 @@ public class InjectingPipeOutputStream extends OutputStream {
     if (marker[matchingPos++] == b) {
       if (matchingPos == marker.length) {
         filter = false;
+        long injectionStart = System.nanoTime();
         downstream.write(contentToInject);
+        long injectionEnd = System.nanoTime();
+        if (onInjectionTime != null) {
+          onInjectionTime.accept((injectionEnd - injectionStart) / 1_000_000L);
+        }
         if (onContentInjected != null) {
           onContentInjected.run();
         }
@@ -130,7 +140,12 @@ public class InjectingPipeOutputStream extends OutputStream {
         int bytesToWrite = idx;
         downstream.write(array, off, bytesToWrite);
         bytesWritten += bytesToWrite;
+        long injectionStart = System.nanoTime();
         downstream.write(contentToInject);
+        long injectionEnd = System.nanoTime();
+        if (onInjectionTime != null) {
+          onInjectionTime.accept((injectionEnd - injectionStart) / 1_000_000L);
+        }
         if (onContentInjected != null) {
           onContentInjected.run();
         }
