@@ -81,10 +81,6 @@ public class ConfigHelper {
         && !configSource.getSupportedConfigurations().contains(name)) {
       if (configInversionStrict != ConfigInversionStrictStyle.TEST) {
         configInversionMetricCollector.setUndocumentedEnvVarMetric(name);
-        System.err.println(
-            "Warning: Missing environment variable "
-                + name
-                + " from supported-configurations.json.");
       }
 
       if (configInversionStrict == ConfigInversionStrictStyle.STRICT) {

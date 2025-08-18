@@ -380,12 +380,11 @@ public final class ConfigProvider {
     ConfigProvider minimalProvider =
         new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource());
 
-    // TODO: Set default value to false before merging
     ConfigHelper.setConfigInversionStrict(
         minimalProvider.getEnum(
             CONFIG_INVERSION_STRICT,
             ConfigInversionStrictStyle.class,
-            ConfigInversionStrictStyle.STRICT));
+            ConfigInversionStrictStyle.WARNING));
 
     Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
@@ -412,12 +411,11 @@ public final class ConfigProvider {
     ConfigProvider minimalProvider =
         new ConfigProvider(
             false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource());
-    // TODO: Set default value to false before merging
     ConfigHelper.setConfigInversionStrict(
         minimalProvider.getEnum(
             CONFIG_INVERSION_STRICT,
             ConfigInversionStrictStyle.class,
-            ConfigInversionStrictStyle.STRICT));
+            ConfigInversionStrictStyle.WARNING));
 
     Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
@@ -450,12 +448,11 @@ public final class ConfigProvider {
             new EnvironmentConfigSource(),
             providedConfigSource);
 
-    // TODO: Set default value to false before merging
     ConfigHelper.setConfigInversionStrict(
         minimalProvider.getEnum(
             CONFIG_INVERSION_STRICT,
             ConfigInversionStrictStyle.class,
-            ConfigInversionStrictStyle.STRICT));
+            ConfigInversionStrictStyle.WARNING));
 
     Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
