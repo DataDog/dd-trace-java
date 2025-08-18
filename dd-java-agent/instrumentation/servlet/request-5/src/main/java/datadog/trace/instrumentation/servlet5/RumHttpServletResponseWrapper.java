@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
@@ -11,6 +13,7 @@ import java.nio.charset.Charset;
 
 public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private final RumInjector rumInjector;
+  private final String servletVersion;
   private WrappedServletOutputStream outputStream;
   private InjectingPipeWriter wrappedPipeWriter;
   private PrintWriter printWriter;
@@ -18,11 +21,19 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private long injectionStartTime = -1;
   private String contentEncoding = null;
 
-  private static final String SERVLET_VERSION = "5";
-
-  public RumHttpServletResponseWrapper(HttpServletResponse response) {
+  public RumHttpServletResponseWrapper(HttpServletRequest request, HttpServletResponse response) {
     super(response);
     this.rumInjector = RumInjector.get();
+
+    String version = "5";
+    ServletContext servletContext = request.getServletContext();
+    if (servletContext != null) {
+      try {
+        version = String.valueOf(servletContext.getEffectiveMajorVersion());
+      } catch (Exception e) {
+      }
+    }
+    this.servletVersion = version;
   }
 
   @Override
@@ -31,7 +42,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return outputStream;
     }
     if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped(SERVLET_VERSION);
+      RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
       return super.getOutputStream();
     }
     // start timing injection
@@ -51,10 +62,10 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected,
               bytes ->
                   RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(SERVLET_VERSION, bytes));
+                      .onInjectionResponseSize(servletVersion, bytes));
     } catch (Exception e) {
       injectionStartTime = -1;
-      RumInjector.getTelemetryCollector().onInjectionFailed(SERVLET_VERSION, contentEncoding);
+      RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
       throw e;
     }
     return outputStream;
@@ -66,7 +77,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return printWriter;
     }
     if (!shouldInject) {
-      RumInjector.getTelemetryCollector().onInjectionSkipped(SERVLET_VERSION);
+      RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
       return super.getWriter();
     }
     // start timing injection
@@ -82,11 +93,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
               this::onInjected,
               bytes ->
                   RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(SERVLET_VERSION, bytes));
+                      .onInjectionResponseSize(servletVersion, bytes));
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
       injectionStartTime = -1;
-      RumInjector.getTelemetryCollector().onInjectionFailed(SERVLET_VERSION, contentEncoding);
+      RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
       throw e;
     }
 
@@ -108,7 +119,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private void checkForContentSecurityPolicy(String name) {
     if (name != null && rumInjector.isEnabled()) {
       if (name.startsWith("Content-Security-Policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(SERVLET_VERSION);
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
       }
     }
   }
@@ -155,13 +166,13 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   public void onInjected() {
-    RumInjector.getTelemetryCollector().onInjectionSucceed(SERVLET_VERSION);
+    RumInjector.getTelemetryCollector().onInjectionSucceed(servletVersion);
 
     // calculate total injection time
     if (injectionStartTime != -1) {
       long nanoseconds = System.nanoTime() - injectionStartTime;
       long milliseconds = nanoseconds / 1_000_000L;
-      RumInjector.getTelemetryCollector().onInjectionTime(SERVLET_VERSION, milliseconds);
+      RumInjector.getTelemetryCollector().onInjectionTime(servletVersion, milliseconds);
       injectionStartTime = -1;
     }
 

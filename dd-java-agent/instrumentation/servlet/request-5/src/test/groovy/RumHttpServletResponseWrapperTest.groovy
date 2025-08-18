@@ -8,12 +8,16 @@ import datadog.trace.instrumentation.servlet5.WrappedServletOutputStream
 import spock.lang.Subject
 
 import java.util.function.LongConsumer
+import jakarta.servlet.ServletContext
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 
 class RumHttpServletResponseWrapperTest extends AgentTestRunner {
   private static final String SERVLET_VERSION = "5"
 
+  def mockRequest = Mock(HttpServletRequest)
   def mockResponse = Mock(HttpServletResponse)
+  def mockServletContext = Mock(ServletContext)
   def mockTelemetryCollector = Mock(RumTelemetryCollector)
 
   // injector needs to be enabled in order to check headers
@@ -30,7 +34,9 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
   RumHttpServletResponseWrapper wrapper
 
   void setup() {
-    wrapper = new RumHttpServletResponseWrapper(mockResponse)
+    mockRequest.getServletContext() >> mockServletContext
+    mockServletContext.getEffectiveMajorVersion() >> 5
+    wrapper = new RumHttpServletResponseWrapper(mockRequest, mockResponse)
     RumInjector.setTelemetryCollector(mockTelemetryCollector)
   }
 
