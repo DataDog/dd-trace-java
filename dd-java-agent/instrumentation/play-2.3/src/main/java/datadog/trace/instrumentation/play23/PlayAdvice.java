@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_REQUEST;
@@ -10,7 +11,6 @@ import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPOR
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Headers;
@@ -51,7 +51,7 @@ public class PlayAdvice {
     final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
 
     // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(playControllerSpan, req, req, (AgentSpanContext.Extracted) null);
+    DECORATE.onRequest(playControllerSpan, req, req, getRootContext());
 
     if (throwable == null) {
       responseFuture.onComplete(
@@ -71,7 +71,7 @@ public class PlayAdvice {
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null) {
-      DECORATE.onRequest(rootSpan, req, req, (AgentSpanContext.Extracted) null);
+      DECORATE.onRequest(rootSpan, req, req, getRootContext());
     }
   }
 }
