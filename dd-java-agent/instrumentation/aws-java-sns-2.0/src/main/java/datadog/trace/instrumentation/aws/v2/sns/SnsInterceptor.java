@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.aws.v2.sns;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
@@ -103,6 +105,6 @@ public class SnsInterceptor implements ExecutionInterceptor {
   }
 
   private DataStreamsTags getTags(String snsTopicName) {
-    return DataStreamsTags.create("sns", DataStreamsTags.Direction.Outbound, snsTopicName);
+    return create("sns", OUTBOUND, snsTopicName);
   }
 }

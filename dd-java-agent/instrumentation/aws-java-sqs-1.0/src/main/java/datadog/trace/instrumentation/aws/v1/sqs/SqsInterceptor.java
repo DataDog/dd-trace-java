@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -92,6 +94,6 @@ public class SqsInterceptor extends RequestHandler2 {
   }
 
   private static DataStreamsTags getTags(String queueUrl) {
-    return DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, urlFileName(queueUrl));
+    return create("sqs", OUTBOUND, urlFileName(queueUrl));
   }
 }

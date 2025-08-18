@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
@@ -87,8 +89,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         }
         AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
 
-        DataStreamsTags tags =
-            DataStreamsTags.create("sqs", DataStreamsTags.Direction.Inbound, urlFileName(queueUrl));
+        DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
         AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
 
         CONSUMER_DECORATE.afterStart(span);

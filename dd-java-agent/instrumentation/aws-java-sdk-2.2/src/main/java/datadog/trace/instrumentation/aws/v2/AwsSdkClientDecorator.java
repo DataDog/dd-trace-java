@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.createWithDataset;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.context.propagation.CarrierSetter;
@@ -344,9 +348,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     //noinspection unchecked
                     List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
                     if (!records.isEmpty()) {
-                      DataStreamsTags tags =
-                          DataStreamsTags.create(
-                              "kinesis", DataStreamsTags.Direction.Inbound, streamArn);
+                      DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
                       if (null == kinesisApproximateArrivalTimestampField) {
                         Optional<SdkField<?>> maybeField =
                             records.get(0).sdkFields().stream()
@@ -389,9 +391,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
         if (key != null && bucket != null && awsOperation != null) {
           if ("GetObject".equalsIgnoreCase(awsOperation)) {
-            DataStreamsTags tags =
-                DataStreamsTags.createWithDataset(
-                    "s3", DataStreamsTags.Direction.Inbound, bucket, key, bucket);
+            DataStreamsTags tags = createWithDataset("s3", INBOUND, bucket, key, bucket);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .setCheckpoint(span, create(tags, 0, responseSize));
@@ -404,9 +404,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
               payloadSize = (long) requestSize;
             }
 
-            DataStreamsTags tags =
-                DataStreamsTags.createWithDataset(
-                    "s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
+            DataStreamsTags tags = createWithDataset("s3", OUTBOUND, bucket, key, bucket);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .setCheckpoint(span, create(tags, 0, payloadSize));

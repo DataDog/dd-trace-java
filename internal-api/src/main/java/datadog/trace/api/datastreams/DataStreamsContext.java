@@ -1,5 +1,8 @@
 package datadog.trace.api.datastreams;
 
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
@@ -16,8 +19,8 @@ public class DataStreamsContext implements ImplicitContextKeyed {
   final boolean sendCheckpoint;
 
   static {
-    CLIENT_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", DataStreamsTags.Direction.Outbound);
-    SERVER_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", DataStreamsTags.Direction.Inbound);
+    CLIENT_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", OUTBOUND);
+    SERVER_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", INBOUND);
   }
 
   public static DataStreamsContext fromContext(Context context) {

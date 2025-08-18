@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
@@ -92,8 +94,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       ExecutionAttributes executionAttributes, String queueUrl) {
     AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
 
-    DataStreamsTags tags =
-        DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, urlFileName(queueUrl));
+    DataStreamsTags tags = create("sqs", OUTBOUND, urlFileName(queueUrl));
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
     return span.with(dsmContext);
   }
