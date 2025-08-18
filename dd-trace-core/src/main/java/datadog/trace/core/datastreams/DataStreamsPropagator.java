@@ -25,17 +25,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class DataStreamsPropagator implements Propagator {
   private final DataStreamsMonitoring dataStreamsMonitoring;
   private final TimeSource timeSource;
-  private final long hashOfKnownTags;
   private final ThreadLocal<String> serviceNameOverride;
 
   public DataStreamsPropagator(
       DataStreamsMonitoring dataStreamsMonitoring,
       TimeSource timeSource,
-      long hashOfKnownTags,
       ThreadLocal<String> serviceNameOverride) {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
     this.timeSource = timeSource;
-    this.hashOfKnownTags = hashOfKnownTags;
     this.serviceNameOverride = serviceNameOverride;
   }
 
@@ -108,6 +105,6 @@ public class DataStreamsPropagator implements Propagator {
 
   private <C> PathwayContext extractDsmPathwayContext(C carrier, CarrierVisitor<C> visitor) {
     return DefaultPathwayContext.extract(
-        carrier, visitor, this.timeSource, this.hashOfKnownTags, serviceNameOverride.get());
+        carrier, visitor, this.timeSource, serviceNameOverride.get());
   }
 }

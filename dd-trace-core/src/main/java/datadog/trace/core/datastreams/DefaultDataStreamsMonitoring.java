@@ -119,7 +119,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         BaseHash.getBaseHash(
             wellKnownTags.getService(),
             wellKnownTags.getEnv(),
-            ContainerInfo.get().getContainerTagsHash());
+            ContainerInfo.get()
+                .getContainerTagsHash()); // TODO container tags hash is not available yet
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
 
@@ -127,10 +128,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sink.register(this);
     schemaSamplers = new ConcurrentHashMap<>();
 
-    this.propagator =
-        new DataStreamsPropagator(this, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+    this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
     // configure global tags behavior
-    DataStreamsTags.setGlobalBaseHash(this.hashOfKnownTags);
+    DataStreamsTags.setGlobalBaseHash(
+        this.hashOfKnownTags); // TODO has to be updated once containerTagsHash is available
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
@@ -194,7 +195,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceName());
+      return new DefaultPathwayContext(timeSource, getThreadServiceName());
     } else {
       return NoopPathwayContext.INSTANCE;
     }
@@ -213,7 +214,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.hashOfKnownTags,
               getThreadServiceName());
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
