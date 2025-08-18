@@ -5,8 +5,8 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.test.util.Flaky
 import okhttp3.OkHttpClient
-import spock.lang.IgnoreIf
 import spock.lang.Shared
+import static org.junit.Assume.assumeTrue
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -141,9 +141,9 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
   }
 
   @RunLast
-  @IgnoreIf({ instance.testTelemetry() })
   void 'receive telemetry app-started'() {
     when:
+    assumeTrue(testTelemetry())
     waitForTelemetryCount(1)
 
     then:
@@ -159,9 +159,9 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
   @Flaky("Possible reasons: tests are too fast, the waiting mechanism is not robust enough; somehow too much telemetry is produced.")
   @RunLast
   @SuppressWarnings('UnnecessaryBooleanExpression')
-  @IgnoreIf({ instance.testTelemetry() })
   void 'receive telemetry app-dependencies-loaded'() {
     when:
+    assumeTrue(testTelemetry())
     // app-started + 3 message-batch
     waitForTelemetryCount(4)
     waitForTelemetryFlat { it.get('request_type') == 'app-dependencies-loaded' }
