@@ -42,7 +42,7 @@ public abstract class BaseDecorator {
   protected final boolean traceAnalyticsEnabled;
   protected final Double traceAnalyticsSampleRate;
 
-  protected BaseDeqcorator() {
+  protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
     this.traceAnalyticsEnabled =
