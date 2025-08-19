@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.spray;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import spray.http.HttpRequest;
 import spray.routing.RequestContext;
@@ -17,19 +17,18 @@ public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope enter(
       @Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
-    final AgentSpan span;
-    final AgentSpanContext.Extracted extractedSpanContext;
+    final Context parentContext;
     final Context context;
+    final AgentSpan span;
     if (activeSpan() == null) {
       // Propagate context in case income request was going through several routes
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
-      Context parentContext = DECORATE.extract(request);
-      extractedSpanContext = DECORATE.getExtractedSpanContext(parentContext);
+      parentContext = DECORATE.extract(request);
       context = DECORATE.startSpan(request, parentContext);
       span = spanFromContext(context);
     } else {
-      extractedSpanContext = null;
+      parentContext = getRootContext();
       span = startSpan("spray", DECORATE.spanName());
       context = span;
     }
@@ -37,7 +36,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
     ContextScope scope = context.attach();
     DECORATE.afterStart(span);
 
-    ctx = SprayHelper.wrapRequestContext(ctx, span, extractedSpanContext);
+    ctx = SprayHelper.wrapRequestContext(ctx, span, parentContext);
     return scope;
   }
 

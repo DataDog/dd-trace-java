@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.grpc.server;
 
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -30,7 +33,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
   private static DataStreamsTags createServerPathwaySortedTags() {
-    return DataStreamsTags.create("grpc", DataStreamsTags.Direction.Inbound);
+    return create("grpc", INBOUND);
   }
 
   public static final DataStreamsTags SERVER_PATHWAY_EDGE_TAGS = createServerPathwaySortedTags();
@@ -94,6 +97,7 @@ public class GrpcServerDecorator extends ServerDecorator {
 
   public AgentSpan onStatus(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
+    span.setTag("grpc.status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
     return span.setError(
         SERVER_ERROR_STATUSES.get(status.getCode().value()), ErrorPriorities.HTTP_SERVER_DECORATOR);

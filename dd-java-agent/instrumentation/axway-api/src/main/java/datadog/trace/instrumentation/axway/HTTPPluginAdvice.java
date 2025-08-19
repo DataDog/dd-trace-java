@@ -2,26 +2,24 @@ package datadog.trace.instrumentation.axway;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.SERVER_TRANSACTION_CLASS;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 
 public class HTTPPluginAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
-    final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
+    final AgentSpan span = startSpan("axway-api", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     // serverTransaction is like request + connection in one object:
-    DECORATE.onRequest(
-        span, serverTransaction, serverTransaction, (AgentSpanContext.Extracted) null);
-    final AgentScope scope = activateSpan(span);
-    return scope;
+    DECORATE.onRequest(span, serverTransaction, serverTransaction, getRootContext());
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -71,9 +71,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     timeSource.advance(25)
-    def tags = DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound, "topic", "group", null)
+    def tags = DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)
     context.setCheckpoint(fromTags(tags), pointConsumer)
 
     then:
@@ -124,9 +124,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND)), pointConsumer)
     timeSource.advance(25)
-    def tg = DataStreamsTags.create("kafka", DataStreamsTags.Direction.Inbound, "topic", "group", null)
+    def tg = DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topic", "group", null)
     context.setCheckpoint(fromTags(tg), pointConsumer)
     timeSource.advance(30)
     context.setCheckpoint(fromTags(tg), pointConsumer)
@@ -181,12 +181,12 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.Inbound, null, "my_object.csv", "my_bucket")), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.INBOUND, null, "my_object.csv", "my_bucket")), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    def tg = DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.Outbound, null, "my_object.csv", "my_bucket")
+    def tg = DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.OUTBOUND, null, "my_object.csv", "my_bucket")
     context.setCheckpoint(fromTags(tg), pointConsumer)
 
     then:
@@ -208,7 +208,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
@@ -259,13 +259,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
 
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound, "topic", "group", null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -287,7 +287,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.decode(timeSource, baseHash, null, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Inbound, "topicB", "group", null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)), pointConsumer)
 
     then:
     secondDecode.isStarted()
@@ -314,14 +314,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
 
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Outbound, "topic", "group", null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -344,7 +344,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.Inbound, "topicB", "group", null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)), pointConsumer)
 
     then:
     secondDecode.isStarted()
@@ -371,14 +371,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
 
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, "topic", null, null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.OUTBOUND, "topic", null, null)), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -400,7 +400,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.Inbound, "topicB", null, null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.INBOUND, "topicB", null, null)), pointConsumer)
 
     then:
     secondDecode.isStarted()
@@ -423,9 +423,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(fromTags(DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic", "group", null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("type", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)), pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint(fromTags(DataStreamsTags.create(null, null)), pointConsumer)
 
@@ -505,7 +505,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
     Map<String, String> carrier = [
       (PROPAGATION_KEY_BASE64): encoded,
@@ -559,7 +559,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
 
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
@@ -614,7 +614,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()

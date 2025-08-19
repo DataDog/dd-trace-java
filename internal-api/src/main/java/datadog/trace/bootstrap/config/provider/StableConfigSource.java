@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
+import datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException;
 import java.io.File;
 import java.util.Collections;
 import java.util.Map;
@@ -38,10 +39,23 @@ public final class StableConfigSource extends ConfigProvider.Source {
       log.debug("Stable configuration file found at path: {}", file);
       cfg = StableConfigParser.parse(filePath);
     } catch (Throwable e) {
-      log.warn(
-          "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs.",
-          file,
-          e);
+      if (e instanceof StableConfigMappingException
+          || e instanceof IllegalArgumentException
+          || e instanceof ClassCastException
+          || e instanceof NullPointerException) {
+        log.warn(
+            "YAML mapping error in stable configuration file: {}, error: {}",
+            filePath,
+            e.getMessage());
+      } else if (log.isDebugEnabled()) {
+        log.error("Unexpected error while reading stable configuration file: {}", filePath, e);
+      } else {
+        log.error(
+            "Unexpected error while reading stable configuration file: {}, error: {}",
+            filePath,
+            e.getMessage());
+      }
+
       cfg = StableConfig.EMPTY;
     }
     this.config = cfg;

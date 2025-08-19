@@ -318,6 +318,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Map<String, String> baggageMapping;
     private int partialFlushMinSpans;
     private StatsDClient statsDClient;
+    private HealthMetrics healthMetrics;
     private TagInterceptor tagInterceptor;
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
@@ -421,8 +422,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder statsDClient(TagInterceptor tagInterceptor) {
-      this.tagInterceptor = tagInterceptor;
+    public CoreTracerBuilder healthMetrics(HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
       return this;
     }
 
@@ -524,6 +525,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggageMapping,
           partialFlushMinSpans,
           statsDClient,
+          healthMetrics,
           tagInterceptor,
           strictTraceWrites,
           instrumentationGateway,
@@ -555,6 +557,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> baggageMapping,
       final int partialFlushMinSpans,
       final StatsDClient statsDClient,
+      final HealthMetrics healthMetrics,
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
@@ -582,6 +585,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         baggageMapping,
         partialFlushMinSpans,
         statsDClient,
+        healthMetrics,
         tagInterceptor,
         strictTraceWrites,
         instrumentationGateway,
@@ -612,6 +616,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> baggageMapping,
       final int partialFlushMinSpans,
       final StatsDClient statsDClient,
+      final HealthMetrics healthMetrics,
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
@@ -700,11 +705,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    healthMetrics =
-        config.isHealthMetricsEnabled()
-            ? new TracerHealthMetrics(this.statsDClient)
-            : HealthMetrics.NO_OP;
-    healthMetrics.start();
+
+    this.healthMetrics =
+        healthMetrics != null
+            ? healthMetrics
+            : (config.isHealthMetricsEnabled()
+                ? new TracerHealthMetrics(this.statsDClient)
+                : HealthMetrics.NO_OP);
+    this.healthMetrics.start();
 
     // Start RUM injector telemetry
     if (InstrumenterConfig.get().isRumEnabled()) {
@@ -723,7 +731,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             config.getScopeDepthLimit(),
             config.isScopeStrictMode(),
             profilingContextIntegration,
-            healthMetrics);
+            this.healthMetrics);
 
     externalAgentLauncher = new ExternalAgentLauncher(config);
 
@@ -748,7 +756,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writer == null) {
       this.writer =
           WriterFactory.createWriter(
-              config, sharedCommunicationObjects, sampler, singleSpanSampler, healthMetrics);
+              config, sharedCommunicationObjects, sampler, singleSpanSampler, this.healthMetrics);
     } else {
       this.writer = writer;
     }
@@ -765,22 +773,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         && (config.isCiVisibilityAgentlessEnabled() || featuresDiscovery.supportsEvpProxy())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
-          new StreamingTraceCollector.Factory(this, this.timeSource, healthMetrics);
+          new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
     } else {
       pendingTraceBuffer =
           strictTraceWrites
               ? PendingTraceBuffer.discarding()
               : PendingTraceBuffer.delaying(
-                  this.timeSource, config, sharedCommunicationObjects, healthMetrics);
+                  this.timeSource, config, sharedCommunicationObjects, this.healthMetrics);
       traceCollectorFactory =
           new PendingTrace.Factory(
-              this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
+              this, pendingTraceBuffer, this.timeSource, strictTraceWrites, this.healthMetrics);
     }
     pendingTraceBuffer.start();
 
     sharedCommunicationObjects.whenReady(this.writer::start);
 
-    metricsAggregator = createMetricsAggregator(config, sharedCommunicationObjects);
+    metricsAggregator =
+        createMetricsAggregator(config, sharedCommunicationObjects, this.healthMetrics);
     // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.
