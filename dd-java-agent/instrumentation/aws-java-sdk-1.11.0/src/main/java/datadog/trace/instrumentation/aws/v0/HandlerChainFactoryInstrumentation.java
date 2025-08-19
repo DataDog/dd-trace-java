@@ -46,8 +46,7 @@ public final class HandlerChainFactoryInstrumentation
               InstrumentationContext.get(
                   "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
               InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest",
-                  "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
+                  "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
     }
   }
 }

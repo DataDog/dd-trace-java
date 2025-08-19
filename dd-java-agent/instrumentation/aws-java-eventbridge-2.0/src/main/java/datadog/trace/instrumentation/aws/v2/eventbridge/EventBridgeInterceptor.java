@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.eventbridge;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
@@ -85,8 +86,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     // Inject context
     datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
-      DataStreamsTags tags =
-          DataStreamsTags.createWithBus(DataStreamsTags.Direction.Outbound, eventBusName);
+      DataStreamsTags tags = DataStreamsTags.createWithBus(OUTBOUND, eventBusName);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }

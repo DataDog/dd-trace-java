@@ -37,9 +37,7 @@ public class AwsSdkModule extends InstrumenterModule.Tracing {
   public Map<String, String> contextStore() {
     Map<String, String> map = new java.util.HashMap<>();
     map.put(namespace + ".services.sqs.model.ReceiveMessageResult", "java.lang.String");
-    map.put(
-        namespace + ".AmazonWebServiceRequest",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+    map.put(namespace + ".AmazonWebServiceRequest", "datadog.context.Context");
     return map;
   }
 

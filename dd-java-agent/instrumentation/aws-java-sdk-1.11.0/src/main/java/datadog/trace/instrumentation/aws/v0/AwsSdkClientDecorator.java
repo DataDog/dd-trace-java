@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 
@@ -264,8 +266,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
                 || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
           DataStreamsTags tags =
-              DataStreamsTags.createWithDataset(
-                  "s3", DataStreamsTags.Direction.Inbound, bucket, key, bucket);
+              DataStreamsTags.createWithDataset("s3", INBOUND, bucket, key, bucket);
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, create(tags, 0, responseSize));
@@ -279,8 +280,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             payloadSize = (long) requestSize;
           }
           DataStreamsTags tags =
-              DataStreamsTags.createWithDataset(
-                  "s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
+              DataStreamsTags.createWithDataset("s3", OUTBOUND, bucket, key, bucket);
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, create(tags, 0, payloadSize));

@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.aws.v1.sns;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v1.sns.TextMapInjectAdapter.SETTER;
 
@@ -23,9 +25,9 @@ import java.util.Map;
 
 public class SnsInterceptor extends RequestHandler2 {
 
-  private final ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore;
+  private final ContextStore<AmazonWebServiceRequest, Context> contextStore;
 
-  public SnsInterceptor(ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore) {
+  public SnsInterceptor(ContextStore<AmazonWebServiceRequest, Context> contextStore) {
     this.contextStore = contextStore;
   }
 
@@ -106,11 +108,12 @@ public class SnsInterceptor extends RequestHandler2 {
     final AgentSpan span = AgentTracer.startSpan("aws.sns.send");
     // pass the span to TracingRequestHandler in the sdk instrumentation where it'll be enriched &
     // activated
+    // TODO If DSM is enabled, add DSM context here too
     contextStore.put(request, span);
     return span;
   }
 
   private DataStreamsTags getTags(String snsTopicName) {
-    return DataStreamsTags.create("sns", DataStreamsTags.Direction.Outbound, snsTopicName);
+    return create("sns", OUTBOUND, snsTopicName);
   }
 }
