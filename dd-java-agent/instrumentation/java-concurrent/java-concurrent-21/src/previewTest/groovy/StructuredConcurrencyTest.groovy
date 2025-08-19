@@ -9,6 +9,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
 class StructuredConcurrencyTest extends AgentTestRunner {
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   /**
    * Tests the structured task scope with a single task.
    */

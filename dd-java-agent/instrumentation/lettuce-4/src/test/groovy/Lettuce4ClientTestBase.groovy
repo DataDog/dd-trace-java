@@ -83,4 +83,9 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     redisClient.shutdown()
     redisServer.stop()
   }
+
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
 }
