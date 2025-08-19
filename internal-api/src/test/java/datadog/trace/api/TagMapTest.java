@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class TagMapTest {
   // size is chosen to make sure to stress all types of collisions in the Map
-  static int MANY_SIZE = 256;
+  static final int MANY_SIZE = 256;
 
   // static function tests - mostly exist to satisfy coverage checker
   @Test
