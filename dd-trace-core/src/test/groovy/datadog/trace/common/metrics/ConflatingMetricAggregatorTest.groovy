@@ -168,7 +168,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, features,      HealthMetrics.NO_OP,
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, features, HealthMetrics.NO_OP,
 
       sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
