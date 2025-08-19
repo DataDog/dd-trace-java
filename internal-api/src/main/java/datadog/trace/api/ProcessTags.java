@@ -5,6 +5,7 @@ import datadog.environment.SystemProperties;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -18,6 +19,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressForbidden
 public class ProcessTags {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessTags.class);
   private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();

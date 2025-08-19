@@ -3,6 +3,7 @@ package datadog.environment;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -36,6 +37,7 @@ public final class EnvironmentVariables {
    * @return The environment variable value, {@code defaultValue} if missing, can't be retrieved or
    *     the environment variable name is {@code null}.
    */
+  @SuppressForbidden
   public static String getOrDefault(String name, String defaultValue) {
     if (name == null) {
       return defaultValue;
@@ -54,6 +56,7 @@ public final class EnvironmentVariables {
    * @return All environment variables captured in an unmodifiable {@link Map}, or an empty {@link
    *     Map} if they can't be retrieved.
    */
+  @SuppressForbidden
   public static Map<String, String> getAll() {
     try {
       return unmodifiableMap(new HashMap<>(System.getenv()));

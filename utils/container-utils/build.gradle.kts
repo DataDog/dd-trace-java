@@ -7,6 +7,6 @@ apply(from = "$rootDir/gradle/java.gradle")
 dependencies {
   implementation(project(":components:environment"))
   implementation(libs.slf4j)
-
+  implementation(project(":internal-api"))
   testImplementation(project(":utils:test-utils"))
 }
