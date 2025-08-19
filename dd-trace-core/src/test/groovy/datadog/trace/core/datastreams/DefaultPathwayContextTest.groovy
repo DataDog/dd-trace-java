@@ -1,11 +1,11 @@
 package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.BaseHash
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.TagMap
 import datadog.trace.api.TraceConfig
-import datadog.trace.api.WellKnownTags
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
@@ -24,7 +24,6 @@ import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE6
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class DefaultPathwayContextTest extends DDCoreSpecification {
-  def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
   long baseHash = 12
 
   static final DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
@@ -467,9 +466,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
     AgentTracer.forceRegister(tracerApi)
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
-    DataStreamsTags.setGlobalBaseHash(baseHash)
+    BaseHash.updateBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
@@ -521,9 +520,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
     AgentTracer.forceRegister(tracerApi)
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
-    DataStreamsTags.setGlobalBaseHash(baseHash)
+    BaseHash.updateBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
@@ -575,10 +574,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
     AgentTracer.forceRegister(tracerApi)
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig },
-    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
-    DataStreamsTags.setGlobalBaseHash(baseHash)
+    BaseHash.updateBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
@@ -630,8 +628,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> true
     }
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig },
-    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()

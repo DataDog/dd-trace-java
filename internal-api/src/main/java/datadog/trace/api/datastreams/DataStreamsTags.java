@@ -1,5 +1,6 @@
 package datadog.trace.api.datastreams;
 
+import datadog.trace.api.BaseHash;
 import datadog.trace.util.FNV64Hash;
 import java.util.Objects;
 
@@ -52,7 +53,6 @@ public class DataStreamsTags {
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
 
   private static volatile ThreadLocal<String> serviceNameOverride;
-  private static volatile long baseHash;
 
   public static byte[] longToBytes(long val) {
     return new byte[] {
@@ -260,10 +260,6 @@ public class DataStreamsTags {
     DataStreamsTags.serviceNameOverride = serviceNameOverride;
   }
 
-  public static void setGlobalBaseHash(long hash) {
-    DataStreamsTags.baseHash = hash;
-  }
-
   public static DataStreamsTags createWithClusterId(
       String type, Direction direction, String topic, String clusterId) {
     return new DataStreamsTags(
@@ -329,9 +325,7 @@ public class DataStreamsTags {
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
-    if (DataStreamsTags.baseHash != 0) {
-      this.hash = DataStreamsTags.baseHash;
-    }
+    this.hash = BaseHash.getBaseHash();
 
     if (DataStreamsTags.serviceNameOverride != null) {
       String val = DataStreamsTags.serviceNameOverride.get();

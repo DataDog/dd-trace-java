@@ -30,7 +30,6 @@ import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
-import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.gateway.RequestContext
@@ -362,8 +361,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     // Fast enough so tests don't take forever
     long bucketDuration = dataStreamsBucketDuration()
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { MOCK_DSM_TRACE_CONFIG }, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
+    TEST_DATA_STREAMS_MONITORING = new DefaultDataStreamsMonitoring(sink, features, SystemTimeSource.INSTANCE, { MOCK_DSM_TRACE_CONFIG }, TEST_DATA_STREAMS_WRITER, bucketDuration)
 
     TEST_WRITER = new ListWriter()
 

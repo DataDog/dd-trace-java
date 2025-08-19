@@ -3,18 +3,39 @@ package datadog.trace.api;
 import datadog.trace.util.FNV64Hash;
 
 public final class BaseHash {
+  private static volatile long baseHash;
+  private static volatile String baseHashStr;
 
-  public static long getBaseHash(
-      CharSequence serviceName, CharSequence env, String containerTagsHash) {
-    return getBaseHash(
-        serviceName,
-        env,
+  private BaseHash() {}
+
+  public static void recalcBaseHash(String containerTagsHash) {
+    long hash = calc(containerTagsHash);
+    updateBaseHash(hash);
+  }
+
+  public static void updateBaseHash(long hash) {
+    baseHash = hash;
+    baseHashStr = Long.toString(hash);
+  }
+
+  public static long getBaseHash() {
+    return baseHash;
+  }
+
+  public static String getBaseHashStr() {
+    return baseHashStr;
+  }
+
+  public static long calc(String containerTagsHash) {
+    return calc(
+        Config.get().getServiceName(),
+        Config.get().getEnv(),
         Config.get().getPrimaryTag(),
         ProcessTags.getTagsForSerialization(),
         containerTagsHash);
   }
 
-  private static long getBaseHash(
+  private static long calc(
       CharSequence serviceName,
       CharSequence env,
       String primaryTag,

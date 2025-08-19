@@ -7,14 +7,11 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MON
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
-import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
-import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.*;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
@@ -55,7 +52,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final Thread thread;
@@ -98,7 +94,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         features,
         timeSource,
         traceConfigSupplier,
-        config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
             sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
         Config.get().getDataStreamsBucketDurationNanoseconds());
@@ -109,18 +104,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
-      WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.hashOfKnownTags =
-        BaseHash.getBaseHash(
-            wellKnownTags.getService(),
-            wellKnownTags.getEnv(),
-            ContainerInfo.get()
-                .getContainerTagsHash()); // TODO container tags hash is not available yet
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
 
@@ -129,9 +117,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     schemaSamplers = new ConcurrentHashMap<>();
 
     this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
-    // configure global tags behavior
-    DataStreamsTags.setGlobalBaseHash(
-        this.hashOfKnownTags); // TODO has to be updated once containerTagsHash is available
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 

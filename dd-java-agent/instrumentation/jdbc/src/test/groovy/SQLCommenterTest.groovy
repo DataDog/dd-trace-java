@@ -1,5 +1,5 @@
-import datadog.common.container.ContainerInfo
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.BaseHash
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -118,35 +118,27 @@ class SQLCommenterTest extends AgentTestRunner {
     injectSysConfig("dbm.inject.sql.basehash", Boolean.toString(injectHash))
     injectSysConfig("dd.experimental.propagate.process.tags.enabled", Boolean.toString(processTagsEnabled))
     ProcessTags.reset()
-    ContainerInfo.get().setContainerTagsHash(containerTagsHash)
+    BaseHash.updateBaseHash(baseHash)
 
     expect:
-    ContainerInfo.get().getContainerTagsHash() == containerTagsHash
-    and:
     Config.get().isExperimentalPropagateProcessTagsEnabled() == processTagsEnabled
     and:
     SQLCommenter.inject(query, "", "", "", "", "", false) == result
 
     where:
-    query                                      | injectHash | containerTagsHash | processTagsEnabled | srv   | result
-    "SELECT *"                                 | true       | null              | false              | ""    | "SELECT *"
-    "SELECT *"                                 | true       | null              | true               | ""    | "SELECT *"
-    "SELECT *"                                 | true       | "234563"          | false              | ""    | "SELECT *"
-    "SELECT *"                                 | true       | "234563"          | true               | ""    | "/*ddsh='5036687995954831329'*/ SELECT *"
-    "SELECT *"                                 | true       | "345342"          | false              | ""    | "SELECT *"
-    "SELECT *"                                 | true       | "345342"          | true               | ""    | "/*ddsh='9119195684516789447'*/ SELECT *"
-    "SELECT *"                                 | true       | null              | false              | "srv" | "/*ddps='srv'*/ SELECT *"
-    "SELECT *"                                 | true       | null              | true               | "srv" | "/*ddps='srv'*/ SELECT *"
-    "SELECT *"                                 | true       | "234563"          | false              | "srv" | "/*ddps='srv'*/ SELECT *"
-    "SELECT *"                                 | true       | "234563"          | true               | "srv" | "/*ddps='srv',ddsh='-4976804795059740068'*/ SELECT *"
-    "SELECT *"                                 | true       | "345342"          | false              | "srv" | "/*ddps='srv'*/ SELECT *"
-    "SELECT *"                                 | true       | "345342"          | true               | "srv" | "/*ddps='srv',ddsh='-221156394106738098'*/ SELECT *"
-    "SELECT *"                                 | false      | null              | true               | ""    | "SELECT *"
-    "SELECT *"                                 | false      | "234563"          | true               | ""    | "SELECT *"
-    "SELECT *"                                 | false      | "234563"          | true               | "srv" | "/*ddps='srv'*/ SELECT *"
-    "SELECT *"                                 | false      | "345342"          | true               | "srv" | "/*ddps='srv'*/ SELECT *"
-    "/*ddsh='-3750763034362895579'*/ SELECT *" | true       | null              | false              | ""    | "/*ddsh='-3750763034362895579'*/ SELECT *"
-    "/*ddsh='-3750763034362895579'*/ SELECT *" | true       | "234563"          | true               | ""    | "/*ddsh='-3750763034362895579'*/ SELECT *"
+    query                                      | injectHash | baseHash | processTagsEnabled | srv   | result
+    "SELECT *"                                 | true       | 234563   | false              | ""    | "SELECT *"
+    "SELECT *"                                 | true       | 234563   | true               | ""    | "/*ddsh='234563'*/ SELECT *"
+    "SELECT *"                                 | true       | 345342   | false              | ""    | "SELECT *"
+    "SELECT *"                                 | true       | 345342   | true               | ""    | "/*ddsh='345342'*/ SELECT *"
+    "SELECT *"                                 | true       | 234563   | false              | "srv" | "/*ddps='srv'*/ SELECT *"
+    "SELECT *"                                 | true       | 234563   | true               | "srv" | "/*ddps='srv',ddsh='234563'*/ SELECT *"
+    "SELECT *"                                 | true       | 345342   | false              | "srv" | "/*ddps='srv'*/ SELECT *"
+    "SELECT *"                                 | true       | 345342   | true               | "srv" | "/*ddps='srv',ddsh='345342'*/ SELECT *"
+    "SELECT *"                                 | false      | 234563   | true               | ""    | "SELECT *"
+    "SELECT *"                                 | false      | 234563   | true               | "srv" | "/*ddps='srv'*/ SELECT *"
+    "SELECT *"                                 | false      | 345342   | true               | "srv" | "/*ddps='srv'*/ SELECT *"
+    "/*ddsh='-3750763034362895579'*/ SELECT *" | true       | 234563   | true               | ""    | "/*ddsh='-3750763034362895579'*/ SELECT *"
   }
 
   def "test encode Sql Comment with peer service"() {

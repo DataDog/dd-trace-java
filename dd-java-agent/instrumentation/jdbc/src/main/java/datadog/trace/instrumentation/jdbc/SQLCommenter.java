@@ -2,10 +2,8 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
-import datadog.common.container.ContainerInfo;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
-import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
@@ -102,17 +100,6 @@ public class SQLCommenter {
     }
 
     Config config = Config.get();
-    String parentService = config.getServiceName();
-    String env = config.getEnv();
-    String serviceHash = null;
-    String containerTagsHash = ContainerInfo.get().getContainerTagsHash();
-    // TODO so we only inject if both container tags and process tags are available?
-    if (config.isDbmInjectSqlBaseHash()
-        && containerTagsHash != null
-        && ProcessTags.getTagsForSerialization() != null) {
-      long baseHash = BaseHash.getBaseHash(parentService, env, containerTagsHash);
-      serviceHash = Long.toString(baseHash);
-    }
 
     StringBuilder sb = new StringBuilder(sql.length() + INJECTED_COMMENT_ESTIMATED_SIZE);
     if (appendComment) {
@@ -121,15 +108,17 @@ public class SQLCommenter {
     }
     sb.append(OPEN_COMMENT);
     int initSize = sb.length();
-    append(sb, PARENT_SERVICE, parentService, initSize);
+    append(sb, PARENT_SERVICE, config.getServiceName(), initSize);
     append(sb, DATABASE_SERVICE, dbService, initSize);
     append(sb, DD_HOSTNAME, hostname, initSize);
     append(sb, DD_DB_NAME, dbName, initSize);
     append(sb, DD_PEER_SERVICE, getPeerService(), initSize);
-    append(sb, DD_ENV, env, initSize);
+    append(sb, DD_ENV, config.getEnv(), initSize);
     append(sb, DD_VERSION, config.getVersion(), initSize);
     append(sb, TRACEPARENT, traceParent, initSize);
-    append(sb, DD_SERVICE_HASH, serviceHash, initSize);
+    if (config.isDbmInjectSqlBaseHash() && config.isExperimentalPropagateProcessTagsEnabled()) {
+      append(sb, DD_SERVICE_HASH, BaseHash.getBaseHashStr(), initSize);
+    }
     if (initSize == sb.length()) {
       // no comment was added
       return sql;
