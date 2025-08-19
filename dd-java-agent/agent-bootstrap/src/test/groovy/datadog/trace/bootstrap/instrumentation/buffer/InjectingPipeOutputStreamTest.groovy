@@ -112,7 +112,7 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     piped.close()
 
     then:
-    counter.value == 12
+    counter.value == testBytes.length
     downstream.toByteArray() == testBytes
   }
 
@@ -130,29 +130,26 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     piped.close()
 
     then:
-    counter.value == 4
+    counter.value == testBytes.length
     downstream.toByteArray() == testBytes
   }
 
   def 'should count bytes correctly with multiple writes'() {
     setup:
-    def part1 = "test".getBytes("UTF-8")
-    def part2 = " ".getBytes("UTF-8")
-    def part3 = "content".getBytes("UTF-8")
-    def testBytes = "test content".getBytes("UTF-8")
+    def testBytes = "test content"
     def downstream = new ByteArrayOutputStream()
     def counter = new Counter()
     def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, { long bytes -> counter.incr(bytes) }, null)
 
     when:
-    piped.write(part1)
-    piped.write(part2)
-    piped.write(part3)
+    piped.write(testBytes[0..4].getBytes("UTF-8"))
+    piped.write(testBytes[5..5].getBytes("UTF-8"))
+    piped.write(testBytes[6..-1].getBytes("UTF-8"))
     piped.close()
 
     then:
-    counter.value == 12
-    downstream.toByteArray() == testBytes
+    counter.value == testBytes.length()
+    downstream.toByteArray() == testBytes.getBytes("UTF-8")
   }
 
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {

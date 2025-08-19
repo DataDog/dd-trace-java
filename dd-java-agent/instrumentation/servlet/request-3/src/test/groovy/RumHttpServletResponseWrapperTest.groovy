@@ -25,7 +25,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
 
   void setup() {
     mockRequest.getServletContext() >> mockServletContext
-    mockServletContext.getEffectiveMajorVersion() >> 3
+    mockServletContext.getEffectiveMajorVersion() >> Integer.parseInt(SERVLET_VERSION)
     wrapper = new RumHttpServletResponseWrapper(mockRequest, mockResponse)
     RumInjector.setTelemetryCollector(mockTelemetryCollector)
   }
@@ -172,14 +172,15 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     }
     def wrappedStream = new WrappedServletOutputStream(
       downstream, marker, contentToInject, null, onBytesWritten, null)
+    def testBytes = "test content"
 
     when:
-    wrappedStream.write("test".getBytes("UTF-8"))
-    wrappedStream.write("content".getBytes("UTF-8"))
+    wrappedStream.write(testBytes[0..5].getBytes("UTF-8"))
+    wrappedStream.write(testBytes[6..-1].getBytes("UTF-8"))
     wrappedStream.close()
 
     then:
-    1 * mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, 11)
+    1 * mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, testBytes.length())
   }
 
   void 'response sizes are reported by the InjectingPipeOutputStream callback'() {
@@ -190,14 +191,15 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def onBytesWritten = Mock(LongConsumer)
     def stream = new InjectingPipeOutputStream(
       downstream, marker, contentToInject, null, onBytesWritten, null)
+    def testBytes = "test content"
 
     when:
-    stream.write("test".getBytes("UTF-8"))
-    stream.write("content".getBytes("UTF-8"))
+    stream.write(testBytes[0..5].getBytes("UTF-8"))
+    stream.write(testBytes[6..-1].getBytes("UTF-8"))
     stream.close()
 
     then:
-    1 * onBytesWritten.accept(11)
+    1 * onBytesWritten.accept(testBytes.length())
   }
 
   void 'response sizes are reported by the InjectingPipeWriter callback'() {
@@ -208,14 +210,15 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     def onBytesWritten = Mock(LongConsumer)
     def writer = new InjectingPipeWriter(
       downstream, marker, contentToInject, null, onBytesWritten, null)
+    def testBytes = "test content"
 
     when:
-    writer.write("test".toCharArray())
-    writer.write("content".toCharArray())
+    writer.write(testBytes[0..5].toCharArray())
+    writer.write(testBytes[6..-1].toCharArray())
     writer.close()
 
     then:
-    1 * onBytesWritten.accept(11)
+    1 * onBytesWritten.accept(testBytes.length())
   }
 
   void 'injection timing is reported by the InjectingPipeOutputStream callback'() {

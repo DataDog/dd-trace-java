@@ -16,7 +16,7 @@ class RumInjectorMetricsTest extends Specification {
     }
   }
 
-  // Note: application_id and remote_config_used are dynamic runtime values that depend on
+  // Note: application_id and remote_config_used tags need dynamic runtime values that depend on
   // the RUM configuration state, so we do not test them here.
   def "test onInjectionSucceed"() {
     when:

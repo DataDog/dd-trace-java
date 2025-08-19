@@ -121,14 +121,15 @@ class InjectingPipeWriterTest extends DDSpecification {
     def downstream = new StringWriter()
     def counter = new Counter()
     def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
+    def testBytes = "test content"
 
     when:
-    piped.write("test content".toCharArray())
+    piped.write(testBytes.toCharArray())
     piped.close()
 
     then:
-    counter.value == 12
-    downstream.toString() == "test content"
+    counter.value == testBytes.length()
+    downstream.toString() == testBytes
   }
 
   def 'should count bytes correctly when writing characters individually'() {
@@ -136,17 +137,17 @@ class InjectingPipeWriterTest extends DDSpecification {
     def downstream = new StringWriter()
     def counter = new Counter()
     def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
+    def testBytes = "test"
 
     when:
-    def content = "test"
-    for (int i = 0; i < content.length(); i++) {
-      piped.write((int) content.charAt(i))
+    for (int i = 0; i < testBytes.length(); i++) {
+      piped.write((int) testBytes.charAt(i))
     }
     piped.close()
 
     then:
-    counter.value == 4
-    downstream.toString() == "test"
+    counter.value == testBytes.length()
+    downstream.toString() == testBytes
   }
 
   def 'should count bytes correctly with multiple writes'() {
@@ -154,30 +155,32 @@ class InjectingPipeWriterTest extends DDSpecification {
     def downstream = new StringWriter()
     def counter = new Counter()
     def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
+    def testBytes = "test content"
 
     when:
-    piped.write("test".toCharArray())
-    piped.write(" ".toCharArray())
-    piped.write("content".toCharArray())
+    piped.write(testBytes[0..4].toCharArray())
+    piped.write(testBytes[5..5].toCharArray())
+    piped.write(testBytes[6..-1].toCharArray())
     piped.close()
 
     then:
-    counter.value == 12
-    downstream.toString() == "test content"
+    counter.value == testBytes.length()
+    downstream.toString() == testBytes
   }
 
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
     setup:
     def downstream = new StringWriter()
     def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+    def testBytes = "test content"
 
     when:
-    piped.write("test content".toCharArray())
+    piped.write(testBytes.toCharArray())
     piped.close()
 
     then:
     noExceptionThrown()
-    downstream.toString() == "test content"
+    downstream.toString() == testBytes
   }
 
   def 'should call timing callback when injection happens'() {

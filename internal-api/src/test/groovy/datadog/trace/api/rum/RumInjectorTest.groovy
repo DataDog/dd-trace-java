@@ -134,10 +134,8 @@ class RumInjectorTest extends DDSpecification {
 
   void 'telemetry integration works end-to-end'() {
     when:
-    // simulate CoreTracer enabling telemetry
     RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
 
-    // simulate reporting injection telemetry
     def telemetryCollector = RumInjector.getTelemetryCollector()
     telemetryCollector.onInjectionSucceed("3")
     telemetryCollector.onInjectionFailed("3", "gzip")
@@ -146,7 +144,6 @@ class RumInjectorTest extends DDSpecification {
     telemetryCollector.onInjectionResponseSize("3", 256)
     telemetryCollector.onInjectionTime("3", 5L)
 
-    // verify metrics are collected
     def summary = telemetryCollector.summary()
 
     then:
