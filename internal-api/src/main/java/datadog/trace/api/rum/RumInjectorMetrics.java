@@ -2,6 +2,8 @@ package datadog.trace.api.rum;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -13,40 +15,6 @@ import java.util.concurrent.atomic.AtomicLong;
  *     metrics and tags</a>
  */
 public class RumInjectorMetrics implements RumTelemetryCollector {
-  // Use static tags for common combinations so that we don't have to build them for each metric
-  // Note that injector_version tags are not included because we do not use the rust injector
-  private static final String[] CSP_SERVLET3_TAGS =
-      new String[] {
-        "integration_name:servlet",
-        "integration_version:3",
-        "kind:header",
-        "reason:csp_header_found",
-        "status:seen"
-      };
-
-  private static final String[] CSP_SERVLET5_TAGS =
-      new String[] {
-        "integration_name:servlet",
-        "integration_version:5",
-        "kind:header",
-        "reason:csp_header_found",
-        "status:seen"
-      };
-
-  private static final String[] INIT_TAGS =
-      new String[] {"integration_name:servlet", "integration_version:3,5"};
-
-  private static final String[] TIME_SERVLET3_TAGS =
-      new String[] {"integration_name:servlet", "integration_version:3"};
-
-  private static final String[] TIME_SERVLET5_TAGS =
-      new String[] {"integration_name:servlet", "integration_version:5"};
-
-  private static final String[] RESPONSE_SERVLET3_TAGS =
-      new String[] {"integration_name:servlet", "integration_version:3", "response_kind:header"};
-
-  private static final String[] RESPONSE_SERVLET5_TAGS =
-      new String[] {"integration_name:servlet", "integration_version:5", "response_kind:header"};
 
   private final AtomicLong injectionSucceed = new AtomicLong();
   private final AtomicLong injectionFailed = new AtomicLong();
@@ -58,6 +26,17 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
   private final String applicationId;
   private final String remoteConfigUsed;
+
+  // Cache dependent on servlet version and content encoding
+  private final DDCache<String, String[]> succeedTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, String[]> skippedTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, String[]> cspTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, String[]> responseTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, String[]> timeTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, String[]> failedTagsCache = DDCaches.newFixedSizeCache(16);
+
+  private static final String[] INIT_TAGS =
+      new String[] {"integration_name:servlet", "integration_version:N/A"};
 
   public RumInjectorMetrics(final StatsDClient statsd) {
     this.statsd = statsd;
@@ -75,61 +54,70 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   }
 
   @Override
-  public void onInjectionSucceed(String integrationVersion) {
+  public void onInjectionSucceed(String servletVersion) {
     injectionSucceed.incrementAndGet();
 
     String[] tags =
-        new String[] {
-          "application_id:" + applicationId,
-          "integration_name:servlet",
-          "integration_version:" + integrationVersion,
-          "remote_config_used:" + remoteConfigUsed
-        };
+        succeedTagsCache.computeIfAbsent(
+            servletVersion,
+            version ->
+                new String[] {
+                  "application_id:" + applicationId,
+                  "integration_name:servlet",
+                  "integration_version:" + version,
+                  "remote_config_used:" + remoteConfigUsed
+                });
 
     statsd.count("rum.injection.succeed", 1, tags);
   }
 
   @Override
-  public void onInjectionFailed(String integrationVersion, String contentEncoding) {
+  public void onInjectionFailed(String servletVersion, String contentEncoding) {
     injectionFailed.incrementAndGet();
 
-    String[] tags;
-    if (contentEncoding != null) {
-      tags =
-          new String[] {
-            "application_id:" + applicationId,
-            "content_encoding:" + contentEncoding,
-            "integration_name:servlet",
-            "integration_version:" + integrationVersion,
-            "reason:failed_to_return_response_wrapper",
-            "remote_config_used:" + remoteConfigUsed
-          };
-    } else {
-      tags =
-          new String[] {
-            "application_id:" + applicationId,
-            "integration_name:servlet",
-            "integration_version:" + integrationVersion,
-            "reason:failed_to_return_response_wrapper",
-            "remote_config_used:" + remoteConfigUsed
-          };
-    }
+    String cacheKey = servletVersion + ":" + contentEncoding;
+    String[] tags =
+        failedTagsCache.computeIfAbsent(
+            cacheKey,
+            key -> {
+              if (contentEncoding != null) {
+                return new String[] {
+                  "application_id:" + applicationId,
+                  "content_encoding:" + contentEncoding,
+                  "integration_name:servlet",
+                  "integration_version:" + servletVersion,
+                  "reason:failed_to_return_response_wrapper",
+                  "remote_config_used:" + remoteConfigUsed
+                };
+              } else {
+                return new String[] {
+                  "application_id:" + applicationId,
+                  "integration_name:servlet",
+                  "integration_version:" + servletVersion,
+                  "reason:failed_to_return_response_wrapper",
+                  "remote_config_used:" + remoteConfigUsed
+                };
+              }
+            });
 
     statsd.count("rum.injection.failed", 1, tags);
   }
 
   @Override
-  public void onInjectionSkipped(String integrationVersion) {
+  public void onInjectionSkipped(String servletVersion) {
     injectionSkipped.incrementAndGet();
 
     String[] tags =
-        new String[] {
-          "application_id:" + applicationId,
-          "integration_name:servlet",
-          "integration_version:" + integrationVersion,
-          "reason:should_not_inject",
-          "remote_config_used:" + remoteConfigUsed
-        };
+        skippedTagsCache.computeIfAbsent(
+            servletVersion,
+            version ->
+                new String[] {
+                  "application_id:" + applicationId,
+                  "integration_name:servlet",
+                  "integration_version:" + version,
+                  "reason:should_not_inject",
+                  "remote_config_used:" + remoteConfigUsed
+                });
 
     statsd.count("rum.injection.skipped", 1, tags);
   }
@@ -141,23 +129,43 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   }
 
   @Override
-  public void onContentSecurityPolicyDetected(String integrationVersion) {
+  public void onContentSecurityPolicyDetected(String servletVersion) {
     contentSecurityPolicyDetected.incrementAndGet();
 
-    String[] tags = "5".equals(integrationVersion) ? CSP_SERVLET5_TAGS : CSP_SERVLET3_TAGS;
+    String[] tags =
+        cspTagsCache.computeIfAbsent(
+            servletVersion,
+            version ->
+                new String[] {
+                  "integration_name:servlet",
+                  "integration_version:" + version,
+                  "kind:header",
+                  "reason:csp_header_found",
+                  "status:seen"
+                });
     statsd.count("rum.injection.content_security_policy", 1, tags);
   }
 
   @Override
-  public void onInjectionResponseSize(String integrationVersion, long bytes) {
+  public void onInjectionResponseSize(String servletVersion, long bytes) {
     String[] tags =
-        "5".equals(integrationVersion) ? RESPONSE_SERVLET5_TAGS : RESPONSE_SERVLET3_TAGS;
+        responseTagsCache.computeIfAbsent(
+            servletVersion,
+            version ->
+                new String[] {
+                  "integration_name:servlet",
+                  "integration_version:" + version,
+                  "response_kind:header"
+                });
     statsd.distribution("rum.injection.response.bytes", bytes, tags);
   }
 
   @Override
-  public void onInjectionTime(String integrationVersion, long milliseconds) {
-    String[] tags = "5".equals(integrationVersion) ? TIME_SERVLET5_TAGS : TIME_SERVLET3_TAGS;
+  public void onInjectionTime(String servletVersion, long milliseconds) {
+    String[] tags =
+        timeTagsCache.computeIfAbsent(
+            servletVersion,
+            version -> new String[] {"integration_name:servlet", "integration_version:" + version});
     statsd.distribution("rum.injection.ms", milliseconds, tags);
   }
 
@@ -168,6 +176,13 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     injectionSkipped.set(0);
     contentSecurityPolicyDetected.set(0);
     initializationSucceed.set(0);
+
+    succeedTagsCache.clear();
+    skippedTagsCache.clear();
+    cspTagsCache.clear();
+    responseTagsCache.clear();
+    timeTagsCache.clear();
+    failedTagsCache.clear();
   }
 
   public String summary() {
