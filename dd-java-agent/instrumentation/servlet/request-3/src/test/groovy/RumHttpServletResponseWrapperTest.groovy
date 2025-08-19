@@ -20,16 +20,6 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
   def mockServletContext = Mock(ServletContext)
   def mockTelemetryCollector = Mock(RumTelemetryCollector)
 
-  // injector needs to be enabled in order to check headers
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("rum.enabled", "true")
-    injectSysConfig("rum.application.id", "test")
-    injectSysConfig("rum.client.token", "secret")
-    injectSysConfig("rum.remote.configuration.id", "12345")
-  }
-
   @Subject
   RumHttpServletResponseWrapper wrapper
 
@@ -181,7 +171,7 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
       mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, bytes)
     }
     def wrappedStream = new WrappedServletOutputStream(
-      downstream, marker, contentToInject, null, onBytesWritten)
+      downstream, marker, contentToInject, null, onBytesWritten, null)
 
     when:
     wrappedStream.write("test".getBytes("UTF-8"))

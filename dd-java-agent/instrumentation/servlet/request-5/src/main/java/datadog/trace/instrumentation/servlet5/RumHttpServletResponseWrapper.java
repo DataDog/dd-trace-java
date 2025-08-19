@@ -112,7 +112,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   private void checkForContentSecurityPolicy(String name) {
-    if (name != null && rumInjector.isEnabled()) {
+    if (name != null) {
       if (name.startsWith("Content-Security-Policy")) {
         RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
       }
@@ -136,7 +136,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
 
   @Override
   public void setCharacterEncoding(String charset) {
-    if (charset != null && rumInjector.isEnabled()) {
+    if (charset != null) {
       this.contentEncoding = charset;
     }
     super.setCharacterEncoding(charset);
