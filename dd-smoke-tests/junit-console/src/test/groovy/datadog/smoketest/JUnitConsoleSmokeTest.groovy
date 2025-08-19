@@ -137,7 +137,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javacPath())
     command.addAll(["-cp", deps.join(":")])
-    command.addAll(["-d", targetDir]) // TODO: check dir exists
+    command.addAll(["-d", targetDir])
     command.addAll(files)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
