@@ -33,12 +33,12 @@ public class BaggageMetrics {
             "context_header_style.malformed", this.malformedCounter, "header_style:baggage"));
     counters.add(
         new TaggedCounter(
-            "context_header_style.truncated",
+            "context_header.truncated",
             this.truncatedByteCounter,
             "truncation_reason:baggage_byte_count_exceeded"));
     counters.add(
         new TaggedCounter(
-            "context_header_style.truncated",
+            "context_header.truncated",
             this.truncatedItemCounter,
             "truncation_reason:baggage_item_count_exceeded"));
     this.taggedCounters = Collections.unmodifiableList(counters);

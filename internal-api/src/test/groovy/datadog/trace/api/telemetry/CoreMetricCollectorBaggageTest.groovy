@@ -72,7 +72,7 @@ class CoreMetricCollectorBaggageTest extends Specification {
 
     then:
     def baggageMetric = metrics.find {
-      it.metricName == "context_header_style.truncated" &&
+      it.metricName == "context_header.truncated" &&
         it.tags.contains("truncation_reason:baggage_byte_count_exceeded")
     }
     baggageMetric != null
@@ -91,7 +91,7 @@ class CoreMetricCollectorBaggageTest extends Specification {
 
     then:
     def baggageMetric = metrics.find {
-      it.metricName == "context_header_style.truncated" &&
+      it.metricName == "context_header.truncated" &&
         it.tags.contains("truncation_reason:baggage_item_count_exceeded")
     }
     baggageMetric != null
