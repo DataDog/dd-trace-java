@@ -3,6 +3,7 @@ package datadog.environment;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SystemPropertiesTest {
@@ -62,5 +63,16 @@ class SystemPropertiesTest {
     // Null values
     assertDoesNotThrow(() -> SystemProperties.clear(null));
     assertNull(SystemProperties.clear(null));
+  }
+
+  @Test
+  void testAsStringMap() {
+    Map<String, String> stringMap = SystemProperties.asStringMap();
+    assertNotNull(stringMap);
+    assertFalse(stringMap.isEmpty());
+    // Unmodifiable collection
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> stringMap.put(MISSING_SYSTEM_PROPERTY, DEFAULT_VALUE));
   }
 }

@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.servlet2;
 
 import static datadog.trace.instrumentation.servlet2.HttpServletRequestExtractAdapter.GETTER;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -79,7 +79,7 @@ public class Servlet2Decorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      AgentSpanContext.Extracted context) {
+      final Context context) {
     assert span != null;
     if (request != null) {
       span.setTag("servlet.context", request.getContextPath());

@@ -4,7 +4,7 @@
 cafe.cryptography:curve25519-elisabeth:0.1.0=productionRuntimeClasspath,runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=productionRuntimeClasspath,runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.12=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testFixturesRuntimeClasspath
-ch.qos.logback:logback-classic:1.2.3=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.12=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=productionRuntimeClasspath,runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.blogspot.mydailyjava:weak-lock-free:0.17=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath

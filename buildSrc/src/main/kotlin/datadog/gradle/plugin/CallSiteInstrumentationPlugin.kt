@@ -87,28 +87,31 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     // create a new source set for the csi files
     val targetFolder = newBuildFolder(project, extension.targetFolder.get().asFile.toString())
     val sourceSets = getSourceSets(project)
-    val csiSourceSet = sourceSets.create("csi")
     val mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME).get()
-    val csiConfiguration = project.configurations.named(csiSourceSet.compileClasspathConfigurationName).get()
-    val mainConfiguration = project.configurations.named(mainSourceSet.compileClasspathConfigurationName).get()
-    csiConfiguration.extendsFrom(mainConfiguration)
-    csiSourceSet.compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
-    csiSourceSet.annotationProcessorPath += mainSourceSet.annotationProcessorPath
-    csiSourceSet.java.srcDir(targetFolder)
-    project.getTasksByName(csiSourceSet.getCompileTaskName("java"), false).forEach { task ->
-      val compile = task as AbstractCompile
-      compile.sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-      compile.targetCompatibility = JavaVersion.VERSION_1_8.toString()
+    val csiSourceSet = sourceSets.create("csi") {
+      compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
+      annotationProcessorPath += mainSourceSet.annotationProcessorPath
+      java.srcDir(targetFolder)
+
+    }
+    project.configurations.named(csiSourceSet.compileClasspathConfigurationName) {
+      extendsFrom(project.configurations.named(mainSourceSet.compileClasspathConfigurationName).get())
+    }
+
+    project.tasks.named(csiSourceSet.getCompileTaskName("java"), AbstractCompile::class.java).configure {
+      sourceCompatibility = JavaVersion.VERSION_1_8.toString()
+      targetCompatibility = JavaVersion.VERSION_1_8.toString()
     }
 
     // add csi classes to test classpath
-    val testSourceSet = sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME).get()
-    testSourceSet.compileClasspath += csiSourceSet.output.classesDirs
-    testSourceSet.runtimeClasspath += csiSourceSet.output.classesDirs
+    sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME) {
+      compileClasspath += csiSourceSet.output.classesDirs
+      runtimeClasspath += csiSourceSet.output.classesDirs
+    }
     project.dependencies.add("testImplementation", csiSourceSet.output)
 
     // include classes in final JAR
-    project.tasks.named("jar", Jar::class.java).configure {
+    project.tasks.named("jar", Jar::class.java) {
       from(csiSourceSet.output.classesDirs)
     }
   }
@@ -137,16 +140,16 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   }
 
   private fun createTasks(project: Project, extension: CallSiteInstrumentationExtension) {
-    val compileTask: AbstractCompile = project.tasks.named("compileJava", AbstractCompile::class.java).get()
-    val input = compileTask.destinationDirectory
-    createGenerateCallSiteTask(project, extension, compileTask, input)
+    registerGenerateCallSiteTask(project, extension, "compileJava")
     val targetFolder = extension.targetFolder.get().asFile
     project.tasks.withType(AbstractCompile::class.java).matching {
       task -> task.name.startsWith("compileTest")
     }.configureEach {
+      inputs.dir(extension.targetFolder)
       classpath += project.files(targetFolder)
     }
     project.tasks.withType(Test::class.java).configureEach {
+      inputs.dir(extension.targetFolder)
       classpath += project.files(targetFolder)
     }
   }
@@ -157,11 +160,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       })
   }
 
-  private fun createGenerateCallSiteTask(project: Project,
-                                         extension: CallSiteInstrumentationExtension,
-                                         compileTask: AbstractCompile,
-                                         input: DirectoryProperty) {
-    val taskName = compileTask.name.replace("compile", "generateCallSite")
+  private fun registerGenerateCallSiteTask(project: Project,
+                                           extension: CallSiteInstrumentationExtension,
+                                           compileTaskName: String) {
+    val taskName = compileTaskName.replace("compile", "generateCallSite")
     val rootFolder = extension.rootFolder.getOrElse(project.rootDir)
     val pluginJarFile = Paths.get(
       rootFolder.toString(),
@@ -171,49 +173,56 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       "libs",
       "call-site-instrumentation-plugin-all.jar"
     ).toFile()
-    val programClassPath = getProgramClasspath(project).map { it.toString() }
+    val compileTask = project.tasks.named(compileTaskName, AbstractCompile::class.java)
     val callSiteGeneratorTask = project.tasks.register(taskName, JavaExec::class.java) {
       // Task description
       group = "call site instrumentation"
-      description = "Generates call sites from ${compileTask.name}"
+      description = "Generates call sites from ${compileTaskName}"
       // Task input & output
       val output = extension.targetFolder
-      inputs.dir(input)
+      val inputProvider = compileTask.map { it.destinationDirectory.get() }
+      inputs.dir(inputProvider)
       outputs.dir(output)
       // JavaExec configuration
       if (extension.javaVersion.isPresent) {
         configureLanguage(this, extension.javaVersion.get())
       }
-      jvmArgs(extension.jvmArgs.get())
+      jvmArgumentProviders.add({ extension.jvmArgs.get() })
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
-        val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
+        val programClassPath = getProgramClasspath(project).map { it.toString() }
         val arguments = listOf(
           extension.srcFolder.get().asFile.toString(),
-          input.get().asFile.toString(),
+          inputProvider.get().asFile.toString(),
           output.get().asFile.toString(),
           extension.suffix.get(),
           extension.reporters.get().joinToString(",")
         ) + programClassPath
+
+        val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
         Files.write(argumentFile.toPath(), arguments)
         args(argumentFile.toString())
       }
-    }.get()
 
-    // insert task after compile
-    callSiteGeneratorTask.dependsOn(compileTask)
+      // make task depends on compile
+      dependsOn(compileTask)
+    }
+
+    // make all sourcesets' class tasks depend on call site generator
     val sourceSets = getSourceSets(project)
-    val mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME).get()
-    project.tasks.named(mainSourceSet.classesTaskName).configure {
-      dependsOn(callSiteGeneratorTask)
+    sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME) {
+      project.tasks.named(classesTaskName) {
+        dependsOn(callSiteGeneratorTask)
+      }
     }
 
     // compile generated sources
-    val csiSourceSet = sourceSets.named("csi").get()
-    project.tasks.named(csiSourceSet.compileJavaTaskName).configure {
-      callSiteGeneratorTask.finalizedBy(this)
+    sourceSets.named("csi") {
+      project.tasks.named(compileJavaTaskName) {
+        dependsOn(callSiteGeneratorTask)
+      }
     }
   }
 

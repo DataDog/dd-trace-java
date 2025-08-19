@@ -1,6 +1,7 @@
 package datadog.trace.api.rum
 
 import datadog.trace.api.Config
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.test.util.DDSpecification
 
 import static org.mockito.Mockito.mock
@@ -12,11 +13,12 @@ class RumInjectorTest extends DDSpecification {
   void 'disabled injector'(){
     setup:
     Config config = mock(Config)
+    InstrumenterConfig instrumenterConfig = mock(InstrumenterConfig)
     RumInjector injector
 
     when:
-    when(config.isRumEnabled()).thenReturn(false)
-    injector = new RumInjector(config)
+    when(instrumenterConfig.isRumEnabled()).thenReturn(false)
+    injector = new RumInjector(config, instrumenterConfig)
 
     then:
     !injector.isEnabled()
@@ -27,12 +29,13 @@ class RumInjectorTest extends DDSpecification {
   void 'invalid config injector'() {
     setup:
     Config config = mock(Config)
+    InstrumenterConfig instrumenterConfig = mock(InstrumenterConfig)
     RumInjector injector
 
     when:
-    when(config.isRumEnabled()).thenReturn(true)
+    when(instrumenterConfig.isRumEnabled()).thenReturn(true)
     when(config.rumInjectorConfig).thenReturn(null)
-    injector = new RumInjector(config)
+    injector = new RumInjector(config, instrumenterConfig)
 
     then:
     !injector.isEnabled()
@@ -45,14 +48,15 @@ class RumInjectorTest extends DDSpecification {
   void 'enabled injector'() {
     setup:
     Config config = mock(Config)
+    InstrumenterConfig instrumenterConfig = mock(InstrumenterConfig)
     def injectorConfig = mock(RumInjectorConfig)
     RumInjector injector
 
     when:
-    when(config.isRumEnabled()).thenReturn(true)
+    when(instrumenterConfig.isRumEnabled()).thenReturn(true)
     when(config.rumInjectorConfig).thenReturn(injectorConfig)
     when(injectorConfig.snippet).thenReturn("<script></script>")
-    injector = new RumInjector(config)
+    injector = new RumInjector(config, instrumenterConfig)
 
     then:
     injector.isEnabled()

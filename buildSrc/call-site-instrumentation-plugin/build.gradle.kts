@@ -52,41 +52,39 @@ sourceSets {
   }
 }
 
-val copyCallSiteSources = tasks.register<Copy>("copyCallSiteSources") {
-  val csiPackage = "datadog/trace/agent/tooling/csi"
-  val source = layout.projectDirectory.file("../../dd-java-agent/agent-tooling/src/main/java/$csiPackage")
-  val target = layout.buildDirectory.dir("generated/sources/csi/$csiPackage")
-  doFirst {
-    val folder = target.get().asFile
-    if (folder.exists() && !folder.deleteRecursively()) {
-      throw GradleException("Cannot delete files in $folder")
-    }
-  }
-  from(source)
-  into(target)
-  group = "build"
-}
-
 tasks {
-  withType<AbstractCompile> {
+  val copyCallSiteSources = register<Copy>("copyCallSiteSources") {
+    val csiPackage = "datadog/trace/agent/tooling/csi"
+    val source = layout.projectDirectory.file("../../dd-java-agent/agent-tooling/src/main/java/$csiPackage")
+    val target = layout.buildDirectory.dir("generated/sources/csi/$csiPackage")
+    doFirst {
+      val folder = target.get().asFile
+      if (folder.exists() && !folder.deleteRecursively()) {
+        throw GradleException("Cannot delete files in $folder")
+      }
+    }
+    from(source)
+    into(target)
+    group = "build"
+  }
+
+  withType<AbstractCompile>().configureEach {
     dependsOn(copyCallSiteSources)
   }
-}
 
-tasks {
-  named<ShadowJar>("shadowJar") {
+  shadowJar {
     mergeServiceFiles()
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }
   }
-}
 
-tasks.build {
-  dependsOn(tasks.shadowJar)
-}
+  build {
+    dependsOn(shadowJar)
+  }
 
-tasks.test {
-  useJUnitPlatform()
-  enabled = project.hasProperty("runBuildSrcTests")
+  test {
+    useJUnitPlatform()
+    enabled = project.hasProperty("runBuildSrcTests")
+  }
 }

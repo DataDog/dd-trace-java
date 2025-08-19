@@ -1,13 +1,15 @@
 package datadog.trace.api.rum;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
 public final class RumInjector {
-  private static final RumInjector INSTANCE = new RumInjector(Config.get());
+  private static final RumInjector INSTANCE =
+      new RumInjector(Config.get(), InstrumenterConfig.get());
   private static final String MARKER = "</head>";
   private static final char[] MARKER_CHARS = MARKER.toCharArray();
   private static final Function<String, byte[]> MARKER_BYTES =
@@ -27,8 +29,8 @@ public final class RumInjector {
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
 
-  RumInjector(Config config) {
-    boolean rumEnabled = config.isRumEnabled();
+  RumInjector(Config config, InstrumenterConfig instrumenterConfig) {
+    boolean rumEnabled = instrumenterConfig.isRumEnabled();
     RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
     // If both RUM is enabled and injector config is valid
     if (rumEnabled && injectorConfig != null) {
