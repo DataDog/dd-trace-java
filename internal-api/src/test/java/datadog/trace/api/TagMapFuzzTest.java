@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 public final class TagMapFuzzTest {
   static final int NUM_KEYS = 128;
   static final int MAX_NUM_ACTIONS = 32;
+  static final int MIN_NUM_ACTIONS = 8;
 
   @Test
   void test() {
@@ -932,7 +933,7 @@ public final class TagMapFuzzTest {
   }
 
   public static TestCase generateTest() {
-    return generateTest(ThreadLocalRandom.current().nextInt(MAX_NUM_ACTIONS));
+    return generateTest(ThreadLocalRandom.current().nextInt(MIN_NUM_ACTIONS, MAX_NUM_ACTIONS));
   }
 
   public static TestCase generateTest(int size) {
