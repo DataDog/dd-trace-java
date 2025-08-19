@@ -19,10 +19,10 @@ public enum ConfigOrigin {
   DD_CONFIG("dd_config"),
   /** set for cases where it is difficult/not possible to determine the source of a config. */
   UNKNOWN("unknown"),
-  /** set when the user has not set any configuration for the key (defaults to a value) */
-  DEFAULT("default"),
   /** set when the config is calculated from multiple configs */
-  CALCULATED("calculated");
+  CALCULATED("calculated"),
+  /** set when the user has not set any configuration for the key (defaults to a value) */
+  DEFAULT("default");
 
   public final String value;
 

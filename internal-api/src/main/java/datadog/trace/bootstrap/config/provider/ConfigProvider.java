@@ -256,8 +256,7 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
         if (origin != ConfigOrigin.DEFAULT) {
-          // If we have already found a non-default origin, the value is calculated from multiple
-          // sources.
+          // if we already have a non-default origin, the value is calculated from multiple sources
           origin = ConfigOrigin.CALCULATED;
         } else {
           origin = sources[i].origin();
@@ -284,8 +283,7 @@ public final class ConfigProvider {
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
         if (origin != ConfigOrigin.DEFAULT) {
-          // If we have already found a non-default origin, the value is calculated from multiple
-          // sources.
+          // if we already have a non-default origin, the value is calculated from multiple sources
           origin = ConfigOrigin.CALCULATED;
         } else {
           origin = sources[i].origin();
@@ -311,8 +309,7 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
         if (origin != ConfigOrigin.DEFAULT) {
-          // If we have already found a non-default origin, the value is calculated from multiple
-          // sources.
+          // if we already have a non-default origin, the value is calculated from multiple sources
           origin = ConfigOrigin.CALCULATED;
         } else {
           origin = sources[i].origin();
@@ -341,8 +338,8 @@ public final class ConfigProvider {
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
           if (origin != ConfigOrigin.DEFAULT) {
-            // If we have already found a non-default origin, the value is calculated from multiple
-            // sources.
+            // if we already have a non-default origin, the value is calculated from multiple
+            // sources
             origin = ConfigOrigin.CALCULATED;
           } else {
             origin = sources[i].origin();
