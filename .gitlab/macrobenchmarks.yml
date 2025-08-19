@@ -1,7 +1,6 @@
 include:
   project: 'DataDog/benchmarking-platform-tools'
   file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
-  ref: '925e0a3e7dd628885f6fc69cdaea5c8cc9e212bc'
 
 .macrobenchmarks:
   stage: macrobenchmarks
