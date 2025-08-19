@@ -4,6 +4,8 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -140,9 +142,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         setter = TextMapInjectAdapter.SETTER;
       }
-      DataStreamsTags tags =
-          DataStreamsTags.createWithClusterId(
-              "kafka", DataStreamsTags.Direction.Outbound, record.topic(), clusterId);
+      DataStreamsTags tags = createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId);
       try {
         defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())

@@ -151,8 +151,9 @@ find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; |
 ## Testing
 
 Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/).
+Docker and [GiHub CLI](https://cli.github.com/) need also to be installed.
 The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
 
 > [!WARNING]
-> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.
+> Local workflow tests run against the repository and will potentially alter existing issues, milestones and releases.  
 > Pay extra attention to the workflow jobs you trigger to not create development disruption.
