@@ -28,7 +28,7 @@ def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'aws-core', version: '2.2.0'
-  testImplementation project(':dd-java-agent:instrumentation:aws-common')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
