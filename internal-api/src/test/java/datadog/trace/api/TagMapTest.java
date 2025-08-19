@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class TagMapTest {
   // size is chosen to make sure to stress all types of collisions in the Map
-  static final int MANY_SIZE = 256;
+  static int MANY_SIZE = 256;
 
   // static function tests - mostly exist to satisfy coverage checker
   @Test
@@ -30,7 +30,7 @@ public class TagMapTest {
     Map<String, String> emptyMap = Collections.emptyMap();
 
     TagMap tagMap = TagMap.fromMap(emptyMap);
-    assertEquals(tagMap.size(), 0);
+    assertEquals(0, tagMap.size());
     assertTrue(tagMap.isEmpty());
 
     assertFalse(tagMap.isFrozen());
@@ -57,7 +57,7 @@ public class TagMapTest {
     Map<String, String> emptyMap = Collections.emptyMap();
 
     TagMap tagMap = TagMap.fromMapImmutable(emptyMap);
-    assertEquals(tagMap.size(), 0);
+    assertEquals(0, tagMap.size());
     assertTrue(tagMap.isEmpty());
 
     assertTrue(tagMap.isFrozen());
@@ -134,8 +134,8 @@ public class TagMapTest {
     TagMap.Entry newEntry = map.getEntry("bool");
     assertEquals(second, newEntry.booleanValue());
 
-    assertEquals(false, map.getBoolean("unset"));
-    assertEquals(true, map.getBooleanOrDefault("unset", true));
+    assertFalse(map.getBoolean("unset"));
+    assertTrue(map.getBooleanOrDefault("unset", true));
   }
 
   @ParameterizedTest
@@ -153,14 +153,14 @@ public class TagMapTest {
             .set("doubleObj", Double.valueOf(0D))
             .build(mapType.factory);
 
-    assertEquals(false, map.getBoolean("int"));
-    assertEquals(false, map.getBoolean("intObj"));
-    assertEquals(false, map.getBoolean("long"));
-    assertEquals(false, map.getBoolean("longObj"));
-    assertEquals(false, map.getBoolean("float"));
-    assertEquals(false, map.getBoolean("floatObj"));
-    assertEquals(false, map.getBoolean("double"));
-    assertEquals(false, map.getBoolean("doubleObj"));
+    assertFalse(map.getBoolean("int"));
+    assertFalse(map.getBoolean("intObj"));
+    assertFalse(map.getBoolean("long"));
+    assertFalse(map.getBoolean("longObj"));
+    assertFalse(map.getBoolean("float"));
+    assertFalse(map.getBoolean("floatObj"));
+    assertFalse(map.getBoolean("double"));
+    assertFalse(map.getBoolean("doubleObj"));
   }
 
   @ParameterizedTest
@@ -178,14 +178,14 @@ public class TagMapTest {
             .set("doubleObj", Double.valueOf(1D))
             .build(mapType.factory);
 
-    assertEquals(true, map.getBoolean("int"));
-    assertEquals(true, map.getBoolean("intObj"));
-    assertEquals(true, map.getBoolean("long"));
-    assertEquals(true, map.getBoolean("longObj"));
-    assertEquals(true, map.getBoolean("float"));
-    assertEquals(true, map.getBoolean("floatObj"));
-    assertEquals(true, map.getBoolean("double"));
-    assertEquals(true, map.getBoolean("doubleObj"));
+    assertTrue(map.getBoolean("int"));
+    assertTrue(map.getBoolean("intObj"));
+    assertTrue(map.getBoolean("long"));
+    assertTrue(map.getBoolean("longObj"));
+    assertTrue(map.getBoolean("float"));
+    assertTrue(map.getBoolean("floatObj"));
+    assertTrue(map.getBoolean("double"));
+    assertTrue(map.getBoolean("doubleObj"));
   }
 
   @ParameterizedTest
@@ -198,9 +198,9 @@ public class TagMapTest {
             .set("falseStr", "false")
             .build(mapType.factory);
 
-    assertEquals(true, map.getBoolean("obj"));
-    assertEquals(true, map.getBoolean("trueStr"));
-    assertEquals(true, map.getBoolean("falseStr"));
+    assertTrue(map.getBoolean("obj"));
+    assertTrue(map.getBoolean("trueStr"));
+    assertTrue(map.getBoolean("falseStr"));
   }
 
   @ParameterizedTest
@@ -230,7 +230,7 @@ public class TagMapTest {
   public void emptyToPrimitiveCoercion(TagMapType mapType) {
     TagMap map = mapType.empty();
 
-    assertEquals(false, map.getBoolean("dne"));
+    assertFalse(map.getBoolean("dne"));
     assertEquals(0, map.getInt("dne"));
     assertEquals(0L, map.getLong("dne"));
     assertEquals(0F, map.getFloat("dne"));
@@ -771,15 +771,15 @@ public class TagMapTest {
     assertEquals("{key-1=value-1, key-0=value-0, key-3=value-3, key-2=value-2}", map.toString());
   }
 
-  static final int randomSize() {
+  static int randomSize() {
     return ThreadLocalRandom.current().nextInt(1, MANY_SIZE);
   }
 
-  static final TagMap createTagMap(TagMapType mapType) {
+  static TagMap createTagMap(TagMapType mapType) {
     return createTagMap(mapType, randomSize());
   }
 
-  static final TagMap createTagMap(TagMapType mapType, int size) {
+  static TagMap createTagMap(TagMapType mapType, int size) {
     TagMap map = mapType.create();
     for (int i = 0; i < size; ++i) {
       map.set(key(i), value(i));
@@ -787,7 +787,7 @@ public class TagMapTest {
     return map;
   }
 
-  static final Set<String> expectedKeys(int size) {
+  static Set<String> expectedKeys(int size) {
     Set<String> set = new HashSet<String>(size);
     for (int i = 0; i < size; ++i) {
       set.add(key(i));
@@ -795,7 +795,7 @@ public class TagMapTest {
     return set;
   }
 
-  static final Set<String> expectedValues(int size) {
+  static Set<String> expectedValues(int size) {
     Set<String> set = new HashSet<String>(size);
     for (int i = 0; i < size; ++i) {
       set.add(value(i));
@@ -803,23 +803,23 @@ public class TagMapTest {
     return set;
   }
 
-  static final String key(int i) {
+  static String key(int i) {
     return "key-" + i;
   }
 
-  static final String value(int i) {
+  static String value(int i) {
     return "value-" + i;
   }
 
-  static final String altValue(int i) {
+  static String altValue(int i) {
     return "alt-value-" + i;
   }
 
-  static final int count(Iterable<?> iterable) {
+  static int count(Iterable<?> iterable) {
     return count(iterable.iterator());
   }
 
-  static final int count(Iterator<?> iter) {
+  static int count(Iterator<?> iter) {
     int count;
     for (count = 0; iter.hasNext(); ++count) {
       iter.next();
@@ -827,7 +827,7 @@ public class TagMapTest {
     return count;
   }
 
-  static final void assertEntry(String key, String value, TagMap map) {
+  static void assertEntry(String key, String value, TagMap map) {
     TagMap.Entry entry = map.getEntry(key);
     assertNotNull(entry);
 
@@ -841,40 +841,40 @@ public class TagMapTest {
     assertEquals(value, entry.stringValue());
 
     assertTrue(map.containsKey(key));
-    assertTrue(map.keySet().contains(key));
+    assertTrue(map.containsKey(key));
 
     assertTrue(map.containsValue(value));
-    assertTrue(map.values().contains(value));
+    assertTrue(map.containsValue(value));
   }
 
-  static final void assertSize(int size, TagMap map) {
+  static void assertSize(int size, TagMap map) {
     if (map instanceof OptimizedTagMap) {
       assertEquals(size, ((OptimizedTagMap) map).computeSize());
     }
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
-    assertEquals(size, map.keySet().size());
-    assertEquals(size, map.values().size());
+    assertEquals(size, map.size());
+    assertEquals(size, map.size());
     assertEquals(size, count(map.keySet()));
     assertEquals(size, count(map.values()));
   }
 
-  static final void assertNotEmpty(TagMap map) {
+  static void assertNotEmpty(TagMap map) {
     if (map instanceof OptimizedTagMap) {
       assertFalse(((OptimizedTagMap) map).checkIfEmpty());
     }
     assertFalse(map.isEmpty());
   }
 
-  static final void assertEmpty(TagMap map) {
+  static void assertEmpty(TagMap map) {
     if (map instanceof OptimizedTagMap) {
       assertTrue(((OptimizedTagMap) map).checkIfEmpty());
     }
     assertTrue(map.isEmpty());
   }
 
-  static final void assertFrozen(TagMap map) {
+  static void assertFrozen(TagMap map) {
     IllegalStateException ex = null;
     try {
       map.put("foo", "bar");
@@ -884,7 +884,7 @@ public class TagMapTest {
     assertNotNull(ex);
   }
 
-  static final void assertFrozen(Runnable runnable) {
+  static void assertFrozen(Runnable runnable) {
     IllegalStateException ex = null;
     try {
       runnable.run();

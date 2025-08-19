@@ -1,8 +1,8 @@
 package datadog.trace.api;
 
-import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -867,19 +867,19 @@ public final class TagMapFuzzTest {
     assertMapEquals(expected, actual);
   }
 
-  public static final TagMap test(MapAction... actions) {
+  public static TagMap test(MapAction... actions) {
     return test(new TestCase(Arrays.asList(actions)));
   }
 
-  public static final Map<String, Object> makeMap(TestCase testCase) {
+  public static Map<String, Object> makeMap(TestCase testCase) {
     return makeMap(testCase.actions);
   }
 
-  public static final Map<String, Object> makeMap(MapAction... actions) {
+  public static Map<String, Object> makeMap(MapAction... actions) {
     return makeMap(Arrays.asList(actions));
   }
 
-  public static final Map<String, Object> makeMap(List<MapAction> actions) {
+  public static Map<String, Object> makeMap(List<MapAction> actions) {
     Map<String, Object> map = new HashMap<>();
     for (MapAction action : actions) {
       action.apply(map);
@@ -887,15 +887,15 @@ public final class TagMapFuzzTest {
     return map;
   }
 
-  public static final OptimizedTagMap makeTagMap(TestCase testCase) {
+  public static OptimizedTagMap makeTagMap(TestCase testCase) {
     return makeTagMap(testCase.actions);
   }
 
-  public static final OptimizedTagMap makeTagMap(MapAction... actions) {
+  public static OptimizedTagMap makeTagMap(MapAction... actions) {
     return makeTagMap(Arrays.asList(actions));
   }
 
-  public static final OptimizedTagMap makeTagMap(List<MapAction> actions) {
+  public static OptimizedTagMap makeTagMap(List<MapAction> actions) {
     OptimizedTagMap map = new OptimizedTagMap();
     for (MapAction action : actions) {
       action.apply(map);
@@ -903,7 +903,7 @@ public final class TagMapFuzzTest {
     return map;
   }
 
-  public static final OptimizedTagMap test(TestCase test) {
+  public static OptimizedTagMap test(TestCase test) {
     List<MapAction> actions = test.actions();
 
     Map<String, Object> hashMap = new HashMap<>();
@@ -931,11 +931,11 @@ public final class TagMapFuzzTest {
     return tagMap;
   }
 
-  public static final TestCase generateTest() {
+  public static TestCase generateTest() {
     return generateTest(ThreadLocalRandom.current().nextInt(MAX_NUM_ACTIONS));
   }
 
-  public static final TestCase generateTest(int size) {
+  public static TestCase generateTest(int size) {
     List<MapAction> actions = new ArrayList<>(size);
     for (int i = 0; i < size; ++i) {
       actions.add(randomAction());
@@ -943,7 +943,7 @@ public final class TagMapFuzzTest {
     return new TestCase(actions);
   }
 
-  public static final MapAction randomAction() {
+  public static MapAction randomAction() {
     float actionSelector = ThreadLocalRandom.current().nextFloat();
 
     if (actionSelector > 0.5) {
@@ -963,27 +963,27 @@ public final class TagMapFuzzTest {
     }
   }
 
-  public static final MapAction put(String key, String value) {
+  public static MapAction put(String key, String value) {
     return new Put(key, value);
   }
 
-  public static final MapAction putAll(String... keysAndValues) {
+  public static MapAction putAll(String... keysAndValues) {
     return new PutAll(keysAndValues);
   }
 
-  public static final MapAction putAllTagMap(String... keysAndValues) {
+  public static MapAction putAllTagMap(String... keysAndValues) {
     return new PutAllTagMap(keysAndValues);
   }
 
-  public static final MapAction clear() {
+  public static MapAction clear() {
     return Clear.INSTANCE;
   }
 
-  public static final MapAction remove(String key) {
+  public static MapAction remove(String key) {
     return new Remove(key);
   }
 
-  static final void assertMapEquals(Map<String, Object> expected, OptimizedTagMap actual) {
+  static void assertMapEquals(Map<String, Object> expected, OptimizedTagMap actual) {
     // checks entries in both directions to make sure there's full intersection
 
     for (Map.Entry<String, Object> expectedEntry : expected.entrySet()) {
@@ -1000,15 +1000,15 @@ public final class TagMapFuzzTest {
     actual.checkIntegrity();
   }
 
-  static final String randomKey() {
+  static String randomKey() {
     return "key-" + ThreadLocalRandom.current().nextInt(NUM_KEYS);
   }
 
-  static final String randomValue() {
+  static String randomValue() {
     return "values-" + ThreadLocalRandom.current().nextInt();
   }
 
-  static final String[] randomKeysAndValues() {
+  static String[] randomKeysAndValues() {
     int numEntries = ThreadLocalRandom.current().nextInt(NUM_KEYS);
 
     String[] keysAndValues = new String[numEntries << 1];
@@ -1019,11 +1019,11 @@ public final class TagMapFuzzTest {
     return keysAndValues;
   }
 
-  static final String literal(String str) {
+  static String literal(String str) {
     return "\"" + str + "\"";
   }
 
-  static final String literalVarArgs(String... strs) {
+  static String literalVarArgs(String... strs) {
     StringBuilder builder = new StringBuilder();
     for (String str : strs) {
       if (builder.length() != 0) builder.append(',');
@@ -1032,7 +1032,7 @@ public final class TagMapFuzzTest {
     return builder.toString();
   }
 
-  static final Map<String, String> mapOf(String... keysAndValues) {
+  static Map<String, String> mapOf(String... keysAndValues) {
     HashMap<String, String> map = new HashMap<>(keysAndValues.length >> 1);
     for (int i = 0; i < keysAndValues.length; i += 2) {
       String key = keysAndValues[i];
@@ -1043,7 +1043,7 @@ public final class TagMapFuzzTest {
     return map;
   }
 
-  static final TagMap tagMapOf(String... keysAndValues) {
+  static TagMap tagMapOf(String... keysAndValues) {
     OptimizedTagMap map = new OptimizedTagMap();
     for (int i = 0; i < keysAndValues.length; i += 2) {
       String key = keysAndValues[i];
@@ -1067,7 +1067,7 @@ public final class TagMapFuzzTest {
       this.actions = actions;
     }
 
-    public final List<MapAction> actions() {
+    public List<MapAction> actions() {
       return this.actions;
     }
 
