@@ -7,7 +7,7 @@ import java.nio.ByteBuffer
 
 class DataStreamsTagsTest extends Specification {
   def getTags(int idx) {
-    return new DataStreamsTags("bus" + idx, DataStreamsTags.Direction.Outbound, "exchange" + idx, "topic" + idx, "type" + idx, "subscription" + idx,
+    return new DataStreamsTags("bus" + idx, DataStreamsTags.Direction.OUTBOUND, "exchange" + idx, "topic" + idx, "type" + idx, "subscription" + idx,
       "dataset_name" + idx, "dataset_namespace" + idx, true, "group" + idx, "consumer_group" + idx, true,
       "kafka_cluster_id" + idx, "partition" + idx)
   }
@@ -31,13 +31,13 @@ class DataStreamsTagsTest extends Specification {
     tg.getHasRoutingKey() == DataStreamsTags.HAS_ROUTING_KEY_TAG + ":true"
     tg.getKafkaClusterId() == DataStreamsTags.KAFKA_CLUSTER_ID_TAG + ":kafka_cluster_id0"
     tg.getPartition() == DataStreamsTags.PARTITION_TAG + ":partition0"
-    tg.getDirectionValue() == DataStreamsTags.Direction.Outbound
+    tg.getDirectionValue() == DataStreamsTags.Direction.OUTBOUND
     tg.toString() != null
   }
 
   def 'test has all tags'() {
     setup:
-    def tags = new DataStreamsTags("bus", DataStreamsTags.Direction.Outbound,
+    def tags = new DataStreamsTags("bus", DataStreamsTags.Direction.OUTBOUND,
       "exchange", "topic", "type", "subscription", "dataset_name", "dataset_namespace", true,
       "group", "consumer_group", true, "kafka_cluster_id", "partition")
     expect:
@@ -105,12 +105,12 @@ class DataStreamsTagsTest extends Specification {
 
   def 'test create'() {
     setup:
-    def one = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound)
-    def two = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic")
-    def three = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic", "group", "cluster")
+    def one = DataStreamsTags.create("type", DataStreamsTags.Direction.OUTBOUND)
+    def two = DataStreamsTags.create("type", DataStreamsTags.Direction.OUTBOUND, "topic")
+    def three = DataStreamsTags.create("type", DataStreamsTags.Direction.OUTBOUND, "topic", "group", "cluster")
     def four = DataStreamsTags.createWithPartition("type", "topic", "partition", "cluster", "group")
-    def five = DataStreamsTags.createWithDataset("type", DataStreamsTags.Direction.Outbound, "topic", "dataset", "namespace")
-    def six = DataStreamsTags.createWithSubscription("type", DataStreamsTags.Direction.Inbound, "subscription")
+    def five = DataStreamsTags.createWithDataset("type", DataStreamsTags.Direction.OUTBOUND, "topic", "dataset", "namespace")
+    def six = DataStreamsTags.createWithSubscription("type", DataStreamsTags.Direction.INBOUND, "subscription")
     expect:
     one.hasAllTags("type:type", "direction:out")
     two.hasAllTags("type:type", "direction:out", "topic:topic")

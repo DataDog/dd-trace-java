@@ -373,7 +373,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return debuggerDiagnosticsEndpoint != null;
   }
 
-  boolean supportsDropping() {
+  public boolean supportsDropping() {
     return supportsDropping;
   }
 
