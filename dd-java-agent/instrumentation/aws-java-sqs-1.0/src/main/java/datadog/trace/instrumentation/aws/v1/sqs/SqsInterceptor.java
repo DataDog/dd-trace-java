@@ -29,9 +29,9 @@ import java.util.Map;
 
 public class SqsInterceptor extends RequestHandler2 {
 
-  private final ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore;
+  private final ContextStore<AmazonWebServiceRequest, Context> contextStore;
 
-  public SqsInterceptor(ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore) {
+  public SqsInterceptor(ContextStore<AmazonWebServiceRequest, Context> contextStore) {
     this.contextStore = contextStore;
   }
 
@@ -89,6 +89,7 @@ public class SqsInterceptor extends RequestHandler2 {
     final AgentSpan span = startSpan("sqs", "aws.sqs.send");
     // pass the span to TracingRequestHandler in the sdk instrumentation where it'll be enriched &
     // activated
+    // TODO If DSM is enabled, add DSM context here too
     contextStore.put(request, span);
     return span;
   }

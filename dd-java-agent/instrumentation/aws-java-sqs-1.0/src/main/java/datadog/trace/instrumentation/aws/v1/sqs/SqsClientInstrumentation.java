@@ -46,8 +46,7 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.amazonaws.AmazonWebServiceRequest",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+        "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context");
   }
 
   public static class HandlerChainAdvice {
@@ -62,8 +61,7 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
         handlers.add(
             new SqsInterceptor(
                 InstrumentationContext.get(
-                    "com.amazonaws.AmazonWebServiceRequest",
-                    "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
+                    "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
       }
     }
   }
