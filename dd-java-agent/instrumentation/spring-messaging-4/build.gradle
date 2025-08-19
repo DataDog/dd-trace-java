@@ -22,12 +22,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-messaging', version: '4.0.0.RELEASE'
-  testImplementation project(':dd-java-agent:instrumentation:aws-common')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
 
   // capture SQS send and receive spans, propagate trace details in messages
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
-  testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
-  testImplementation project(':dd-java-agent:instrumentation:aws-java-sqs-2.0')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0')
 
   testImplementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '2.0.0'
   testImplementation group: 'io.awspring.cloud', name: 'spring-cloud-aws-sqs', version: '3.0.1', {

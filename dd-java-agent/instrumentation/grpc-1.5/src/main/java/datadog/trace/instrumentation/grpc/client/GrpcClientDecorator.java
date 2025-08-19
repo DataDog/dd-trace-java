@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.grpc.client;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
@@ -11,7 +14,6 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
-import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -32,8 +34,7 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
   private static DataStreamsContext createDsmContext() {
-    return DataStreamsContext.fromTags(
-        DataStreamsTags.create("grpc", DataStreamsTags.Direction.Outbound));
+    return fromTags(create("grpc", OUTBOUND));
   }
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
