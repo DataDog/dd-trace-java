@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.armeria.grpc.client;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
@@ -32,8 +33,7 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
   private static DataStreamsContext createDsmContext() {
-    return DataStreamsContext.fromTags(
-        DataStreamsTags.create("grpc", DataStreamsTags.Direction.Outbound));
+    return DataStreamsContext.fromTags(DataStreamsTags.create("grpc", OUTBOUND));
   }
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
