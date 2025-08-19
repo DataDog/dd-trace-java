@@ -1,8 +1,9 @@
 muzzle {
   pass {
     group = "software.amazon.awssdk"
-    module = "dynamodb"
-    versions = "[2.0,3)"
+    module = "sfn"
+    // 2.15.35 is the minimum version with step functions
+    versions = "[2.15.35,)"
     assertInverse = true
   }
 }
@@ -13,15 +14,15 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.30.22'
+  compileOnly group: 'software.amazon.awssdk', name: 'sfn', version: '2.15.35'
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
-  testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
-  testImplementation 'software.amazon.awssdk:dynamodb:2.30.22'
-  testImplementation 'org.testcontainers:localstack:1.20.1'
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2')
+  testImplementation 'software.amazon.awssdk:sfn:2.15.35'
+  testImplementation libs.testcontainers
 
-  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '+'
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sfn', version: '+'
 }
 
 tasks.withType(Test).configureEach {
