@@ -132,6 +132,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final FixedSizeStripedLongCounter longRunningTracesExpired =
       CountersFactory.createFixedSizeStripedCounter(8);
 
+  private final FixedSizeStripedLongCounter clientStatsProcessedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsProcessedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsP0DroppedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsP0DroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsRequests =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsErrors =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsDowngrades =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
   private final StatsDClient statsd;
   private final long interval;
   private final TimeUnit units;
@@ -361,6 +376,31 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onClientStatTraceComputed(int countedSpans, int totalSpans, boolean dropped) {
+    clientStatsProcessedTraces.inc();
+    clientStatsProcessedSpans.inc(countedSpans);
+    if (dropped) {
+      clientStatsP0DroppedTraces.inc();
+      clientStatsP0DroppedSpans.inc(totalSpans);
+    }
+  }
+
+  @Override
+  public void onClientStatPayloadSent() {
+    clientStatsRequests.inc();
+  }
+
+  @Override
+  public void onClientStatDowngraded() {
+    clientStatsDowngrades.inc();
+  }
+
+  @Override
+  public void onClientStatErrorReceived() {
+    clientStatsErrors.inc();
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -488,6 +528,20 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
 
+        reportIfChanged(
+            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
+
+        reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.p0_dropped_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.p0_dropped_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.flushed_payloads", target.clientStatsRequests, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
+
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
             "previousCounts array needs resizing to at least {}, was {}",
@@ -606,6 +660,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nlongRunningTracesDropped="
         + longRunningTracesDropped.get()
         + "\nlongRunningTracesExpired="
-        + longRunningTracesExpired.get();
+        + longRunningTracesExpired.get()
+        + "\n"
+        + "\nclientStatsRequests="
+        + clientStatsRequests.get()
+        + "\nclientStatsErrors="
+        + clientStatsErrors.get()
+        + "\nclientStatsDowngrades="
+        + clientStatsDowngrades.get()
+        + "\nclientStatsP0DroppedSpans="
+        + clientStatsP0DroppedSpans.get()
+        + "\nclientStatsP0DroppedTraces="
+        + clientStatsP0DroppedTraces.get()
+        + "\nclientStatsProcessedSpans="
+        + clientStatsProcessedSpans.get()
+        + "\nclientStatsProcessedTraces="
+        + clientStatsProcessedTraces.get();
   }
 }
