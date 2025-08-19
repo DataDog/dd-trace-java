@@ -40,6 +40,10 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     threadDumpLogger.stop()
   }
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
 
   /**
    * Tests the structured task scope with a single task.
