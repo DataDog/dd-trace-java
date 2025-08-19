@@ -33,7 +33,7 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String dbUriNonExistent
   String embeddedDbUri
 
-  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.19"))
+  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
   .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
