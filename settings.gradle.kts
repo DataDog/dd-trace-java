@@ -103,6 +103,7 @@ include(
   ":communication",
   ":components:context",
   ":components:environment",
+  ":components:generator",
   ":components:json",
   ":components:yaml",
   ":telemetry",

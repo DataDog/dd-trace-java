@@ -271,6 +271,7 @@ dependencies {
   api(libs.slf4j)
   api(project(":components:context"))
   api(project(":components:environment"))
+  api(project(":components:generator"))
   api(project(":components:json"))
   api(project(":components:yaml"))
   api(project(":utils:time-utils"))

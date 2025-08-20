@@ -1,4 +1,4 @@
-package datadog.environment;
+package datadog.generator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -60,7 +60,7 @@ public class ParseSupportedConfigurations {
       Map<String, String> deprecated)
       throws IOException {
     try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(Paths.get(outputPath)))) {
-      out.println("package datadog.environment;");
+      out.println("package datadog.generator;");
       out.println();
       out.println("import java.util.*;");
       out.println();

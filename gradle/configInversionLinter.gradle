@@ -7,7 +7,7 @@ tasks.register('logEnvVarUsages') {
 
   doLast {
     def repoRoot = projectDir.toPath()
-    def jsonFile = file("$projectDir/components/environment/src/generator/resources/supported-configurations.json")
+    def jsonFile = file("$projectDir/components/generator/src/generator/resources/supported-configurations.json")
 
     if (!jsonFile.exists()) {
       throw new GradleException("supported-configurations.json not found at $jsonFile")
