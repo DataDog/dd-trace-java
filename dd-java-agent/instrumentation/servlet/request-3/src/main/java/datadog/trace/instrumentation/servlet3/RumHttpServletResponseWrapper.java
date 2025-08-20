@@ -7,17 +7,21 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
 import java.nio.charset.Charset;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
 public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private final RumInjector rumInjector;
+  private final String servletVersion;
   private WrappedServletOutputStream outputStream;
   private PrintWriter printWriter;
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
+  private String contentEncoding = null;
 
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
 
@@ -34,9 +38,19 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     throw (E) e;
   }
 
-  public RumHttpServletResponseWrapper(HttpServletResponse response) {
+  public RumHttpServletResponseWrapper(HttpServletRequest request, HttpServletResponse response) {
     super(response);
     this.rumInjector = RumInjector.get();
+
+    String version = "3";
+    ServletContext servletContext = request.getServletContext();
+    if (servletContext != null) {
+      try {
+        version = String.valueOf(servletContext.getEffectiveMajorVersion());
+      } catch (Exception e) {
+      }
+    }
+    this.servletVersion = version;
   }
 
   @Override
@@ -45,18 +59,30 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return outputStream;
     }
     if (!shouldInject) {
+      RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
       return super.getOutputStream();
     }
-    String encoding = getCharacterEncoding();
-    if (encoding == null) {
-      encoding = Charset.defaultCharset().name();
+    try {
+      String encoding = getCharacterEncoding();
+      if (encoding == null) {
+        encoding = Charset.defaultCharset().name();
+      }
+      outputStream =
+          new WrappedServletOutputStream(
+              super.getOutputStream(),
+              rumInjector.getMarkerBytes(encoding),
+              rumInjector.getSnippetBytes(encoding),
+              this::onInjected,
+              bytes ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionResponseSize(servletVersion, bytes),
+              milliseconds ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionTime(servletVersion, milliseconds));
+    } catch (Exception e) {
+      RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
+      throw e;
     }
-    outputStream =
-        new WrappedServletOutputStream(
-            super.getOutputStream(),
-            rumInjector.getMarkerBytes(encoding),
-            rumInjector.getSnippetBytes(encoding),
-            this::onInjected);
 
     return outputStream;
   }
@@ -67,17 +93,49 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return printWriter;
     }
     if (!shouldInject) {
+      RumInjector.getTelemetryCollector().onInjectionSkipped(servletVersion);
       return super.getWriter();
     }
-    wrappedPipeWriter =
-        new InjectingPipeWriter(
-            super.getWriter(),
-            rumInjector.getMarkerChars(),
-            rumInjector.getSnippetChars(),
-            this::onInjected);
-    printWriter = new PrintWriter(wrappedPipeWriter);
+    try {
+      wrappedPipeWriter =
+          new InjectingPipeWriter(
+              super.getWriter(),
+              rumInjector.getMarkerChars(),
+              rumInjector.getSnippetChars(),
+              this::onInjected,
+              bytes ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionResponseSize(servletVersion, bytes),
+              milliseconds ->
+                  RumInjector.getTelemetryCollector()
+                      .onInjectionTime(servletVersion, milliseconds));
+      printWriter = new PrintWriter(wrappedPipeWriter);
+    } catch (Exception e) {
+      RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
+      throw e;
+    }
 
     return printWriter;
+  }
+
+  @Override
+  public void setHeader(String name, String value) {
+    checkForContentSecurityPolicy(name);
+    super.setHeader(name, value);
+  }
+
+  @Override
+  public void addHeader(String name, String value) {
+    checkForContentSecurityPolicy(name);
+    super.addHeader(name, value);
+  }
+
+  private void checkForContentSecurityPolicy(String name) {
+    if (name != null) {
+      if (name.startsWith("Content-Security-Policy")) {
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
+      }
+    }
   }
 
   @Override
@@ -100,6 +158,14 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   @Override
+  public void setCharacterEncoding(String charset) {
+    if (charset != null) {
+      this.contentEncoding = charset;
+    }
+    super.setCharacterEncoding(charset);
+  }
+
+  @Override
   public void reset() {
     this.outputStream = null;
     this.wrappedPipeWriter = null;
@@ -117,6 +183,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   public void onInjected() {
+    RumInjector.getTelemetryCollector().onInjectionSucceed(servletVersion);
     try {
       setHeader("x-datadog-rum-injected", "1");
     } catch (Throwable ignored) {
