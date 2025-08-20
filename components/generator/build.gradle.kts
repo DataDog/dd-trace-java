@@ -43,13 +43,3 @@ sourceSets["main"].java.srcDir(layout.buildDirectory.dir("generated/sources/supp
 tasks.named("compileJava") {
   dependsOn(generateSupportedConfigurations)
 }
-
-// /*
-// * Configure test coverage.
-// */
-// extra.set("minimumInstructionCoverage", 0.7)
-// val excludedClassesCoverage by extra {
-//  listOf(
-//    "datadog.environment.GeneratedSupportedConfigurations", // generated static file
-//  )
-// }

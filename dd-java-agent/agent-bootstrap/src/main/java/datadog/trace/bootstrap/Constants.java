@@ -19,6 +19,7 @@ public final class Constants {
     "datadog.environment",
     "datadog.json",
     "datadog.yaml",
+    "datadog.generator",
     "datadog.appsec.api",
     "datadog.trace.api",
     "datadog.trace.bootstrap",

@@ -18,6 +18,7 @@ final class CachedData {
       exclude(project(':communication'))
       exclude(project(':components:context'))
       exclude(project(':components:environment'))
+      exclude(project(':components:generator'))
       exclude(project(':components:json'))
       exclude(project(':components:yaml'))
       exclude(project(':remote-config:remote-config-api'))
