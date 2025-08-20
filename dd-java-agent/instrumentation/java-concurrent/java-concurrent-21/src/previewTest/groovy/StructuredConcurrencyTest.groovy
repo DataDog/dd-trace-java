@@ -11,6 +11,7 @@ import static java.time.Instant.now
 class StructuredConcurrencyTest extends AgentTestRunner {
   @Override
   boolean useStrictTraceWrites() {
+    // TODO: Monitor in CI to validate fix effectiveness against freezes.
     return false
   }
 
