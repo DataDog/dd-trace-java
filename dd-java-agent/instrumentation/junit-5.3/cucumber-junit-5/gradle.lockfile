@@ -110,6 +110,7 @@ org.apache.logging.log4j:log4j-api:2.19.0=spotbugs
 org.apache.logging.log4j:log4j-core:2.19.0=spotbugs
 org.apiguardian:apiguardian-api:1.1.0=compileClasspath,testRuntimeClasspath
 org.apiguardian:apiguardian-api:1.1.2=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath
+org.assertj:assertj-core:3.27.4=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.checkerframework:checker-qual:3.33.0=annotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
 org.codehaus.groovy:groovy-all:3.0.24=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.codehaus.groovy:groovy-ant:2.5.14=codenarc

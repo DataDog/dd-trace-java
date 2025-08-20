@@ -3,13 +3,13 @@ package datadog.trace.instrumentation.play23;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -25,7 +25,7 @@ import play.api.mvc.Request;
 import scala.Option;
 
 public class PlayHttpServerDecorator
-    extends HttpServerDecorator<Request, Request, play.api.mvc.Result, Headers> {
+    extends HttpServerDecorator<Request<?>, Request<?>, play.api.mvc.Result, Headers> {
   private static final Logger LOG = LoggerFactory.getLogger(PlayHttpServerDecorator.class);
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
@@ -58,22 +58,22 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  protected String method(final Request httpRequest) {
+  protected String method(final Request<?> httpRequest) {
     return httpRequest.method();
   }
 
   @Override
-  protected URIDataAdapter url(final Request request) {
+  protected URIDataAdapter url(final Request<?> request) {
     return new RequestURIDataAdapter(request);
   }
 
   @Override
-  protected String peerHostIP(final Request request) {
+  protected String peerHostIP(final Request<?> request) {
     return request.remoteAddress();
   }
 
   @Override
-  protected int peerPort(final Request request) {
+  protected int peerPort(final Request<?> request) {
     return 0;
   }
 
@@ -85,9 +85,9 @@ public class PlayHttpServerDecorator
   @Override
   public AgentSpan onRequest(
       final AgentSpan span,
-      final Request connection,
-      final Request request,
-      AgentSpanContext.Extracted context) {
+      final Request<?> connection,
+      final Request<?> request,
+      final Context context) {
     super.onRequest(span, connection, request, context);
     if (request != null) {
       // more about routes here:

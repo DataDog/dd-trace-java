@@ -257,8 +257,13 @@ public final class ConfigProvider {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
         configId = getConfigIdFromSource(sources[i]);
+        if (origin != ConfigOrigin.DEFAULT) {
+          // if we already have a non-default origin, the value is calculated from multiple sources
+          origin = ConfigOrigin.CALCULATED;
+        } else {
+          origin = sources[i].origin();
+        }
       }
       merged.putAll(parsedMap);
     }
@@ -281,8 +286,13 @@ public final class ConfigProvider {
       Map<String, String> parsedMap =
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
         configId = getConfigIdFromSource(sources[i]);
+        if (origin != ConfigOrigin.DEFAULT) {
+          // if we already have a non-default origin, the value is calculated from multiple sources
+          origin = ConfigOrigin.CALCULATED;
+        } else {
+          origin = sources[i].origin();
+        }
       }
       merged.putAll(parsedMap);
     }
@@ -304,8 +314,13 @@ public final class ConfigProvider {
       String value = sources[i].get(key);
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
         configId = getConfigIdFromSource(sources[i]);
+        if (origin != ConfigOrigin.DEFAULT) {
+          // if we already have a non-default origin, the value is calculated from multiple sources
+          origin = ConfigOrigin.CALCULATED;
+        } else {
+          origin = sources[i].origin();
+        }
       }
       merged.putAll(parsedMap);
     }
@@ -330,8 +345,14 @@ public final class ConfigProvider {
         Map<String, String> parsedMap =
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
-          origin = sources[i].origin();
           configId = getConfigIdFromSource(sources[i]);
+          if (origin != ConfigOrigin.DEFAULT) {
+            // if we already have a non-default origin, the value is calculated from multiple
+            // sources
+            origin = ConfigOrigin.CALCULATED;
+          } else {
+            origin = sources[i].origin();
+          }
         }
         merged.putAll(parsedMap);
       }

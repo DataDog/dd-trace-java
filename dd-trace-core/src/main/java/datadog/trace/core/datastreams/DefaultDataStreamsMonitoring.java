@@ -2,6 +2,10 @@ package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.createManual;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
@@ -246,9 +250,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     DataStreamsTags tags;
     if (isManual) {
-      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Inbound, source);
+      tags = createManual(type, INBOUND, source);
     } else {
-      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Inbound, source);
+      tags = create(type, INBOUND, source);
     }
 
     setCheckpoint(span, fromTags(tags));
@@ -268,9 +272,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
     DataStreamsTags tags;
     if (manualCheckpoint) {
-      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Outbound, target);
+      tags = createManual(type, OUTBOUND, target);
     } else {
-      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Outbound, target);
+      tags = create(type, OUTBOUND, target);
     }
 
     DataStreamsContext dsmContext = fromTags(tags);
