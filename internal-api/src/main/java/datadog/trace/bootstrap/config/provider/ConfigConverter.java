@@ -21,6 +21,16 @@ final class ConfigConverter {
 
   private static final Logger log = LoggerFactory.getLogger(ConfigConverter.class);
 
+  /**
+   * Custom exception for invalid boolean values to maintain backward compatibility. When caught in
+   * ConfigProvider, boolean methods should return false instead of default value.
+   */
+  static class InvalidBooleanValueException extends IllegalArgumentException {
+    public InvalidBooleanValueException(String message) {
+      super(message);
+    }
+  }
+
   private static final ValueOfLookup LOOKUP = new ValueOfLookup();
 
   /**
@@ -422,8 +432,8 @@ final class ConfigConverter {
     } else if ("false".equalsIgnoreCase(value)) {
       return Boolean.FALSE;
     } else {
-      // Throw exception for invalid boolean values
-      throw new IllegalArgumentException("Invalid boolean value: " + value);
+      // Throw custom exception for invalid boolean values to maintain backward compatibility
+      throw new InvalidBooleanValueException("Invalid boolean value: " + value);
     }
   }
 

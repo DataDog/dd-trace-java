@@ -657,7 +657,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == " "
     config.agentPort == 8126
     config.agentUrl == "http:// :8126"
-    config.prioritySamplingEnabled == true
+    config.prioritySamplingEnabled == false
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]

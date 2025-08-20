@@ -193,8 +193,8 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     for (ConfigProvider.Source source : sources) {
+      String sourceValue = source.get(key, aliases);
       try {
-        String sourceValue = source.get(key, aliases);
         T value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
@@ -202,8 +202,18 @@ public final class ConfigProvider {
           }
           return value;
         }
+      } catch (ConfigConverter.InvalidBooleanValueException ex) {
+        // For backward compatibility: invalid boolean values should return false, not default
+        // Store the invalid sourceValue for telemetry, but return false for the application
+        if (Boolean.class.equals(type)) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, sourceValue, source.origin());
+          }
+          return (T) Boolean.FALSE;
+        }
+        // For non-boolean types, continue to next source
       } catch (IllegalArgumentException ex) {
-        // continue - covers both NumberFormatException and IllegalArgumentException
+        // continue - covers both NumberFormatException and other IllegalArgumentException
       }
     }
     if (collectConfig) {

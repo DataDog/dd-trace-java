@@ -28,7 +28,7 @@ class ConfigConverterTest extends DDSpecification {
     ConfigConverter.valueOf(invalidValue, Boolean)
 
     then:
-    def exception = thrown(IllegalArgumentException)
+    def exception = thrown(ConfigConverter.InvalidBooleanValueException)
     exception.message.contains("Invalid boolean value:")
 
     where:
