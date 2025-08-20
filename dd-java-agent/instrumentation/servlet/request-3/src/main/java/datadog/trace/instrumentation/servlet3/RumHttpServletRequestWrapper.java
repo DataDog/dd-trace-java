@@ -37,7 +37,8 @@ public class RumHttpServletRequestWrapper extends HttpServletRequestWrapper {
     ServletResponse actualResponse = servletResponse;
     // rewrap it
     if (servletResponse instanceof HttpServletResponse) {
-      actualResponse = new RumHttpServletResponseWrapper((HttpServletResponse) servletResponse);
+      actualResponse =
+          new RumHttpServletResponseWrapper(this, (HttpServletResponse) servletResponse);
       servletRequest.setAttribute(DD_RUM_INJECTED, actualResponse);
     }
     return super.startAsync(servletRequest, actualResponse);
