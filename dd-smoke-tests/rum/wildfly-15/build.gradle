@@ -1,0 +1,124 @@
+ext {
+  serverName = 'wildfly'
+  //serverModule = 'servlet'
+  serverModule = 'wildfly'
+  serverVersion = '15.0.0.Final'
+  serverExtension = 'zip'
+  maxJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+repositories {
+  ivy {
+    url 'https://download.jboss.org/'
+    patternLayout {
+      // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
+      // we download the full EE profile and not the servlet minimal one
+      artifact '/[organisation]/[revision]/[organisation]-[revision].[ext]'
+    }
+    metadataSources {
+      it.artifact()
+    }
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Wildfly Smoke Tests.'
+
+configurations {
+  serverFile {
+    extendsFrom implementation
+    canBeResolved = true
+  }
+}
+
+dependencies {
+  // uses the ivy repository url to download the wildfly servlet zip
+  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
+  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
+  testImplementation project(':dd-smoke-tests:rum')
+  testImplementation project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/rum-ear"
+def appBuildDir = "$buildDir/rm-ear"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+// define the task that builds the quarkus project
+tasks.register('earBuild', Exec) {
+  workingDir "$appDir"
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
+  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationEar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+earBuild {
+  dependsOn project(':dd-trace-api').tasks.named("jar")
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn tasks.earBuild
+  outputs.upToDateWhen {
+    !earBuild.didWork
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}
+
+def wildflyDir="${buildDir}/${serverName}-${serverVersion}"
+
+tasks.register("unzip", Copy) {
+  dependsOn tasks.earBuild
+  mustRunAfter tasks.compileTestGroovy
+  def zipFileNamePrefix = "wildfly"
+  def zipPath = project.configurations.serverFile.find {
+    it.name.startsWith(zipFileNamePrefix)
+  }
+  if (zipPath != null) {
+    def zipFile = file(zipPath)
+    def outputDir = file("${buildDir}")
+
+    from zipTree(zipFile)
+    into outputDir
+  } else {
+    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+  }
+
+  // When tests are disabled this would still be run, so disable this manually
+  onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+tasks.withType(Jar).configureEach {
+  dependsOn tasks.unzip
+}
+
+tasks.register("deploy", Copy) {
+  dependsOn tasks.unzip
+  from "${appBuildDir}/libs/wildfly-rum-ear-smoketest.ear"
+  into "${wildflyDir}/standalone/deployments"
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn tasks.deploy
+  jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
+}
+
