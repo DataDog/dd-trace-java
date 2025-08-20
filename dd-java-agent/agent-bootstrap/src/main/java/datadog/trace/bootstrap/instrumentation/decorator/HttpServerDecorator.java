@@ -5,6 +5,7 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -527,16 +528,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public Context beforeFinish(Context context) {
-    AgentSpan span = AgentSpan.fromContext(context);
+  public AgentSpan beforeFinish(AgentSpan span) {
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
     }
 
     // Close Serverless Gateway Inferred Span if any
-    finishInferredProxySpan(context);
+    finishInferredProxySpan(activateSpan(span).context());
 
-    return super.beforeFinish(context);
+    return super.beforeFinish(span);
   }
 
   protected void finishInferredProxySpan(Context context) {
