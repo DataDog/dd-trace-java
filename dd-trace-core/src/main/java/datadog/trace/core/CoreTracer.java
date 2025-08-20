@@ -30,6 +30,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -49,6 +50,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
+import datadog.trace.api.rum.RumInjector;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -703,6 +705,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
+
     this.healthMetrics =
         healthMetrics != null
             ? healthMetrics
@@ -710,6 +713,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 ? new TracerHealthMetrics(this.statsDClient)
                 : HealthMetrics.NO_OP);
     this.healthMetrics.start();
+
+    // Start RUM injector telemetry
+    if (InstrumenterConfig.get().isRumEnabled()) {
+      RumInjector.enableTelemetry(this.statsDClient);
+    }
+
     performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
@@ -1256,6 +1265,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     tracingConfigPoller.stop();
     pendingTraceBuffer.close();
     writer.close();
+    RumInjector.shutdownTelemetry();
     statsDClient.close();
     metricsAggregator.close();
     dataStreamsMonitoring.close();
