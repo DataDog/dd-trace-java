@@ -141,7 +141,7 @@ dependencies {
   main_java11CompileOnly project(':dd-java-agent:agent-bootstrap')
 
   testImplementation sourceSets.main_java11.output
-  testImplementation project(':dd-java-agent:instrumentation:aws-common')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-2')
