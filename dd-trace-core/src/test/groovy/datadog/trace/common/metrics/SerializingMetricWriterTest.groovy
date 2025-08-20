@@ -177,7 +177,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackBoolean() == key.isSynthetics()
         ++elementCount
         assert unpacker.unpackString() == "IsTraceRoot"
-        assert unpacker.unpackBoolean() == key.isTraceRoot()
+        assert unpacker.unpackInt() == (key.isTraceRoot() ? 1 : 2)
         ++elementCount
         assert unpacker.unpackString() == "SpanKind"
         assert unpacker.unpackString() == key.getSpanKind() as String

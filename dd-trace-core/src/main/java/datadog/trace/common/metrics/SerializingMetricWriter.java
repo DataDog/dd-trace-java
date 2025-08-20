@@ -118,7 +118,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBoolean(key.isSynthetics());
 
     writer.writeUTF8(IS_TRACE_ROOT);
-    writer.writeBoolean(key.isTraceRoot());
+    writer.writeInt(key.isTraceRoot() ? 1 : 2); // tristate (0 unknown, 1 true, 2 false)
 
     writer.writeUTF8(SPAN_KIND);
     writer.writeUTF8(key.getSpanKind());
