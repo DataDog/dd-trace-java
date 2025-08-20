@@ -84,7 +84,9 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
           if (maybeRumWrapper instanceof RumHttpServletResponseWrapper) {
             rumServletWrapper = (RumHttpServletResponseWrapper) maybeRumWrapper;
           } else {
-            rumServletWrapper = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+            rumServletWrapper =
+                new RumHttpServletResponseWrapper(
+                    httpServletRequest, (HttpServletResponse) response);
             httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
             response = rumServletWrapper;
             request = new RumHttpServletRequestWrapper(httpServletRequest, rumServletWrapper);
