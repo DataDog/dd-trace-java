@@ -598,6 +598,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
@@ -824,6 +825,7 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
+  private final boolean traceInferredProxyServicesEnabled;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
   private final List<String> traceBaggageTagKeys;
@@ -1730,6 +1732,9 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+
+    traceInferredProxyServicesEnabled =
+        configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -3116,6 +3121,10 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isTraceInferredProxyServicesEnabled() {
+    return traceInferredProxyServicesEnabled;
   }
 
   public boolean isBaggageExtract() {
@@ -5402,6 +5411,8 @@ public class Config {
         + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
+        + ", traceInferredProxyServicesEnabled="
+        + traceInferredProxyServicesEnabled
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="

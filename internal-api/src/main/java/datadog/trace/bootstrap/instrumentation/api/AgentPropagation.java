@@ -17,6 +17,7 @@ public final class AgentPropagation {
   // TODO: Baggage propagator should run after tracing so it can link baggage with the span context
   // TODO: remove this priority once we have a story for replacing TagContext with the Context API
   public static final Concern BAGGAGE_CONCERN = withPriority("baggage", 105);
+  public static final Concern INFERRED_PROXY_CONCERN = named("inferred_proxy");
   public static final Concern XRAY_TRACING_CONCERN = named("tracing-xray");
 
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
