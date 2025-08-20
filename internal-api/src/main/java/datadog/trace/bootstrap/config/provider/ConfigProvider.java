@@ -198,7 +198,8 @@ public final class ConfigProvider {
         T value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
-            ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
+            ConfigCollector.get()
+                .put(key, sourceValue, source.origin(), getConfigIdFromSource(source));
           }
           return value;
         }
