@@ -16,7 +16,8 @@ public class ConfigCollector {
   private static final AtomicReferenceFieldUpdater<ConfigCollector, Map> COLLECTED_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ConfigCollector.class, Map.class, "collected");
 
-  private volatile Map<String, ConfigSetting> collected = new ConcurrentHashMap<>();
+  private volatile Map<ConfigOrigin, Map<String, ConfigSetting>> collected =
+      new ConcurrentHashMap<>();
 
   public static ConfigCollector get() {
     return INSTANCE;
@@ -24,34 +25,43 @@ public class ConfigCollector {
 
   public void put(String key, Object value, ConfigOrigin origin) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin);
-    collected.put(key, setting);
+    Map<String, ConfigSetting> configMap =
+        collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
+    configMap.put(key, setting); // replaces any previous value for this key at origin
+  }
+
+  public void put(String key, Object value, ConfigOrigin origin, int seqId) {
+    ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId);
+    Map<String, ConfigSetting> configMap =
+        collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
+    configMap.put(key, setting); // replaces any previous value for this key at origin
   }
 
   public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
-    // attempt merge+replace to avoid collector seeing partial update
-    Map<String, ConfigSetting> merged =
-        new ConcurrentHashMap<>(keysAndValues.size() + collected.size());
     for (Map.Entry<String, Object> entry : keysAndValues.entrySet()) {
-      ConfigSetting setting = ConfigSetting.of(entry.getKey(), entry.getValue(), origin);
-      merged.put(entry.getKey(), setting);
-    }
-    while (true) {
-      Map<String, ConfigSetting> current = collected;
-      current.forEach(merged::putIfAbsent);
-      if (COLLECTED_UPDATER.compareAndSet(this, current, merged)) {
-        break; // success
-      }
-      // roll back to original update before next attempt
-      merged.keySet().retainAll(keysAndValues.keySet());
+      put(entry.getKey(), entry.getValue(), origin);
     }
   }
 
   @SuppressWarnings("unchecked")
-  public Map<String, ConfigSetting> collect() {
+  public Map<ConfigOrigin, Map<String, ConfigSetting>> collect() {
     if (!collected.isEmpty()) {
       return COLLECTED_UPDATER.getAndSet(this, new ConcurrentHashMap<>());
     } else {
       return Collections.emptyMap();
     }
+  }
+
+  public ConfigSetting getAppliedConfigSetting(String key) {
+    ConfigSetting best = null;
+    for (Map<String, ConfigSetting> configMap : collected.values()) {
+      ConfigSetting setting = configMap.get(key);
+      if (setting != null) {
+        if (best == null || setting.seqId > best.seqId) {
+          best = setting;
+        }
+      }
+    }
+    return best;
   }
 }
