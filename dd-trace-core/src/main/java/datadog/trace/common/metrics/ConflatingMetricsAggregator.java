@@ -311,7 +311,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getType(),
             span.getHttpStatusCode(),
             isSynthetic(span),
-            span.isTopLevel(),
+            span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
             getPeerTags(span, spanKind.toString()));

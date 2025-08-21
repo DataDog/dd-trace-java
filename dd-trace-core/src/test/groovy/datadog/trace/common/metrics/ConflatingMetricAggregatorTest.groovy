@@ -126,7 +126,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "type",
       HTTP_OK,
       false,
-      true,
+      false,
       "baz",
       []
       ), _) >> { MetricKey key, AggregateMetric value ->
@@ -197,7 +197,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >>> [["country"], ["country", "georegion"],]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
     when:
@@ -256,7 +256,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> ["peer.hostname", "_dd.base_service"]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
     when:
@@ -327,7 +327,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "type",
       HTTP_OK,
       false,
-      topLevel,
+      false,
       "baz",
       []
       ), { AggregateMetric value ->
@@ -444,7 +444,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "type",
         HTTP_OK,
         false,
-        true,
+        false,
         "baz",
         []
         ), _) >> { MetricKey key, AggregateMetric value ->
@@ -458,7 +458,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "type",
       HTTP_OK,
       false,
-      true,
+      false,
       "baz",
       []
       ), _)
@@ -503,7 +503,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "type",
         HTTP_OK,
         false,
-        true,
+        false,
         "baz",
         []
         ), { AggregateMetric value ->
@@ -534,7 +534,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "type",
         HTTP_OK,
         false,
-        true,
+        false,
         "baz",
         []
         ), { AggregateMetric value ->
@@ -548,7 +548,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "type",
       HTTP_OK,
       false,
-      true,
+      false,
       "baz",
       []
       ), _)
@@ -593,7 +593,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "type",
         HTTP_OK,
         false,
-        true,
+        false,
         "quux",
         []
         ), { AggregateMetric value ->
@@ -631,7 +631,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 5; ++i) {
       aggregator.publish([
-        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK, true)
         .setTag(SPAN_KIND, "garply")
       ])
     }

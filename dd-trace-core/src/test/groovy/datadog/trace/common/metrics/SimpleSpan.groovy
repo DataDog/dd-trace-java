@@ -13,6 +13,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final String type
   private final boolean measured
   private final boolean topLevel
+  private final boolean traceRoot
   private final boolean error
   private final short statusCode
 
@@ -31,7 +32,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   boolean error,
   long startTime,
   long duration,
-  int statusCode
+  int statusCode,
+  boolean traceRoot = false
   ) {
     this.serviceName = serviceName
     this.operationName = operationName
@@ -39,6 +41,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
     this.type = type
     this.measured = measured
     this.topLevel = topLevel
+    this.traceRoot = traceRoot
     this.error = error
     this.startTime = startTime
     this.duration = duration
@@ -77,7 +80,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   long getParentId() {
-    return DDSpanId.ZERO
+    return traceRoot ? DDSpanId.ZERO : 1L
   }
 
   @Override
