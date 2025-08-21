@@ -47,21 +47,22 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     givenProjectFiles(projectName)
 
     mockBackend.givenFlakyRetries(true)
+    mockBackend.givenFlakyTest("test-headless-service", "com.example.TestFailed", "test_failed")
     mockBackend.givenFailedTestReplay(true)
 
     def compileCode = compileTestProject()
     assert compileCode == 0
 
     def exitCode = whenRunningJUnitConsole([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=2" as String,
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=3" as String,
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String
     ],
     [:])
     assert exitCode == 1
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.6.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
-    verifyEventsAndCoverages(projectName, "junit-console", "headless", mockBackend.waitForEvents(5), mockBackend.waitForCoverages(0), additionalDynamicTags)
-    verifySnapshotLogs(mockBackend.waitForLogs(4), 1)
+    verifyEventsAndCoverages(projectName, "junit-console", "headless", mockBackend.waitForEvents(7), mockBackend.waitForCoverages(0), additionalDynamicTags)
+    verifySnapshotLogs(mockBackend.waitForLogs(5), 1, 2)
 
     where:
     projectName = "test_junit_console_failed_test_replay"
@@ -249,7 +250,9 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED)}=false,"
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED)}=false," +
+      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
 
     agentArgument += additionalAgentArgs.join(",")
 

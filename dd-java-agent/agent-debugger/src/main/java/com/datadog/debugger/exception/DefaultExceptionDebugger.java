@@ -10,6 +10,8 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.CircuitBreaker;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -53,7 +55,10 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       Config config) {
     this(
         new ExceptionProbeManager(
-            classNameFiltering, Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
+            classNameFiltering,
+            config.isCiVisibilityFailedTestReplayActive()
+                ? Duration.ofSeconds(0)
+                : Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
         configurationUpdater,
         classNameFiltering,
         config.getDebuggerMaxExceptionPerSecond(),
@@ -81,15 +86,22 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
-    // CIVIS Failed Test Replay acts on errors
-    if (t instanceof Error && !isFailedTestReplayActive) {
-      if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling error: {}", t.toString());
+    if (isFailedTestReplayActive) {
+      String strategy = (String) span.getTag(DDTags.TEST_STRATEGY);
+      if (strategy == null || !strategy.equals(RetryReason.atr.toString())) {
+        // FTR is only applied to tests subject to Auto Test Retries
+        return;
       }
-      return;
-    }
-    if (!circuitBreaker.trip()) {
-      return;
+    } else {
+      if (t instanceof Error) {
+        if (LOGGER.isDebugEnabled()) {
+          LOGGER.debug("Skip handling error: {}", t.toString());
+        }
+        return;
+      }
+      if (!circuitBreaker.trip()) {
+        return;
+      }
     }
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {

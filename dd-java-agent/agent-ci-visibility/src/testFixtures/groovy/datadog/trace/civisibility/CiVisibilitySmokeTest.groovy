@@ -53,16 +53,16 @@ abstract class CiVisibilitySmokeTest extends Specification {
     assert !receivedTelemetryDistributions.isEmpty()
   }
 
-  protected static verifySnapshotLogs(List<Map<String, Object>> receivedLogs, int expectedSnapshots) {
-    def logsPerSnapshot = 4 // 3 probe statuses + 1 snapshot log are expected per snapshot
+  protected static verifySnapshotLogs(List<Map<String, Object>> receivedLogs, int expectedProbes, int expectedSnapshots) {
+    def logsPerProbe = 3 // 3 probe statuses per probe -> received, installed, emitting
 
-    assert receivedLogs.size() == logsPerSnapshot * expectedSnapshots
+    assert receivedLogs.size() == logsPerProbe * expectedProbes + expectedSnapshots
 
     def probeStatusLogs = receivedLogs.findAll { it.containsKey("message") }
     def snapshotLogs = receivedLogs.findAll { !it.containsKey("message") }
 
-    verifyProbeStatuses(probeStatusLogs, expectedSnapshots)
-    verifySnapshots(snapshotLogs)
+    verifyProbeStatuses(probeStatusLogs, expectedProbes)
+    verifySnapshots(snapshotLogs, expectedSnapshots)
   }
 
   private static verifyProbeStatuses(List<Map<String, Object>> logs, int expectedCount) {
@@ -71,7 +71,9 @@ abstract class CiVisibilitySmokeTest extends Specification {
     assert logs.findAll { log -> ((String) log.message).endsWith("is emitting.") }.size() == expectedCount
   }
 
-  private static verifySnapshots(List<Map<String, Object>> logs) {
+  private static verifySnapshots(List<Map<String, Object>> logs, expectedCount) {
+    assert logs.size() == expectedCount
+
     def requiredLogFields = ["logger.name", "logger.method", "dd.spanid", "dd.traceid"]
     def requiredSnapshotFields = ["captures", "exceptionId", "probe", "stack"]
 

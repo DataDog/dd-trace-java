@@ -241,7 +241,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenFailedTestReplay(true)
 
     def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=2" as String,
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=3" as String,
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String
     ],
     [],
@@ -249,8 +249,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     assert exitCode == 1
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.3.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(0), additionalDynamicTags)
-    verifySnapshotLogs(mockBackend.waitForLogs(4), 1)
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(7), mockBackend.waitForCoverages(0), additionalDynamicTags)
+    verifySnapshotLogs(mockBackend.waitForLogs(5), 1, 2)
 
     where:
     projectName                            | mavenVersion
