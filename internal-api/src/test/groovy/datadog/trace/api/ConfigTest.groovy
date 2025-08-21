@@ -1665,6 +1665,19 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == configuredUrl + "/profiling/v1/input"
   }
 
+  def "uds profiling url"() {
+    setup:
+    def configuredUrl = "unix:///path/to/socket"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
+  }
+
   def "fallback to DD_TAGS"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
