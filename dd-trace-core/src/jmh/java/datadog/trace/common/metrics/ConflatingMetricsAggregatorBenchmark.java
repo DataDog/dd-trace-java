@@ -7,6 +7,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ public class ConflatingMetricsAggregatorBenchmark {
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
           featuresDiscovery,
+          HealthMetrics.NO_OP,
           new NullSink(),
           2048,
           2048);
