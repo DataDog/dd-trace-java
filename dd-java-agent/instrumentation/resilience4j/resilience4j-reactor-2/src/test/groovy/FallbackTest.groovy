@@ -6,9 +6,7 @@ import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
 import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
-import reactor.core.scheduler.Schedulers
 import spock.lang.Ignore
-
 import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
@@ -84,12 +82,14 @@ class FallbackTest extends AgentTestRunner {
     .build()
     Retry retry = Retry.of("R0", config)
     def fallback = Flux.just("Fallback").map({ it -> serviceCall(it) })
+
+    def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback)
     ConnectableFlux<String> connection = Flux
     .just("retry", "abc")
     //    .map({it -> serviceCall("srv-" + it); return it})
     //      .map({ serviceCallErr(it, new IllegalStateException("error"))})
     // TODO should create a fallback span???
-    .transformDeferred(ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback))
+    .transformDeferred(retryOperator)
     //    .publishOn(Schedulers.boundedElastic()) // this result in reordered span ids breaking the assertions
     .publish()
 

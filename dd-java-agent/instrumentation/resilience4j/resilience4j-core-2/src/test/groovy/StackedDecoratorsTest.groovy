@@ -52,7 +52,7 @@ class StackedDecoratorsTest extends AgentTestRunner {
 
   private void assertExpectedTrace() {
     assertTraces(1) {
-      trace(3) {
+      trace(5) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -65,8 +65,18 @@ class StackedDecoratorsTest extends AgentTestRunner {
           errored false
         }
         span(2) {
-          operationName "serviceCall"
+          operationName "R"
           childOf span(1)
+          errored false
+        }
+        span(3) {
+          operationName "A"
+          childOf span(2)
+          errored false
+        }
+        span(4) {
+          operationName "serviceCall"
+          childOf span(3)
           errored false
         }
       }

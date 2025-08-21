@@ -17,6 +17,7 @@ public final class RetryDecorator extends AbstractResilience4jDecorator<Retry> {
 
   @Override
   public void decorate(AgentSpan span, Retry data) {
+    span.setSpanName(data.getName());
     // TODO
   }
 }

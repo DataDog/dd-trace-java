@@ -7,7 +7,7 @@ import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-public abstract class ContextHolder<T> {
+public class ContextHolder<T> {
 
   public static final class CheckedSupplierWithContext<T> extends ContextHolder<T>
       implements CheckedSupplier<Object> {
@@ -84,18 +84,25 @@ public abstract class ContextHolder<T> {
     this.data = data;
   }
 
-  protected AgentScope activateScope() {
-    AgentSpan current = ActiveResilience4jSpan.current();
-    if (current == null) {
-      current = ActiveResilience4jSpan.start();
-      this.span = current;
-      spanDecorator.afterStart(current);
+  public void startSpan() {
+    if (span == null) {
+      span = ActiveResilience4jSpan.start();
+      spanDecorator.afterStart(span);
     }
+  }
+
+  public AgentScope activateScope() {
+    //    AgentSpan current = ActiveResilience4jSpan.current();
+    //    if (current == null) {
+    AgentSpan current = ActiveResilience4jSpan.start();
+    this.span = current;
+    spanDecorator.afterStart(current);
+    //    }
     spanDecorator.decorate(current, data);
     return AgentTracer.activateSpan(current);
   }
 
-  protected void finishSpanIfNeeded() {
+  public void finishSpanIfNeeded() {
     if (span != null) {
       spanDecorator.beforeFinish(span);
       ActiveResilience4jSpan.finish(span);

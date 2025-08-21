@@ -23,7 +23,7 @@ class RetryTest extends AgentTestRunner {
     when:
     CheckedSupplier<String> supplier = Decorators
       .ofCheckedSupplier{serviceCall("foobar")}
-      .withRetry(Retry.ofDefaults("id"))
+      .withRetry(Retry.ofDefaults("rt"))
       .decorate()
 
     then:
@@ -36,7 +36,7 @@ class RetryTest extends AgentTestRunner {
     when:
     Supplier<String> supplier = Decorators
       .ofSupplier{serviceCall("foobar")}
-      .withRetry(Retry.ofDefaults("id"))
+      .withRetry(Retry.ofDefaults("rt"))
       .decorate()
 
     then:
@@ -63,7 +63,7 @@ class RetryTest extends AgentTestRunner {
           "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
         }
       }
-      .withRetry(Retry.ofDefaults("id"), Executors.newSingleThreadScheduledExecutor())
+      .withRetry(Retry.ofDefaults("rt"), Executors.newSingleThreadScheduledExecutor())
       .decorate()
 
     then:
@@ -77,7 +77,7 @@ class RetryTest extends AgentTestRunner {
     when:
     Supplier<String> supplier = Decorators
       .ofSupplier{serviceCallErr(new IllegalStateException("error"))}
-      .withRetry(Retry.of("id", RetryConfig.custom().maxAttempts(2).build()))
+      .withRetry(Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()))
       .decorate()
     runUnderTrace("parent") { supplier.get() }
     then:
@@ -92,7 +92,7 @@ class RetryTest extends AgentTestRunner {
           errored true // b/o unhandled exception
         }
         span(1) {
-          operationName "resilience4j"
+          operationName "rt"
           childOf span(0)
           errored false
         }
@@ -121,7 +121,7 @@ class RetryTest extends AgentTestRunner {
           serviceCallErr(new IllegalStateException("error"))
         }, executor)
       }
-      .withRetry(Retry.of("id", RetryConfig.custom().maxAttempts(2).build()), Executors.newSingleThreadScheduledExecutor())
+      .withRetry(Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()), Executors.newSingleThreadScheduledExecutor())
       .decorate()
     def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
     future.get()
@@ -139,7 +139,7 @@ class RetryTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j"
+          operationName "rt"
           childOf span(0)
           errored false
         }
@@ -168,7 +168,7 @@ class RetryTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j"
+          operationName "rt"
           childOf span(0)
           errored false
         }

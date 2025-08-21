@@ -21,7 +21,7 @@ class CircuitBreakerTest extends AgentTestRunner {
     when:
     CheckedSupplier<String> supplier = Decorators
       .ofCheckedSupplier { serviceCall("foobar") }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
       .decorate()
 
     then:
@@ -34,7 +34,7 @@ class CircuitBreakerTest extends AgentTestRunner {
     when:
     Supplier<String> supplier = Decorators
       .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
       .decorate()
 
     then:
@@ -61,7 +61,7 @@ class CircuitBreakerTest extends AgentTestRunner {
           "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
         }
       }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
       .decorate()
 
     then:
@@ -81,7 +81,7 @@ class CircuitBreakerTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j"
+          operationName "cb"
           childOf span(0)
           errored false
         }
