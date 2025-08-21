@@ -14,7 +14,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
@@ -55,7 +54,7 @@ public class FallbackOperatorInstrumentation extends AbstractResilience4jInstrum
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
+    //    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
     ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
     return ret;
   }
@@ -64,7 +63,8 @@ public class FallbackOperatorInstrumentation extends AbstractResilience4jInstrum
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
-        @Advice.Argument(value = 0, readOnly = false) UnaryOperator<Publisher<?>> operator,
+        //        @Advice.Argument(value = 0, readOnly = false) UnaryOperator<Publisher<?>>
+        // operator,
         @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
 
       result =

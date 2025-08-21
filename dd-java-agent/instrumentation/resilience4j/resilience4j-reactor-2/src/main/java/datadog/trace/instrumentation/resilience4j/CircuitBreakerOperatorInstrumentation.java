@@ -72,6 +72,7 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
 
         Flux<?> flux = (Flux<?>) result;
 
+        // TODO maybe start span in doFirst? then we would need a span holder
         Flux<?> newResult = flux.doFinally(ReactorHelper.beforeFinish(span));
 
         if (newResult instanceof Scannable) {

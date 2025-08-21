@@ -27,9 +27,23 @@ public class ReactorHelper {
         Publisher<?> ret = operator.apply(value);
         attachContext.accept(ret, span);
         if (ret instanceof Flux<?>) {
-          return ((Flux<?>) ret).doFinally(beforeFinish(span));
+          Flux<?> newResult = ((Flux<?>) ret).doFinally(beforeFinish(span));
+          //          if (newResult instanceof Scannable) {
+          //            Scannable parent = (Scannable) newResult;
+          //            while (parent != null) {
+          //              // TODO which parent publisher has to be used to assign a span to?
+          //              System.err.println(">>> attaching span to parent publisher: " + parent);
+          //
+          //              attachContext.accept((Publisher<?>) parent, span);
+          ////              InstrumentationContext.get(Publisher.class, AgentSpan.class)
+          ////                  .putIfAbsent((Publisher<?>) parent, span);
+          //
+          //              parent = parent.scan(Scannable.Attr.PARENT);
+          //            }
+          //          }
+          return newResult;
         } else { // TODO
-          // can't schedule finish
+          // can't schedule finish - finish immediately
           scope.span().finish();
         }
         return ret;

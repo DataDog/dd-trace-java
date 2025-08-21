@@ -21,7 +21,7 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
       "io.github.resilience4j.circuitbreaker.CircuitBreaker";
 
   public CircuitBreakerInstrumentation() {
-    super("resilience4j-circuitbreaker");
+    super("resilience4j-circuitbreaker", "resilience4j-core");
   }
 
   @Override
