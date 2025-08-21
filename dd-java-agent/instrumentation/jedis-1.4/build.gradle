@@ -16,7 +16,7 @@ dependencies {
   testImplementation group: 'redis.clients', name: 'jedis', version: '1.4.0'
 
   testImplementation (group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3') {
-    // excluding logback to avoid conflicts with libs.bundles.test.logging
+    // Excluding redis client to avoid conflicts in instrumentation code.
     exclude group: 'redis.clients', module: 'jedis'
   }
 
