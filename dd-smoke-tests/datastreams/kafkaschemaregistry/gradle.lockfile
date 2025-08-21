@@ -1,8 +1,10 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
-ch.qos.logback:logback-classic:1.2.6=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.6=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.6=compileClasspath,productionRuntimeClasspath,runtimeClasspath
+ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.2.6=compileClasspath,productionRuntimeClasspath,runtimeClasspath
 com.beust:jcommander:1.78=testRuntimeClasspath
 com.eclipsesource.minimal-json:minimal-json:0.9.5=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.14.2=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath

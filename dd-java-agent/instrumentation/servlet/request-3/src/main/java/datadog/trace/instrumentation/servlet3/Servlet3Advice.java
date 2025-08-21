@@ -14,7 +14,6 @@ import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -46,11 +45,17 @@ public class Servlet3Advice {
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     HttpServletResponse httpServletResponse = (HttpServletResponse) response;
 
-    if (RumInjector.get().isEnabled() && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
-      httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
-      rumServletWrapper = new RumHttpServletResponseWrapper(httpServletResponse);
-      httpServletResponse = rumServletWrapper;
-      response = httpServletResponse;
+    if (RumInjector.get().isEnabled()) {
+      final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
+      if (maybeRumWrapper instanceof RumHttpServletResponseWrapper) {
+        rumServletWrapper = (RumHttpServletResponseWrapper) maybeRumWrapper;
+      } else {
+        rumServletWrapper =
+            new RumHttpServletResponseWrapper(httpServletRequest, (HttpServletResponse) response);
+        httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
+        response = rumServletWrapper;
+        request = new RumHttpServletRequestWrapper(httpServletRequest, rumServletWrapper);
+      }
     }
 
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -79,18 +84,19 @@ public class Servlet3Advice {
       return false;
     }
 
-    final Context context = DECORATE.extract(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, context);
-    scope = context.with(span).attach();
+    final Context parentContext = DECORATE.extract(httpServletRequest);
+    final Context context = DECORATE.startSpan(httpServletRequest, parentContext);
+    scope = context.attach();
 
+    final AgentSpan span = spanFromContext(context);
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, context);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, parentContext);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+        CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+        CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {

@@ -121,7 +121,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -472,7 +471,6 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.RumConfig.RUM_APPLICATION_ID;
 import static datadog.trace.api.config.RumConfig.RUM_CLIENT_TOKEN;
 import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
-import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
 import static datadog.trace.api.config.RumConfig.RUM_ENVIRONMENT;
 import static datadog.trace.api.config.RumConfig.RUM_MAJOR_VERSION;
 import static datadog.trace.api.config.RumConfig.RUM_REMOTE_CONFIGURATION_ID;
@@ -1226,7 +1224,6 @@ public class Config {
   private final boolean optimizedMapEnabled;
   private final int stackTraceLengthLimit;
 
-  private final boolean rumEnabled;
   private final RumInjectorConfig rumInjectorConfig;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -2745,14 +2742,13 @@ public class Config {
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
-    this.rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     this.rumInjectorConfig = parseRumConfig(configProvider);
 
     log.debug("New instance: {}", this);
   }
 
   private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
-    if (!this.rumEnabled) {
+    if (!instrumenterConfig.isRumEnabled()) {
       return null;
     }
     try {
@@ -4745,8 +4741,18 @@ public class Config {
       // when agentless profiling is turned on we send directly to our intake
       return "https://intake.profile." + site + "/api/v2/profile";
     } else {
-      // when profilingUrl and agentless are not set we send to the dd trace agent running locally
-      return getAgentUrl() + "/profiling/v1/input";
+      // When profilingUrl and agentless are not set we send to the dd trace agent running locally
+      // However, there are two gotchas:
+      // - the agentHost, agentPort split will trip on IPv6 addresses because of the colon -> we
+      // need to use the agentUrl
+      // - but the agentUrl can be unix socket and OKHttp doesn't support that so we fall back to
+      // http
+      //
+      // There is some magic behind the scenes where the http url will be converted to UDS if the
+      // target is a unix socket only
+      String baseUrl =
+          agentUrl.startsWith("unix:") ? "http://" + agentHost + ":" + agentPort : agentUrl;
+      return baseUrl + "/profiling/v1/input";
     }
   }
 
@@ -5034,10 +5040,6 @@ public class Config {
 
   public int getCloudPayloadTaggingMaxTags() {
     return cloudPayloadTaggingMaxTags;
-  }
-
-  public boolean isRumEnabled() {
-    return this.rumEnabled;
   }
 
   public RumInjectorConfig getRumInjectorConfig() {
@@ -5724,8 +5726,6 @@ public class Config {
         + cloudResponsePayloadTagging
         + ", experimentalPropagateProcessTagsEnabled="
         + experimentalPropagateProcessTagsEnabled
-        + ", rumEnabled="
-        + rumEnabled
         + ", rumInjectorConfig="
         + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + '}';

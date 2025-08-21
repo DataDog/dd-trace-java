@@ -7,8 +7,8 @@ include:
 
 stages:
   - build
-  - shared-pipeline
   - publish
+  - shared-pipeline
   - benchmarks
   - macrobenchmarks
   - tests
@@ -26,8 +26,8 @@ variables:
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
-  MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
-  GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
+  MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+  GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|stable)$/
@@ -580,7 +580,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.27.1
+    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.31.1
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -879,6 +879,88 @@ requirements_json_test:
 
 package-oci:
   needs: [ build ]
+
+override_verify_maven_central:
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
+  stage: publish
+  needs: [ ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: manual
+      allow_failure: true
+  script:
+    - touch OVERRIDE_MAVEN_VERIFY
+  cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
+    - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
+      paths:
+        - OVERRIDE_MAVEN_VERIFY
+      policy: push
+      unprotect: true
+
+# Verify Maven Central deployment is publicly available before publishing OCI images
+verify_maven_central_deployment:
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
+  stage: publish
+  needs: [ deploy_to_maven_central ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
+    - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
+      paths:
+        - OVERRIDE_MAVEN_VERIFY
+      policy: pull
+      unprotect: true
+  script:
+    - if [ -f OVERRIDE_MAVEN_VERIFY ]; then echo "SKIPPING MAVEN VERIFICATION"; exit 0; fi
+    - |
+      export VERSION=${CI_COMMIT_TAG##v}
+      ARTIFACT_URLS=(
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
+      )
+      # Wait 5 mins initially, then try 5 times with a minute delay between each retry to see if the release artifacts are available
+      sleep 300
+      TRY=0
+      MAX_TRIES=5
+      DELAY=60
+      while [ $TRY -lt $MAX_TRIES ]; do
+        ARTIFACTS_AVAILABLE=true
+        for URL in "${ARTIFACT_URLS[@]}"; do
+          if ! curl --location --fail --silent --show-error -I "$URL"; then
+            ARTIFACTS_AVAILABLE=false
+            break
+          fi
+        done
+        if [ "$ARTIFACTS_AVAILABLE" = true ]; then
+          break
+        fi
+        TRY=$((TRY + 1))
+        if [ $TRY -eq $MAX_TRIES ]; then
+          echo "The release was not available after 10 mins. Manually re-run the job to try again."
+          exit 1
+        fi
+        sleep $DELAY
+      done
+
+publishing-gate:
+  stage: publish
+  needs:
+    - job: verify_maven_central_deployment
+      optional: true # Required for releases only
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
 
 configure_system_tests:
   variables:

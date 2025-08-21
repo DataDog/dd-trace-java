@@ -1,13 +1,15 @@
 package datadog.trace.api.rum;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
 public final class RumInjector {
-  private static final RumInjector INSTANCE = new RumInjector(Config.get());
+  private static final RumInjector INSTANCE =
+      new RumInjector(Config.get(), InstrumenterConfig.get());
   private static final String MARKER = "</head>";
   private static final char[] MARKER_CHARS = MARKER.toCharArray();
   private static final Function<String, byte[]> MARKER_BYTES =
@@ -27,8 +29,10 @@ public final class RumInjector {
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
 
-  RumInjector(Config config) {
-    boolean rumEnabled = config.isRumEnabled();
+  private static volatile RumTelemetryCollector telemetryCollector = RumTelemetryCollector.NO_OP;
+
+  RumInjector(Config config, InstrumenterConfig instrumenterConfig) {
+    boolean rumEnabled = instrumenterConfig.isRumEnabled();
     RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
     // If both RUM is enabled and injector config is valid
     if (rumEnabled && injectorConfig != null) {
@@ -119,5 +123,47 @@ public final class RumInjector {
       return null;
     }
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
+  }
+
+  /**
+   * Starts telemetry collection and reports metrics via StatsDClient.
+   *
+   * @param statsDClient The StatsDClient to report metrics to.
+   */
+  public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
+    if (statsDClient != null) {
+      RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
+      telemetryCollector = metrics;
+
+      if (INSTANCE.isEnabled()) {
+        telemetryCollector.onInitializationSucceed();
+      }
+    } else {
+      telemetryCollector = RumTelemetryCollector.NO_OP;
+    }
+  }
+
+  /** Shuts down telemetry collection and resets the telemetry collector to NO_OP. */
+  public static void shutdownTelemetry() {
+    telemetryCollector.close();
+    telemetryCollector = RumTelemetryCollector.NO_OP;
+  }
+
+  /**
+   * Sets the telemetry collector. This is used for testing purposes only.
+   *
+   * @param collector The telemetry collector to set or {@code null} to reset to NO_OP.
+   */
+  public static void setTelemetryCollector(RumTelemetryCollector collector) {
+    telemetryCollector = collector != null ? collector : RumTelemetryCollector.NO_OP;
+  }
+
+  /**
+   * Gets the telemetry collector.
+   *
+   * @return The telemetry collector used to report telemetry.
+   */
+  public static RumTelemetryCollector getTelemetryCollector() {
+    return telemetryCollector;
   }
 }

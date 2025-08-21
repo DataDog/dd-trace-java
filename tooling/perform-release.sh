@@ -61,7 +61,7 @@ echo "✅ Working copy is clean and up-to-date."
 # Check the git log history
 LAST_RELEASE_TAG=$(git describe --tags --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*')
 echo "ℹ️ Last release version: $LAST_RELEASE_TAG"
-SUSPICIOUS_COMMITS=$(git log --oneline --first-parent "$LAST_RELEASE_TAG"..HEAD | grep -E -v "Merge pull request #" | grep -E -v "\(#")
+SUSPICIOUS_COMMITS=$(git log --oneline --first-parent "$LAST_RELEASE_TAG"..HEAD | grep -E -v "Merge pull request #" | grep -E -v "\(#" || true)
 if [ -n "$SUSPICIOUS_COMMITS" ]; then
     echo "❌ The following commits are not merge commits and may not be suitable for a release:"
     echo "$SUSPICIOUS_COMMITS"
@@ -72,7 +72,7 @@ else
 fi
 
 # Get the next release version
-VERSION=$(echo "$LAST_RELEASE_TAG" | grep -E '^v[0-9]+\.[0-9]+\.0$' | sed 's/^v//')
+VERSION=$(echo "$LAST_RELEASE_TAG" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' || true)
 if [ -z "$VERSION" ]; then
     echo "❌ Unable to determine the next release version from the last release tag: $LAST_RELEASE_TAG"
     exit 1
