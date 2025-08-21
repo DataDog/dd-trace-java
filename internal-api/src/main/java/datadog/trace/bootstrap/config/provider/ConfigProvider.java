@@ -90,7 +90,8 @@ public final class ConfigProvider {
       if (candidate != null) {
         value = candidate;
         if (collectConfig) {
-          ConfigCollector.get().put(key, candidate, source.origin(), seqId);
+          ConfigCollector.get()
+              .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
         }
       }
       seqId++;
@@ -108,23 +109,26 @@ public final class ConfigProvider {
     }
     String value = null;
     ConfigOrigin origin = null;
+    String configId = null;
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
-      String candidate = source.get(key, aliases);
+      String candidateValue = source.get(key, aliases);
+      String candidateConfigId = getConfigIdFromSource(source);
       if (collectConfig) {
-        ConfigCollector.get().put(key, candidate, source.origin(), seqId);
+        ConfigCollector.get().put(key, candidateValue, source.origin(), seqId, candidateConfigId);
       }
-      if (candidate != null && !candidate.trim().isEmpty()) {
-        value = candidate;
+      if (candidateValue != null && !candidateValue.trim().isEmpty()) {
+        value = candidateValue;
         origin = source.origin();
+        configId = candidateConfigId;
       }
       seqId++;
     }
     if (collectConfig) {
       // Re-report the chosen value post-trim, with the highest seqId
       if (value != null && origin != null) {
-        ConfigCollector.get().put(key, value, origin, seqId + 1);
+        ConfigCollector.get().put(key, value, origin, seqId + 1, configId);
       }
     }
     return value != null ? value : defaultValue;
@@ -142,16 +146,16 @@ public final class ConfigProvider {
     int seqId = DEFAULT_SEQ_ID + 1;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
-      // Do we still want to report telemetry in this case?
+      String candidate = source.get(key, aliases);
+      if (collectConfig) {
+        ConfigCollector.get()
+            .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
+      }
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
-      String candidate = source.get(key, aliases);
       if (candidate != null) {
         value = candidate;
-        if (collectConfig) {
-          ConfigCollector.get().put(key, candidate, source.origin(), seqId);
-        }
       }
       seqId++;
     }
@@ -222,10 +226,12 @@ public final class ConfigProvider {
     T value = null;
     ConfigOrigin origin = null;
     int seqId = DEFAULT_SEQ_ID + 1;
+    String configId = null;
     for (int i = sources.length - 1; i >= 0; i--) {
       String sourceValue = sources[i].get(key, aliases);
+      configId = getConfigIdFromSource(sources[i]);
       if (sourceValue != null && collectConfig) {
-        ConfigCollector.get().put(key, sourceValue, sources[i].origin(), seqId);
+        ConfigCollector.get().put(key, sourceValue, sources[i].origin(), seqId, configId);
       }
       try {
         T candidate = ConfigConverter.valueOf(sourceValue, type);
@@ -249,7 +255,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       // Re-report the chosen value and origin to ensure its seqId is higher than any error configs
       if (value != null && origin != null) {
-        ConfigCollector.get().put(key, value, origin, seqId + 1);
+        ConfigCollector.get().put(key, value, origin, seqId + 1, configId);
       }
     }
     return value != null ? value : defaultValue;
@@ -305,7 +311,8 @@ public final class ConfigProvider {
       if (!parsedMap.isEmpty()) {
         if (collectConfig) {
           seqId++;
-          ConfigCollector.get().put(key, parsedMap, sources[i].origin(), seqId);
+          ConfigCollector.get()
+              .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
         }
         if (origin != ConfigOrigin.DEFAULT) {
           // if we already have a non-default origin, the value is calculated from multiple sources
@@ -340,7 +347,8 @@ public final class ConfigProvider {
       if (!parsedMap.isEmpty()) {
         if (collectConfig) {
           seqId++;
-          ConfigCollector.get().put(key, parsedMap, sources[i].origin(), seqId);
+          ConfigCollector.get()
+              .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
         }
         if (origin != ConfigOrigin.DEFAULT) {
           // if we already have a non-default origin, the value is calculated from multiple sources
@@ -375,7 +383,8 @@ public final class ConfigProvider {
       if (!parsedMap.isEmpty()) {
         if (collectConfig) {
           seqId++;
-          ConfigCollector.get().put(key, parsedMap, sources[i].origin(), seqId);
+          ConfigCollector.get()
+              .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
         }
         if (origin != ConfigOrigin.DEFAULT) {
           // if we already have a non-default origin, the value is calculated from multiple sources
@@ -412,7 +421,8 @@ public final class ConfigProvider {
         if (!parsedMap.isEmpty()) {
           if (collectConfig) {
             seqId++;
-            ConfigCollector.get().put(key, parsedMap, sources[i].origin(), seqId);
+            ConfigCollector.get()
+                .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
           }
           if (origin != ConfigOrigin.DEFAULT) {
             // if we already have a non-default origin, the value is calculated from multiple
@@ -601,6 +611,13 @@ public final class ConfigProvider {
     properties.setProperty(PropertiesConfigSource.CONFIG_FILE_STATUS, configurationFilePath);
 
     return properties;
+  }
+
+  private static String getConfigIdFromSource(Source source) {
+    if (source instanceof StableConfigSource) {
+      return ((StableConfigSource) source).getConfigId();
+    }
+    return null;
   }
 
   public abstract static class Source {

@@ -9,6 +9,7 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.naming.SpanNaming
+import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 
@@ -305,5 +306,25 @@ class ConfigCollectorTest extends DDSpecification {
     // Should return null for non-existent key
     def nonExistentSetting = ConfigCollector.get().getAppliedConfigSetting("non.existent.key")
     nonExistentSetting == null
+  }
+
+  def "config id is null for non-StableConfigSource"() {
+    setup:
+    def key = "test.key"
+    def value = "test-value"
+    injectSysConfig(key, value)
+
+    when:
+    // Trigger config collection by getting a value
+    ConfigProvider.getInstance().getString(key)
+    def settings = ConfigCollector.get().collect()
+
+    then:
+    // Verify the config was collected but without a config ID
+    def setting = settings.get(key)
+    setting != null
+    setting.configId == null
+    setting.value == value
+    setting.origin == ConfigOrigin.JVM_PROP
   }
 }

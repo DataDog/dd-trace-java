@@ -11,28 +11,41 @@ public final class ConfigSetting {
   public final String key;
   public final Object value;
   public final ConfigOrigin origin;
-  public final int seqId;
 
+  public final int seqId;
   public static final int DEFAULT_SEQ_ID = 1;
   private static final int ABSENT_SEQ_ID = 0;
+
+  /** The config ID associated with this setting, or {@code null} if not applicable. */
+  public final String configId;
 
   private static final Set<String> CONFIG_FILTER_LIST =
       new HashSet<>(
           Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
-    return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID);
+    return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
   }
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin, int seqId) {
-    return new ConfigSetting(key, value, origin, seqId);
+    return new ConfigSetting(key, value, origin, seqId, null);
   }
 
-  private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId) {
+  public static ConfigSetting of(String key, Object value, ConfigOrigin origin, String configId) {
+    return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, configId);
+  }
+
+  public static ConfigSetting of(
+      String key, Object value, ConfigOrigin origin, int seqId, String configId) {
+    return new ConfigSetting(key, value, origin, seqId, configId);
+  }
+
+  private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     this.key = key;
     this.value = CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
     this.origin = origin;
     this.seqId = seqId;
+    this.configId = configId;
   }
 
   public String normalizedKey() {
@@ -111,12 +124,13 @@ public final class ConfigSetting {
     return key.equals(that.key)
         && Objects.equals(value, that.value)
         && origin == that.origin
-        && seqId == that.seqId;
+        && seqId == that.seqId
+        && Objects.equals(configId, that.configId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(key, value, origin, seqId);
+    return Objects.hash(key, value, origin, seqId, configId);
   }
 
   @Override
@@ -131,6 +145,8 @@ public final class ConfigSetting {
         + origin
         + ", seqId="
         + seqId
+        + ", configId="
+        + configId
         + '}';
   }
 }
