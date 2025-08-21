@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.opentracing31;
 
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
@@ -73,7 +74,7 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan {
 
   @Override
   public OTSpan setError(final boolean value) {
-    delegate.setError(value);
+    delegate.setError(value, ErrorPriorities.MANUAL_INSTRUMENTATION);
     return this;
   }
 
