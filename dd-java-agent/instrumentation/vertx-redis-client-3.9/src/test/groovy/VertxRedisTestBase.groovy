@@ -1,9 +1,3 @@
-import org.testcontainers.utility.DockerImageName
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-
 import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -21,12 +15,17 @@ import io.vertx.redis.client.Redis
 import io.vertx.redis.client.Request
 import io.vertx.redis.client.Response
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.utility.DockerImageName
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.function.Function
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class VertxRedisTestBase extends VersionedNamingTestBase {
 
@@ -86,11 +85,12 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
     TEST_WRITER.start()
   }
 
-  public <T, R> R runWithHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
-    final Function<T, R> resultFunction = null) {
+  <T, R> R runWithHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
+  final Function<T, R> resultFunction = null) {
     R result = null
     CountDownLatch latch = new CountDownLatch(1)
-    redisCommand.handle({ ar ->
+    redisCommand.handle({
+      ar ->
       runUnderTrace("handler") {
         if (resultFunction) {
           result = resultFunction.apply(ar.result())
@@ -102,8 +102,8 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
     result
   }
 
-  public <T, R> R runWithParentAndHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
-    final Function<T, R> resultFunction = null) {
+  def <T, R> R runWithParentAndHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
+  final Function<T, R> resultFunction = null) {
     R result = null
     def parentSpan = runUnderTrace("parent") {
       result = runWithHandler(redisCommand, resultFunction)
@@ -159,9 +159,5 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
 
   List<String> responseToStrings(Response r) {
     r.iterator().collect { it.toString() }
-  }
-
-  public <T> T identity(T t) {
-    return t
   }
 }

@@ -417,7 +417,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
-    private final long[] previousCounts = new long[43];
+    private final long[] previousCounts = new long[50];
     private int countIndex;
 
     @Override
