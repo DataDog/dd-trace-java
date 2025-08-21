@@ -146,7 +146,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
           }
           writer.write("==============================================\n")
         }
-      }, 20000, 60000, TimeUnit.MILLISECONDS)
+      }, 20001, 60000, TimeUnit.MILLISECONDS)
     }
 
     void heapDump(String kind) {
