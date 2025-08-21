@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -79,6 +80,7 @@ public final class ConfigProvider {
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
+    boolean toLog = (Objects.equals(key, "test.key"));
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
     }

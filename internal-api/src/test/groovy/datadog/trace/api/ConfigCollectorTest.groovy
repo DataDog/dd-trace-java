@@ -321,7 +321,7 @@ class ConfigCollectorTest extends DDSpecification {
 
     then:
     // Verify the config was collected but without a config ID
-    def setting = settings.get(key)
+    def setting = settings.get(ConfigOrigin.JVM_PROP).get(key)
     setting != null
     setting.configId == null
     setting.value == value
