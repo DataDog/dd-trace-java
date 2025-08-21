@@ -5,11 +5,7 @@ import datadog.trace.api.Trace
 import javax.management.MBeanServer
 import java.lang.management.ManagementFactory
 import java.util.concurrent.Callable
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.StructuredTaskScope
-import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
@@ -19,20 +15,10 @@ class StructuredConcurrencyTest extends AgentTestRunner {
   ThreadDumpLogger threadDumpLogger
 
   def setup() {
-    File reportDir = new File("build")
-    String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
-    "dd-trace-java/workspace/dd-java-agent")
-
-    reportDir = new File(fullPath)
-    if (!reportDir.exists()) {
-      println("Folder not found: " + fullPath)
-      reportDir.mkdirs()
-    } else println("Folder found: " + fullPath)
-
     // Use the current feature name as the test name
     String testName = "${specificationContext?.currentSpec?.name ?: "unknown-spec"} : ${specificationContext?.currentFeature?.name ?: "unknown-test"}"
 
-    threadDumpLogger = new ThreadDumpLogger(testName, reportDir)
+    threadDumpLogger = new ThreadDumpLogger(testName)
     threadDumpLogger.start()
   }
 
@@ -51,12 +37,12 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     when:
     runUnderTrace("parent") {
       def task = taskScope.fork(new Callable<Boolean>() {
-        @Trace(operationName = "child")
-        @Override
-        Boolean call() throws Exception {
-          return true
-        }
-      })
+          @Trace(operationName = "child")
+          @Override
+          Boolean call() throws Exception {
+            return true
+          }
+        })
       taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
       result = task.get()
     }
@@ -195,48 +181,65 @@ class StructuredConcurrencyTest extends AgentTestRunner {
       }
     }
   }
+
   // 🔒 Private helper class for thread dump logging
   private static class ThreadDumpLogger {
     private final String testName
-    private final File outputDir
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor()
-    private ScheduledFuture<?> task
+    private Thread task
 
-    ThreadDumpLogger(String testName, File outputDir) {
+    ThreadDumpLogger(String testName) {
       this.testName = testName
-      this.outputDir = outputDir
     }
 
     void start() {
-      task = scheduler.scheduleAtFixedRate({
-        heapDump("test_1")
+      task = new Thread() {
+          @Override
+          void run() {
+            sleep(10000)
 
-        def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
-        try (def writer = new FileWriter(reportFile)) {
-          writer.write("=== Test: ${testName} ===\n")
-          writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
-          Thread.getAllStackTraces().each { thread, stack ->
-            writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
-            stack.each { writer.write("\tat ${it}\n") }
+            File outputDir = new File("build")
+            String fullPath = outputDir.absolutePath.replace("dd-trace-java/dd-java-agent",
+            "dd-trace-java/workspace/dd-java-agent")
+
+            outputDir = new File(fullPath)
+            if (!outputDir.exists()) {
+              println("Folder not found: " + fullPath)
+              outputDir.mkdirs()
+            } else println("Folder found: " + fullPath)
+
+            // Use the current feature name as the test name
+            println("Test name: " + testName)
+
+            heapDump(outputDir, "test_1")
+
+            def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
+
+            try (def writer = new FileWriter(reportFile)) {
+              writer.write("=== Test: ${testName} ===\n")
+              writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+              getAllStackTraces().each { thread, stack ->
+                writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+                stack.each { writer.write("\tat ${it}\n") }
+              }
+              writer.write("==============================================\n")
+            }
+
+            heapDump(outputDir, "test_2")
           }
-          writer.write("==============================================\n")
         }
-
-        heapDump("test_2")
-      }, 20000, 60010, TimeUnit.MILLISECONDS)
+      task.start()
     }
 
-    void heapDump(String kind) {
+    static void heapDump(File outputDir, String kind) {
       def heapDumpFile = new File(outputDir, "${System.currentTimeMillis()}-heap-dump-${kind}.hprof").absolutePath
       MBeanServer server = ManagementFactory.getPlatformMBeanServer()
       HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
-      server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
+        server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
       mxBean.dumpHeap(heapDumpFile, true)
     }
 
     void stop() {
-      task?.cancel(false)
-      scheduler.shutdownNow()
+      task?.interrupt()
     }
   }
 }

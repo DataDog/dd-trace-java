@@ -63,28 +63,17 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     embeddedDbUri = "redis://" + dbAddr
 
     redisServer = RedisServer.newRedisServer()
-    // bind to localhost to avoid firewall popup
-    .setting("bind " + HOST)
-    // set max memory to avoid problems in CI
-    .setting("maxmemory 128M")
-    .port(port).build()
+      // bind to localhost to avoid firewall popup
+      .setting("bind " + HOST)
+      // set max memory to avoid problems in CI
+      .setting("maxmemory 128M")
+      .port(port).build()
   }
 
   def setup() {
-    File reportDir = new File("build")
-    String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
-    "dd-trace-java/workspace/dd-java-agent")
-
-    reportDir = new File(fullPath)
-    if (!reportDir.exists()) {
-      println("Folder not found: " + fullPath)
-      reportDir.mkdirs()
-    } else println("Folder found: " + fullPath)
-
     // Use the current feature name as the test name
     String testName = "${specificationContext?.currentSpec?.name ?: "unknown-spec"} : ${specificationContext?.currentFeature?.name ?: "unknown-test"}"
-
-    threadDumpLogger = new ThreadDumpLogger(testName, reportDir)
+    threadDumpLogger = new ThreadDumpLogger(testName)
     threadDumpLogger.start()
 
     redisServer.start()
@@ -115,45 +104,62 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   // 🔒 Private helper class for thread dump logging
   private static class ThreadDumpLogger {
     private final String testName
-    private final File outputDir
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor()
-    private ScheduledFuture<?> task
+    private Thread task
 
-    ThreadDumpLogger(String testName, File outputDir) {
+    ThreadDumpLogger(String testName) {
       this.testName = testName
-      this.outputDir = outputDir
     }
 
     void start() {
-      // new File(outputDir, "${System.currentTimeMillis()}-start-mark.txt") << testName
+      task = new Thread() {
+          @Override
+          void run() {
+            println("Dumper started for test: " + testName)
+            sleep(10000)
 
-      task = scheduler.scheduleAtFixedRate({
-        heapDump("test")
+            File outputDir = new File("build")
+            String fullPath = outputDir.absolutePath.replace("dd-trace-java/dd-java-agent",
+            "dd-trace-java/workspace/dd-java-agent")
 
-        def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
-        try (def writer = new FileWriter(reportFile)) {
-          writer.write("=== Test: ${testName} ===\n")
-          writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
-          Thread.getAllStackTraces().each { thread, stack ->
-            writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
-            stack.each { writer.write("\tat ${it}\n") }
+            outputDir = new File(fullPath)
+            if (!outputDir.exists()) {
+              println("Folder not found: " + fullPath)
+              outputDir.mkdirs()
+            } else println("Folder found: " + fullPath)
+
+            // Use the current feature name as the test name
+            println("Test name: " + testName)
+
+            heapDump(outputDir, "test_1")
+
+            def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
+
+            try (def writer = new FileWriter(reportFile)) {
+              writer.write("=== Test: ${testName} ===\n")
+              writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+              getAllStackTraces().each { thread, stack ->
+                writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+                stack.each { writer.write("\tat ${it}\n") }
+              }
+              writer.write("==============================================\n")
+            }
+
+            heapDump(outputDir, "test_2")
           }
-          writer.write("==============================================\n")
         }
-      }, 20001, 60000, TimeUnit.MILLISECONDS)
+      task.start()
     }
 
-    void heapDump(String kind) {
+    static void heapDump(File outputDir, String kind) {
       def heapDumpFile = new File(outputDir, "${System.currentTimeMillis()}-heap-dump-${kind}.hprof").absolutePath
       MBeanServer server = ManagementFactory.getPlatformMBeanServer()
       HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
-      server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
+        server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
       mxBean.dumpHeap(heapDumpFile, true)
     }
 
     void stop() {
-      task?.cancel(false)
-      scheduler.shutdownNow()
+      task?.interrupt()
     }
   }
 }
