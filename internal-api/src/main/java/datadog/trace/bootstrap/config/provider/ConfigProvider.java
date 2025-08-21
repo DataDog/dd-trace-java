@@ -67,7 +67,7 @@ public final class ConfigProvider {
     // is the most accurate one
     if (collectConfig) {
       String defaultValueString = defaultValue == null ? null : defaultValue.name();
-      ConfigCollector.get().put(key, defaultValueString, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValueString);
     }
     if (null != value) {
       try {
@@ -82,7 +82,7 @@ public final class ConfigProvider {
   public String getString(String key, String defaultValue, String... aliases) {
     boolean toLog = (Objects.equals(key, "test.key"));
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
@@ -107,7 +107,7 @@ public final class ConfigProvider {
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     String value = null;
     ConfigOrigin origin = null;
@@ -142,7 +142,7 @@ public final class ConfigProvider {
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     String value = null;
     int seqId = DEFAULT_SEQ_ID + 1;
@@ -223,7 +223,7 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     T value = null;
     ConfigOrigin origin = null;
@@ -272,7 +272,7 @@ public final class ConfigProvider {
     // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
     // is the most accurate one
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     if (null == list) {
       return defaultValue;
@@ -286,7 +286,7 @@ public final class ConfigProvider {
     // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
     // is the most accurate one
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     if (null == list) {
       return defaultValue;
@@ -326,7 +326,7 @@ public final class ConfigProvider {
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, Collections.emptyMap());
       if (!merged.isEmpty()) {
         ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
       }
@@ -363,7 +363,7 @@ public final class ConfigProvider {
     }
 
     if (collectConfig) {
-      ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, Collections.emptyMap());
       if (!merged.isEmpty()) {
         ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
       }
@@ -398,7 +398,7 @@ public final class ConfigProvider {
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, Collections.emptyMap());
       if (!merged.isEmpty()) {
         ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
       }
@@ -437,8 +437,7 @@ public final class ConfigProvider {
         merged.putAll(parsedMap);
       }
       if (collectConfig) {
-        ConfigCollector.get()
-            .put(key, Collections.emptyMap(), ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+        reportDefault(key, Collections.emptyMap());
         if (!merged.isEmpty()) {
           ConfigCollector.get().put(key, merged, ConfigOrigin.CALCULATED, seqId);
         }
@@ -452,7 +451,7 @@ public final class ConfigProvider {
     // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
     // is the most accurate one
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+      reportDefault(key, defaultValue);
     }
     try {
       if (value != null) {
@@ -620,6 +619,10 @@ public final class ConfigProvider {
       return ((StableConfigSource) source).getConfigId();
     }
     return null;
+  }
+
+  private static <T> void reportDefault(String key, T defaultValue) {
+    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
   }
 
   public abstract static class Source {
