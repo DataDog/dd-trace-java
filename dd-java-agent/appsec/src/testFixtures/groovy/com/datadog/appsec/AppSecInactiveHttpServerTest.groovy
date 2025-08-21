@@ -13,8 +13,16 @@ import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.MultipartBody
 import okhttp3.Request
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
-import static org.junit.Assume.assumeTrue
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
 
