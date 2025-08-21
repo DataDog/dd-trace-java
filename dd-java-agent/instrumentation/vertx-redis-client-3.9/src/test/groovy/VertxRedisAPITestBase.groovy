@@ -1,16 +1,16 @@
 import datadog.trace.test.util.Flaky
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.RedisAPI
 import io.vertx.redis.client.Response
 import spock.lang.AutoCleanup
 import spock.lang.Shared
+import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
 
@@ -154,14 +154,26 @@ class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
 class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
   @Override
   RedisAPI createRedis() {
+    RedisAPI api = null
+
+    new PollingConditions(delay: 3, timeout: 15).eventually {
+      (api = connect()) != null
+    }
+
+    return api
+  }
+
+  private RedisAPI connect() {
     def latch = new CountDownLatch(1)
-    def ret
-    redis.connect({ar ->
+    RedisAPI api = null
+    redis.connect({ ar ->
       try {
-        if (!ar.succeeded()) {
+        if (ar.succeeded()) {
+          api = RedisAPI.api(ar.result())
+        } else {
+          println "Redis connection failed"
           ar.cause().printStackTrace(System.out)
         }
-        ret  = RedisAPI.api(ar.result())
       } catch (Throwable t) {
         t.printStackTrace(System.out)
       } finally {
@@ -169,6 +181,7 @@ class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
       }
     })
     latch.await(10, TimeUnit.SECONDS)
-    return ret
+
+    return api
   }
 }

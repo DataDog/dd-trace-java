@@ -1183,6 +1183,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
   def "test exception"() {
     setup:
     def method = "GET"
@@ -2236,14 +2237,28 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test rum injection in head for mime #mime"() {
     setup:
     assumeTrue(testRumInjection())
+    def telemetryCollector = RumInjector.getTelemetryCollector()
     def request = new Request.Builder().url(server.address().resolve("gimme-$mime").toURL())
     .get().build()
+
     when:
     def response = client.newCall(request).execute()
+    def responseBody = response.body().string()
+    def finalSummary = telemetryCollector.summary()
+
     then:
     assert response.code() == 200
-    assert response.body().string().contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
+    assert responseBody.contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
     assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
+
+    // Check a few telemetry metrics
+    if (expected) {
+      assert finalSummary.contains("injectionSucceed=")
+      assert responseBody.length() > 0
+    } else {
+      assert finalSummary.contains("injectionSkipped=")
+    }
+
     where:
     mime   | expected
     "html" | true

@@ -23,6 +23,7 @@ import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Collections;
 import java.util.List;
@@ -61,15 +62,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
+  private final HealthMetrics healthMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
   public ConflatingMetricsAggregator(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      HealthMetrics healthMetrics) {
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
         sharedCommunicationObjects.featuresDiscovery(config),
+        healthMetrics,
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
@@ -85,16 +90,27 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
       int queueSize) {
-    this(wellKnownTags, ignoredResources, features, sink, maxAggregates, queueSize, 10, SECONDS);
+    this(
+        wellKnownTags,
+        ignoredResources,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        10,
+        SECONDS);
   }
 
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
       int queueSize,
@@ -103,6 +119,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         ignoredResources,
         features,
+        healthMetric,
         sink,
         new SerializingMetricWriter(wellKnownTags, sink),
         maxAggregates,
@@ -114,6 +131,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
       Sink sink,
       MetricWriter metricWriter,
       int maxAggregates,
@@ -126,6 +144,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
     this.keys = new NonBlockingHashMap<>();
     this.features = features;
+    this.healthMetrics = healthMetric;
     this.sink = sink;
     this.aggregator =
         new Aggregator(
@@ -215,17 +234,22 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   @Override
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
+    int counted = 0;
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span)) {
           if (ignoredResources.contains(span.getResourceName().toString())) {
             // skip publishing all children
-            return false;
+            forceKeep = false;
+            break;
           }
+          counted++;
           forceKeep |= publish(span, isTopLevel);
         }
       }
+      healthMetrics.onClientStatTraceComputed(
+          counted, trace.size(), features.supportsDropping() && !forceKeep);
     }
     return forceKeep;
   }
@@ -314,18 +338,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void onEvent(EventType eventType, String message) {
+    healthMetrics.onClientStatPayloadSent();
     switch (eventType) {
       case DOWNGRADED:
         log.debug("Agent downgrade was detected");
         disable();
+        healthMetrics.onClientStatDowngraded();
         break;
       case BAD_PAYLOAD:
         log.debug("bad metrics payload sent to trace agent: {}", message);
+        healthMetrics.onClientStatErrorReceived();
         break;
       case ERROR:
         log.debug("trace agent errored receiving metrics payload: {}", message);
+        healthMetrics.onClientStatErrorReceived();
         break;
       default:
+        break;
     }
   }
 
