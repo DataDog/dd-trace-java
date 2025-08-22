@@ -119,6 +119,7 @@ check-slo-breaches:
           done
       done
     - ls -lah "$ARTIFACTS_DIR"
+    - export CI_COMMIT_REF_NAME=$CI_DEFAULT_BRANCH
     - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
   artifacts:
     name: "artifacts"
