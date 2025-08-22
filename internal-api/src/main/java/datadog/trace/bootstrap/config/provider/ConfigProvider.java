@@ -140,8 +140,8 @@ public final class ConfigProvider {
     }
 
     // Re-report the chosen value with the highest seqId
-    if (resolver != null) {
-      resolver.reReportToCollector(key, collectConfig, seqId + 1);
+    if (resolver != null && collectConfig) {
+      resolver.reReportToCollector(key, seqId + 1);
     }
 
     return resolver != null ? resolver.value : defaultValue;
@@ -278,8 +278,8 @@ public final class ConfigProvider {
     }
 
     // Re-report the chosen value and origin to ensure its seqId is higher than any error configs
-    if (resolver != null) {
-      resolver.reReportToCollector(key, collectConfig, seqId + 1);
+    if (resolver != null && collectConfig) {
+      resolver.reReportToCollector(key, seqId + 1);
     }
 
     return resolver != null ? resolver.value : defaultValue;
@@ -345,7 +345,7 @@ public final class ConfigProvider {
 
     if (collectConfig) {
       reportDefault(key, Collections.emptyMap());
-      mergeResolver.reReportFinalResult(key, collectConfig, seqId);
+      mergeResolver.reReportFinalResult(key, seqId);
     }
 
     return mergeResolver.getMergedValue();
@@ -376,7 +376,7 @@ public final class ConfigProvider {
 
     if (collectConfig) {
       reportDefault(key, Collections.emptyMap());
-      mergeResolver.reReportFinalResult(key, collectConfig, seqId);
+      mergeResolver.reReportFinalResult(key, seqId);
     }
 
     return mergeResolver.getMergedValue();
@@ -407,7 +407,7 @@ public final class ConfigProvider {
 
     if (collectConfig) {
       reportDefault(key, Collections.emptyMap());
-      mergeResolver.reReportFinalResult(key, collectConfig, seqId);
+      mergeResolver.reReportFinalResult(key, seqId);
     }
 
     return mergeResolver.getMergedValue();
@@ -440,7 +440,7 @@ public final class ConfigProvider {
 
       if (collectConfig) {
         reportDefault(key, Collections.emptyMap());
-        mergeResolver.reReportFinalResult(key, collectConfig, seqId);
+        mergeResolver.reReportFinalResult(key, seqId);
       }
     }
 
@@ -652,8 +652,8 @@ public final class ConfigProvider {
     }
 
     /** Re-reports this resolved value to ConfigCollector with the specified seqId */
-    void reReportToCollector(String key, boolean collectConfig, int finalSeqId) {
-      if (collectConfig && value != null && origin != null) {
+    void reReportToCollector(String key, int finalSeqId) {
+      if (value != null && origin != null) {
         ConfigCollector.get().put(key, value, origin, finalSeqId, configId);
       }
     }
@@ -686,8 +686,8 @@ public final class ConfigProvider {
      * Re-reports the final merged result to ConfigCollector if it has actual contributions. Does
      * NOT re-report when no contributions were made since defaults are reported separately.
      */
-    void reReportFinalResult(String key, boolean collectConfig, int finalSeqId) {
-      if (collectConfig && currentOrigin != ConfigOrigin.DEFAULT && !mergedValue.isEmpty()) {
+    void reReportFinalResult(String key, int finalSeqId) {
+      if (currentOrigin != ConfigOrigin.DEFAULT && !mergedValue.isEmpty()) {
         ConfigCollector.get().put(key, mergedValue, ConfigOrigin.CALCULATED, finalSeqId);
       }
     }
