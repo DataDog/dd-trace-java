@@ -1,8 +1,8 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
-ch.qos.logback:logback-classic:1.2.3=testCompileClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.3=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=testCompileClasspath,testRuntimeClasspath
 com.github.spotbugs:spotbugs-annotations:4.2.0=compileClasspath,testCompileClasspath,testRuntimeClasspath
@@ -101,7 +101,8 @@ org.pitest:pitest:1.9.11=pitest
 org.slf4j:jcl-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:log4j-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
-org.slf4j:slf4j-api:1.7.30=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.slf4j:slf4j-api:1.7.30=compileClasspath,runtimeClasspath
+org.slf4j:slf4j-api:1.7.32=testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.0=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
 org.spockframework:spock-core:2.3-groovy-3.0=testCompileClasspath,testRuntimeClasspath

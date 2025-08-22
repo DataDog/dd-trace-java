@@ -3,8 +3,8 @@
 # This file is expected to be part of source control.
 cafe.cryptography:curve25519-elisabeth:0.1.0=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
 cafe.cryptography:ed25519-elisabeth:0.1.0=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
-ch.qos.logback:logback-classic:1.2.3=testCompileClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.3=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=testRuntimeClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=sharedShadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
 com.datadoghq.okio:okio:1.17.6=sharedShadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
@@ -128,7 +128,8 @@ org.ow2.asm:asm:9.8=sharedShadowInclude
 org.slf4j:jcl-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:log4j-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
-org.slf4j:slf4j-api:1.7.30=shadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
+org.slf4j:slf4j-api:1.7.30=shadowInclude,traceShadowInclude
+org.slf4j:slf4j-api:1.7.32=testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.0=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=shadowInclude,testRuntimeClasspath,traceShadowInclude

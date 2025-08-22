@@ -3,8 +3,8 @@
 # This file is expected to be part of source control.
 cafe.cryptography:curve25519-elisabeth:0.1.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-ch.qos.logback:logback-classic:1.2.11=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.11=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.2.13=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.blogspot.mydailyjava:weak-lock-free:0.17=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath

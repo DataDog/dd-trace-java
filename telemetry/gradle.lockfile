@@ -3,8 +3,8 @@
 # This file is expected to be part of source control.
 cafe.cryptography:curve25519-elisabeth:0.1.0=jmhRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=jmhRuntimeClasspath,testRuntimeClasspath
-ch.qos.logback:logback-classic:1.2.3=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.3=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.2.13=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=jmhRuntimeClasspath,testRuntimeClasspath
 com.blogspot.mydailyjava:weak-lock-free:0.17=compileClasspath,jmhCompileClasspath,jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=compileClasspath,jmhCompileClasspath,jmhRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -139,7 +139,8 @@ org.pitest:pitest:1.9.11=pitest
 org.slf4j:jcl-over-slf4j:1.7.30=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:1.7.30=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:log4j-over-slf4j:1.7.30=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.slf4j:slf4j-api:1.7.30=compileClasspath,jmhCompileClasspath,jmhRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.slf4j:slf4j-api:1.7.30=compileClasspath,jmhCompileClasspath,runtimeClasspath
+org.slf4j:slf4j-api:1.7.32=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.0=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=jmhRuntimeClasspath,runtimeClasspath,testRuntimeClasspath

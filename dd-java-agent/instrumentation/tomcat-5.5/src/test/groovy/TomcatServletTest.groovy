@@ -1,4 +1,5 @@
 import datadog.trace.api.ProcessTags
+import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -7,7 +8,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
-import static org.junit.Assume.assumeTrue
 
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -277,9 +277,9 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
     return { !bubblesResponse() || it == endpoint.status }
   }
 
+  @IgnoreIf({ !instance.testException() })
   def "test exception with custom status"() {
     setup:
-    assumeTrue(testException())
     def request = request(CUSTOM_EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 

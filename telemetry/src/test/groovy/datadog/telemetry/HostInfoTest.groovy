@@ -1,8 +1,9 @@
 package datadog.telemetry
 
 import datadog.environment.OperatingSystem
-import org.junit.Assume
 import spock.lang.Specification
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class HostInfoTest extends Specification {
   void 'getHostname'() {
@@ -32,7 +33,7 @@ class HostInfoTest extends Specification {
   }
 
   void 'compare to uname'() {
-    Assume.assumeTrue('uname -a'.execute().waitFor() == 0)
+    assumeTrue('uname -a'.execute().waitFor() == 0)
 
     expect:
     HostInfo.getHostname() == 'uname -n'.execute().text.trim()

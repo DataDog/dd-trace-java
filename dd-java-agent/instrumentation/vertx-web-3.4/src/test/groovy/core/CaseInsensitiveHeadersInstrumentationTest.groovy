@@ -10,7 +10,8 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
 import io.vertx.core.MultiMap
 import io.vertx.core.http.CaseInsensitiveHeaders
-import org.junit.Assume
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 @CompileDynamic
 class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
@@ -88,7 +89,7 @@ class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
   void 'test that entries() is instrumented'() {
     given:
     // latest versions of vertx 3.x define the entries in the MultiMap interface, so we will lose propagation
-    Assume.assumeTrue(hasMethod(CaseInsensitiveHeaders, 'entries'))
+    assumeTrue(hasMethod(CaseInsensitiveHeaders, 'entries'))
     final headers = new CaseInsensitiveHeaders()
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -127,7 +128,7 @@ class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
   private static boolean hasMethod(final Class<?> target, final String name, final Class<?>...types) {
     try {
       target.getDeclaredMethod(name, types) != null
-    } catch (Throwable e) {
+    } catch (Throwable ignored) {
       return false
     }
   }

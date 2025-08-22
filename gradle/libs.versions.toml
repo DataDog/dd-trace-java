@@ -68,7 +68,7 @@ objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Sp
 
 spock24-core = { module = "org.spockframework:spock-core", version.ref = "spock24" }
 spock24-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock24" }
-spock24-spring = { module = "org.spockframework:spock-spring", version = "spock24" }
+spock24-spring = { module = "org.spockframework:spock-spring", version.ref = "spock24" }
 
 groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
 groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }

@@ -23,7 +23,9 @@ class TracerVersionPlugin @Inject constructor(
     val extension = targetProject.extensions.getByType(TracerVersionExtension::class.java)
 
     extension.detectDirty.set(
-      providerFactory.environmentVariable("CI").map { it != "true" }.orElse(true)
+       providerFactory.gradleProperty("tracerVersion.dirtiness")
+         .map { it.trim().toBoolean() }
+         .orElse(false)
     )
 
     val versionProvider = versionProvider(targetProject, extension)

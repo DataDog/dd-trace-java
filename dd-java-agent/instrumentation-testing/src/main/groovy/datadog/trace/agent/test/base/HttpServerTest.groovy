@@ -102,7 +102,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static java.nio.charset.StandardCharsets.UTF_8
-import static org.junit.Assume.assumeTrue
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
@@ -820,7 +820,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
     recordedBaggageTags == [
-      "baggage.user.id": "test-user",
+      "baggage.user.id"   : "test-user",
       "baggage.session.id": "test-session",
       "baggage.account.id": "test-account"
       // "baggage.language" should NOT be present since it's not in default config
@@ -1183,6 +1183,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
   def "test exception"() {
     setup:
     def method = "GET"
@@ -1510,7 +1511,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
   }
-
 
   def 'test instrumentation gateway multipart request body'() {
     setup:
@@ -2231,19 +2231,32 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   /**
    * This test should be done in a forked test class
-   * @return
    */
   def "test rum injection in head for mime #mime"() {
     setup:
     assumeTrue(testRumInjection())
+    def telemetryCollector = RumInjector.getTelemetryCollector()
     def request = new Request.Builder().url(server.address().resolve("gimme-$mime").toURL())
     .get().build()
+
     when:
     def response = client.newCall(request).execute()
+    def responseBody = response.body().string()
+    def finalSummary = telemetryCollector.summary()
+
     then:
     assert response.code() == 200
-    assert response.body().string().contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
+    assert responseBody.contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
     assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
+
+    // Check a few telemetry metrics
+    if (expected) {
+      assert finalSummary.contains("injectionSucceed=")
+      assert responseBody.length() > 0
+    } else {
+      assert finalSummary.contains("injectionSkipped=")
+    }
+
     where:
     mime   | expected
     "html" | true
@@ -2251,7 +2264,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   // to be overridden for more specific asserts
-  void assertEndpointDiscovery(final List<?> endpoints) { }
+  void assertEndpointDiscovery(final List<?> endpoints) {}
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
@@ -2325,7 +2338,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+          if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
             "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
             "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
           } else {

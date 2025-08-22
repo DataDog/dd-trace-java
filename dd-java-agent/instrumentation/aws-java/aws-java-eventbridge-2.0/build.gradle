@@ -1,0 +1,32 @@
+muzzle {
+  pass {
+    group = "software.amazon.awssdk"
+    module = "eventbridge"
+    versions = "[2.7,3)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'software.amazon.awssdk', name: 'eventbridge', version: '2.27.19'
+
+  // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
+  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2')
+  testImplementation 'software.amazon.awssdk:eventbridge:2.27.23'
+  // SQS and SNS are used to act as the "targets" of the EB bus.
+  testImplementation 'software.amazon.awssdk:sqs:2.27.23'
+  testImplementation 'software.amazon.awssdk:sns:2.27.23'
+  testImplementation 'org.testcontainers:localstack:1.20.1'
+
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

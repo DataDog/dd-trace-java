@@ -10,6 +10,7 @@ import net.bytebuddy.utility.JavaModule
 import net.sf.cglib.proxy.Enhancer
 import net.sf.cglib.proxy.MethodInterceptor
 import net.sf.cglib.proxy.MethodProxy
+import spock.lang.IgnoreIf
 
 import java.lang.instrument.ClassDefinition
 import java.lang.ref.WeakReference
@@ -28,7 +29,6 @@ import static context.FieldInjectionTestInstrumentation.KeyClass
 import static context.FieldInjectionTestInstrumentation.UntransformableKeyClass
 import static context.FieldInjectionTestInstrumentation.ValidInheritsSerializableKeyClass
 import static context.FieldInjectionTestInstrumentation.ValidSerializableKeyClass
-import static org.junit.Assume.assumeTrue
 
 class FieldInjectionForkedTest extends AgentTestRunner {
 
@@ -111,10 +111,8 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     new UntransformableKeyClass() | _
   }
 
+  @IgnoreIf({!InstrumenterConfig.get().isSerialVersionUIDFieldInjection()})
   def "serializability not impacted #serializable"() {
-    setup:
-    assumeTrue(InstrumenterConfig.get().isSerialVersionUIDFieldInjection())
-
     expect:
     serialVersionUID(serializable) == serialVersionUID
 
@@ -131,7 +129,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
       def field = klass.getDeclaredField("serialVersionUID")
       field.setAccessible(true)
       return (long) field.get(null)
-    } catch (NoSuchFieldException ex) {
+    } catch (NoSuchFieldException ignored) {
       def method = ObjectStreamClass.getDeclaredMethod("computeDefaultSUID", Class)
       method.setAccessible(true)
       return (long) method.invoke(null, klass)

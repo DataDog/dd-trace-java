@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.liberty23;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.liberty23.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
-import static datadog.trace.instrumentation.liberty23.LibertyDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.liberty23.LibertyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty23.LibertyDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty23.LibertyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -21,7 +21,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
@@ -107,10 +106,11 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final Context context = DECORATE.extract(request);
-      request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, context);
-      final AgentSpan span = DECORATE.startSpan(request, context);
-      scope = context.with(span).attach();
+      final Context parentContext = DECORATE.extract(request);
+      request.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      final Context context = DECORATE.startSpan(request, parentContext);
+      scope = context.attach();
+      final AgentSpan span = fromContext(context);
       if (Config.get().isJeeSplitByDeployment()) {
         final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
         if (dispatcherContext != null) {
@@ -124,10 +124,11 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         }
       }
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request, request, context);
+      DECORATE.onRequest(span, request, request, parentContext);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
-      request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
-      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+      request.setAttribute(
+          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       if (ActiveSubsystems.APPSEC_ACTIVE) {
         ContextStore store =
             InstrumentationContext.get(
@@ -165,7 +166,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         // this has the unfortunate consequence that service name (as set via the tag interceptor)
         // of the top span won't match that of its child spans, because it's instead the original
         // one that will propagate
-        DECORATE.getPath(spanFromContext(scope.context()), request);
+        DECORATE.getPath(fromContext(scope.context()), request);
         scope.close();
       }
     }

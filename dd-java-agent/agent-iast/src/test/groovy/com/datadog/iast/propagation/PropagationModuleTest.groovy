@@ -12,11 +12,11 @@ import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import org.junit.Assume
 import spock.lang.Shared
 
 import java.lang.ref.Reference
 
+import static org.junit.jupiter.api.Assumptions.assumeFalse
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
@@ -271,7 +271,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   void 'test taintIfTainted keeping ranges with a mark'() {
     given:
     def (type, target, input) = suite
-    Assume.assumeFalse(target instanceof Taintable) // taintable does not support multiple ranges or marks
+    assumeFalse(target instanceof Taintable) // taintable does not support multiple ranges or marks
     final method = "taint${type}IfTainted"
     final source = taintedSource()
     final ranges = [new Range(0, 1, source, NOT_MARKED), new Range(1, 1, source, NOT_MARKED)] as Range[]
@@ -323,7 +323,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   void 'test taintIfTainted not keeping ranges with a mark'() {
     given:
     def (type, target, input) = suite
-    Assume.assumeFalse(target instanceof Taintable) // taintable does not support marks
+    assumeFalse(target instanceof Taintable) // taintable does not support marks
     final method = "taint${type}IfTainted"
     final source = taintedSource()
     final ranges = [new Range(0, 1, source, NOT_MARKED), new Range(1, 1, source, NOT_MARKED)] as Range[]
@@ -381,7 +381,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   void 'test taintIfAnyTainted keeping ranges with a mark'() {
     given:
     def (type, target, input) = suite
-    Assume.assumeFalse(target instanceof Taintable) // taintable does not support multiple ranges or marks
+    assumeFalse(target instanceof Taintable) // taintable does not support multiple ranges or marks
     final method = "taint${type}IfAnyTainted"
     final inputs = ['test', input].toArray()
     final source = taintedSource()
@@ -435,7 +435,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   void 'test taintIfAnyTainted not keeping ranges with a mark'() {
     given:
     def (type, target, input) = suite
-    Assume.assumeFalse(target instanceof Taintable) // taintable does not support marks
+    assumeFalse(target instanceof Taintable) // taintable does not support marks
     final method = "taint${type}IfAnyTainted"
     final inputs = ['test', input].toArray()
     final source = taintedSource()

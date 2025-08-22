@@ -2,6 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
 import spock.lang.Requires
@@ -32,6 +33,7 @@ class FootprintForkedTest extends DDSpecification {
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
       features,
+      HealthMetrics.NO_OP,
       sink,
       1000,
       1000,

@@ -73,6 +73,24 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 
+  /**
+   * Report that a trace has been used to compute client stats.
+   *
+   * @param countedSpan the number of spans used for the stat computation
+   * @param totalSpan the number of total spans in the trace
+   * @param dropped true if the trace can be dropped. Note: the PayloadDispatcher also count this.
+   *     However, this counter will report how many p0 dropped we could achieve before that the span
+   *     got sampled.
+   */
+  public void onClientStatTraceComputed(
+      final int countedSpan, final int totalSpan, boolean dropped) {}
+
+  public void onClientStatPayloadSent() {}
+
+  public void onClientStatErrorReceived() {}
+
+  public void onClientStatDowngraded() {}
+
   /** @return Human-readable summary of the current health metrics. */
   public String summary() {
     return "";

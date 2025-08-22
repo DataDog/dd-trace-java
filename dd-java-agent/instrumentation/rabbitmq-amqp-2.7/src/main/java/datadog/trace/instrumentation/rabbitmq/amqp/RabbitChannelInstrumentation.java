@@ -6,6 +6,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.createWithExchange;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -186,11 +188,8 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         DataStreamsTags tags =
-            DataStreamsTags.createWithExchange(
-                "rabbitmq",
-                DataStreamsTags.Direction.Outbound,
-                exchange,
-                routingKey != null && !routingKey.isEmpty());
+            createWithExchange(
+                "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
         defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
         props =

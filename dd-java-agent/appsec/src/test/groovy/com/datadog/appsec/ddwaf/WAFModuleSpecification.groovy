@@ -1682,6 +1682,19 @@ class WAFModuleSpecification extends DDSpecification {
     internal == libddwaf
   }
 
+  void 'ResultWithData - null data'() {
+    def waf = new WAFModule()
+    Waf.ResultWithData rwd = new Waf.ResultWithData(null, null, null, null)
+    Collection ret
+
+    when:
+    ret = waf.buildEvents(rwd)
+
+    then:
+    noExceptionThrown()
+    ret.isEmpty()
+  }
+
   /**
    * Helper to return a concrete Waf exception for each WafErrorCode
    */

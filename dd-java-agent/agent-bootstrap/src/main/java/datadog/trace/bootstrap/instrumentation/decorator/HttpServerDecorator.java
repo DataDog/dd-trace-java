@@ -4,6 +4,7 @@ import static datadog.context.Context.root;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -17,11 +18,11 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -72,6 +73,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+  private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
 
   private final boolean traceClientIpResolverEnabled =
       Config.get().isTraceClientIpResolverEnabled();
@@ -118,6 +120,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
+  /**
+   * Extracts context from an upstream service.
+   *
+   * @param carrier The request carrier to get the context from.
+   * @return The extracted context, {@code Context#root()} if no valid context to extract.
+   */
   public Context extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
@@ -126,30 +134,31 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return Propagators.defaultPropagator().extract(root(), carrier, getter);
   }
 
-  public AgentSpan startSpan(
-      String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+  /**
+   * Starts a span.
+   *
+   * @param carrier The request carrier.
+   * @param context The parent context of the span to create.
+   * @return A new context bundling the span, child of the given parent context.
+   */
+  public Context startSpan(REQUEST_CARRIER carrier, Context context) {
+    String[] instrumentationNames = instrumentationNames();
+    String instrumentationName =
+        instrumentationNames != null && instrumentationNames.length > 0
+            ? instrumentationNames[0]
+            : DEFAULT_INSTRUMENTATION_NAME;
+    AgentSpanContext.Extracted extracted = callIGCallbackStart(getExtractedSpanContext(context));
     AgentSpan span =
-        tracer()
-            .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
-            .setMeasured(true);
+        tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
-    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    if (flow.getAction() instanceof RequestBlockingAction) {
+      span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
       tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     }
-    return span;
-  }
-
-  public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
-    return startSpan("http-server", carrier, getExtractedSpanContext(context));
-  }
-
-  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
-    AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    return context.with(span);
   }
 
   public AgentSpan onRequest(
@@ -157,20 +166,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final CONNECTION connection,
       final REQUEST request,
       final Context context) {
-    return onRequest(span, connection, request, getExtractedSpanContext(context));
-  }
-
-  public AgentSpan onRequest(
-      final AgentSpan span,
-      final CONNECTION connection,
-      final REQUEST request,
-      @Nullable final AgentSpanContext.Extracted context) {
     Config config = Config.get();
-    boolean clientIpResolverEnabled =
-        config.isClientIpEnabled()
-            || traceClientIpResolverEnabled && ActiveSubsystems.APPSEC_ACTIVE;
 
-    if (ActiveSubsystems.APPSEC_ACTIVE) {
+    if (APPSEC_ACTIVE) {
       RequestContext requestContext = span.getRequestContext();
       if (requestContext != null) {
         BlockResponseFunction brf = createBlockResponseFunction(request, connection);
@@ -180,35 +178,38 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       Flow<Void> flow = callIGCallbackRequestSessionId(span, request);
       Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+      if (action instanceof RequestBlockingAction) {
+        span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
       }
     }
 
-    if (context != null) {
+    AgentSpanContext.Extracted extracted = getExtractedSpanContext(context);
+    boolean clientIpResolverEnabled =
+        config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
+    if (extracted != null) {
       if (clientIpResolverEnabled) {
-        String forwarded = context.getForwarded();
+        String forwarded = extracted.getForwarded();
         if (forwarded != null) {
           span.setTag(Tags.HTTP_FORWARDED, forwarded);
         }
-        String forwardedProto = context.getXForwardedProto();
+        String forwardedProto = extracted.getXForwardedProto();
         if (forwardedProto != null) {
           span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
         }
-        String forwardedHost = context.getXForwardedHost();
+        String forwardedHost = extracted.getXForwardedHost();
         if (forwardedHost != null) {
           span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
         }
-        String forwardedIp = context.getXForwardedFor();
+        String forwardedIp = extracted.getXForwardedFor();
         if (forwardedIp != null) {
           span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
         }
-        String forwardedPort = context.getXForwardedPort();
+        String forwardedPort = extracted.getXForwardedPort();
         if (forwardedPort != null) {
           span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
         }
       }
-      String userAgent = context.getUserAgent();
+      String userAgent = extracted.getUserAgent();
       if (userAgent != null) {
         span.setTag(Tags.HTTP_USER_AGENT, userAgent);
       }
@@ -232,8 +233,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           } else if (supportsRaw) {
             span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
           }
-          if (context != null && context.getXForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, context.getXForwardedHost());
+          if (extracted != null && extracted.getXForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
           } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
@@ -245,8 +246,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
           Flow<Void> flow = callIGCallbackURI(span, url, method);
-          if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-            span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+          if (flow.getAction() instanceof RequestBlockingAction) {
+            span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
           }
           if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
@@ -267,8 +268,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (clientIpResolverEnabled && context != null) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context, span);
+    if (clientIpResolverEnabled && extracted != null) {
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not
       // 2. it is public and the headers yield a private address
@@ -287,9 +288,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
       }
     } else if (clientIpResolverEnabled && span.getLocalRootSpan() != span) {
-      // in this case context == null
-      // If there is no context we can't do anything but use the peer addr.
-      // Additionally, context == null arises on subspans for which the resolution
+      // in this case extracted == null
+      // If there is no extracted we can't do anything but use the peer addr.
+      // Additionally, extracted == null arises on subspans for which the resolution
       // likely already happened on the top span, so we don't need to do the resolution
       // again. Instead, copy from the top span, should it exist
       AgentSpan localRootSpan = span.getLocalRootSpan();
@@ -308,11 +309,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     setPeerPort(span, peerPort);
     Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
-    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    if (flow.getAction() instanceof RequestBlockingAction) {
+      span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
     return span;
+  }
+
+  protected static AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
+    AgentSpan extractedSpan = AgentSpan.fromContext(context);
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
   protected BlockResponseFunction createBlockResponseFunction(
@@ -375,19 +381,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  //  @Override
-  //  public Span onError(final Span span, final Throwable throwable) {
-  //    assert span != null;
-  //    // FIXME
-  //    final Object status = span.getTag("http.status");
-  //    if (status == null || status.equals(200)) {
-  //      // Ensure status set correctly
-  //      span.setTag("http.status", 500);
-  //    }
-  //    return super.onError(span, throwable);
-  //  }
-
-  private AgentSpanContext.Extracted callIGCallbackStart(AgentSpanContext.Extracted context) {
+  private AgentSpanContext.Extracted callIGCallbackStart(
+      @Nullable final AgentSpanContext.Extracted extracted) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -395,14 +390,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         tracer.getCallbackProvider(RequestContextSlot.IAST).getCallback(EVENTS.requestStarted());
 
     if (startedCbAppSec == null && startedCbIast == null) {
-      return context;
+      return extracted;
     }
 
     TagContext tagContext = null;
-    if (context == null) {
+    if (extracted == null) {
       tagContext = new TagContext();
-    } else if (context instanceof TagContext) {
-      tagContext = (TagContext) context;
+    } else if (extracted instanceof TagContext) {
+      tagContext = (TagContext) extracted;
     }
 
     if (tagContext != null) {
@@ -415,7 +410,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return tagContext;
     }
 
-    return context;
+    return extracted;
   }
 
   @Override

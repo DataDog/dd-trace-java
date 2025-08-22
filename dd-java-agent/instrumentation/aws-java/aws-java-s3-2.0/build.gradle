@@ -1,0 +1,29 @@
+muzzle {
+  pass {
+    group = "software.amazon.awssdk"
+    module = "s3"
+    versions = "[2,3)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'software.amazon.awssdk', name: 's3', version: '2.29.26'
+
+  // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
+  testRuntimeOnly project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2')
+  testImplementation 'software.amazon.awssdk:s3:2.29.26'
+  testImplementation 'org.testcontainers:localstack:1.20.1'
+
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 's3', version: '+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

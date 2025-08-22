@@ -5,15 +5,19 @@ import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
 import com.datadog.iast.model.VulnerabilityType
-import com.squareup.moshi.*
+import com.squareup.moshi.FromJson
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.JsonReader
+import com.squareup.moshi.JsonWriter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.ToJson
+import com.squareup.moshi.Types
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.iast.SourceTypes
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.yaml.YamlSlurper
-import org.junit.Assume
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
 import spock.lang.Shared
@@ -26,7 +30,8 @@ import java.util.regex.Pattern
 import static com.datadog.iast.model.json.EvidenceAdapter.RedactedValuePart
 import static com.datadog.iast.model.json.EvidenceAdapter.StringValuePart
 import static com.datadog.iast.model.json.EvidenceAdapter.TaintedValuePart
-
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static org.junit.jupiter.api.Assumptions.assumeFalse
 
 class EvidenceRedactionTest extends DDSpecification {
 
@@ -80,7 +85,7 @@ class EvidenceRedactionTest extends DDSpecification {
 
   void 'test #suite'() {
     given:
-    Assume.assumeFalse("Ignored test", suite.ignored)
+    assumeFalse(suite.ignored, "Ignored test")
     final type = suite.type == Type.SOURCES ? Types.newParameterizedType(List, Source) : VulnerabilityBatch
     final adapter = VulnerabilityEncoding.MOSHI.adapter(type)
 
@@ -99,7 +104,7 @@ class EvidenceRedactionTest extends DDSpecification {
 
   void 'test secure_marks #suite'() {
     given:
-    Assume.assumeFalse("Ignored test", suite.ignored)
+    assumeFalse(suite.ignored, "Ignored test")
     final type =  VulnerabilityBatch
     final adapter = VulnerabilityEncoding.MOSHI.adapter(type)
 

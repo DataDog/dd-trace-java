@@ -13,10 +13,19 @@ public abstract class TestEventsHandlerHolder {
     start();
   }
 
-  public static void start() {
-    TEST_EVENTS_HANDLER =
-        InstrumentationBridge.createTestEventsHandler(
-            "karate", null, null, KarateUtils.capabilities(KarateTracingHook.FRAMEWORK_VERSION));
+  public static synchronized void start() {
+    if (TEST_EVENTS_HANDLER == null) {
+      TEST_EVENTS_HANDLER =
+          InstrumentationBridge.createTestEventsHandler(
+              "karate", null, null, KarateUtils.capabilities(KarateTracingHook.FRAMEWORK_VERSION));
+    }
+  }
+
+  public static synchronized TestEventsHandler<TestSuiteDescriptor, TestDescriptor> getHandler() {
+    if (TEST_EVENTS_HANDLER == null) {
+      start();
+    }
+    return TEST_EVENTS_HANDLER;
   }
 
   /** Used by instrumentation tests */

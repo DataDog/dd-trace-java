@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -62,9 +64,7 @@ public class ProducerAdvice {
         && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
       setter = TextMapInjectAdapter.SETTER;
     }
-    DataStreamsTags tags =
-        DataStreamsTags.create(
-            "kafka", DataStreamsTags.Direction.Outbound, record.topic(), null, clusterId);
+    DataStreamsTags tags = create("kafka", OUTBOUND, record.topic(), null, clusterId);
     try {
       defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())

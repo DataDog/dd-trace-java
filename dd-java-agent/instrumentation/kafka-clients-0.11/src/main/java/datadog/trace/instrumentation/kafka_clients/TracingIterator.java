@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
@@ -95,9 +97,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
-          DataStreamsTags tags =
-              DataStreamsTags.create(
-                  "kafka", DataStreamsTags.Direction.Inbound, val.topic(), group, clusterId);
+          DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
           final long payloadSize =
               traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {

@@ -4,7 +4,7 @@
 antlr:antlr:2.7.7=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=testRuntimeClasspath
-ch.qos.logback:logback-classic:1.2.3=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.7=compileClasspath,productionRuntimeClasspath,runtimeClasspath
 ch.qos.logback:logback-core:1.2.7=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=testRuntimeClasspath

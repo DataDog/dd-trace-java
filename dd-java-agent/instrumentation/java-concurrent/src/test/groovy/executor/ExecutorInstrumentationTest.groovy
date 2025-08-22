@@ -26,7 +26,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-import static org.junit.Assume.assumeTrue
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class ExecutorInstrumentationTest extends AgentTestRunner {
 
@@ -412,7 +412,7 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
                 throw e.getCause()
               }
             }
-          } catch (RejectedExecutionException e) {
+          } catch (RejectedExecutionException ignored) {
           }
 
           for (Future f : jobFutures) {

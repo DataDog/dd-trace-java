@@ -17,7 +17,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 
-import static org.junit.Assume.assumeTrue
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
@@ -222,7 +222,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
                 throw e.getCause()
               }
             }
-          } catch (RejectedExecutionException e) {
+          } catch (RejectedExecutionException ignored) {
           }
 
           for (Future f : jobFutures) {

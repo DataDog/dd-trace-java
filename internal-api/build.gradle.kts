@@ -250,6 +250,8 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
+    // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
+    "datadog.trace.api.rum.RumInjectorMetrics",
   )
 )
 

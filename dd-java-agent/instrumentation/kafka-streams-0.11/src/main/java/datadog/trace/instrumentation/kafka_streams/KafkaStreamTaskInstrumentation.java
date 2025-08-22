@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.createWithGroup;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -250,9 +252,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (streamTaskContext != null) {
           applicationId = streamTaskContext.getApplicationId();
         }
-        DataStreamsTags tags =
-            DataStreamsTags.createWithGroup(
-                "kafka", DataStreamsTags.Direction.Inbound, applicationId, record.topic());
+        DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
 
         final long payloadSize =
             traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
@@ -323,9 +323,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (streamTaskContext != null) {
           applicationId = streamTaskContext.getApplicationId();
         }
-        DataStreamsTags tags =
-            DataStreamsTags.createWithGroup(
-                "kafka", DataStreamsTags.Direction.Inbound, applicationId, record.topic());
+        DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
 
         long payloadSize = 0;
         // we have to go through Object to get the RecordMetadata here because the class of `record`

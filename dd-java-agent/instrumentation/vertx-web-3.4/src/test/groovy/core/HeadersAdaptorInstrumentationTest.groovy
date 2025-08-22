@@ -13,7 +13,8 @@ import io.netty.handler.codec.http2.DefaultHttp2Headers
 import io.vertx.core.MultiMap
 import io.vertx.core.http.impl.HeadersAdaptor
 import io.vertx.core.http.impl.Http2HeadersAdaptor
-import org.junit.Assume
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 @CompileDynamic
 class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
@@ -103,7 +104,7 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
   void 'test that #name entries() is instrumented'() {
     given:
     // latest versions of vertx 3.x define the entries in the MultiMap interface, so we will lose propagation
-    Assume.assumeTrue(hasMethod(headers.getClass(), 'entries'))
+    assumeTrue(hasMethod(headers.getClass(), 'entries'))
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
     addAll([[key: 'value1'], [key: 'value2']], headers)
@@ -146,7 +147,7 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
   private static boolean hasMethod(final Class<?> target, final String name, final Class<?>... types) {
     try {
       target.getDeclaredMethod(name, types) != null
-    } catch (Throwable e) {
+    } catch (Throwable ignored) {
       return false
     }
   }

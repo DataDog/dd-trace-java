@@ -36,6 +36,8 @@ class FilterTest extends AgentTestRunner {
     }
 
     then:
+    TEST_WRITER.waitForTraces(1)
+
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
@@ -73,6 +75,8 @@ class FilterTest extends AgentTestRunner {
     then:
     def th = thrown(Exception)
     th == ex
+
+    TEST_WRITER.waitForTraces(1)
 
     assertTraces(1) {
       trace(2) {

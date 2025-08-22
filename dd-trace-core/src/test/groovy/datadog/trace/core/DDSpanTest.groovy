@@ -458,6 +458,11 @@ class DDSpanTest extends DDCoreSpecification {
     !span.isError()
 
     when:
+    span.setError(true, ErrorPriorities.MANUAL_INSTRUMENTATION)
+    then:
+    span.isError()
+
+    when:
     span.setError(true, Byte.MAX_VALUE)
     then:
     span.isError()

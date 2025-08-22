@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
+import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -17,14 +19,43 @@ public final class Selector {
     this.operator = operator;
   }
 
-  public Selector(Object yaml) {
-    Map map = (Map) yaml;
-    origin = (String) map.get("origin");
-    key = (String) map.get("key");
-    List<String> rawMatches = (List<String>) map.get("matches");
-    matches =
+  public static Selector from(Map<?, ?> map) {
+    Object originObj = map.get("origin");
+    if (originObj == null) {
+      throwStableConfigMappingException("Missing 'origin' in selector:", map);
+    }
+    if (!(originObj instanceof String)) {
+      throwStableConfigMappingException(
+          "'origin' must be a string, but got: " + originObj.getClass().getSimpleName() + ": ",
+          originObj);
+    }
+    String origin = (String) originObj;
+
+    Object keyObj = map.get("key");
+    String key = (keyObj instanceof String) ? (String) keyObj : null;
+
+    Object matchesObj = map.get("matches");
+    if (matchesObj != null && !(matchesObj instanceof List)) {
+      throwStableConfigMappingException(
+          "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName() + ": ",
+          matchesObj);
+    }
+    List<String> rawMatches = (List<String>) matchesObj;
+    List<String> matches =
         rawMatches != null ? Collections.unmodifiableList(rawMatches) : Collections.emptyList();
-    operator = (String) map.get("operator");
+
+    Object operatorObj = map.get("operator");
+    if (operatorObj == null) {
+      throwStableConfigMappingException("Missing 'operator' in selector:", map);
+    }
+    if (!(operatorObj instanceof String)) {
+      throwStableConfigMappingException(
+          "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName() + ": ",
+          operatorObj);
+    }
+    String operator = (String) operatorObj;
+
+    return new Selector(origin, key, matches, operator);
   }
 
   public String getOrigin() {

@@ -8,15 +8,14 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.agent.test.base.HttpServerTest.IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static org.junit.Assume.assumeTrue
 
 abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
 
@@ -119,9 +118,9 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     TEST_WRITER.waitForTraces(totalInvocations)
   }
 
+  @IgnoreIf({ !instance.testBodyMultipart() })
   def 'test instrumentation gateway multipart request body — strict variant'() {
     setup:
-    assumeTrue(testBodyMultipart())
     def body = new MultipartBody.Builder()
       .setType(MultipartBody.FORM)
       .addFormDataPart('a', 'x')
@@ -151,9 +150,8 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     }
   }
 
+  @IgnoreIf({ !instance.testBodyJson()})
   def 'test instrumentation gateway json request body — spray variant'() {
-    assumeTrue(testBodyJson())
-
     setup:
     def url = HttpUrl.get(BODY_JSON.resolve(address)).newBuilder()
       .encodedQuery('variant=spray')

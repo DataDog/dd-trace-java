@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
@@ -68,18 +67,10 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      Context context = DECORATE.extract(request);
-
-      AgentSpan span;
-      if (null != context) {
-        span = DECORATE.startSpan(request, context);
-        context = context.with(span);
-      } else {
-        span = startSpan(DECORATE.spanName());
-        span.setMeasured(true);
-        context = span;
-      }
+      Context parentContext = DECORATE.extract(request);
+      Context context = DECORATE.startSpan(request, parentContext);
       ContextScope scope = context.attach();
+      AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection, request, context);
 

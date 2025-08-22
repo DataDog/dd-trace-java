@@ -6,7 +6,8 @@ import javax.annotation.Nullable;
 
 /** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
 final class ScopeContext implements Context {
-  final ScopeStack scopeStack;
+  private final Thread originalThread = Thread.currentThread();
+  private final ScopeStack scopeStack;
   private final Context context;
 
   ScopeContext(ScopeStack scopeStack) {
@@ -16,6 +17,11 @@ final class ScopeContext implements Context {
   private ScopeContext(ScopeStack scopeStack, Context context) {
     this.scopeStack = scopeStack;
     this.context = context;
+  }
+
+  ScopeStack restore() {
+    // take defensive copy of original scope stack when restoring on different thread
+    return originalThread == Thread.currentThread() ? scopeStack : scopeStack.copy();
   }
 
   @Nullable
