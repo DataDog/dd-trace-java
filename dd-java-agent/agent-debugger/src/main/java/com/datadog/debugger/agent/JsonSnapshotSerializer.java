@@ -96,7 +96,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
       this.timestamp = debugger.snapshot.getTimestamp();
       final CharSequence pt = ProcessTags.getTagsForSerialization();
       this.processTags = pt != null ? pt.toString() : null;
-      this.product = config.isCiVisibilityFailedTestReplayActive() ? TEST_OPT_PRODUCT : null;
+      this.product = config.isCiVisibilityEnabled() ? TEST_OPT_PRODUCT : null;
     }
 
     public String getService() {

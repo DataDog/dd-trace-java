@@ -10,8 +10,9 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.CircuitBreaker;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.domain.TestContext;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -47,7 +48,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final CircuitBreaker circuitBreaker;
   private final int maxCapturedFrames;
   private final boolean applyConfigAsync;
-  private final boolean isFailedTestReplayActive;
+  private final boolean failedTestReplayMode;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
@@ -56,7 +57,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     this(
         new ExceptionProbeManager(
             classNameFiltering,
-            config.isCiVisibilityFailedTestReplayActive()
+            config.isCiVisibilityEnabled()
                 ? Duration.ofSeconds(0)
                 : Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
         configurationUpdater,
@@ -64,7 +65,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         config.getDebuggerMaxExceptionPerSecond(),
         config.getDebuggerExceptionMaxCapturedFrames(),
         config.isDebuggerExceptionAsyncConfig(),
-        config.isCiVisibilityFailedTestReplayActive());
+        config.isCiVisibilityEnabled());
   }
 
   DefaultExceptionDebugger(
@@ -74,22 +75,25 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       int maxExceptionPerSecond,
       int maxCapturedFrames,
       boolean applyConfigAsync,
-      boolean isFailedTestReplayActive) {
+      boolean failedTestReplayMode) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
     this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
     this.maxCapturedFrames = maxCapturedFrames;
     this.applyConfigAsync = applyConfigAsync;
-    this.isFailedTestReplayActive = isFailedTestReplayActive;
+    this.failedTestReplayMode = failedTestReplayMode;
   }
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
-    if (isFailedTestReplayActive) {
-      String strategy = (String) span.getTag(DDTags.TEST_STRATEGY);
-      if (strategy == null || !strategy.equals(RetryReason.atr.toString())) {
-        // FTR is only applied to tests subject to Auto Test Retries
+    if (failedTestReplayMode) {
+      TestContext testContext = InstrumentationTestBridge.getCurrentTestContext();
+      if (testContext == null) {
+        return;
+      }
+      TestExecutionPolicy executionPolicy = testContext.get(TestExecutionPolicy.class);
+      if (executionPolicy == null || !executionPolicy.failedTestReplayApplicable()) {
         return;
       }
     } else {
@@ -128,7 +132,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
           chainedExceptionsList,
           fingerprint,
           maxCapturedFrames,
-          isFailedTestReplayActive);
+          failedTestReplayMode);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
@@ -139,7 +143,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          if (isFailedTestReplayActive || !applyConfigAsync) {
+          if (failedTestReplayMode || !applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
           } else {
             AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));

@@ -76,4 +76,9 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   public boolean hasSucceededAllRetries() {
     return false;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return true;
+  }
 }

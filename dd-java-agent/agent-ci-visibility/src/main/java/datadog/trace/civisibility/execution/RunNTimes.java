@@ -87,4 +87,9 @@ public class RunNTimes implements TestExecutionPolicy {
   public boolean hasSucceededAllRetries() {
     return wasLastExecution() && successfulExecutionsSeen == executions;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return false;
+  }
 }

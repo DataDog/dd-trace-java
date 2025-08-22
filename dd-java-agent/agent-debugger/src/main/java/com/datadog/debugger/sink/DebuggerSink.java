@@ -4,8 +4,6 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationTestBridge;
-import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.SkipCause;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.AgentTaskScheduler;
@@ -70,11 +68,6 @@ public class DebuggerSink {
     this.snapshotSink = snapshotSink;
     this.symbolSink = symbolSink;
     this.uploadFlushInterval = config.getDynamicInstrumentationUploadFlushInterval();
-
-    if (config.isCiVisibilityFailedTestReplayActive()) {
-      // register test listener to flush snapshots on suite end
-      InstrumentationTestBridge.registerListener(new DebuggerTestListener(this));
-    }
   }
 
   public void start() {
@@ -93,6 +86,7 @@ public class DebuggerSink {
   }
 
   public void stop() {
+    lowRateFlush(this);
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
     probeStatusSink.stop();
@@ -241,24 +235,5 @@ public class DebuggerSink {
 
   long getCurrentLowRateFlushInterval() {
     return currentLowRateFlushInterval;
-  }
-
-  static class DebuggerTestListener implements InstrumentationTestBridge.TestListener {
-    private final DebuggerSink sink;
-
-    DebuggerTestListener(DebuggerSink sink) {
-      this.sink = sink;
-    }
-
-    @Override
-    public void beforeTestEnd(TestContext ignored) {
-      // noop
-    }
-
-    @Override
-    public void beforeSuiteEnd() {
-      LOGGER.debug("CiVisibility BeforeSuiteEnd fired, flushing sink");
-      sink.lowRateFlush(sink);
-    }
   }
 }

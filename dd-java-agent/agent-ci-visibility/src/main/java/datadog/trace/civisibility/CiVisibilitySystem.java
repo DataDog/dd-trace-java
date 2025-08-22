@@ -101,11 +101,6 @@ public class CiVisibilitySystem {
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
       }
 
-      if (executionSettings.isFailedTestReplayEnabled()) {
-        // only marks the feature as active in child or headless processes
-        config.setCiVisibilityFailedTestReplayActive(true);
-      }
-
       CiVisibilityCoverageServices.Child coverageServices =
           new CiVisibilityCoverageServices.Child(services, repoServices, executionSettings);
       TestEventsHandlerFactory testEventsHandlerFactory =

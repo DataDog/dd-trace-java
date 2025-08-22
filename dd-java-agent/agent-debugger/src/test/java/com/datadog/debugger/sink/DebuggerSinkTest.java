@@ -27,7 +27,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
-import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -127,13 +126,13 @@ public class DebuggerSinkTest {
 
   @Test
   public void addFailedTestReplaySnapshot() throws IOException {
-    when(config.isCiVisibilityFailedTestReplayActive()).thenReturn(true);
+    when(config.isCiVisibilityEnabled()).thenReturn(true);
     ProcessTags.reset(config);
     DebuggerSink sink = createDefaultDebuggerSink();
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot snapshot = createSnapshot();
     sink.addSnapshot(snapshot);
-    InstrumentationTestBridge.fireBeforeSuiteEnd(); // flush on suite end
+    sink.lowRateFlush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);

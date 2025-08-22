@@ -244,6 +244,10 @@ public class TestImpl implements DDTest {
     return TimeUnit.MICROSECONDS.toMillis(endMicros - startMicros);
   }
 
+  public TestContext getContext() {
+    return context;
+  }
+
   @Override
   public void end(@Nullable Long endTime) {
     closeOutstandingSpans();

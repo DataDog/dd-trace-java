@@ -38,19 +38,11 @@ public abstract class InstrumentationTestBridge {
     }
   }
 
-  public static void fireBeforeSuiteEnd() {
-    for (TestListener testListener : TEST_LISTENERS) {
-      testListener.beforeSuiteEnd();
-    }
-  }
-
   public static void registerListener(TestListener listener) {
     TEST_LISTENERS.addIfAbsent(listener);
   }
 
   public interface TestListener {
     void beforeTestEnd(TestContext testContext);
-
-    void beforeSuiteEnd();
   }
 }

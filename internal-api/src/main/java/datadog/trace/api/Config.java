@@ -1035,7 +1035,6 @@ public class Config {
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
   private final boolean ciVisibilityFailedTestReplayEnabled;
-  private boolean ciVisibilityFailedTestReplayActive = false; // propagates setting to DI
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -3957,14 +3956,6 @@ public class Config {
     return ciVisibilityFailedTestReplayEnabled;
   }
 
-  public boolean isCiVisibilityFailedTestReplayActive() {
-    return ciVisibilityFailedTestReplayActive;
-  }
-
-  public void setCiVisibilityFailedTestReplayActive(boolean enabled) {
-    ciVisibilityFailedTestReplayActive = enabled;
-  }
-
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -4086,7 +4077,7 @@ public class Config {
   }
 
   public boolean isDebuggerExceptionEnabled() {
-    return debuggerExceptionEnabled || isCiVisibilityFailedTestReplayActive();
+    return debuggerExceptionEnabled;
   }
 
   public int getDebuggerMaxExceptionPerSecond() {
@@ -4153,7 +4144,7 @@ public class Config {
   public String getFinalDebuggerSnapshotUrl() {
     if (Strings.isNotBlank(dynamicInstrumentationSnapshotUrl)) {
       return dynamicInstrumentationSnapshotUrl;
-    } else if (isCiVisibilityFailedTestReplayActive() && isCiVisibilityAgentlessEnabled()) {
+    } else if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
@@ -4161,7 +4152,7 @@ public class Config {
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    if (isCiVisibilityFailedTestReplayActive() && isCiVisibilityAgentlessEnabled()) {
+    if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
       return getFinalDebuggerBaseUrl() + "/symdb/v1/input";

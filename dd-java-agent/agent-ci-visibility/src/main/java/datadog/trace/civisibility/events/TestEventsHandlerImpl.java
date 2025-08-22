@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.events;
 
 import datadog.json.JsonWriter;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
@@ -24,7 +23,6 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.TestImpl;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
-import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -162,6 +160,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testSuite.testStart(testName, testParameters, testSourceData.getTestMethod(), startTime);
 
     TestIdentifier thisTest = test.getIdentifier();
+    test.getContext()
+        .set(TestExecutionPolicy.class, executionPolicy(thisTest, testSourceData, categories));
+
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
     }
@@ -183,10 +184,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     if (testExecutionHistory != null) {
-      if (testExecutionHistory instanceof RetryUntilSuccessful) {
-        // Used by FailedTestReplay to limit the instrumentation to AutoTestRetries
-        test.setTag(DDTags.TEST_STRATEGY, RetryReason.atr.toString());
-      }
       RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
       if (retryReason != null) {
         test.setTag(Tags.TEST_IS_RETRY, true);
@@ -276,9 +273,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
             testExecutionHistory.hasSucceededAllRetries());
       }
     }
-
-    // Remove strategy tag used by FTR if it was set
-    test.setTag(DDTags.TEST_STRATEGY, null);
 
     test.end(endTime);
   }
