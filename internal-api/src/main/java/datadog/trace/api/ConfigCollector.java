@@ -66,10 +66,11 @@ public class ConfigCollector {
     }
   }
 
-  public ConfigSetting getAppliedConfigSetting(String key) {
+  public static ConfigSetting getAppliedConfigSetting(
+      String key, Map<ConfigOrigin, Map<String, ConfigSetting>> configMap) {
     ConfigSetting best = null;
-    for (Map<String, ConfigSetting> configMap : collected.values()) {
-      ConfigSetting setting = configMap.get(key);
+    for (Map<String, ConfigSetting> originConfigMap : configMap.values()) {
+      ConfigSetting setting = originConfigMap.get(key);
       if (setting != null) {
         if (best == null || setting.seqId > best.seqId) {
           best = setting;
