@@ -135,6 +135,9 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
+    log.debug("Setting test hierarchy IDs: sessionId={}, moduleId={}, suiteId={}, test={}.{}, instrumentationType={}", 
+        moduleSpanContext.getTraceId(), moduleSpanContext.getSpanId(), suiteId, testSuiteName, testName, instrumentationType);
+
     span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
@@ -155,6 +158,17 @@ public class TestImpl implements DDTest {
     }
 
     testDecorator.afterStart(span);
+
+    // Validation logging for missing IDs
+    if (moduleSpanContext.getTraceId() == null) {
+      log.error("Missing session trace ID for test {}.{}, moduleSpanContext={}", testSuiteName, testName, moduleSpanContext);
+    }
+    if (moduleSpanContext.getSpanId() == 0) {
+      log.error("Missing module span ID for test {}.{}, moduleSpanContext={}", testSuiteName, testName, moduleSpanContext);
+    }
+    if (suiteId == 0) {
+      log.error("Missing suite ID for test {}.{}, suiteId={}", testSuiteName, testName, suiteId);
+    }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.TEST);
 
