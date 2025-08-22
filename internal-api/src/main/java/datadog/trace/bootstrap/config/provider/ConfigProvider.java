@@ -90,16 +90,14 @@ public final class ConfigProvider {
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       String candidate = source.get(key, aliases);
-
-      // Always report to telemetry
-      if (collectConfig) {
-        ConfigCollector.get()
-            .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
-      }
-
       // Create resolver if we have a valid candidate
       if (candidate != null) {
         resolver = ConfigValueResolver.of(candidate);
+        // And report to telemetry
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
+        }
       }
 
       seqId++;
@@ -124,16 +122,18 @@ public final class ConfigProvider {
       ConfigProvider.Source source = sources[i];
       String candidateValue = source.get(key, aliases);
 
-      // Always report to telemetry
-      if (collectConfig) {
-        ConfigCollector.get()
-            .put(key, candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
-      }
-      // Create resolver only if candidate is not empty or blank
-      if (candidateValue != null && !candidateValue.trim().isEmpty()) {
-        resolver =
-            ConfigValueResolver.of(
-                candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+      // Report any non-null values to telemetry
+      if (candidateValue != null) {
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+        }
+        // Create resolver only if candidate is not empty or blank
+        if (!candidateValue.trim().isEmpty()) {
+          resolver =
+              ConfigValueResolver.of(
+                  candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+        }
       }
 
       seqId++;
@@ -163,11 +163,6 @@ public final class ConfigProvider {
       ConfigProvider.Source source = sources[i];
       String candidate = source.get(key, aliases);
 
-      // Always report to telemetry
-      if (collectConfig) {
-        ConfigCollector.get()
-            .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
-      }
       // Skip excluded source types
       if (excludedSource.isAssignableFrom(source.getClass())) {
         seqId++;
@@ -176,6 +171,10 @@ public final class ConfigProvider {
       // Create resolver if we have a valid candidate from non-excluded source
       if (candidate != null) {
         resolver = ConfigValueResolver.of(candidate);
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
+        }
       }
 
       seqId++;
