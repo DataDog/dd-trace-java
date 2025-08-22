@@ -17,7 +17,7 @@ abstract class JedisClientTest extends VersionedNamingTestBase {
   int port = PortUtils.randomOpenPort()
 
   @Shared
-  RedisServer redisServer = RedisServer.builder()
+  RedisServer redisServer = RedisServer.newRedisServer()
   // bind to localhost to avoid firewall popup
   .setting("bind 127.0.0.1")
   // set max memory to avoid problems in CI
@@ -36,7 +36,7 @@ abstract class JedisClientTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    println "Using redis: $redisServer.args"
+    println "Using redis: $redisServer.@args"
     redisServer.start()
   }
 
@@ -169,7 +169,6 @@ abstract class JedisClientTest extends VersionedNamingTestBase {
 }
 
 class JedisClientV0Test extends JedisClientTest {
-
   @Override
   int version() {
     return 0
@@ -185,8 +184,8 @@ class JedisClientV0Test extends JedisClientTest {
     return "redis.query"
   }
 }
-class JedisClientV1ForkedTest extends JedisClientTest {
 
+class JedisClientV1ForkedTest extends JedisClientTest {
   @Override
   int version() {
     return 1

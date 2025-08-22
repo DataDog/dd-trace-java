@@ -27,6 +27,11 @@ public class ConfigCollector {
     collected.put(key, setting);
   }
 
+  public void put(String key, Object value, ConfigOrigin origin, String configId) {
+    ConfigSetting setting = ConfigSetting.of(key, value, origin, configId);
+    collected.put(key, setting);
+  }
+
   public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
     // attempt merge+replace to avoid collector seeing partial update
     Map<String, ConfigSetting> merged =

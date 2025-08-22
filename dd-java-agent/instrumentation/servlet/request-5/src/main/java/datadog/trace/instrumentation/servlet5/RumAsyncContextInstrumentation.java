@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import jakarta.servlet.AsyncContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -56,8 +57,8 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
     public static void commitRumBuffer(@Advice.This final AsyncContext asyncContext) {
       final Object maybeRumWrappedResponse =
           asyncContext.getRequest().getAttribute(DD_RUM_INJECTED);
-      if (maybeRumWrappedResponse instanceof RumHttpServletResponseWrapper) {
-        ((RumHttpServletResponseWrapper) maybeRumWrappedResponse).commit();
+      if (maybeRumWrappedResponse instanceof RumControllableResponse) {
+        ((RumControllableResponse) maybeRumWrappedResponse).commit();
       }
     }
   }
