@@ -112,7 +112,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
       task = new Thread() {
           @Override
           void run() {
-            sleep(11000)
+            sleep(12000)
 
             File outputDir = new File("build")
             String fullPath = outputDir.absolutePath.replace("dd-trace-java/dd-java-agent",
