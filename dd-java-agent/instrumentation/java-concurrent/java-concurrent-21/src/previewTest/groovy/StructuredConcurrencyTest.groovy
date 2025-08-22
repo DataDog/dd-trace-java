@@ -1,4 +1,3 @@
-import com.sun.management.HotSpotDiagnosticMXBean
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 
