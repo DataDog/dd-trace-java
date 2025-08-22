@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter;
+import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,7 +12,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
 
-public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
+public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
+    implements RumControllableResponse {
   private final RumInjector rumInjector;
   private final String servletVersion;
   private WrappedServletOutputStream outputStream;
@@ -180,6 +182,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     super.setContentType(type);
   }
 
+  @Override
   public void commit() {
     if (wrappedPipeWriter != null) {
       try {
@@ -195,6 +198,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     }
   }
 
+  @Override
   public void stopFiltering() {
     shouldInject = false;
     if (wrappedPipeWriter != null) {
