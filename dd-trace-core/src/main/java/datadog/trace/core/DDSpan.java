@@ -826,6 +826,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
   }
 
+  List<AgentSpanLink> getLinks() {
+    return links;
+  }
+
   // to be accessible in Spock spies, which the field wouldn't otherwise be
   public long getStartTimeNano() {
     return startTimeNano;

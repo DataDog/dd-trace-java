@@ -897,6 +897,10 @@ public class DDSpanContext
     }
   }
 
+  TagMap unsafeGetTags() {
+    return unsafeTags;
+  }
+
   /** @see CoreSpan#getMetaStruct() */
   public Map<String, Object> getMetaStruct() {
     return Collections.unmodifiableMap(metaStruct);
