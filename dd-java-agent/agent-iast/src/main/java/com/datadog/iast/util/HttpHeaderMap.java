@@ -28,10 +28,14 @@ public class HttpHeaderMap<T> {
 
   private final Entry<T>[] entries;
   private final int bucketCount;
+  private final boolean powerOfTwo;
+  private final int mask;
 
   @SuppressWarnings("unchecked")
   public HttpHeaderMap(int bucketCount) {
     this.bucketCount = bucketCount;
+    this.powerOfTwo = (bucketCount & (bucketCount - 1)) == 0;
+    this.mask = bucketCount - 1;
     this.entries = (Entry<T>[]) Array.newInstance(Entry.class, bucketCount);
   }
 
@@ -115,7 +119,7 @@ public class HttpHeaderMap<T> {
   }
 
   private int index(final int hash) {
-    return hash % bucketCount;
+    return powerOfTwo ? (hash & mask) : (hash % bucketCount);
   }
 
   /** Case insensitive hash */
