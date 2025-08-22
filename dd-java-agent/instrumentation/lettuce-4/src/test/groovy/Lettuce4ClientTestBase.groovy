@@ -11,10 +11,8 @@ import spock.lang.Shared
 
 import javax.management.MBeanServer
 import java.lang.management.ManagementFactory
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
+import java.lang.management.ThreadInfo
+import java.lang.management.ThreadMXBean
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -114,8 +112,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
       task = new Thread() {
           @Override
           void run() {
-            println("Dumper started for test: " + testName)
-            sleep(20000)
+            sleep(12000)
 
             File outputDir = new File("build")
             String fullPath = outputDir.absolutePath.replace("dd-trace-java/dd-java-agent",
@@ -137,10 +134,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
             try (def writer = new FileWriter(reportFile)) {
               writer.write("=== Test: ${testName} ===\n")
               writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
-              getAllStackTraces().each { thread, stack ->
-                writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
-                stack.each { writer.write("\tat ${it}\n") }
-              }
+              writer.write(threadDump(false, false))
               writer.write("==============================================\n")
             }
 
@@ -156,6 +150,16 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
       HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
         server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
       mxBean.dumpHeap(heapDumpFile, true)
+    }
+
+    private static String threadDump(boolean lockedMonitors, boolean lockedSynchronizers) {
+      StringBuffer threadDump = new StringBuffer(System.lineSeparator())
+      ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean()
+      for(ThreadInfo threadInfo : threadMXBean.dumpAllThreads(lockedMonitors, lockedSynchronizers)) {
+        threadDump.append(threadInfo.toString())
+      }
+
+      return threadDump.toString()
     }
 
     void stop() {
