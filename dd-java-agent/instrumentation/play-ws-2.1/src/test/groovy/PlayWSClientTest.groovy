@@ -1,3 +1,4 @@
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import play.libs.ws.StandaloneWSClient
 import play.libs.ws.StandaloneWSRequest
 import play.libs.ws.StandaloneWSResponse
@@ -78,7 +79,15 @@ class PlayScalaWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .execute()
       .transform({ theTry ->
-        callback?.call()
+        if (callback != null) {
+          // Clear trace context before callback
+          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          try {
+            callback.call()
+          } finally {
+            scope.close()
+          }
+        }
         theTry
       }, ExecutionContext.global())
 

@@ -862,7 +862,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           "$DDTags.PATHWAY_HASH" { String }
         }
         if (exception) {
-          errorTags(exception.class, exception.message)
+          if (exception instanceof java.net.ConnectException || exception.getCause() instanceof java.net.ConnectException) {
+            errorTags(java.net.ConnectException, exception.message)
+          } else {
+            errorTags(exception.class, exception.message)
+          }
         }
         peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
