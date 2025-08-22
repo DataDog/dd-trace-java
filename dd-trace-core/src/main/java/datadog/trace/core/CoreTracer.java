@@ -1140,7 +1140,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     for (DDSpan span : writtenTrace) {
       final DDSpanContext ddSpanContext = span.context();
       preWritePostProcessorChain.processTags(
-          ddSpanContext.unsafeGetTags(), ddSpanContext, span.getLinks());
+          ddSpanContext.unsafeGetTags(), ddSpanContext, span.getSpanLinks());
     }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 

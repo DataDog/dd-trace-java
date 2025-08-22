@@ -826,7 +826,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
   }
 
-  List<AgentSpanLink> getLinks() {
+  List<AgentSpanLink> getSpanLinks() {
     return links;
   }
 
