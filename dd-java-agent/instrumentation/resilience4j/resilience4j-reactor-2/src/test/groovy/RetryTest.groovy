@@ -13,7 +13,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCompletionStage retry twice on error"() {
     setup:
-    ConnectableFlux<String> connection = Flux.just("abc", "def")
+    ConnectableFlux<String> connection = Flux.just("abc")
       .map({ serviceCallErr(it, new IllegalStateException("error"))})
       .transformDeferred(RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(2).build())))
       .publishOn(Schedulers.boundedElastic())
@@ -21,12 +21,13 @@ class RetryTest extends AgentTestRunner {
 
     when:
     connection.subscribe {
-      runnableUnderTrace("child-" + it) {} // won't show up because of errors upstream
+      // won't show up because of errors upstream
+      runnableUnderTrace("child-" + it) {}
     }
 
-    runnableUnderTrace("parent", {
+    runnableUnderTrace("parent") {
       connection.connect()
-    })
+    }
 
     then:
     assertTraces(1) {
