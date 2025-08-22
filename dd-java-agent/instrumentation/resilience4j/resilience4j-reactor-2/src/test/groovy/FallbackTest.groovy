@@ -4,43 +4,40 @@ import io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator
 import io.github.resilience4j.reactor.retry.RetryOperator
 import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
-import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
-import spock.lang.Ignore
-import java.time.Duration
+import reactor.core.publisher.Mono
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class FallbackTest extends AgentTestRunner {
 
-  @Ignore
-  def "retry with fallback"() {
-    setup:
-    def retry = RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(1).build()))
+  //TODO test with and without retry part by adjusting retryOnResult and assertions
 
-    ConnectableFlux<String> connection = Flux
-      .just("abc", "def")
-      //      .map({ serviceCallErr(it, new IllegalStateException("error"))})
-      .map({ it -> Flux.error(new IllegalStateException("error")) })
-      //      .map({ it -> throw new IllegalStateException("error") })
-      .transformDeferred(RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(2).build())))
-      // TODO doesn't trigger fallback logic at all
-      //      .transformDeferred(ReactorOperatorFallbackDecorator.decorateRetry(retry, Flux.just("Fallback").map({ it -> serviceCall(it) })))
-      //      .publishOn(Schedulers.boundedElastic())
-      .publish()
+  def "Flux Retry Fallback"() {
+    setup:
+    RetryConfig config = RetryConfig.custom()
+    .retryOnResult(1::equals) // retry when element is greater than 1
+    //    .waitDuration(Duration.ofMillis(1))
+    .maxAttempts(2)
+    .failAfterMaxAttempts(true)
+    .build()
+    Retry retry = Retry.of("R0", config)
+    def fallback = Flux.just(-1, -2).map({ v -> runUnderTrace("in"+v) { v } })
+
+    def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback) // TODO CircuitBreaker, TimeLimiter
+    Flux<Integer> flux = Flux
+    .just(1, 2).map({ v -> runUnderTrace("in"+v) { v } })
+    .transformDeferred(retryOperator)
 
     when:
-    connection.subscribe {
-      runnableUnderTrace("child-" + it) {} // won't show up because of errors upstream
+    runnableUnderTrace("parent") {
+      flux.subscribe(v -> runnableUnderTrace("out" + v) {})
     }
-
-    runnableUnderTrace("parent", {
-      connection.connect()
-    })
 
     then:
     assertTraces(1) {
-      trace(5) {
+      trace(12) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -58,49 +55,75 @@ class FallbackTest extends AgentTestRunner {
           errored false
         }
         span(3) {
-          operationName "serviceCallErr/abc"
+          operationName "in1"
           childOf span(2)
           errored false
         }
-        // second attempt span under the retry span
-        //        span(4) {
-        //          operationName "serviceCallErr/abc"
-        //          childOf span(1)
-        //          errored false
-        //        }
+        span(4) {
+          operationName "in1" // retry second attempt
+          childOf span(2)
+          errored false
+        }
+        span(5) {
+          operationName "out1" // only one out1 for two in1 attempts
+          childOf span(2)
+          errored false
+        }
+        span(6) {
+          operationName "in2"
+          childOf span(2)
+          errored false
+        }
+        span(7) {
+          operationName "out2"
+          childOf span(2)
+          errored false
+        }
+        // fallback elements go after all Flux elements
+        span(8) {
+          operationName "in-1"
+          childOf span(1)
+          errored false
+        }
+        span(9) {
+          operationName "out-1"
+          childOf span(1)
+          errored false
+        }
+        span(10) {
+          operationName "in-2"
+          childOf span(1)
+          errored false
+        }
+        span(11) {
+          operationName "out-2"
+          childOf span(1)
+          errored false
+        }
       }
     }
   }
 
-  def "fallback"() {
+  def "Mono Retry Fallback"() {
     setup:
     RetryConfig config = RetryConfig.<String>custom()
-    .retryOnResult("retry"::equals) // retry when element is "retry"
-    .waitDuration(Duration.ofMillis(10))
+    .retryOnResult(1::equals) // retry when element is "retry"
+    //    .waitDuration(Duration.ofMillis(10))
     .maxAttempts(2)
     .failAfterMaxAttempts(true)
     .build()
     Retry retry = Retry.of("R0", config)
-    def fallback = Flux.just("Fallback").map({ it -> serviceCall(it) })
+    def fallback = Mono.just(-1).map({ v -> runUnderTrace("in"+v) { v } })
 
     def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback)
-    ConnectableFlux<String> connection = Flux
-    .just("retry", "abc")
-    //    .map({it -> serviceCall("srv-" + it); return it})
-    //      .map({ serviceCallErr(it, new IllegalStateException("error"))})
-    // TODO should create a fallback span???
+    Mono<Integer> source = Mono
+    .just(1).map({ v -> runUnderTrace("in"+v) { v } })
     .transformDeferred(retryOperator)
-    //    .publishOn(Schedulers.boundedElastic()) // this result in reordered span ids breaking the assertions
-    .publish()
 
     when:
-    connection.subscribe {
-      runnableUnderTrace("subscriber-" + it) {}
+    runnableUnderTrace("parent") {
+      source.subscribe(v -> runnableUnderTrace("out" + v) {})
     }
-
-    runnableUnderTrace("parent", {
-      connection.connect()
-    })
 
     then:
     assertTraces(1) {
@@ -121,23 +144,23 @@ class FallbackTest extends AgentTestRunner {
           childOf span(1)
           errored false
         }
-        span(3) {
-          operationName "subscriber-retry"
+        span(3) { // first attempt
+          operationName "in1"
           childOf span(2)
           errored false
         }
-        span(4) {
-          operationName "subscriber-abc"
+        span(4) { // second attempt
+          operationName "in1"
           childOf span(2)
           errored false
         }
-        span(5) {
-          operationName "serviceCall/Fallback"
+        span(5) {// fallback
+          operationName "in-1"
           childOf span(1)
           errored false
         }
         span(6) {
-          operationName "subscriber-Fallback"
+          operationName "out-1"
           childOf span(1)
           errored false
         }

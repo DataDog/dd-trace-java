@@ -19,6 +19,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.reactivestreams.Publisher;
 import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @AutoService(InstrumenterModule.class)
 public class RetryOperatorInstrumentation extends AbstractResilience4jInstrumentation {
@@ -73,6 +74,44 @@ public class RetryOperatorInstrumentation extends AbstractResilience4jInstrument
         Flux<?> flux = (Flux<?>) result;
 
         Flux<?> newResult = flux.doFinally(ReactorHelper.beforeFinish(span));
+        if (newResult instanceof Scannable) {
+          Scannable parent = (Scannable) newResult;
+          while (parent != null) {
+            // need to go through the stack of publisher to attach a correct span to be activated at
+            // execution
+            // publishers will capture an active span at the subscribe call and attach it to the
+            // subscribe to be activated when executed.
+            // the only way to override this is to attach a span to the publisher
+            // publishers can be composed by wrapping around another publisher. To enforce them to
+            // use the same span we need to attach it to the entire chain of publishers.
+
+            //            if (
+            ////                "FluxDoFinally".equals(parent.toString()) || // can be removed
+            //                "FluxPeek".equals(parent.toString()) || // needed to bind to parent
+            // operator and bind children operators
+            ////                "FluxRetryWhen".equals(parent.toString()) || // can be removed;
+            // doesn't replace A or B
+            //                "FluxPeekFuseable".equals(parent.toString()) || // A and/or B
+            // (connects errored upstream spans)
+            //                "FluxMapFuseable".equals(parent.toString()) || // B and/or A (connects
+            // errored upstream spans)
+            ////                "FluxArray".equals(parent.toString()) || // can be removed
+            //                false
+            //            ) {
+            InstrumentationContext.get(Publisher.class, AgentSpan.class)
+                .putIfAbsent((Publisher<?>) parent, span);
+            //            }
+
+            parent = parent.scan(Scannable.Attr.PARENT);
+          }
+        }
+        result = newResult;
+      } else if (result instanceof Mono) {
+        AgentSpan span = startSpan(retry.getName());
+
+        Mono<?> mono = (Mono<?>) result;
+
+        Mono<?> newResult = mono.doFinally(ReactorHelper.beforeFinish(span));
         if (newResult instanceof Scannable) {
           Scannable parent = (Scannable) newResult;
           while (parent != null) {

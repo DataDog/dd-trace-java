@@ -8,14 +8,14 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class TraceCapturingTest extends AgentTestRunner {
-  // TODO Only transformDeferred is supported since resilience4j-spring and resilience4j-micronaut both use transformDeferred
+  // TODO test Mono
 
   def "cold publisher"() {
     def cb1 = CircuitBreaker.ofDefaults("cb1")
     def flux = runUnderTrace("init") {
       Flux.range(1, 2)
       .map { v -> runUnderTrace("in" + v) { return v } }
-      .transformDeferred(CircuitBreakerOperator.of(cb1))
+      .transformDeferred(CircuitBreakerOperator.of(cb1)) // TODO parametrize operator type
       //        .transform(CircuitBreakerOperator.of(cb1)) // TODO this only works for one-off subscription and capturing the trace at the publisher creation time as opposed to transformDeferred
     }
 

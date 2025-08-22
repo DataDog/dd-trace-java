@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 
 public class ReactorHelper {
@@ -41,6 +42,9 @@ public class ReactorHelper {
           //              parent = parent.scan(Scannable.Attr.PARENT);
           //            }
           //          }
+          return newResult;
+        } else if (ret instanceof Mono<?>) {
+          Mono<?> newResult = ((Mono<?>) ret).doFinally(beforeFinish(span));
           return newResult;
         } else { // TODO
           // can't schedule finish - finish immediately

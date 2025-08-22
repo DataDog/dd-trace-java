@@ -11,6 +11,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class RetryTest extends AgentTestRunner {
 
+  // TODO retry operation should create extra retry span when retry happens.
+  //  currently it's not obvious when exactly the retry part of the resulted spans.
+
+  // TODO test retry without failOnMaxAttempts
+
   def "decorateCompletionStage retry twice on error"() {
     setup:
     ConnectableFlux<String> connection = Flux.just("abc")
