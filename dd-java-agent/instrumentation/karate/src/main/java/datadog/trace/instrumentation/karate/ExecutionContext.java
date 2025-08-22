@@ -33,7 +33,7 @@ public class ExecutionContext {
     TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
     Collection<String> testTags = scenario.getTagsEffective().getTagKeys();
     return new ExecutionContext(
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-            testIdentifier, TestSourceData.UNKNOWN, testTags));
+        TestEventsHandlerHolder.getHandler()
+            .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags));
   }
 }

@@ -48,21 +48,22 @@ public class KarateTracingHook implements RuntimeHook {
     Suite suite = fr.suite;
     TestSuiteDescriptor suiteDescriptor = KarateUtils.toSuiteDescriptor(fr);
     Feature feature = KarateUtils.getFeature(fr);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        feature.getNameForReport(),
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        null,
-        KarateUtils.getCategories(feature.getTags()),
-        suite.parallel,
-        TestFrameworkInstrumentation.KARATE,
-        null);
+    TestEventsHandlerHolder.getHandler()
+        .onTestSuiteStart(
+            suiteDescriptor,
+            feature.getNameForReport(),
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            null,
+            KarateUtils.getCategories(feature.getTags()),
+            suite.parallel,
+            TestFrameworkInstrumentation.KARATE,
+            null);
 
     if (!isFeatureContainingScenarios(fr)) {
       // Karate will not trigger the afterFeature hook if suite has no scenarios
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+      TestEventsHandlerHolder.getHandler().onTestSuiteSkip(suiteDescriptor, null);
+      TestEventsHandlerHolder.getHandler().onTestSuiteFinish(suiteDescriptor, null);
     }
 
     return true;
@@ -84,11 +85,11 @@ public class KarateTracingHook implements RuntimeHook {
     FeatureResult result = fr.result;
     if (result.isFailed()) {
       KarateException throwable = result.getErrorMessagesCombined();
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+      TestEventsHandlerHolder.getHandler().onTestSuiteFailure(suiteDescriptor, throwable);
     } else if (result.isEmpty()) {
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
+      TestEventsHandlerHolder.getHandler().onTestSuiteSkip(suiteDescriptor, null);
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.getHandler().onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -115,7 +116,7 @@ public class KarateTracingHook implements RuntimeHook {
     if (Config.get().isCiVisibilityTestSkippingEnabled()
         || Config.get().isCiVisibilityTestManagementEnabled()) {
       TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
-      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(skippableTest);
+      SkipReason skipReason = TestEventsHandlerHolder.getHandler().skipReason(skippableTest);
 
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
@@ -123,7 +124,24 @@ public class KarateTracingHook implements RuntimeHook {
         TestExecutionHistory executionHistory =
             (TestExecutionHistory)
                 sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE);
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
+        TestEventsHandlerHolder.getHandler()
+            .onTestIgnore(
+                suiteDescriptor,
+                testDescriptor,
+                scenarioName,
+                FRAMEWORK_NAME,
+                FRAMEWORK_VERSION,
+                parameters,
+                categories,
+                TestSourceData.UNKNOWN,
+                skipReason.getDescription(),
+                executionHistory);
+        return false;
+      }
+    }
+
+    TestEventsHandlerHolder.getHandler()
+        .onTestStart(
             suiteDescriptor,
             testDescriptor,
             scenarioName,
@@ -132,23 +150,9 @@ public class KarateTracingHook implements RuntimeHook {
             parameters,
             categories,
             TestSourceData.UNKNOWN,
-            skipReason.getDescription(),
-            executionHistory);
-        return false;
-      }
-    }
-
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
-        testDescriptor,
-        scenarioName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        parameters,
-        categories,
-        TestSourceData.UNKNOWN,
-        null,
-        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE));
+            null,
+            (TestExecutionHistory)
+                sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE));
     return true;
   }
 
@@ -161,15 +165,14 @@ public class KarateTracingHook implements RuntimeHook {
     Throwable failedReason = getFailedReason(result);
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
     if (result.isFailed() || failedReason != null) {
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, failedReason);
+      TestEventsHandlerHolder.getHandler().onTestFailure(testDescriptor, failedReason);
     } else if (result.getStepResults().isEmpty()) {
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
+      TestEventsHandlerHolder.getHandler().onTestSkip(testDescriptor, null);
     }
 
     TestExecutionHistory executionHistory =
         (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionHistory);
+    TestEventsHandlerHolder.getHandler().onTestFinish(testDescriptor, null, executionHistory);
 
     Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
     if (runHooksManually != null && runHooksManually) {
