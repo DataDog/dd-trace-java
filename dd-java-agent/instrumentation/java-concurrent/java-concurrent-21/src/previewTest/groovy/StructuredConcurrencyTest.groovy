@@ -2,10 +2,6 @@ import com.sun.management.HotSpotDiagnosticMXBean
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 
-import javax.management.MBeanServer
-import java.lang.management.ManagementFactory
-import java.lang.management.ThreadInfo
-import java.lang.management.ThreadMXBean
 import java.util.concurrent.Callable
 import java.util.concurrent.StructuredTaskScope
 
@@ -14,20 +10,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
 class StructuredConcurrencyTest extends AgentTestRunner {
-  ThreadDumpLogger threadDumpLogger
-
-  def setup() {
-    // Use the current feature name as the test name
-    String testName = "${specificationContext?.currentSpec?.name ?: "unknown-spec"} : ${specificationContext?.currentFeature?.name ?: "unknown-test"}"
-
-    threadDumpLogger = new ThreadDumpLogger(testName)
-    threadDumpLogger.start()
-  }
-
-  def cleanup() {
-    threadDumpLogger.stop()
-  }
-
   /**
    * Tests the structured task scope with a single task.
    */
@@ -181,74 +163,6 @@ class StructuredConcurrencyTest extends AgentTestRunner {
           }
         }
       }
-    }
-  }
-
-  // 🔒 Private helper class for thread dump logging
-  private static class ThreadDumpLogger {
-    private final String testName
-    private Thread task
-
-    ThreadDumpLogger(String testName) {
-      this.testName = testName
-    }
-
-    void start() {
-      task = new Thread() {
-          @Override
-          void run() {
-            sleep(12000)
-
-            File outputDir = new File("build")
-            String fullPath = outputDir.absolutePath.replace("dd-trace-java/dd-java-agent",
-            "dd-trace-java/workspace/dd-java-agent")
-
-            outputDir = new File(fullPath)
-            if (!outputDir.exists()) {
-              println("Folder not found: " + fullPath)
-              outputDir.mkdirs()
-            } else println("Folder found: " + fullPath)
-
-            // Use the current feature name as the test name
-            println("Test name: " + testName)
-
-            heapDump(outputDir, "test_1")
-
-            def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
-
-            try (def writer = new FileWriter(reportFile)) {
-              writer.write("=== Test: ${testName} ===\n")
-              writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
-              writer.write(threadDump(false, false))
-              writer.write("==============================================\n")
-            }
-
-            heapDump(outputDir, "test_2")
-          }
-        }
-      task.start()
-    }
-
-    static void heapDump(File outputDir, String kind) {
-      def heapDumpFile = new File(outputDir, "${System.currentTimeMillis()}-heap-dump-${kind}.hprof").absolutePath
-      MBeanServer server = ManagementFactory.getPlatformMBeanServer()
-      HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
-        server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
-      mxBean.dumpHeap(heapDumpFile, true)
-    }
-
-    private static String threadDump(boolean lockedMonitors, boolean lockedSynchronizers) {
-      StringBuffer threadDump = new StringBuffer(System.lineSeparator())
-      ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean()
-      for(ThreadInfo threadInfo : threadMXBean.dumpAllThreads(lockedMonitors, lockedSynchronizers)) {
-        threadDump.append(threadInfo.toString())
-      }
-
-      return threadDump.toString()
-    }
-
-    void stop() {
-      task?.interrupt()
     }
   }
 }
