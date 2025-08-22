@@ -14,7 +14,7 @@ public final class ConfigSetting {
 
   public final int seqId;
   public static final int DEFAULT_SEQ_ID = 1;
-  private static final int ABSENT_SEQ_ID = 0;
+  public static final int ABSENT_SEQ_ID = 0;
 
   /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
