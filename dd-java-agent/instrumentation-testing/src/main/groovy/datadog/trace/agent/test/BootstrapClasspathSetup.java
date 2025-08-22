@@ -51,6 +51,27 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
     "ch.qos.logback",
   };
 
+  /**
+   * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
+   *
+   * <p>This list is needed to initialize the bootstrap classpath because Utils' static initializer
+   * references bootstrap classes (e.g. DatadogClassLoader).
+   */
+  public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
+    "datadog.slf4j",
+    "datadog.context",
+    "datadog.environment",
+    "datadog.json",
+    "datadog.yaml",
+    "datadog.appsec.api",
+    "datadog.trace.api",
+    "datadog.trace.bootstrap",
+    "datadog.trace.context",
+    "datadog.trace.instrumentation.api",
+    "datadog.trace.logging",
+    "datadog.trace.util",
+  };
+
   public static final ClassPath TEST_CLASSPATH = computeTestClasspath();
 
   static {
