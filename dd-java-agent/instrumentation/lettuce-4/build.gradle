@@ -43,18 +43,23 @@ tasks.withType(Test).configureEach {
     // schedule the dump job 10s later
     def future = scheduler.schedule({
       try {
-        println "DEBUG get thread dumps: ${outFile.absolutePath}"
+        println "DEBUG threads dump: ${outFile.absolutePath}"
 
         new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
           .redirectErrorStream(true)
           .redirectOutput(outFile)
           .start().waitFor()
 
-        println "DEBUG get heap dumps"
+        println "DEBUG heap dumps"
         def listOutput = "jcmd -l".execute().text.readLines()
         listOutput.each { line ->
+          println "DEBUG PID: ${line}"
+
+          if (!line.contains("gradle")) {
+            return
+          }
+
           def pid = line.substring(0, line.indexOf(' '))
-          println "DEBUG PID: ${pid}"
 
           def dumpFileName = "${fullPath}/${System.currentTimeMillis()}-${pid}.hprof"
 
