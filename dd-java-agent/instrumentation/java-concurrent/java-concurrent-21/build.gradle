@@ -90,8 +90,13 @@ tasks.withType(Test).configureEach {
         println "DEBUG heap dumps"
         def listOutput = "jcmd -l".execute().text.readLines()
         listOutput.each { line ->
+          println "DEBUG PID: ${line}"
+
+          if (!line.contains("gradle")) {
+            return
+          }
+
           def pid = line.substring(0, line.indexOf(' '))
-          println "DEBUG PID: ${pid}"
 
           def dumpFileName = "${fullPath}/${System.currentTimeMillis()}-${pid}.hprof"
 
