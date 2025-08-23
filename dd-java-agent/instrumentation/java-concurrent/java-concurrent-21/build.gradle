@@ -65,8 +65,6 @@ tasks.withType(Test).configureEach {
     String fullPath = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
       "dd-trace-java/workspace/dd-java-agent")
 
-    // outputDir = new File(fullPath)
-
     println "DEBUG >> ${fullPath}"
 
     def outDir = new File(fullPath)
@@ -94,7 +92,7 @@ tasks.withType(Test).configureEach {
       } finally {
         scheduler.shutdown()
       }
-    }, 60, TimeUnit.SECONDS)
+    }, 61, TimeUnit.SECONDS)
 
     // store handles for cancellation in doLast
     ext.dumpFuture = future
