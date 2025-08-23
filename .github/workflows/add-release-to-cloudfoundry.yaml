@@ -7,8 +7,15 @@ jobs:
   update-releases:
     permissions:
       contents: write # Required to commit and push changes to the repository
+      id-token: write # Required for OIDC token federation
     runs-on: ubuntu-latest
     steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.add-release-to-cloudfoundry
+
       - name: Checkout "cloudfoundry" branch
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
         with:
@@ -42,11 +49,22 @@ jobs:
       - name: Append release to Cloud Foundry repository
         run: |
           echo "${{ steps.get-release-version.outputs.VERSION }}: ${{ steps.get-release-url.outputs.URL }}" >> index.yml
-      - name: Commit and push changes
-        uses: planetscale/ghcommit-action@322be9669498a4be9ce66efc1169f8f43f6bd883 # v0.2.17
-        with:
-          commit_message: "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
-          repo: ${{ github.repository }}
-          branch: cloudfoundry
+      - name: Configure git
+        id: configure-git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Commit changes
+        id: create-commit
+        run: |
+          git commit -a -m "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
+      - name: Push changes
+        uses: Asana/push-signed-commits@d615ca88d8e1a946734c24970d1e7a6c56f34897
+        if: ${{ steps.create-commit.outputs.commit != '' }}
+        with:
+          github-token: ${{ steps.octo-sts.outputs.token }}
+          local_branch_name: cloudfoundry
+          remote_branch_name: cloudfoundry
