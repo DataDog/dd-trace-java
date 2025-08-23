@@ -16,7 +16,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.*;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
@@ -57,7 +56,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final Thread thread;
@@ -100,7 +98,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         features,
         timeSource,
         traceConfigSupplier,
-        config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
             sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
         Config.get().getDataStreamsBucketDurationNanoseconds());
@@ -111,13 +108,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
-      WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
 
@@ -125,10 +120,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sink.register(this);
     schemaSamplers = new ConcurrentHashMap<>();
 
-    this.propagator =
-        new DataStreamsPropagator(this, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
-    // configure global tags behavior
-    DataStreamsTags.setGlobalBaseHash(this.hashOfKnownTags);
+    this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
@@ -192,7 +184,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceName());
+      return new DefaultPathwayContext(timeSource, getThreadServiceName());
     } else {
       return NoopPathwayContext.INSTANCE;
     }
@@ -211,7 +203,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.hashOfKnownTags,
               getThreadServiceName());
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
