@@ -76,6 +76,12 @@ public class TracedMethods {
   }
 
   @WithSpan
+  public static String sayHelloWithMultipleAttributes(
+      @SpanAttribute("custom-tag1") String param1, @SpanAttribute("custom-tag2") String param2) {
+    return "hello!";
+  }
+
+  @WithSpan
   public static void throwException() {
     throw new RuntimeException("Some exception");
   }
