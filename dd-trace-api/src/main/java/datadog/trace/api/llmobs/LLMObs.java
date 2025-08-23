@@ -46,7 +46,7 @@ public class LLMObs {
     return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionId);
   }
 
-  public LLMObsSpan startEmbeddingSpan(
+  public static LLMObsSpan startEmbeddingSpan(
       String spanName,
       @Nullable String mlApp,
       @Nullable String modelProvider,
@@ -55,7 +55,7 @@ public class LLMObs {
     return SPAN_FACTORY.startEmbeddingSpan(spanName, mlApp, modelProvider, modelName, sessionId);
   }
 
-  public LLMObsSpan startRetrievalSpan(
+  public static LLMObsSpan startRetrievalSpan(
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return SPAN_FACTORY.startRetrievalSpan(spanName, mlApp, sessionId);
   }
