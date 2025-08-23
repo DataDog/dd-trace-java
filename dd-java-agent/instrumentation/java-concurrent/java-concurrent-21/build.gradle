@@ -115,7 +115,7 @@ tasks.withType(Test).configureEach {
       } finally {
         scheduler.shutdown()
       }
-    }, 60, TimeUnit.SECONDS)
+    }, 62, TimeUnit.SECONDS)
 
     // store handles for cancellation in doLast
     ext.dumpFuture = future
