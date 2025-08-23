@@ -64,8 +64,7 @@ tasks.withType(Test).configureEach {
   doFirst {
     String fullPath = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
       "dd-trace-java/workspace/dd-java-agent")
-
-    println "DEBUG >> ${fullPath}"
+    println "DEBUG full path: ${fullPath}"
 
     def outDir = new File(fullPath)
     outDir.mkdirs()
@@ -81,18 +80,37 @@ tasks.withType(Test).configureEach {
     // schedule the dump job 10s later
     def future = scheduler.schedule({
       try {
+        println "DEBUG threads dump: ${outFile.absolutePath}"
+
         new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
           .redirectErrorStream(true)
           .redirectOutput(outFile)
           .start().waitFor()
 
-        logger.lifecycle("Thread dump written to: ${outFile.absolutePath}")
+        println "DEBUG heap dumps"
+        def listOutput = "jcmd -l".execute().text.readLines()
+        listOutput.each { line ->
+          def pid = line.substring(0, line.indexOf(' '))
+          println "DEBUG PID: ${pid}"
+
+          def dumpFileName = "${fullPath}/${System.currentTimeMillis()}-${pid}.hprof"
+
+          println "DEBUG dump file name: ${dumpFileName}"
+
+          def cmd = "jcmd ${pid} GC.heap_dump ${dumpFileName}"
+
+          println "DEBUG jcmd: ${cmd}"
+
+          def res = cmd.execute().waitFor()
+
+          println "DEBUG dump res: ${res}"
+        }
       } catch (Throwable t) {
-        logger.warn("Thread dump helper failed: ${t.message}", t)
+        logger.warn("Dumping failed: ${t.message}", t)
       } finally {
         scheduler.shutdown()
       }
-    }, 61, TimeUnit.SECONDS)
+    }, 60, TimeUnit.SECONDS)
 
     // store handles for cancellation in doLast
     ext.dumpFuture = future
