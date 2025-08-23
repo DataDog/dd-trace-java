@@ -197,7 +197,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
       task = new Thread() {
           @Override
           void run() {
-            sleep(12000)
+            sleep(20000)
 
             File outputDir = new File("build")
             String fullPath = outputDir.absolutePath.replace("dd-trace-java/dd-java-agent",
