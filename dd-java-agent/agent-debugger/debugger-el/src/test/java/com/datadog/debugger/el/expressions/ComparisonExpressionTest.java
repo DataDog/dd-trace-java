@@ -209,6 +209,7 @@ class ComparisonExpressionTest {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
     assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
     assertEquals(prettyPrint, print(expression));
+    fail("should not pass");
   }
 
   private static Stream<Arguments> expressionStrs() {
