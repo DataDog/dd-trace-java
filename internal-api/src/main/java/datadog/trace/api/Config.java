@@ -2131,7 +2131,9 @@ public class Config {
 
     llmObsAgentlessEnabled =
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
-    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    llmObsMlApp =
+        tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -2643,13 +2645,6 @@ public class Config {
             TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isLlmObsEnabled()) {
-      log.debug("Attempting to enable LLM Observability");
-      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
-        throw new IllegalArgumentException(
-            "Attempt to enable LLM Observability without ML app defined."
-                + "Please ensure that the name of the ML app is provided through properties or env variable");
-      }
-
       log.debug(
           "LLM Observability enabled for ML app {}, agentless mode {}",
           llmObsMlApp,
