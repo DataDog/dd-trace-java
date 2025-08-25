@@ -92,7 +92,7 @@ tasks.withType(Test).configureEach {
         listOutput.each { line ->
           println "DEBUG PID: ${line}"
 
-          if (!line.contains("gradle")) {
+          if (!line.contains("Gradle Test Executor")) {
             return
           }
 
