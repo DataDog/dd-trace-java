@@ -128,7 +128,6 @@ public class WithSpanDecorator extends AsyncResultDecorator {
         if (name != null) {
           span.setTag(name, args[parameterIndex]);
         }
-        break;
       }
     }
   }

@@ -188,6 +188,7 @@ include(
   ":dd-smoke-tests:rum:tomcat-9",
   ":dd-smoke-tests:rum:tomcat-10",
   ":dd-smoke-tests:rum:tomcat-11",
+  ":dd-smoke-tests:rum:wildfly-15",
   ":dd-smoke-tests:spring-boot-3.0-native",
   ":dd-smoke-tests:spring-boot-2.4-webflux",
   ":dd-smoke-tests:spring-boot-2.5-webflux",
