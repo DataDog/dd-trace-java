@@ -5,16 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class TagsPostProcessorFactory {
-  private static boolean addBaseService = true;
   private static boolean addRemoteHostname = true;
 
   private static class Lazy {
     private static TagsPostProcessor create() {
       final List<TagsPostProcessor> processors = new ArrayList<>(7);
-      processors.add(new PeerServiceCalculator());
-      if (addBaseService) {
-        processors.add(new BaseServiceAdder(Config.get().getServiceName()));
-      }
+
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
       if (addRemoteHostname) {
         processors.add(new RemoteHostnameAdder(Config.get().getHostNameSupplier()));
@@ -47,16 +43,6 @@ public final class TagsPostProcessorFactory {
   /**
    * Mostly used for test purposes.
    *
-   * @param enabled if false, {@link BaseServiceAdder} is not put in the chain.
-   */
-  public static void withAddBaseService(boolean enabled) {
-    addBaseService = enabled;
-    Lazy.instance = Lazy.create();
-  }
-
-  /**
-   * Mostly used for test purposes.
-   *
    * @param enabled if false, {@link RemoteHostnameAdder} is not put in the chain.
    */
   public static void withAddRemoteHostname(boolean enabled) {
@@ -66,7 +52,6 @@ public final class TagsPostProcessorFactory {
 
   /** Used for testing purposes. It reset the singleton and restore default options */
   public static void reset() {
-    withAddBaseService(true);
     withAddRemoteHostname(true);
   }
 }
