@@ -6,17 +6,17 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.Context.ModifyRequest;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
@@ -27,16 +27,15 @@ import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 public class SnsInterceptor implements ExecutionInterceptor {
 
-  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private SdkBytes getMessageAttributeValueToInject(
       ExecutionAttributes executionAttributes, String snsTopicName) {
-    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(snsTopicName));
       context = context.with(dsmContext);
@@ -50,8 +49,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
   public SnsInterceptor() {}
 
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
     // Injecting the trace context into SNS messageAttributes.
     if (context.request() instanceof PublishRequest) {
       PublishRequest request = (PublishRequest) context.request();
