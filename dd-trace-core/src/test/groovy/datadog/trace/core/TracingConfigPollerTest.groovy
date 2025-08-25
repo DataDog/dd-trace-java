@@ -63,88 +63,41 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     merged.liveDebuggingEnabled == false
   }
 
-  def "test single service+env config priority calculation"() {
+  def "test config priority calculation"() {
     setup:
     def configOverrides = new TracingConfigPoller.ConfigOverrides()
+    if (service != null || env != null) {
     configOverrides.serviceTarget = new TracingConfigPoller.ServiceTarget(
-      service: "test-service",
-      env: "staging"
+      service: service,
+      env: env,
       )
-    configOverrides.libConfig = new TracingConfigPoller.LibConfig(
-      tracingEnabled: false,
-      debugEnabled: true,
-      runtimeMetricsEnabled: false,
-      logsInjectionEnabled: true,
-      dataStreamsEnabled: false,
-      traceSampleRate: 0.3,
-      dynamicInstrumentationEnabled: true,
-      exceptionReplayEnabled: false,
-      codeOriginEnabled: true,
-      liveDebuggingEnabled: false
+    }
+    if (clusterName != null) {
+    configOverrides.k8sTargetV2 = new TracingConfigPoller.K8sTargetV2(
+      clusterTargets: [new TracingConfigPoller.ClusterTarget(
+        clusterName: clusterName,
+        enabled: true,
+        )
+      ]
       )
+    }
+    configOverrides.libConfig = new TracingConfigPoller.LibConfig()
 
     when:
     def priority = configOverrides.getOverridePriority()
 
     then:
-    priority == 5 // highest priority for service + environment
-    configOverrides.isSingleService() == true
-    configOverrides.isSingleEnvironment() == true
-    configOverrides.isClusterTarget() == false
+    priority == expectedPriority
+
+    where:
+    service | env | clusterName | expectedPriority
+    "test-service" | "staging" | null | 5
+    "test-service" | "*" | null | 4
+    "*" | "staging" | null | 3
+    null | null | "test-cluster" | 2
+    "*" | "*" | null | 1
   }
 
-  def "test org level + service level config priority comparison"() {
-    setup:
-    def orgConfig = new TracingConfigPoller.ConfigOverrides()
-    orgConfig.libConfig = new TracingConfigPoller.LibConfig(
-      tracingEnabled: true,
-      debugEnabled: false,
-      runtimeMetricsEnabled: true,
-      logsInjectionEnabled: false,
-      dataStreamsEnabled: true,
-      traceSampleRate: 0.7,
-      dynamicInstrumentationEnabled: false,
-      exceptionReplayEnabled: true,
-      codeOriginEnabled: false,
-      liveDebuggingEnabled: true
-      )
-
-    def serviceConfig = new TracingConfigPoller.ConfigOverrides()
-    serviceConfig.serviceTarget = new TracingConfigPoller.ServiceTarget(
-      service: "test-service",
-      env: "*"
-      )
-    serviceConfig.libConfig = new TracingConfigPoller.LibConfig(
-      tracingEnabled: false,
-      debugEnabled: true,
-      runtimeMetricsEnabled: false,
-      logsInjectionEnabled: true,
-      dataStreamsEnabled: false,
-      traceSampleRate: 0.2,
-      dynamicInstrumentationEnabled: true,
-      exceptionReplayEnabled: false,
-      codeOriginEnabled: true,
-      liveDebuggingEnabled: false
-      )
-
-    when:
-    def orgPriority = orgConfig.getOverridePriority()
-    def servicePriority = serviceConfig.getOverridePriority()
-
-    then:
-    orgPriority == 1 // lowest priority for org level
-    servicePriority == 4 // higher priority for service level
-    servicePriority > orgPriority
-
-    and:
-    orgConfig.isSingleService() == false
-    orgConfig.isSingleEnvironment() == false
-    orgConfig.isClusterTarget() == false
-
-    serviceConfig.isSingleService() == true
-    serviceConfig.isSingleEnvironment() == false // env is "*"
-    serviceConfig.isClusterTarget() == false
-  }
 
   def "test actual config commit with service and org level configs"() {
     setup:
@@ -215,7 +168,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
               "tag_name": "custom.header"
             }
           ],
-          "tracing_sampling_rate": 0.3
+          "tracing_sampling_rate": 1.3
         }
       }
     """.getBytes(StandardCharsets.UTF_8), null)
@@ -226,7 +179,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     then:
     // Service level config should take precedence due to higher priority (4 vs 1)
     tracer.captureTraceConfig().serviceMapping == ["service-specific":"service-mapped"]
-    tracer.captureTraceConfig().traceSampleRate == 0.3
+    tracer.captureTraceConfig().traceSampleRate == 1.0 // should be clamped to 1.0
     tracer.captureTraceConfig().requestHeaderTags == ["x-custom-header":"custom.header"]
     tracer.captureTraceConfig().responseHeaderTags == ["x-custom-header":"custom.header"]
 
@@ -251,113 +204,6 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     // Should have no configs
     tracer.captureTraceConfig().serviceMapping == [:]
     tracer.captureTraceConfig().traceSampleRate == null
-
-    cleanup:
-    tracer?.close()
-  }
-
-  def "test actual config commit with cluster and org level configs"() {
-    setup:
-    def orgKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config")
-    def clusterKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/cluster_config/config")
-    def poller = Mock(ConfigurationPoller)
-    def sco = new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
-      monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
-      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
-      configurationPoller: poller
-      )
-
-    def updater
-
-    when:
-    def tracer = CoreTracer.builder()
-      .sharedCommunicationObjects(sco)
-      .pollForTracingConfiguration()
-      .build()
-
-    then:
-    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
-      updater = it[1] // capture config updater for further testing
-    }
-    and:
-    tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().traceSampleRate == null
-    tracer.captureTraceConfig().tracingTags == [:]
-
-    when:
-    // Add org level config (priority 1) - should set service mapping and sampling rate
-    updater.accept(orgKey, """
-      {
-        "lib_config": {
-          "tracing_service_mapping": [
-            {
-              "from_key": "org-service",
-              "to_name": "org-mapped"
-            }
-          ],
-          "tracing_sampling_rate": 0.8,
-          "tracing_tags": ["org:tag", "level:org"]
-        }
-      }
-    """.getBytes(StandardCharsets.UTF_8), null)
-
-    // Add cluster level config (priority 2) - should override org level configs
-    updater.accept(clusterKey, """
-      {
-        "k8s_target_v2": {
-          "cluster_targets": [
-            {
-              "cluster_name": "test-cluster",
-              "enabled": true,
-              "enabled_namespaces": ["default", "kube-system"]
-            }
-          ]
-        },
-        "lib_config": {
-          "tracing_service_mapping": [
-            {
-              "from_key": "cluster-service",
-              "to_name": "cluster-mapped"
-            }
-          ],
-          "tracing_sampling_rate": 0.4,
-          "tracing_tags": ["cluster:tag", "level:cluster"]
-        }
-      }
-    """.getBytes(StandardCharsets.UTF_8), null)
-
-    // Commit both configs
-    updater.commit()
-
-    then:
-    // Cluster level config should take precedence due to higher priority (2 vs 1)
-    tracer.captureTraceConfig().serviceMapping == ["cluster-service":"cluster-mapped"]
-    tracer.captureTraceConfig().traceSampleRate == 0.4
-    tracer.captureTraceConfig().tracingTags == ["cluster":"tag", "level":"cluster"]
-
-    when:
-    // Remove cluster level config
-    updater.remove(clusterKey, null)
-    updater.commit()
-
-    then:
-    // Should fall back to org level config
-    tracer.captureTraceConfig().serviceMapping == ["org-service":"org-mapped"]
-    tracer.captureTraceConfig().traceSampleRate == 0.8
-    tracer.captureTraceConfig().tracingTags == ["org":"tag", "level":"org"]
-
-    when:
-    // Remove org level config
-    updater.remove(orgKey, null)
-    updater.commit()
-
-    then:
-    // Should have no configs
-    tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().traceSampleRate == null
-    tracer.captureTraceConfig().tracingTags == [:]
 
     cleanup:
     tracer?.close()

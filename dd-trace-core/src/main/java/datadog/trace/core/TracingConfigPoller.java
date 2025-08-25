@@ -90,11 +90,13 @@ final class TracingConfigPoller {
 
   final class Updater implements ProductListener {
     private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER;
+    private final JsonAdapter<LibConfig> LIB_CONFIG_ADAPTER;
     private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
       Moshi MOSHI = new Moshi.Builder().add(new TracingSamplingRulesAdapter()).build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
+      LIB_CONFIG_ADAPTER = MOSHI.adapter(LibConfig.class);
       TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
     }
 
@@ -150,13 +152,10 @@ final class TracingConfigPoller {
       if (mergedConfig != null) {
         // apply merged config
         if (log.isDebugEnabled()) {
-          ConfigOverrides mergedConfigOverrides = new ConfigOverrides();
-          mergedConfigOverrides.libConfig = mergedConfig;
           log.debug(
-              "Applying merged APM_TRACING config: {}",
-              CONFIG_OVERRIDES_ADAPTER.toJson(mergedConfigOverrides));
+              "Applying merged APM_TRACING config: {}", LIB_CONFIG_ADAPTER.toJson(mergedConfig));
         }
-        applyConfigOverrides(mergedConfig);
+        applyConfigOverrides(checkConfig(mergedConfig));
       }
 
       if (sortedConfigs.isEmpty()) {
