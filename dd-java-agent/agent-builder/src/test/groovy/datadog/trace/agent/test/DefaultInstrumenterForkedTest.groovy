@@ -1,10 +1,9 @@
 package datadog.trace.agent.test
 
-import datadog.trace.api.ConfigHelper
+
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
-import static datadog.trace.api.ConfigInversionStrictStyle.TEST
 import datadog.trace.test.util.DDSpecification
 
 class DefaultInstrumenterForkedTest extends DDSpecification {
@@ -114,8 +113,6 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     setup:
     injectEnvConfig("DD_INTEGRATIONS_ENABLED", "false")
     injectEnvConfig("DD_INTEGRATION_${value}_ENABLED", "true")
-    def strictness = ConfigHelper.configInversionStrictFlag()
-    ConfigHelper.setConfigInversionStrict(TEST)
 
     when:
     def target = new TestDefaultInstrumenter(name, altName)
@@ -123,9 +120,6 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
     target.enabled == enabled
-
-    cleanup:
-    ConfigHelper.setConfigInversionStrict(strictness)
 
     where:
     value             | enabled | name          | altName

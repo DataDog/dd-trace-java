@@ -1,6 +1,6 @@
 package datadog.common.container;
 
-import datadog.trace.api.ConfigHelper;
+import datadog.environment.EnvironmentVariables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 
@@ -13,7 +13,7 @@ public class ServerlessInfo {
   private final boolean hasExtension;
 
   private ServerlessInfo(final String extensionPath) {
-    this.functionName = ConfigHelper.getEnvironmentVariable(AWS_FUNCTION_VARIABLE);
+    this.functionName = EnvironmentVariables.get(AWS_FUNCTION_VARIABLE);
     if (null == extensionPath) {
       this.hasExtension = false;
     } else {

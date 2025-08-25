@@ -16,8 +16,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
-import datadog.trace.api.ConfigHelper;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.telemetry.OtelEnvMetricCollector;
@@ -187,7 +187,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private static String getProperty(String sysProp) {
     String value = SystemProperties.get(sysProp);
     if (null == value) {
-      value = ConfigHelper.getEnvironmentVariable(toEnvVar(sysProp));
+      value = EnvironmentVariables.get(toEnvVar(sysProp));
     }
     return value;
   }

@@ -105,13 +105,3 @@ tasks.register('checkEnvironmentVariablesUsage') {
     }
   }
 }
-
-tasks.named('spotlessCheck') {
-  dependsOn tasks.named('logEnvVarUsages')
-  dependsOn tasks.named('checkEnvironmentVariablesUsage')
-}
-
-tasks.named('spotlessApply') {
-  dependsOn tasks.named('logEnvVarUsages')
-  dependsOn tasks.named('checkEnvironmentVariablesUsage')
-}
