@@ -1,3 +1,5 @@
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 muzzle {
   pass {
@@ -19,4 +21,76 @@ dependencies {
   testImplementation group: 'biz.paluch.redis', name: 'lettuce', version: '4.0.Final'
 
   latestDepTestImplementation group: 'biz.paluch.redis', name: 'lettuce', version: '4.+'
+}
+
+tasks.withType(Test).configureEach {
+  doFirst {
+    String fullPath = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
+      "dd-trace-java/workspace/dd-java-agent")
+    println "DEBUG full path: ${fullPath}"
+
+    def outDir = new File(fullPath)
+    outDir.mkdirs()
+    def outFile = new File(outDir, "${System.currentTimeMillis()}-thread-dump.log")
+
+    // single-thread scheduler (daemon)
+    def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
+      Thread t = new Thread(r, "dump-scheduler")
+      t.setDaemon(true)
+      return t
+    })
+
+    // schedule the dump job 10s later
+    def future = scheduler.schedule({
+      try {
+        println "DEBUG threads dump: ${outFile.absolutePath}"
+
+        new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
+          .redirectErrorStream(true)
+          .redirectOutput(outFile)
+          .start().waitFor()
+
+        println "DEBUG heap dumps"
+        def listOutput = "jcmd -l".execute().text.readLines()
+        listOutput.each { line ->
+          println "DEBUG PID: ${line}"
+
+          if (!line.contains("gradle")) {
+            return
+          }
+
+          def pid = line.substring(0, line.indexOf(' '))
+
+          def dumpFileName = "${fullPath}/${System.currentTimeMillis()}-${pid}.hprof"
+
+          println "DEBUG dump file name: ${dumpFileName}"
+
+          def cmd = "jcmd ${pid} GC.heap_dump ${dumpFileName}"
+
+          println "DEBUG jcmd: ${cmd}"
+
+          def res = cmd.execute().waitFor()
+
+          println "DEBUG dump res: ${res}"
+        }
+      } catch (Throwable t) {
+        logger.warn("Dumping failed: ${t.message}", t)
+      } finally {
+        scheduler.shutdown()
+      }
+    }, 62, TimeUnit.SECONDS)
+
+    // store handles for cancellation in doLast
+    ext.dumpFuture = future
+    ext.dumpScheduler = scheduler
+  }
+
+  doLast {
+    // cancel if task completed in <10s
+    try {
+      ext.dumpFuture?.cancel(false)
+    } finally {
+      ext.dumpScheduler?.shutdownNow()
+    }
+  }
 }
