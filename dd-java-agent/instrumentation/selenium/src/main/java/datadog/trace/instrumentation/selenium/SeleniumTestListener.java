@@ -25,4 +25,9 @@ public class SeleniumTestListener implements InstrumentationTestBridge.TestListe
 
     SeleniumUtils.beforePageClose(driver);
   }
+
+  @Override
+  public void beforeSuiteEnd() {
+    // noop
+  }
 }

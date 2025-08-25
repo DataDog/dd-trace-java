@@ -40,6 +40,7 @@ class MockBackend implements AutoCloseable {
   private boolean knownTestsEnabled = false
   private boolean testManagementEnabled = false
   private int attemptToFixRetries = 0
+  private boolean failedTestReplayEnabled = false
 
   void reset() {
     receivedTraces.clear()
@@ -61,6 +62,7 @@ class MockBackend implements AutoCloseable {
     knownTestsEnabled = false
     testManagementEnabled = false
     attemptToFixRetries = 0
+    failedTestReplayEnabled = false
   }
 
   @Override
@@ -131,6 +133,10 @@ class MockBackend implements AutoCloseable {
     ])
   }
 
+  void givenFailedTestReplay(boolean failedTestReplayEnabled) {
+    this.failedTestReplayEnabled = failedTestReplayEnabled
+  }
+
   String getIntakeUrl() {
     return intakeServer.address.toString()
   }
@@ -177,6 +183,7 @@ class MockBackend implements AutoCloseable {
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
               "impacted_tests_enabled": $impactedTestsDetectionEnabled,
               "known_tests_enabled": $knownTestsEnabled,
+              "di_enabled": $failedTestReplayEnabled,
               "test_management": {
                 "enabled": $testManagementEnabled,
                 "attempt_to_fix_retries": $attemptToFixRetries

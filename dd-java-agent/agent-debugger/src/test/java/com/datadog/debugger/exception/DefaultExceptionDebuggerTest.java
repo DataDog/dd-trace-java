@@ -65,9 +65,9 @@ public class DefaultExceptionDebuggerTest {
     classNameFiltering =
         new ClassNameFiltering(
             new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
+    Config config = createConfig();
     exceptionDebugger =
-        new DefaultExceptionDebugger(
-            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100, 3);
+        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, config);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -275,9 +275,22 @@ public class DefaultExceptionDebuggerTest {
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
     exceptionDebugger =
-        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100, 3);
+        new DefaultExceptionDebugger(
+            manager, configurationUpdater, classNameFiltering, 100, 3, true, false);
     exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
     verify(manager, times(0)).isAlreadyInstrumented(any());
+  }
+
+  @Test
+  public void syncConfig() {
+    RuntimeException exception = new RuntimeException("test");
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
+    AgentSpan span = mock(AgentSpan.class);
+    exceptionDebugger.handleException(exception, span);
+    // instrumentation should be applied synchronously
+    assertTrue(exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint));
+    exceptionDebugger.handleException(exception, span);
+    verify(configurationUpdater).accept(eq(ConfigurationAcceptor.Source.EXCEPTION), any());
   }
 
   private Object recordTags(InvocationOnMock invocationOnMock) {
@@ -414,6 +427,9 @@ public class DefaultExceptionDebuggerTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getDebuggerExceptionCaptureInterval()).thenReturn(3600);
+    when(config.getDebuggerMaxExceptionPerSecond()).thenReturn(100);
+    when(config.getDebuggerExceptionMaxCapturedFrames()).thenReturn(3);
     return config;
   }
 }

@@ -14,13 +14,15 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
   private static final String DD_TRACE_ID = "dd.trace_id";
   private static final String DD_SPAN_ID = "dd.span_id";
+  public static final String TEST_OPT_PRODUCT = "test_optimization";
   private static final JsonAdapter<IntakeRequest> ADAPTER =
       MoshiHelper.createMoshiSnapshot().adapter(IntakeRequest.class);
   private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();
 
-  public String serializeSnapshot(String serviceName, Snapshot snapshot) {
-    IntakeRequest request = new IntakeRequest(serviceName, new DebuggerIntakeRequestData(snapshot));
+  public String serializeSnapshot(String serviceName, Snapshot snapshot, Config config) {
+    IntakeRequest request =
+        new IntakeRequest(serviceName, new DebuggerIntakeRequestData(snapshot), config);
     handleCorrelationFields(snapshot, request);
     handleDuration(snapshot, request);
     handlerLogger(snapshot, request);
@@ -53,6 +55,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
     private final String service;
     private final DebuggerIntakeRequestData debugger;
     private final String ddsource = "dd_debugger";
+    private final String product;
     private final String message;
 
     private final String ddtags;
@@ -85,7 +88,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
     @Json(name = "logger.thread_name")
     private String loggerThreadName;
 
-    public IntakeRequest(String service, DebuggerIntakeRequestData debugger) {
+    public IntakeRequest(String service, DebuggerIntakeRequestData debugger, Config config) {
       this.service = service;
       this.debugger = debugger;
       this.message = debugger.snapshot.getMessage();
@@ -93,6 +96,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
       this.timestamp = debugger.snapshot.getTimestamp();
       final CharSequence pt = ProcessTags.getTagsForSerialization();
       this.processTags = pt != null ? pt.toString() : null;
+      this.product = config.isCiVisibilityFailedTestReplayActive() ? TEST_OPT_PRODUCT : null;
     }
 
     public String getService() {
@@ -105,6 +109,10 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
 
     public String getDdsource() {
       return ddsource;
+    }
+
+    public String getProduct() {
+      return product;
     }
 
     public String getMessage() {
