@@ -204,7 +204,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddd.profiling.ddprof.alloc.enabled=${isDdprofSafe()}",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-      "-Ddd.site="
+      "-Ddd.site=",
+      // --- Ensure IAST quota is high for agent subprocesses to avoid test flakiness ---
+      "-Ddd.iast.request-sampling=100",
+      "-Ddd.iast.vulnerabilities.per.request=10000",
+      // ------------------------------------------------------------------------------
     ]
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"

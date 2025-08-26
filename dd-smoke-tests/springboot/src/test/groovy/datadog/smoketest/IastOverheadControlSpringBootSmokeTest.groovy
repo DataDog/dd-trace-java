@@ -37,13 +37,6 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
   }
 
   void 'Test that all the vulnerabilities are detected'() {
-    // --- Reset OverheadContext.globalMap to avoid flakiness ---
-    def overheadContextClass = Class.forName('com.datadog.iast.overhead.OverheadContext')
-    def globalMapField = overheadContextClass.getDeclaredField('globalMap')
-    globalMapField.setAccessible(true)
-    def globalMap = globalMapField.get(null)
-    globalMap.clear()
-    // ---------------------------------------------------------
     given:
     // prepare a list of exactly three GET requests with path and query param
     def requests = []
