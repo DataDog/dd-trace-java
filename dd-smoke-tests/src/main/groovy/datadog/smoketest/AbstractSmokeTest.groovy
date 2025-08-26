@@ -7,7 +7,7 @@ import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.test.agent.decoder.Decoder
-import datadog.trace.util.Strings
+import Strings
 import groovy.json.JsonSlurper
 import spock.lang.AutoCleanup
 import spock.lang.Shared

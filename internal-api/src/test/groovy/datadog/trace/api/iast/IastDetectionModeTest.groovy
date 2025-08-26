@@ -1,7 +1,7 @@
 package datadog.trace.api.iast
 
 import datadog.trace.api.ConfigDefaults
-import datadog.trace.bootstrap.config.provider.ConfigProvider
+import ConfigProvider
 import groovy.transform.CompileDynamic
 import spock.lang.Specification
 

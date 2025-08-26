@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.profiling.controller.ProfilerSettingsSupport.ProfilerActivationSetting;
 import com.datadog.profiling.controller.ProfilerSettingsSupport.ProfilerActivationSetting.Ssi;
+import datadog.config.ConfigProvider;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingEnablement;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;

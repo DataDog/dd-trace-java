@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.config.util.Strings;
 import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.util.MethodHandles;
-import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.lang.invoke.MethodHandle;

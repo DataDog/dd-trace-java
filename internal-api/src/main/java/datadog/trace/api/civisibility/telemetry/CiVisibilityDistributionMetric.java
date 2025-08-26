@@ -1,9 +1,9 @@
 package datadog.trace.api.civisibility.telemetry;
 
+import datadog.config.telemetry.MetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
 import datadog.trace.api.civisibility.telemetry.tag.ResponseCompressed;
-import datadog.trace.api.telemetry.MetricCollector;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static datadog.config.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ADD_SPAN_POINTERS;
@@ -629,8 +630,13 @@ import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.config.CapturedEnvironmentConfigSource;
+import datadog.config.ConfigCollector;
+import datadog.config.ConfigOrigin;
+import datadog.config.ConfigProvider;
+import datadog.config.SystemPropertiesConfigSource;
+import datadog.config.util.Strings;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
@@ -646,14 +652,10 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
 import datadog.trace.api.rum.RumInjectorConfig.PrivacyLevel;
-import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
-import datadog.trace.util.Strings;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;

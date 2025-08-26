@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.percentage;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.SourceSet;
@@ -12,7 +13,6 @@ import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
-import datadog.trace.util.Strings;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;

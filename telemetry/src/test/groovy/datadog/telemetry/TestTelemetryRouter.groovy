@@ -7,7 +7,7 @@ import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
-import datadog.trace.api.ConfigSetting
+import ConfigSetting
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import groovy.json.JsonSlurper

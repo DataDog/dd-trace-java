@@ -5,11 +5,11 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.config.env.CapturedEnvironment;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.env.CapturedEnvironment;
 import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
@@ -77,8 +77,8 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.Platform$Captured:build_time,"
-              + "datadog.trace.api.env.CapturedEnvironment:build_time,"
-              + "datadog.trace.api.env.CapturedEnvironment$ProcessInfo:build_time,"
+              + "datadog.config.env.CapturedEnvironment:build_time,"
+              + "datadog.config.env.CapturedEnvironment$ProcessInfo:build_time,"
               + "datadog.trace.api.ConfigCollector:rerun,"
               + "datadog.trace.api.ConfigDefaults:build_time,"
               + "datadog.trace.api.ConfigHelper:rerun,"
@@ -109,14 +109,14 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.profiling.ProfilingEnablement:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter$ValueOfLookup:build_time,"
-              + "datadog.trace.bootstrap.config.provider.ConfigProvider:build_time,"
-              + "datadog.trace.bootstrap.config.provider.ConfigProvider$Singleton:build_time,"
-              + "datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource:build_time,"
+              + "datadog.config.ConfigProvider:build_time,"
+              + "datadog.config.ConfigProvider$Singleton:build_time,"
+              + "datadog.config.CapturedEnvironmentConfigSource:build_time,"
               + "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource:build_time,"
               + "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource:build_time,"
-              + "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource:build_time,"
-              + "datadog.trace.bootstrap.config.provider.StableConfigSource:build_time,"
-              + "datadog.trace.bootstrap.config.provider.StableConfigSource$StableConfig:build_time,"
+              + "datadog.config.SystemPropertiesConfigSource:build_time,"
+              + "datadog.config.StableConfigSource:build_time,"
+              + "datadog.config.StableConfigSource$StableConfig:build_time,"
               + "datadog.trace.bootstrap.Agent:build_time,"
               + "datadog.trace.bootstrap.BootstrapProxy:build_time,"
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap:build_time,"

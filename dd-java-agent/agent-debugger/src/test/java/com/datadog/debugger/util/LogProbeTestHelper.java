@@ -2,7 +2,7 @@ package com.datadog.debugger.util;
 
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

@@ -7,7 +7,7 @@ import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import Strings
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import java.lang.instrument.Instrumentation

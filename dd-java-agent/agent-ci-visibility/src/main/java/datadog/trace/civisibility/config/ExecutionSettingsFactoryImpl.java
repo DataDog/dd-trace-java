@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.config;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
@@ -12,7 +13,6 @@ import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
-import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;

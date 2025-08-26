@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import static datadog.trace.util.Strings.getClassName;
-import static datadog.trace.util.Strings.getResourceName;
+import static datadog.config.util.Strings.getClassName;
+import static datadog.config.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.bootstrap.Constants;

@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import static datadog.trace.util.Strings.getInternalName;
+import static datadog.config.util.Strings.getInternalName;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
 import java.util.concurrent.RunnableFuture;

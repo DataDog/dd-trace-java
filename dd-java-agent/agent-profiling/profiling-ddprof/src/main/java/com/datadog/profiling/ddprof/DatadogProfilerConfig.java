@@ -54,9 +54,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFA
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
+import datadog.config.ConfigProvider;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.Set;

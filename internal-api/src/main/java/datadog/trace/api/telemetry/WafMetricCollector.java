@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import datadog.config.telemetry.MetricCollector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;

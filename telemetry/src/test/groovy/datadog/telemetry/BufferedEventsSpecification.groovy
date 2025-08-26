@@ -5,8 +5,8 @@ import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.dependency.Dependency
-import datadog.trace.api.ConfigOrigin
-import datadog.trace.api.ConfigSetting
+import ConfigOrigin
+import ConfigSetting
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.test.util.DDSpecification
 

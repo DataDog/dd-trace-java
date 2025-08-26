@@ -20,7 +20,7 @@ import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 import java.util.EnumSet;
 import javax.annotation.Nonnull;
 

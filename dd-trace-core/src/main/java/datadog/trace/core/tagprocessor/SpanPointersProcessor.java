@@ -11,12 +11,12 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DY
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2_VALUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.util.Strings;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

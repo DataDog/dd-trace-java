@@ -1,7 +1,7 @@
 package com.datadog.debugger.symbol;
 
+import datadog.config.util.Strings;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
-import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import org.slf4j.Logger;

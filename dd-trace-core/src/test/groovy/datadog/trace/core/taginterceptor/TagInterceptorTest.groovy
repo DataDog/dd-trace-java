@@ -9,7 +9,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.env.CapturedEnvironment
+import CapturedEnvironment
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan

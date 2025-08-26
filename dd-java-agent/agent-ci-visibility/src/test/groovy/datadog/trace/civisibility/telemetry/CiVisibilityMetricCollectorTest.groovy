@@ -7,7 +7,7 @@ import datadog.trace.api.civisibility.telemetry.TagValue
 import datadog.trace.api.civisibility.telemetry.tag.Endpoint
 import datadog.trace.api.civisibility.telemetry.tag.EventType
 import datadog.trace.api.civisibility.telemetry.tag.Library
-import datadog.trace.api.telemetry.MetricCollector
+import MetricCollector
 import spock.lang.Specification
 
 class CiVisibilityMetricCollectorTest extends Specification {

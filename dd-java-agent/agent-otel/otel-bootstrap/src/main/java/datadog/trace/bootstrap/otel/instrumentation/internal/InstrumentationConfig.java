@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.otel.instrumentation.internal;
 
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;

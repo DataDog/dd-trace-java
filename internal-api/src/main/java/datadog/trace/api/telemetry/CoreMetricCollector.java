@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import datadog.config.telemetry.MetricCollector;
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.metrics.CoreCounter;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;

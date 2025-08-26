@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.controller.ControllerContext;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Properties;

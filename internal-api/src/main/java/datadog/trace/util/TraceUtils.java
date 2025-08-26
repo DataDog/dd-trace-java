@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.Strings.truncate;
+import static datadog.config.util.Strings.truncate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

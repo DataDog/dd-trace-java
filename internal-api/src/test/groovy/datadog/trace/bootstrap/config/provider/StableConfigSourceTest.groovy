@@ -2,10 +2,10 @@ package datadog.trace.bootstrap.config.provider
 
 import static java.util.Collections.singletonMap
 
-import datadog.trace.api.ConfigOrigin
-import datadog.trace.bootstrap.config.provider.stableconfig.Rule
-import datadog.trace.bootstrap.config.provider.stableconfig.Selector
-import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig
+import ConfigOrigin
+import Rule
+import Selector
+import StableConfig
 import datadog.trace.test.util.DDSpecification
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings

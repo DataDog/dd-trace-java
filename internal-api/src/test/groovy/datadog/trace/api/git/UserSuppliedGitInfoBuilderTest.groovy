@@ -3,7 +3,7 @@ package datadog.trace.api.git
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import Strings
 
 class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 

@@ -4,11 +4,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.config.util.Strings;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.testng.TestNGClassListener;
 import datadog.trace.instrumentation.testng.TestNGUtils;
-import datadog.trace.util.Strings;
 import net.bytebuddy.asm.Advice;
 import org.testng.IMethodInstance;
 import org.testng.ITestClass;

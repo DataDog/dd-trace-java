@@ -1,11 +1,11 @@
 package datadog.trace.civisibility.git;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoBuilder;
 import datadog.trace.civisibility.git.tree.GitClient;
-import datadog.trace.util.Strings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;

@@ -1,11 +1,11 @@
 package datadog.trace.civisibility.decorator;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.util.Strings;
 import java.util.Map;
 
 public class TestDecoratorImpl implements TestDecorator {

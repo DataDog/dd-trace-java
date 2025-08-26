@@ -1,6 +1,6 @@
 package datadog.trace.api
 
-import datadog.trace.api.env.CapturedEnvironment
+import CapturedEnvironment
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Paths

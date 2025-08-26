@@ -3,12 +3,12 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.PatchLogger;
-import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;

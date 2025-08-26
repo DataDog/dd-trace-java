@@ -1,7 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
 import com.datadog.debugger.util.ClassFileLines;
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 

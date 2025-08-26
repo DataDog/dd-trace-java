@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.Json;
+import datadog.config.util.Strings;
 import datadog.trace.api.civisibility.config.Configurations;
-import datadog.trace.util.Strings;
 import java.util.HashMap;
 import java.util.Map;
 

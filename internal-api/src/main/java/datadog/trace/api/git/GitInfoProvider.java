@@ -1,5 +1,6 @@
 package datadog.trace.api.git;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.civisibility.InstrumentationBridge;
@@ -8,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
-import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;

@@ -103,9 +103,7 @@ include(
   ":communication",
   ":components:context",
   ":components:environment",
-  ":components:generator",
   ":components:json",
-  ":components:yaml",
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",
@@ -137,6 +135,7 @@ include(
 // misc
 include(
   ":dd-java-agent:testing",
+  ":utils:config-utils",
   ":utils:container-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
@@ -599,3 +598,5 @@ include(
   ":dd-java-agent:benchmark-integration:jetty-perftest",
   ":dd-java-agent:benchmark-integration:play-perftest",
 )
+
+include("utils:config-utils")

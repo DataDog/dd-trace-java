@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.gradle;
 
+import static datadog.config.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;

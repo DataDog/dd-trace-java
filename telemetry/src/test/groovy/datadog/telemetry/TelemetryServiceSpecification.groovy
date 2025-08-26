@@ -7,15 +7,15 @@ import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
-import datadog.trace.api.ConfigOrigin
-import datadog.trace.api.ConfigSetting
+import ConfigOrigin
+import ConfigSetting
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.DebuggerConfig
 import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import Strings
 
 class TelemetryServiceSpecification extends DDSpecification {
   def confKeyValue = ConfigSetting.of("confkey", "confvalue", ConfigOrigin.DEFAULT)

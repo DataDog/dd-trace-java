@@ -5,7 +5,7 @@ import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 
 import com.datadog.debugger.instrumentation.ASMHelper;
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

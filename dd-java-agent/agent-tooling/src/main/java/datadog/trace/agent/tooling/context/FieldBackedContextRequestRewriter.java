@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.context;
 
+import static datadog.config.util.Strings.getInternalName;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
-import static datadog.trace.util.Strings.getInternalName;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextStore;

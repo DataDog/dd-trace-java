@@ -1,7 +1,7 @@
 package datadog.trace.api.profiling;
 
+import datadog.config.ConfigProvider;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

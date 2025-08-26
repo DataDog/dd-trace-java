@@ -2,7 +2,7 @@ package datadog.trace.api.telemetry
 
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.api.telemetry.ConfigInversionMetricCollector.CONFIG_INVERSION_METRIC_NAME
+import static ConfigInversionMetricCollector.CONFIG_INVERSION_METRIC_NAME
 
 class ConfigInversionMetricCollectorTest extends DDSpecification {
 

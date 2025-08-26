@@ -4,7 +4,7 @@ package datadog.telemetry.metric
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.Metric
-import datadog.trace.api.telemetry.MetricCollector
+import MetricCollector
 import edu.umd.cs.findbugs.annotations.NonNull
 import groovy.transform.NamedDelegate
 import groovy.transform.NamedVariant

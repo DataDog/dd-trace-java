@@ -2,7 +2,7 @@ package datadog.trace.agent.test.utils;
 
 import static com.google.common.base.StandardSystemProperty.JAVA_CLASS_PATH;
 import static com.google.common.base.StandardSystemProperty.PATH_SEPARATOR;
-import static datadog.trace.util.Strings.getResourceName;
+import static datadog.config.util.Strings.getResourceName;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;

@@ -1,6 +1,6 @@
 package datadog.trace.api.civisibility.telemetry;
 
-import datadog.trace.api.telemetry.MetricCollector;
+import datadog.config.telemetry.MetricCollector;
 
 public interface CiVisibilityMetricCollector extends MetricCollector<CiVisibilityMetricData> {
 

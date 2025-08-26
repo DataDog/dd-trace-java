@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.config.ConfigProvider;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.QueueTiming;
@@ -7,7 +8,6 @@ import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.profiling.Timing;
 import datadog.trace.api.sampling.PerRecordingRateLimiter;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import java.time.Duration;

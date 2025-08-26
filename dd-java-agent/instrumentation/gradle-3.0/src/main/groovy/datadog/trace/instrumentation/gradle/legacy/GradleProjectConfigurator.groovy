@@ -4,7 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.domain.BuildSessionSettings
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.DatadogClassLoader
-import datadog.trace.util.Strings
+import Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
 

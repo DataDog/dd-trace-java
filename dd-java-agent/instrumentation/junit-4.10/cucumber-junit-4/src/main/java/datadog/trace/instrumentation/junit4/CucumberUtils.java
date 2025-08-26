@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.config.util.Strings;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
-import datadog.trace.util.Strings;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.gherkin.Pickle;
 import io.cucumber.core.resource.ClassLoaders;

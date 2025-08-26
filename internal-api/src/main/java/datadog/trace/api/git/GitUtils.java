@@ -3,7 +3,7 @@ package datadog.trace.api.git;
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
 
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;

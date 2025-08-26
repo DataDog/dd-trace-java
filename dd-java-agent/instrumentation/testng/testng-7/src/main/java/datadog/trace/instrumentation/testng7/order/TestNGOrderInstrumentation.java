@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.testng7.order;
 
 import com.google.auto.service.AutoService;
+import datadog.config.util.Strings;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
@@ -8,7 +9,6 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGInstrumentation;
 import datadog.trace.instrumentation.testng.TestNGUtils;
-import datadog.trace.util.Strings;
 import java.util.List;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;

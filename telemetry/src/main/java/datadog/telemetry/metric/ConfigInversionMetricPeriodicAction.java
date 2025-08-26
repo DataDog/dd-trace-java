@@ -1,7 +1,7 @@
 package datadog.telemetry.metric;
 
+import datadog.config.telemetry.MetricCollector;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollector;
-import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class ConfigInversionMetricPeriodicAction extends MetricPeriodicAction {

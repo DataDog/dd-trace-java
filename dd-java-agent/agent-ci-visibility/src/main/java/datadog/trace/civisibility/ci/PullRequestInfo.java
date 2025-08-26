@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.ci;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.git.CommitInfo;
-import datadog.trace.util.Strings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 

@@ -11,7 +11,7 @@ import static com.datadog.debugger.instrumentation.ASMHelper.isInScope;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
-import static datadog.trace.util.Strings.getClassName;
+import static datadog.config.util.Strings.getClassName;
 import static org.objectweb.asm.Type.DOUBLE_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 

@@ -3,11 +3,11 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 
 import com.google.auto.service.AutoService;
+import datadog.config.ConfigProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling

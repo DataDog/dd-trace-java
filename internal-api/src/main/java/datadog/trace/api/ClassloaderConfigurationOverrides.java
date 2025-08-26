@@ -1,7 +1,7 @@
 package datadog.trace.api;
 
+import datadog.config.env.CapturedEnvironment;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;

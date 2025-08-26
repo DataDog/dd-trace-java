@@ -9,11 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.config.ConfigProvider;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(InstrumenterModule.class)
 public final class ByteBufferInstrumentation extends InstrumenterModule.Profiling

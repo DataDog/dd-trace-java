@@ -1,5 +1,6 @@
 package datadog.trace.api.appsec;
 
+import static datadog.config.util.Strings.toHexString;
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION;
 import static datadog.trace.api.UserIdCollectionMode.DISABLED;
 import static datadog.trace.api.UserIdCollectionMode.SDK;
@@ -10,7 +11,6 @@ import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS;
 import static datadog.trace.api.telemetry.LoginVersion.AUTO;
 import static datadog.trace.api.telemetry.LoginVersion.V1;
 import static datadog.trace.api.telemetry.LoginVersion.V2;
-import static datadog.trace.util.Strings.toHexString;
 import static java.util.Collections.emptyMap;
 
 import datadog.appsec.api.blocking.BlockingException;

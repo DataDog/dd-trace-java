@@ -1,12 +1,12 @@
 package datadog.trace.api.git;
 
+import datadog.config.ConfigProvider;
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.Strings;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

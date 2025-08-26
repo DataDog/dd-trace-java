@@ -12,9 +12,11 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.config.ConfigCollector;
+import datadog.config.ConfigOrigin;
+import datadog.config.util.Strings;
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
-import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;

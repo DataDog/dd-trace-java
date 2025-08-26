@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.datadog.profiling.agent.CompositeController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 

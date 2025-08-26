@@ -4,9 +4,9 @@ import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent;
 import datadog.common.version.VersionInfo;
+import datadog.config.ConfigProvider;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 final class JfrProfilerSettings extends ProfilerSettingsSupport {

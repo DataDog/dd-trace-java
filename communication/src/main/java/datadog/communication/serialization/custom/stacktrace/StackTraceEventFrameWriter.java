@@ -3,7 +3,7 @@ package datadog.communication.serialization.custom.stacktrace;
 import datadog.communication.serialization.EncodingCache;
 import datadog.communication.serialization.ValueWriter;
 import datadog.communication.serialization.Writable;
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 
 public class StackTraceEventFrameWriter implements ValueWriter<StackTraceFrame> {

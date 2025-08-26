@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.bootstrap.DatadogClassLoader;
-import datadog.trace.util.Strings;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;

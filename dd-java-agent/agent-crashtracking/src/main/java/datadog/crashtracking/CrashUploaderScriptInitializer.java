@@ -11,9 +11,9 @@ import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 import static java.util.Locale.ROOT;
 
+import datadog.config.util.Strings;
 import datadog.environment.SystemProperties;
 import datadog.trace.util.PidHelper;
-import datadog.trace.util.Strings;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;

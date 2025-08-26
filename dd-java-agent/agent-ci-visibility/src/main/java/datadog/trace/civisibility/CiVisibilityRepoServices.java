@@ -1,6 +1,7 @@
 package datadog.trace.civisibility;
 
 import datadog.communication.BackendApi;
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
@@ -35,7 +36,6 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
-import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;

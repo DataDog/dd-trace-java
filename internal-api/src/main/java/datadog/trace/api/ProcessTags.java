@@ -1,8 +1,8 @@
 package datadog.trace.api;
 
+import datadog.config.env.CapturedEnvironment;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
-import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
 import de.thetaphi.forbiddenapis.SuppressForbidden;

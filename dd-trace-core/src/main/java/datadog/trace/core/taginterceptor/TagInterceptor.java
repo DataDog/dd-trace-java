@@ -18,13 +18,13 @@ import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404_DECORATOR;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURCE_NAME;
 
+import datadog.config.env.CapturedEnvironment;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.SamplingMechanism;

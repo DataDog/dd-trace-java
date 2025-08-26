@@ -1,6 +1,6 @@
 package datadog.smoketest;
 
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;

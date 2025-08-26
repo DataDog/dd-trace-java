@@ -1,8 +1,9 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.config.ConfigConverter;
+import datadog.config.util.Strings;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
-import datadog.trace.util.Strings;
 import java.util.Map;
 
 public class AgentArgsInjector {

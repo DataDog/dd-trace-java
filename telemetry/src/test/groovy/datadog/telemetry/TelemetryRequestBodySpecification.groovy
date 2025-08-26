@@ -4,8 +4,8 @@ package datadog.telemetry
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.telemetry.api.RequestType
-import datadog.trace.api.ConfigOrigin
-import datadog.trace.api.ConfigSetting
+import ConfigOrigin
+import ConfigSetting
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification

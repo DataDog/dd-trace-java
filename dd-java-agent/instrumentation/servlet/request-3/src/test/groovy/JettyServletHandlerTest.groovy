@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.env.CapturedEnvironment
+import CapturedEnvironment
 import datadog.trace.instrumentation.servlet3.TestServlet3
 import org.eclipse.jetty.http.HttpStatus
 import org.eclipse.jetty.server.Request

@@ -1,6 +1,6 @@
 package datadog.trace.api.git;
 
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.util.Objects;
 
 public class CommitInfo {

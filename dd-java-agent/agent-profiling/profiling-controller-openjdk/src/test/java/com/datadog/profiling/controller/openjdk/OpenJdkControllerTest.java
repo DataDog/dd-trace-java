@@ -16,9 +16,9 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
+import datadog.config.ConfigProvider;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import jdk.jfr.Recording;
 import org.junit.jupiter.api.BeforeAll;

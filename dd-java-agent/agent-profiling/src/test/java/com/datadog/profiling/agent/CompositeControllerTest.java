@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
 /** Note: some additional tests for this class are located in profiling-controller-openjdk module */

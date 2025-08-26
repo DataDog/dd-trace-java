@@ -4,9 +4,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.profiling.controller.ControllerContext;
+import datadog.config.ConfigProvider;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.profiling.RecordingData;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;

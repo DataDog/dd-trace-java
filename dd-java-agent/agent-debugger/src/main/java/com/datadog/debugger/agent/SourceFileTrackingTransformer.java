@@ -5,9 +5,9 @@ import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.util.ClassFileHelper;
 import com.datadog.debugger.util.ClassNameFiltering;
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;

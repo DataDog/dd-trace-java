@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
-import datadog.trace.util.Strings
+import Strings
 import spock.lang.IgnoreIf
 
 import java.nio.file.FileVisitResult

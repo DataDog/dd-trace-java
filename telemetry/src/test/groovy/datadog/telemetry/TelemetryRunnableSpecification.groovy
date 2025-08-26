@@ -2,10 +2,10 @@ package datadog.telemetry
 
 import datadog.telemetry.metric.MetricPeriodicAction
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.telemetry.MetricCollector
+import MetricCollector
 import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import Strings
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 

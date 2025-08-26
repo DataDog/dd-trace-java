@@ -3,7 +3,7 @@ package com.datadog.profiling.controller.ddprof;
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import datadog.common.version.VersionInfo;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 
 public class DatadogProfilerSettings extends ProfilerSettingsSupport {
 

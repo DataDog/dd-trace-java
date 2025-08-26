@@ -11,7 +11,7 @@ import static datadog.trace.api.config.IastConfig.IAST_MAX_RANGE_COUNT;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.config.ConfigProvider;
 import javax.annotation.Nonnull;
 
 public enum IastDetectionMode {

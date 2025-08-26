@@ -2,8 +2,8 @@ package datadog.telemetry;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
-import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.concurrent.TimeUnit;

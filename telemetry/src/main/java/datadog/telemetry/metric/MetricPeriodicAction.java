@@ -1,10 +1,10 @@
 package datadog.telemetry.metric;
 
+import datadog.config.telemetry.MetricCollector;
 import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Metric;
-import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.Collection;

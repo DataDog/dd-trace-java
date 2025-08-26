@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import datadog.config.ConfigProvider;
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.profiling.RecordingData;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.time.Instant;

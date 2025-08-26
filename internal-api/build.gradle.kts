@@ -76,7 +76,7 @@ val excludedClassesCoverage by extra(
     // Bootstrap API
     "datadog.trace.bootstrap.ActiveSubsystems",
     "datadog.trace.bootstrap.ContextStore.Factory",
-    "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
+    "datadog.config.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
     "datadog.trace.bootstrap.instrumentation.api.Tags",
     "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
@@ -246,8 +246,8 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.util.stacktrace.HotSpotStackWalker",
     "datadog.trace.util.stacktrace.StackWalkerFactory",
     // Tested using forked process
-    "datadog.trace.api.env.CapturedEnvironment",
-    "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
+    "datadog.config.env.CapturedEnvironment",
+    "datadog.config.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
   )
@@ -256,7 +256,7 @@ val excludedClassesBranchCoverage by extra(
 val excludedClassesInstructionCoverage by extra(
   listOf(
     "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+    "datadog.config.SystemPropertiesConfigSource",
     "datadog.trace.util.stacktrace.StackWalkerFactory"
   )
 )
@@ -271,9 +271,8 @@ dependencies {
   api(libs.slf4j)
   api(project(":components:context"))
   api(project(":components:environment"))
-  api(project(":components:generator"))
   api(project(":components:json"))
-  api(project(":components:yaml"))
+  api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 
   // has to be loaded by system classloader:

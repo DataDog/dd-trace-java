@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.git.tree;
 
 import datadog.communication.util.IOUtils;
+import datadog.config.util.Strings;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
@@ -11,7 +12,6 @@ import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
-import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;

@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.debugger;
 
+import datadog.config.ConfigProvider;
 import datadog.trace.api.config.TraceInstrumentationConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;

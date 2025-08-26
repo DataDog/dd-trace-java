@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.communication.ddagent.TracerVersion;
+import datadog.config.util.Strings;
 import datadog.context.propagation.CarrierSetter;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
@@ -31,7 +32,6 @@ import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.Collection;

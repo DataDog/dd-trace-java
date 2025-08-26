@@ -4,7 +4,7 @@ package datadog.trace.api
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
-import datadog.trace.bootstrap.config.provider.ConfigProvider
+import ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import org.junit.Rule

@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import static datadog.config.util.Strings.getResourceName;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
-import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.Utils;

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
+import datadog.config.util.Strings;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.util.Strings;
 
 public abstract class AbstractSqsInstrumentation extends InstrumenterModule.Tracing {
   public AbstractSqsInstrumentation() {

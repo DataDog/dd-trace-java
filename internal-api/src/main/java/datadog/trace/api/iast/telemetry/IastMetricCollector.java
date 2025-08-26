@@ -2,11 +2,11 @@ package datadog.trace.api.iast.telemetry;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
 
+import datadog.config.telemetry.MetricCollector;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.telemetry.IastMetric.Tag;
-import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collection;

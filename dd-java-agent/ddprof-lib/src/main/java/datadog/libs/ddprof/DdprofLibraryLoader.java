@@ -2,8 +2,8 @@ package datadog.libs.ddprof;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.datadoghq.profiler.JavaProfiler;
+import datadog.config.ConfigProvider;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
 import java.nio.file.Files;

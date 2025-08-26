@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

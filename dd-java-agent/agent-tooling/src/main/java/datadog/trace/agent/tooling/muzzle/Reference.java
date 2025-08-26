@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.muzzle;
 
 import static java.util.Arrays.asList;
 
-import datadog.trace.util.Strings;
+import datadog.config.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Array;

@@ -2,8 +2,8 @@ package datadog.telemetry
 
 import datadog.telemetry.api.Integration
 import datadog.telemetry.dependency.Dependency
-import datadog.trace.api.ConfigOrigin
-import datadog.trace.api.ConfigSetting
+import ConfigOrigin
+import ConfigSetting
 import spock.lang.Specification
 
 class ExtendedHeartbeatDataSpecification extends Specification {

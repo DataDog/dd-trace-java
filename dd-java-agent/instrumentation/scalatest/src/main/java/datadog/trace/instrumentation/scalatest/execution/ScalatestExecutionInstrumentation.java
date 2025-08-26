@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.config.util.Strings;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
@@ -13,7 +14,6 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.instrumentation.scalatest.RunContext;
 import datadog.trace.instrumentation.scalatest.ScalatestUtils;
-import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;

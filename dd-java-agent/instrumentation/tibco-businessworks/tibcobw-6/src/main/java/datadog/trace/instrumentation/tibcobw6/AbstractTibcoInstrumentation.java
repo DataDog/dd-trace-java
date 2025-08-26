@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.tibcobw6;
 
+import datadog.config.util.Strings;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.util.Strings;
 import java.util.HashMap;
 import java.util.Map;
 
