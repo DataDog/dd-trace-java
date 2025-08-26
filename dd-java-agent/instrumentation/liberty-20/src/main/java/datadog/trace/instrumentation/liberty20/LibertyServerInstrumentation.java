@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.liberty20;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DECORATE;
@@ -123,6 +124,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
+      request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       request.setAttribute(
           CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());

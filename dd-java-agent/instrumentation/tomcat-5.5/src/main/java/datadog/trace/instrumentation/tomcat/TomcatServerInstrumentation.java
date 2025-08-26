@@ -132,7 +132,8 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
 
-      // Store context
+      // Store both span and context
+      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
