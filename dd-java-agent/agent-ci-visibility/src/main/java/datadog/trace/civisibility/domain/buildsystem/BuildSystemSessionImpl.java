@@ -89,8 +89,12 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
     this.repoIndexProvider = repoIndexProvider;
     this.coverageProcessorFactory = coverageProcessorFactory;
     this.coverageProcessor = coverageProcessorFactory.sessionCoverage(span.getSpanId());
+
+    ExecutionSettings executionSettings =
+        executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
     this.settings =
         new BuildSessionSettings(
+            executionSettings.isCodeCoverageReportUploadEnabled(),
             getCoverageIncludedPackages(config, repoIndexProvider),
             config.getCiVisibilityCodeCoverageExcludes());
 

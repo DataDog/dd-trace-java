@@ -1,7 +1,6 @@
 package datadog.trace.civisibility
 
 import datadog.trace.api.civisibility.config.TestFQN
-import org.apache.commons.fileupload.FileItem
 import spock.lang.Specification
 
 abstract class CiVisibilitySmokeTest extends Specification {
