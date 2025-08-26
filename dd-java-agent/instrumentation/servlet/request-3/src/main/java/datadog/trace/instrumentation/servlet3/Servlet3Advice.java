@@ -17,6 +17,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,7 +36,7 @@ public class Servlet3Advice {
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Local("contextScope") ContextScope scope,
-      @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
+      @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
     final boolean invalidRequest =
         !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
     if (invalidRequest) {
@@ -47,14 +48,16 @@ public class Servlet3Advice {
 
     if (RumInjector.get().isEnabled()) {
       final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
-      if (maybeRumWrapper instanceof RumHttpServletResponseWrapper) {
-        rumServletWrapper = (RumHttpServletResponseWrapper) maybeRumWrapper;
+      if (maybeRumWrapper instanceof RumControllableResponse) {
+        rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
       } else {
         rumServletWrapper =
             new RumHttpServletResponseWrapper(httpServletRequest, (HttpServletResponse) response);
         httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
-        response = rumServletWrapper;
-        request = new RumHttpServletRequestWrapper(httpServletRequest, rumServletWrapper);
+        response = (ServletResponse) rumServletWrapper;
+        request =
+            new RumHttpServletRequestWrapper(
+                httpServletRequest, (HttpServletResponse) rumServletWrapper);
       }
     }
 
@@ -116,7 +119,7 @@ public class Servlet3Advice {
       @Advice.Local("contextScope") final ContextScope scope,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
-      @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper,
+      @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper,
       @Advice.Thrown final Throwable throwable) {
     if (rumServletWrapper != null) {
       rumServletWrapper.commit();

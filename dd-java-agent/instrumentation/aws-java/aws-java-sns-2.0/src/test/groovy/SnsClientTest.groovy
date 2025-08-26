@@ -85,7 +85,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
   def "trace details propagated when message attributes are readonly"() {
     when:
     TEST_WRITER.clear()
-    PublishResponse response
+
     def headers = new HashMap<String, MessageAttributeValue>()
     headers.put("mykey", MessageAttributeValue.builder().stringValue("myvalue").dataType("String").build())
     def readonlyHeaders = Collections.unmodifiableMap(headers)

@@ -230,6 +230,9 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("value").value(configSetting.stringValue());
     bodyWriter.setSerializeNulls(false);
     bodyWriter.name("origin").value(configSetting.origin.value);
+    if (configSetting.configId != null) {
+      bodyWriter.name("config_id").value(configSetting.configId);
+    }
     bodyWriter.endObject();
   }
 

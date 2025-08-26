@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider
 
+import datadog.trace.api.ConfigCollector
+
 import static java.util.Collections.singletonMap
 
 import datadog.trace.api.ConfigOrigin
@@ -220,7 +222,7 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
-  def static corruptYaml = ''' 
+  static corruptYaml = ''' 
         abc: 123
         def:
           ghi: "jkl"
@@ -228,8 +230,8 @@ class StableConfigSourceTest extends DDSpecification {
     '''
 
   // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
-  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), singletonMap("DD_KEY_THREE", "three"))
-  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), singletonMap("DD_KEY_FOUR", "four"))
+  static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), singletonMap("DD_KEY_THREE", "three"))
+  static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), singletonMap("DD_KEY_FOUR", "four"))
 
   def writeFileYaml(Path filePath, StableConfig stableConfigs) {
     Map<String, Object> yamlData = new HashMap<>()
@@ -251,7 +253,42 @@ class StableConfigSourceTest extends DDSpecification {
     }
   }
 
-  // Use this if you want to explicitly write/test configId
+  def "test config id exists in ConfigCollector when using StableConfigSource"() {
+    given:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    String expectedConfigId = "123"
+
+    // Create YAML content with config_id and some configuration
+    def yamlContent = """
+config_id: ${expectedConfigId}
+apm_configuration_default:
+  DD_SERVICE: test-service
+  DD_ENV: test-env
+"""
+    Files.write(filePath, yamlContent.getBytes())
+
+    // Clear any existing collected config
+    ConfigCollector.get().collect().clear()
+
+    when:
+    // Create StableConfigSource and ConfigProvider
+    StableConfigSource stableConfigSource = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
+    ConfigProvider configProvider = new ConfigProvider(stableConfigSource)
+
+    // Trigger config collection by getting a value
+    configProvider.getString("SERVICE", "default-service")
+
+    then:
+    def collectedConfigs = ConfigCollector.get().collect()
+    def serviceSetting = collectedConfigs.get("SERVICE")
+    serviceSetting.configId == expectedConfigId
+    serviceSetting.value == "test-service"
+    serviceSetting.origin == ConfigOrigin.LOCAL_STABLE_CONFIG
+
+    cleanup:
+    Files.delete(filePath)
+  }
+
   def writeFileRaw(Path filePath, String configId, String data) {
     data = configId + "\n" + data
     StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
