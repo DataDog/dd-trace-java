@@ -864,6 +864,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         if (exception) {
           if (exception instanceof java.net.ConnectException || exception.getCause() instanceof java.net.ConnectException) {
             errorTags(java.net.ConnectException, exception.message)
+          } else if (exception instanceof java.net.SocketTimeoutException || exception.getCause() instanceof java.net.SocketTimeoutException) {
+            errorTags(java.net.SocketTimeoutException, exception.message)
           } else {
             errorTags(exception.class, exception.message)
           }

@@ -31,7 +31,17 @@ public final class WrappingResponseCallback implements ResponseCallback {
     final Object prop = request.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
     if (prop instanceof AgentSpan) {
       final AgentSpan span = (AgentSpan) prop;
-      span.addThrowable(error);
+
+      Throwable throwableError = error;
+      if (error.getCause() != null) {
+        if (error.getCause() instanceof java.net.ConnectException) {
+          throwableError = new java.net.ConnectException(error.getMessage());
+        } else if (error.getCause() instanceof java.net.SocketTimeoutException) {
+          throwableError = new java.net.SocketTimeoutException(error.getMessage());
+        }
+      }
+
+      span.addThrowable(throwableError);
 
       @SuppressWarnings("deprecation")
       final boolean isJaxRsExceptionAsErrorEnabled = Config.get().isJaxRsExceptionAsErrorEnabled();

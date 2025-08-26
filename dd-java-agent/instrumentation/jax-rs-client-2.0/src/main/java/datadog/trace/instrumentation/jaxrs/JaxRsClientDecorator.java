@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -47,5 +48,20 @@ public class JaxRsClientDecorator
   @Override
   protected String getResponseHeader(ClientResponseContext response, String headerName) {
     return response.getHeaderString(headerName);
+  }
+
+  @Override
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    if (throwable != null && throwable.getClass().getName().contains("ProcessingException")) {
+      Throwable cause = throwable.getCause();
+      if (cause != null) {
+        if (cause instanceof java.net.ConnectException) {
+          return super.onError(span, new java.net.ConnectException(throwable.getMessage()));
+        } else if (cause instanceof java.net.SocketTimeoutException) {
+          return super.onError(span, new java.net.SocketTimeoutException(throwable.getMessage()));
+        }
+      }
+    }
+    return super.onError(span, throwable);
   }
 }
