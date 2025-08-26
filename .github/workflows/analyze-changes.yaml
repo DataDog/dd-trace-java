@@ -35,7 +35,7 @@ jobs:
             ${{ runner.os }}-gradle-
         
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@96f518a34f7a870018057716cc4d7a5c014bd61c # v3.29.5
+        uses: github/codeql-action/init@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.5
         with:
           languages: 'java'
           build-mode: 'manual'
@@ -52,7 +52,7 @@ jobs:
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
-        uses: github/codeql-action/analyze@96f518a34f7a870018057716cc4d7a5c014bd61c # v3.29.5
+        uses: github/codeql-action/analyze@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.5
 
   trivy:
     name: Analyze changes with Trivy
@@ -115,7 +115,7 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@96f518a34f7a870018057716cc4d7a5c014bd61c # v3.29.5
+        uses: github/codeql-action/upload-sarif@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.5
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
