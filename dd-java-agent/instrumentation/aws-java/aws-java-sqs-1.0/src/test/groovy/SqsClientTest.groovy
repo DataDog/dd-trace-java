@@ -81,7 +81,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     if (server != null) {
       try {
         server.stopAndWait()
-      } catch (InterruptedException ie) {
+      } catch (InterruptedException ignored) {
         Thread.currentThread().interrupt()
       }
     }

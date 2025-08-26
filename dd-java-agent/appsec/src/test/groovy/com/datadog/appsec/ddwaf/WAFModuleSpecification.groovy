@@ -628,7 +628,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * segment.setTagTop('_dd.appsec.waf.version', _ as String)
     1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 117)
     1 * segment.setTagTop('_dd.appsec.event_rules.error_count', 1)
-    1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
+    1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"]}/})
     1 * segment.setTagTop('asm.keep', true)
     0 * segment._(*_)
 

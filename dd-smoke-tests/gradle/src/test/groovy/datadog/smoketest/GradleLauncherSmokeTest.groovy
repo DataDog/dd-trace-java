@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.utils.ShellCommandExecutor
+import org.opentest4j.AssertionFailedError
 import spock.util.environment.Jvm
 
 /**
@@ -72,7 +73,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     def daemonStartCommandLog = buildOutput.split("\n").find { it.contains("Starting process 'Gradle build daemon'") }
     for (String token : tokens) {
       if (!daemonStartCommandLog.contains(token)) {
-        throw new org.opentest4j.AssertionFailedError("Gradle Daemon start command does not contain " + token, token, daemonStartCommandLog)
+        throw new AssertionFailedError("Gradle Daemon start command does not contain " + token, token, daemonStartCommandLog)
       }
     }
     return true
