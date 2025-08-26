@@ -14,7 +14,7 @@ class EndpointWrapper extends Endpoint {
     def endpoint = endpointConfig.getUserProperties().get(Endpoint.name) as Endpoint
     assert endpoint != null
     session.getUserProperties().put(Endpoint.name, endpoint)
-    try (def ignored = span != null ? activateSpan(span) : null) {
+    try (def _ = span != null ? activateSpan(span) : null) {
       endpoint.onOpen(session, endpointConfig)
     }
   }
