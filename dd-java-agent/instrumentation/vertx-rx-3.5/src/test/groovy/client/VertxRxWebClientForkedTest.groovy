@@ -2,6 +2,7 @@ package client
 
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.core.VertxOptions
 import io.vertx.core.http.HttpMethod
@@ -11,6 +12,8 @@ import io.vertx.reactivex.ext.web.client.WebClient
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Timeout
+
+import java.util.concurrent.TimeUnit
 
 @Timeout(10)
 class VertxRxWebClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
@@ -37,9 +40,20 @@ class VertxRxWebClientForkedTest extends HttpClientTest implements TestingNettyH
     headers.each { request.putHeader(it.key, it.value) }
     return request
       .rxSend()
-      .doOnSuccess { response -> callback?.call() }
+      .doOnSuccess { response ->
+        if (callback != null) {
+          // Clear trace context before callback
+          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          try {
+            callback.call()
+          } finally {
+            scope.close()
+          }
+        }
+      }
       .map { it.statusCode() }
       .toObservable()
+      .timeout(5, TimeUnit.SECONDS)
       .blockingFirst()
   }
 

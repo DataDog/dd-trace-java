@@ -2,6 +2,7 @@ package client
 
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
@@ -48,7 +49,15 @@ class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHt
     headers.each { request.putHeader(it.key, it.value) }
     request.sendBuffer(Buffer.buffer(body)).onSuccess { response ->
       try {
-        callback?.call()
+        if (callback != null) {
+          // Clear trace context before callback
+          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          try {
+            callback.call()
+          } finally {
+            scope.close()
+          }
+        }
         future.complete(response)
       } catch (Exception e) {
         future.completeExceptionally(e)

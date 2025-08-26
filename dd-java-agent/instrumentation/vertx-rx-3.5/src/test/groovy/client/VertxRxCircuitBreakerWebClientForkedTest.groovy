@@ -2,6 +2,7 @@ package client
 
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.VertxOptions
@@ -15,6 +16,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 @Timeout(10)
 class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
@@ -56,14 +58,22 @@ class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements
         command.fail(it)
       }.subscribe()
     }, {
-      callback?.call()
+      if (callback != null) {
+        // Clear trace context before callback
+        def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+        try {
+          callback.call()
+        } finally {
+          scope.close()
+        }
+      }
       if (it.succeeded()) {
         future.complete(it.result().statusCode())
       } else {
         future.completeExceptionally(it.cause())
       }
     })
-    return future.get()
+    return future.get(5, TimeUnit.SECONDS)
   }
 
   @Override

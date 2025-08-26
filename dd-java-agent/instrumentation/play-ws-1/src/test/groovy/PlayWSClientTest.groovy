@@ -26,7 +26,7 @@ abstract class PlayJavaWSClientTest extends PlayWSClientTestBase {
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).execute()
       .whenComplete({ response, throwable ->
         if (callback != null) {
-          // Clear trace context before running callback
+          // Clear trace context before callback
           def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
           try {
             callback.call()

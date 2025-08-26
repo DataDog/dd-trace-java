@@ -23,7 +23,15 @@ class PlayJavaWSClientTest extends PlayWSClientTestBase {
     headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).execute()
       .whenComplete({ response, throwable ->
-        callback?.call()
+        if (callback != null) {
+          // Clear trace context before callback
+          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          try {
+            callback.call()
+          } finally {
+            scope.close()
+          }
+        }
       }).toCompletableFuture().get(5, TimeUnit.SECONDS)
 
     return wsResponse.getStatus()
@@ -49,7 +57,15 @@ class PlayJavaStreamedWSClientTest extends PlayWSClientTestBase {
     headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).stream()
       .whenComplete({ response, throwable ->
-        callback?.call()
+        if (callback != null) {
+          // Clear trace context before callback
+          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          try {
+            callback.call()
+          } finally {
+            scope.close()
+          }
+        }
       }).toCompletableFuture().get(5, TimeUnit.SECONDS)
 
     // The status can be ready before the body so explicity call wait for body to be ready
@@ -117,7 +133,15 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .stream()
       .transform({ theTry ->
-        callback?.call()
+        if (callback != null) {
+          // Clear trace context before callback
+          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          try {
+            callback.call()
+          } finally {
+            scope.close()
+          }
+        }
         theTry
       }, ExecutionContext.global())
 
