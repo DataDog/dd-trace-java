@@ -241,7 +241,7 @@ public class CiVisibilitySystem {
           repoServices.executionSettingsFactory,
           signalServer,
           repoServices.repoIndexProvider,
-          coverageServices.coverageCalculatorFactory);
+          coverageServices.coverageProcessorFactory);
     };
   }
 

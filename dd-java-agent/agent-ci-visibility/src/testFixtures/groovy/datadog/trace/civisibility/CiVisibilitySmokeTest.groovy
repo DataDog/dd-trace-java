@@ -1,6 +1,7 @@
 package datadog.trace.civisibility
 
 import datadog.trace.api.civisibility.config.TestFQN
+import org.apache.commons.fileupload.FileItem
 import spock.lang.Specification
 
 abstract class CiVisibilitySmokeTest extends Specification {
@@ -51,5 +52,9 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
     // an even more basic smoke check for distributions: assert that we received some
     assert !receivedTelemetryDistributions.isEmpty()
+  }
+
+  protected verifyCoverageReports(String projectName, List<CiVisibilityTestUtils.CoverageReport> reports, Map<String, String> replacements) {
+    CiVisibilityTestUtils.assertData(projectName, reports, replacements)
   }
 }

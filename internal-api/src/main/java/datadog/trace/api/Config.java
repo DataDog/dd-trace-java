@@ -245,6 +245,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
@@ -966,6 +967,7 @@ public class Config {
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
+  private final String ciVisibilityIntakeAgentlessUrl;
 
   private final boolean ciVisibilitySourceDataEnabled;
   private final boolean ciVisibilityBuildInstrumentationEnabled;
@@ -2166,20 +2168,13 @@ public class Config {
             DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED);
 
     final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
-    URI parsedCiVisibilityUri = null;
-    if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
-      try {
-        parsedCiVisibilityUri = new URL(ciVisibilityAgentlessUrlStr).toURI();
-      } catch (MalformedURLException | URISyntaxException ex) {
-        log.error(
-            "Cannot parse CI Visibility agentless URL '{}', skipping", ciVisibilityAgentlessUrlStr);
-      }
-    }
-    if (parsedCiVisibilityUri != null) {
-      ciVisibilityAgentlessUrl = ciVisibilityAgentlessUrlStr;
-    } else {
-      ciVisibilityAgentlessUrl = null;
-    }
+    ciVisibilityAgentlessUrl =
+        isValidUrl(ciVisibilityAgentlessUrlStr) ? ciVisibilityAgentlessUrlStr : null;
+
+    final String ciVisibilityIntakeAgentlessUrlStr =
+        configProvider.getString(CIVISIBILITY_INTAKE_AGENTLESS_URL);
+    ciVisibilityIntakeAgentlessUrl =
+        isValidUrl(ciVisibilityIntakeAgentlessUrlStr) ? ciVisibilityIntakeAgentlessUrlStr : null;
 
     ciVisibilityAgentJarUri = configProvider.getString(CIVISIBILITY_AGENT_JAR_URI);
     ciVisibilityAutoConfigurationEnabled =
@@ -2745,6 +2740,19 @@ public class Config {
     this.rumInjectorConfig = parseRumConfig(configProvider);
 
     log.debug("New instance: {}", this);
+  }
+
+  private static boolean isValidUrl(String url) {
+    if (url == null || url.isEmpty()) {
+      return false;
+    }
+    try {
+      new URL(url).toURI();
+      return true;
+    } catch (MalformedURLException | URISyntaxException ex) {
+      log.error("Cannot parse URL '{}', skipping", url);
+      return false;
+    }
   }
 
   private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
@@ -3667,6 +3675,10 @@ public class Config {
 
   public String getCiVisibilityAgentlessUrl() {
     return ciVisibilityAgentlessUrl;
+  }
+
+  public String getCiVisibilityIntakeAgentlessUrl() {
+    return ciVisibilityIntakeAgentlessUrl;
   }
 
   public boolean isCiVisibilitySourceDataEnabled() {

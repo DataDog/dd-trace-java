@@ -8,6 +8,8 @@ public final class CiVisibilityConfig {
       "civisibility.trace.sanitation.enabled";
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
+  public static final String CIVISIBILITY_INTAKE_AGENTLESS_URL =
+      "civisibility.intake.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
   public static final String CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED =
       "civisibility.build.instrumentation.enabled";

@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.percentage;
+package datadog.trace.civisibility.coverage.report;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
@@ -15,11 +15,13 @@ import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.util.Strings;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.BitSet;
@@ -28,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.TreeMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -50,41 +53,45 @@ import org.jacoco.report.xml.XMLFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Uses Jacoco execution data to calculate the percentage of covered lines. */
-public class JacocoCoverageCalculator implements CoverageCalculator {
+/** Processes Jacoco coverage reports. */
+public class JacocoCoverageProcessor implements CoverageProcessor {
 
-  public static final class Factory
-      implements CoverageCalculator.Factory<JacocoCoverageCalculator> {
+  public static final class Factory implements CoverageProcessor.Factory<JacocoCoverageProcessor> {
     private final Config config;
     private final RepoIndexProvider repoIndexProvider;
+    private final CoverageReportUploader coverageReportUploader;
     @Nullable private final String repoRoot;
     private final ModuleSignalRouter moduleSignalRouter;
 
     public Factory(
         Config config,
         RepoIndexProvider repoIndexProvider,
+        CoverageReportUploader coverageReportUploader,
         @Nullable String repoRoot,
         ModuleSignalRouter moduleSignalRouter) {
       this.config = config;
       this.repoIndexProvider = repoIndexProvider;
+      this.coverageReportUploader = coverageReportUploader;
       this.repoRoot = repoRoot;
       this.moduleSignalRouter = moduleSignalRouter;
     }
 
     @Override
-    public JacocoCoverageCalculator sessionCoverage(long sessionId) {
-      return new JacocoCoverageCalculator(config, repoIndexProvider, repoRoot, sessionId);
+    public JacocoCoverageProcessor sessionCoverage(long sessionId) {
+      return new JacocoCoverageProcessor(
+          config, repoIndexProvider, coverageReportUploader, repoRoot, sessionId);
     }
 
     @Override
-    public JacocoCoverageCalculator moduleCoverage(
+    public JacocoCoverageProcessor moduleCoverage(
         long moduleId,
         @Nullable BuildModuleLayout moduleLayout,
         ExecutionSettings executionSettings,
-        JacocoCoverageCalculator sessionCoverage) {
-      return new JacocoCoverageCalculator(
+        JacocoCoverageProcessor sessionCoverage) {
+      return new JacocoCoverageProcessor(
           config,
           repoIndexProvider,
+          null, // do not upload coverage reports for individual modules
           executionSettings,
           repoRoot,
           moduleId,
@@ -94,13 +101,15 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
   }
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(JacocoCoverageCalculator.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JacocoCoverageProcessor.class);
 
-  @Nullable private final JacocoCoverageCalculator parent;
+  @Nullable private final JacocoCoverageProcessor parent;
 
   private final Config config;
 
   private final RepoIndexProvider repoIndexProvider;
+
+  @Nullable private final CoverageReportUploader coverageReportUploader;
 
   @Nullable private final String repoRoot;
 
@@ -117,30 +126,34 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   @GuardedBy("coverageDataLock")
   private final Collection<File> outputClassesDirs = new HashSet<>();
 
-  private JacocoCoverageCalculator(
+  private JacocoCoverageProcessor(
       Config config,
       RepoIndexProvider repoIndexProvider,
+      @Nullable CoverageReportUploader coverageReportUploader,
       @Nullable String repoRoot,
       long sessionId) {
     this.parent = null;
     this.config = config;
     this.repoIndexProvider = repoIndexProvider;
+    this.coverageReportUploader = coverageReportUploader;
     this.repoRoot = repoRoot;
     this.eventId = sessionId;
   }
 
-  private JacocoCoverageCalculator(
+  private JacocoCoverageProcessor(
       Config config,
       RepoIndexProvider repoIndexProvider,
+      @Nullable CoverageReportUploader coverageReportUploader,
       ExecutionSettings executionSettings,
       @Nullable String repoRoot,
       long moduleId,
       @Nullable BuildModuleLayout moduleLayout,
       ModuleSignalRouter moduleSignalRouter,
-      @Nonnull JacocoCoverageCalculator parent) {
+      @Nonnull JacocoCoverageProcessor parent) {
     this.parent = parent;
     this.config = config;
     this.repoIndexProvider = repoIndexProvider;
+    this.coverageReportUploader = coverageReportUploader;
     this.repoRoot = repoRoot;
     this.eventId = moduleId;
 
@@ -177,7 +190,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   private void addBackendCoverageData(@Nonnull Map<String, BitSet> skippableTestsCoverage) {
     synchronized (coverageDataLock) {
       for (Map.Entry<String, BitSet> e : skippableTestsCoverage.entrySet()) {
-        backendCoverageData.merge(e.getKey(), e.getValue(), JacocoCoverageCalculator::mergeBitSets);
+        backendCoverageData.merge(e.getKey(), e.getValue(), JacocoCoverageProcessor::mergeBitSets);
       }
     }
     if (parent != null) {
@@ -240,7 +253,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
   @Override
   @Nullable
-  public Long calculateCoveragePercentage() {
+  public Long processCoverageData() {
     IBundleCoverage coverageBundle = buildCoverageBundle();
     if (coverageBundle == null) {
       return null;
@@ -251,7 +264,12 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
       dumpCoverageReport(coverageBundle, coverageReportFolder);
     }
 
-    return getCoveragePercentage(coverageBundle);
+    if (backendCoverageData.isEmpty()) {
+      uploadCoverageReport(coverageBundle);
+      return getLocalCoveragePercentage(coverageBundle);
+    } else {
+      return mergeAndUploadCoverageReport(coverageBundle);
+    }
   }
 
   private IBundleCoverage buildCoverageBundle() {
@@ -368,11 +386,22 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
   }
 
-  private long getCoveragePercentage(IBundleCoverage coverageBundle) {
-    if (backendCoverageData.isEmpty()) {
-      return getLocalCoveragePercentage(coverageBundle);
-    } else {
-      return getMergedCoveragePercentage(coverageBundle);
+  private void uploadCoverageReport(IBundleCoverage coverageBundle) {
+    if (coverageReportUploader == null) {
+      return;
+    }
+
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      XMLFormatter xmlFormatter = new XMLFormatter();
+      IReportVisitor xmlVisitor = xmlFormatter.createVisitor(baos);
+      xmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
+      xmlVisitor.visitBundle(coverageBundle, createSourceFileLocator());
+      xmlVisitor.visitEnd();
+
+      coverageReportUploader.upload("jacoco", new ByteArrayInputStream(baos.toByteArray()));
+
+    } catch (IOException e) {
+      LOGGER.error("Error while uploading coverage report", e);
     }
   }
 
@@ -389,9 +418,16 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
   private static final BitSet EMPTY_BIT_SET = new BitSet();
 
-  /** Merges coverage from Jacoco bundle with skipped tests' coverage received from the backend. */
-  private long getMergedCoveragePercentage(IBundleCoverage coverageBundle) {
+  /**
+   * Merges coverage from Jacoco bundle with skipped tests' coverage received from the backend and
+   * uploads the merge result if applicable.
+   *
+   * @return total coverage percentage
+   */
+  private long mergeAndUploadCoverageReport(IBundleCoverage coverageBundle) {
     RepoIndex repoIndex = repoIndexProvider.getIndex();
+
+    Map<String, BitSet> mergedCoverageData = new TreeMap<>();
 
     int totalLines = 0, coveredLines = 0;
     for (IPackageCoverage packageCoverage : coverageBundle.getPackages()) {
@@ -415,11 +451,30 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         sourceFileCoveredLines.or(
             backendCoverageData.getOrDefault(pathRelativeToIndexRoot, EMPTY_BIT_SET));
 
+        mergedCoverageData.put(pathRelativeToIndexRoot, sourceFileCoveredLines);
+
         coveredLines += sourceFileCoveredLines.cardinality();
         totalLines += sourceFile.getLineCounter().getTotalCount();
       }
     }
+
+    uploadMergedCoverageReport(mergedCoverageData);
+
     return Math.round((100d * coveredLines) / totalLines);
+  }
+
+  private void uploadMergedCoverageReport(Map<String, BitSet> mergedCoverageData) {
+    if (coverageReportUploader == null) {
+      return;
+    }
+
+    String lcovReport = LcovReportWriter.toString(mergedCoverageData);
+    try {
+      coverageReportUploader.upload(
+          "lcov", new ByteArrayInputStream(lcovReport.getBytes(StandardCharsets.UTF_8)));
+    } catch (IOException e) {
+      LOGGER.error("Error while uploading coverage report", e);
+    }
   }
 
   private static BitSet getCoveredLines(ISourceNode coverage) {

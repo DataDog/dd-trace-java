@@ -5,8 +5,10 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
+import org.apache.commons.fileupload.FileItem
 import spock.lang.IgnoreIf
 
 import java.nio.file.FileVisitResult
@@ -93,6 +95,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(expectedEvents), mockBackend.waitForCoverages(expectedCoverages))
     verifyTelemetryMetrics(mockBackend.getAllReceivedTelemetryMetrics(), mockBackend.getAllReceivedTelemetryDistributions(), expectedEvents)
+
+    def coverageReportExpected = CiVisibilitySmokeTest.classLoader.getResource(projectName + "/coverage_report_event.ftl") != null
+    if (coverageReportExpected) {
+      def reports = mockBackend.waitForCoverageReports(1)
+      def realProjectHome = projectHome.toRealPath().toString()
+      verifyCoverageReports(projectName, reports, ["ci_workspace_path": realProjectHome])
+    }
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                              | minSupportedJavaVersion
@@ -395,6 +404,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
 
       if (setServiceName) {

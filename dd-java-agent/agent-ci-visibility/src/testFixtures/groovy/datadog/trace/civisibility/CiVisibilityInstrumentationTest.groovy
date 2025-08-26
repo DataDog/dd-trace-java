@@ -25,7 +25,7 @@ import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.*
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
-import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
+import datadog.trace.civisibility.coverage.report.NoOpCoverageProcessor
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.diff.Diff
@@ -192,7 +192,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       executionSettingsFactory,
       signalServer,
       repoIndexBuilder,
-      new NoOpCoverageCalculator.Factory()
+      new NoOpCoverageProcessor.Factory()
       )
     }
 

@@ -19,7 +19,7 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
+import datadog.trace.civisibility.coverage.report.CoverageProcessor;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.BuildSystemSession;
@@ -43,7 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 
-public class BuildSystemSessionImpl<T extends CoverageCalculator> extends AbstractTestSession
+public class BuildSystemSessionImpl<T extends CoverageProcessor> extends AbstractTestSession
     implements BuildSystemSession {
 
   private final String startCommand;
@@ -51,8 +51,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
   private final ExecutionSettingsFactory executionSettingsFactory;
   private final SignalServer signalServer;
   private final RepoIndexProvider repoIndexProvider;
-  private final CoverageCalculator.Factory<T> coverageCalculatorFactory;
-  private final T coverageCalculator;
+  private final CoverageProcessor.Factory<T> coverageProcessorFactory;
+  private final T coverageProcessor;
   private final BuildSessionSettings settings;
 
   public BuildSystemSessionImpl(
@@ -70,7 +70,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       ExecutionSettingsFactory executionSettingsFactory,
       SignalServer signalServer,
       RepoIndexProvider repoIndexProvider,
-      CoverageCalculator.Factory<T> coverageCalculatorFactory) {
+      CoverageProcessor.Factory<T> coverageProcessorFactory) {
     super(
         projectName,
         startTime,
@@ -87,8 +87,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     this.executionSettingsFactory = executionSettingsFactory;
     this.signalServer = signalServer;
     this.repoIndexProvider = repoIndexProvider;
-    this.coverageCalculatorFactory = coverageCalculatorFactory;
-    this.coverageCalculator = coverageCalculatorFactory.sessionCoverage(span.getSpanId());
+    this.coverageProcessorFactory = coverageProcessorFactory;
+    this.coverageProcessor = coverageProcessorFactory.sessionCoverage(span.getSpanId());
     this.settings =
         new BuildSessionSettings(
             getCoverageIncludedPackages(config, repoIndexProvider),
@@ -168,8 +168,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         codeowners,
         linesResolver,
         moduleSignalRouter,
-        coverageCalculatorFactory,
-        coverageCalculator,
+        coverageProcessorFactory,
+        coverageProcessor,
         executionSettings,
         settings,
         this::onModuleFinish);
@@ -212,7 +212,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
   public void end(@Nullable Long endTime) {
     signalServer.stop();
 
-    Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
+    Long coveragePercentage = coverageProcessor.processCoverageData();
     if (coveragePercentage != null) {
       setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
 
