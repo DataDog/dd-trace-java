@@ -1,7 +1,5 @@
 package datadog.trace.core.test
 
-import static java.util.Collections.emptyList
-
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
@@ -29,6 +27,7 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   @Override
   void setupSpec() {
+    TagsPostProcessorFactory.withAddBaseService(false)
     TagsPostProcessorFactory.withAddRemoteHostname(false)
   }
 
@@ -42,9 +41,7 @@ abstract class DDCoreSpecification extends DDSpecification {
     if (useNoopStatsDClient()) {
       builder = builder.statsDClient(StatsDClient.NO_OP)
     }
-    return builder
-      .strictTraceWrites(useStrictTraceWrites())
-      .preWriteTagsPostProcessors(emptyList())
+    return builder.strictTraceWrites(useStrictTraceWrites())
   }
 
   protected DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {

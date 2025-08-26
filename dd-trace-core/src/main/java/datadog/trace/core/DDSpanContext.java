@@ -897,10 +897,6 @@ public class DDSpanContext
     }
   }
 
-  TagMap unsafeGetTags() {
-    return unsafeTags;
-  }
-
   /** @see CoreSpan#getMetaStruct() */
   public Map<String, Object> getMetaStruct() {
     return Collections.unmodifiableMap(metaStruct);
@@ -925,11 +921,17 @@ public class DDSpanContext
     }
   }
 
+  public void earlyProcessTags(List<AgentSpanLink> links) {
+    synchronized (unsafeTags) {
+      TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
+    }
+  }
+
   public void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
     synchronized (unsafeTags) {
       // Tags
-      TagsPostProcessorFactory.instance().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, links);
 
       String linksTag = DDSpanLink.toTag(links);
       if (linksTag != null) {

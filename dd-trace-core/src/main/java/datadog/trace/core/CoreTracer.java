@@ -97,10 +97,6 @@ import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
-import datadog.trace.core.tagprocessor.BaseServiceAdder;
-import datadog.trace.core.tagprocessor.PeerServiceCalculator;
-import datadog.trace.core.tagprocessor.PostProcessorChain;
-import datadog.trace.core.tagprocessor.TagsPostProcessor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -202,8 +198,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final TagMap defaultSpanTags;
 
   private final boolean defaultSpanTagsNeedsIntercept;
-
-  public final PostProcessorChain preWritePostProcessorChain;
 
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
@@ -326,7 +320,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private StatsDClient statsDClient;
     private HealthMetrics healthMetrics;
     private TagInterceptor tagInterceptor;
-    private List<TagsPostProcessor> preWriteTagsPostProcessors;
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
     private TimeSource timeSource;
@@ -426,12 +419,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     public CoreTracerBuilder tagInterceptor(TagInterceptor tagInterceptor) {
       this.tagInterceptor = tagInterceptor;
-      return this;
-    }
-
-    public CoreTracerBuilder preWriteTagsPostProcessors(
-        List<TagsPostProcessor> preWriteTagsPostProcessors) {
-      this.preWriteTagsPostProcessors = preWriteTagsPostProcessors;
       return this;
     }
 
@@ -540,7 +527,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           statsDClient,
           healthMetrics,
           tagInterceptor,
-          preWriteTagsPostProcessors,
           strictTraceWrites,
           instrumentationGateway,
           timeSource,
@@ -601,7 +587,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         statsDClient,
         healthMetrics,
         tagInterceptor,
-        null,
         strictTraceWrites,
         instrumentationGateway,
         timeSource,
@@ -633,7 +618,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final StatsDClient statsDClient,
       final HealthMetrics healthMetrics,
       final TagInterceptor tagInterceptor,
-      final List<TagsPostProcessor> preWriteTagsPostProcessors,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
       final TimeSource timeSource,
@@ -682,15 +666,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
-
-    if (preWriteTagsPostProcessors != null) {
-      this.preWritePostProcessorChain =
-          new PostProcessorChain(preWriteTagsPostProcessors.toArray(new TagsPostProcessor[0]));
-    } else {
-      this.preWritePostProcessorChain =
-          new PostProcessorChain(
-              new PeerServiceCalculator(), new BaseServiceAdder(Config.get().getServiceName()));
-    }
 
     this.defaultSpanTags = defaultSpanTags;
     this.defaultSpanTagsNeedsIntercept = this.tagInterceptor.needsIntercept(this.defaultSpanTags);
@@ -1138,9 +1113,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // run early tag postprocessors before publishing to the metrics writer since peer / base
     // service are needed
     for (DDSpan span : writtenTrace) {
-      final DDSpanContext ddSpanContext = span.context();
-      preWritePostProcessorChain.processTags(
-          ddSpanContext.unsafeGetTags(), ddSpanContext, span.getSpanLinks());
+      span.processServiceTags();
     }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
