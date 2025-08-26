@@ -102,7 +102,7 @@ class WAFModuleSpecification extends DDSpecification {
 
     final configurationPoller = Stub(ConfigurationPoller) {
       addListener(Product.ASM_DD, _ as ProductListener) >> {
-        Product ignored, ProductListener l ->
+        Product _, ProductListener l ->
         listener = l
       }
     }

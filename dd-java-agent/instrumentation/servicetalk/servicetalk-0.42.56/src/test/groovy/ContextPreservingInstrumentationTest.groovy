@@ -17,7 +17,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     when:
     runInSeparateThread {
       parent.capturedContext.attachContext()
-      try (def ignored = parent.capturedContext.attachContext()) {
+      try (def _ = parent.capturedContext.attachContext()) {
         childSpan()
       }
     }
@@ -30,7 +30,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
   def "capturedContext without an active span"() {
     when:
     runInSeparateThread {
-      try (def ignored = asyncContextProvider.captureContext().attachContext()) {
+      try (def _ = asyncContextProvider.captureContext().attachContext()) {
         childSpan()
       }
     }
