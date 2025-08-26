@@ -22,7 +22,7 @@ public class RenderAdvice {
   public static void stopSpan(
       @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
     SpringWebHttpServerDecorator.DECORATE_RENDER.onError(scope, throwable);
-    SpringWebHttpServerDecorator.DECORATE_RENDER.beforeFinish(scope);
+    SpringWebHttpServerDecorator.DECORATE_RENDER.beforeFinish(scope.context());
     scope.close();
     scope.span().finish();
   }

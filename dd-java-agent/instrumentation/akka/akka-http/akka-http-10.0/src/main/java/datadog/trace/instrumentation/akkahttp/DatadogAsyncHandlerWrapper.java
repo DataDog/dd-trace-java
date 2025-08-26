@@ -38,7 +38,7 @@ public class DatadogAsyncHandlerWrapper
       request.discardEntityBytes(materializer);
       HttpResponse response = BlockingResponseHelper.maybeCreateBlockingResponse(rba, request);
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      DatadogWrapperHelper.finishSpan(span, response);
+      DatadogWrapperHelper.finishSpan(scope, response);
       return FastFuture$.MODULE$.<HttpResponse>successful().apply(response);
     }
 
@@ -46,7 +46,7 @@ public class DatadogAsyncHandlerWrapper
       futureResponse = userHandler.apply(request);
     } catch (final Throwable t) {
       scope.close();
-      DatadogWrapperHelper.finishSpan(span, t);
+      DatadogWrapperHelper.finishSpan(scope, t);
       throw t;
     }
 
@@ -67,14 +67,14 @@ public class DatadogAsyncHandlerWrapper
                       response = newResponse;
                     }
 
-                    DatadogWrapperHelper.finishSpan(span, response);
+                    DatadogWrapperHelper.finishSpan(scope, response);
                     return response;
                   }
                 },
                 new AbstractFunction1<Throwable, Throwable>() {
                   @Override
                   public Throwable apply(final Throwable t) {
-                    DatadogWrapperHelper.finishSpan(span, t);
+                    DatadogWrapperHelper.finishSpan(scope, t);
                     return t;
                   }
                 },

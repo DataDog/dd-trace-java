@@ -116,9 +116,8 @@ public class Servlet2Advice {
       }
       DECORATE.onError(span, throwable);
     }
-    DECORATE.beforeFinish(span);
+    DECORATE.beforeFinish(scope.context());
 
     scope.close();
-    span.finish();
   }
 }

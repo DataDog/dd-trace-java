@@ -23,7 +23,7 @@ object SprayHelper {
         case throwable: Throwable   => DECORATE.onError(span, throwable)
         case x                      =>
       }
-      DECORATE.beforeFinish(span)
+      DECORATE.beforeFinish(parentContext)
       span.finish()
       message
     })

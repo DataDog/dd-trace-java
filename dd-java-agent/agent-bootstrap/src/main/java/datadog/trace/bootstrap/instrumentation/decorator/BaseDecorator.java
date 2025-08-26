@@ -4,6 +4,7 @@ import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -77,12 +78,16 @@ public abstract class BaseDecorator {
   }
 
   public AgentScope beforeFinish(final AgentScope scope) {
-    beforeFinish(scope.span());
+    beforeFinish(scope.context());
     return scope;
   }
 
   public AgentSpan beforeFinish(final AgentSpan span) {
     return span;
+  }
+
+  public Context beforeFinish(final Context context) {
+    return context;
   }
 
   public AgentScope onError(final AgentScope scope, final Throwable throwable) {

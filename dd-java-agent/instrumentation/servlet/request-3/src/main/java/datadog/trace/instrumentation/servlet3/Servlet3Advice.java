@@ -144,7 +144,7 @@ public class Servlet3Advice {
       if (request.isAsyncStarted()) {
         AtomicBoolean activated = new AtomicBoolean();
         FinishAsyncDispatchListener asyncListener =
-            new FinishAsyncDispatchListener(span, activated, !isDispatch);
+            new FinishAsyncDispatchListener(scope, activated, !isDispatch);
         // Jetty doesn't always call the listener, if the request ends before
         request.setAttribute(DD_FIN_DISP_LIST_SPAN_ATTRIBUTE, asyncListener);
         try {
@@ -158,7 +158,7 @@ public class Servlet3Advice {
             DECORATE.onResponse(span, resp);
           }
           if (finishSpan) {
-            DECORATE.beforeFinish(span);
+            DECORATE.beforeFinish(scope.context());
             span.finish(); // Finish the span manually since finishSpanOnClose was false
           }
         }
@@ -181,7 +181,7 @@ public class Servlet3Advice {
           DECORATE.onError(span, throwable);
         }
         if (finishSpan) {
-          DECORATE.beforeFinish(span);
+          DECORATE.beforeFinish(scope.context());
           span.finish(); // Finish the span manually since finishSpanOnClose was false
         }
       }

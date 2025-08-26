@@ -122,7 +122,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         finish = true;
       }
       if (finish) {
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         span.finish();
       }
     }

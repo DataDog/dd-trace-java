@@ -73,7 +73,7 @@ public class ControllerAdvice {
       finish = true;
     }
     if (finish) {
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       span.finish();
     }
   }

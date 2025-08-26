@@ -529,11 +529,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
-    // TODO Migrate beforeFinish to Context API
+  public Context beforeFinish(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
     onRequestEndForInstrumentationGateway(span);
+
+    // Close Serverless Gateway Inferred Span if any
+    finishInferredProxySpan(context);
+
+    return super.beforeFinish(context);
+  }
+
+  @Override
+  public AgentSpan beforeFinish(AgentSpan span) {
+    onRequestEndForInstrumentationGateway(span);
+
     // Close Serverless Gateway Inferred Span if any
     // finishInferredProxySpan(context);
+
     return super.beforeFinish(span);
   }
 
