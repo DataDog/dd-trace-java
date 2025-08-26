@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.jetty9;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
@@ -9,9 +10,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
@@ -69,11 +71,14 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
 
   static class HandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static AgentScope onEnter(
+    static ContextScope onEnter(
         @Advice.Argument(0) HttpChannel<?> channel,
         @Advice.Local("agentSpan") AgentSpan span,
         @Advice.Local("request") Request req) {
       req = channel.getRequest();
+
+      // First check if there's an existing context in the request (from main server span)
+      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
       // same logic as in Servlet3Advice. We need to activate/finish the dispatch span here
       // because we don't know if a servlet is going to be called and therefore whether
@@ -95,8 +100,15 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
         // the root span, stored in DD_SPAN_ATTRIBUTE.
         // req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
         span = (AgentSpan) dispatchSpan;
-        AgentScope scope = activateSpan(span);
-        return scope;
+
+        // If we have an existing context, create a new context with the dispatch span
+        // Otherwise just attach the dispatch span
+        if (existingContext instanceof Context) {
+          Context contextWithDispatchSpan = ((Context) existingContext).with(span);
+          return contextWithDispatchSpan.attach();
+        } else {
+          return span.attach();
+        }
       }
 
       return null;
@@ -104,12 +116,17 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("request") Request req,
         @Advice.Local("agentSpan") AgentSpan span,
         @Advice.Thrown Throwable t) {
       if (scope == null) {
         return;
+      }
+
+      // Extract the span from the context if we didn't get it from @Local
+      if (span == null) {
+        span = spanFromContext(scope.context());
       }
 
       boolean registeredFinishListener;
@@ -131,7 +148,8 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
       }
       if (!(req.isAsyncStarted() && registeredFinishListener)) {
         // finish will be handled by the async listener
-        DECORATE.beforeFinish(span);
+        // Use the full context from the scope for beforeFinish
+        DECORATE.beforeFinish(scope.context());
         span.finish();
       }
       scope.close();
