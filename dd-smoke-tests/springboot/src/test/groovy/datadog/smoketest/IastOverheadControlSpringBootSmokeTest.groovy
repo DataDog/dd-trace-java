@@ -1,7 +1,5 @@
 package datadog.smoketest
 
-import datadog.trace.test.util.Flaky
-
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
@@ -38,8 +36,14 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
     ]
   }
 
-  @Flaky("https://github.com/DataDog/dd-trace-java/issues/9417")
   void 'Test that all the vulnerabilities are detected'() {
+    // --- Reset OverheadContext.globalMap to avoid flakiness ---
+    def overheadContextClass = Class.forName('com.datadog.iast.overhead.OverheadContext')
+    def globalMapField = overheadContextClass.getDeclaredField('globalMap')
+    globalMapField.setAccessible(true)
+    def globalMap = globalMapField.get(null)
+    globalMap.clear()
+    // ---------------------------------------------------------
     given:
     // prepare a list of exactly three GET requests with path and query param
     def requests = []
