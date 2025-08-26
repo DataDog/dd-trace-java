@@ -1,53 +1,60 @@
 package datadog.trace.civisibility.coverage.report;
 
+// LcovReportWriter.java
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.util.BitSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
-/** Serializes coverage data into LCOV format. */
 public final class LcovReportWriter {
+  private LcovReportWriter() {}
 
-  public static void write(Map<String, BitSet> coverage, Writer out) throws IOException {
+  public static void write(Map<String, LinesCoverage> coverage, Writer out) throws IOException {
     Objects.requireNonNull(coverage, "coverage");
     Objects.requireNonNull(out, "out");
 
-    Map<String, BitSet> sorted = (coverage instanceof TreeMap) ? coverage : toTreeMap(coverage);
+    Map<String, LinesCoverage> sorted =
+        (coverage instanceof TreeMap) ? coverage : toTreeMap(coverage);
 
-    for (Map.Entry<String, BitSet> e : sorted.entrySet()) {
+    for (Map.Entry<String, LinesCoverage> e : sorted.entrySet()) {
       String path = e.getKey();
-      BitSet bits = e.getValue();
+      LinesCoverage lc = e.getValue();
       if (path == null || path.isEmpty()) {
         continue;
       }
-      if (bits == null) {
-        bits = new BitSet();
+      if (lc == null) {
+        lc = new LinesCoverage();
       }
 
       out.write("SF:" + path + "\n");
 
-      int hits = 0;
-      for (int i = bits.nextSetBit(1); i >= 0; i = bits.nextSetBit(i + 1)) {
-        out.write("DA:" + i + ",1\n");
-        hits++;
+      int lf = 0; // lines found (instrumented)
+      int lh = 0; // lines hit (executed at least once)
+
+      for (int line = lc.executableLines.nextSetBit(1);
+          line >= 0;
+          line = lc.executableLines.nextSetBit(line + 1)) { // skip bit 0
+        lf++;
+        int count = lc.coveredLines.get(line) ? 1 : 0;
+        lh += count;
+        out.write("DA:" + line + "," + count + "\n");
       }
 
-      int lf = Math.max(0, bits.length() - 1); // exclude bit 0
-      out.write("LH:" + hits + "\n");
+      out.write("LH:" + lh + "\n");
       out.write("LF:" + lf + "\n");
       out.write("end_of_record\n");
     }
   }
 
-  @NotNull
-  private static TreeMap<String, BitSet> toTreeMap(Map<String, BitSet> coverage) {
-    TreeMap<String, BitSet> treeMap = new TreeMap<>();
-    for (Map.Entry<String, BitSet> e : coverage.entrySet()) {
+  @Nonnull
+  private static TreeMap<String, LinesCoverage> toTreeMap(Map<String, LinesCoverage> coverage) {
+    TreeMap<String, LinesCoverage> treeMap = new TreeMap<>();
+    for (Map.Entry<String, LinesCoverage> e : coverage.entrySet()) {
       if (e.getKey() == null) {
         continue;
       }
@@ -56,7 +63,7 @@ public final class LcovReportWriter {
     return treeMap;
   }
 
-  public static String toString(Map<String, BitSet> coverage) {
+  public static String toString(Map<String, LinesCoverage> coverage) {
     try {
       StringWriter sw = new StringWriter();
       write(coverage, sw);

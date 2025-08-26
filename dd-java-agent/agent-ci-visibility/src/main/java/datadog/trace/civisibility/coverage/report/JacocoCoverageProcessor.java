@@ -38,6 +38,7 @@ import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.analysis.CoverageBuilder;
 import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.ICounter;
+import org.jacoco.core.analysis.ILine;
 import org.jacoco.core.analysis.IPackageCoverage;
 import org.jacoco.core.analysis.ISourceFileCoverage;
 import org.jacoco.core.analysis.ISourceNode;
@@ -427,7 +428,7 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
   private long mergeAndUploadCoverageReport(IBundleCoverage coverageBundle) {
     RepoIndex repoIndex = repoIndexProvider.getIndex();
 
-    Map<String, BitSet> mergedCoverageData = new TreeMap<>();
+    Map<String, LinesCoverage> mergedCoverageData = new TreeMap<>();
 
     int totalLines = 0, coveredLines = 0;
     for (IPackageCoverage packageCoverage : coverageBundle.getPackages()) {
@@ -444,16 +445,16 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
           continue;
         }
 
-        BitSet sourceFileCoveredLines = getCoveredLines(sourceFile);
+        LinesCoverage linesCoverage = getLinesCoverage(sourceFile);
         // backendCoverageData contains data for all modules in the repo,
         // but coverageBundle bundle only has source files that are relevant for the given module,
         // so we are not taking into account any backend coverage that is not relevant
-        sourceFileCoveredLines.or(
+        linesCoverage.coveredLines.or(
             backendCoverageData.getOrDefault(pathRelativeToIndexRoot, EMPTY_BIT_SET));
 
-        mergedCoverageData.put(pathRelativeToIndexRoot, sourceFileCoveredLines);
+        mergedCoverageData.put(pathRelativeToIndexRoot, linesCoverage);
 
-        coveredLines += sourceFileCoveredLines.cardinality();
+        coveredLines += linesCoverage.coveredLines.cardinality();
         totalLines += sourceFile.getLineCounter().getTotalCount();
       }
     }
@@ -463,7 +464,7 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     return Math.round((100d * coveredLines) / totalLines);
   }
 
-  private void uploadMergedCoverageReport(Map<String, BitSet> mergedCoverageData) {
+  private void uploadMergedCoverageReport(Map<String, LinesCoverage> mergedCoverageData) {
     if (coverageReportUploader == null) {
       return;
     }
@@ -477,21 +478,25 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     }
   }
 
-  private static BitSet getCoveredLines(ISourceNode coverage) {
-    BitSet bitSet = new BitSet();
+  private static LinesCoverage getLinesCoverage(ISourceNode coverage) {
+    LinesCoverage linesCoverage = new LinesCoverage();
 
     int firstLine = coverage.getFirstLine();
     if (firstLine == -1) {
-      return bitSet;
+      return linesCoverage;
     }
 
     int lastLine = coverage.getLastLine();
-    for (int line = firstLine; line <= lastLine; line++) {
-      if (coverage.getLine(line).getStatus() >= ICounter.FULLY_COVERED) {
-        bitSet.set(line);
+    for (int lineIdx = firstLine; lineIdx <= lastLine; lineIdx++) {
+      ILine line = coverage.getLine(lineIdx);
+      if (line.getStatus() > ICounter.EMPTY) {
+        linesCoverage.executableLines.set(lineIdx);
+        if (line.getStatus() >= ICounter.FULLY_COVERED) {
+          linesCoverage.coveredLines.set(lineIdx);
+        }
       }
     }
 
-    return bitSet;
+    return linesCoverage;
   }
 }
