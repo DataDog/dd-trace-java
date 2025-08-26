@@ -201,10 +201,10 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
     when:
     TraceUtils.runUnderTrace('parent', {
-      def my_attribute = new MessageAttributeValue()
-      my_attribute.setStringValue("hello world")
-      my_attribute.setDataType("String")
-      def readonlyAttributes = ImmutableMap<String, MessageAttributeValue>.of("my_key", my_attribute)
+      def myAttribute = new MessageAttributeValue()
+      myAttribute.setStringValue("hello world")
+      myAttribute.setDataType("String")
+      def readonlyAttributes = ImmutableMap<String, MessageAttributeValue>.of("my_key", myAttribute)
       def req = new SendMessageRequest(queueUrl, 'sometext')
       req.setMessageAttributes(readonlyAttributes)
       client.sendMessage(req)

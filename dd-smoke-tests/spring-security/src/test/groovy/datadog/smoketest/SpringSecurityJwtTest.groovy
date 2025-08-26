@@ -23,15 +23,12 @@ import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 
 @CompileDynamic
 class SpringSecurityJwtTest extends AbstractIastServerSmokeTest {
-
-  static final RSAKey rsaJWK = new RSAKeyGenerator(2048).generate()
+  static final RSAKey RSA_JWK = new RSAKeyGenerator(2048).generate()
 
   @Override
   ProcessBuilder createProcessBuilder() {
-    KeyPair kp = rsaJWK.toKeyPair()
+    KeyPair kp = RSA_JWK.toKeyPair()
     String publicKeyStr = Base64.getEncoder().encodeToString(kp.getPublic().getEncoded())
-
-    String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
 
     String cp = buildClassPath()
     List<String> command = new ArrayList<>()
@@ -72,7 +69,7 @@ class SpringSecurityJwtTest extends AbstractIastServerSmokeTest {
   def "read endpoint"() {
     setup:
     String url = "http://localhost:${httpPort}/read"
-    def token = generateToken(rsaJWK)
+    def token = generateToken(RSA_JWK)
     def request = new Request.Builder().url(url).header("Authorization", "Bearer " + token).get().build()
 
     when:

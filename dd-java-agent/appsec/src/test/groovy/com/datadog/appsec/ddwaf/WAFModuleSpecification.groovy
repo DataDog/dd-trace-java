@@ -31,8 +31,6 @@ import com.squareup.moshi.Types
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.communication.monitor.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
-import datadog.remoteconfig.PollerRequestFactory
-import datadog.remoteconfig.PollingRateHinter
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ConfigKey
 import datadog.remoteconfig.state.ParsedConfigKey
@@ -104,7 +102,7 @@ class WAFModuleSpecification extends DDSpecification {
 
     final configurationPoller = Stub(ConfigurationPoller) {
       addListener(Product.ASM_DD, _ as ProductListener) >> {
-        Product _, ProductListener l ->
+        Product ignored, ProductListener l ->
         listener = l
       }
     }

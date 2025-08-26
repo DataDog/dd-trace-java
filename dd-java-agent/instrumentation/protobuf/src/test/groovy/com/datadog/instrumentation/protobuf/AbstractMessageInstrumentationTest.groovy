@@ -241,11 +241,14 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
         MyMessage.parseFrom(new byte[]{
           1, 2, 3, 4, 5
         })
-      } catch (InvalidProtocolBufferException e) {
+      } catch (InvalidProtocolBufferException ignored) {
       }
     }
     TEST_WRITER.waitForTraces(1)
+
     then:
+    message != null
+
     assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
         span {

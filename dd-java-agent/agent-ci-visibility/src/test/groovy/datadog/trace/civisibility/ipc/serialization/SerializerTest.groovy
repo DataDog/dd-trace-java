@@ -133,15 +133,15 @@ class SerializerTest extends Specification {
     deserializedMap.getClass() == clazz
 
     where:
-    m                                  | clazz         | provider                            | keySerializer     | keyDeserializer
-    [:]                                | HashMap       | HashMap::new                        | Serializer::write | Serializer::readString
-    ["a": "1", "b": "2"]               | HashMap       | HashMap::new                        | Serializer::write | Serializer::readString
-    [:]                                | LinkedHashMap | LinkedHashMap::new                  | Serializer::write | Serializer::readString
-    ["a": "1", "b": "2"]               | LinkedHashMap | LinkedHashMap::new                  | Serializer::write | Serializer::readString
-    [:]                                | TreeMap       | TreeMap::new                        | Serializer::write | Serializer::readString
-    ["a": "1", "b": "2"]               | TreeMap       | TreeMap::new                        | Serializer::write | Serializer::readString
-    [:]                                | EnumMap       | (() -> new EnumMap<>(MyEnum.class)) | MyEnum::serialize | MyEnum::deserialize
-    [(MyEnum.A): "1", (MyEnum.B): "2"] | EnumMap       | (() -> new EnumMap<>(MyEnum.class)) | MyEnum::serialize | MyEnum::deserialize
+    m                                  | clazz         | provider                      | keySerializer     | keyDeserializer
+    [:]                                | HashMap       | HashMap::new                  | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | HashMap       | HashMap                       | Serializer::write | Serializer::readString
+    [:]                                | LinkedHashMap | LinkedHashMap::new            | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | LinkedHashMap | LinkedHashMap::new            | Serializer::write | Serializer::readString
+    [:]                                | TreeMap       | TreeMap::new                  | Serializer::write | Serializer::readString
+    ["a": "1", "b": "2"]               | TreeMap       | TreeMap::new                  | Serializer::write | Serializer::readString
+    [:]                                | EnumMap       | (() -> new EnumMap<>(MyEnum)) | MyEnum::serialize | MyEnum::deserialize
+    [(MyEnum.A): "1", (MyEnum.B): "2"] | EnumMap       | (() -> new EnumMap<>(MyEnum)) | MyEnum::serialize | MyEnum::deserialize
   }
 
   def "test mixed serialization"() {

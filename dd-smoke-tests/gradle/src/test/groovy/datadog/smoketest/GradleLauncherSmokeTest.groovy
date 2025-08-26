@@ -81,8 +81,8 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   private static String buildJavaHome() {
     if (Jvm.current.isJava8()) {
       return System.getenv("JAVA_8_HOME")
-    } else {
-      return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
     }
+
+    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
   }
 }
