@@ -21,17 +21,18 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
       return;
     }
 
-    AgentSpan span = continuation.span();
+    try (AgentScope scope = continuation.activate()) {
+      AgentSpan span = scope.span();
 
-    Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
+      Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+      }
+
+      DECORATE.onResponse(span, exchange);
+      DECORATE.beforeFinish(scope.context());
+      span.finish();
     }
-
-    DECORATE.onResponse(span, exchange);
-    DECORATE.beforeFinish(span);
-    continuation.cancel();
-    span.finish();
     nextListener.proceed();
   }
 }

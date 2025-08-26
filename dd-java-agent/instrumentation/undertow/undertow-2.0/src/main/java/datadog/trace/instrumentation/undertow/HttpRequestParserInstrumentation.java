@@ -85,7 +85,7 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
         DECORATE.onError(span, throwable);
         // because we know that a http 400 will be thrown
         DECORATE.onResponseStatus(span, 400);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
       } finally {
         if (span != null) {
           span.finish();

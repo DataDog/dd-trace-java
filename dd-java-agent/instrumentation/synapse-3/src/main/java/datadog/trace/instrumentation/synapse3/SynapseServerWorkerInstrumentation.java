@@ -97,7 +97,7 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
       // (if there's an ACK response or error we might not get a separate response event)
       if ((null != httpResponse || null != error)
           && null != request.getConnection().getContext().removeAttribute(SYNAPSE_SPAN_KEY)) {
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         scope.close();
         span.finish();
       } else {
