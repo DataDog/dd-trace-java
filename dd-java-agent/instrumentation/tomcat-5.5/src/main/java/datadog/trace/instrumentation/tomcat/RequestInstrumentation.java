@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.tomcat;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
@@ -81,21 +81,19 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     public static void stopSpan(@Advice.This final Request req) {
       Response resp = req.getResponse();
 
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
       Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
-      if (spanObj instanceof AgentSpan && contextObj instanceof Context) {
+      if (contextObj instanceof Context) {
         /**
-         * This advice will be called for both Request and Response. The span and context are
-         * removed from the request so the advice only applies the first invocation. (So it doesn't
-         * matter which is recycled first.)
+         * This advice will be called for both Request and Response. The context is removed from the
+         * request so the advice only applies the first invocation. (So it doesn't matter which is
+         * recycled first.)
          */
         // values set on the coyote request, so we must remove directly from there.
-        req.getCoyoteRequest().setAttribute(DD_SPAN_ATTRIBUTE, null);
         req.getCoyoteRequest().setAttribute(DD_CONTEXT_ATTRIBUTE, null);
 
-        final AgentSpan span = (AgentSpan) spanObj;
         final Context context = (Context) contextObj;
+        final AgentSpan span = spanFromContext(context);
         DECORATE.onResponse(span, resp);
         DECORATE.beforeFinish(context);
         span.finish();
