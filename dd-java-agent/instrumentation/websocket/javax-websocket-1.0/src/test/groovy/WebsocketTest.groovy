@@ -55,11 +55,11 @@ class WebsocketTest extends AgentTestRunner {
     .decoders([Endpoints.CustomMessageDecoder])
     .build()
 
-    sec.getUserProperties().put(Endpoint.class.getName(), endpoint)
-    sec.getUserProperties().put(AgentSpan.class.getName(), handshakeServerSpan)
+    sec.getUserProperties().put(Endpoint.name, endpoint)
+    sec.getUserProperties().put(AgentSpan.name, handshakeServerSpan)
 
     final ServerApplicationConfig serverConfig =
-    new TyrusServerConfiguration(Collections.singleton(EndpointWrapper.class),
+    new TyrusServerConfiguration(Collections.singleton(EndpointWrapper),
     Collections.singleton(sec))
 
     ClientEndpointConfig cec = ClientEndpointConfig.Builder.create()

@@ -1,9 +1,3 @@
-import org.testcontainers.utility.DockerImageName
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-
 import com.redis.testcontainers.RedisContainer
 import com.redis.testcontainers.RedisServer
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -14,7 +8,10 @@ import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
+
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
