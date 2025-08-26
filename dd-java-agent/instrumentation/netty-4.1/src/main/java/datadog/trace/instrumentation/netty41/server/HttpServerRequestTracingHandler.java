@@ -72,7 +72,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         The handler chain failed with exception - need to finish the span here
          */
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(ignored.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
         throw throwable;

@@ -52,7 +52,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       if (response.status() != HttpResponseStatus.CONTINUE
           && (response.status() != HttpResponseStatus.SWITCHING_PROTOCOLS || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
       }

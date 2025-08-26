@@ -67,7 +67,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         ctx.fireChannelRead(msg);
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(ignored.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
         throw throwable;

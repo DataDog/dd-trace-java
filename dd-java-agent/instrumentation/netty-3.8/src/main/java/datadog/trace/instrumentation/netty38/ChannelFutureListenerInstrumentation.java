@@ -111,7 +111,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       errorSpan.context().setIntegrationName(NETTY);
       try (final AgentScope scope = activateSpan(errorSpan)) {
         DECORATE.onError(errorSpan, cause);
-        DECORATE.beforeFinish(errorSpan);
+        DECORATE.beforeFinish(scope.context());
         errorSpan.finish();
       }
 
