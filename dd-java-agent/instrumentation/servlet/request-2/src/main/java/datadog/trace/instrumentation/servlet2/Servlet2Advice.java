@@ -119,5 +119,6 @@ public class Servlet2Advice {
     DECORATE.beforeFinish(scope.context());
 
     scope.close();
+    span.finish();
   }
 }
