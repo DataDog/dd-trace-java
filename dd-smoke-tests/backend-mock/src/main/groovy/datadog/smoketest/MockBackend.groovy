@@ -44,6 +44,7 @@ class MockBackend implements AutoCloseable {
   private boolean impactedTestsDetectionEnabled = false
   private boolean knownTestsEnabled = false
   private boolean testManagementEnabled = false
+  private boolean codeCoverageReportUploadEnabled = false
   private int attemptToFixRetries = 0
 
   void reset() {
@@ -66,6 +67,7 @@ class MockBackend implements AutoCloseable {
     impactedTestsDetectionEnabled = false
     knownTestsEnabled = false
     testManagementEnabled = false
+    codeCoverageReportUploadEnabled = false
     attemptToFixRetries = 0
   }
 
@@ -104,6 +106,10 @@ class MockBackend implements AutoCloseable {
 
   void givenTestManagement(boolean testManagementEnabled) {
     this.testManagementEnabled = testManagementEnabled
+  }
+
+  void givenCodeCoverageReportUpload(boolean codeCoverageReportUploadEnabled) {
+    this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled
   }
 
   void givenAttemptToFixRetries(int attemptToFixRetries) {
@@ -183,6 +189,7 @@ class MockBackend implements AutoCloseable {
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
               "impacted_tests_enabled": $impactedTestsDetectionEnabled,
               "known_tests_enabled": $knownTestsEnabled,
+              "coverage_report_upload_enabled": $codeCoverageReportUploadEnabled,
               "test_management": {
                 "enabled": $testManagementEnabled,
                 "attempt_to_fix_retries": $attemptToFixRetries

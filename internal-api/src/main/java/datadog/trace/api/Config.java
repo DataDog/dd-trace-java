@@ -225,6 +225,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
@@ -986,6 +987,7 @@ public class Config {
   private final String[] ciVisibilityCodeCoverageIncludedPackages;
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
+  private final boolean ciVisibilityCodeCoverageReportUploadEnabled;
   private final Integer ciVisibilityDebugPort;
   private final boolean ciVisibilityGitClientEnabled;
   private final boolean ciVisibilityGitUploadEnabled;
@@ -2216,6 +2218,8 @@ public class Config {
         convertJacocoExclusionFormatToPackagePrefixes(ciVisibilityCodeCoverageExcludes);
     ciVisibilityJacocoGradleSourceSets =
         configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
+    ciVisibilityCodeCoverageReportUploadEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED, true);
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
     ciVisibilityGitClientEnabled = configProvider.getBoolean(CIVISIBILITY_GIT_CLIENT_ENABLED, true);
     ciVisibilityGitUploadEnabled =
@@ -3768,6 +3772,10 @@ public class Config {
 
   public List<String> getCiVisibilityJacocoGradleSourceSets() {
     return ciVisibilityJacocoGradleSourceSets;
+  }
+
+  public boolean isCiVisibilityCodeCoverageReportUploadEnabled() {
+    return ciVisibilityCodeCoverageReportUploadEnabled;
   }
 
   public Integer getCiVisibilityDebugPort() {

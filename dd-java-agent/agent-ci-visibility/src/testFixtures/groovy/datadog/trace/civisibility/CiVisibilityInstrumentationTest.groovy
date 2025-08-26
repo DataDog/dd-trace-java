@@ -234,6 +234,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       settings.itrEnabled,
       settings.flakyRetryEnabled,
       settings.impactedTestsDetectionEnabled,
+      false,
       earlyFlakinessDetectionSettings,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,

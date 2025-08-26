@@ -82,6 +82,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenImpactedTestsDetection(true)
 
+    def coverageReportExpected = jacocoCoverage && CiVisibilitySmokeTest.classLoader.getResource(projectName + "/coverage_report_event.ftl") != null
+    if (coverageReportExpected) {
+      mockBackend.givenCodeCoverageReportUpload(true)
+    }
+
     def agentArgs = jacocoCoverage ? [
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}" as String
     ] : []
@@ -96,7 +101,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(expectedEvents), mockBackend.waitForCoverages(expectedCoverages))
     verifyTelemetryMetrics(mockBackend.getAllReceivedTelemetryMetrics(), mockBackend.getAllReceivedTelemetryDistributions(), expectedEvents)
 
-    def coverageReportExpected = CiVisibilitySmokeTest.classLoader.getResource(projectName + "/coverage_report_event.ftl") != null
     if (coverageReportExpected) {
       def reports = mockBackend.waitForCoverageReports(1)
       def realProjectHome = projectHome.toRealPath().toString()

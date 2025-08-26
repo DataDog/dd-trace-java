@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.coverage.CoveragePercentageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.coverage.file.FileCoverageStore;
 import datadog.trace.civisibility.coverage.line.LineCoverageStore;
@@ -30,9 +31,15 @@ public class CiVisibilityCoverageServices {
 
     Parent(CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
       moduleSignalRouter = new ModuleSignalRouter();
+
+      ExecutionSettings executionSettings =
+          repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
       CoverageReportUploader coverageReportUploader =
-          new CoverageReportUploader(
-              services.ciIntake, repoServices.ciTags, services.metricCollector);
+          executionSettings.isCodeCoverageReportUploadEnabled()
+              ? new CoverageReportUploader(
+                  services.ciIntake, repoServices.ciTags, services.metricCollector)
+              : null;
+
       coverageProcessorFactory =
           new JacocoCoverageProcessor.Factory(
               services.config,
