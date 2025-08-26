@@ -46,6 +46,7 @@ public class CoverageReportUploader {
   public void upload(String format, InputStream reportStream) throws IOException {
     Map<String, String> event = new HashMap<>(ciTags);
     event.put("format", format);
+    event.put("type", "coverage_report");
     String eventJson = eventAdapter.toJson(event);
     RequestBody eventBody = jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
 
