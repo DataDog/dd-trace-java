@@ -1,7 +1,5 @@
 package datadog.trace.civisibility.coverage.report;
 
-// LcovReportWriter.java
-
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
