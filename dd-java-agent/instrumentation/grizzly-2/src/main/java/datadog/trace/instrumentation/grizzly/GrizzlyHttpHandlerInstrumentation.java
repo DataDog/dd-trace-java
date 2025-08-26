@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -81,13 +82,14 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
       scope = context.attach();
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       request.setAttribute(
           CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        boolean success = GrizzlyBlockingHelper.block(request, response, rba, span);
+        boolean success = GrizzlyBlockingHelper.block(request, response, rba, context);
         if (success) {
           return true; /* skip body */
         }

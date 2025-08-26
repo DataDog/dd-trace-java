@@ -540,16 +540,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return super.beforeFinish(context);
   }
 
-  @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
-    onRequestEndForInstrumentationGateway(span);
-
-    // Close Serverless Gateway Inferred Span if any
-    // finishInferredProxySpan(context);
-
-    return super.beforeFinish(span);
-  }
-
   protected void finishInferredProxySpan(Context context) {
     InferredProxySpan span;
     if ((span = InferredProxySpan.fromContext(context)) != null) {

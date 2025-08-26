@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
@@ -121,6 +122,7 @@ public class GrizzlyDecorator
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
+    ctx.getAttributes().setAttribute(DD_CONTEXT_ATTRIBUTE, context);
     DECORATE.onRequest(span, httpRequest, httpRequest, parentContext);
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
@@ -146,13 +148,15 @@ public class GrizzlyDecorator
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
+    Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (null != span) {
       DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span).finish();
+      DECORATE.beforeFinish(context);
       span.finish();
     }
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
+    ctx.getAttributes().removeAttribute(DD_CONTEXT_ATTRIBUTE);
   }
 
   @Override
