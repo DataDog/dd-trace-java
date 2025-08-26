@@ -11,7 +11,6 @@ import javax.servlet.ServletContextEvent
 import javax.servlet.ServletContextListener
 import javax.websocket.server.ServerContainer
 import java.nio.ByteBuffer
-import java.util.concurrent.CountDownLatch
 
 class TomcatServer implements WebsocketServer {
 
@@ -50,7 +49,7 @@ class TomcatServer implements WebsocketServer {
     servletContext.addServletContainerInitializer(new WsSci(), null)
     def listeners = new ArrayList(Arrays.asList(servletContext.getApplicationLifecycleListeners()))
     listeners.add(new EndpointDeployer(setupWebsockets))
-    servletContext.setApplicationLifecycleListeners(EndpointDeployer.class.getName())
+    servletContext.setApplicationLifecycleListeners(EndpointDeployer.name)
     servletContext.setApplicationLifecycleListeners(listeners.toArray())
 
     (server.host as StandardHost).errorReportValveClass = TomcatWebsocketTest.ErrorHandlerValve.name
@@ -93,7 +92,7 @@ class TomcatServer implements WebsocketServer {
         while (WsEndpoint.activeSession == null) {
           WsEndpoint.wait()
         }
-      } catch (InterruptedException ie) {
+      } catch (InterruptedException ignored) {
         Thread.currentThread().interrupt()
       }
     }
@@ -151,7 +150,7 @@ class TomcatServer implements WebsocketServer {
 
     @Override
     void contextInitialized(ServletContextEvent sce) {
-      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.class.getName()))
+      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.name))
     }
 
     @Override
