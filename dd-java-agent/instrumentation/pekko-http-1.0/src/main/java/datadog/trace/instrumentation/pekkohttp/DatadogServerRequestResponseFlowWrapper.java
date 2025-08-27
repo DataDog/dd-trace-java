@@ -114,7 +114,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 final HttpResponse response = grab(responseInlet);
                 final ContextScope scope = scopes.poll();
                 if (scope != null) {
-                  DatadogWrapperHelper.finishSpan(scope, response);
+                  DatadogWrapperHelper.finishSpan(scope.context(), response);
                   // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
@@ -144,7 +144,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 ContextScope scope = scopes.poll();
                 if (scope != null) {
                   // Mark the span as failed
-                  DatadogWrapperHelper.finishSpan(scope, ex);
+                  DatadogWrapperHelper.finishSpan(scope.context(), ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans

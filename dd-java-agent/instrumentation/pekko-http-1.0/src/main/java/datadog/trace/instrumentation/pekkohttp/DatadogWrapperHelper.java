@@ -20,19 +20,19 @@ public class DatadogWrapperHelper {
     return context.attach();
   }
 
-  public static void finishSpan(final ContextScope scope, final HttpResponse response) {
-    final AgentSpan span = fromContext(scope.context());
+  public static void finishSpan(final Context context, final HttpResponse response) {
+    final AgentSpan span = fromContext(context);
     DECORATE.onResponse(span, response);
-    DECORATE.beforeFinish(scope.context());
+    DECORATE.beforeFinish(context);
 
     span.finish();
   }
 
-  public static void finishSpan(final ContextScope scope, final Throwable t) {
-    final AgentSpan span = fromContext(scope.context());
+  public static void finishSpan(final Context context, final Throwable t) {
+    final AgentSpan span = fromContext(context);
     DECORATE.onError(span, t);
     span.setHttpStatusCode(500);
-    DECORATE.beforeFinish(scope.context());
+    DECORATE.beforeFinish(context);
 
     span.finish();
   }

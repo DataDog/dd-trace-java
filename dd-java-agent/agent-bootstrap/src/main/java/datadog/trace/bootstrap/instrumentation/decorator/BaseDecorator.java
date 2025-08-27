@@ -77,7 +77,7 @@ public abstract class BaseDecorator {
     return span;
   }
 
-  public AgentScope beforeFinish(final AgentScope scope) {
+  public ContextScope beforeFinish(final ContextScope scope) {
     beforeFinish(scope.context());
     return scope;
   }
