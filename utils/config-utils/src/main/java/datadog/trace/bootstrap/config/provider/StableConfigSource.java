@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
+import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException;

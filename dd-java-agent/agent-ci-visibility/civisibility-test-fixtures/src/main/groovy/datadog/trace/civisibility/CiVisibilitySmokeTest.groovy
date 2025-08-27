@@ -4,9 +4,10 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.util.Strings
 import spock.lang.Specification
 import spock.util.environment.Jvm
+
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName
 
 abstract class CiVisibilitySmokeTest extends Specification {
   static final List<String> SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']"]
@@ -73,7 +74,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
       argMap.put(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT, "5055")
     }
 
-    String agentArgs = argMap.collect { k, v -> "${Strings.propertyNameToSystemPropertyName(k)}=${v}" }.join(",")
+    String agentArgs = argMap.collect { k, v -> "${propertyNameToSystemPropertyName(k)}=${v}" }.join(",")
     arguments += "-javaagent:${AGENT_JAR}=${agentArgs}".toString()
 
     return arguments
