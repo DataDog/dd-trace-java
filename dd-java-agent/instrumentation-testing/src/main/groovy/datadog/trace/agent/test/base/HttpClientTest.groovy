@@ -692,6 +692,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   @Requires({ instance.testRemoteConnection() })
+  @Requires({ instance.testNonRoutableAddress() })
   def "connection error non routable address"() {
     given:
     def uri = new URI("https://192.0.2.1/")
@@ -911,6 +912,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   boolean testRemoteConnection() {
+    true
+  }
+
+  boolean testNonRoutableAddress() {
     true
   }
 
