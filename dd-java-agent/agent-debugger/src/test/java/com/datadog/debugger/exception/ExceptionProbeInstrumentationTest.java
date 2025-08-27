@@ -31,6 +31,8 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerConfigUpdater;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
@@ -98,10 +100,9 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
-    DebuggerContext.ProductConfigUpdater mockProductConfigUpdater =
-        mock(DebuggerContext.ProductConfigUpdater.class);
+    DebuggerConfigUpdater mockProductConfigUpdater = mock(DebuggerConfigUpdater.class);
     when(mockProductConfigUpdater.isExceptionReplayEnabled()).thenReturn(true);
-    DebuggerContext.initProductConfigUpdater(mockProductConfigUpdater);
+    DebuggerConfigBridge.setUpdater(mockProductConfigUpdater);
     setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
     setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
   }

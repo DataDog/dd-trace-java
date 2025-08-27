@@ -3,38 +3,35 @@ package com.datadog.debugger.agent;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.api.debugger.DebuggerConfigUpdate;
+import datadog.trace.api.debugger.DebuggerConfigUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class DefaultProductConfigUpdater implements DebuggerContext.ProductConfigUpdater {
+class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultProductConfigUpdater.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDebuggerConfigUpdater.class);
 
   @Override
-  public void updateConfig(
-      Boolean dynamicInstrumentationEnabled,
-      Boolean exceptionReplayEnabled,
-      Boolean codeOriginEnabled,
-      Boolean liveDebuggingEnabled) {
+  public void updateConfig(DebuggerConfigUpdate update) {
     startOrStopFeature(
         DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED,
-        dynamicInstrumentationEnabled,
+        update.getDynamicInstrumentationEnabled(),
         DebuggerAgent::startDynamicInstrumentation,
         DebuggerAgent::stopDynamicInstrumentation);
     startOrStopFeature(
         DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
-        exceptionReplayEnabled,
+        update.getExceptionReplayEnabled(),
         DebuggerAgent::startExceptionReplay,
         DebuggerAgent::stopExceptionReplay);
     startOrStopFeature(
         TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED,
-        codeOriginEnabled,
+        update.getCodeOriginEnabled(),
         DebuggerAgent::startCodeOriginForSpans,
         DebuggerAgent::stopCodeOriginForSpans);
     startOrStopFeature(
         DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED,
-        liveDebuggingEnabled,
+        update.getLiveDebuggingEnabled(),
         DebuggerAgent::startDistributedDebugger,
         DebuggerAgent::stopDistributedDebugger);
   }

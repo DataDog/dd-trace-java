@@ -182,7 +182,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     outputGobbler.start()
     errorGobbler.start()
 
-    if (!p.waitFor(timeoutSecs , TimeUnit.SECONDS)) {
+    if (!p.waitFor(timeoutSecs, TimeUnit.SECONDS)) {
       p.destroyForcibly()
       throw new TimeoutException("Instrumented process failed to exit within $timeoutSecs  seconds")
     }
@@ -251,7 +251,6 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
 
     agentArgument += additionalAgentArgs.join(",")

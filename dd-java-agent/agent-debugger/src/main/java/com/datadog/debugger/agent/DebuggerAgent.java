@@ -25,6 +25,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -73,9 +74,10 @@ public class DebuggerAgent {
     instrumentation = inst;
     sharedCommunicationObjects = sco;
     Config config = Config.get();
-    DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    // set config updater after setup is done, as some deferred updates might be immediately called
+    DebuggerConfigBridge.setUpdater(new DefaultDebuggerConfigUpdater());
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
