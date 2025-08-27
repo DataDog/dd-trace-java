@@ -71,8 +71,8 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
 
   @Override
   boolean testNonRoutableAddress() {
-    // FIXME: Play WS is failing for "connection error non routable address" with an AssertionError.
-    // The test expects a SocketTimeoutException, but the exception thrown is a ConnectException.
+    // FIXME: Play WS is failing for "connection error non routable address" with an error.type AssertionError.
+    // The test expects a different exception type than the one thrown.
     return false
   }
 }
