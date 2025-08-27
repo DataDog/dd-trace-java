@@ -95,8 +95,9 @@
 **/CiVisibility*.groovy                             @DataDog/ci-app-libraries-java
 
 # @DataDog/debugger-java (Live Debugger)
-/dd-java-agent/agent-debugger/               @DataDog/debugger-java
-/dd-smoke-tests/debugger-integration-tests/  @DataDog/debugger-java
+/dd-java-agent/agent-debugger/                          @DataDog/debugger-java
+/dd-smoke-tests/debugger-integration-tests/             @DataDog/debugger-java
+/internal-api/src/main/java/datadog/trace/api/debugger/ @DataDog/debugger-java
 
 # @DataDog/data-jobs-monitoring
 /dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
