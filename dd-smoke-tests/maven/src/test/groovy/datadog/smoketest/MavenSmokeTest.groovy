@@ -5,22 +5,8 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
-import org.apache.commons.fileupload.FileItem
-import spock.lang.IgnoreIf
-
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import javax.xml.parsers.DocumentBuilder
-import javax.xml.parsers.DocumentBuilderFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -31,9 +17,17 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
+
+import javax.xml.parsers.DocumentBuilder
+import javax.xml.parsers.DocumentBuilderFactory
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 

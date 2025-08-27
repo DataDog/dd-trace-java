@@ -145,10 +145,6 @@ abstract class CiVisibilityTestUtils {
     // ignore provided tags
     events = removeTags(events, ignoredTags)
 
-    def environment = System.getenv()
-    def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
-    def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
-
     def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
 
