@@ -58,6 +58,8 @@ public final class DebuggerConfig {
       "exception.replay.capture.max.frames";
   public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS =
       "exception.replay.capture.interval.seconds";
+  public static final String DEBUGGER_EXCEPTION_ASYNC_CONFIG =
+      "internal.exception.replay.async.config";
   public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED =
       "exception.replay.capture.intermediate.spans.enabled";
   public static final String DISTRIBUTED_DEBUGGER_ENABLED = "distributed.debugger.enabled";
