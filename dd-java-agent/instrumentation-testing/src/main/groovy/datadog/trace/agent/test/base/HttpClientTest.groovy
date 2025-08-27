@@ -456,7 +456,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     def status = runUnderTrace("parent") {
       doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"], "") {
         runUnderTrace("child") {
-          blockUntilChildSpansFinished(1)
+          if (useStrictTraceWrites()) {
+            blockUntilChildSpansFinished(1)
+          }
         }
       }
     }

@@ -36,14 +36,15 @@ class VertxRxWebClientForkedTest extends HttpClientTest implements TestingNettyH
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def currentSpan = AgentTracer.activeSpan()
+
     def request = client.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
     headers.each { request.putHeader(it.key, it.value) }
     return request
       .rxSend()
       .doOnSuccess { response ->
         if (callback != null) {
-          // Clear trace context before callback
-          def scope = AgentTracer.activateSpan(AgentTracer.noopSpan())
+          def scope = currentSpan != null ? AgentTracer.activateSpan(currentSpan) : AgentTracer.activateSpan(AgentTracer.noopSpan())
           try {
             callback.call()
           } finally {
