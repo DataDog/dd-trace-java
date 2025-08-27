@@ -27,28 +27,28 @@ public class ConfigCollector {
     ConfigSetting setting = ConfigSetting.of(key, value, origin);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
   }
 
   public void put(String key, Object value, ConfigOrigin origin, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, configId);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId, configId);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
   }
 
   public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
