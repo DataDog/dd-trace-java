@@ -447,7 +447,7 @@ class MockBackend implements AutoCloseable {
     List<CiVisibilityTestUtils.CoverageReport> reports = new ArrayList<>()
     while (!receivedCoverageReports.isEmpty()) {
       def multipartRequest = receivedCoverageReports.poll()
-      Map<String, Object> event = JSON_MAPPER.readValue(multipartRequest["event"].get(0).get(), Map.class)
+      Map<String, Object> event = JSON_MAPPER.readValue(multipartRequest["event"].get(0).get(), Map)
       String report = new String(decompress(multipartRequest["coverage"].get(0).get()))
       reports.add(new CiVisibilityTestUtils.CoverageReport(event, report))
     }
