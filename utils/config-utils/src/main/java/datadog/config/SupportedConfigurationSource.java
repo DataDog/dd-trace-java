@@ -1,6 +1,6 @@
 package datadog.config;
 
-import datadog.generator.GeneratedSupportedConfigurations;
+import datadog.config.GeneratedSupportedConfigurations;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

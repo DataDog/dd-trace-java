@@ -9,6 +9,7 @@ plugins {
   id("de.thetaphi.forbiddenapis") version "3.8"
 
   id("tracer-version")
+  id("config-inversion-linter")
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 
   id("com.gradleup.shadow") version "8.3.6" apply false
@@ -53,7 +54,6 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
-apply(from = rootDir.resolve("gradle/configInversionLinter.gradle"))
 
 val compileTask = tasks.register("compile")
 
