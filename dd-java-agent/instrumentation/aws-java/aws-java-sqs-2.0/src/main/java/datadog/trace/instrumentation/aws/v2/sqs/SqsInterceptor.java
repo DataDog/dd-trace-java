@@ -7,19 +7,19 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
+import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.Context.ModifyRequest;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
@@ -31,15 +31,14 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
 
-  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   public SqsInterceptor() {}
 
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
     if (context.request() instanceof SendMessageRequest) {
       SendMessageRequest request = (SendMessageRequest) context.request();
       Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
@@ -48,7 +47,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       }
 
       Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-      datadog.context.Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
+      Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(request.messageAttributes());
       dsmPropagator.inject(ctx, messageAttributes, SETTER);
@@ -63,7 +62,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       }
 
       Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-      datadog.context.Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
+      Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
 
       for (SendMessageBatchRequestEntry entry : request.entries()) {
@@ -90,12 +89,11 @@ public class SqsInterceptor implements ExecutionInterceptor {
     }
   }
 
-  private datadog.context.Context getContext(
-      ExecutionAttributes executionAttributes, String queueUrl) {
-    AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+  private Context getContext(ExecutionAttributes executionAttributes, String queueUrl) {
+    Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
 
     DataStreamsTags tags = create("sqs", OUTBOUND, urlFileName(queueUrl));
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-    return span.with(dsmContext);
+    return context.with(dsmContext);
   }
 }
