@@ -308,7 +308,7 @@ class MockBackend implements AutoCloseable {
       }
 
       prefix("/api/v2/apmtelemetry") {
-        def telemetryRequest = JSON_MAPPER.readerFor(Map.class).readValue(request.body)
+        def telemetryRequest = JSON_MAPPER.readerFor(Map).readValue(request.body)
         def requestType = telemetryRequest["request_type"]
         if (requestType == "message-batch") {
           for (def message : telemetryRequest["payload"]) {

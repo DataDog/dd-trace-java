@@ -119,6 +119,7 @@ class SerializerTest extends Specification {
     m << [null, [:], ["a": "b"], ["a": "b", "1": "2"], [null: "b", "1": null]]
   }
 
+  @SuppressWarnings('UnnecessaryDotClass')
   def "test map deserialization with provider: #m #clazz #provider"() {
     given:
     def serializer = new Serializer()

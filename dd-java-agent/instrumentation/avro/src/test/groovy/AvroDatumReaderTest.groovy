@@ -103,18 +103,18 @@ class AvroDatumReaderTest extends AgentTestRunner {
     encoder.flush()
     bytes = out.toByteArray()
 
-    GenericRecord result = null
-    runUnderTrace("parent_deserialize") {
+    GenericRecord result = runUnderTrace("parent_deserialize") {
       ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)
       BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null)
       GenericDatumReader<GenericRecord> datumReader = new GenericDatumReader<>(schemaDef)
 
-      result = datumReader.read(null, decoder)
+      datumReader.read(null, decoder)
     }
 
     TEST_WRITER.waitForTraces(1)
 
     then:
+    result != null
 
     assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
@@ -182,21 +182,21 @@ class AvroDatumReaderTest extends AgentTestRunner {
     datum.put("mapNestedField", nestedMap)
 
     when:
-    def bytes
     ByteArrayOutputStream out = new ByteArrayOutputStream()
     Encoder encoder = EncoderFactory.get().binaryEncoder(out, null)
     SpecificDatumWriter<GenericRecord> datumWriter = new SpecificDatumWriter<>(schemaDef)
 
 
-    runUnderTrace("parent_serialize") {
+    def bytes = runUnderTrace("parent_serialize") {
       datumWriter.write(datum, encoder)
       encoder.flush()
-      bytes = out.toByteArray()
+      out.toByteArray()
     }
 
     TEST_WRITER.waitForTraces(1)
 
     then:
+    bytes != null
 
     assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
