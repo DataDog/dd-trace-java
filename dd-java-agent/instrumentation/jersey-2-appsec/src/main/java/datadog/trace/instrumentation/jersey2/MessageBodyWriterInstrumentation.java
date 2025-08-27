@@ -1,5 +1,6 @@
-package datadog.trace.instrumentation.jersey3;
+package datadog.trace.instrumentation.jersey2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -16,7 +17,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import jakarta.ws.rs.core.Form;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,9 +24,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import javax.ws.rs.core.MediaType;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Attr;
@@ -34,86 +37,81 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 import org.xml.sax.InputSource;
 
-// keep in sync with jersey2 (javax packages)
 @AutoService(InstrumenterModule.class)
-public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private static final Logger log = LoggerFactory.getLogger(MessageBodyReaderInstrumentation.class);
+  private static final Logger log = LoggerFactory.getLogger(MessageBodyWriterInstrumentation.class);
   private static final int MAX_CONVERSION_DEPTH = 15;
 
-  public MessageBodyReaderInstrumentation() {
+  public MessageBodyWriterInstrumentation() {
     super("jersey");
   }
 
   @Override
   public String muzzleDirective() {
-    return "jersey-common";
+    return "jersey_2";
   }
 
-  // This is a caller for the MessageBodyReaders in jersey
-  // We instrument it instead of the MessageBodyReaders in order to avoid hierarchy inspections
   @Override
-  public String instrumentedType() {
-    return "org.glassfish.jersey.message.internal.ReaderInterceptorExecutor";
+  public String hierarchyMarkerType() {
+    return "javax.ws.rs.ext.MessageBodyWriter";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("proceed").and(takesArguments(0)),
-        getClass().getName() + "$ReaderInterceptorExecutorProceedAdvice");
+        named("writeTo").and(takesArguments(7)), getClass().getName() + "$MessageBodyWriterAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class ReaderInterceptorExecutorProceedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(
-        @Advice.Return final Object ret,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (ret == null || t != null) {
-        return;
-      }
+  public static class MessageBodyWriterAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void before(
+        @Advice.Argument(0) Object entity,
+        @Advice.Argument(4) MediaType mediaType,
+        @ActiveRequestContext RequestContext reqCtx) {
 
-      if (ret.getClass()
-          .getName()
-          .equals("org.glassfish.jersey.media.multipart.FormDataMultiPart")) {
-        // likely handled already by MultiPartReaderServerSideInstrumentation
+      // Handle both JSON and XML response bodies
+      if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)
+          && !MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
+          && !MediaType.TEXT_XML_TYPE.isCompatible(mediaType)) {
         return;
-      }
-
-      Object objToPass;
-      if (ret instanceof Form) {
-        objToPass = ((Form) ret).asMap();
-      } else {
-        // Process XML strings for WAF compatibility
-        objToPass = processObjectForWaf(ret);
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
       BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
+          cbp.getCallback(EVENTS.responseBody());
       if (callback == null) {
         return;
       }
 
-      Flow<Void> flow = callback.apply(reqCtx, objToPass);
+      // Process XML entities for WAF compatibility
+      Object processedEntity = processObjectForWaf(entity, mediaType);
+
+      Flow<Void> flow = callback.apply(reqCtx, processedEntity);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(
-              reqCtx.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
-          t = new BlockingException("Blocked request (for ReaderInterceptorExecutor/proceed)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+        if (blockResponseFunction == null) {
+          return;
         }
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        blockResponseFunction.tryCommitBlockingResponse(
+            reqCtx.getTraceSegment(),
+            rba.getStatusCode(),
+            rba.getBlockingContentType(),
+            rba.getExtraHeaders());
+
+        throw new BlockingException("Blocked request (for MessageBodyWriter)");
       }
     }
   }
@@ -158,16 +156,17 @@ public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
     }
   }
 
-  /**
-   * Convert XML string to WAF-compatible format with fallback. If XML parsing fails, returns the
-   * original object.
-   */
-  private static Object processObjectForWaf(Object obj) {
-    if (obj instanceof String && isXmlContent((String) obj)) {
-      Object parsed = parseXmlToWafFormat((String) obj);
-      return parsed != null ? parsed : obj;
+  /** Process response entity for WAF compatibility, handling both XML strings and objects. */
+  private static Object processObjectForWaf(Object entity, MediaType mediaType) {
+    // If it's an XML media type and the entity is a string, try to parse it
+    if ((MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
+            || MediaType.TEXT_XML_TYPE.isCompatible(mediaType))
+        && entity instanceof String
+        && isXmlContent((String) entity)) {
+      Object parsed = parseXmlToWafFormat((String) entity);
+      return parsed != null ? parsed : entity;
     }
-    return obj;
+    return entity;
   }
 
   /**
@@ -211,7 +210,7 @@ public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
         repr.put("children", children);
       }
       return repr;
-    } else if (node instanceof org.w3c.dom.Text) {
+    } else if (node instanceof Text) {
       String textContent = node.getTextContent();
       if (textContent != null) {
         textContent = textContent.trim();

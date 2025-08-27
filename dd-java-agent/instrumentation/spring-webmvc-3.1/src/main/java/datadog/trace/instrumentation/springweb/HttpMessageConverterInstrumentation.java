@@ -26,6 +26,8 @@ import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppSec
@@ -96,6 +98,8 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class HttpMessageConverterReadAdvice {
+    private static final Logger log = LoggerFactory.getLogger(HttpMessageConverterReadAdvice.class);
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Return final Object obj,
