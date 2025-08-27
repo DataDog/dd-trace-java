@@ -11,6 +11,7 @@ import com.zaxxer.hikari.pool.HikariPool;
 import com.zaxxer.hikari.util.ConcurrentBag;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Field;
@@ -39,11 +40,15 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {
-  private static final String INSTRUMENTATION_NAME = "hikari";
   private static final String POOL_WAITING = "pool.waiting";
 
   public HikariConcurrentBagInstrumentation() {
-    super("jdbc-datasource");
+    super("jdbc");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
   }
 
   @Override
@@ -110,16 +115,17 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
         @Advice.Thrown final Throwable throwable) {
       if (HikariWaitingTracker.wasWaiting()) {
         final AgentSpan span =
-            startSpan(
-                INSTRUMENTATION_NAME,
-                POOL_WAITING,
-                TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+            startSpan(POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+        span.setResourceName("hikari.waiting");
+        if (throwable != null) {
+          span.addThrowable(throwable);
+        }
         final String poolName =
             InstrumentationContext.get(ConcurrentBag.class, String.class).get(thiz);
         if (poolName != null) {
           span.setTag(DB_POOL_NAME, poolName);
         }
-        // XXX should we do anything with the throwable?
+
         span.finish();
       }
       HikariWaitingTracker.clearWaiting();
@@ -175,16 +181,16 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
       super(api, superMv);
     }
 
-
     /**
-     * Adds a call to HikariWaitingTracker.setWaiting whenever Hikari is blocking waiting on a connection from the pool
-     * to be available whenever either of these method calls happen (which one depends on Hikari version):
-     * <br/>
-     * <code>synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code>
-     * -- <a href="     https://github.com/brettwooldridge/HikariCP/blob/5adf46c148dfa095886c7c754f365b0644dc04cb/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java#L159">prior to 2.6.0</a>
-     * <br/>
-     * <code>handoffQueue.poll(timeout, NANOSECONDS)</code>
-     * -- <a href="https://github.com/brettwooldridge/HikariCP/blob/22cc9bde6c0fb54c8ac009122a20d2f579e1a54a/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java#L162">2.6.0 and later</a>
+     * Adds a call to HikariWaitingTracker.setWaiting whenever Hikari is blocking waiting on a
+     * connection from the pool to be available whenever either of these method calls happen (which
+     * one depends on Hikari version): <br>
+     * <code>synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code> -- <a href="
+     * https://github.com/brettwooldridge/HikariCP/blob/5adf46c148dfa095886c7c754f365b0644dc04cb/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java#L159">prior
+     * to 2.6.0</a> <br>
+     * <code>handoffQueue.poll(timeout, NANOSECONDS)</code> -- <a
+     * href="https://github.com/brettwooldridge/HikariCP/blob/22cc9bde6c0fb54c8ac009122a20d2f579e1a54a/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java#L162">2.6.0
+     * and later</a>
      */
     @Override
     public void visitMethodInsn(

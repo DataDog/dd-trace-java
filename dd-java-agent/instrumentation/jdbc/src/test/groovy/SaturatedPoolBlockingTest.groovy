@@ -16,11 +16,19 @@ import java.sql.SQLTimeoutException
 import java.sql.SQLTransientConnectionException
 import java.time.Duration
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED
+
 /**
  * Ideas taken from Hikari's com.zaxxer.hikari.pool.TestSaturatedPool830.
  */
 class SaturatedPoolBlockingTest extends AgentTestRunner {
   public static final int CONNECTION_TIMEOUT = 1000
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(JDBC_POOL_WAITING_ENABLED, "true")
+  }
 
   def "saturated pool test"(Closure<DataSource> createDataSource, Long exhaustPoolForMillis, int expectedWaitingSpans, boolean expectedTimeout) {
     setup:
