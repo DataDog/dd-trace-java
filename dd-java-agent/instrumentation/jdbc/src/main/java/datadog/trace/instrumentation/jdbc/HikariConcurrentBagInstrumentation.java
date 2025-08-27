@@ -11,6 +11,7 @@ import com.zaxxer.hikari.pool.HikariPool;
 import com.zaxxer.hikari.util.ConcurrentBag;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Field;
@@ -27,7 +28,12 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HikariConcurrentBagInstrumentation() {
-    super("jdbc-datasource");
+    super("jdbc");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
   }
 
   @Override
@@ -106,13 +112,17 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
         @Advice.Thrown final Throwable throwable) {
       if (HikariBlockedTracker.wasBlocked()) {
         final AgentSpan span =
-            startSpan("hikari", POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+            startSpan(POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+        span.setResourceName("hikari.waiting");
+        if (throwable != null) {
+          span.addThrowable(throwable);
+        }
         final String poolName =
             InstrumentationContext.get(ConcurrentBag.class, String.class).get(thiz);
         if (poolName != null) {
           span.setTag(DB_POOL_NAME, poolName);
         }
-        // XXX should we do anything with the throwable?
+
         span.finish();
       }
       HikariBlockedTracker.clearBlocked();
