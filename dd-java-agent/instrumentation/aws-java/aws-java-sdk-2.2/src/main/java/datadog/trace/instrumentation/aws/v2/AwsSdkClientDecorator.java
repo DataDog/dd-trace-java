@@ -5,8 +5,10 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithDataset;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
+import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
@@ -113,11 +115,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
   }
 
-  public AgentSpan onSdkRequest(
-      final AgentSpan span,
+  public Context onSdkRequest(
+      final Context context,
       final SdkRequest request,
       final SdkHttpRequest httpRequest,
       final ExecutionAttributes attributes) {
+    final AgentSpan span = fromContext(context);
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
@@ -224,7 +227,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
     }
 
-    return span;
+    return context;
   }
 
   private static AgentSpan onOperation(
@@ -315,12 +318,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
-  public AgentSpan onSdkResponse(
-      final AgentSpan span,
+  public Context onSdkResponse(
+      final Context context,
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
       final ExecutionAttributes attributes) {
 
+    final AgentSpan span = fromContext(context);
     Config config = Config.get();
     String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     if (config.isCloudResponsePayloadTaggingEnabled()
