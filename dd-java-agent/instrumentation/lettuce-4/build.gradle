@@ -25,13 +25,11 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   doFirst {
-    String fullPath = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
+    String buildDir = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
       "dd-trace-java/workspace/dd-java-agent")
-    println "DEBUG full path: ${fullPath}"
 
-    def outDir = new File(fullPath)
-    outDir.mkdirs()
-    def outFile = new File(outDir, "${System.currentTimeMillis()}-thread-dump.log")
+    def dupmsDir = new File(buildDir, "dumps")
+    dupmsDir.mkdirs()
 
     // single-thread scheduler (daemon)
     def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
@@ -43,14 +41,13 @@ tasks.withType(Test).configureEach {
     // schedule the dump job 10s later
     def future = scheduler.schedule({
       try {
-        println "DEBUG threads dump: ${outFile.absolutePath}"
+        def threadDumpFile = new File(dupmsDir, "${System.currentTimeMillis()}-thread-dump.log")
 
         new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
           .redirectErrorStream(true)
-          .redirectOutput(outFile)
+          .redirectOutput(threadDumpFile)
           .start().waitFor()
 
-        println "DEBUG heap dumps"
         def listOutput = "jcmd -l".execute().text.readLines()
         listOutput.each { line ->
           println "DEBUG PID: ${line}"
@@ -60,18 +57,9 @@ tasks.withType(Test).configureEach {
           }
 
           def pid = line.substring(0, line.indexOf(' '))
-
-          def dumpFileName = "${fullPath}/${System.currentTimeMillis()}-${pid}.hprof"
-
-          println "DEBUG dump file name: ${dumpFileName}"
-
-          def cmd = "jcmd ${pid} GC.heap_dump ${dumpFileName}"
-
-          println "DEBUG jcmd: ${cmd}"
-
-          def res = cmd.execute().waitFor()
-
-          println "DEBUG dump res: ${res}"
+          def heapDumpFile = "${dupmsDir.absolutePath}/${System.currentTimeMillis()}-${pid}.hprof"
+          def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
+          cmd.execute().waitFor()
         }
       } catch (Throwable t) {
         logger.warn("Dumping failed: ${t.message}", t)
