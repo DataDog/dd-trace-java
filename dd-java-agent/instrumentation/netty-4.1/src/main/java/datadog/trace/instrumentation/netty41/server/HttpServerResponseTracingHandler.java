@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.netty41.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -22,7 +24,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
-    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
+    final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
+    final AgentSpan span = storedContext != null ? spanFromContext(storedContext) : null;
 
     if (span == null || !(msg instanceof HttpResponse)) {
       ctx.write(msg, prm);
@@ -38,7 +41,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
+        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
         throw throwable;
       }
       final boolean isWebsocketUpgrade =
@@ -54,7 +57,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
+        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
       }
     }
   }

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -178,7 +177,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, parentContext);
 
-      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());

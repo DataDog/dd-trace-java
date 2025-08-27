@@ -97,7 +97,7 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
         // this is not great, but we leave the attribute. This is because
         // Set{Servlet,Context}PathAdvice
         // looks for this attribute, and we need a way to tell Servlet3Advice not to activate
-        // the root span, stored in DD_SPAN_ATTRIBUTE.
+        // the root span, stored in DD_CONTEXT_ATTRIBUTE.
         // req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
         span = (AgentSpan) dispatchSpan;
 

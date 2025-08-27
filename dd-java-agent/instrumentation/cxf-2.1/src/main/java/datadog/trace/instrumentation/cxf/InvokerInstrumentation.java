@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.cxf;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
@@ -9,6 +10,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -59,11 +61,16 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
       if (exchange == null || exchange.getInMessage() == null || AgentTracer.activeSpan() != null) {
         return null;
       }
-      final Object span =
+      final Object contextObj =
           ServletHelper.getServletRequestAttribute(
-              exchange.getInMessage().get("HTTP.REQUEST"), HttpServerDecorator.DD_SPAN_ATTRIBUTE);
-      if (span instanceof AgentSpan) {
-        return AgentTracer.activateSpan((AgentSpan) span);
+              exchange.getInMessage().get("HTTP.REQUEST"),
+              HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        Context context = (Context) contextObj;
+        AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
+        if (span != null) {
+          return AgentTracer.activateSpan(span);
+        }
       }
       return null;
     }

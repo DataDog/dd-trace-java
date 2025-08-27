@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -13,11 +15,18 @@ public class FilterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final FilterChainContext ctx) {
-    Object span = ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    if (span == null || activeSpan() != null) {
+    if (activeSpan() != null) {
       return null;
     }
-    return activateSpan((AgentSpan) span);
+    Object contextObj = ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (contextObj instanceof Context) {
+      final Context context = (Context) contextObj;
+      final AgentSpan span = spanFromContext(context);
+      if (span != null) {
+        return activateSpan(span);
+      }
+    }
+    return null;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

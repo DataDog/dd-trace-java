@@ -7,7 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_PREFIX_KEY;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
@@ -17,6 +18,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -73,9 +75,13 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
       handlerSpanKey = "";
 
       // Name the parent span based on the matching pattern
-      Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (parentSpan instanceof AgentSpan) {
-        DECORATE.onRequest((AgentSpan) parentSpan, request, request, getRootContext());
+      Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        Context context = (Context) contextObj;
+        AgentSpan parentSpan = spanFromContext(context);
+        if (parentSpan != null) {
+          DECORATE.onRequest(parentSpan, request, request, getRootContext());
+        }
       }
 
       if (activeSpan() == null) {

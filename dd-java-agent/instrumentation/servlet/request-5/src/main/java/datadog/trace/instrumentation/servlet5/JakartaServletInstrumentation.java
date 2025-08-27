@@ -3,14 +3,16 @@ package datadog.trace.instrumentation.servlet5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
@@ -97,12 +99,15 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
         }
       }
 
-      Object span = request.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (span instanceof AgentSpan
+      Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextAttr instanceof Context
           && CallDepthThreadLocalMap.incrementCallDepth(HttpServletRequest.class) == 0) {
-        final AgentSpan agentSpan = (AgentSpan) span;
-        ClassloaderConfigurationOverrides.maybeEnrichSpan(agentSpan);
-        return agentSpan;
+        final Context context = (Context) contextAttr;
+        final AgentSpan span = spanFromContext(context);
+        if (span != null) {
+          ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
+          return span;
+        }
       }
       return null;
     }

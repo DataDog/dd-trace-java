@@ -4,11 +4,13 @@ import static datadog.context.Context.root;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_PREFIX_KEY;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,9 +26,13 @@ public class ControllerAdvice {
       @Advice.Local("handlerSpanKey") String handlerSpanKey) {
     handlerSpanKey = "";
     // Name the parent span based on the matching pattern
-    Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
-    if (parentSpan instanceof AgentSpan) {
-      DECORATE.onRequest((AgentSpan) parentSpan, request, request, root());
+    Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (contextObj instanceof Context) {
+      Context context = (Context) contextObj;
+      AgentSpan parentSpan = spanFromContext(context);
+      if (parentSpan != null) {
+        DECORATE.onRequest(parentSpan, request, request, root());
+      }
     }
 
     if (activeSpan() == null) {

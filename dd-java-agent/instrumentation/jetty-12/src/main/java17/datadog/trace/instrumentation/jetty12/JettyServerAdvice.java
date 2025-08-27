@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -37,7 +36,6 @@ public class JettyServerAdvice {
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, req, req, parentContext);
 
-        req.setAttribute(DD_SPAN_ATTRIBUTE, span);
         req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
         req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());

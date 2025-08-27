@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -17,7 +16,6 @@ public class SpanClosingListener implements AfterServiceListener {
   public void onAfterService(final Request request) {
     final Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextAttr instanceof Context) {
-      request.removeAttribute(DD_SPAN_ATTRIBUTE);
       request.removeAttribute(DD_CONTEXT_ATTRIBUTE);
 
       final Context context = (Context) contextAttr;
