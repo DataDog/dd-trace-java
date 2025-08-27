@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.Strings;
+import datadog.trace.util.ConfigStrings;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +82,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       if (repoUrl == null || repoUrl.isEmpty()) {
         log.error(
             "Could not resolve git repository URL (can be provided via "
-                + Strings.propertyNameToEnvironmentVariableName(DD_GIT_REPOSITORY_URL)
+                + ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_REPOSITORY_URL)
                 + " env var or corresponding system property, "
                 + GeneralConfig.TAGS
                 + " config property or by embedding git metadata at build time)");
@@ -94,7 +94,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
             "Git commit SHA could not be resolved or is invalid: "
                 + commitSha
                 + " (can be provided via "
-                + Strings.propertyNameToEnvironmentVariableName(DD_GIT_COMMIT_SHA)
+                + ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_COMMIT_SHA)
                 + " env var or corresponding system property, "
                 + GeneralConfig.TAGS
                 + " config property or by embedding git metadata at build time; must be a full-length SHA");

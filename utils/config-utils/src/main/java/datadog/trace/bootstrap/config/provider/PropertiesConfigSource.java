@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 
 import datadog.trace.api.ConfigOrigin;
 import java.util.Properties;

@@ -44,12 +44,12 @@ public final class PidHelper {
     if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         pid =
-            Strings.trim(
-                ((Supplier<String>)
-                        Class.forName("datadog.trace.util.JDK9PidSupplier")
-                            .getDeclaredConstructor()
-                            .newInstance())
-                    .get());
+            ((Supplier<String>)
+                    Class.forName("datadog.trace.util.JDK9PidSupplier")
+                        .getDeclaredConstructor()
+                        .newInstance())
+                .get()
+                .trim();
       } catch (Throwable e) {
         log.debug("JDK9PidSupplier not available", e);
       }
