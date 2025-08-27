@@ -84,6 +84,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
     "datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor",
     "datadog.trace.bootstrap.instrumentation.api.AgentScope",
+    "datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation",
     "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
     "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
     "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
@@ -250,6 +251,8 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
+    // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
+    "datadog.trace.api.rum.RumInjectorMetrics",
   )
 )
 

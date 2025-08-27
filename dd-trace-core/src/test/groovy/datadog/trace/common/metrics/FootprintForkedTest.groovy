@@ -2,6 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
 import spock.lang.Requires
@@ -27,17 +28,18 @@ class FootprintForkedTest extends DDSpecification {
     ValidatingSink sink = new ValidatingSink(latch)
     DDAgentFeaturesDiscovery features = Stub(DDAgentFeaturesDiscovery) {
       it.supportsMetrics() >> true
+      it.peerTags() >> []
     }
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
       features,
+      HealthMetrics.NO_OP,
       sink,
       1000,
       1000,
       100,
-      SECONDS
-      )
+      SECONDS)
     // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
     def baseline = footprint(aggregator, features)
     aggregator.start()

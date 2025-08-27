@@ -35,7 +35,7 @@ import spock.util.environment.Jvm
 
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest)
 
   private static final String LATEST_MAVEN_VERSION = getLatestMavenVersion()
 
@@ -345,15 +345,15 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return runProcess(processBuilder.start())
   }
 
-  private static runProcess(Process p, int timeout_secs = PROCESS_TIMEOUT_SECS) {
+  private static runProcess(Process p, int timeoutSecs = PROCESS_TIMEOUT_SECS) {
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
     outputGobbler.start()
     errorGobbler.start()
 
-    if (!p.waitFor(timeout_secs, TimeUnit.SECONDS)) {
+    if (!p.waitFor(timeoutSecs, TimeUnit.SECONDS)) {
       p.destroyForcibly()
-      throw new TimeoutException("Instrumented process failed to exit within $timeout_secs seconds")
+      throw new TimeoutException("Instrumented process failed to exit within $timeoutSecs seconds")
     }
 
     return p.exitValue()

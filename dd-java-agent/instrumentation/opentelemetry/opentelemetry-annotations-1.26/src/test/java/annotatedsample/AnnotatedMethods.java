@@ -24,4 +24,10 @@ public class AnnotatedMethods {
   public static String sayHelloWithListAttribute(@SpanAttribute("custom-tag") List<?> param) {
     return "hello!";
   }
+
+  @AddingSpanAttributes
+  public static String sayHelloWithMultipleAttributes(
+      @SpanAttribute("custom-tag1") String param1, @SpanAttribute("custom-tag2") String param2) {
+    return "hello!";
+  }
 }

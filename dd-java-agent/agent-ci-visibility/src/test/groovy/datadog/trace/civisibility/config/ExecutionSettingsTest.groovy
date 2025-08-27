@@ -1,13 +1,10 @@
 package datadog.trace.civisibility.config
 
-import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
-import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.test.util.DDSpecification
-
 
 import static datadog.trace.civisibility.TestUtils.lines
 
@@ -110,37 +107,5 @@ class ExecutionSettingsTest extends DDSpecification {
       new LineDiff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
       ),
     ]
-  }
-
-  private ExecutionSettings givenExecutionSettings(boolean settingsEnabled) {
-    if (settingsEnabled) {
-      injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
-    }
-
-    def testManagementSettings = Stub(TestManagementSettings)
-    testManagementSettings.isEnabled() >> settingsEnabled
-
-    def earlyFlakeDetectionSettings = Stub(EarlyFlakeDetectionSettings)
-    earlyFlakeDetectionSettings.isEnabled() >> settingsEnabled
-
-    return new ExecutionSettings(
-    settingsEnabled,
-    settingsEnabled,
-    settingsEnabled,
-    settingsEnabled,
-    settingsEnabled,
-    settingsEnabled,
-    earlyFlakeDetectionSettings,
-    testManagementSettings,
-    null,
-    [:],
-    [:],
-    [],
-    [],
-    [],
-    [],
-    [],
-    LineDiff.EMPTY
-    )
   }
 }

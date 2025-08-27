@@ -19,6 +19,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,7 +72,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
     public static AgentSpan before(
         @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
         @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
-        @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
+        @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
       if (!(request instanceof HttpServletRequest)) {
         return null;
       }
@@ -81,13 +82,17 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
         if (RumInjector.get().isEnabled()) {
           final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
-          if (maybeRumWrapper instanceof RumHttpServletResponseWrapper) {
-            rumServletWrapper = (RumHttpServletResponseWrapper) maybeRumWrapper;
+          if (maybeRumWrapper instanceof RumControllableResponse) {
+            rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
           } else {
-            rumServletWrapper = new RumHttpServletResponseWrapper((HttpServletResponse) response);
+            rumServletWrapper =
+                new RumHttpServletResponseWrapper(
+                    httpServletRequest, (HttpServletResponse) response);
             httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
-            response = rumServletWrapper;
-            request = new RumHttpServletRequestWrapper(httpServletRequest, rumServletWrapper);
+            response = (ServletResponse) rumServletWrapper;
+            request =
+                new RumHttpServletRequestWrapper(
+                    httpServletRequest, (HttpServletResponse) rumServletWrapper);
           }
         }
       }
@@ -106,7 +111,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
     public static void after(
         @Advice.Enter final AgentSpan span,
         @Advice.Argument(0) final ServletRequest request,
-        @Advice.Local("rumServletWrapper") RumHttpServletResponseWrapper rumServletWrapper) {
+        @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
       if (span == null) {
         return;
       }
