@@ -25,20 +25,22 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   doFirst {
+    // This manipulation is requred to move files into folder
+    // that will be collected by `collect_reports.sh` script.
     String buildDir = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
       "dd-trace-java/workspace/dd-java-agent")
 
     def dupmsDir = new File(buildDir, "dumps")
     dupmsDir.mkdirs()
 
-    // single-thread scheduler (daemon)
+    // Scheduler to execute logic that will dump threads and heap
     def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
       Thread t = new Thread(r, "dump-scheduler")
       t.setDaemon(true)
       return t
     })
 
-    // schedule the dump job 10s later
+    // Schedule the dump job:
     def future = scheduler.schedule({
       try {
         def threadDumpFile = new File(dupmsDir, "${System.currentTimeMillis()}-thread-dump.log")
@@ -48,15 +50,15 @@ tasks.withType(Test).configureEach {
           .redirectOutput(threadDumpFile)
           .start().waitFor()
 
-        def listOutput = "jcmd -l".execute().text.readLines()
-        listOutput.each { line ->
-          println "DEBUG PID: ${line}"
-
-          if (!line.contains("Gradle Test Executor")) {
+        // Collect PIDs of all Java processes:
+        def jvmProcesses = "jcmd -l".execute().text.readLines()
+        jvmProcesses.each { p ->
+          // Process only test executors.
+          if (!p.contains("Gradle Test Executor")) {
             return
           }
 
-          def pid = line.substring(0, line.indexOf(' '))
+          def pid = p.substring(0, p.indexOf(' '))
           def heapDumpFile = "${dupmsDir.absolutePath}/${System.currentTimeMillis()}-${pid}.hprof"
           def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
           cmd.execute().waitFor()
@@ -66,15 +68,15 @@ tasks.withType(Test).configureEach {
       } finally {
         scheduler.shutdown()
       }
-    }, 60, TimeUnit.SECONDS)
+    }, 60, TimeUnit.SECCONDS) // You can adjust this line with required delay.
 
-    // store handles for cancellation in doLast
+    // Store handles for cancellation in doLast:
     ext.dumpFuture = future
     ext.dumpScheduler = scheduler
   }
 
   doLast {
-    // cancel if task completed in <10s
+    // Cancel if task completed faster than specified timeout.
     try {
       ext.dumpFuture?.cancel(false)
     } finally {
