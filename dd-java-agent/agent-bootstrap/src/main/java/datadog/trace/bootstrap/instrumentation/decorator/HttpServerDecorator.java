@@ -20,7 +20,6 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.IGSpanInfo;
-import datadog.trace.api.gateway.InferredProxySpan;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
@@ -152,8 +151,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     AgentSpanContext extracted = getExtractedSpanContext(context);
     // Call IG callbacks
     extracted = callIGCallbackStart(extracted);
-    // Create gateway inferred span if needed
-    extracted = startInferredProxySpan(context, extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
     // Apply RequestBlockingAction if any
@@ -164,15 +161,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // DSM Checkpoint
     tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     return context.with(span);
-  }
-
-  protected AgentSpanContext startInferredProxySpan(Context context, AgentSpanContext extracted) {
-    InferredProxySpan span;
-    if (!Config.get().isInferredProxyPropagationEnabled()
-        || (span = InferredProxySpan.fromContext(context)) == null) {
-      return extracted;
-    }
-    return span.start(extracted);
   }
 
   public AgentSpan onRequest(
@@ -534,17 +522,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     AgentSpan span = AgentSpan.fromContext(context);
     onRequestEndForInstrumentationGateway(span);
 
-    // Close Serverless Gateway Inferred Span if any
-    finishInferredProxySpan(context);
-
     return super.beforeFinish(context);
-  }
-
-  protected void finishInferredProxySpan(Context context) {
-    InferredProxySpan span;
-    if ((span = InferredProxySpan.fromContext(context)) != null) {
-      span.finish();
-    }
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
