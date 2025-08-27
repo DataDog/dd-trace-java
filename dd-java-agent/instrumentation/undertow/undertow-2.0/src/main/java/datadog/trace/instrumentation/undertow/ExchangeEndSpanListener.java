@@ -33,6 +33,7 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
 
     DECORATE.onResponse(span, exchange);
     DECORATE.beforeFinish(context);
+    continuation.cancel();
     span.finish();
     nextListener.proceed();
   }
