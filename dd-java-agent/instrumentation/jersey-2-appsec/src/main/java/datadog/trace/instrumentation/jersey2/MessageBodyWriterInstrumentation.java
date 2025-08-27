@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jakarta3;
+package datadog.trace.instrumentation.jersey2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -18,8 +18,8 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import jakarta.ws.rs.core.MediaType;
 import java.util.function.BiFunction;
+import javax.ws.rs.core.MediaType;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -29,12 +29,17 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MessageBodyWriterInstrumentation() {
-    super("jakarta-rs");
+    super("jersey");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "jersey_2";
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return "jakarta.ws.rs.ext.MessageBodyWriter";
+    return "javax.ws.rs.ext.MessageBodyWriter";
   }
 
   @Override
@@ -71,7 +76,13 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
       }
 
       // Process XML entities for WAF compatibility
-      Object processedEntity = processObjectForWaf(entity, mediaType);
+      Object processedEntity = entity;
+      if ((MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
+              || MediaType.TEXT_XML_TYPE.isCompatible(mediaType))
+          && entity instanceof String) {
+        Object xmlProcessed = XmlDomUtils.processXmlForWaf(entity);
+        processedEntity = xmlProcessed != null ? xmlProcessed : entity;
+      }
 
       Flow<Void> flow = callback.apply(reqCtx, processedEntity);
       Flow.Action action = flow.getAction();
@@ -90,18 +101,5 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
         throw new BlockingException("Blocked request (for MessageBodyWriter)");
       }
     }
-  }
-
-  /** Process response entity for WAF compatibility, handling both XML strings and objects. */
-  private static Object processObjectForWaf(Object entity, MediaType mediaType) {
-    // If it's an XML media type and the entity is a string, try to parse it
-    if ((MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
-            || MediaType.TEXT_XML_TYPE.isCompatible(mediaType))
-        && entity instanceof String
-        && XmlDomUtils.isXmlContent((String) entity)) {
-      Object parsed = XmlDomUtils.handleXmlString((String) entity);
-      return parsed != null ? parsed : entity;
-    }
-    return entity;
   }
 }
