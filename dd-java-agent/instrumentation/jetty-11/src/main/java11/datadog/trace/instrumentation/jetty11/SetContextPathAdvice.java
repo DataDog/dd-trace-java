@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jetty11;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty11.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
@@ -28,7 +28,7 @@ public class SetContextPathAdvice {
     // Don't want to update while being dispatched to new servlet
     if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
       Context ctx = (Context) contextObj;
-      AgentSpan span = fromContext(ctx);
+      AgentSpan span = spanFromContext(ctx);
       if (span != null) {
         if (context != null && context.getContextPath() != null) {
           final String servletContext = context.getContextPath();

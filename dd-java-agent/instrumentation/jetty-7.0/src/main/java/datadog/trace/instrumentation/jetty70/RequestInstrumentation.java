@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.jetty70;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
@@ -68,7 +68,7 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
         // Don't want to update while being dispatched to new servlet
         if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
           Context context = (Context) contextObj;
-          AgentSpan span = fromContext(context);
+          AgentSpan span = spanFromContext(context);
           if (span != null) {
             span.setTag(SERVLET_CONTEXT, contextPath);
             req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
@@ -91,7 +91,7 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
         // Don't want to update while being dispatched to new servlet
         if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
           Context context = (Context) contextObj;
-          AgentSpan span = fromContext(context);
+          AgentSpan span = spanFromContext(context);
           if (span != null) {
             span.setTag(SERVLET_PATH, servletPath);
             req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);

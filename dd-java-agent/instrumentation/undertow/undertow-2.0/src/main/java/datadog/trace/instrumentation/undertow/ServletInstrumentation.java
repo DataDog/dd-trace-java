@@ -68,7 +68,7 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
       if (continuation != null) {
         AgentSpan undertowSpan = continuation.span();
         ServletRequest request = servletRequestContext.getServletRequest();
-        request.setAttribute(DD_CONTEXT_ATTRIBUTE, undertowSpan.context());
+        request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
         undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
