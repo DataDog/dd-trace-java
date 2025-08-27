@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akkahttp106;
 import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -48,5 +49,20 @@ public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, Ht
   @Override
   protected String getResponseHeader(HttpResponse response, String headerName) {
     return response.getHeader(headerName).map(HttpHeader::value).orElse(null);
+  }
+
+  @Override
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    if (throwable != null && throwable.getClass().getName().contains("StreamTcpException")) {
+      Throwable cause = throwable.getCause();
+      if (cause != null) {
+        if (cause instanceof java.net.ConnectException) {
+          return super.onError(span, new java.net.ConnectException(throwable.getMessage()));
+        } else if (cause instanceof java.net.SocketTimeoutException) {
+          return super.onError(span, new java.net.SocketTimeoutException(throwable.getMessage()));
+        }
+      }
+    }
+    return super.onError(span, throwable);
   }
 }

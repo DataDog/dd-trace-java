@@ -60,20 +60,20 @@ public class WrappedFuture<T> implements Future<T> {
     if (prop instanceof AgentSpan) {
       final AgentSpan span = (AgentSpan) prop;
 
-      Throwable throwableError = e.getCause();
-      if (throwableError instanceof javax.ws.rs.ProcessingException) {
+      Throwable cause = e.getCause();
+      if (cause instanceof javax.ws.rs.ProcessingException) {
         javax.ws.rs.ProcessingException processingException =
-            (javax.ws.rs.ProcessingException) throwableError;
+            (javax.ws.rs.ProcessingException) cause;
         if (processingException.getCause() != null) {
           if (processingException.getCause() instanceof java.net.ConnectException) {
-            throwableError = new java.net.ConnectException(processingException.getMessage());
+            cause = new java.net.ConnectException(processingException.getMessage());
           } else if (processingException.getCause() instanceof java.net.SocketTimeoutException) {
-            throwableError = new java.net.SocketTimeoutException(processingException.getMessage());
+            cause = new java.net.SocketTimeoutException(processingException.getMessage());
           }
         }
       }
 
-      span.addThrowable(throwableError);
+      span.addThrowable(cause);
 
       @SuppressWarnings("deprecation")
       final boolean isJaxRsExceptionAsErrorEnabled = Config.get().isJaxRsExceptionAsErrorEnabled();

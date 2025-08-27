@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.playws;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -46,5 +47,22 @@ public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected String getResponseHeader(Response response, String headerName) {
     return response.getHeaders().get(headerName);
+  }
+
+  @Override
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+    if (throwable != null) {
+      Throwable cause = throwable.getCause();
+      if (cause != null) {
+        if (cause instanceof java.net.ConnectException) {
+          return super.onError(span, new java.net.ConnectException(throwable.getMessage()));
+        } else if (cause instanceof java.net.SocketTimeoutException) {
+          return super.onError(span, new java.net.SocketTimeoutException(throwable.getMessage()));
+        } else if (cause.getClass().getName().contains("ConnectTimeoutException")) {
+          return super.onError(span, new java.net.SocketTimeoutException(throwable.getMessage()));
+        }
+      }
+    }
+    return super.onError(span, throwable);
   }
 }
