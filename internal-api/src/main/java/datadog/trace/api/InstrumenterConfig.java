@@ -45,6 +45,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
@@ -128,6 +129,7 @@ public class InstrumenterConfig {
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
+  private final boolean jdbcPoolWaitingEnabled;
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
@@ -235,6 +237,7 @@ public class InstrumenterConfig {
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
+    jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
@@ -409,6 +412,10 @@ public class InstrumenterConfig {
 
   public String getJdbcConnectionClassName() {
     return jdbcConnectionClassName;
+  }
+
+  public boolean isJdbcPoolWaitingEnabled() {
+    return jdbcPoolWaitingEnabled;
   }
 
   public String getHttpURLConnectionClassName() {
@@ -620,6 +627,8 @@ public class InstrumenterConfig {
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
         + '\''
+        + ", jdbcPoolWaitingEnabled="
+        + jdbcPoolWaitingEnabled
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +17,12 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public Dbcp2LinkedBlockingDequeInstrumentation() {
-    super("jdbc-datasource");
+    super("jdbc");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
   }
 
   @Override
@@ -40,15 +46,21 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan onEnter() {
       if (CallDepthThreadLocalMap.getCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class) > 0) {
-        return startSpan("dbcp2", POOL_WAITING);
+        AgentSpan span = startSpan(POOL_WAITING);
+        span.setResourceName("dbcp2.waiting");
+        return span;
       } else {
         return null;
       }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter final AgentSpan span) {
+    public static void onExit(
+        @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
       if (span != null) {
+        if (throwable != null) {
+          span.addThrowable(throwable);
+        }
         span.finish();
       }
     }
