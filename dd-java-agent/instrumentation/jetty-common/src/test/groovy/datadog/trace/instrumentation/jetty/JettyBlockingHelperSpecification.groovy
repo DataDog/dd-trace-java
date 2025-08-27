@@ -1,9 +1,7 @@
 package datadog.trace.instrumentation.jetty
 
 import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Response
 import spock.lang.Specification
@@ -12,7 +10,6 @@ import javax.servlet.ServletOutputStream
 
 import static datadog.appsec.api.blocking.BlockingContentType.AUTO
 
-// WARNING: Test is never found nor run
 class JettyBlockingHelperSpecification extends Specification {
   def 'block completes successfully'() {
     setup:
@@ -21,20 +18,11 @@ class JettyBlockingHelperSpecification extends Specification {
     ServletOutputStream os = Mock()
     TraceSegment seg = Mock()
     def rba = new Flow.Action.RequestBlockingAction(402, AUTO)
-    RequestContext requestContext = Stub(RequestContext) {
-      getTraceSegment() >> seg
-      getBlockResponseFunction() >> rba
-    }
-    AgentSpan span = Stub(AgentSpan) {
-      getRequestContext() >> requestContext
-      getRequestBlockingAction() >> rba
-    }
 
     when:
-    JettyBlockingHelper.block(req, resp, span, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders())
+    JettyBlockingHelper.block(seg, req, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders())
 
     then:
-    false == true // Proof test is never run
     1 * resp.isCommitted() >> false
     1 * resp.setStatus(402)
     1 * req.getHeader('Accept') >> 'text/html'
