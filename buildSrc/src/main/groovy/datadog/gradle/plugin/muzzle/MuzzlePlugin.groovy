@@ -23,14 +23,11 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.file.FileCollection
-import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskProvider
 
 import java.lang.reflect.Method
 import java.util.function.BiFunction
 import java.util.regex.Pattern
-
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
@@ -285,34 +282,6 @@ class MuzzlePlugin implements Plugin<Project> {
                    |  <testcase name="${name}" time="${seconds}">
                    |  </testcase>
                    |</testsuite>\n""".stripMargin()
-  }
-
-  static FileCollection createAgentClassPath(Project project) {
-    FileCollection cp = project.files()
-    project.getLogger().info("Creating agent classpath for $project")
-    for (SourceSet sourceSet : project.sourceSets) {
-      if (sourceSet.name.startsWith('main')) {
-        cp += sourceSet.runtimeClasspath
-      }
-    }
-    if (project.getLogger().isInfoEnabled()) {
-      cp.forEach { project.getLogger().info("-- $it") }
-    }
-    return cp
-  }
-
-  static FileCollection createMuzzleClassPath(Project project, String muzzleTaskName) {
-    FileCollection cp = project.files()
-    project.getLogger().info("Creating muzzle classpath for $muzzleTaskName")
-    if ('muzzle' == muzzleTaskName) {
-      cp += project.configurations.named("compileClasspath").get()
-    } else {
-      cp += project.configurations.named(muzzleTaskName).get()
-    }
-    if (project.getLogger().isInfoEnabled()) {
-      cp.forEach { project.getLogger().info("-- $it") }
-    }
-    return cp
   }
 
   static VersionRangeResult resolveVersionRange(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {

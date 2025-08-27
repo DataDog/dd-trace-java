@@ -5,8 +5,7 @@ import org.eclipse.aether.repository.RemoteRepository
 /**
  * A pass or fail directive for a single dependency.
  */
-class MuzzleDirective {
-
+open class MuzzleDirective {
   /**
    * Name is optional and is used to further define the scope of a directive. The motivation for this is that this
    * plugin creates a config for each of the dependencies under test with name '...-<group_id>-<artifact_id>-<version>'.
@@ -14,24 +13,23 @@ class MuzzleDirective {
    * with different extra dependencies, the plugin would throw an error as it would try to create several times the
    * same config. This property can be used to differentiate those config names for different directives.
    */
-  String name
+  var name: String? = null
+  var group: String? = null
+  var module: String? = null
+  var classifier: String? = null
+  var versions: String? = null
+  var skipVersions: MutableSet<String> = HashSet()
+  var additionalDependencies: MutableList<String> = ArrayList()
+  var additionalRepositories: MutableList<RemoteRepository> = ArrayList()
+  var excludedDependencies: MutableList<String> = ArrayList()
+  var assertPass: Boolean = false
+  var assertInverse: Boolean = false
+  var skipFromReport: Boolean = false
+  var coreJdk: Boolean = false
+  var includeSnapshots: Boolean = false
+  var javaVersion: String? = null
 
-  String group
-  String module
-  String classifier
-  String versions
-  Set<String> skipVersions = new HashSet<>()
-  List<String> additionalDependencies = new ArrayList<>()
-  List<RemoteRepository> additionalRepositories = new ArrayList<>()
-  List<String> excludedDependencies = new ArrayList<>()
-  boolean assertPass
-  boolean assertInverse = false
-  boolean skipFromReport = false
-  boolean coreJdk = false
-  boolean includeSnapshots = false
-  String javaVersion
-
-  void coreJdk(version = null) {
+  fun coreJdk(version: String? = null) {
     coreJdk = true
     javaVersion = version
   }
@@ -41,7 +39,7 @@ class MuzzleDirective {
    *
    * @param compileString An extra dependency in the gradle canonical form: '<group_id>:<artifact_id>:<version_id>'.
    */
-  void extraDependency(String compileString) {
+  fun extraDependency(compileString: String) {
     additionalDependencies.add(compileString)
   }
 
@@ -52,8 +50,8 @@ class MuzzleDirective {
    * @param url the url of the repository
    * @param type the type of repository, defaults to "default"
    */
-  void extraRepository(String id, String url, String type = "default") {
-    additionalRepositories.add(new RemoteRepository.Builder(id, type, url).build())
+  fun extraRepository(id: String, url: String, type: String = "default") {
+    additionalRepositories.add(RemoteRepository.Builder(id, type, url).build())
   }
 
   /**
@@ -61,7 +59,7 @@ class MuzzleDirective {
    *
    * @param excludeString A dependency in the gradle canonical form: '<group_id>:<artifact_id>'.
    */
-  void excludeDependency(String excludeString) {
+  fun excludeDependency(excludeString: String) {
     excludedDependencies.add(excludeString)
   }
 
@@ -71,14 +69,14 @@ class MuzzleDirective {
    * @param defaults the default repositories
    * @return a list of the default repositories followed by any additional repositories
    */
-  List<RemoteRepository> getRepositories(List<RemoteRepository> defaults) {
-    if (additionalRepositories.isEmpty()) {
-      return defaults
+  fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> {
+    return if (additionalRepositories.isEmpty()) {
+      defaults
     } else {
-      def repositories = new ArrayList<RemoteRepository>(defaults.size() + additionalRepositories.size())
-      repositories.addAll(defaults)
-      repositories.addAll(additionalRepositories)
-      return repositories
+      ArrayList<RemoteRepository>(defaults.size + additionalRepositories.size).apply {
+        addAll(defaults)
+        addAll(additionalRepositories)
+      }
     }
   }
 
@@ -87,19 +85,16 @@ class MuzzleDirective {
    *
    * @return A slug of the name or an empty string if name is empty. E.g. 'My Directive' --> 'My-Directive'
    */
-  String getNameSlug() {
-    if (null == name) {
-      return ""
-    }
-
-    return name.trim().replaceAll("[^a-zA-Z0-9]+", "-")
+  fun getNameSlug(): String {
+    return name?.trim()?.replace(Regex("[^a-zA-Z0-9]+"), "-") ?: ""
   }
 
-  String toString() {
-    if (coreJdk) {
-      return "${assertPass ? 'Pass' : 'Fail'}-core-jdk"
+  override fun toString(): String {
+    return if (coreJdk) {
+      "${if (assertPass) "Pass" else "Fail"}-core-jdk"
     } else {
-      return "${assertPass ? 'pass' : 'fail'} $group:$module:$versions"
+      "${if (assertPass) "pass" else "fail"} $group:$module:$versions"
     }
   }
 }
+
