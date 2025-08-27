@@ -7,6 +7,7 @@ import datadog.trace.instrumentation.karate.KarateUtils
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
 import org.example.*
 import org.junit.jupiter.api.Assumptions
+import spock.lang.Requires
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
@@ -14,16 +15,14 @@ import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
-import spock.lang.IgnoreIf
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
-@IgnoreIf(reason = "Karate does not support Java 24+ yet: https://github.com/karatelabs/karate/blob/master/.github/workflows/jdk-compat.yml#L18", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(24)
-})
+// Karate does not support Java 24+ yet: https://github.com/karatelabs/karate/blob/master/.github/workflows/jdk-compat.yml#L18
+@Requires({ !JavaVirtualMachine.isJavaVersionAtLeast(24) })
 @DisableTestTrace(reason = "avoid self-tracing")
 class KarateTest extends CiVisibilityInstrumentationTest {
 
@@ -38,7 +37,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     testcaseName            | success | tests                          | assumption
     "test-succeed"          | true    | [TestSucceedKarate]            | true
     "test-succeed-parallel" | true    | [TestSucceedParallelKarate]    | true
-    "test-with-setup"       | true    | [TestWithSetupKarate]          | false // TODO: Investigate and fix Karate setup feature compatibility with JUnit 5
+    "test-with-setup"       | true    | [TestWithSetupKarate]          | KarateUtils.isSetupTagSupported(KarateUtils.getKarateVersion())
     "test-parameterized"    | true    | [TestParameterizedKarate]      | true
     "test-failed"           | false   | [TestFailedKarate]             | true
     "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]     | true
@@ -202,14 +201,14 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
-    .selectors(selectors)
-    .build()
+      .selectors(selectors)
+      .build()
 
     def launcherConfig = LauncherConfig
-    .builder()
-    .enableTestEngineAutoRegistration(false)
-    .addTestEngines(new JupiterTestEngine())
-    .build()
+      .builder()
+      .enableTestEngineAutoRegistration(false)
+      .addTestEngines(new JupiterTestEngine())
+      .build()
 
     def launcher = LauncherFactory.create(launcherConfig)
     def listener = new TestResultListener()
