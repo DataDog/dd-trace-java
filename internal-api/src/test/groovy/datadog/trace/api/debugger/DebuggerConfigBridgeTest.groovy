@@ -8,7 +8,7 @@ class DebuggerConfigBridgeTest extends Specification {
     def updater = new MockDebuggerConfigUpdater()
 
     when:
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().build())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(true).build())
 
     then:
     updater.calls == 0
@@ -20,7 +20,7 @@ class DebuggerConfigBridgeTest extends Specification {
     updater.calls == 1 // deferred updates are done on set
 
     when:
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().build())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(false).build())
 
     then:
     updater.calls == 2

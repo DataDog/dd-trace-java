@@ -12,7 +12,7 @@ import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
-import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -92,8 +92,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       if (testContext == null) {
         return;
       }
-      TestExecutionPolicy executionPolicy = testContext.get(TestExecutionPolicy.class);
-      if (executionPolicy == null || !executionPolicy.failedTestReplayApplicable()) {
+      TestExecutionHistory executionHistory = testContext.get(TestExecutionHistory.class);
+      if (executionHistory == null || !executionHistory.failedTestReplayApplicable()) {
         return;
       }
     } else {

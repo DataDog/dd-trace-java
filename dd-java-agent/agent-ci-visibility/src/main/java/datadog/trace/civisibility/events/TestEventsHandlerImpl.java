@@ -160,8 +160,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testSuite.testStart(testName, testParameters, testSourceData.getTestMethod(), startTime);
 
     TestIdentifier thisTest = test.getIdentifier();
-    test.getContext()
-        .set(TestExecutionPolicy.class, executionPolicy(thisTest, testSourceData, categories));
 
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
@@ -184,6 +182,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     if (testExecutionHistory != null) {
+      test.getContext().set(TestExecutionHistory.class, testExecutionHistory);
       RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
       if (retryReason != null) {
         test.setTag(Tags.TEST_IS_RETRY, true);

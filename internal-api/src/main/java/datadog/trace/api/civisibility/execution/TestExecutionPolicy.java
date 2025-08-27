@@ -20,7 +20,4 @@ public interface TestExecutionPolicy extends TestExecutionHistory {
    *     result
    */
   boolean suppressFailures();
-
-  /** @return {@code true} if the test should be instrumented by FTR */
-  boolean failedTestReplayApplicable();
 }
