@@ -37,7 +37,7 @@ class CoverageReportUploaderTest extends Specification {
         def parsed = MultipartRequestParser.parseRequest(request.body, request.headers.get("Content-Type"))
 
         def event = JSON_MAPPER.readValue(parsed["event"].get(0).get(), Map.class)
-        if (event.size() != 2 || event["format"] != JACOCO_FORMAT || event[CI_TAG_KEY] != CI_TAG_VALUE) {
+        if (event.size() != 3 || event["format"] != JACOCO_FORMAT  || event["type"] != "coverage_report" || event[CI_TAG_KEY] != CI_TAG_VALUE) {
           response.status(400).send("Incorrect event $event")
           return
         }
