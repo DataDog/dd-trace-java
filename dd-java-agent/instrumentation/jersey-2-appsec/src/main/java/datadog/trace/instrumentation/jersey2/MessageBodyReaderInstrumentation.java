@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.function.BiFunction;
 import javax.ws.rs.core.Form;
@@ -70,7 +71,9 @@ public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
       if (ret instanceof Form) {
         objToPass = ((Form) ret).asMap();
       } else {
-        objToPass = ret;
+        // Process XML strings for WAF compatibility
+        Object processedObj = XmlDomUtils.processXmlForWaf(ret);
+        objToPass = processedObj != null ? processedObj : ret;
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);

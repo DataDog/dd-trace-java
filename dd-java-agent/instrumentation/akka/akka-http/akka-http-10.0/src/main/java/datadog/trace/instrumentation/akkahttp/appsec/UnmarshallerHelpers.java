@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Field;
@@ -473,8 +474,20 @@ public class UnmarshallerHelpers {
       return;
     }
 
+    // Special handling for XML strings - convert to WAF-compatible format
+    Object processedObj = o;
+    if (o instanceof String && XmlDomUtils.isXmlContent((String) o)) {
+      Object xmlResult = XmlDomUtils.handleXmlString((String) o, MAX_CONVERSION_DEPTH);
+      if (xmlResult != null) {
+        processedObj = xmlResult;
+      } else {
+        log.debug("Error processing XML string for WAF analysis in " + source);
+        // Fall back to original object processing
+      }
+    }
+
     // callback execution
-    executeCallback(reqCtx, callback, o, source);
+    executeCallback(reqCtx, callback, processedObj, source);
   }
 
   private static void handleException(Exception e, String logMessage) {

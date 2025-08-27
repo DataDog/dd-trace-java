@@ -17,6 +17,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
@@ -27,11 +28,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.NodeList;
 import play.api.libs.json.JsArray;
 import play.api.libs.json.JsBoolean;
 import play.api.libs.json.JsNumber;
@@ -408,50 +405,7 @@ public class BodyParserHelpers {
       return;
     }
 
-    Element documentElement = ret.getDocumentElement();
-    Object obj = convertW3cNode(documentElement, MAX_RECURSION);
-
-    // pass wrapped in a list for consistency with NodeSeq (scala) variant
-    handleArbitraryPostDataWithSpanError(Collections.singletonList(obj), source);
-  }
-
-  private static Object convertW3cNode(org.w3c.dom.Node node, int maxRecursion) {
-    if (node == null || maxRecursion <= 0) {
-      return null;
-    }
-
-    if (node instanceof Element) {
-      Map<String, String> attributes = Collections.emptyMap();
-      if (node.hasAttributes()) {
-        attributes = new HashMap<>();
-        NamedNodeMap attrMap = node.getAttributes();
-        for (int i = 0; i < attrMap.getLength(); i++) {
-          org.w3c.dom.Attr item = (Attr) attrMap.item(i);
-          attributes.put(item.getName(), item.getValue());
-        }
-      }
-
-      List<Object> children = Collections.emptyList();
-      if (node.hasChildNodes()) {
-        NodeList childNodes = node.getChildNodes();
-        children = new ArrayList<>(childNodes.getLength());
-        for (int i = 0; i < childNodes.getLength(); i++) {
-          org.w3c.dom.Node item = childNodes.item(i);
-          children.add(convertW3cNode(item, maxRecursion - 1));
-        }
-      }
-
-      Map<String, Object> repr = new HashMap<>();
-      if (!attributes.isEmpty()) {
-        repr.put("attributes", attributes);
-      }
-      if (!children.isEmpty()) {
-        repr.put("children", children);
-      }
-      return repr;
-    } else if (node instanceof org.w3c.dom.Text) {
-      return node.getTextContent();
-    }
-    return null;
+    Object obj = XmlDomUtils.convertDocument(ret, MAX_RECURSION);
+    handleArbitraryPostDataWithSpanError(obj, source);
   }
 }

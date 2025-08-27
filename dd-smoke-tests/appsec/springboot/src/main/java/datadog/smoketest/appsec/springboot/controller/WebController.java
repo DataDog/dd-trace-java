@@ -12,6 +12,8 @@ import java.sql.DriverManager;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -30,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 @RestController
 public class WebController {
@@ -217,6 +221,53 @@ public class WebController {
   @PostMapping(value = "/api_security/jackson", consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<JsonNode> apiSecurityJackson(@RequestBody final JsonNode body) {
     return ResponseEntity.status(200).body(body);
+  }
+
+  @PostMapping(
+      value = "/api_security/xml",
+      consumes = MediaType.APPLICATION_XML_VALUE,
+      produces = MediaType.APPLICATION_XML_VALUE)
+  public ResponseEntity<Document> apiSecurityXml(@RequestBody final Document xmlDocument) {
+    try {
+      // Now Spring will use an XML HttpMessageConverter that produces DOM Document objects
+      // This will trigger our ObjectIntrospection XML DOM parsing in the instrumentation
+
+      // Create a response Document that will also be processed by instrumentation
+      DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+      DocumentBuilder builder = factory.newDocumentBuilder();
+      Document responseDocument = builder.newDocument();
+
+      // Create response XML structure
+      Element responseRoot = responseDocument.createElement("response");
+      responseDocument.appendChild(responseRoot);
+
+      Element status = responseDocument.createElement("status");
+      status.setTextContent("success");
+      responseRoot.appendChild(status);
+
+      Element message = responseDocument.createElement("message");
+      message.setTextContent("XML processed successfully");
+      responseRoot.appendChild(message);
+
+      Element timestamp = responseDocument.createElement("timestamp");
+      timestamp.setTextContent(String.valueOf(System.currentTimeMillis()));
+      responseRoot.appendChild(timestamp);
+
+      // Add some attributes to test XML attribute parsing
+      responseRoot.setAttribute("version", "1.0");
+      responseRoot.setAttribute("processed", "true");
+
+      // Echo back some information from the request document if available
+      if (xmlDocument != null && xmlDocument.getDocumentElement() != null) {
+        Element requestEcho = responseDocument.createElement("request_echo");
+        requestEcho.setAttribute("root_tag", xmlDocument.getDocumentElement().getTagName());
+        responseRoot.appendChild(requestEcho);
+      }
+
+      return ResponseEntity.status(200).body(responseDocument);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to process XML", e);
+    }
   }
 
   @GetMapping("/custom-headers")
