@@ -1,7 +1,10 @@
+package datadog.gradle.plugin.muzzle
+
+
 import org.eclipse.aether.version.Version
 import spock.lang.Specification
 
-import static VersionSet.ParsedVersion
+import static datadog.gradle.plugin.muzzle.VersionSet.ParsedVersion
 
 class VersionSetTest extends Specification {
 

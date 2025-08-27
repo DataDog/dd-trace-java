@@ -1,3 +1,5 @@
+package datadog.gradle.plugin.muzzle
+
 import org.eclipse.aether.version.Version
 
 import java.util.regex.Pattern

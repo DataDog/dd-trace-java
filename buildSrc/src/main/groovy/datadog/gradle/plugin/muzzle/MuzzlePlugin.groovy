@@ -1,3 +1,5 @@
+package datadog.gradle.plugin.muzzle
+
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
 import org.eclipse.aether.DefaultRepositorySystemSession
 import org.eclipse.aether.RepositorySystem
@@ -352,7 +354,7 @@ class MuzzlePlugin implements Plugin<Project> {
   }
 
   /**
-   * Create a list of muzzle directives which assert the opposite of the given MuzzleDirective.
+   * Create a list of muzzle directives which assert the opposite of the given datadog.gradle.plugin.muzzle.MuzzleDirective.
    */
   private static Set<MuzzleDirective> inverseOf(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
     final Artifact allVersionsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")

@@ -1,3 +1,5 @@
+package datadog.gradle.plugin.muzzle
+
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
