@@ -14,7 +14,6 @@ import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
 import spock.lang.Requires
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
