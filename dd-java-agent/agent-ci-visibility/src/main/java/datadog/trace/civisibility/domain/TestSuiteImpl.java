@@ -118,10 +118,6 @@ public class TestSuiteImpl implements DDTestSuite {
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
-    log.debug("Setting suite hierarchy IDs: suiteId={}, moduleId={}, sessionId={}, suiteName={}, moduleName={}, instrumentationType={}", 
-        span.getSpanId(), moduleSpanContext.getSpanId(), moduleSpanContext.getTraceId(), 
-        testSuiteName, moduleName, instrumentationType);
-
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);
@@ -246,8 +242,6 @@ public class TestSuiteImpl implements DDTestSuite {
       @Nullable String testParameters,
       @Nullable Method testMethod,
       @Nullable Long startTime) {
-    log.debug("Creating test with context propagation: moduleSpanContext.traceId={}, moduleSpanContext.spanId={}, suiteSpanId={}, testName={}", 
-        moduleSpanContext.getTraceId(), moduleSpanContext.getSpanId(), span.getSpanId(), testName);
 
     return new TestImpl(
         moduleSpanContext,

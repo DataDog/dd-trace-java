@@ -18,12 +18,8 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class AbstractTestModule {
-
-  private static final Logger log = LoggerFactory.getLogger(AbstractTestModule.class);
 
   protected final AgentSpan span;
   protected final String moduleName;
@@ -76,9 +72,6 @@ public abstract class AbstractTestModule {
 
     span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
-
-    log.debug("Setting module hierarchy IDs: moduleId={}, sessionId={}, moduleName={}, instrumentationType={}", 
-        span.getSpanId(), span.getTraceId(), moduleName, instrumentationType);
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children

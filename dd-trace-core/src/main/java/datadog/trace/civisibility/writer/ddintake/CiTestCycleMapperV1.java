@@ -28,8 +28,11 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import okhttp3.RequestBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
+  private static final Logger LOGGER = LoggerFactory.getLogger(CiTestCycleMapperV1.class);
 
   private static final byte[] VERSION = "version".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
@@ -153,6 +156,16 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         parentId = span.getParentId();
         version = 1;
       }
+
+      LOGGER.debug(
+          "Test span serialization - span: {}, sessionID: {}, moduleID: {}, suiteID: {}, traceID: {}, spanID: {}, parentID: {}",
+          span.getOperationName(),
+          testSessionId,
+          testModuleId,
+          testSuiteId,
+          traceId,
+          spanId,
+          parentId);
 
       int contentChildrenCount =
           8

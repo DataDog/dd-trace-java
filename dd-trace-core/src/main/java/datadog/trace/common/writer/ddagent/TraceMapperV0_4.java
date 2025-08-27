@@ -23,12 +23,10 @@ import java.util.Map;
 import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 
 public final class TraceMapperV0_4 implements TraceMapper {
 
-  private static final Logger log = LoggerFactory.getLogger(TraceMapperV0_4.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TraceMapperV0_4.class);
 
   private final int size;
 
@@ -258,6 +256,12 @@ public final class TraceMapperV0_4 implements TraceMapper {
     writable.startArray(trace.size());
     for (int i = 0; i < trace.size(); i++) {
       final CoreSpan<?> span = trace.get(i);
+      LOGGER.debug(
+          "Span serialization - span: {}, traceID: {}, spanID: {}, parentID: {}",
+          span.getOperationName(),
+          span.getTraceId().toLong(),
+          span.getSpanId(),
+          span.getParentId());
       final Map<String, Object> metaStruct = span.getMetaStruct();
       writable.startMap(metaStruct.isEmpty() ? 12 : 13);
       /* 1  */
@@ -291,26 +295,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 11, 12 */
-      // Validation logging for missing test hierarchy IDs before serialization
-      if (InternalSpanTypes.TEST.equals(span.getType())) {
-        String sessionId = (String) span.getTag(Tags.TEST_SESSION_ID);
-        String moduleId = (String) span.getTag(Tags.TEST_MODULE_ID);
-        String suiteId = (String) span.getTag(Tags.TEST_SUITE_ID);
-        
-        if (sessionId == null) {
-          log.warn("Test span missing TEST_SESSION_ID before serialization: spanId={}, resource={}, traceId={}", 
-              span.getSpanId(), span.getResourceName(), span.getTraceId());
-        }
-        if (moduleId == null) {
-          log.warn("Test span missing TEST_MODULE_ID before serialization: spanId={}, resource={}, traceId={}", 
-              span.getSpanId(), span.getResourceName(), span.getTraceId());
-        }
-        if (suiteId == null) {
-          log.warn("Test span missing TEST_SUITE_ID before serialization: spanId={}, resource={}, traceId={}", 
-              span.getSpanId(), span.getResourceName(), span.getTraceId());
-        }
-      }
-      
+
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
