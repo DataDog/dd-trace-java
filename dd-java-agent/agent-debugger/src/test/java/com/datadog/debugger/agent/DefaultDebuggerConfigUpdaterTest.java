@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import java.lang.instrument.Instrumentation;
 import org.junit.jupiter.api.Test;
 
@@ -18,18 +19,18 @@ class DefaultDebuggerConfigUpdaterTest {
     when(sco.featuresDiscovery(any())).thenReturn(mock(DDAgentFeaturesDiscovery.class));
     DebuggerAgent.run(mock(Instrumentation.class), sco);
     DefaultDebuggerConfigUpdater productConfigUpdater = new DefaultDebuggerConfigUpdater();
-    productConfigUpdater.updateConfig(null);
-    productConfigUpdater.updateConfig(true);
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.empty());
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.allEnabled());
     assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
     assertTrue(productConfigUpdater.isExceptionReplayEnabled());
     assertTrue(productConfigUpdater.isCodeOriginEnabled());
     assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
-    productConfigUpdater.updateConfig(null);
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.empty());
     assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
     assertTrue(productConfigUpdater.isExceptionReplayEnabled());
     assertTrue(productConfigUpdater.isCodeOriginEnabled());
     assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
-    productConfigUpdater.updateConfig(false);
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.allDisabled());
     assertFalse(productConfigUpdater.isDynamicInstrumentationEnabled());
     assertFalse(productConfigUpdater.isExceptionReplayEnabled());
     assertFalse(productConfigUpdater.isCodeOriginEnabled());

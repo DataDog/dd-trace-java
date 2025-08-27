@@ -97,8 +97,34 @@ public class DebuggerConfigUpdate {
       return this;
     }
 
+    public Builder enableAll() {
+      return setDynamicInstrumentationEnabled(true)
+          .setExceptionReplayEnabled(true)
+          .setCodeOriginEnabled(true)
+          .setLiveDebuggingEnabled(true);
+    }
+
+    public Builder disableAll() {
+      return setDynamicInstrumentationEnabled(false)
+          .setExceptionReplayEnabled(false)
+          .setCodeOriginEnabled(false)
+          .setLiveDebuggingEnabled(false);
+    }
+
     public DebuggerConfigUpdate build() {
       return new DebuggerConfigUpdate(this);
     }
+  }
+
+  public static DebuggerConfigUpdate empty() {
+    return new Builder().build();
+  }
+
+  public static DebuggerConfigUpdate allEnabled() {
+    return new Builder().enableAll().build();
+  }
+
+  public static DebuggerConfigUpdate allDisabled() {
+    return new Builder().disableAll().build();
   }
 }
