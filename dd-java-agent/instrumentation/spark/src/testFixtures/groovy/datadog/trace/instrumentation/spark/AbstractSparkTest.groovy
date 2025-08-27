@@ -19,10 +19,11 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
-@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
-  JavaVirtualMachine.isJ9()
+// https://issues.apache.org/jira/browse/HADOOP-18174
+@Requires({
+  !JavaVirtualMachine.isJ9()
 })
 abstract class AbstractSparkTest extends AgentTestRunner {
   @Override

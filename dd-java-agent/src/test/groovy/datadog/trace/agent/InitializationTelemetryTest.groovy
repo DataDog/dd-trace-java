@@ -3,14 +3,15 @@ package datadog.trace.agent
 import datadog.environment.JavaVirtualMachine
 import datadog.test.SimpleAgentMock
 import jvmbootstraptest.InitializationTelemetryCheck
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
 import spock.lang.Timeout
 
 @Timeout(30)
 class InitializationTelemetryTest extends Specification {
-  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  // SecurityManager is permanently disabled as of JDK 24
+  @Requires({
+    !JavaVirtualMachine.isJavaVersionAtLeast(24)
   })
   def "block agent start-up"() {
     // In this case, the SecurityManager blocks loading of the Premain Class,
@@ -53,8 +54,9 @@ class InitializationTelemetryTest extends Specification {
     agent.close()
   }
 
-  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  // SecurityManager is permanently disabled as of JDK 24
+  @Requires({
+    !JavaVirtualMachine.isJavaVersionAtLeast(24)
   })
   def "incomplete agent start-up"() {
     // In this case, the SecurityManager blocks a custom permission that is checked by bytebuddy causing
@@ -69,8 +71,9 @@ class InitializationTelemetryTest extends Specification {
     result.telemetryJson.contains('error_type:')
   }
 
-  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  // SecurityManager is permanently disabled as of JDK 24
+  @Requires({
+    !JavaVirtualMachine.isJavaVersionAtLeast(24)
   })
   def "block forwarder env var"() {
     // In this case, the SecurityManager blocks access to the forwarder environment variable,
@@ -84,8 +87,9 @@ class InitializationTelemetryTest extends Specification {
     result.telemetryJson == null
   }
 
-  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  // SecurityManager is permanently disabled as of JDK 24
+  @Requires({
+    !JavaVirtualMachine.isJavaVersionAtLeast(24)
   })
   def "block forwarder execution"() {
     // In this case, the SecurityManager blocks access to process execution, so the tracer is

@@ -9,7 +9,7 @@ import org.glassfish.jersey.client.ClientProperties
 import org.glassfish.jersey.client.JerseyClientBuilder
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
 import org.spockframework.runtime.ConditionNotSatisfiedError
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Retry
 import spock.lang.Timeout
 
@@ -101,11 +101,11 @@ class ResteasyClientV0ForkedTest extends ResteasyClientTest {
 class ResteasyClientV1ForkedTest extends ResteasyClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }
 
+// TODO Java 17: This version of apache-cxf doesn't work on Java 17
+//  exception in org.apache.cxf.common.util.ReflectionUtil
 @Timeout(5)
-@IgnoreIf({
-  // TODO Java 17: This version of apache-cxf doesn't work on Java 17
-  //  exception in org.apache.cxf.common.util.ReflectionUtil
-  JavaVirtualMachine.isJavaVersionAtLeast(17)
+@Requires({
+  !JavaVirtualMachine.isJavaVersionAtLeast(17)
 })
 class CxfClientTest extends JaxRsClientTest {
 

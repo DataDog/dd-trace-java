@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.scala
 
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 class StringContextCallSiteTest extends AbstractIastScalaTest {
 
@@ -62,7 +62,7 @@ class StringContextCallSiteTest extends AbstractIastScalaTest {
     0 * _
   }
 
-  @IgnoreIf({ instance.usesJavaConcat })
+  @Requires({ !instance.usesJavaConcat })
   void 'test leading empty chunk'() {
     setup:
     final iastModule = Mock(StringModule)
@@ -81,7 +81,7 @@ class StringContextCallSiteTest extends AbstractIastScalaTest {
     0 * _
   }
 
-  @IgnoreIf({ instance.usesJavaConcat })
+  @Requires({ !instance.usesJavaConcat })
   void 'test trailing empty chunk'() {
     setup:
     final iastModule = Mock(StringModule)

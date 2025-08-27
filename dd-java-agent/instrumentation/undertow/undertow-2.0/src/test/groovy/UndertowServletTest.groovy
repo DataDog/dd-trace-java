@@ -11,7 +11,7 @@ import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import javax.servlet.MultipartConfigElement
 import java.nio.ByteBuffer
@@ -280,7 +280,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     }
   }
 
-  @IgnoreIf({ !instance.generateHttpRoute() })
+  @Requires({ instance.generateHttpRoute() })
   def "test not-here"() {
     setup:
     def request = request(NOT_HERE, method, body).build()

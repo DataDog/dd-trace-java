@@ -15,7 +15,7 @@ import io.vertx.core.MultiMap
 import io.vertx.core.http.impl.headers.HeadersAdaptor
 import io.vertx.core.http.impl.headers.HeadersMultiMap
 import io.vertx.core.http.impl.headers.Http2HeadersAdaptor
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import static datadog.trace.api.iast.SourceTypes.namedSource
 
@@ -113,7 +113,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
   }
 
   // some implementations do not override the entries() method so we will lose propagation in those cases
-  @IgnoreIf({ !MultiMapInstrumentationTest.hasMethod(data['instance'].class, 'entries')})
+  @Requires({ MultiMapInstrumentationTest.hasMethod(data['instance'].class, 'entries')})
   void 'test that #name entries() is instrumented'() {
     given:
     final origin = SourceTypes.REQUEST_PARAMETER_VALUE

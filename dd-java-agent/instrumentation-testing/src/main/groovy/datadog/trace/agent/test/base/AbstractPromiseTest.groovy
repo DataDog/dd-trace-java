@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -146,7 +146,7 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     value << [true, false]
   }
 
-  @IgnoreIf({ !instance.picksUpCompletingScope() })
+  @Requires({ instance.picksUpCompletingScope() })
   def "test call with no parent (completing scope)"() {
     setup:
     def promise = newPromise()

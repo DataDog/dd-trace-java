@@ -24,7 +24,7 @@ import software.amazon.awssdk.services.sqs.model.Message
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Shared
 
 import javax.jms.Session
@@ -189,7 +189,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.close()
   }
 
-  @IgnoreIf({instance.isDataStreamsEnabled()})
+  @Requires({!instance.isDataStreamsEnabled()})
   def "trace details propagated via embedded SQS message attribute (string)"() {
     setup:
     TEST_WRITER.clear()
@@ -232,7 +232,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     }
   }
 
-  @IgnoreIf({instance.isDataStreamsEnabled()})
+  @Requires({!instance.isDataStreamsEnabled()})
   def "trace details propagated via embedded SQS message attribute (binary)"() {
     setup:
     TEST_WRITER.clear()
@@ -282,7 +282,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     ]
   }
 
-  @IgnoreIf({instance.isDataStreamsEnabled()})
+  @Requires({!instance.isDataStreamsEnabled()})
   def "trace details propagated from SQS to JMS"() {
     setup:
     def client = SqsClient.builder()

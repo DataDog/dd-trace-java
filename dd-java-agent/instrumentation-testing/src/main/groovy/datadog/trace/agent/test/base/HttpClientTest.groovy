@@ -13,7 +13,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -195,7 +195,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
   // IBM JVM has different protocol support for TLS
   @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
-  @IgnoreIf({ !instance.testSecure() })
+  @Requires({ instance.testSecure() })
   def "basic secure #method request"() {
     when:
     def status = doRequest(method, url)
@@ -231,7 +231,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
   // IBM JVM has different protocol support for TLS
   @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
-  @IgnoreIf({ !(instance.testSecure() && instance.testProxy()) })
+  @Requires({ instance.testSecure() && instance.testProxy() })
   def "secure #method proxied request"() {
     when:
     def status = runUnderTrace("parent") {
@@ -447,7 +447,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   @Flaky(value = 'Futures timed out after [1 second]', suites = ['PlayWSClientTest'])
-  @IgnoreIf({ !instance.testCallbackWithParent() })
+  @Requires({ instance.testCallbackWithParent() })
   def "trace request with callback and parent"() {
     given:
     def method = 'GET'
@@ -538,7 +538,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRedirects() })
+  @Requires({ instance.testRedirects() })
   def "basic #method request with 1 redirect"() {
     // TODO quite a few clients create an extra span for the redirect
     // This test should handle both types or we should unify how the clients work
@@ -574,7 +574,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRedirects() })
+  @Requires({ instance.testRedirects() })
   def "basic #method request with 2 redirects"() {
     given:
     def uri = server.address.resolve("/another-redirect")
@@ -608,7 +608,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !(instance.testRedirects() && instance.testCircularRedirects()) })
+  @Requires({ instance.testRedirects() && instance.testCircularRedirects() })
   def "basic #method request with circular redirects"() {
     given:
     def uri = server.address.resolve("/circular-redirect")
@@ -633,7 +633,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRedirects() })
+  @Requires({ instance.testRedirects() })
   def "redirect #method to secured endpoint copies auth header"() {
     given:
     def uri = server.address.resolve("/to-secured")
@@ -666,7 +666,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testConnectionFailure() })
+  @Requires({ instance.testConnectionFailure() })
   def "connection error (unopened port)"() {
     given:
     def uri = new URI("http://localhost:$UNUSABLE_PORT/")
@@ -692,7 +692,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRemoteConnection() })
+  @Requires({ instance.testRemoteConnection() })
   def "connection error non routable address"() {
     given:
     def uri = new URI("https://192.0.2.1/")
@@ -719,7 +719,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
   // IBM JVM has different protocol support for TLS
   @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
-  @IgnoreIf({ !instance.testRemoteConnection() })
+  @Requires({ instance.testRemoteConnection() })
   def "test https request"() {
     given:
     def uri = new URI("https://www.google.com/")

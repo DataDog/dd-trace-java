@@ -6,14 +6,15 @@ import reactor.netty.DisposableServer
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.server.HttpServer
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@IgnoreIf(reason = "TLS issues with OpenJ9", value = {
-  JavaVirtualMachine.isJ9()
+// TLS issues with OpenJ9
+@Requires({
+  !JavaVirtualMachine.isJ9()
 })
 class ReactorNettyHttp2ClientTest extends AgentTestRunner {
   @Shared

@@ -24,7 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.v1.sqs.TracingList
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Shared
 
 import javax.jms.Session
@@ -189,7 +189,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.shutdown()
   }
 
-  @IgnoreIf({ !instance.isDataStreamsEnabled() })
+  @Requires({ instance.isDataStreamsEnabled() })
   def "propagation even when message attributes are readonly"() {
     setup:
     def client = AmazonSQSClientBuilder.standard()
@@ -239,7 +239,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.shutdown()
   }
 
-  @IgnoreIf({ instance.isDataStreamsEnabled() })
+  @Requires({ !instance.isDataStreamsEnabled() })
   def "trace details propagated via embedded SQS message attribute (string)"() {
     setup:
     TEST_WRITER.clear()
@@ -280,7 +280,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     }
   }
 
-  @IgnoreIf({ instance.isDataStreamsEnabled() })
+  @Requires({ !instance.isDataStreamsEnabled() })
   def "trace details propagated via embedded SQS message attribute (binary)"() {
     setup:
     TEST_WRITER.clear()
@@ -328,7 +328,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     ]
   }
 
-  @IgnoreIf({ instance.isDataStreamsEnabled() })
+  @Requires({ !instance.isDataStreamsEnabled() })
   def "trace details propagated from SQS to JMS"() {
     setup:
     def client = AmazonSQSClientBuilder.standard()

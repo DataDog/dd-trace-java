@@ -9,12 +9,13 @@ import okhttp3.HttpUrl
 import okhttp3.Request
 import org.jboss.shrinkwrap.api.ShrinkWrap
 import org.jboss.shrinkwrap.api.spec.WebArchive
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import test.JakartaTestServlet
 import test.TestServlet
 
-@IgnoreIf(reason = "WildFly does not guarantee support for Java SE 24. The latest version 36 of WildFly recommends using the latest Java LTS: https://docs.wildfly.org/36/Getting_Started_Guide.html#requirements", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(22)
+// WildFly does not guarantee support for Java SE 24. The latest version 36 of WildFly recommends using the latest Java LTS: https://docs.wildfly.org/36/Getting_Started_Guide.html#requirements
+@Requires({
+  !JavaVirtualMachine.isJavaVersionAtLeast(22)
 })
 class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override

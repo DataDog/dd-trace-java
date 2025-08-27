@@ -1,4 +1,4 @@
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -275,7 +275,7 @@ abstract class TomcatWebsocketTest extends HttpServerTest<Tomcat> {
     context.addFilterMap(filterMap)
   }
 
-  @IgnoreIf({ !instance.testException() })
+  @Requires({ instance.testException() })
   def "test exception with custom status"() {
     setup:
     def request = request(CUSTOM_EXCEPTION, method, body).build()

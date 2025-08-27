@@ -14,10 +14,11 @@ import org.apache.spark.sql.streaming.StreamingQuery
 import scala.Option
 import scala.collection.JavaConverters
 import scala.collection.immutable.Seq
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
-@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
-  JavaVirtualMachine.isJ9()
+// https://issues.apache.org/jira/browse/HADOOP-18174
+@Requires({
+  !JavaVirtualMachine.isJ9()
 })
 class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
 

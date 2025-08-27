@@ -9,7 +9,7 @@ import datadog.environment.JavaVirtualMachine
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.data.repository.CrudRepository
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Shared
 import util.AbstractCouchbaseTest
 
@@ -17,9 +17,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@IgnoreIf({
-  // TODO Java 17: This version of spring-data doesn't support Java 17
-  JavaVirtualMachine.isJavaVersionAtLeast(17)
+// TODO Java 17: This version of spring-data doesn't support Java 17
+@Requires({
+  !JavaVirtualMachine.isJavaVersionAtLeast(17)
 })
 abstract class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   static final Closure<Doc> FIND

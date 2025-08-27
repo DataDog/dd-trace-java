@@ -8,7 +8,7 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -118,7 +118,7 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     TEST_WRITER.waitForTraces(totalInvocations)
   }
 
-  @IgnoreIf({ !instance.testBodyMultipart() })
+  @Requires({ instance.testBodyMultipart() })
   def 'test instrumentation gateway multipart request body — strict variant'() {
     setup:
     def body = new MultipartBody.Builder()
@@ -150,7 +150,7 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     }
   }
 
-  @IgnoreIf({ !instance.testBodyJson()})
+  @Requires({ instance.testBodyJson()})
   def 'test instrumentation gateway json request body — spray variant'() {
     setup:
     def url = HttpUrl.get(BODY_JSON.resolve(address)).newBuilder()

@@ -6,7 +6,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import okhttp3.RequestBody
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import javax.servlet.Servlet
 
@@ -139,7 +139,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     super.request(uri, method, body)
   }
 
-  @IgnoreIf({ !instance.testException() })
+  @Requires({ instance.testException() })
   def "test exception with custom status"() {
     setup:
     def request = request(CUSTOM_EXCEPTION, method, body).build()

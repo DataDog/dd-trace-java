@@ -9,7 +9,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -126,7 +126,7 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
     true
   }
 
-  @IgnoreIf({ !instance.testBlockingOnResponse()})
+  @Requires({ instance.testBlockingOnResponse()})
   def 'test blocking on response with commit during the response'() {
     setup:
     def request = request(SUCCESS, 'GET', null)
@@ -202,11 +202,12 @@ class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHt
   }
 }
 
-@IgnoreIf({
-  // failing because org.apache.xalan.transformer.TransformerImpl is
-  // instrumented while on the the global ignores list
-  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
+// failing because org.apache.xalan.transformer.TransformerImpl is
+// instrumented while on the the global ignores list
+@Requires({
+  !(System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8')
+})
 class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   @Override
   protected void configurePreAgent() {
@@ -216,18 +217,20 @@ class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   }
 }
 
-@IgnoreIf({
-  // failing because org.apache.xalan.transformer.TransformerImpl is
-  // instrumented while on the the global ignores list
-  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
+// failing because org.apache.xalan.transformer.TransformerImpl is
+// instrumented while on the the global ignores list
+@Requires({
+  !(System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8')
+})
 class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
-@IgnoreIf({
-  // failing because org.apache.xalan.transformer.TransformerImpl is
-  // instrumented while on the the global ignores list
-  System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
+// failing because org.apache.xalan.transformer.TransformerImpl is
+// instrumented while on the the global ignores list
+@Requires({
+  !(System.getProperty('java.vm.name') == 'IBM J9 VM' &&
+  System.getProperty('java.specification.version') == '1.8')
+})
 class Liberty20V1ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV1 {
 }

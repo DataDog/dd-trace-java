@@ -19,7 +19,7 @@ import org.apache.catalina.valves.ErrorReportValve
 import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -163,7 +163,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
       WEBSOCKET.path).build())
   }
 
-  @IgnoreIf({ !instance.testException() })
+  @Requires({ instance.testException() })
   def "test exception with custom status"() {
     setup:
     def request = request(CUSTOM_EXCEPTION, method, body).build()

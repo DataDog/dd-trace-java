@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import scala.concurrent.ExecutionContext
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -58,7 +58,7 @@ abstract class ScalaUnitPromiseTestBase extends AgentTestRunner {
 }
 
 abstract class ScalaUnitPromiseTestNoPropagation extends ScalaUnitPromiseTestBase {
-  @IgnoreIf({ !instance.hasUnitPromise() })
+  @Requires({ instance.hasUnitPromise() })
   def "make sure that we don't propagate unit context"() {
     when:
     def f1 = promiseUtils.apply({
@@ -101,7 +101,7 @@ abstract class ScalaUnitPromiseTestPropagation extends ScalaUnitPromiseTestBase 
     injectSysConfig("dd.trace.integration.scala_future_object.enabled", "false")
   }
 
-  @IgnoreIf({ !instance.hasUnitPromise() })
+  @Requires({ instance.hasUnitPromise() })
   def "make sure that without the unit context instrumentation we get a parent"() {
     when:
     def f1 = promiseUtils.apply({

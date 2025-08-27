@@ -4,11 +4,13 @@ import org.apache.log4j.Category
 import org.apache.log4j.MDC
 import org.apache.log4j.Priority
 import org.apache.log4j.spi.LoggingEvent
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
+// Log4j 1.x reached EOL in 2015 and is not compatible with Java 25+
+// https://endoflife.date/log4j
 class MdcTest extends AgentTestRunner {
-  @IgnoreIf(reason = "TODO: Fix for Java 25.", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(25)
+  @Requires({
+    !JavaVirtualMachine.isJavaVersionAtLeast(25)
   })
   def "should preserve mdc when logging injection is #injectionEnabled"() {
     setup:
