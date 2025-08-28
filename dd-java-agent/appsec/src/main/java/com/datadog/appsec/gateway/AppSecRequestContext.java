@@ -135,6 +135,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile boolean processedResponseBodySizeExceeded;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -256,7 +257,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return extendedDataCollectionRedactionEnabled;
   }
 
-  public void setExtendedDataCollectionRedactionEnabled(boolean extendedDataCollectionRedactionEnabled) {
+  public void setExtendedDataCollectionRedactionEnabled(
+      boolean extendedDataCollectionRedactionEnabled) {
     this.extendedDataCollectionRedactionEnabled = extendedDataCollectionRedactionEnabled;
   }
 
@@ -722,6 +724,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Object getProcessedRequestBody() {
     return processedRequestBody;
+  }
+
+  public boolean isProcessedResponseBodySizeExceeded() {
+    return processedResponseBodySizeExceeded;
+  }
+
+  public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
+    this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
   }
 
   public boolean isRaspMatched() {

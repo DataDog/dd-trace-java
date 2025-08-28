@@ -398,8 +398,8 @@ public class WAFModule implements AppSecModule {
             // Extended data collection is handled by the GatewayBridge
             reqCtx.setExtendedDataCollection(true);
             boolean redactionEnabled =
-                actionInfo.parameters.getOrDefault("redaction", false) instanceof Boolean
-                    && (Boolean) actionInfo.parameters.get("redaction_enabled");
+                actionInfo.parameters.getOrDefault("headers_redaction", false) instanceof Boolean
+                    && (Boolean) actionInfo.parameters.get("headers_redaction");
             reqCtx.setExtendedDataCollectionRedactionEnabled(redactionEnabled);
             int maxHeaders =
                 actionInfo.parameters.getOrDefault("max_collected_headers", 50) instanceof Number

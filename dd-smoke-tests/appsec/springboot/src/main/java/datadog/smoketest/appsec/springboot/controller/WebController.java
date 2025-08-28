@@ -240,6 +240,11 @@ public class WebController {
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
+  @PostMapping("/waf-event-with-body")
+  public String wafEventWithBody(@RequestBody String body) {
+    return "EXECUTED";
+  }
+
   @PostMapping("/api_security/response")
   public ResponseEntity<Map<String, Object>> apiSecurityResponse(
       @RequestBody Map<String, Object> body) {
