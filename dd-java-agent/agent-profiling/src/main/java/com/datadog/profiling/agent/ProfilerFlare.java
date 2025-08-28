@@ -507,6 +507,7 @@ public final class ProfilerFlare implements TracerFlare.Reporter {
     if (value != null) {
       sb.append(value);
       if (!suffix.isEmpty()) {
+        sb.append(" ");
         sb.append(suffix);
       }
     } else {
