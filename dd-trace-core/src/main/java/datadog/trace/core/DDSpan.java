@@ -694,13 +694,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public TagMap getTags() {
-    // This is an imutable copy of the tags
+    // This is an immutable copy of the tags
     return context.getTags();
   }
 
   @Override
   public CharSequence getType() {
     return context.getSpanType();
+  }
+
+  @Override
+  public void processServiceTags() {
+    context.earlyProcessTags(links);
   }
 
   @Override

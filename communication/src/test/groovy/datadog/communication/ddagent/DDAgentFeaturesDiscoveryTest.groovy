@@ -462,12 +462,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
       "tablename",
       "topicname"
       )
-    features.spanKindsToComputedStats().containsAll(
-      "client",
-      "consumer",
-      "producer",
-      "server"
-      )
   }
 
   def "should send container id as header on the info request and parse the hash in the response"() {

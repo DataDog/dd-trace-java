@@ -4747,8 +4747,18 @@ public class Config {
       // when agentless profiling is turned on we send directly to our intake
       return "https://intake.profile." + site + "/api/v2/profile";
     } else {
-      // when profilingUrl and agentless are not set we send to the dd trace agent running locally
-      return getAgentUrl() + "/profiling/v1/input";
+      // When profilingUrl and agentless are not set we send to the dd trace agent running locally
+      // However, there are two gotchas:
+      // - the agentHost, agentPort split will trip on IPv6 addresses because of the colon -> we
+      // need to use the agentUrl
+      // - but the agentUrl can be unix socket and OKHttp doesn't support that so we fall back to
+      // http
+      //
+      // There is some magic behind the scenes where the http url will be converted to UDS if the
+      // target is a unix socket only
+      String baseUrl =
+          agentUrl.startsWith("unix:") ? "http://" + agentHost + ":" + agentPort : agentUrl;
+      return baseUrl + "/profiling/v1/input";
     }
   }
 

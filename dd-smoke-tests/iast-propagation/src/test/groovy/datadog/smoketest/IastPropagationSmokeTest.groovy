@@ -2,11 +2,11 @@ package datadog.smoketest
 
 import groovy.json.JsonSlurper
 import okhttp3.Request
-import org.junit.Assume
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class IastPropagationSmokeTest extends AbstractIastServerSmokeTest {
 
@@ -32,7 +32,7 @@ class IastPropagationSmokeTest extends AbstractIastServerSmokeTest {
   void 'test propagation language=#language, method=#method'() {
     setup:
     // TODO fix when we have groovy default string propagation
-    Assume.assumeTrue(language != 'groovy')
+    assumeTrue(language != 'groovy')
     String param = "${language}_${method}"
     String url = "http://localhost:${httpPort}/${language}/${method}?param=$param"
 

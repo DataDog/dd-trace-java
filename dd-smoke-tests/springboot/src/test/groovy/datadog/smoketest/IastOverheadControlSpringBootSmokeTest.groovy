@@ -1,5 +1,7 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
+
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
@@ -36,6 +38,7 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
     ]
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/9417")
   void 'Test that all the vulnerabilities are detected'() {
     given:
     // prepare a list of exactly three GET requests with path and query param

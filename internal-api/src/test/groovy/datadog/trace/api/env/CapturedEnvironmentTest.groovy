@@ -51,7 +51,7 @@ class CapturedEnvironmentTest extends DDSpecification {
     def serviceName = forkAndRunProperties(null)
 
     then:
-    serviceName == ServiceNamePrinter.class.name
+    serviceName == ServiceNamePrinter.name
   }
 
   def "use Azure site name in Azure"() {
@@ -92,7 +92,7 @@ class CapturedEnvironmentTest extends DDSpecification {
     command += System.getProperty("java.home") + separator + "bin" + separator + "java"
     command += '-cp'
     command += System.getProperty("java.class.path")
-    command += ServiceNamePrinter.class.getName()
+    command += ServiceNamePrinter.name
     if (arg != null) {
       command += arg
     }

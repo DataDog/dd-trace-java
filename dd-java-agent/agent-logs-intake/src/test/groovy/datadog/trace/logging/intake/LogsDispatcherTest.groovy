@@ -68,7 +68,7 @@ class LogsDispatcherTest extends Specification {
   }
 
   private static final class DummyBackendApi implements BackendApi {
-    private final listJsonAdapter = new Moshi.Builder().build().adapter(List.class)
+    private final listJsonAdapter = new Moshi.Builder().build().adapter(List)
     private final Queue<Map<String, Object>> messages = new ArrayDeque<>()
     private int requestsReceived = 0
 

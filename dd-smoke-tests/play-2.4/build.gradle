@@ -8,6 +8,7 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
 
 def playVer = "2.4.11"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")
