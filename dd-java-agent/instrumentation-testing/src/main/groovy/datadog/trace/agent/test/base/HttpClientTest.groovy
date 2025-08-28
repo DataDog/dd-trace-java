@@ -872,7 +872,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
                 actualType == "java.util.concurrent.TimeoutException"
             })
             tag("error.stack", String)
-            tag("error.message", { it instanceof String && it != null })
+            tag("error.message", { it instanceof String })
           } else {
             errorTags(exception.class, exception.message)
           }
