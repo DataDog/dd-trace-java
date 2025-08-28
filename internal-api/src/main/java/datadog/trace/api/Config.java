@@ -1222,6 +1222,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean optimizedMapEnabled;
+  private final boolean utf8CacheEnabled;
   private final int stackTraceLengthLimit;
 
   private final RumInjectorConfig rumInjectorConfig;
@@ -2734,6 +2735,8 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.utf8CacheEnabled = 
+    	configProvider.getBoolean(GeneralConfig.UTF8_CACHE_ENABLED, true);
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
@@ -4418,6 +4421,10 @@ public class Config {
 
   public boolean isOptimizedMapEnabled() {
     return optimizedMapEnabled;
+  }
+  
+  public boolean isUtf8CacheEnabled() {
+	return utf8CacheEnabled;
   }
 
   public int getStackTraceLengthLimit() {

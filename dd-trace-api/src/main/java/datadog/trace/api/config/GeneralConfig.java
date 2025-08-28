@@ -105,6 +105,7 @@ public final class GeneralConfig {
   public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
   public static final String OPTIMIZED_MAP_ENABLED = "optimized.map.enabled";
+  public static final String UTF8_CACHE_ENABLED = "utf8.cache.enabled";
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
 
   public static final String SSI_INJECTION_ENABLED = "injection.enabled";
