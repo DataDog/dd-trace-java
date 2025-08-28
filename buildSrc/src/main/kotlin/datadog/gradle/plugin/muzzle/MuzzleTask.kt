@@ -29,6 +29,7 @@ abstract class MuzzleTask : DefaultTask() {
   @get:Inject
   abstract val workerExecutor: WorkerExecutor
 
+  @JvmOverloads
   fun assertMuzzle(
     muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
     muzzleTooling: NamedDomainObjectProvider<Configuration>,
