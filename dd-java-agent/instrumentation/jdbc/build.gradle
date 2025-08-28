@@ -3,6 +3,11 @@ plugins {
   id 'me.champeau.jmh'
 }
 
+ext {
+  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepJava11TestMaxJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 muzzle {
   pass {
     coreJdk()
