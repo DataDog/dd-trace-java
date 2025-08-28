@@ -862,9 +862,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           "$DDTags.PATHWAY_HASH" { String }
         }
         if (exception) {
-          if (exception instanceof java.net.ConnectException ||
+          // PlayWS classes throw different exception types for the same connection failures
+          if (this.class.name.contains("Play") &&
+            (exception instanceof java.net.ConnectException ||
             exception instanceof java.net.SocketTimeoutException ||
-            exception instanceof java.util.concurrent.TimeoutException) {
+            exception instanceof java.util.concurrent.TimeoutException)) {
             tag("error.type", {
               String actualType = it as String
               return actualType == "java.net.ConnectException" ||
