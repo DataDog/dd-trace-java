@@ -57,6 +57,10 @@ public class MuleDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
+  public AgentSpan beforeFinish(final AgentSpan span) {
+    return span;
+  }
+
   public AgentSpan onMuleSpan(
       AgentSpan parentSpan, InitialSpanInfo spanInfo, CoreEvent event, Component component) {
     // we stick with the same level of detail of OTEL exporter.

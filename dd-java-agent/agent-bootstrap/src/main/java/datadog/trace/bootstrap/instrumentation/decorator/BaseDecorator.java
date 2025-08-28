@@ -82,10 +82,6 @@ public abstract class BaseDecorator {
     return scope;
   }
 
-  public AgentSpan beforeFinish(final AgentSpan span) {
-    return span;
-  }
-
   public Context beforeFinish(final Context context) {
     return context;
   }

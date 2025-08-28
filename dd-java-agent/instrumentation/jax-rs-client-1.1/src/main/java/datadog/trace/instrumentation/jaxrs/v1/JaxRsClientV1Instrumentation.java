@@ -72,13 +72,9 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
         final AgentSpan span = startSpan(JAX_RS_CLIENT_CALL);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
-        final AgentScope scope = activateSpan(span);
-        // Store the context after activation to ensure we have the proper Context object
-        if (scope != null) {
-          request.getProperties().put(DD_CONTEXT_ATTRIBUTE, scope.context());
-        }
+        request.getProperties().put(DD_CONTEXT_ATTRIBUTE, span);
         DECORATE.injectContext(getCurrentContext().with(span), request.getHeaders(), SETTER);
-        return scope;
+        return activateSpan(span);
       }
       return null;
     }

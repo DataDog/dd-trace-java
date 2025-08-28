@@ -89,23 +89,19 @@ public class GrizzlyDecorator
   public static void onHttpServerFilterPrepareResponseEnter(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (context != null) {
-      AgentSpan span = spanFromContext(context);
-      if (span != null) {
-        DECORATE.onResponse(span, responsePacket);
-      }
+    AgentSpan span;
+    if (context != null && (span = spanFromContext(context)) != null) {
+      DECORATE.onResponse(span, responsePacket);
     }
   }
 
   public static void onHttpServerFilterPrepareResponseExit(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (context != null) {
-      AgentSpan span = spanFromContext(context);
-      if (span != null) {
-        DECORATE.beforeFinish(context);
-        span.finish();
-      }
+    AgentSpan span;
+    if (context != null && (span = spanFromContext(context)) != null) {
+      DECORATE.beforeFinish(context);
+      span.finish();
     }
     ctx.getAttributes().removeAttribute(DD_CONTEXT_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
@@ -153,13 +149,11 @@ public class GrizzlyDecorator
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (context != null) {
-      AgentSpan span = spanFromContext(context);
-      if (span != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(context);
-        span.finish();
-      }
+    AgentSpan span;
+    if (context != null && (span = spanFromContext(context)) != null) {
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(context);
+      span.finish();
     }
     ctx.getAttributes().removeAttribute(DD_CONTEXT_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
