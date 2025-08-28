@@ -50,6 +50,7 @@ import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.RemoteMapper
 import datadog.trace.core.DDSpan
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.msgpack.jackson.dataformat.MessagePackFactory
 
 import java.lang.reflect.Method
@@ -286,6 +287,22 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         lock.notifyAll()
       }
       return true
+    }
+
+    @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
+    boolean waitForSpan(Predicate<DDSpan> predicate, long timeoutMillis) {
+      long deadline = System.currentTimeMillis() + timeoutMillis
+      synchronized (lock) {
+        while (!spans.stream().anyMatch(predicate)) {
+          def timeLeft = deadline - System.currentTimeMillis()
+          if (timeLeft > 0) {
+            lock.wait(timeLeft)
+          } else {
+            return false
+          }
+        }
+        return true
+      }
     }
   }
 
