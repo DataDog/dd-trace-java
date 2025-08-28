@@ -16,6 +16,7 @@ import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
+import org.opentest4j.AssertionFailedError
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
 
@@ -118,7 +119,7 @@ abstract class CiVisibilityTestUtils {
         println "Expected events: $expectedEvents"
         println "Actual events: $actualEvents"
       }
-      throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
+      throw new AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
     def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
@@ -132,7 +133,7 @@ abstract class CiVisibilityTestUtils {
         println "Expected coverages: $expectedCoverages"
         println "Actual coverages: $actualCoverages"
       }
-      throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
+      throw new AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
 
     return replacementMap
@@ -258,9 +259,9 @@ abstract class CiVisibilityTestUtils {
           ctx.map(dynamicPath.path, (currentValue, config) -> {
             if (dynamicPath.unique) {
               return uniqueValues.computeIfAbsent(currentValue, (k) -> label.forTemplateKey(dynamicPath.rawPath))
-            } else {
-              return label.forTemplateKey(dynamicPath.rawPath)
             }
+
+            return label.forTemplateKey(dynamicPath.rawPath)
           })
         }
 

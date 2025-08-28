@@ -34,12 +34,6 @@ import org.spockframework.util.SpockReleaseInfo
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class SpockTest extends CiVisibilityInstrumentationTest {
-
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   def "test #testcaseName"() {
     runTests(tests)
 

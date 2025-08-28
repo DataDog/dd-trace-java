@@ -492,7 +492,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     .flatMap(response -> {
       if (response.statusCode().is3xxRedirection()) {
         String redirectUrl = response.headers().header("Location").get(0)
-        return response.bodyToMono(Void.class).then(client.get().uri(URI.create("http://localhost:$port").resolve(redirectUrl)).exchange())
+        return response.bodyToMono(Void).then(client.get().uri(URI.create("http://localhost:$port").resolve(redirectUrl)).exchange())
       }
       return Mono.just(response)
     }).block()
