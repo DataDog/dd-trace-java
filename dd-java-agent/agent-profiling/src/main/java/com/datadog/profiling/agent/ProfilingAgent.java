@@ -93,6 +93,10 @@ public class ProfilingAgent {
       final Config config = Config.get();
       final ConfigProvider configProvider = ConfigProvider.getInstance();
 
+      // Register the profiler flare before we start the profiling system, but early during the
+      // profiler lifecycle
+      ProfilerFlare.register();
+
       boolean startForceFirst =
           Platform.isNativeImage()
               || configProvider.getBoolean(
@@ -154,9 +158,6 @@ public class ProfilingAgent {
                 startForceFirst);
         profiler.start();
         log.debug("Profiling has started");
-
-        // Register ProfilerFlare for debugging support
-        ProfilerFlare.register();
 
         try {
           /*
