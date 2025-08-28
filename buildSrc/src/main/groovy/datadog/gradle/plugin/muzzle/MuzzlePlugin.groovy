@@ -27,15 +27,10 @@ import org.gradle.api.tasks.TaskProvider
 
 import java.lang.reflect.Method
 import java.util.function.BiFunction
-import java.util.regex.Pattern
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
 class MuzzlePlugin implements Plugin<Project> {
-  /**
-   * Select a random set of versions to test
-   */
-  private static final int RANGE_COUNT_LIMIT = 25
   /**
    * Remote repositories used to query version ranges and fetch dependencies
    */
@@ -298,7 +293,11 @@ class MuzzlePlugin implements Plugin<Project> {
    */
   private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, VersionRangeResult rangeResult) {
 
-    final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions, muzzleDirective.includeSnapshots)
+    final Set<Version> versions = MuzzleVersionUtils.filterAndLimitVersions(
+      rangeResult,
+      muzzleDirective.skipVersions,
+      muzzleDirective.includeSnapshots
+    )
 
     final Set<Artifact> allVersionArtifacts = versions.collect { version ->
       new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", version.toString())
@@ -331,7 +330,11 @@ class MuzzlePlugin implements Plugin<Project> {
     final Set<Version> versions = rangeResult.versions.toSet()
     allRangeResult.versions.removeAll(versions)
 
-    return filterAndLimitVersions(allRangeResult, muzzleDirective.skipVersions, muzzleDirective.includeSnapshots).collect { version ->
+    return MuzzleVersionUtils.filterAndLimitVersions(
+      allRangeResult,
+      muzzleDirective.skipVersions,
+      muzzleDirective.includeSnapshots
+    ).collect { version ->
       final MuzzleDirective inverseDirective = new MuzzleDirective()
       inverseDirective.name = muzzleDirective.name
       inverseDirective.group = muzzleDirective.group
@@ -342,37 +345,6 @@ class MuzzlePlugin implements Plugin<Project> {
       inverseDirective.includeSnapshots = muzzleDirective.includeSnapshots
       inverseDirective
     }.toSet()
-  }
-
-  private static Set<Version> filterAndLimitVersions(VersionRangeResult result, Set<String> skipVersions, boolean includeSnapshots) {
-    return limitLargeRanges(result, filterVersion(result.versions.toSet(), skipVersions, includeSnapshots), skipVersions)
-  }
-
-  private static Set<Version> limitLargeRanges(VersionRangeResult result, Set<Version> versions, Set<String> skipVersions) {
-    if (versions.size() <= 1) {
-      return versions
-    }
-
-    List<Version> versionsCopy = new ArrayList<>(versions)
-    def beforeSize = versionsCopy.size()
-    versionsCopy.removeAll(skipVersions)
-    VersionSet versionSet = new VersionSet(versionsCopy)
-    versionsCopy = versionSet.lowAndHighForMajorMinor.toList()
-    Collections.shuffle(versionsCopy)
-    def afterSize = versionsCopy.size()
-    while (RANGE_COUNT_LIMIT <= afterSize) {
-      Version version = versionsCopy.pop()
-      if (version == result.lowestVersion || version == result.highestVersion) {
-        versionsCopy.add(version)
-      } else {
-        afterSize -= 1
-      }
-    }
-    if (beforeSize - afterSize > 0) {
-      println "Muzzle skipping ${beforeSize - afterSize} versions"
-    }
-
-    return versionsCopy.toSet()
   }
 
   /**
@@ -469,39 +441,4 @@ class MuzzlePlugin implements Plugin<Project> {
 
     return session
   }
-
-  private static final Pattern GIT_SHA_PATTERN = Pattern.compile('^.*-[0-9a-f]{7,}$')
-  private static final Pattern END_NMN_PATTERN = Pattern.compile('^.*\\.[0-9]+[mM][0-9]+$')
-
-  /**
-   * Filter out snapshot-type builds from versions list.
-   */
-  private static filterVersion(Set<Version> list, Set<String> skipVersions, boolean includeSnapshots) {
-    list.removeIf {
-      def version = it.toString().toLowerCase(Locale.ROOT)
-      if (includeSnapshots) {
-        return skipVersions.contains(version)
-      } else {
-        return version.endsWith("-snapshot") ||
-          version.contains("rc") ||
-          version.contains(".cr") ||
-          version.contains("alpha") ||
-          version.contains("beta") ||
-          version.contains("-b") ||
-          version.contains(".m") ||
-          version.contains("-m") ||
-          version.contains("-dev") ||
-          version.contains("-ea") ||
-          version.contains("-atlassian-") ||
-          version.contains("public_draft") ||
-          version.contains("-cr") ||
-          version.contains("-preview") ||
-          skipVersions.contains(version) ||
-          version.matches(END_NMN_PATTERN) ||
-          version.matches(GIT_SHA_PATTERN)
-      }
-    }
-    return list
-  }
 }
-
