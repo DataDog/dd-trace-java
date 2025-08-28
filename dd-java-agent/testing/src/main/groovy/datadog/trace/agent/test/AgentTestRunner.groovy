@@ -289,6 +289,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     true
   }
 
+  @SuppressForbidden
   private static void configureLoggingLevels() {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
 
