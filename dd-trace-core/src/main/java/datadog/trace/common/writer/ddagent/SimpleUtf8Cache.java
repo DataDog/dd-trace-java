@@ -31,7 +31,7 @@ import java.util.Arrays;
  *
  * If there was a request, then CacheEntry is created and stored into entries.
  * NOTE: The cache line marking process is imprecise and subject to request
- * ordering issues, but given that low cardinality entries are more likely to repeat
+ * ordering issues. But given that low cardinality entries are more likely to repeat
  * next, imperically this scheme works well.
  *
  * If a collision occurs in the cache, linear probing is used to check other slots.
