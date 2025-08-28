@@ -623,7 +623,7 @@ public final class ConfigProvider {
   }
 
   private static <T> void reportDefault(String key, T defaultValue) {
-    ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, DEFAULT_SEQ_ID);
+    ConfigCollector.get().putDefault(key, defaultValue);
   }
 
   /** Helper class to store resolved configuration values with their metadata */

@@ -133,10 +133,10 @@ class ConfigProviderTest extends DDSpecification {
     where:
     // getBoolean is purposefully excluded; see getBoolean test below
     methodType   | configKey     | envKey          | validValue | invalidValue | defaultValue | expectedResult | methodCall
-    "getInteger" | "test.int"    | "DD_TEST_INT"   | "42"       | "notAnInt"   | 7           | 42            | { configProvider, key, defVal -> configProvider.getInteger(key, defVal) }
-    "getLong"    | "test.long"   | "DD_TEST_LONG"  | "123"      | "notALong"   | 5L          | 123L          | { configProvider, key, defVal -> configProvider.getLong(key, defVal) }
-    "getFloat"   | "test.float"  | "DD_TEST_FLOAT" | "42.5"     | "notAFloat"  | 3.14f       | 42.5f         | { configProvider, key, defVal -> configProvider.getFloat(key, defVal) }
-    "getDouble"  | "test.double" | "DD_TEST_DOUBLE"| "42.75"    | "notADouble" | 2.71        | 42.75         | { configProvider, key, defVal -> configProvider.getDouble(key, defVal) }
+    "getInteger" | "test.int"    | "DD_TEST_INT"   | "42"       | "notAnInt"   | 7            | 42             | { configProvider, key, defVal -> configProvider.getInteger(key, defVal) }
+    "getLong"    | "test.long"   | "DD_TEST_LONG"  | "123"      | "notALong"   | 5L           | 123L           | { configProvider, key, defVal -> configProvider.getLong(key, defVal) }
+    "getFloat"   | "test.float"  | "DD_TEST_FLOAT" | "42.5"     | "notAFloat"  | 3.14f        | 42.5f          | { configProvider, key, defVal -> configProvider.getFloat(key, defVal) }
+    "getDouble"  | "test.double" | "DD_TEST_DOUBLE"| "42.75"    | "notADouble" | 2.71         | 42.75          | { configProvider, key, defVal -> configProvider.getDouble(key, defVal) }
   }
 
   def "ConfigProvider transforms invalid values for getBoolean to false with CALCULATED origin"() {

@@ -329,4 +329,26 @@ class ConfigCollectorTest extends DDSpecification {
     setting.value == value
     setting.origin == ConfigOrigin.JVM_PROP
   }
+
+  def "default sources cannot be overridden"() {
+    setup:
+    def key = "test.key"
+    def value = "test-value"
+    def overrideVal = "override-value"
+    def defaultConfigByKey
+    ConfigSetting cs
+
+    when:
+    // Need to make 2 calls in a row because collect() will empty the map
+    ConfigCollector.get().putDefault(key, value)
+    ConfigCollector.get().putDefault(key, overrideVal)
+    defaultConfigByKey = ConfigCollector.get().collect().get(ConfigOrigin.DEFAULT)
+    cs = defaultConfigByKey.get(key)
+
+    then:
+    cs.key == key
+    cs.stringValue() == value
+    cs.origin == ConfigOrigin.DEFAULT
+    cs.seqId == ConfigSetting.DEFAULT_SEQ_ID
+  }
 }

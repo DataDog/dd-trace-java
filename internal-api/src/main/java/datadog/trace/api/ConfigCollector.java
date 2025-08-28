@@ -1,5 +1,8 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.ConfigOrigin.DEFAULT;
+import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,28 +30,39 @@ public class ConfigCollector {
     ConfigSetting setting = ConfigSetting.of(key, value, origin);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
+    configMap.put(key, setting); // replaces any previous value for this key at origin
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
+    configMap.put(key, setting); // replaces any previous value for this key at origin
   }
 
   public void put(String key, Object value, ConfigOrigin origin, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, configId);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
+    configMap.put(key, setting); // replaces any previous value for this key at origin
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId, configId);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.putIfAbsent(key, setting); // replaces any previous value for this key at origin
+    configMap.put(key, setting); // replaces any previous value for this key at origin
+  }
+
+  // put method specifically for DEFAULT origins. We don't allow overrides for configs from DEFAULT
+  // origins
+  public void putDefault(String key, Object value) {
+    ConfigSetting setting = ConfigSetting.of(key, value, DEFAULT, DEFAULT_SEQ_ID);
+    Map<String, ConfigSetting> configMap =
+        collected.computeIfAbsent(DEFAULT, k -> new ConcurrentHashMap<>());
+    if (!configMap.containsKey(key) || configMap.get(key).value == null) {
+      configMap.put(key, setting);
+    }
   }
 
   public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
