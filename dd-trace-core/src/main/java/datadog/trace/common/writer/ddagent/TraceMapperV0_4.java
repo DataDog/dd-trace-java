@@ -24,12 +24,12 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-  static final SimpleUtf8Cache TAG_CACHE = 
-	Config.get().isUtf8CacheEnabled() ? new SimpleUtf8Cache() : null;
-  
+  static final SimpleUtf8Cache TAG_CACHE =
+      Config.get().isUtf8CacheEnabled() ? new SimpleUtf8Cache() : null;
+
   static final GenerationalUtf8Cache VALUE_CACHE =
-	Config.get().isUtf8CacheEnabled() ? new GenerationalUtf8Cache() : null;
-	  
+      Config.get().isUtf8CacheEnabled() ? new GenerationalUtf8Cache() : null;
+
   private final int size;
 
   public TraceMapperV0_4(int size) {
@@ -65,7 +65,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     public void accept(Metadata metadata) {
       TAG_CACHE.recalibrate();
       VALUE_CACHE.recalibrate();
-      
+
       final boolean writeSamplingPriority = firstSpanInChunk || lastSpanInChunk;
       final UTF8BytesString processTags =
           firstSpanInChunk ? ProcessTags.getTagsForSerialization() : null;
