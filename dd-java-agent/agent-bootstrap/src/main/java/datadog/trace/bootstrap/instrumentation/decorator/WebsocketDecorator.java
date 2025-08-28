@@ -61,10 +61,6 @@ public class WebsocketDecorator extends BaseDecorator {
     return super.afterStart(span).setMeasured(true);
   }
 
-  public AgentSpan beforeFinish(final AgentSpan span) {
-    return span;
-  }
-
   @Nonnull
   public AgentSpan onReceiveFrameStart(
       final HandlerContext.Receiver handlerContext, final Object data, boolean partialDelivery) {

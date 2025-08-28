@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
 import datadog.context.Context;
@@ -11,7 +13,7 @@ public class FilterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(@Advice.Argument(0) final FilterChainContext ctx) {
-    if (Context.current() != Context.root()) {
+    if (getCurrentContext() != getRootContext()) {
       return null;
     }
     Object contextObj = ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
