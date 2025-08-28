@@ -4,6 +4,7 @@ import datadog.trace.api.iast.SourceTypes
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.FormBody
 import org.hamcrest.Matchers
 import spock.lang.IgnoreIf
 
@@ -93,7 +94,7 @@ abstract class IastSourcesTest<SERVER> extends IastHttpServerTest<SERVER> {
   void 'test form source'() {
     when:
     final url = "${address}/iast/sources/form"
-    final body = new Request.Builder().add('name', 'value').build()
+    final body = new FormBody.Builder().add('name', 'value').build()
     final request = new Request.Builder().url(url).post(body).build()
     final response = client.newCall(request).execute()
 

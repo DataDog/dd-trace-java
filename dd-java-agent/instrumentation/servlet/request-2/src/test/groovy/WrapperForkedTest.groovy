@@ -77,7 +77,7 @@ class WrapperForkedTest extends Specification {
     then:
     2 * mockReader.readLine() >>> ['!', null]
     then:
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
 
     storedCharBody.get() as String == 'Hello world!\n'
   }
@@ -100,7 +100,7 @@ class WrapperForkedTest extends Specification {
     }
     then:
     1 * mockReader.read() >> (('2' as char) as int) // ignored
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
     1 * mockReader.close()
 
 
@@ -117,7 +117,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockReader.read() >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   void 'notification issues when read returns eof variant 2'() {
@@ -127,7 +127,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockReader.read(_ as char[], _, _) >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   void 'notification issues when read returns eof variant 3'() {
@@ -137,7 +137,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockReader.read(_ as CharBuffer) >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   void 'notification issues when read returns eof variant 4'() {
@@ -147,7 +147,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockReader.read(_ as char[]) >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   // BEGIN ServletInputStreamWrapper tests
@@ -181,7 +181,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockIs.close()
     then:
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
     storedByteBody.get() as String == '\u0000Hello'
   }
 
@@ -269,7 +269,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockIs.read() >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   void 'finish notification read returns eof variant 2'() {
@@ -284,7 +284,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockIs.read(_ as byte[]) >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   void 'finish notification read returns eof variant 3'() {
@@ -299,7 +299,7 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockIs.read(_ as byte[], _, _) >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 
   void 'finish notification readLine returns eof'() {
@@ -314,6 +314,6 @@ class WrapperForkedTest extends Specification {
     then:
     1 * mockIs.readLine(_ as byte[], _, _) >> -1
     1 * startCb.apply(_, _)
-    1 * endCb.apply(_, _)
+    1 * endCb.apply(_, _) >> Flow.ResultFlow.empty()
   }
 }

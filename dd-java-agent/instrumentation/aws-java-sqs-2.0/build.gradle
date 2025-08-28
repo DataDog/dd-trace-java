@@ -1,3 +1,5 @@
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 muzzle {
   pass {
@@ -14,6 +16,16 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+forkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
+
+latestDepForkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
 
 
 dependencies {

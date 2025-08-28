@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty
 
-import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.test.util.DDSpecification
@@ -9,14 +8,16 @@ import org.eclipse.jetty.server.Response
 
 import javax.servlet.ServletOutputStream
 
+import static datadog.appsec.api.blocking.BlockingContentType.AUTO
+
 class JettyBlockingHelperSpecification extends DDSpecification {
-  void 'block completes successfully'() {
+  def 'block completes successfully'() {
     setup:
     Request req = Mock()
     Response resp = Mock()
     ServletOutputStream os = Mock()
     TraceSegment seg = Mock()
-    Flow.Action.RequestBlockingAction rba = new Flow.Action.RequestBlockingAction(402, BlockingContentType.AUTO)
+    def rba = new Flow.Action.RequestBlockingAction(402, AUTO)
 
     when:
     JettyBlockingHelper.block(seg, req, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders())

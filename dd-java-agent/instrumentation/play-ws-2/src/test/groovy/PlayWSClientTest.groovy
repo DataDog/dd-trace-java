@@ -79,7 +79,12 @@ class PlayScalaWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .execute()
       .transform({ theTry ->
-        callback?.call()
+        if (callback != null) {
+          // Execute callback in a separate thread to clear trace context
+          def thread = new Thread({ callback.call() })
+          thread.start()
+          thread.join()
+        }
         theTry
       }, ExecutionContext.global())
 
@@ -109,7 +114,12 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .stream()
       .transform({ theTry ->
-        callback?.call()
+        if (callback != null) {
+          // Execute callback in a separate thread to clear trace context
+          def thread = new Thread({ callback.call() })
+          thread.start()
+          thread.join()
+        }
         theTry
       }, ExecutionContext.global())
 
