@@ -1,20 +1,11 @@
 package datadog.gradle.plugin.muzzle
 
-import org.apache.maven.repository.internal.MavenRepositorySystemUtils
-import org.eclipse.aether.DefaultRepositorySystemSession
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
-import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory
-import org.eclipse.aether.impl.DefaultServiceLocator
-import org.eclipse.aether.repository.LocalRepository
-import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
-import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
-import org.eclipse.aether.spi.connector.transport.TransporterFactory
-import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.eclipse.aether.version.Version
 import org.gradle.api.GradleException
@@ -31,24 +22,6 @@ import java.util.function.BiFunction
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
 class MuzzlePlugin implements Plugin<Project> {
-  /**
-   * Remote repositories used to query version ranges and fetch dependencies
-   */
-  private static final List<RemoteRepository> MUZZLE_REPOS
-
-  static {
-    RemoteRepository central = new RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-
-    String mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
-
-    if (mavenProxyUrl == null) {
-      MUZZLE_REPOS = Collections.singletonList(central)
-    } else {
-      RemoteRepository proxy = new RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
-      MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(proxy, central))
-    }
-  }
-
   static class TestedArtifact {
     final String instrumentation
     final String group
@@ -148,8 +121,8 @@ class MuzzlePlugin implements Plugin<Project> {
     // We only get here if we are running muzzle, so let's start timing things
     long startTime = System.currentTimeMillis()
 
-    final RepositorySystem system = newRepositorySystem()
-    final RepositorySystemSession session = newRepositorySystemSession(system)
+    final RepositorySystem system = MuzzleMavenRepoUtils.newRepositorySystem()
+    final RepositorySystemSession session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       TaskProvider<Task> runAfter = muzzleTask
@@ -236,8 +209,8 @@ class MuzzlePlugin implements Plugin<Project> {
   }
 
   private static void dumpVersionRanges(Project project) {
-    final RepositorySystem system = newRepositorySystem()
-    final RepositorySystemSession session = newRepositorySystemSession(system)
+    final RepositorySystem system = MuzzleMavenRepoUtils.newRepositorySystem()
+    final RepositorySystemSession session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
     def versions = new TreeMap<String, TestedArtifact>()
     project.muzzle.directives.findAll { !((MuzzleDirective) it).isCoreJdk() && !((MuzzleDirective) it).isSkipFromReport() }.each {
       def range = resolveVersionRange(it as MuzzleDirective, system, session)
@@ -283,7 +256,7 @@ class MuzzlePlugin implements Plugin<Project> {
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
-    rangeRequest.setRepositories(muzzleDirective.getRepositories(MUZZLE_REPOS))
+    rangeRequest.setRepositories(muzzleDirective.getRepositories(MuzzleMavenRepoUtils.MUZZLE_REPOS))
     rangeRequest.setArtifact(directiveArtifact)
     return system.resolveVersionRange(session, rangeRequest)
   }
@@ -317,7 +290,7 @@ class MuzzlePlugin implements Plugin<Project> {
     final Artifact allVersionsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
 
-    def repos = muzzleDirective.getRepositories(MUZZLE_REPOS)
+    def repos = muzzleDirective.getRepositories(MuzzleMavenRepoUtils.MUZZLE_REPOS)
     final VersionRangeRequest allRangeRequest = new VersionRangeRequest()
     allRangeRequest.setRepositories(repos)
     allRangeRequest.setArtifact(allVersionsArtifact)
@@ -415,30 +388,5 @@ class MuzzlePlugin implements Plugin<Project> {
       finalizedBy(muzzleTask)
     }
     muzzleTask
-  }
-
-  /**
-   * Create muzzle's repository system
-   */
-  private static RepositorySystem newRepositorySystem() {
-    DefaultServiceLocator locator = MavenRepositorySystemUtils.newServiceLocator()
-    locator.addService(RepositoryConnectorFactory.class, BasicRepositoryConnectorFactory.class)
-    locator.addService(TransporterFactory.class, HttpTransporterFactory.class)
-
-    return locator.getService(RepositorySystem.class)
-  }
-
-  /**
-   * Create muzzle's repository system session
-   */
-  private static RepositorySystemSession newRepositorySystemSession(RepositorySystem system) {
-    DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession()
-
-    def tempDir = File.createTempDir()
-    tempDir.deleteOnExit()
-    LocalRepository localRepo = new LocalRepository(tempDir)
-    session.setLocalRepositoryManager(system.newLocalRepositoryManager(session, localRepo))
-
-    return session
   }
 }
