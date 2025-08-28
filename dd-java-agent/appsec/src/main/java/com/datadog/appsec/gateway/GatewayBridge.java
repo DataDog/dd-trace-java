@@ -777,7 +777,7 @@ public class GatewayBridge {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
 
-        if (ctx.getProcessedRequestBody() != null) {
+        if (ctx.isExtendedDataCollection() && ctx.getProcessedRequestBody() != null) {
           ctx_.getOrCreateMetaStructTop(
               METASTRUCT_REQUEST_BODY, k -> ctx.getProcessedRequestBody());
           if (ctx.isProcessedResponseBodySizeExceeded()) {

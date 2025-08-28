@@ -397,14 +397,35 @@ public class WAFModule implements AppSecModule {
           } else if ("extended_data_collection".equals(actionInfo.type)) {
             // Extended data collection is handled by the GatewayBridge
             reqCtx.setExtendedDataCollection(true);
-            boolean redactionEnabled =
-                actionInfo.parameters.getOrDefault("headers_redaction", false) instanceof Boolean
-                    && (Boolean) actionInfo.parameters.get("headers_redaction");
+
+            // Handle headers_redaction parameter which can come as Boolean or String "true"/"false"
+            // This is needed because the WAF can send parameters in different formats depending on
+            // how
+            // they were defined in the rules (JSON parsing might convert types differently)
+            boolean redactionEnabled = false;
+            Object redactionParam = actionInfo.parameters.getOrDefault("headers_redaction", false);
+            if (redactionParam instanceof Boolean) {
+              redactionEnabled = (Boolean) redactionParam;
+            } else if (redactionParam instanceof String) {
+              redactionEnabled = Boolean.parseBoolean((String) redactionParam);
+            }
             reqCtx.setExtendedDataCollectionRedactionEnabled(redactionEnabled);
-            int maxHeaders =
-                actionInfo.parameters.getOrDefault("max_collected_headers", 50) instanceof Number
-                    ? ((Number) actionInfo.parameters.get("max_collected_headers")).intValue()
-                    : 50;
+
+            // Handle max_collected_headers parameter which can come as Number or String
+            // representation of a number
+            // Default to 50 if parameter is missing or cannot be parsed
+            int maxHeaders = 50;
+            Object maxHeadersParam =
+                actionInfo.parameters.getOrDefault("max_collected_headers", 50);
+            if (maxHeadersParam instanceof Number) {
+              maxHeaders = ((Number) maxHeadersParam).intValue();
+            } else if (maxHeadersParam instanceof String) {
+              try {
+                maxHeaders = Integer.parseInt((String) maxHeadersParam);
+              } catch (NumberFormatException e) {
+                log.debug("Failed to parse max_collected_headers value: {}", maxHeadersParam);
+              }
+            }
             reqCtx.setExtendedDataCollectionMaxHeaders(maxHeaders);
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
