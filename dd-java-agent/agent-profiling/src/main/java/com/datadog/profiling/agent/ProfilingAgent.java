@@ -174,9 +174,13 @@ public class ProfilingAgent {
         log.warn(e.getMessage());
         // no need to send telemetry for this aggregate message
         //   a detailed telemetry message has been sent from the attempts to enable the controllers
+        // -----------------------------------------------------------------------------------------
+        // but we do want to report this within the profiler flare
+        ProfilerFlare.reportInitializationException(e);
       } catch (final ConfigurationException e) {
         log.warn("Failed to initialize profiling agent! {}", e.getMessage());
         log.debug(SEND_TELEMETRY, "Failed to initialize profiling agent!", e);
+        ProfilerFlare.reportInitializationException(e);
       }
     }
     return false;

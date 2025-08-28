@@ -6,19 +6,40 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.zip.ZipOutputStream;
 
 public final class ProfilerFlare implements TracerFlare.Reporter {
   private static final ProfilerFlare INSTANCE = new ProfilerFlare();
+  private static Exception profilerInitializationException;
 
   public static void register() {
     TracerFlare.addReporter(INSTANCE);
   }
 
+  public static void reportInitializationException(Exception e) {
+    profilerInitializationException = e;
+  }
+
   @Override
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "profiler_config.txt", getProfilerConfig());
+    String templateOverrideFile = Config.get().getProfilingTemplateOverrideFile();
+    if (templateOverrideFile != null) {
+      try {
+        Path path = Paths.get(templateOverrideFile);
+        if (Files.exists(path)) {
+          String fileContents = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+          TracerFlare.addText(zip, "profiling_template_override.jfp", fileContents);
+        }
+      } catch (IOException e) {
+        // no-op, ignore if we can't read the template override file
+      }
+    }
   }
 
   private String getProfilerConfig() {
@@ -28,6 +49,15 @@ public final class ProfilerFlare implements TracerFlare.Reporter {
 
     ConfigProvider configProvider = ConfigProvider.getInstance();
     Config config = Config.get();
+
+    sb.append("=== Profiler Initalization Status ===\n");
+    if (profilerInitializationException == null) {
+      sb.append("Profiler initialized successfully.\n");
+    } else {
+      sb.append("Profiler initializtion failed due to: \n");
+      sb.append(profilerInitializationException.getMessage());
+      sb.append("\n");
+    }
 
     sb.append("=== Core Settings ===\n");
     appendConfig(
