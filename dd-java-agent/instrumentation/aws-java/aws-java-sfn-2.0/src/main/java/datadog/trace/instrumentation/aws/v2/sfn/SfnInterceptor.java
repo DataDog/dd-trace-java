@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.aws.v2.sfn;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
+import datadog.context.Context;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.Context.ModifyRequest;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
@@ -12,15 +15,14 @@ import software.amazon.awssdk.services.sfn.model.StartSyncExecutionRequest;
 
 public class SfnInterceptor implements ExecutionInterceptor {
 
-  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   public SfnInterceptor() {}
 
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
     try {
       return modifyRequestImpl(context, executionAttributes);
     } catch (Exception e) {
@@ -29,8 +31,9 @@ public class SfnInterceptor implements ExecutionInterceptor {
   }
 
   public SdkRequest modifyRequestImpl(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+      ModifyRequest context, ExecutionAttributes executionAttributes) {
+    final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+    final AgentSpan span = fromContext(ddContext);
     // StartExecutionRequest
     if (context.request() instanceof StartExecutionRequest) {
       StartExecutionRequest request = (StartExecutionRequest) context.request();

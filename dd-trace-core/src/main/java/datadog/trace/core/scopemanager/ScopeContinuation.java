@@ -123,6 +123,11 @@ final class ScopeContinuation implements AgentScope.Continuation {
   }
 
   @Override
+  public Context context() {
+    return context;
+  }
+
+  @Override
   public String toString() {
     return getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + "->" + context;
   }

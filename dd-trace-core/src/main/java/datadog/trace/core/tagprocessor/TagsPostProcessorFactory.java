@@ -9,12 +9,21 @@ public final class TagsPostProcessorFactory {
   private static boolean addRemoteHostname = true;
 
   private static class Lazy {
-    private static TagsPostProcessor create() {
-      final List<TagsPostProcessor> processors = new ArrayList<>(7);
+    private static TagsPostProcessor eagerProcessor = createEagerChain();
+    private static TagsPostProcessor lazyProcessor = createLazyChain();
+
+    private static TagsPostProcessor createEagerChain() {
+      final List<TagsPostProcessor> processors = new ArrayList<>(2);
       processors.add(new PeerServiceCalculator());
       if (addBaseService) {
         processors.add(new BaseServiceAdder(Config.get().getServiceName()));
       }
+      return new PostProcessorChain(processors.toArray(new TagsPostProcessor[0]));
+    }
+
+    private static TagsPostProcessor createLazyChain() {
+      final List<TagsPostProcessor> processors = new ArrayList<>(7);
+
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
       if (addRemoteHostname) {
         processors.add(new RemoteHostnameAdder(Config.get().getHostNameSupplier()));
@@ -36,12 +45,14 @@ public final class TagsPostProcessorFactory {
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }
-
-    private static TagsPostProcessor instance = create();
   }
 
-  public static TagsPostProcessor instance() {
-    return Lazy.instance;
+  public static TagsPostProcessor eagerProcessor() {
+    return Lazy.eagerProcessor;
+  }
+
+  public static TagsPostProcessor lazyProcessor() {
+    return Lazy.lazyProcessor;
   }
 
   /**
@@ -51,7 +62,7 @@ public final class TagsPostProcessorFactory {
    */
   public static void withAddBaseService(boolean enabled) {
     addBaseService = enabled;
-    Lazy.instance = Lazy.create();
+    Lazy.eagerProcessor = Lazy.createEagerChain();
   }
 
   /**
@@ -61,7 +72,7 @@ public final class TagsPostProcessorFactory {
    */
   public static void withAddRemoteHostname(boolean enabled) {
     addRemoteHostname = enabled;
-    Lazy.instance = Lazy.create();
+    Lazy.lazyProcessor = Lazy.createLazyChain();
   }
 
   /** Used for testing purposes. It reset the singleton and restore default options */
