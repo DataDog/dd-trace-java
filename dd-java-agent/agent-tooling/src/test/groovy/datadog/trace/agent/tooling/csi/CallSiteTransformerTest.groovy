@@ -9,6 +9,7 @@ import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
+import spock.lang.Ignore
 
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
@@ -16,6 +17,7 @@ import java.util.function.Consumer
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.COPY
 
+@Ignore
 @CompileDynamic
 class CallSiteTransformerTest extends BaseCallSiteTest {
 

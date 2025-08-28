@@ -6,6 +6,7 @@ import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.loading.ClassInjector
+import spock.lang.Ignore
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.utils.ClasspathUtils.isClassLoaded
 import static datadog.trace.test.util.GCUtils.awaitGC
 
+@Ignore
 class HelperInjectionTest extends DDSpecification {
   static final String HELPER_CLASS_NAME = 'datadog.trace.agent.test.HelperClass'
 

@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyL
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
+import datadog.trace.agent.tooling.classinject.ClassInjector;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
@@ -104,6 +105,7 @@ public class AgentInstaller {
       final boolean skipAdditionalLibraryMatcher,
       final Set<InstrumenterModule.TargetSystem> enabledSystems,
       final AgentBuilder.Listener... listeners) {
+    ClassInjector.enableClassInjection(inst);
     Utils.setInstrumentation(inst);
 
     TypePoolFacade.registerAsSupplier();

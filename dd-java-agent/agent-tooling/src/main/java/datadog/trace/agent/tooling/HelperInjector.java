@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 
+import datadog.trace.agent.tooling.classinject.ClassInjector;
 import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -19,7 +20,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
@@ -130,18 +130,18 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
           }
 
           final Map<String, byte[]> classnameToBytes = getHelperMap();
-          final Map<String, Class<?>> classes = injectClassLoader(classLoader, classnameToBytes);
+          final Iterable<Class<?>> classes = injectClassLoader(classLoader, classnameToBytes);
 
           // All datadog helper classes are in the unnamed module
           // And there's exactly one unnamed module per classloader
           // Use the module of the first class for convenience
           if (JavaModule.isSupported()) {
-            final JavaModule javaModule = JavaModule.ofType(classes.values().iterator().next());
+            final JavaModule javaModule = JavaModule.ofType(classes.iterator().next());
             helperModules.add(new WeakReference<>(javaModule.unwrap()));
           }
 
           // forcibly initialize any eager helpers
-          for (Class<?> clazz : classes.values()) {
+          for (Class<?> clazz : classes) {
             if (EagerHelper.class.isAssignableFrom(clazz)) {
               try {
                 clazz.getMethod("init").invoke(null);
@@ -174,13 +174,23 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
     return builder;
   }
 
-  private Map<String, Class<?>> injectClassLoader(
+  private Iterable<Class<?>> injectClassLoader(
       final ClassLoader classLoader, final Map<String, byte[]> classnameToBytes) {
     INJECTING_HELPERS.begin();
     try {
-      ProtectionDomain protectionDomain = createProtectionDomain(classLoader);
-      return new ClassInjector.UsingReflection(classLoader, protectionDomain)
-          .injectRaw(classnameToBytes);
+      if (useAgentCodeSource) {
+        return ClassInjector.injectClass(classnameToBytes, createProtectionDomain(classLoader));
+      } else {
+        return ClassInjector.injectClass(classnameToBytes, classLoader);
+      }
+    } catch (UnsupportedOperationException e) {
+      if ("MuzzleVersionScanPlugin".equals(requestingName)) {
+        return new net.bytebuddy.dynamic.loading.ClassInjector.UsingReflection(classLoader, null)
+            .injectRaw(classnameToBytes)
+            .values();
+      } else {
+        throw e;
+      }
     } finally {
       INJECTING_HELPERS.end();
     }
@@ -204,7 +214,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
 
           if (!target.canRead(helperModule)) {
             log.debug("Adding module read from {} to {}", target, helperModule);
-            ClassInjector.UsingInstrumentation.redefineModule(
+            net.bytebuddy.dynamic.loading.ClassInjector.UsingInstrumentation.redefineModule(
                 Utils.getInstrumentation(),
                 target,
                 Collections.singleton(helperModule),
