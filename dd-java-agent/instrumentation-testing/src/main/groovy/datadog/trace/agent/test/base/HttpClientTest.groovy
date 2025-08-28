@@ -866,7 +866,20 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           "$DDTags.PATHWAY_HASH" { String }
         }
         if (exception) {
-          errorTags(exception.class, exception.message)
+          if (exception instanceof java.net.ConnectException ||
+            exception instanceof java.net.SocketTimeoutException ||
+            exception instanceof java.util.concurrent.TimeoutException) {
+            tag("error.type", {
+              String actualType = it as String
+              return actualType == "java.net.ConnectException" ||
+                actualType == "java.net.SocketTimeoutException" ||
+                actualType == "java.util.concurrent.TimeoutException"
+            })
+            tag("error.stack", String)
+            tag("error.message", { it instanceof String && it != null })
+          } else {
+            errorTags(exception.class, exception.message)
+          }
         }
         peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
