@@ -155,6 +155,9 @@ public class ProfilingAgent {
         profiler.start();
         log.debug("Profiling has started");
 
+        // Register ProfilerFlare for debugging support
+        ProfilerFlare.register();
+
         try {
           /*
           Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
