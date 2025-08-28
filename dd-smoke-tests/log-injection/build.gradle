@@ -66,7 +66,7 @@ dependencies {
   implementation project(path: ':dd-trace-ot', configuration: 'shadow')
   implementation project(':dd-trace-api')
 
-  compileOnly libs.slf4j
+  compileOnly 'org.slf4j:slf4j-api:1.7.36'
   compileOnly 'log4j:log4j:1.2.17'
   compileOnly 'commons-logging:commons-logging:1.2'
   compileOnly 'org.apache.logging.log4j:log4j-core:2.14.0'
@@ -96,16 +96,14 @@ dependencies {
   slf4jLog4j2BridgeLatest 'org.apache.logging.log4j:log4j-slf4j-impl:2.+'
   log4j2Slf4jBridgeLatest 'org.apache.logging.log4j:log4j-to-slf4j:2.+'
 
-  slf4jInterface libs.slf4j
-
-  slf4jJULBridge "org.slf4j:slf4j-jdk14:${libs.versions.slf4j.get()}"
-  slf4jJCLBridge "org.slf4j:slf4j-jcl:${libs.versions.slf4j.get()}"
-  slf4jLog4j1Bridge "org.slf4j:slf4j-log4j12:${libs.versions.slf4j.get()}"
-  julSlf4jBridge "org.slf4j:jul-to-slf4j:${libs.versions.slf4j.get()}"
-  jclSlf4jBridge "org.slf4j:jcl-over-slf4j:${libs.versions.slf4j.get()}"
-  log4j1Slf4jBridge "org.slf4j:log4j-over-slf4j:${libs.versions.slf4j.get()}"
-
-  slf4jSimpleBackend "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"
+  slf4jInterface 'org.slf4j:slf4j-api:1.7.36'
+  slf4jJULBridge 'org.slf4j:slf4j-jdk14:1.7.36'
+  slf4jJCLBridge 'org.slf4j:slf4j-jcl:1.7.36'
+  slf4jLog4j1Bridge 'org.slf4j:slf4j-log4j12:1.7.36'
+  julSlf4jBridge 'org.slf4j:jul-to-slf4j:1.7.36'
+  jclSlf4jBridge 'org.slf4j:jcl-over-slf4j:1.7.36'
+  log4j1Slf4jBridge 'org.slf4j:log4j-over-slf4j:1.7.36'
+  slf4jSimpleBackend 'org.slf4j:slf4j-simple:1.7.36'
 
   logbackBackend 'ch.qos.logback:logback-classic:1.0.0'
   logbackBackend 'net.logstash.logback:logstash-logback-encoder:3.0'
