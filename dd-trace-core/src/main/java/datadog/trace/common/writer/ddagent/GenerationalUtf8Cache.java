@@ -29,13 +29,13 @@ import java.util.Arrays;
  * is created.  Without this refinement, the cost for constructing
  * CacheEntry for unique values would negate the benefit of the cache.
  *
- * These first requests are tracked via edenMarkers which indicate if there was
- * previously an unsatisfied request to the same initial cache line.
+ * These first requests are tracked via edenMarkers which indicate if there was a
+ * previously unsatisfied request to the same initial cache line.
  *
  * If there was a request, then CacheEntry is created and stored into edenEntries.
  * NOTE: The eden line marking process is imprecise and subject to request
- * ordering issues, but given that low cardinality entries are more likely to repeat
- * next.
+ * ordering issues.  But given that low cardinality entries are more likely to repeat
+ * next, imperically this scheme works well.
  *
  * If a collision occurs in the cache, linear probing is used to check other slots.
  * New cache entries fill any available slot within the probing window.
@@ -48,7 +48,7 @@ import java.util.Arrays;
  *
  * If there are no available slots in edenEntries for a newly created CacheEntry...
  *
- * Attempt to early promote the MFU: most frequently used CacheEntry from
+ * First, attempt to early promote the MFU: most frequently used CacheEntry from
  * edenEntries to promotedEntries (without eviction).
  *
  * If there's no space in promotedEntries to promote the MFU, then evict the
@@ -56,12 +56,12 @@ import java.util.Arrays;
  *
  *
  * LRU based eviction of the promotedEntries works on tagging with the last hit time.
- * The access time can be provided directly to ValueUtf8Cache#getUtf8 or can
- * be refreshed periodically by calling ValueUtf8Cache#updateAccessTime.
+ * The access time can be provided directly to GenerationalUtf8Cache#getUtf8 or can
+ * be refreshed periodically by calling GenerationalUtf8Cache#updateAccessTime.
  *
  * If there's a natural transaction boundary around the UTF8 cache,
- * calling ValueUtf8Cache#recalibrateThresholds will adjust promotion
- * thresholds to provide better cache utilization.
+ * calling ValueUtf8Cache#reclibrate will adjust promotion thresholds to
+ * provide better cache utilization.
  */
 public final class GenerationalUtf8Cache implements EncodingCache {
   private static final int MAX_PROBES = 8;

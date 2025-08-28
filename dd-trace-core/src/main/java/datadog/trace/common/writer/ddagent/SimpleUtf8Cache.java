@@ -7,7 +7,7 @@ import java.util.Arrays;
 /**
  * A simple UTF8 cache - primarily intended for tag names
  *
- * <p>Cache is designed to against resilient against single use tags
+ * <p>Cache is designed to be resilient against single use values
  *
  * <p>NOTE: The aim of this cache is to reduce allocation overhead -- not CPU overhead. Using the
  * cache has higher CPU overhead than simply calling {@link
