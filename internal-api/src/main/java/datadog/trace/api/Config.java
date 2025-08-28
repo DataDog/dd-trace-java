@@ -2735,7 +2735,7 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
-    this.utf8CacheEnabled = configProvider.getBoolean(GeneralConfig.UTF8_CACHE_ENABLED, true);
+    this.utf8CacheEnabled = configProvider.getBoolean(GeneralConfig.UTF8_CACHE_ENABLED, false);
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
