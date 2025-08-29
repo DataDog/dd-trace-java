@@ -80,6 +80,7 @@ public class ConfigCollector {
     }
   }
 
+  // NOTE: Only used to preserve legacy behavior for with smoke tests
   public static ConfigSetting getAppliedConfigSetting(
       String key, Map<ConfigOrigin, Map<String, ConfigSetting>> configMap) {
     ConfigSetting best = null;

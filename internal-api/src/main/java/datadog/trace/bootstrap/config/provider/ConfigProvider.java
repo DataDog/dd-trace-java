@@ -653,7 +653,7 @@ public final class ConfigProvider {
 
     /** Re-reports this resolved value to ConfigCollector with the specified seqId */
     void reReportToCollector(String key, int finalSeqId) {
-      // Source and value should never be null if there is an initialized ConfigValueResolver
+      // Value should never be null if there is an initialized ConfigValueResolver
       if (origin != null) {
         ConfigCollector.get().put(key, value, origin, finalSeqId, configId);
       }
