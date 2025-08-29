@@ -26,6 +26,7 @@ class ExecutionSettingsTest extends DDSpecification {
       false,
       false,
       false,
+      false,
       EarlyFlakeDetectionSettings.DEFAULT,
       TestManagementSettings.DEFAULT,
       null,
@@ -42,6 +43,7 @@ class ExecutionSettingsTest extends DDSpecification {
       true,
       true,
       false,
+      true,
       true,
       true,
       new EarlyFlakeDetectionSettings(true, [], 10),
@@ -63,6 +65,7 @@ class ExecutionSettingsTest extends DDSpecification {
       true,
       false,
       true,
+      false,
       new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(10, 20)], 10),
       new TestManagementSettings(true, 20),
       "itrCorrelationId",
@@ -81,6 +84,7 @@ class ExecutionSettingsTest extends DDSpecification {
       ),
 
       new ExecutionSettings(
+      true,
       true,
       true,
       true,
