@@ -16,7 +16,6 @@ import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 
-import java.lang.reflect.Method
 import java.util.function.BiFunction
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
@@ -139,31 +138,6 @@ class MuzzlePlugin implements Plugin<Project> {
     }
   }
 
-  static Version highest(Version a, Version b) {
-    (a <=> b) > 0 ? a : b
-  }
-
-  static Version lowest(Version a, Version b) {
-    (a <=> b) < 0 ? a : b
-  }
-
-  static Map resolveInstrumentationAndJarVersions(MuzzleDirective directive, ClassLoader cl,
-                                                  Version lowVersion, Version highVersion) {
-
-    Method listMethod = cl.loadClass('datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin')
-      .getMethod('listInstrumentationNames', ClassLoader.class, String.class)
-
-    Set<String> names = (Set<String>) listMethod.invoke(null, cl, directive.getName())
-    Map<String, TestedArtifact> ret = [:]
-    for (String n : names) {
-      def testedArtifact = new TestedArtifact(n, directive.group, directive.module, lowVersion, highVersion)
-      def value = ret.get(testedArtifact.key(), testedArtifact)
-      ret.put(testedArtifact.key(), new TestedArtifact(value.instrumentation, value.group, value.module, lowest(lowVersion, value.lowVersion),
-        highest(highVersion, value.highVersion)))
-    }
-    return ret
-  }
-
   private static void mergeReports(Project project) {
     def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
     Map<String, TestedArtifact> map = new TreeMap<>()
@@ -179,7 +153,7 @@ class MuzzlePlugin implements Plugin<Project> {
           versionScheme.parseVersion(split[4]))
         map.merge(parsed.key(), parsed, [
           apply: { TestedArtifact x, TestedArtifact y ->
-            return new TestedArtifact(x.instrumentation, x.group, x.module, lowest(x.lowVersion, y.lowVersion), highest(x.highVersion, y.highVersion))
+            return new TestedArtifact(x.instrumentation, x.group, x.module, MuzzleMavenRepoUtils.lowest(x.lowVersion, y.lowVersion), MuzzleMavenRepoUtils.highest(x.highVersion, y.highVersion))
           }
         ] as BiFunction)
       }

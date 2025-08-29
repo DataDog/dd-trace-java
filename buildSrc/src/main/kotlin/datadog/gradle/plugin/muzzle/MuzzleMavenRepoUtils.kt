@@ -9,6 +9,7 @@ import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
+import org.eclipse.aether.version.Version
 import java.nio.file.Files
 
 object MuzzleMavenRepoUtils {
@@ -53,4 +54,42 @@ object MuzzleMavenRepoUtils {
     }
     return session
   }
+
+
+  @JvmStatic
+  fun resolveInstrumentationAndJarVersions(
+    directive: MuzzleDirective,
+    cl: ClassLoader,
+    lowVersion: Version,
+    highVersion: Version
+  ): Map<String, TestedArtifact> {
+    val scanPluginClass = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
+    val listMethod = scanPluginClass.getMethod("listInstrumentationNames", ClassLoader::class.java, String::class.java)
+    val names = listMethod.invoke(null, cl, directive.name) as Set<String>
+    val ret = mutableMapOf<String, TestedArtifact>()
+    for (n in names) {
+      val testedArtifact = TestedArtifact(n, directive.group ?: "", directive.module ?: "", lowVersion, highVersion)
+      val value = ret[testedArtifact.key()] ?: testedArtifact
+      ret[testedArtifact.key()] = TestedArtifact(
+        value.instrumentation,
+        value.group,
+        value.module,
+        lowest(lowVersion, value.lowVersion),
+        highest(highVersion, value.highVersion)
+      )
+    }
+    return ret
+  }
+
+  /**
+   * Returns the highest of two Version objects.
+   */
+  @JvmStatic
+  fun highest(a: Version, b: Version): Version = if (a.compareTo(b) > 0) a else b
+
+  /**
+   * Returns the lowest of two Version objects.
+   */
+  @JvmStatic
+  fun lowest(a: Version, b: Version): Version = if (a.compareTo(b) < 0) a else b
 }
