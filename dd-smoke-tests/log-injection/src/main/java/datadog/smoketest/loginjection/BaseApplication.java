@@ -44,7 +44,9 @@ public abstract class BaseApplication {
   }
 
   private static Object getLogInjectionEnabled() {
-    ConfigSetting configSetting = ConfigCollector.get().collect().get(LOGS_INJECTION_ENABLED);
+    ConfigSetting configSetting =
+        ConfigCollector.getAppliedConfigSetting(
+            LOGS_INJECTION_ENABLED, ConfigCollector.get().collect());
     if (configSetting == null) {
       return null;
     }
