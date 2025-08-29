@@ -61,6 +61,59 @@ object MuzzleMavenRepoUtils {
   }
 
   /**
+   * Create a list of muzzle directives which assert the opposite of the given MuzzleDirective.
+   */
+  @JvmStatic
+  fun inverseOf(
+    muzzleDirective: MuzzleDirective,
+    system: RepositorySystem,
+    session: RepositorySystemSession
+  ): Set<MuzzleDirective> {
+    val allVersionsArtifact = DefaultArtifact(
+      muzzleDirective.group,
+      muzzleDirective.module,
+      "jar",
+      "[,)"
+    )
+    val repos = muzzleDirective.getRepositories(MUZZLE_REPOS)
+    val allRangeRequest = VersionRangeRequest().apply {
+      repositories = repos
+      artifact = allVersionsArtifact
+    }
+    val allRangeResult = system.resolveVersionRange(session, allRangeRequest)
+
+    val directiveArtifact = DefaultArtifact(
+      muzzleDirective.group,
+      muzzleDirective.module,
+      "jar",
+      muzzleDirective.versions
+    )
+    val rangeRequest = VersionRangeRequest().apply {
+      repositories = repos
+      artifact = directiveArtifact
+    }
+    val rangeResult = system.resolveVersionRange(session, rangeRequest)
+
+    val rangeResultVersions = rangeResult.versions.toSet()
+    allRangeResult.versions.removeAll(rangeResultVersions)
+    return MuzzleVersionUtils.filterAndLimitVersions(
+      allRangeResult,
+      muzzleDirective.skipVersions,
+      muzzleDirective.includeSnapshots
+    ).map { version ->
+      MuzzleDirective().apply {
+        name = muzzleDirective.name
+        group = muzzleDirective.group
+        module = muzzleDirective.module
+        versions = version.toString()
+        assertPass = !muzzleDirective.assertPass
+        excludedDependencies = muzzleDirective.excludedDependencies
+        includeSnapshots = muzzleDirective.includeSnapshots
+      }
+    }.toSet()
+  }
+
+  /**
    * Resolves the version range for a given MuzzleDirective using the provided RepositorySystem and RepositorySystemSession.
    * Equivalent to the Groovy implementation in MuzzlePlugin.
    */

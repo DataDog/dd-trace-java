@@ -3,10 +3,6 @@ package datadog.gradle.plugin.muzzle
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
-import org.eclipse.aether.artifact.DefaultArtifact
-import org.eclipse.aether.resolution.VersionRangeRequest
-import org.eclipse.aether.resolution.VersionRangeResult
-import org.eclipse.aether.version.Version
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -112,7 +108,7 @@ class MuzzlePlugin implements Plugin<Project> {
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
-            for (MuzzleDirective inverseDirective : inverseOf(muzzleDirective, system, session)) {
+            for (MuzzleDirective inverseDirective : MuzzleMavenRepoUtils.inverseOf(muzzleDirective, system, session)) {
               def inverseRange = MuzzleMavenRepoUtils.resolveVersionRange(inverseDirective, system, session)
               for (Artifact singleVersion : (MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(inverseDirective, inverseRange))) {
                 runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
@@ -132,43 +128,6 @@ class MuzzlePlugin implements Plugin<Project> {
         finalizedBy(timingTask)
       }
     }
-  }
-  
-  /**
-   * Create a list of muzzle directives which assert the opposite of the given datadog.gradle.plugin.muzzle.MuzzleDirective.
-   */
-  private static Set<MuzzleDirective> inverseOf(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    final Artifact allVersionsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
-    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
-
-    def repos = muzzleDirective.getRepositories(MuzzleMavenRepoUtils.MUZZLE_REPOS)
-    final VersionRangeRequest allRangeRequest = new VersionRangeRequest()
-    allRangeRequest.setRepositories(repos)
-    allRangeRequest.setArtifact(allVersionsArtifact)
-    final VersionRangeResult allRangeResult = system.resolveVersionRange(session, allRangeRequest)
-
-    final VersionRangeRequest rangeRequest = new VersionRangeRequest()
-    rangeRequest.setRepositories(repos)
-    rangeRequest.setArtifact(directiveArtifact)
-    final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
-    final Set<Version> versions = rangeResult.versions.toSet()
-    allRangeResult.versions.removeAll(versions)
-
-    return MuzzleVersionUtils.filterAndLimitVersions(
-      allRangeResult,
-      muzzleDirective.skipVersions,
-      muzzleDirective.includeSnapshots
-    ).collect { version ->
-      final MuzzleDirective inverseDirective = new MuzzleDirective()
-      inverseDirective.name = muzzleDirective.name
-      inverseDirective.group = muzzleDirective.group
-      inverseDirective.module = muzzleDirective.module
-      inverseDirective.versions = "$version"
-      inverseDirective.assertPass = !muzzleDirective.assertPass
-      inverseDirective.excludedDependencies = muzzleDirective.excludedDependencies
-      inverseDirective.includeSnapshots = muzzleDirective.includeSnapshots
-      inverseDirective
-    }.toSet()
   }
 
   /**
