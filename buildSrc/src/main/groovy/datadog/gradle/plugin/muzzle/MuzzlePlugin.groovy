@@ -8,7 +8,6 @@ import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.eclipse.aether.version.Version
-import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -112,13 +111,13 @@ class MuzzlePlugin implements Plugin<Project> {
           runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
           def range = MuzzleMavenRepoUtils.resolveVersionRange(muzzleDirective, system, session)
-          for (Artifact singleVersion : muzzleDirectiveToArtifacts(muzzleDirective, range)) {
+          for (Artifact singleVersion : MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(muzzleDirective, range)) {
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             for (MuzzleDirective inverseDirective : inverseOf(muzzleDirective, system, session)) {
               def inverseRange = MuzzleMavenRepoUtils.resolveVersionRange(inverseDirective, system, session)
-              for (Artifact singleVersion : (muzzleDirectiveToArtifacts(inverseDirective, inverseRange))) {
+              for (Artifact singleVersion : (MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(inverseDirective, inverseRange))) {
                 runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
@@ -174,28 +173,6 @@ class MuzzlePlugin implements Plugin<Project> {
                    |  <testcase name="${name}" time="${seconds}">
                    |  </testcase>
                    |</testsuite>\n""".stripMargin()
-  }
-
-  /**
-   * Convert a muzzle directive to a list of artifacts
-   */
-  private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, VersionRangeResult rangeResult) {
-
-    final Set<Version> versions = MuzzleVersionUtils.filterAndLimitVersions(
-      rangeResult,
-      muzzleDirective.skipVersions,
-      muzzleDirective.includeSnapshots
-    )
-
-    final Set<Artifact> allVersionArtifacts = versions.collect { version ->
-      new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", version.toString())
-    }.toSet()
-
-    if (allVersionArtifacts.isEmpty()) {
-      throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions $muzzleDirective.classifier")
-    }
-
-    return allVersionArtifacts
   }
 
   /**

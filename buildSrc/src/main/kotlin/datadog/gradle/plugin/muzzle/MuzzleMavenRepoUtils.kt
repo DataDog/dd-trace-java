@@ -14,6 +14,7 @@ import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.findByType
 import java.io.File
@@ -146,6 +147,7 @@ object MuzzleMavenRepoUtils {
   ): Map<String, TestedArtifact> {
     val scanPluginClass = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
     val listMethod = scanPluginClass.getMethod("listInstrumentationNames", ClassLoader::class.java, String::class.java)
+    @Suppress("UNCHECKED_CAST")
     val names = listMethod.invoke(null, cl, directive.name) as Set<String>
     val ret = mutableMapOf<String, TestedArtifact>()
     for (n in names) {
@@ -173,4 +175,33 @@ object MuzzleMavenRepoUtils {
    */
   @JvmStatic
   fun lowest(a: Version, b: Version): Version = if (a.compareTo(b) < 0) a else b
+
+  /**
+   * Convert a muzzle directive to a set of artifacts for all filtered versions.
+   * Throws GradleException if no artifacts are found.
+   */
+  @JvmStatic
+  fun muzzleDirectiveToArtifacts(
+    muzzleDirective: MuzzleDirective,
+    rangeResult: VersionRangeResult
+  ): Set<Artifact> {
+    val versions = MuzzleVersionUtils.filterAndLimitVersions(
+      rangeResult,
+      muzzleDirective.skipVersions,
+      muzzleDirective.includeSnapshots
+    )
+    val allVersionArtifacts = versions.map { version ->
+      DefaultArtifact(
+        muzzleDirective.group,
+        muzzleDirective.module,
+        muzzleDirective.classifier ?: "",
+        "jar",
+        version.toString()
+      )
+    }.toSet()
+    if (allVersionArtifacts.isEmpty()) {
+      throw GradleException("No muzzle artifacts found for ${muzzleDirective.group}:${muzzleDirective.module} ${muzzleDirective.versions} ${muzzleDirective.classifier}")
+    }
+    return allVersionArtifacts
+  }
 }
