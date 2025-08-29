@@ -627,7 +627,7 @@ public final class ConfigProvider {
   }
 
   /** Helper class to store resolved configuration values with their metadata */
-  private static class ConfigValueResolver<T> {
+  static class ConfigValueResolver<T> {
     final T value;
     final ConfigOrigin origin;
     final int seqId;
@@ -653,7 +653,8 @@ public final class ConfigProvider {
 
     /** Re-reports this resolved value to ConfigCollector with the specified seqId */
     void reReportToCollector(String key, int finalSeqId) {
-      if (value != null && origin != null) {
+      // Source and value should never be null if there is an initialized ConfigValueResolver
+      if (origin != null) {
         ConfigCollector.get().put(key, value, origin, finalSeqId, configId);
       }
     }

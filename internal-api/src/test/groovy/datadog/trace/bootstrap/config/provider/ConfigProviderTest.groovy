@@ -475,4 +475,17 @@ class ConfigProviderTest extends DDSpecification {
     def maxSeqId = [defaultSetting.seqId, envSetting.seqId, jvmSetting.seqId, calculatedSetting.seqId].max()
     calculatedSetting.seqId == maxSeqId
   }
+
+  // NOTE: This is a case that SHOULD never occur. #reReportToCollector(String, int) should only be called with valid origins
+  def "ConfigValueResolver reReportToCollector handles null origin gracefully"() {
+    setup:
+    ConfigCollector.get().collect() // clear previous state
+    ConfigProvider.ConfigValueResolver resolver = ConfigProvider.ConfigValueResolver.of("1")
+
+    when:
+    resolver.reReportToCollector("test.key", 5)
+
+    then:
+    0 * ConfigCollector.get().put(_, _, _, _, _)
+  }
 }
