@@ -47,17 +47,23 @@ public class Utf8Benchmark {
   }
 
   static final String nextValue(String tag) {
-    if (tag == "custom") {
-      return nextCustomValue();
+    if (tag.equals("custom")) {
+      return nextCustomValue(tag);
     } else {
       return nextStandardValue(tag);
     }
   }
 
-  static final String nextCustomValue() {
-    return "custom" + ThreadLocalRandom.current().nextInt();
+  /*
+   * Produces a high cardinality value - > thousands of distinct values per tag - many 1-time values
+   */
+  static final String nextCustomValue(String tag) {
+    return tag + ThreadLocalRandom.current().nextInt();
   }
 
+  /*
+   * Produces a moderate cardinality value - tens of distinct values per tag
+   */
   static final String nextStandardValue(String tag) {
     return tag + ThreadLocalRandom.current().nextInt(20);
   }
