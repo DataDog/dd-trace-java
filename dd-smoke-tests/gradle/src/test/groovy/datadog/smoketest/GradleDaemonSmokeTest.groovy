@@ -5,7 +5,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -168,15 +168,15 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null ? "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 " : "") +
       "-javaagent:${agentShadowJar}=" +
       // for convenience when debugging locally
-      (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
+      (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
+      "${ConfigStrings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
       /*
      * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
      * Gradle Test Kit needs to do a "chmod" when starting a Gradle Daemon.
@@ -186,9 +186,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
      * This causes the tests to fail because the number of reported traces is different.
      * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
      */
-      "${Strings.propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
+      "${ConfigStrings.propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED)}=false," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
+      "${ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
 
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }

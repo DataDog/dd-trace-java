@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.trace.util.Strings;
+import static datadog.trace.util.ConfigStrings.normalizedHeaderTag;
+import static datadog.trace.util.ConfigStrings.trim;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -65,7 +67,7 @@ final class ConfigConverter {
   @Nonnull
   @SuppressForbidden
   static List<String> parseList(final String str, final String separator) {
-    String trimmed = Strings.trim(str);
+    String trimmed = trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyList();
     }
@@ -87,7 +89,7 @@ final class ConfigConverter {
   static Map<String, String> parseMap(
       final String str, final String settingName, final char keyValueSeparator) {
     // If we ever want to have default values besides an empty map, this will need to change.
-    String trimmed = Strings.trim(str);
+    String trimmed = trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
@@ -100,7 +102,7 @@ final class ConfigConverter {
   static Map<String, String> parseTraceTagsMap(
       final String str, final char keyValueSeparator, final List<Character> argSeparators) {
     // If we ever want to have default values besides an empty map, this will need to change.
-    String trimmed = Strings.trim(str);
+    String trimmed = trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
@@ -130,7 +132,7 @@ final class ConfigConverter {
       final String settingName,
       final String defaultPrefix,
       boolean lowercaseKeys) {
-    String trimmed = Strings.trim(str);
+    String trimmed = trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
@@ -142,7 +144,7 @@ final class ConfigConverter {
   @Nonnull
   static Map<String, String> parseOrderedMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
-    String trimmed = Strings.trim(str);
+    String trimmed = trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
@@ -337,7 +339,7 @@ final class ConfigConverter {
                 return;
               }
               if (Character.isLetter(key.charAt(0))) {
-                value = defaultPrefix + Strings.normalizedHeaderTag(key);
+                value = defaultPrefix + normalizedHeaderTag(key);
               } else {
                 // tags must start with a letter
                 throw new BadFormatException(

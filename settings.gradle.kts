@@ -136,6 +136,7 @@ include(
 // misc
 include(
   ":dd-java-agent:testing",
+  ":utils:config-utils",
   ":utils:container-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",

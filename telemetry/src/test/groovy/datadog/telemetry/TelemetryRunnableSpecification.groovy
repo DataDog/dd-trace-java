@@ -5,7 +5,8 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.telemetry.MetricCollector
 import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
+
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 
@@ -35,7 +36,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
   void 'happy path'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL), "65")
+    injectEnvConfig(ConfigStrings.toEnvVar(GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL), "65")
     TelemetryRunnable.ThreadSleeper sleeperMock = Mock()
     TickSleeper sleeper = new TickSleeper(delegate: sleeperMock)
     TimeSource timeSource = Mock()

@@ -9,14 +9,14 @@ import datadog.trace.test.util.DDSpecification
 // Note that if DD_TRACE_OTEL_ENABLED is set, its value will overwrite the one in OTEL_SDK_DISABLED.
 
 
-class OtelEnvMetricCollectorTest extends DDSpecification {
+class OtelEnvMetricCollectorImplTest extends DDSpecification {
 
   def "otel disabled - no metric"() {
     setup:
     injectEnvConfig('DD_SERVICE_NAME', 'DD_TEST_SERVICE', false)
     injectEnvConfig('OTEL_SERVICE_NAME', 'OTEL_TEST_SERVICE', false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'false', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -30,7 +30,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     setup:
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
     injectEnvConfig('OTEL_SDK_DISABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -53,7 +53,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     setup:
     injectEnvConfig('OTEL_SERVICE_NAME', 'OTEL_TEST_SERVICE', false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -69,7 +69,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     injectEnvConfig('OTEL_SERVICE_NAME', 'OTEL_TEST_SERVICE', false)
     injectEnvConfig('OTEL_PROPAGATORS', 'MyStyle', false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -86,7 +86,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     injectEnvConfig(otelEnvKey, otelEnvValue, false)
     injectEnvConfig(ddEnvKey, ddEnvValue, false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -128,7 +128,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     injectEnvConfig('OTEL_RESOURCE_ATTRIBUTES', 'env=oteltest,version=0.0.1', false)
     injectEnvConfig('DD_TAGS', 'env=ddtest,version=0.0.2', false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -151,7 +151,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     setup:
     injectEnvConfig(otelEnvKey, otelEnvValue, false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
@@ -179,7 +179,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     setup:
     injectEnvConfig(otelEnvKey, otelEnvValue, false)
     injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
-    def collector = OtelEnvMetricCollector.getInstance()
+    def collector = OtelEnvMetricCollectorImpl.getInstance()
 
     when:
     collector.prepareMetrics()
