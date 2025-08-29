@@ -6,7 +6,6 @@ import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
-import org.eclipse.aether.util.version.GenericVersionScheme
 import org.eclipse.aether.version.Version
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
@@ -14,8 +13,6 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
-
-import java.util.function.BiFunction
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
@@ -81,7 +78,7 @@ class MuzzlePlugin implements Plugin<Project> {
     project.tasks.register('mergeMuzzleReports', MuzzleTask) {
       description = "Merge generated version reports in one unique csv"
       doLast {
-        mergeReports(project)
+        MuzzleReportUtils.mergeReports(project)
       }
     }
 
@@ -127,7 +124,7 @@ class MuzzlePlugin implements Plugin<Project> {
       def timingTask = project.tasks.register("muzzle-end") {
         doLast {
           long endTime = System.currentTimeMillis()
-          generateResultsXML(project, endTime - startTime)
+          MuzzleReportUtils.generateResultsXML(project, endTime - startTime)
         }
       }
       // last muzzle task to run
@@ -136,45 +133,7 @@ class MuzzlePlugin implements Plugin<Project> {
       }
     }
   }
-
-  private static void mergeReports(Project project) {
-    def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
-    Map<String, TestedArtifact> map = new TreeMap<>()
-    def versionScheme = new GenericVersionScheme()
-    dir.eachFileMatch(~/.*\.csv/) { file ->
-      file.eachLine { line, nb ->
-        if (nb == 1) {
-          // skip header
-          return
-        }
-        def split = line.split(",")
-        def parsed = new TestedArtifact(split[0], split[1], split[2], versionScheme.parseVersion(split[3]),
-          versionScheme.parseVersion(split[4]))
-        map.merge(parsed.key(), parsed, [
-          apply: { TestedArtifact x, TestedArtifact y ->
-            return new TestedArtifact(x.instrumentation, x.group, x.module, MuzzleMavenRepoUtils.lowest(x.lowVersion, y.lowVersion), MuzzleMavenRepoUtils.highest(x.highVersion, y.highVersion))
-          }
-        ] as BiFunction)
-      }
-    }
-
-    dumpVersionsToCsv(project, map)
-  }
-
-  private static void generateResultsXML(Project project, long millis) {
-    def seconds = (millis * 1.0) / 1000
-    def name = "${project.path}:muzzle"
-    def dirname = name.replaceFirst('^:', '').replace(':', '_')
-    def dir = project.file("${project.rootProject.buildDir}/muzzle-test-results/$dirname")
-    dir.mkdirs()
-    def file = project.file("$dir/results.xml")
-    file.text = """|<?xml version="1.0" encoding="UTF-8"?>
-                   |<testsuite name="${name}" tests="1" id="0" time="${seconds}">
-                   |  <testcase name="${name}" time="${seconds}">
-                   |  </testcase>
-                   |</testsuite>\n""".stripMargin()
-  }
-
+  
   /**
    * Create a list of muzzle directives which assert the opposite of the given datadog.gradle.plugin.muzzle.MuzzleDirective.
    */
