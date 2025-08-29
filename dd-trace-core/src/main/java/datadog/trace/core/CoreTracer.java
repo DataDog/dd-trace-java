@@ -1109,6 +1109,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writtenTrace.isEmpty()) {
       return;
     }
+
+    // run early tag postprocessors before publishing to the metrics writer since peer / base
+    // service are needed
+    for (DDSpan span : writtenTrace) {
+      span.processServiceTags();
+    }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
     TraceCollector traceCollector = writtenTrace.get(0).context().getTraceCollector();

@@ -11,7 +11,7 @@ import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.ExecutionSettings
-import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter
+import datadog.trace.civisibility.coverage.report.child.ChildProcessCoverageReporter
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.ipc.SignalClient
 import datadog.trace.civisibility.source.LinesResolver

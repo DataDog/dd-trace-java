@@ -908,8 +908,6 @@ verify_maven_central_deployment:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
-    - when: manual
-      allow_failure: true
   cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
     - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
       paths:
@@ -954,13 +952,6 @@ publishing-gate:
   needs:
     - job: verify_maven_central_deployment
       optional: true # Required for releases only
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-    - when: manual
-      allow_failure: true
 
 configure_system_tests:
   variables:

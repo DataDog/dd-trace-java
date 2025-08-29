@@ -2120,7 +2120,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     someBytes(30)         | "binary" | 3      | 30
   }
 
-  static def someBytes(nb) {
+  static someBytes(nb) {
     def b = new byte[nb]
     new Random().nextBytes(b)
     b

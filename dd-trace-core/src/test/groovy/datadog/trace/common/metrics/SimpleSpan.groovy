@@ -207,6 +207,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  void processServiceTags() {}
+
+  @Override
   void processTagsAndBaggage(MetadataConsumer consumer) {}
 
   @Override

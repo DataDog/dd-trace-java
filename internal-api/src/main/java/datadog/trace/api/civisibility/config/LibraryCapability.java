@@ -8,7 +8,8 @@ public enum LibraryCapability {
   FAIL_FAST("fail_fast_test_order", "1"),
   QUARANTINE("test_management.quarantine", "1"),
   DISABLED("test_management.disable", "1"),
-  ATTEMPT_TO_FIX("test_management.attempt_to_fix", "5");
+  ATTEMPT_TO_FIX("test_management.attempt_to_fix", "5"),
+  COV_REPORT_UPLOAD("coverage_report_upload", "1");
 
   private final String tag;
   private final String version;
