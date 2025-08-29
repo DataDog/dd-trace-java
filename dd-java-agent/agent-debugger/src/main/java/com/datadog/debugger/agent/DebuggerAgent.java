@@ -117,7 +117,8 @@ public class DebuggerAgent {
     ProbeStatusSink probeStatusSink =
         new ProbeStatusSink(
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
-    DebuggerSink debuggerSink = createDebuggerSink(config, probeStatusSink);
+    DebuggerSink debuggerSink =
+        createDebuggerSink(config, ddAgentFeaturesDiscovery, probeStatusSink);
     debuggerSink.start();
     configurationUpdater =
         new ConfigurationUpdater(
@@ -273,14 +274,19 @@ public class DebuggerAgent {
     LOGGER.info("Sopping Distributed Debugger");
   }
 
-  private static DebuggerSink createDebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
+  private static DebuggerSink createDebuggerSink(
+      Config config,
+      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
+      ProbeStatusSink probeStatusSink) {
     String tags = getDefaultTagsMergedWithGlobalTags(config);
     SnapshotSink snapshotSink =
         new SnapshotSink(
             config,
             tags,
             new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
+                config,
+                getDebuggerEndpoint(config, ddAgentFeaturesDiscovery),
+                SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
         config,
@@ -312,6 +318,16 @@ public class DebuggerAgent {
             .map(e -> e.getKey() + ":" + e.getValue())
             .collect(Collectors.joining(","));
     return debuggerTags + "," + globalTags;
+  }
+
+  private static String getDebuggerEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
+      return ddAgentFeaturesDiscovery
+          .buildUrl(ddAgentFeaturesDiscovery.getDebuggerEndpoint())
+          .toString();
+    }
+    return config.getFinalDebuggerSnapshotUrl();
   }
 
   private static String getDiagnosticEndpoint(

@@ -66,6 +66,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
+    features.getDebuggerEndpoint() == "debugger/v2/input"
     features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
     features.supportsContentEncodingHeadersWithEvpProxy()
@@ -412,6 +413,9 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_TELEMETRY_PROXY_RESPONSE) }
     features.supportsTelemetryProxy()
+    features.supportsDebugger()
+    features.getDebuggerEndpoint() == "debugger/v1/input"
+    !features.supportsDebuggerDiagnostics()
     0 * _
   }
 
@@ -428,6 +432,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsEvpProxy()
     features.getEvpProxyEndpoint() == "evp_proxy/v2/" // v3 is advertised, but the tracer should ignore it
     !features.supportsContentEncodingHeadersWithEvpProxy()
+    features.supportsDebugger()
+    features.getDebuggerEndpoint() == "debugger/v1/diagnostics"
+    features.supportsDebuggerDiagnostics()
+    0 * _
   }
 
   def "test parse /info response with peer tag back propagation"() {
