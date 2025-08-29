@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.FileCollection
 import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
@@ -29,7 +30,6 @@ abstract class MuzzleTask : DefaultTask() {
   @get:Inject
   abstract val workerExecutor: WorkerExecutor
 
-  @JvmOverloads
   fun assertMuzzle(
     muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
     muzzleTooling: NamedDomainObjectProvider<Configuration>,
@@ -73,5 +73,30 @@ abstract class MuzzleTask : DefaultTask() {
       )
     printMethod.invoke(null, cl)
   }
-}
 
+  private fun createAgentClassPath(project: Project): FileCollection {
+    project.logger.info("Creating agent classpath for $project")
+    val cp = project.files()
+    cp.from(project.allMainSourceSet.map { it.runtimeClasspath })
+
+    if (project.logger.isInfoEnabled) {
+      cp.forEach { project.logger.info("-- $it") }
+    }
+    return cp
+  }
+
+  private fun createMuzzleClassPath(project: Project, muzzleTaskName: String): FileCollection {
+    project.logger.info("Creating muzzle classpath for $muzzleTaskName")
+    val cp = project.files()
+    val config = if (muzzleTaskName == "muzzle") {
+      project.configurations.named("compileClasspath").get()
+    } else {
+      project.configurations.named(muzzleTaskName).get()
+    }
+    cp.from(config)
+    if (project.logger.isInfoEnabled) {
+      cp.forEach { project.logger.info("-- $it") }
+    }
+    return cp
+  }
+}

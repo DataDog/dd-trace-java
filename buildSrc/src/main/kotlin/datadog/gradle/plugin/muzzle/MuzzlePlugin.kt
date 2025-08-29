@@ -13,8 +13,10 @@ import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
+import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.exclude
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.project
 import org.gradle.kotlin.dsl.register
 
 /**
@@ -42,23 +44,25 @@ class MuzzlePlugin : Plugin<Project> {
     val muzzleBootstrap = project.configurations.register("muzzleBootstrap") {
       isCanBeConsumed = false
       isCanBeResolved = true
+
+      dependencies.add(project.dependencies.project(bootstrapProject.path))
     }
+    
     val muzzleTooling = project.configurations.register("muzzleTooling") {
       isCanBeConsumed = false
       isCanBeResolved = true
+
+      dependencies.add(project.dependencies.project(toolingProject.path))
     }
 
-    project.dependencies.add(muzzleBootstrap.name, bootstrapProject)
-    project.dependencies.add(muzzleTooling.name, toolingProject)
-
-    project.evaluationDependsOn(":dd-java-agent:agent-bootstrap")
-    project.evaluationDependsOn(":dd-java-agent:agent-tooling")
+    project.evaluationDependsOn(bootstrapProject.path)
+    project.evaluationDependsOn(toolingProject.path)
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
+    @Suppress("UNCHECKED_CAST")
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-//      dependsOn(project.tasks.withType(InstrumentTask::class))
-      dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // TODO
+      dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
@@ -67,7 +71,7 @@ class MuzzlePlugin : Plugin<Project> {
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
       description = "Run instrumentation muzzle on compile time dependencies"
       doLast {
-        if (!project.extensions.getByType(MuzzleExtension::class.java).directives.any { it.assertPass }) {
+        if (!project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
           project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
           assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
@@ -117,12 +121,12 @@ class MuzzlePlugin : Plugin<Project> {
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
-      
-      project.extensions.getByType<MuzzleExtension>().directives.forEach { muzzleDirective ->
-        project.logger.debug("configuring $muzzleDirective")
 
-        if (muzzleDirective.coreJdk) {
-          runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
+      project.extensions.getByType<MuzzleExtension>().directives.forEach { directive ->
+        project.logger.debug("configuring $directive")
+
+        if (directive.isCoreJdk) {
+          runAfter = addMuzzleTask(directive, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
           val range = resolveVersionRange(directive, system, session)
 
@@ -134,8 +138,8 @@ class MuzzlePlugin : Plugin<Project> {
             inverseOf(directive, system, session).forEach { inverseDirective ->
               val inverseRange = resolveVersionRange(inverseDirective, system, session)
 
-              muzzleDirectiveToArtifacts(inverseDirective, inverseRange).forEach { singleVersion ->
-                  runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
+              muzzleDirectiveToArtifacts(inverseDirective, inverseRange).forEach {
+                runAfter = addMuzzleTask(inverseDirective, it, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
           }
@@ -179,19 +183,23 @@ class MuzzlePlugin : Plugin<Project> {
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
       muzzleTooling: NamedDomainObjectProvider<Configuration>
     ): TaskProvider<MuzzleTask> {
-      val muzzleTaskName = if (muzzleDirective.coreJdk) {
+      val muzzleTaskName = if (muzzleDirective.isCoreJdk) {
         "muzzle-Assert$muzzleDirective"
       } else {
         "muzzle-Assert${if (muzzleDirective.assertPass) "Pass" else "Fail"}-${versionArtifact?.groupId}-${versionArtifact?.artifactId}-${versionArtifact?.version}${if (muzzleDirective.name != null) "-${muzzleDirective.name}" else ""}"
       }
       instrumentationProject.configurations.register(muzzleTaskName) {
-        if (!muzzleDirective.coreJdk) {
-          var depId = "${versionArtifact?.groupId}:${versionArtifact?.artifactId}:${versionArtifact?.version}"
-          if (versionArtifact?.classifier != null) {
-            depId += ":${versionArtifact.classifier}"
+        if (!muzzleDirective.isCoreJdk && versionArtifact != null) {
+          var depId = buildString {
+            append("${versionArtifact.groupId}:${versionArtifact.artifactId}:${versionArtifact.version}")
+
+            versionArtifact.classifier?.let {
+              append(":")
+              append(it)
+            }
           }
 
-          val dep: Dependency = instrumentationProject.dependencies.create(depId) {
+          val dep = instrumentationProject.dependencies.create(depId) {
             isTransitive = true
 
             // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no

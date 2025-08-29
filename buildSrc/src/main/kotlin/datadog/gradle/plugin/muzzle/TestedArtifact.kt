@@ -3,7 +3,7 @@ package datadog.gradle.plugin.muzzle
 import org.eclipse.aether.version.Version
 
 // Changed from internal to public for cross-file accessibility
-data class TestedArtifact(
+internal data class TestedArtifact(
     val instrumentation: String,
     val group: String,
     val module: String,

@@ -20,17 +20,17 @@ open class MuzzleDirective {
   var versions: String? = null
   var skipVersions: MutableSet<String> = HashSet()
   var additionalDependencies: MutableList<String> = ArrayList()
-  var additionalRepositories: MutableList<RemoteRepository> = ArrayList()
-  var excludedDependencies: MutableList<String> = ArrayList()
+  internal var additionalRepositories: MutableList<RemoteRepository> = ArrayList()
+  internal var excludedDependencies: MutableList<String> = ArrayList()
   var assertPass: Boolean = false
   var assertInverse: Boolean = false
   var skipFromReport: Boolean = false
-  var coreJdk: Boolean = false
+  internal var isCoreJdk: Boolean = false
   var includeSnapshots: Boolean = false
   var javaVersion: String? = null
 
   fun coreJdk(version: String? = null) {
-    coreJdk = true
+    isCoreJdk = true
     javaVersion = version
   }
 
@@ -90,7 +90,7 @@ open class MuzzleDirective {
   }
 
   override fun toString(): String {
-    return if (coreJdk) {
+    return if (isCoreJdk) {
       "${if (assertPass) "Pass" else "Fail"}-core-jdk"
     } else {
       "${if (assertPass) "pass" else "fail"} $group:$module:$versions"

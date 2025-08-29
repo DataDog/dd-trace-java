@@ -5,10 +5,25 @@ import org.eclipse.aether.version.Version
 import java.util.*
 
 internal object MuzzleVersionUtils {
-
-
   private val END_NMN_PATTERN = Regex("^.*\\.[0-9]+[mM][0-9]+$")
   private val GIT_SHA_PATTERN = Regex("^.*-[0-9a-f]{7,}$")
+
+  /**
+   * Filter and limit the set of versions for muzzle testing.
+   *
+   * @param result The resolved version range result.
+   * @param skipVersions Set of versions to skip.
+   * @param includeSnapshots Whether to include snapshot versions.
+   * @return A limited set of filtered versions for testing.
+   */
+  fun filterAndLimitVersions(
+    result: VersionRangeResult,
+    skipVersions: Set<String>,
+    includeSnapshots: Boolean
+  ): Set<Version> {
+    val filtered = filterVersion(result.versions.toSet(), skipVersions, includeSnapshots)
+    return limitLargeRanges(result, filtered, skipVersions)
+  }
 
   /**
    * Filter out snapshot-type builds from versions list.
@@ -89,23 +104,5 @@ internal object MuzzleVersionUtils {
     }
 
     return shuffled.toSet()
-  }
-
-  /**
-   * Filter and limit the set of versions for muzzle testing.
-   *
-   * @param result The resolved version range result.
-   * @param skipVersions Set of versions to skip.
-   * @param includeSnapshots Whether to include snapshot versions.
-   * @return A limited set of filtered versions for testing.
-   */
-  @JvmStatic
-  fun filterAndLimitVersions(
-    result: VersionRangeResult,
-    skipVersions: Set<String>,
-    includeSnapshots: Boolean
-  ): Set<Version> {
-    val filtered = filterVersion(result.versions.toSet(), skipVersions, includeSnapshots)
-    return limitLargeRanges(result, filtered, skipVersions)
   }
 }

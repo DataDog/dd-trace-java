@@ -17,7 +17,7 @@ import org.eclipse.aether.version.Version
 import org.gradle.api.GradleException
 import java.nio.file.Files
 
-object MuzzleMavenRepoUtils {
+internal object MuzzleMavenRepoUtils {
   /**
    * Remote repositories used to query version ranges and fetch dependencies
    */
@@ -63,7 +63,6 @@ object MuzzleMavenRepoUtils {
   /**
    * Create a list of muzzle directives which assert the opposite of the given MuzzleDirective.
    */
-  @JvmStatic
   fun inverseOf(
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
@@ -117,7 +116,6 @@ object MuzzleMavenRepoUtils {
    * Resolves the version range for a given MuzzleDirective using the provided RepositorySystem and RepositorySystemSession.
    * Equivalent to the Groovy implementation in MuzzlePlugin.
    */
-  @JvmStatic
   fun resolveVersionRange(
       muzzleDirective: MuzzleDirective,
       system: RepositorySystem,
@@ -137,7 +135,20 @@ object MuzzleMavenRepoUtils {
       return system.resolveVersionRange(session, rangeRequest)
   }
 
-  @JvmStatic
+  /**
+   * Resolves instrumentation names and their corresponding artifact versions for a given directive.
+   *
+   * Loads the `MuzzleVersionScanPlugin` class using the provided `ClassLoader`, invokes its
+   * `listInstrumentationNames` method to get all instrumentation names for the directive, and
+   * constructs a map of `TestedArtifact` objects keyed by their unique identifier. For each
+   * instrumentation name, the lowest and highest versions are determined and stored.
+   *
+   * @param directive the `MuzzleDirective` containing group, module, and name information
+   * @param cl the `ClassLoader` used to load the scan plugin class
+   * @param lowVersion the lowest version to consider
+   * @param highVersion the highest version to consider
+   * @return a map of instrumentation name keys to their corresponding `TestedArtifact` objects
+   */
   fun resolveInstrumentationAndJarVersions(
     directive: MuzzleDirective,
     cl: ClassLoader,
@@ -148,6 +159,7 @@ object MuzzleMavenRepoUtils {
     val listMethod = scanPluginClass.getMethod("listInstrumentationNames", ClassLoader::class.java, String::class.java)
     @Suppress("UNCHECKED_CAST")
     val names = listMethod.invoke(null, cl, directive.name) as Set<String>
+
     val ret = mutableMapOf<String, TestedArtifact>()
     for (n in names) {
       val testedArtifact = TestedArtifact(n, directive.group ?: "", directive.module ?: "", lowVersion, highVersion)
@@ -166,20 +178,17 @@ object MuzzleMavenRepoUtils {
   /**
    * Returns the highest of two Version objects.
    */
-  @JvmStatic
   fun highest(a: Version, b: Version): Version = if (a.compareTo(b) > 0) a else b
 
   /**
    * Returns the lowest of two Version objects.
    */
-  @JvmStatic
   fun lowest(a: Version, b: Version): Version = if (a.compareTo(b) < 0) a else b
 
   /**
    * Convert a muzzle directive to a set of artifacts for all filtered versions.
    * Throws GradleException if no artifacts are found.
    */
-  @JvmStatic
   fun muzzleDirectiveToArtifacts(
     muzzleDirective: MuzzleDirective,
     rangeResult: VersionRangeResult
