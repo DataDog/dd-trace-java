@@ -215,6 +215,7 @@ include(
   ":dd-smoke-tests:springboot-tomcat",
   ":dd-smoke-tests:springboot-tomcat-jsp",
   ":dd-smoke-tests:springboot-velocity",
+  ":dd-smoke-tests:tracer-flare",
   ":dd-smoke-tests:vertx-3.4",
   ":dd-smoke-tests:vertx-3.9",
   ":dd-smoke-tests:vertx-3.9-resteasy",

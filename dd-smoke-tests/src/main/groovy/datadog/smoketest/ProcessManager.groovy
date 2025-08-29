@@ -60,7 +60,7 @@ abstract class ProcessManager extends Specification {
 
   def setup() {
     testedProcesses.each {
-      assert it.alive: "Process $it is not availble on test beginning"
+      assert it.alive: "Process $it is not available on test beginning"
     }
 
     synchronized (outputThreads.testLogMessages) {

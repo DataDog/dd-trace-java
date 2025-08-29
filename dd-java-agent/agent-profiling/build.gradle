@@ -10,7 +10,8 @@ excludedClassesCoverage += [
   'com.datadog.profiling.agent.CompositeController.CompositeOngoingRecording',
   'com.datadog.profiling.agent.ProfilingAgent',
   'com.datadog.profiling.agent.ProfilingAgent.ShutdownHook',
-  'com.datadog.profiling.agent.ProfilingAgent.DataDumper'
+  'com.datadog.profiling.agent.ProfilingAgent.DataDumper',
+  'com.datadog.profiling.agent.ProfilerFlare'
 ]
 
 dependencies {
