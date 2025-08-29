@@ -55,7 +55,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
   private static final int UNSET_PORT = 0;
 
-  public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
+  public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RUM_INJECTED = "datadog.rum.injected";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
@@ -147,17 +147,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         instrumentationNames != null && instrumentationNames.length > 0
             ? instrumentationNames[0]
             : DEFAULT_INSTRUMENTATION_NAME;
-    AgentSpanContext.Extracted extracted = callIGCallbackStart(getExtractedSpanContext(context));
+    AgentSpanContext extracted = getExtractedSpanContext(context);
+    // Call IG callbacks
+    extracted = callIGCallbackStart(extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+    // Apply RequestBlockingAction if any
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof RequestBlockingAction) {
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
-    }
+    // DSM Checkpoint
+    tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     return context.with(span);
   }
 
@@ -381,8 +382,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  private AgentSpanContext.Extracted callIGCallbackStart(
-      @Nullable final AgentSpanContext.Extracted extracted) {
+  private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -517,9 +517,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
+  public Context beforeFinish(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
     onRequestEndForInstrumentationGateway(span);
-    return super.beforeFinish(span);
+
+    return super.beforeFinish(context);
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {

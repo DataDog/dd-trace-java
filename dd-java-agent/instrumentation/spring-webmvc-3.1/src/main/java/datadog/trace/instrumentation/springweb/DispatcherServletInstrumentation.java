@@ -106,7 +106,7 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       DECORATE_RENDER.onError(scope, throwable);
-      DECORATE_RENDER.beforeFinish(scope);
+      DECORATE_RENDER.beforeFinish(scope.context());
       scope.close();
       scope.span().finish();
     }
