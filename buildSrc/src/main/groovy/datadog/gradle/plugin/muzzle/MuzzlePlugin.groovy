@@ -3,11 +3,9 @@ package datadog.gradle.plugin.muzzle
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
-import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
@@ -101,17 +99,17 @@ class MuzzlePlugin implements Plugin<Project> {
         project.getLogger().info("configured $muzzleDirective")
 
         if (muzzleDirective.coreJdk) {
-          runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
+          runAfter = MuzzlePluginK.addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
           def range = MuzzleMavenRepoUtils.resolveVersionRange(muzzleDirective, system, session)
           for (Artifact singleVersion : MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(muzzleDirective, range)) {
-            runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
+            runAfter = MuzzlePluginK.addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             for (MuzzleDirective inverseDirective : MuzzleMavenRepoUtils.inverseOf(muzzleDirective, system, session)) {
               def inverseRange = MuzzleMavenRepoUtils.resolveVersionRange(inverseDirective, system, session)
               for (Artifact singleVersion : (MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(inverseDirective, inverseRange))) {
-                runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
+                runAfter = MuzzlePluginK.addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
             }
           }
@@ -128,75 +126,5 @@ class MuzzlePlugin implements Plugin<Project> {
         finalizedBy(timingTask)
       }
     }
-  }
-
-  /**
-   * Configure a muzzle task to pass or fail a given version.
-   *
-   * @param assertPass If true, assert that muzzle validation passes
-   * @param versionArtifact version to assert against.
-   * @param instrumentationProject instrumentation being asserted against.
-   * @param runAfter Task which runs before the new muzzle task.
-   * @param bootstrapProject Agent bootstrap project.
-   * @param toolingProject Agent tooling project.
-   *
-   * @return The created muzzle task.
-   */
-  private static TaskProvider<Task> addMuzzleTask(
-    MuzzleDirective muzzleDirective,
-    Artifact versionArtifact,
-    Project instrumentationProject,
-    TaskProvider<Task> runAfter,
-    NamedDomainObjectProvider<Configuration> muzzleBootstrap,
-    NamedDomainObjectProvider<Configuration> muzzleTooling
-  ) {
-    def muzzleTaskName
-    if (muzzleDirective.coreJdk) {
-      muzzleTaskName = "muzzle-Assert$muzzleDirective"
-    } else {
-      muzzleTaskName = "muzzle-Assert${muzzleDirective.assertPass ? "Pass" : "Fail"}-$versionArtifact.groupId-$versionArtifact.artifactId-$versionArtifact.version${muzzleDirective.name ? "-${muzzleDirective.getNameSlug()}" : ""}"
-    }
-    instrumentationProject.configurations.register(muzzleTaskName) { Configuration taskConfig ->
-      if (!muzzleDirective.coreJdk) {
-        def depId = "$versionArtifact.groupId:$versionArtifact.artifactId:$versionArtifact.version"
-        if (versionArtifact.classifier) {
-          depId += ":" + versionArtifact.classifier
-        }
-        def dep = instrumentationProject.dependencies.create(depId) {
-          transitive = true
-        }
-        // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no
-        // longer bundled with the JVM and have to be excluded for the muzzle tests to be able to run.
-        dep.exclude group: 'com.sun.jdmk', module: 'jmxtools'
-        dep.exclude group: 'com.sun.jmx', module: 'jmxri'
-        // Also exclude specifically excluded dependencies
-        for (String excluded : muzzleDirective.excludedDependencies) {
-          String[] parts = excluded.split(':')
-          dep.exclude group: parts[0], module: parts[1]
-        }
-
-        taskConfig.dependencies.add(dep)
-      }
-      for (String additionalDependency : muzzleDirective.additionalDependencies) {
-        taskConfig.dependencies.add(instrumentationProject.dependencies.create(additionalDependency) { dep ->
-          for (String excluded : muzzleDirective.excludedDependencies) {
-            String[] parts = excluded.split(':')
-            dep.exclude group: parts[0], module: parts[1]
-          }
-          dep.transitive = true
-        })
-      }
-    }
-
-    def muzzleTask = instrumentationProject.tasks.register(muzzleTaskName, MuzzleTask) {
-      doLast {
-        assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
-      }
-    }
-
-    runAfter.configure {
-      finalizedBy(muzzleTask)
-    }
-    muzzleTask
   }
 }
