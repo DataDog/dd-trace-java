@@ -44,13 +44,11 @@ import java.util.Arrays;
  * a LFU: least frequently used eviction policy is used to free up a slot.
  */
 public final class SimpleUtf8Cache implements EncodingCache {
-  public static final SimpleUtf8Cache INSTANCE = new SimpleUtf8Cache();
+  private static final int MAX_PROBES = 4;
 
-  private static final int MAX_PROBES = 8;
+  private final int SIZE = 64;
 
-  private final int SIZE = 256;
-
-  private final boolean[] markers = new boolean[SIZE];
+  private final int[] markers = new int[SIZE];
   private final CacheEntry[] entries = new CacheEntry[SIZE];
 
   private static final double HIT_DECAY = 0.8D;
@@ -59,7 +57,13 @@ public final class SimpleUtf8Cache implements EncodingCache {
   protected int hits = 0;
   protected int evictions = 0;
 
-  public void recalibrate() {
+  /**
+   * Recalibrates the cache
+   * Applies a decay to existing entries - and purges entries below the PURGE_THRESHOLD
+   * 
+   * While still racy this method is synchronized to avoid simultaneous recalibrations
+   */
+  public synchronized void recalibrate() {
     CacheEntry[] thisEntries = this.entries;
     for (int i = 0; i < thisEntries.length; ++i) {
       CacheEntry entry = thisEntries[i];
@@ -69,7 +73,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
       if (purge) thisEntries[i] = null;
     }
 
-    Arrays.fill(this.markers, false);
+    Arrays.fill(this.markers, 0);
   }
 
   @Override
@@ -86,18 +90,20 @@ public final class SimpleUtf8Cache implements EncodingCache {
   public final byte[] getUtf8(String value) {
     CacheEntry[] thisEntries = this.entries;
 
-    int valueHash = value.hashCode();
+    int adjHash = value.hashCode();
 
-    CacheEntry matchingEntry = lookupEntry(thisEntries, valueHash, value);
+    CacheEntry matchingEntry = lookupEntry(thisEntries, adjHash, value);
     if (matchingEntry != null) {
+      matchingEntry.hit();
+
       this.hits += 1;
       return matchingEntry.utf8();
     }
 
-    boolean wasMarked = reverseMark(this.markers, valueHash);
+    boolean wasMarked = mark(this.markers, adjHash);
     if (!wasMarked) return CacheEntry.utf8(value);
 
-    CacheEntry newEntry = new CacheEntry(valueHash, value);
+    CacheEntry newEntry = new CacheEntry(adjHash, value);
     newEntry.hit();
 
     boolean evicted = lfuInsert(thisEntries, newEntry);
@@ -106,13 +112,13 @@ public final class SimpleUtf8Cache implements EncodingCache {
     return newEntry.utf8();
   }
 
-  static final CacheEntry lookupEntry(CacheEntry[] entries, int valueHash, String value) {
-    int initialBucketIndex = initialBucketIndex(entries, valueHash);
+  static final CacheEntry lookupEntry(CacheEntry[] entries, int adjHash, String value) {
+    int initialBucketIndex = initialBucketIndex(entries, adjHash);
     for (int probe = 0, index = initialBucketIndex; probe < MAX_PROBES; ++probe, ++index) {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry != null && entry.matches(valueHash, value)) {
+      if (entry != null && entry.matches(adjHash, value)) {
         return entry;
       }
     }
@@ -120,7 +126,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
   }
 
   static final boolean lfuInsert(CacheEntry[] entries, CacheEntry newEntry) {
-    int initialBucketIndex = initialBucketIndex(entries, newEntry.valueHash());
+    int initialBucketIndex = initialBucketIndex(entries, newEntry.adjHash());
 
     // initial scan to see if there's an empty slot or marker entry is already present
     double lowestHits = Double.MAX_VALUE;
@@ -129,11 +135,11 @@ public final class SimpleUtf8Cache implements EncodingCache {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry == null || entry.hits() == 0) {
+      if (entry == null || entry.score() == 0) {
         entries[index] = newEntry;
         return false;
       } else {
-        double hits = entry.hits();
+        double hits = entry.score();
         if (hits < lowestHits) {
           lowestHits = hits;
           lfuIndex = index;
@@ -146,49 +152,51 @@ public final class SimpleUtf8Cache implements EncodingCache {
     return true;
   }
 
-  static final int initialBucketIndex(CacheEntry[] entries, int valueHash) {
-    return valueHash & (entries.length - 1);
+  static final int initialBucketIndex(CacheEntry[] entries, int adjHash) {
+    return adjHash & (entries.length - 1);
   }
 
-  static final int initialBucketIndex(boolean[] marks, int valueHash) {
-    return valueHash & (marks.length - 1);
+  static final int initialBucketIndex(int[] marks, int adjHash) {
+    return adjHash & (marks.length - 1);
   }
 
-  static final boolean reverseMark(boolean[] marks, int newValueHash) {
-    int index = initialBucketIndex(marks, newValueHash);
-    boolean wasMarked = marks[index];
-    marks[index] = !wasMarked;
-    return wasMarked;
+  static final boolean mark(int[] marks, int newAdjHash) {
+    int index = initialBucketIndex(marks, newAdjHash);
+
+    int priorMarkHash = marks[index];
+    marks[index] = newAdjHash;
+
+    return (priorMarkHash == newAdjHash);
   }
 
   static final class CacheEntry {
-    final int valueHash;
+    final int adjHash;
     final String value;
     final byte[] valueUtf8;
 
     boolean promoted = false;
-    double hitCount = 0;
+    double score = 0;
 
-    public CacheEntry(int valueHash, String value) {
-      this.valueHash = valueHash;
+    public CacheEntry(int adjHash, String value) {
+      this.adjHash = adjHash;
       this.value = value;
       this.valueUtf8 = utf8(value);
     }
 
     boolean matches(CacheEntry thatEntry) {
-      return (this == thatEntry) || this.matches(thatEntry.valueHash, thatEntry.value);
+      return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
     }
 
-    boolean matches(int valueHash, String value) {
-      return (this.valueHash == valueHash) && value.equals(this.value);
+    boolean matches(int adjHash, String value) {
+      return (this.adjHash == adjHash) && value.equals(this.value);
     }
 
-    int valueHash() {
-      return this.valueHash;
+    int adjHash() {
+      return this.adjHash;
     }
 
-    double hits() {
-      return this.hitCount;
+    double score() {
+      return this.score;
     }
 
     byte[] utf8() {
@@ -196,15 +204,20 @@ public final class SimpleUtf8Cache implements EncodingCache {
     }
 
     double hit() {
-      this.hitCount += 1;
+      this.score += 1;
 
-      return this.hitCount;
+      return this.score;
     }
 
     boolean decay() {
-      this.hitCount *= HIT_DECAY;
+      this.score *= HIT_DECAY;
 
-      return (this.hitCount < PURGE_THRESHOLD);
+      return (this.score < PURGE_THRESHOLD);
+    }
+
+    static final int adjHash(String value) {
+      int hash = value.hashCode();
+      return (hash == 0) ? 0xDA7AD06 : hash;
     }
 
     static final byte[] utf8(String value) {
@@ -213,11 +226,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
     @Override
     public String toString() {
-      if (this.value == null) {
-        return "marker";
-      } else {
-        return this.value + " - hits: " + this.hitCount;
-      }
+      return this.value + " - score: " + this.score;
     }
   }
 }

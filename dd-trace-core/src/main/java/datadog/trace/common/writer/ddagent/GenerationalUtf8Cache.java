@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -64,18 +65,19 @@ import java.util.Arrays;
  * provide better cache utilization.
  */
 public final class GenerationalUtf8Cache implements EncodingCache {
-  private static final int MAX_PROBES = 8;
+  private static final int MAX_PROBES = 4;
 
   private static final int MIN_PROMOTION_TRESHOLD = 2;
   private static final int INITIAL_PROMOTION_THRESHOLD = 10;
 
-  private static final double HIT_DECAY = 0.8D;
-  private static final double PURGE_THRESHOLD = 0.25D;
+  private static final double SCORE_DECAY = 0.8D;
+  private static final double PURGE_THRESHOLD = 0.1D;
+  private static final double PROMOTION_THRESHOLD_ADJ_FACTOR = 1.5;
 
   private final CacheEntry[] edenEntries;
-  private final boolean[] edenMarkers;
+  private final int[] edenMarkers;
 
-  private final CacheEntry[] promotedEntries;
+  private final CacheEntry[] tenuredEntries;
 
   private long accessTimeMs;
   private double promotionThreshold = INITIAL_PROMOTION_THRESHOLD;
@@ -85,17 +87,17 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   int earlyPromotions = 0;
   int promotions = 0;
   int edenEvictions = 0;
-  int promotedEvictions = 0;
+  int tenuredEvictions = 0;
 
   public GenerationalUtf8Cache() {
     this.accessTimeMs = System.currentTimeMillis();
 
     // These sizes must be powers of 2
-    this.edenEntries = new CacheEntry[256];
-    this.edenMarkers = new boolean[256];
+    this.edenEntries = new CacheEntry[64];
+    this.edenMarkers = new int[64];
 
     // The size must be a power of 2
-    this.promotedEntries = new CacheEntry[512];
+    this.tenuredEntries = new CacheEntry[128];
   }
 
   /** Updates access time used @link {@link #getUtf8(String, String)} to the provided value */
@@ -108,15 +110,18 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     this.updateAccessTime(System.currentTimeMillis());
   }
 
-  public void recalibrate() {
+  public synchronized void recalibrate() {
     this.recalibrate(System.currentTimeMillis());
   }
 
   /**
-   * Recalibrates promotion threshold based on promotion & eviction statistics, since last
-   * calibration - resets statistics
-   *
-   * @param accessTimeMs
+   * Recalibrates the cache
+   * Applies a decay to existing entries - and purges entries below the PURGE_THRESHOLD
+   * 
+   * Adjusts the promotion threshold depending on ratio of promotions to 
+   * evictions, since prior recalibration
+   * 
+   * While still racy this method is synchronized to avoid simultaneous recalibrations
    */
   public void recalibrate(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;
@@ -130,13 +135,13 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       if (purge) this.edenEntries[i] = null;
     }
 
-    Arrays.fill(this.edenMarkers, false);
+    Arrays.fill(this.edenMarkers, 0);
 
     int totalPromotions = this.promotions + this.earlyPromotions;
     if (totalPromotions == 0 && this.promotionThreshold >= MIN_PROMOTION_TRESHOLD) {
-      this.promotionThreshold /= 1.5;
-    } else if (totalPromotions > this.promotedEvictions / 2) {
-      this.promotionThreshold *= 1.5;
+      this.promotionThreshold /= PROMOTION_THRESHOLD_ADJ_FACTOR;
+    } else if (totalPromotions > this.tenuredEvictions / 2) {
+      this.promotionThreshold *= PROMOTION_THRESHOLD_ADJ_FACTOR;
     }
 
     this.edenHits = 0;
@@ -144,7 +149,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     this.earlyPromotions = 0;
     this.promotions = 0;
     this.edenEvictions = 0;
-    this.promotedEvictions = 0;
+    this.tenuredEvictions = 0;
   }
 
   @Override
@@ -167,12 +172,12 @@ public final class GenerationalUtf8Cache implements EncodingCache {
    * the specified accessTimeMs is used to update the cache entry
    */
   public final byte[] getUtf8(String value, long accessTimeMs) {
-    int valueHash = value.hashCode();
+    int adjHash = CacheEntry.adjHash(value);
 
     CacheEntry[] localEntries = this.edenEntries;
     long lookupTimeMs = this.accessTimeMs;
 
-    int matchingLocalIndex = lookupEntry(localEntries, valueHash, value, lookupTimeMs);
+    int matchingLocalIndex = lookupEntryIndex(localEntries, adjHash, value, lookupTimeMs);
     if (matchingLocalIndex != -1) {
       CacheEntry localEntry = localEntries[matchingLocalIndex];
 
@@ -181,8 +186,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
         // mark promoted first - to avoid racy insertions
         this.promotions += 1;
 
-        boolean evicted = lruInsert(this.promotedEntries, localEntry);
-        if (evicted) this.promotedEvictions += 1;
+        boolean evicted = lruInsert(this.tenuredEntries, localEntry);
+        if (evicted) this.tenuredEvictions += 1;
 
         localEntries[matchingLocalIndex] = null;
       }
@@ -191,8 +196,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       return localEntry.utf8();
     }
 
-    CacheEntry[] promotedEntries = this.promotedEntries;
-    int matchingPromotedIndex = lookupEntry(promotedEntries, valueHash, value, lookupTimeMs);
+    CacheEntry[] promotedEntries = this.tenuredEntries;
+    int matchingPromotedIndex = lookupEntryIndex(promotedEntries, adjHash, value, lookupTimeMs);
     if (matchingPromotedIndex != -1) {
       CacheEntry promotedEntry = promotedEntries[matchingPromotedIndex];
 
@@ -202,19 +207,19 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       return promotedEntry.utf8();
     }
 
-    boolean wasMarked = reverseMark(this.edenMarkers, valueHash);
+    boolean wasMarked = mark(this.edenMarkers, adjHash);
 
     // If slot isn't marked, this is likely the first request
     // Don't create an entry yet
     if (!wasMarked) return CacheEntry.utf8(value);
 
-    CacheEntry newEntry = new CacheEntry(valueHash, value);
+    CacheEntry newEntry = new CacheEntry(adjHash, value);
     // First request was swallowed by marking, so double hit
     newEntry.hit(lookupTimeMs);
     newEntry.hit(lookupTimeMs);
 
     // search for empty slot or failing that the MFU entry
-    int localMfuIndex = findFirstAvailableOrMfuIndex(localEntries, valueHash);
+    int localMfuIndex = findFirstAvailableOrMfuIndex(localEntries, adjHash);
     CacheEntry localMfuEntry = localEntries[localMfuIndex];
 
     // Found an empty slot - fill it
@@ -225,7 +230,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
     // See if we can early promote the local MFU entry into the global cache
     // Early promotion doesn't evict from the global cache
-    int globalAvailableIndex = findAvailable(promotedEntries, localMfuEntry.valueHash());
+    int globalAvailableIndex = findAvailableIndex(promotedEntries, localMfuEntry.adjHash());
     if (globalAvailableIndex != -1) {
       promotedEntries[globalAvailableIndex] = localMfuEntry;
       this.earlyPromotions += 1;
@@ -237,66 +242,68 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     // No empty slot - or space to promote into the global cache
     // Insert into local cache while evicting the LFU
     boolean evicted = lfuInsert(localEntries, newEntry);
-    if (evicted) this.promotedEvictions += 1;
+    if (evicted) this.tenuredEvictions += 1;
 
     return newEntry.utf8();
   }
 
-  static final int findAvailable(CacheEntry[] entries, int newValueHash) {
-    int initialBucketIndex = initialBucketIndex(entries, newValueHash);
+  static final int findAvailableIndex(CacheEntry[] entries, int newAdjHash) {
+    int initialBucketIndex = initialBucketIndex(entries, newAdjHash);
     for (int probe = 0, index = initialBucketIndex; probe < MAX_PROBES; ++probe, ++index) {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry == null || entry.hits() == 0) return index;
+      if (entry == null || entry.isPurgeable()) return index;
     }
     return -1;
   }
 
-  static final int findFirstAvailableOrMfuIndex(CacheEntry[] entries, int newValueHash) {
-    double mfuHits = Double.MIN_VALUE;
+  static final int findFirstAvailableOrMfuIndex(CacheEntry[] entries, int newAdjHash) {
+    double mfuScore = Double.MIN_VALUE;
     int mfuIndex = -1;
 
-    int initialBucketIndex = initialBucketIndex(entries, newValueHash);
+    int initialBucketIndex = initialBucketIndex(entries, newAdjHash);
     for (int probe = 0, index = initialBucketIndex; probe < MAX_PROBES; ++probe, ++index) {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
       if (entry == null) return index;
 
-      double hits = entry.hits();
-      if (hits > mfuHits) {
-        mfuHits = hits;
+      double score = entry.score();
+      if (score > mfuScore) {
+        mfuScore = score;
         mfuIndex = index;
       }
     }
     return mfuIndex;
   }
 
-  static final boolean reverseMark(boolean[] marks, int newValueHash) {
-    int index = initialBucketIndex(marks, newValueHash);
-    boolean wasMarked = marks[index];
-    marks[index] = !wasMarked;
-    return wasMarked;
+  static final boolean mark(int[] marks, int newAdjHash) {
+    int index = initialBucketIndex(marks, newAdjHash);
+
+    int priorMarkHash = marks[index];
+    marks[index] = newAdjHash;
+
+    return (priorMarkHash == newAdjHash);
   }
 
   static final boolean lfuInsert(CacheEntry[] entries, CacheEntry newEntry) {
-    int initialBucketIndex = initialBucketIndex(entries, newEntry.valueHash());
+    int initialBucketIndex = initialBucketIndex(entries, newEntry.adjHash());
 
     // initial scan to see if there's an empty slot or marker entry is already present
-    double lowestHits = Double.MAX_VALUE;
+    double lowestScore = Double.MAX_VALUE;
     int lfuIndex = -1;
     for (int probe = 0, index = initialBucketIndex; probe < MAX_PROBES; ++probe, ++index) {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry == null || entry.hits() == 0) {
+      if (entry == null || entry.isPurgeable()) {
         entries[index] = newEntry;
         return false;
       } else {
-        double hits = entry.hits();
-        if (hits < lowestHits) {
-          lowestHits = hits;
+        double score = entry.score();
+        if (score < lowestScore) {
+          lowestScore = score;
           lfuIndex = index;
         }
       }
@@ -308,7 +315,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   }
 
   static final boolean lruInsert(CacheEntry[] entries, CacheEntry newEntry) {
-    int initialBucketIndex = initialBucketIndex(entries, newEntry.valueHash());
+    int initialBucketIndex = initialBucketIndex(entries, newEntry.adjHash());
 
     // initial scan to see if there's an empty slot or entry is already present
     long lowestUsedMs = Long.MAX_VALUE;
@@ -336,61 +343,57 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     return true;
   }
 
-  static final int initialBucketIndex(CacheEntry[] entries, int valueHash) {
-    return valueHash & (entries.length - 1);
+  static final int initialBucketIndex(CacheEntry[] entries, int adjHash) {
+    return adjHash & (entries.length - 1);
   }
 
-  static final int initialBucketIndex(boolean[] marks, int valueHash) {
-    return valueHash & (marks.length - 1);
+  static final int initialBucketIndex(int[] marks, int adjHash) {
+    return adjHash & (marks.length - 1);
   }
 
-  static final int lookupEntry(
-      CacheEntry[] entries, int valueHash, String value, long lookupTimeMs) {
-    int initialBucketIndex = initialBucketIndex(entries, valueHash);
+  static final int lookupEntryIndex(
+      CacheEntry[] entries, int adjHash, String value, long lookupTimeMs) {
+    int initialBucketIndex = initialBucketIndex(entries, adjHash);
     for (int probe = 0, index = initialBucketIndex; probe < MAX_PROBES; ++probe, ++index) {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry != null && entry.matches(valueHash, value)) {
+      if (entry != null && entry.matches(adjHash, value)) {
         return index;
       }
     }
     return -1;
   }
 
-  static final int bucketHash(int tagHash, int valueHash) {
-    return tagHash + 31 * valueHash;
-  }
-
   static final class CacheEntry {
-    final int valueHash;
+    final int adjHash;
     final String value;
     final byte[] valueUtf8;
 
     boolean promoted = false;
     long lastUsedMs = 0;
-    double hitCount = 0;
+    double score = 0;
 
-    public CacheEntry(int valueHash, String value) {
-      this.valueHash = valueHash;
+    public CacheEntry(int adjHash, String value) {
+      this.adjHash = adjHash;
       this.value = value;
       this.valueUtf8 = utf8(value);
     }
 
     boolean matches(CacheEntry thatEntry) {
-      return (this == thatEntry) || this.matches(thatEntry.valueHash, thatEntry.value);
+      return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
     }
 
-    boolean matches(int valueHash, String value) {
-      return (this.valueHash == valueHash) && value.equals(this.value);
+    boolean matches(int adjHash, String value) {
+      return (this.adjHash == adjHash) && value.equals(this.value);
     }
 
-    int valueHash() {
-      return this.valueHash;
+    int adjHash() {
+      return this.adjHash;
     }
 
-    double hits() {
-      return this.hitCount;
+    double score() {
+      return this.score;
     }
 
     long lastUsedMs() {
@@ -403,15 +406,24 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
     double hit(long lastUsedMs) {
       this.lastUsedMs = lastUsedMs;
-      this.hitCount += 1;
+      this.score += 1;
 
-      return this.hitCount;
+      return this.score;
     }
 
     boolean decay() {
-      this.hitCount *= HIT_DECAY;
+      this.score *= SCORE_DECAY;
 
-      return (this.hitCount < PURGE_THRESHOLD);
+      return this.isPurgeable();
+    }
+
+    boolean isPurgeable() {
+      return (this.score < PURGE_THRESHOLD);
+    }
+
+    static final int adjHash(String value) {
+      int hash = value.hashCode();
+      return (hash == 0) ? 0xDA7AD06 : hash;
     }
 
     static final byte[] utf8(String value) {
@@ -420,11 +432,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
     @Override
     public String toString() {
-      if (this.value == null) {
-        return "marker";
-      } else {
-        return this.value + " - hits: " + this.hitCount + " used (ms): " + this.lastUsedMs;
-      }
+      return this.value + " - score: " + this.score + " used (ms): " + this.lastUsedMs;
     }
   }
 }

@@ -151,6 +151,6 @@ public class GenerationalUtf8CacheTest {
         cache.promotions,
         cache.earlyPromotions,
         cache.edenEvictions,
-        cache.promotedEvictions);
+        cache.tenuredEvictions);
   }
 }
