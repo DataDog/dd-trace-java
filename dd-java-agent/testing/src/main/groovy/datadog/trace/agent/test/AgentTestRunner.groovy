@@ -293,15 +293,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   private static void configureLoggingLevels() {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
 
-    try {
-      // Check logger class by name to avoid NoClassDefFoundError at runtime for tests without Logback.
-      Class<?> logbackLoggerClass = Class.forName("ch.qos.logback.classic.Logger")
-
-      // Check if the runtime logger is an instance of Logback logger.
-      if (!logbackLoggerClass.isInstance(logger)) {
-        return
-      }
-    } catch (ClassNotFoundException ignored) {
+    if (!logger.class.name.equals("ch.qos.logback.classic.Logger")) {
       return
     }
 
