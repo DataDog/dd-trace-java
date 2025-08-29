@@ -113,6 +113,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     private volatile boolean earlyFlakinessDetectionEnabled
     private volatile boolean impactedTestsDetectionEnabled
     private volatile boolean testManagementEnabled
+    private volatile boolean failedTestReplayEnabled = false
   }
 
   private final Settings settings = new Settings()
@@ -234,6 +235,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       settings.itrEnabled,
       settings.flakyRetryEnabled,
       settings.impactedTestsDetectionEnabled,
+      settings.failedTestReplayEnabled,
       earlyFlakinessDetectionSettings,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,

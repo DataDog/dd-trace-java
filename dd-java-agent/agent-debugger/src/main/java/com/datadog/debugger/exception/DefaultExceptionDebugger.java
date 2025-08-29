@@ -9,9 +9,14 @@ import com.datadog.debugger.exception.ExceptionProbeManager.ThrowableState;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.CircuitBreaker;
 import com.datadog.debugger.util.ExceptionHelper;
+import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.domain.TestContext;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -31,27 +36,36 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   public static final String DD_DEBUG_ERROR_EXCEPTION_ID = DD_DEBUG_ERROR_PREFIX + "exception_id";
   public static final String DD_DEBUG_ERROR_EXCEPTION_HASH =
       DD_DEBUG_ERROR_PREFIX + "exception_hash";
-  public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
   public static final String SNAPSHOT_ID_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.snapshot_id";
+
+  // Test Optimization / Failed Test Replay specific
+  public static final String TEST_DEBUG_ERROR_FILE_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.file";
+  public static final String TEST_DEBUG_ERROR_LINE_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.line";
 
   private final ExceptionProbeManager exceptionProbeManager;
   private final ConfigurationUpdater configurationUpdater;
   private final ClassNameFilter classNameFiltering;
   private final CircuitBreaker circuitBreaker;
   private final int maxCapturedFrames;
+  private final boolean applyConfigAsync;
+  private final boolean failedTestReplayMode;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
-      Duration captureInterval,
-      int maxExceptionPerSecond,
-      int maxCapturedFrames) {
+      Config config) {
     this(
-        new ExceptionProbeManager(classNameFiltering, captureInterval),
+        new ExceptionProbeManager(
+            classNameFiltering,
+            config.isCiVisibilityEnabled()
+                ? Duration.ofSeconds(0)
+                : Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
         configurationUpdater,
         classNameFiltering,
-        maxExceptionPerSecond,
-        maxCapturedFrames);
+        config.getDebuggerMaxExceptionPerSecond(),
+        config.getDebuggerExceptionMaxCapturedFrames(),
+        config.isDebuggerExceptionAsyncConfig(),
+        config.isCiVisibilityEnabled());
   }
 
   DefaultExceptionDebugger(
@@ -59,24 +73,39 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
       int maxExceptionPerSecond,
-      int maxCapturedFrames) {
+      int maxCapturedFrames,
+      boolean applyConfigAsync,
+      boolean failedTestReplayMode) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
     this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
     this.maxCapturedFrames = maxCapturedFrames;
+    this.applyConfigAsync = applyConfigAsync;
+    this.failedTestReplayMode = failedTestReplayMode;
   }
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
-    if (t instanceof Error) {
-      if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling error: {}", t.toString());
+    if (failedTestReplayMode) {
+      TestContext testContext = InstrumentationTestBridge.getCurrentTestContext();
+      if (testContext == null) {
+        return;
       }
-      return;
-    }
-    if (!circuitBreaker.trip()) {
-      return;
+      TestExecutionHistory executionHistory = testContext.get(TestExecutionHistory.class);
+      if (executionHistory == null || !executionHistory.failedTestReplayApplicable()) {
+        return;
+      }
+    } else {
+      if (t instanceof Error) {
+        if (LOGGER.isDebugEnabled()) {
+          LOGGER.debug("Skip handling error: {}", t.toString());
+        }
+        return;
+      }
+      if (!circuitBreaker.trip()) {
+        return;
+      }
     }
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {
@@ -97,7 +126,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         return;
       }
       processSnapshotsAndSetTags(
-          t, span, state, chainedExceptionsList, fingerprint, maxCapturedFrames);
+          t,
+          span,
+          state,
+          chainedExceptionsList,
+          fingerprint,
+          maxCapturedFrames,
+          failedTestReplayMode);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
@@ -108,7 +143,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          if (failedTestReplayMode || !applyConfigAsync) {
+            applyExceptionConfiguration(fingerprint);
+          } else {
+            AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          }
           break;
         } else {
           if (LOGGER.isDebugEnabled()) {
@@ -135,7 +174,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ThrowableState state,
       List<Throwable> chainedExceptions,
       String fingerprint,
-      int maxCapturedFrames) {
+      int maxCapturedFrames,
+      boolean isFailedTestReplayActive) {
     if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
@@ -166,6 +206,23 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       String tagName = String.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
       span.setTag(tagName, snapshot.getId());
       LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
+
+      if (isFailedTestReplayActive) {
+        StackTraceElement stackFrame = innerTrace[currentIdx];
+        String fileTag = String.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
+        String lineTag = String.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
+        span.setTag(fileTag, stackFrame.getFileName());
+        span.setTag(lineTag, stackFrame.getLineNumber());
+
+        LOGGER.debug(
+            "add ftr debug tags to span[{}]: {}={}, {}={}",
+            span.getSpanId(),
+            fileTag,
+            stackFrame.getFileName(),
+            lineTag,
+            stackFrame.getLineNumber());
+      }
+
       if (!state.isSnapshotSent()) {
         DebuggerAgent.getSink().addSnapshot(snapshot);
       }
@@ -179,7 +236,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
           span.getSpanId(),
           DD_DEBUG_ERROR_EXCEPTION_ID,
           state.getExceptionId());
-      span.setTag(ERROR_DEBUG_INFO_CAPTURED, true);
+      span.setTag(Tags.ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
     }
   }

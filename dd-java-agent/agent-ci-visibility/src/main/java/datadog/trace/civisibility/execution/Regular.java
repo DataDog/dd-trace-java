@@ -45,4 +45,9 @@ public class Regular implements TestExecutionPolicy {
   public boolean hasSucceededAllRetries() {
     return false;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return false;
+  }
 }

@@ -163,6 +163,7 @@ include(
   ":dd-smoke-tests:jersey-2",
   ":dd-smoke-tests:jersey-3",
   ":dd-smoke-tests:jboss-modules",
+  ":dd-smoke-tests:junit-console",
   ":dd-smoke-tests:kafka-2",
   ":dd-smoke-tests:kafka-3",
   ":dd-smoke-tests:lib-injection",

@@ -54,6 +54,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ASYNC_CONFIG;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
@@ -270,6 +271,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SAN
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
@@ -278,6 +280,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTL
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ASYNC_CONFIG;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES;
@@ -302,6 +305,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PR
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS;
@@ -642,6 +646,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
@@ -1029,6 +1034,7 @@ public class Config {
   private final String gitPullRequestBaseBranch;
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
+  private final boolean ciVisibilityFailedTestReplayEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1044,6 +1050,7 @@ public class Config {
   private final boolean DBMTracePreparedStatements;
 
   private final boolean dynamicInstrumentationEnabled;
+  private final String dynamicInstrumentationSnapshotUrl;
   private final int dynamicInstrumentationUploadTimeout;
   private final int dynamicInstrumentationUploadFlushInterval;
   private final boolean dynamicInstrumentationClassFileDumpEnabled;
@@ -1072,6 +1079,7 @@ public class Config {
   private final boolean debuggerExceptionCaptureIntermediateSpansEnabled;
   private final int debuggerExceptionMaxCapturedFrames;
   private final int debuggerExceptionCaptureInterval;
+  private final boolean debuggerExceptionAsyncConfig;
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
@@ -2308,6 +2316,8 @@ public class Config {
     gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
     gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
+    ciVisibilityFailedTestReplayEnabled =
+        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2336,6 +2346,8 @@ public class Config {
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    dynamicInstrumentationSnapshotUrl =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL);
     distributedDebuggerEnabled =
         configProvider.getBoolean(
             DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
@@ -2445,6 +2457,9 @@ public class Config {
         configProvider.getInteger(
             DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
             DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
+    debuggerExceptionAsyncConfig =
+        configProvider.getBoolean(
+            DEBUGGER_EXCEPTION_ASYNC_CONFIG, DEFAULT_DEBUGGER_EXCEPTION_ASYNC_CONFIG);
     debuggerSourceFileTrackingEnabled =
         configProvider.getBoolean(
             DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
@@ -3937,6 +3952,10 @@ public class Config {
     return ciVisibilityTestManagementAttemptToFixRetries;
   }
 
+  public boolean isCiVisibilityFailedTestReplayEnabled() {
+    return ciVisibilityFailedTestReplayEnabled;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -4081,6 +4100,10 @@ public class Config {
     return debuggerExceptionCaptureInterval;
   }
 
+  public boolean isDebuggerExceptionAsyncConfig() {
+    return debuggerExceptionAsyncConfig;
+  }
+
   public boolean isDebuggerCodeOriginEnabled() {
     return debuggerCodeOriginEnabled;
   }
@@ -4119,11 +4142,21 @@ public class Config {
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    if (Strings.isNotBlank(dynamicInstrumentationSnapshotUrl)) {
+      return dynamicInstrumentationSnapshotUrl;
+    } else if (isCiVisibilityAgentlessEnabled()) {
+      return Intake.LOGS.getAgentlessUrl(this) + "logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    }
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+    if (isCiVisibilityAgentlessEnabled()) {
+      return Intake.LOGS.getAgentlessUrl(this) + "logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+    }
   }
 
   public String getDynamicInstrumentationProbeFile() {

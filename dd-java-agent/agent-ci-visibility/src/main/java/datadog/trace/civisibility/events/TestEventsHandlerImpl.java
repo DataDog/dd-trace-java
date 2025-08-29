@@ -181,6 +181,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     if (testExecutionHistory != null) {
+      test.getContext().set(TestExecutionHistory.class, testExecutionHistory);
       RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
       if (retryReason != null) {
         test.setTag(Tags.TEST_IS_RETRY, true);

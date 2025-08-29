@@ -25,6 +25,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -40,7 +41,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -74,9 +74,10 @@ public class DebuggerAgent {
     instrumentation = inst;
     sharedCommunicationObjects = sco;
     Config config = Config.get();
-    DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    // set config updater after setup is done, as some deferred updates might be immediately called
+    DebuggerConfigBridge.setUpdater(new DefaultDebuggerConfigUpdater());
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
@@ -210,13 +211,7 @@ public class DebuggerAgent {
     Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
-    exceptionDebugger =
-        new DefaultExceptionDebugger(
-            configurationUpdater,
-            classNameFilter,
-            Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond(),
-            config.getDebuggerExceptionMaxCapturedFrames());
+    exceptionDebugger = new DefaultExceptionDebugger(configurationUpdater, classNameFilter, config);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }

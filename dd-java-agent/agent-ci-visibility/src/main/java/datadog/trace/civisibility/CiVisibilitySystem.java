@@ -13,6 +13,8 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -99,6 +101,11 @@ public class CiVisibilitySystem {
         Predicate<String> instrumentationFilter =
             createCoverageInstrumentationFilter(services, repoServices);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
+      }
+
+      if (executionSettings.isFailedTestReplayEnabled()) {
+        DebuggerConfigBridge.updateConfig(
+            new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(true).build());
       }
 
       CiVisibilityCoverageServices.Child coverageServices =

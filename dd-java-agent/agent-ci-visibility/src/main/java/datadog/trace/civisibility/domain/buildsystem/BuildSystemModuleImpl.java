@@ -180,6 +180,11 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED),
         Boolean.toString(executionSettings.getTestManagementSettings().isEnabled()));
 
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED),
+        Boolean.toString(executionSettings.isFailedTestReplayEnabled()));
+
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
     // and we don't want to show those as if they were regular build executions
