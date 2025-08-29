@@ -55,10 +55,10 @@ class ConfigurationApiImplTest extends Specification {
 
     where:
     agentless | compression | expectedSettings
-    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, null)
-    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, "main")
-    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10), "master")
-    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20), "prod")
+    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, null)
+    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, "main")
+    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10), "master")
+    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20), "prod")
   }
 
   def "test skippable tests request"() {

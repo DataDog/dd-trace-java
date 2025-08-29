@@ -6,33 +6,45 @@ import datadog.trace.api.civisibility.coverage.CoveragePercentageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.coverage.file.FileCoverageStore;
 import datadog.trace.civisibility.coverage.line.LineCoverageStore;
-import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
-import datadog.trace.civisibility.coverage.percentage.JacocoCoverageCalculator;
-import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
-import datadog.trace.civisibility.coverage.percentage.child.JacocoChildProcessCoverageReporter;
+import datadog.trace.civisibility.coverage.report.CoverageProcessor;
+import datadog.trace.civisibility.coverage.report.CoverageReportUploader;
+import datadog.trace.civisibility.coverage.report.JacocoCoverageProcessor;
+import datadog.trace.civisibility.coverage.report.child.ChildProcessCoverageReporter;
+import datadog.trace.civisibility.coverage.report.child.JacocoChildProcessCoverageReporter;
 import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter;
 import java.util.Map;
 
 /**
- * Services that are related to coverage calculation (both per-test coverage and total coverage
- * percentage). The scope is session/module.
+ * Services that are related to per-test code coverage and coverage report uploads. The scope is
+ * session/module.
  */
 public class CiVisibilityCoverageServices {
 
   /** Services used in the parent process (build system). */
   static class Parent {
     final ModuleSignalRouter moduleSignalRouter;
-    final CoverageCalculator.Factory<?> coverageCalculatorFactory;
+    final CoverageProcessor.Factory<?> coverageProcessorFactory;
 
     Parent(CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
       moduleSignalRouter = new ModuleSignalRouter();
-      coverageCalculatorFactory =
-          new JacocoCoverageCalculator.Factory(
+
+      ExecutionSettings executionSettings =
+          repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
+      CoverageReportUploader coverageReportUploader =
+          executionSettings.isCodeCoverageReportUploadEnabled()
+              ? new CoverageReportUploader(
+                  services.ciIntake, repoServices.ciTags, services.metricCollector)
+              : null;
+
+      coverageProcessorFactory =
+          new JacocoCoverageProcessor.Factory(
               services.config,
               repoServices.repoIndexProvider,
+              coverageReportUploader,
               repoServices.repoRoot,
               moduleSignalRouter);
     }
