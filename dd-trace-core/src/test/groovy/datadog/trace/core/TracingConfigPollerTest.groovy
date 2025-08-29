@@ -67,19 +67,20 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     setup:
     def configOverrides = new TracingConfigPoller.ConfigOverrides()
     if (service != null || env != null) {
-    configOverrides.serviceTarget = new TracingConfigPoller.ServiceTarget(
-      service: service,
-      env: env,
-      )
+      configOverrides.serviceTarget = new TracingConfigPoller.ServiceTarget(
+        service: service,
+        env: env,
+        )
     }
     if (clusterName != null) {
-    configOverrides.k8sTargetV2 = new TracingConfigPoller.K8sTargetV2(
-      clusterTargets: [new TracingConfigPoller.ClusterTarget(
-        clusterName: clusterName,
-        enabled: true,
+      configOverrides.k8sTargetV2 = new TracingConfigPoller.K8sTargetV2(
+        clusterTargets: [
+          new TracingConfigPoller.ClusterTarget(
+          clusterName: clusterName,
+          enabled: true,
+          )
+        ]
         )
-      ]
-      )
     }
     configOverrides.libConfig = new TracingConfigPoller.LibConfig()
 
