@@ -22,26 +22,6 @@ import java.util.function.BiFunction
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
 class MuzzlePlugin implements Plugin<Project> {
-  static class TestedArtifact {
-    final String instrumentation
-    final String group
-    final String module
-    final Version lowVersion
-    final Version highVersion
-
-    TestedArtifact(String instrumentation, String group, String module, Version lowVersion, Version highVersion) {
-      this.instrumentation = instrumentation
-      this.group = group
-      this.module = module
-      this.lowVersion = lowVersion
-      this.highVersion = highVersion
-    }
-
-    String key() {
-      "$instrumentation:$group:$module"
-    }
-  }
-
   @Override
   void apply(Project project) {
     def childProjects = project.rootProject.getChildProjects().get('dd-java-agent').getChildProjects()
