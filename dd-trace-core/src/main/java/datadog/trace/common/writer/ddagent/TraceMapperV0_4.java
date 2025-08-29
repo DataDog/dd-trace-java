@@ -63,8 +63,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      TAG_CACHE.recalibrate();
-      VALUE_CACHE.recalibrate();
+      if ( TAG_CACHE != null ) TAG_CACHE.recalibrate();
+      if ( VALUE_CACHE != null ) VALUE_CACHE.recalibrate();
 
       final boolean writeSamplingPriority = firstSpanInChunk || lastSpanInChunk;
       final UTF8BytesString processTags =
