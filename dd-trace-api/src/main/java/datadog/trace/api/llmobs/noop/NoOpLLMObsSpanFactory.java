@@ -3,9 +3,13 @@ package datadog.trace.api.llmobs.noop;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
   public static final NoOpLLMObsSpanFactory INSTANCE = new NoOpLLMObsSpanFactory();
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(NoOpLLMObsSpanFactory.class);
 
   public LLMObsSpan startLLMSpan(
       String spanName,
@@ -13,6 +17,9 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
       String modelProvider,
       @Nullable String mlApp,
       @Nullable String sessionId) {
+
+    LOGGER.debug("LLM OBS STARTED NOOP LLM SPAN");
+
     return NoOpLLMObsSpan.INSTANCE;
   }
 

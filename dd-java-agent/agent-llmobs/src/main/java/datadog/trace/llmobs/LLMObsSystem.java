@@ -31,12 +31,15 @@ public class LLMObsSystem {
 
     sco.createRemaining(config);
 
+    LOGGER.debug("LLM OBS has been created, setting span factory");
     LLMObsInternal.setLLMObsSpanFactory(
         new LLMObsManualSpanFactory(config.getLlmObsMlApp(), config.getServiceName()));
 
     String mlApp = config.getLlmObsMlApp();
-    LLMObsInternal.setLLMObsSpanFactory(
-        new LLMObsManualSpanFactory(mlApp, config.getServiceName()));
+    LLMObs.LLMObsSpanFactory factory = new LLMObsManualSpanFactory(mlApp, config.getServiceName());
+    LLMObsInternal.setLLMObsSpanFactory(factory);
+
+    LOGGER.debug("LLM OBS SPAN FACTORY SET {}", factory);
 
     LLMObsInternal.setLLMObsEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
   }
@@ -145,6 +148,8 @@ public class LLMObsSystem {
         @Nullable String mlApp,
         @Nullable String sessionId) {
 
+      LOGGER.debug("LLM OBS STARTING LLM SPAN");
+
       DDLLMObsSpan span =
           new DDLLMObsSpan(
               Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
@@ -158,6 +163,8 @@ public class LLMObsSystem {
         modelProvider = CUSTOM_MODEL_VAL;
       }
       span.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
+
+      LOGGER.debug("LLM OBS STARTED LLM SPAN {}", span);
       return span;
     }
 
