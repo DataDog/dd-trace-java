@@ -40,11 +40,6 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     embeddedKafka.destroy()
   }
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   def "test kafka-connect instrumentation"() {
     // Kafka bootstrap servers from the embedded broker
     String bootstrapServers = embeddedKafka.getBrokersAsString()
@@ -53,7 +48,7 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     // Create an AdminClient to interact with the Kafka cluster
     Properties adminProps = new Properties()
     adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
-    String clusterId = null
+    String clusterId
     try (AdminClient adminClient = AdminClient.create(adminProps)) {
       DescribeClusterResult describeClusterResult = adminClient.describeCluster()
       clusterId = describeClusterResult.clusterId().get() // Retrieve the cluster ID
@@ -179,7 +174,7 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     Properties adminProps = new Properties()
     adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
-    String clusterId = null
+    String clusterId
     try (AdminClient adminClient = AdminClient.create(adminProps)) {
       DescribeClusterResult describeClusterResult = adminClient.describeCluster()
       clusterId = describeClusterResult.clusterId().get()

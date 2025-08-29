@@ -136,7 +136,7 @@ class TomcatServer implements WebsocketServer {
         while (WsEndpoint.activeSession == null) {
           WsEndpoint.wait()
         }
-      } catch (InterruptedException ie) {
+      } catch (InterruptedException _) {
         Thread.currentThread().interrupt()
       }
     }
@@ -163,7 +163,7 @@ class TomcatServer implements WebsocketServer {
 
     @Override
     void contextInitialized(ServletContextEvent sce) {
-      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.class.getName()))
+      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.name))
     }
 
     @Override

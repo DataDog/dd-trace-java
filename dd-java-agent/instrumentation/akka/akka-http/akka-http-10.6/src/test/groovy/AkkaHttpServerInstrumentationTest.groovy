@@ -1,21 +1,22 @@
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static org.junit.Assume.assumeTrue
-
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.HttpUrl
+import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
 
@@ -117,9 +118,9 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     TEST_WRITER.waitForTraces(totalInvocations)
   }
 
+  @IgnoreIf({ !instance.testBodyMultipart() })
   def 'test instrumentation gateway multipart request body — strict variant'() {
     setup:
-    assumeTrue(testBodyMultipart())
     def body = new MultipartBody.Builder()
       .setType(MultipartBody.FORM)
       .addFormDataPart('a', 'x')
@@ -149,16 +150,15 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     }
   }
 
+  @IgnoreIf({ !instance.testBodyJson() })
   def 'test instrumentation gateway json request body — spray variant'() {
-    assumeTrue(testBodyJson())
-
     setup:
     def url = HttpUrl.get(BODY_JSON.resolve(address)).newBuilder()
       .encodedQuery('variant=spray')
       .build()
     def request = new Request.Builder()
       .url(url)
-      .method('POST', RequestBody.create(okhttp3.MediaType.get('application/json'), '{"a":"x"}\n'))
+      .method('POST', RequestBody.create(MediaType.get('application/json'), '{"a":"x"}\n'))
       .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
