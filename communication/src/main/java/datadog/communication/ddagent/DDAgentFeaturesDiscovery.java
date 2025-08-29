@@ -93,7 +93,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String version;
   private volatile String telemetryProxyEndpoint;
   private volatile Set<String> peerTags = emptySet();
-  private volatile Set<String> spanKindsToComputedStats = emptySet();
 
   private long lastTimeDiscovered;
 
@@ -128,7 +127,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     lastTimeDiscovered = 0;
     telemetryProxyEndpoint = null;
     peerTags = emptySet();
-    spanKindsToComputedStats = emptySet();
   }
 
   /** Run feature discovery, unconditionally. */
@@ -318,12 +316,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
             peer_tags instanceof List
                 ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
                 : emptySet();
-
-        Object span_kinds = map.get("span_kinds_stats_computed");
-        spanKindsToComputedStats =
-            span_kinds instanceof List
-                ? unmodifiableSet(new HashSet<>((List<String>) span_kinds))
-                : emptySet();
       }
       try {
         state = Strings.sha256(response);
@@ -383,10 +375,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public Set<String> peerTags() {
     return peerTags;
-  }
-
-  public Set<String> spanKindsToComputedStats() {
-    return spanKindsToComputedStats;
   }
 
   public String getMetricsEndpoint() {

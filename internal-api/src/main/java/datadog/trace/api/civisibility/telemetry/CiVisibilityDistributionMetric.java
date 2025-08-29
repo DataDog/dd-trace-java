@@ -39,7 +39,7 @@ public enum CiVisibilityDistributionMetric {
       "itr_skippable_tests.response_bytes", ResponseCompressed.class),
   /** The number of files covered inside a coverage payload */
   CODE_COVERAGE_FILES("code_coverage.files"),
-  /* The time it takes to get the response of the known tests endpoint request in ms */
+  /** The time it takes to get the response of the known tests endpoint request in ms */
   KNOWN_TESTS_REQUEST_MS("known_tests.request_ms"),
   /** The number of bytes received by the known tests endpoint */
   KNOWN_TESTS_RESPONSE_BYTES("known_tests.response_bytes", ResponseCompressed.class),
@@ -56,7 +56,11 @@ public enum CiVisibilityDistributionMetric {
   /** The number of bytes received by the test management tests endpoint */
   TEST_MANAGEMENT_TESTS_RESPONSE_BYTES("test_management.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the test management tests endpoint */
-  TEST_MANAGEMENT_TESTS_RESPONSE_TESTS("test_management.response_tests");
+  TEST_MANAGEMENT_TESTS_RESPONSE_TESTS("test_management.response_tests"),
+  /** The time it takes to make a coverage upload request in ms */
+  COVERAGE_UPLOAD_REQUEST_MS("coverage_upload.request_ms"),
+  /** The size of a coverage upload request in bytes */
+  COVERAGE_UPLOAD_REQUEST_BYTES("coverage_upload.request_bytes", ResponseCompressed.class);
 
   private static final String NAMESPACE = "civisibility";
 

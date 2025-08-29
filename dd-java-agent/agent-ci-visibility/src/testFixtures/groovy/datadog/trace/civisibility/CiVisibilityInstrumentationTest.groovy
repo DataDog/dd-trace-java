@@ -25,7 +25,7 @@ import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.*
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
-import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
+import datadog.trace.civisibility.coverage.report.NoOpCoverageProcessor
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.diff.Diff
@@ -98,6 +98,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
   }
 
+  @SuppressWarnings('UnusedPrivateField')
   private static final class Settings {
     private volatile List<TestIdentifier> skippableTests = []
     private volatile List<TestFQN> flakyTests
@@ -191,7 +192,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       executionSettingsFactory,
       signalServer,
       repoIndexBuilder,
-      new NoOpCoverageCalculator.Factory()
+      new NoOpCoverageProcessor.Factory()
       )
     }
 
@@ -233,6 +234,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       settings.itrEnabled,
       settings.flakyRetryEnabled,
       settings.impactedTestsDetectionEnabled,
+      false,
       earlyFlakinessDetectionSettings,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,
@@ -363,9 +365,9 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
     if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
       return generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
-    } else {
-      return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
     }
+
+    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
   }
 
   def generateTestFixtures(String testcaseName, List<Map> events, List<Map> coverages, Map<String, String> additionalReplacements, List<String> additionalIgnoredTags) {

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet5;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
 
+import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
@@ -30,14 +31,15 @@ public class RumHttpServletRequestWrapper extends HttpServletRequestWrapper {
       throws IllegalStateException {
     // deactivate the previous wrapper
     final Object maybeRumWrappedResponse = (servletRequest.getAttribute(DD_RUM_INJECTED));
-    if (maybeRumWrappedResponse instanceof RumHttpServletResponseWrapper) {
-      ((RumHttpServletResponseWrapper) maybeRumWrappedResponse).commit();
-      ((RumHttpServletResponseWrapper) maybeRumWrappedResponse).stopFiltering();
+    if (maybeRumWrappedResponse instanceof RumControllableResponse) {
+      ((RumControllableResponse) maybeRumWrappedResponse).commit();
+      ((RumControllableResponse) maybeRumWrappedResponse).stopFiltering();
     }
     ServletResponse actualResponse = servletResponse;
     // rewrap it
     if (servletResponse instanceof HttpServletResponse) {
-      actualResponse = new RumHttpServletResponseWrapper((HttpServletResponse) servletResponse);
+      actualResponse =
+          new RumHttpServletResponseWrapper(this, (HttpServletResponse) servletResponse);
       servletRequest.setAttribute(DD_RUM_INJECTED, actualResponse);
     }
     return super.startAsync(servletRequest, actualResponse);

@@ -1,8 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
+import java.util.function.LongConsumer
 
 class InjectingPipeWriterTest extends DDSpecification {
+  static final char[] MARKER_CHARS = "</head>".toCharArray()
+  static final char[] CONTEXT_CHARS = "<script></script>".toCharArray()
+
   static class GlitchedWriter extends FilterWriter {
     int glitchesPos
     int count
@@ -33,10 +37,18 @@ class InjectingPipeWriterTest extends DDSpecification {
     }
   }
 
+  static class Counter {
+    int value = 0
+
+    def incr(long count) {
+      this.value += count
+    }
+  }
+
   def 'should filter a buffer and inject if found #found using write'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null))
+    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray()))
     when:
     try (def closeme = piped) {
       piped.write(body)
@@ -53,7 +65,7 @@ class InjectingPipeWriterTest extends DDSpecification {
   def 'should filter a buffer and inject if found #found using append'() {
     setup:
     def downstream = new StringWriter()
-    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null))
+    def piped = new PrintWriter(new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray()))
     when:
     try (def closeme = piped) {
       piped.append(body)
@@ -71,7 +83,7 @@ class InjectingPipeWriterTest extends DDSpecification {
     setup:
     def writer = new StringWriter()
     def downstream = new GlitchedWriter(writer, glichesAt)
-    def piped = new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray(), null)
+    def piped = new InjectingPipeWriter(downstream, marker.toCharArray(), contentToInject.toCharArray())
     when:
     try {
       for (String line : body) {
@@ -102,5 +114,117 @@ class InjectingPipeWriterTest extends DDSpecification {
     ["<html>", "<body/>", "</html>"]                                | "</head>"         | "<something/>"          | 10        | "<html><body/></h</html>"
     // expected broken since the real write happens at close (drain) being the content smaller than the buffer. And retry on close is not a common practice. Hence, we suppose loosing content
     ["<foo/>"]                                                      | "<longerThanFoo>" | "<nothing>"             | 3         | "<f"
+  }
+
+  def 'should count bytes correctly when writing characters'() {
+    setup:
+    def downstream = new StringWriter()
+    def counter = new Counter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
+    def testBytes = "test content"
+
+    when:
+    piped.write(testBytes.toCharArray())
+    piped.close()
+
+    then:
+    counter.value == testBytes.length()
+    downstream.toString() == testBytes
+  }
+
+  def 'should count bytes correctly when writing characters individually'() {
+    setup:
+    def downstream = new StringWriter()
+    def counter = new Counter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
+    def testBytes = "test"
+
+    when:
+    for (int i = 0; i < testBytes.length(); i++) {
+      piped.write((int) testBytes.charAt(i))
+    }
+    piped.close()
+
+    then:
+    counter.value == testBytes.length()
+    downstream.toString() == testBytes
+  }
+
+  def 'should count bytes correctly with multiple writes'() {
+    setup:
+    def downstream = new StringWriter()
+    def counter = new Counter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, { long bytes -> counter.incr(bytes) }, null)
+    def testBytes = "test content"
+
+    when:
+    piped.write(testBytes[0..4].toCharArray())
+    piped.write(testBytes[5..5].toCharArray())
+    piped.write(testBytes[6..-1].toCharArray())
+    piped.close()
+
+    then:
+    counter.value == testBytes.length()
+    downstream.toString() == testBytes
+  }
+
+  def 'should be resilient to exceptions when onBytesWritten callback is null'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+    def testBytes = "test content"
+
+    when:
+    piped.write(testBytes.toCharArray())
+    piped.close()
+
+    then:
+    noExceptionThrown()
+    downstream.toString() == testBytes
+  }
+
+  def 'should call timing callback when injection happens'() {
+    setup:
+    def downstream = Mock(Writer) {
+      write(_) >> { args ->
+        Thread.sleep(1) // simulate slow write
+      }
+    }
+    def timingCallback = Mock(LongConsumer)
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, timingCallback)
+
+    when:
+    piped.write("<html><head></head><body></body></html>".toCharArray())
+    piped.close()
+
+    then:
+    1 * timingCallback.accept({ it > 0 })
+  }
+
+  def 'should not call timing callback when no injection happens'() {
+    setup:
+    def downstream = new StringWriter()
+    def timingCallback = Mock(LongConsumer)
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, timingCallback)
+
+    when:
+    piped.write("no marker here".toCharArray())
+    piped.close()
+
+    then:
+    0 * timingCallback.accept(_)
+  }
+
+  def 'should be resilient to exceptions when timing callback is null'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, null)
+
+    when:
+    piped.write("<html><head></head><body></body></html>".toCharArray())
+    piped.close()
+
+    then:
+    noExceptionThrown()
   }
 }

@@ -1665,6 +1665,19 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == configuredUrl + "/profiling/v1/input"
   }
 
+  def "uds profiling url"() {
+    setup:
+    def configuredUrl = "unix:///path/to/socket"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
+  }
+
   def "fallback to DD_TAGS"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
@@ -2042,17 +2055,12 @@ class ConfigTest extends DDSpecification {
     where:
     // spotless:off
     value       | tClass  | expected
-    "42.42"     | Boolean | false
-    "42.42"     | Boolean | false
     "true"      | Boolean | true
     "trUe"      | Boolean | true
-    "trUe"      | Boolean | true
-    "tru"       | Boolean | false
-    "truee"     | Boolean | false
-    "true "     | Boolean | false
-    " true"     | Boolean | false
-    " true "    | Boolean | false
-    "   true  " | Boolean | false
+    "false"     | Boolean | false
+    "False"     | Boolean | false
+    "1"         | Boolean | true
+    "0"         | Boolean | false
     "42.42"     | Float   | 42.42f
     "42.42"     | Double  | 42.42
     "44"        | Integer | 44
@@ -2076,6 +2084,20 @@ class ConfigTest extends DDSpecification {
     ""       | "43"
     "      " | "44"
     "1"      | "45"
+    // spotless:on
+  }
+
+  def "valueOf negative test for invalid boolean values"() {
+    when:
+    ConfigConverter.valueOf(value, Boolean)
+
+    then:
+    def exception = thrown(IllegalArgumentException)
+    exception.message.contains("Invalid boolean value")
+
+    where:
+    // spotless:off
+    value << ["42.42", "tru", "truee", "true ", " true", " true ", "   true  ", "notABool", "invalid", "yes", "no", "42"]
     // spotless:on
   }
 

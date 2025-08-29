@@ -1,8 +1,14 @@
 package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
+import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
@@ -10,11 +16,13 @@ import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.Pair;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -25,7 +33,10 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -33,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.SpmcArrayQueue;
@@ -49,7 +61,31 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
 
+  private static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS =
+      DDCaches.newFixedSizeCache(16);
+  private static final DDCache<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      PEER_TAGS_CACHE =
+          DDCaches.newFixedSizeCache(
+              64); // it can be unbounded since those values are returned by the agent and should be
+  // under control. 64 entries is enough in this case to contain all the peer tags.
+  private static final Function<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      PEER_TAGS_CACHE_ADDER =
+          key ->
+              Pair.of(
+                  DDCaches.newFixedSizeCache(512),
+                  value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
+
+  private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
+      unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  SPAN_KIND_SERVER, SPAN_KIND_CLIENT, SPAN_KIND_CONSUMER, SPAN_KIND_PRODUCER)));
+
+  private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION =
+      unmodifiableSet(new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER)));
 
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
@@ -262,10 +298,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private boolean spanKindEligible(CoreSpan<?> span) {
     final Object spanKind = span.getTag(SPAN_KIND);
     // use toString since it could be a CharSequence...
-    return spanKind != null && features.spanKindsToComputedStats().contains(spanKind.toString());
+    return spanKind != null && ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
+    final CharSequence spanKind = span.getTag(SPAN_KIND, "");
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -273,7 +310,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getOperationName(),
             span.getType(),
             span.getHttpStatusCode(),
-            isSynthetic(span));
+            isSynthetic(span),
+            span.getParentId() == 0,
+            SPAN_KINDS.computeIfAbsent(
+                spanKind, UTF8BytesString::create), // save repeated utf8 conversions
+            getPeerTags(span, spanKind.toString()));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
@@ -288,7 +329,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       // returning false means that either the batch can't take any
       // more data, or it has already been consumed
       if (batch.add(tag, durationNanos)) {
-        // added to a pending batch prior to consumption
+        // added to a pending batch prior to consumption,
         // so skip publishing to the queue (we also know
         // the key isn't rare enough to override the sampler)
         return false;
@@ -306,6 +347,34 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     inbox.offer(batch);
     // force keep keys we haven't seen before or errors
     return isNewKey || span.getError() > 0;
+  }
+
+  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
+    if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
+      List<UTF8BytesString> peerTags = new ArrayList<>();
+      for (String peerTag : features.peerTags()) {
+        Object value = span.getTag(peerTag);
+        if (value != null) {
+          final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+              cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
+          peerTags.add(
+              cacheAndCreator
+                  .getLeft()
+                  .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
+        }
+      }
+      return peerTags;
+    } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
+      // in this case only the base service should be aggregated if present
+      final String baseService = span.getTag(BASE_SERVICE);
+      if (baseService != null) {
+        final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+            cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
+        return Collections.singletonList(
+            cacheAndCreator.getLeft().computeIfAbsent(baseService, cacheAndCreator.getRight()));
+      }
+    }
+    return Collections.emptyList();
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

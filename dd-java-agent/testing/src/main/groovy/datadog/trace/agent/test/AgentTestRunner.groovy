@@ -1,7 +1,6 @@
 package datadog.trace.agent.test
 
 import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
 import com.datadog.debugger.agent.Configuration
@@ -67,6 +66,7 @@ import net.bytebuddy.utility.JavaModule
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.junit.runner.RunWith
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
 import org.spockframework.mock.runtime.MockInvocation
@@ -288,12 +288,16 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     true
   }
 
+  @SuppressForbidden
   private static void configureLoggingLevels() {
     def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
-    if (!(logger instanceof Logger)) {
+
+    // Check logger class by name to avoid NoClassDefFoundError at runtime for tests without Logback.
+    if (logger.class.name != "ch.qos.logback.classic.Logger") {
       return
     }
-    final Logger rootLogger = logger
+
+    final ch.qos.logback.classic.Logger rootLogger = (ch.qos.logback.classic.Logger)logger
     if (!rootLogger.iteratorForAppenders().hasNext()) {
       try {
         // previous test wiped out the logging config bring it back for the next test
@@ -304,10 +308,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     rootLogger.setLevel(Level.WARN)
-    ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
-    ((Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
   }
-
 
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)

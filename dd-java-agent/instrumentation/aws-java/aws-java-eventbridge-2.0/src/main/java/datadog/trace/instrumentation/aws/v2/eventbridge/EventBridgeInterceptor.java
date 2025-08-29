@@ -5,17 +5,17 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.Context.ModifyRequest;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
@@ -25,16 +25,15 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 public class EventBridgeInterceptor implements ExecutionInterceptor {
   private static final Logger log = LoggerFactory.getLogger(EventBridgeInterceptor.class);
 
-  public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private static final String START_TIME_KEY = "x-datadog-start-time";
   private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
 
   @Override
-  public SdkRequest modifyRequest(
-      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
     if (!(context.request() instanceof PutEventsRequest)) {
       return context.request();
     }
@@ -79,12 +78,11 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
 
   private String getTraceContextToInject(
       ExecutionAttributes executionAttributes, String eventBusName, long startTime) {
-    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
 
     // Inject context
-    datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsTags tags = DataStreamsTags.createWithBus(OUTBOUND, eventBusName);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
