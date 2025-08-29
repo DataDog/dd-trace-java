@@ -232,9 +232,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String newContainerTagsHash = response.header(DATADOG_CONTAINER_TAGS_HASH);
     if (newContainerTagsHash != null) {
       ContainerInfo containerInfo = ContainerInfo.get();
-      if (!newContainerTagsHash.equals(containerInfo.getContainerTagsHash())) {
-        containerInfo.setContainerTagsHash(newContainerTagsHash);
-        BaseHash.recalcBaseHash(newContainerTagsHash);
+      synchronized (containerInfo) {
+        if (!newContainerTagsHash.equals(containerInfo.getContainerTagsHash())) {
+          containerInfo.setContainerTagsHash(newContainerTagsHash);
+          BaseHash.recalcBaseHash(newContainerTagsHash);
+        }
       }
     }
   }
