@@ -1,12 +1,66 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.highest
+import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.lowest
+import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveInstrumentationAndJarVersions
+import org.eclipse.aether.RepositorySystem
+import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.findByType
 import java.io.File
-import java.util.*
+import java.net.URLClassLoader
+import java.util.SortedMap
+import java.util.TreeMap
 import java.util.function.BiFunction
 
 object MuzzleReportUtils {
+  @JvmStatic
+  fun dumpVersionRanges(project: Project) {
+    val system: RepositorySystem = MuzzleMavenRepoUtils.newRepositorySystem()
+    val session: RepositorySystemSession = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
+    val versions = TreeMap<String, TestedArtifact>()
+    val directives = project.extensions.findByType<MuzzleExtension>()?.directives ?: emptyList()
+    directives.filter { !it.coreJdk && !it.skipFromReport }.forEach { directive ->
+      val range = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, session)
+      val cp = project.files(project.mainSourceSet.runtimeClasspath).map { it.toURI().toURL() }.toTypedArray()
+      val cl = URLClassLoader(cp, null)
+      val partials = resolveInstrumentationAndJarVersions(directive, cl, range.lowestVersion, range.highestVersion)
+      partials.forEach { (key, value) ->
+        versions.merge(key, value, BiFunction { x, y ->
+          TestedArtifact(
+            x.instrumentation, x.group, x.module,
+            lowest(x.lowVersion, y.lowVersion),
+            highest(x.highVersion, y.highVersion)
+          )
+        })
+      }
+    }
+    dumpVersionsToCsv(project, versions)
+  }
+
+  private fun dumpVersionsToCsv(project: Project, versions: SortedMap<String, TestedArtifact>) {
+    val filename = project.path.replaceFirst("^:", "").replace(":", "_")
+    val dir = project.rootProject.layout.buildDirectory.dir("muzzle-deps-results").get().asFile.apply {
+      mkdirs()
+    }
+    with(File(dir, "$filename.csv")) {
+      writeText("instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n")
+      versions.values.forEach {
+        appendText(
+          listOf(
+            it.instrumentation,
+            it.group,
+            it.module,
+            it.lowVersion.toString(),
+            it.highVersion.toString()
+          ).joinToString(",") + "\n"
+        )
+      }
+      project.logger.info("Wrote muzzle versions report to\n  $this")
+    }
+  }
+
   /**
    * Merges all muzzle report CSVs in the build directory into a single map and writes the merged results to a CSV.
    */
@@ -39,7 +93,8 @@ object MuzzleReportUtils {
         }
       }
     }
-    MuzzleMavenRepoUtils.dumpVersionsToCsv(project, map)
+
+    dumpVersionsToCsv(project, map)
   }
 
   /**
@@ -64,4 +119,3 @@ object MuzzleReportUtils {
     )
   }
 }
-
