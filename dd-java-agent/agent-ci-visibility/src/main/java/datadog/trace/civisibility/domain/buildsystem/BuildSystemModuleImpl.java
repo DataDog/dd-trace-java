@@ -20,7 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
-import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
+import datadog.trace.civisibility.coverage.report.CoverageProcessor;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.BuildSystemModule;
@@ -45,7 +45,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
 
-  private final CoverageCalculator coverageCalculator;
+  private final CoverageProcessor coverageProcessor;
   private final ModuleSignalRouter moduleSignalRouter;
   private final BuildModuleSettings settings;
 
@@ -53,7 +53,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   private volatile boolean testSkippingEnabled;
 
-  public <T extends CoverageCalculator> BuildSystemModuleImpl(
+  public <T extends CoverageProcessor> BuildSystemModuleImpl(
       AgentSpanContext sessionSpanContext,
       String moduleName,
       String startCommand,
@@ -69,7 +69,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       Codeowners codeowners,
       LinesResolver linesResolver,
       ModuleSignalRouter moduleSignalRouter,
-      CoverageCalculator.Factory<T> coverageCalculatorFactory,
+      CoverageProcessor.Factory<T> coverageProcessorFactory,
       T sessionCoverageCalculator,
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings,
@@ -86,8 +86,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         codeowners,
         linesResolver,
         onSpanFinish);
-    this.coverageCalculator =
-        coverageCalculatorFactory.moduleCoverage(
+    this.coverageProcessor =
+        coverageProcessorFactory.moduleCoverage(
             span.getSpanId(), moduleLayout, executionSettings, sessionCoverageCalculator);
     this.moduleSignalRouter = moduleSignalRouter;
 
@@ -305,7 +305,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       }
     }
 
-    Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
+    Long coveragePercentage = coverageProcessor.processCoverageData();
     if (coveragePercentage != null) {
       setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
 

@@ -245,8 +245,12 @@ class MavenProjectConfigurator {
   void configureJacoco(
       MavenSession session, MavenProject project, BuildSessionSettings sessionSettings) {
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
+    if (runsWithJacoco(session, project)) {
+      // Jacoco is already configured for this project
+      return;
+    }
     if (Config.get().isCiVisibilityJacocoPluginVersionProvided()
-        && !runsWithJacoco(session, project)) {
+        || sessionSettings.isCoverageReportUploadEnabled()) {
       configureJacocoPlugin(project, sessionSettings);
     }
   }

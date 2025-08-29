@@ -186,7 +186,12 @@ class GradleProjectConfigurator {
 
   private void configureJacoco(Project project, BuildSessionSettings sessionSettings) {
     def config = Config.get()
-    if (!config.isCiVisibilityJacocoPluginVersionProvided() || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
+    if (project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
+      // Jacoco is already configured for this project
+      return
+    }
+
+    if (!config.isCiVisibilityJacocoPluginVersionProvided() && !sessionSettings.isCoverageReportUploadEnabled()) {
       return
     }
 
