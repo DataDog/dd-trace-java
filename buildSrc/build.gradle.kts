@@ -58,6 +58,12 @@ tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
+// Allows to transition progressively groovy code to kotlin
+tasks.compileGroovy.configure {
+  dependsOn(tasks.compileKotlin)
+  classpath += files(tasks.compileKotlin.get().destinationDirectory)
+}
+
 testing {
   @Suppress("UnstableApiUsage")
   suites {
