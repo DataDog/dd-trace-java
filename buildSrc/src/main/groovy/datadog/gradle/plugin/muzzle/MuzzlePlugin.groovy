@@ -74,7 +74,7 @@ class MuzzlePlugin implements Plugin<Project> {
     project.tasks.register('generateMuzzleReport', MuzzleTask) {
       description = "Print instrumentation version report"
       doLast {
-        dumpVersionRanges(project)
+        MuzzleMavenRepoUtils.dumpVersionRanges(project)
       }
       dependsOn compileMuzzle
     }
@@ -111,13 +111,13 @@ class MuzzlePlugin implements Plugin<Project> {
         if (muzzleDirective.coreJdk) {
           runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, muzzleBootstrap, muzzleTooling)
         } else {
-          def range = resolveVersionRange(muzzleDirective, system, session)
+          def range = MuzzleMavenRepoUtils.resolveVersionRange(muzzleDirective, system, session)
           for (Artifact singleVersion : muzzleDirectiveToArtifacts(muzzleDirective, range)) {
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
           }
           if (muzzleDirective.assertInverse) {
             for (MuzzleDirective inverseDirective : inverseOf(muzzleDirective, system, session)) {
-              def inverseRange = resolveVersionRange(inverseDirective, system, session)
+              def inverseRange = MuzzleMavenRepoUtils.resolveVersionRange(inverseDirective, system, session)
               for (Artifact singleVersion : (muzzleDirectiveToArtifacts(inverseDirective, inverseRange))) {
                 runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, muzzleBootstrap, muzzleTooling)
               }
@@ -162,36 +162,6 @@ class MuzzlePlugin implements Plugin<Project> {
     dumpVersionsToCsv(project, map)
   }
 
-  private static void dumpVersionRanges(Project project) {
-    final RepositorySystem system = MuzzleMavenRepoUtils.newRepositorySystem()
-    final RepositorySystemSession session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-    def versions = new TreeMap<String, TestedArtifact>()
-    project.muzzle.directives.findAll { !((MuzzleDirective) it).isCoreJdk() && !((MuzzleDirective) it).isSkipFromReport() }.each {
-      def range = resolveVersionRange(it as MuzzleDirective, system, session)
-      def cp = project.sourceSets.main.runtimeClasspath
-      def cl = new URLClassLoader(cp*.toURI()*.toURL() as URL[], null as ClassLoader)
-      def partials = resolveInstrumentationAndJarVersions(it as MuzzleDirective, cl,
-        range.lowestVersion, range.highestVersion)
-      partials.each {
-        versions.merge(it.getKey(), it.getValue(), [
-          apply: { TestedArtifact x, TestedArtifact y ->
-            return new TestedArtifact(x.instrumentation, x.group, x.module, lowest(x.lowVersion, y.lowVersion), highest(x.highVersion, y.highVersion))
-          }
-        ] as BiFunction)
-      }
-    }
-    dumpVersionsToCsv(project, versions)
-  }
-
-  private static void dumpVersionsToCsv(Project project, SortedMap<String, TestedArtifact> versions) {
-    def filename = project.path.replaceFirst('^:', '').replace(':', '_')
-    def dir = project.file("${project.rootProject.buildDir}/muzzle-deps-results")
-    dir.mkdirs()
-    def file = project.file("${dir}/${filename}.csv")
-    file.write "instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n"
-    file << versions.values().collect { [it.instrumentation, it.group, it.module, it.lowVersion.toString(), it.highVersion.toString()].join(",") }.join("\n")
-  }
-
   private static void generateResultsXML(Project project, long millis) {
     def seconds = (millis * 1.0) / 1000
     def name = "${project.path}:muzzle"
@@ -204,15 +174,6 @@ class MuzzlePlugin implements Plugin<Project> {
                    |  <testcase name="${name}" time="${seconds}">
                    |  </testcase>
                    |</testsuite>\n""".stripMargin()
-  }
-
-  static VersionRangeResult resolveVersionRange(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", muzzleDirective.versions)
-
-    final VersionRangeRequest rangeRequest = new VersionRangeRequest()
-    rangeRequest.setRepositories(muzzleDirective.getRepositories(MuzzleMavenRepoUtils.MUZZLE_REPOS))
-    rangeRequest.setArtifact(directiveArtifact)
-    return system.resolveVersionRange(session, rangeRequest)
   }
 
   /**
