@@ -65,6 +65,8 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
         case "find":
         case "count":
         case "create":
+        case "findAndModify":
+        case "commit":
           obfuscate = false;
           break;
         default:
