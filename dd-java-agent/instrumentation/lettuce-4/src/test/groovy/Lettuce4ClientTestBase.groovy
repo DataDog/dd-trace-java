@@ -83,10 +83,4 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     redisClient.shutdown()
     redisServer.stop()
   }
-
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO: Monitor in CI to validate fix effectiveness against freezes.
-    return false
-  }
 }
