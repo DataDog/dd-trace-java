@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
+import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
@@ -44,7 +46,9 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HikariBlockedTrackingSynchronousQueue", packageName + ".HikariBlockedTracker"
+      packageName + ".HikariBlockedTrackingSynchronousQueue",
+      packageName + ".HikariBlockedTracker",
+      packageName + ".PoolWaitingDecorator"
     };
   }
 
@@ -97,8 +101,6 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   }
 
   public static class BorrowAdvice {
-    private static final String POOL_WAITING = "pool.waiting";
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Long onEnter() {
       HikariBlockedTracker.clearBlocked();
@@ -113,10 +115,9 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
       if (HikariBlockedTracker.wasBlocked()) {
         final AgentSpan span =
             startSpan(POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+        DECORATE.afterStart(span);
+        DECORATE.onError(span, throwable);
         span.setResourceName("hikari.waiting");
-        if (throwable != null) {
-          span.addThrowable(throwable);
-        }
         final String poolName =
             InstrumentationContext.get(ConcurrentBag.class, String.class).get(thiz);
         if (poolName != null) {
