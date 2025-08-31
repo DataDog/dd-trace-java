@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -34,6 +36,11 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".PoolWaitingDecorator"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("pollFirst").and(takesArguments(1)),
@@ -41,12 +48,11 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
   }
 
   public static class PollFirstAdvice {
-    private static final String POOL_WAITING = "pool.waiting";
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan onEnter() {
       if (CallDepthThreadLocalMap.getCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class) > 0) {
         AgentSpan span = startSpan(POOL_WAITING);
+        DECORATE.afterStart(span);
         span.setResourceName("dbcp2.waiting");
         return span;
       } else {
@@ -58,9 +64,7 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
     public static void onExit(
         @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
       if (span != null) {
-        if (throwable != null) {
-          span.addThrowable(throwable);
-        }
+        DECORATE.onError(span, throwable);
         span.finish();
       }
     }
