@@ -171,7 +171,7 @@ abstract class CiVisibilityTestUtils {
         println "Expected JSON: $expectedJson"
         println "Actual JSON: $actualJson"
       }
-      throw new AssertionFailedError("Coverage report events mismatch", expectedJson, actualJson, e)
+      throw new AssertionFailedError("Expected and actual JSON mismatch", expectedJson, actualJson, e)
     }
   }
 
