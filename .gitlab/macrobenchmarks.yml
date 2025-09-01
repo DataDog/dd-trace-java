@@ -80,6 +80,9 @@ check-slo-breaches:
   interruptible: true
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   rules:
     - if: $POPULATE_CACHE
       when: never
@@ -97,6 +100,8 @@ check-slo-breaches:
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
+  before_script:
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > check-slo-breaches.github-token
   script:
     # macrobenchmarks are located here, files are already in "converted" format
     - export ARTIFACTS_DIR="$(pwd)/platform/artifacts/" && mkdir -p "${ARTIFACTS_DIR}"
@@ -119,7 +124,10 @@ check-slo-breaches:
           done
       done
     - ls -lah "$ARTIFACTS_DIR"
+    - export GITHUB_TOKEN=$(cat check-slo-breaches.github-token)
     - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
+  after_script:
+    - dd-octo-sts revoke -t $(cat check-slo-breaches.github-token)
   artifacts:
     name: "artifacts"
     when: always
