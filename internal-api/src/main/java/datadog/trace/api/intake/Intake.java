@@ -10,7 +10,12 @@ public enum Intake {
       "http-intake.logs",
       "v2",
       Config::isAgentlessLogSubmissionEnabled,
-      Config::getAgentlessLogSubmissionUrl);
+      Config::getAgentlessLogSubmissionUrl),
+  CI_INTAKE(
+      "ci-intake",
+      "v2",
+      Config::isCiVisibilityAgentlessEnabled,
+      Config::getCiVisibilityIntakeAgentlessUrl);
 
   public final String urlPrefix;
   public final String version;
