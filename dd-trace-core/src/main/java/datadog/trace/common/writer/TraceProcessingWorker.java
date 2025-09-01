@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -184,6 +185,13 @@ public class TraceProcessingWorker implements AutoCloseable {
       try {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
+          log.debug(
+              "[ISSUE DEBUG] Processing event and adding to dispatcher - {}",
+              trace.stream()
+                  .map(
+                      span ->
+                          String.format("(t_id=%s,s_id=%s)", span.getTraceId(), span.getSpanId()))
+                  .collect(Collectors.joining(", ", "[", "]")));
           maybeTracePostProcessing(trace);
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);

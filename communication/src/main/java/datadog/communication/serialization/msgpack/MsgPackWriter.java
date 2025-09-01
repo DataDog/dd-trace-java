@@ -81,6 +81,7 @@ public class MsgPackWriter implements WritableFormatter {
   @Override
   public <T> boolean format(T message, Mapper<T> mapper) {
     try {
+      log.debug("[ISSUE DEBUG] Beginning serialization");
       mapper.map(message, this);
       buffer.mark();
       return true;
@@ -90,6 +91,7 @@ public class MsgPackWriter implements WritableFormatter {
       // max capacity, then reject the message
       if (buffer.flush()) {
         try {
+          log.debug("[ISSUE DEBUG] Beginning serialization after overflow and flush");
           mapper.map(message, this);
           buffer.mark();
           return true;

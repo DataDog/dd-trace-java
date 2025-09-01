@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     long serializationStartTimestamp = System.currentTimeMillis();
 
+    LOGGER.debug(
+        "[ISSUE DEBUG] Trace serialization - {}",
+        trace.stream()
+            .map(span -> String.format("(t_id=%s,s_id=%s)", span.getTraceId(), span.getSpanId()))
+            .collect(Collectors.joining(", ", "[", "]")));
     for (final CoreSpan<?> span : trace) {
       DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
       span.removeTag(Tags.TEST_SESSION_ID);
@@ -158,7 +164,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       }
 
       LOGGER.debug(
-          "Test span serialization - span: {}, sessionID: {}, moduleID: {}, suiteID: {}, traceID: {}, spanID: {}, parentID: {}",
+          "[ISSUE_DEBUG] Test span serialization - span: {}, sessionID: {}, moduleID: {}, suiteID: {}, traceID: {}, spanID: {}, parentID: {}",
           span.getOperationName(),
           testSessionId,
           testModuleId,
@@ -234,6 +240,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.writeInt(span.getError());
       /* 7 (meta), 8 (metrics) */
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
+
+      LOGGER.debug(
+          "[ISSUE_DEBUG] Test span serialization finished for - traceID: {}, spanID: {}",
+          traceId,
+          spanId);
     }
     eventCount += trace.size();
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
