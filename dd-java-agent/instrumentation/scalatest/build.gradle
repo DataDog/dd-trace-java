@@ -15,7 +15,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.scalatest', name: 'scalatest_2.13', version: '3.0.8'
 
-  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-testing')
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-testing')
 
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.15'
   testImplementation group: 'org.scalatest', name: 'scalatest_2.12', version: '3.1.0'

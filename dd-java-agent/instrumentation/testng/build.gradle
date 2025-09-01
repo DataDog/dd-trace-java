@@ -7,7 +7,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
-  testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-testing')
+  testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-testing')
 
   testFixturesImplementation group: 'org.testng', name: 'testng', version: '6.4'
   testFixturesApi group: 'org.apache.maven', name: 'maven-artifact', version: '3.9.9'

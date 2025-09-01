@@ -15,7 +15,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:junit-4.10')
   compileOnly group: 'org.scalameta', name: 'munit_2.13', version: '0.7.28'
 
-  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-testing')
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-testing')
 
   // version used below is not the minimum one that we support,
   // but the tests need to use it in order to be compliant with Spock 2.x

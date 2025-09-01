@@ -119,6 +119,7 @@ include(
 include(
   ":dd-java-agent:agent-ci-visibility",
   ":dd-java-agent:agent-ci-visibility:civisibility-testing",
+  ":dd-java-agent:agent-ci-visibility:civisibility-instrumentation-testing",
 )
 
 // llm-observability
