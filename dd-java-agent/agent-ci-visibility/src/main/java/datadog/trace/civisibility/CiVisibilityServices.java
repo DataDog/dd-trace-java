@@ -85,10 +85,8 @@ public class CiVisibilityServices {
     this.processHierarchy = new ProcessHierarchy();
     this.config = config;
     this.metricCollector = metricCollector;
-    this.backendApi =
-        new BackendApiFactory(config, sco).createBackendApi(Intake.API);
-    this.ciIntake =
-        new BackendApiFactory(config, sco).createBackendApi(Intake.CI_INTAKE);
+    this.backendApi = new BackendApiFactory(config, sco).createBackendApi(Intake.API);
+    this.ciIntake = new BackendApiFactory(config, sco).createBackendApi(Intake.CI_INTAKE);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 

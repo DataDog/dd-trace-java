@@ -200,7 +200,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Known tests marking - {},\n"
             + "Auto test retries - {},\n"
             + "Test Management - {},\n"
-            + "Code coverage report upload - {}\n",
+            + "Code coverage report upload - {},\n"
             + "Failed Test Replay - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
