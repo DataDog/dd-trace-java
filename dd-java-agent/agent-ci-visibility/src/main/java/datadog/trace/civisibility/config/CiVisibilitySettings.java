@@ -18,6 +18,7 @@ public class CiVisibilitySettings {
           false,
           false,
           false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
           TestManagementSettings.DEFAULT,
           null);
@@ -29,6 +30,7 @@ public class CiVisibilitySettings {
   private final boolean flakyTestRetriesEnabled;
   private final boolean impactedTestsDetectionEnabled;
   private final boolean knownTestsEnabled;
+  private final boolean coverageReportUploadEnabled;
   private final boolean failedTestReplayEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
@@ -42,6 +44,7 @@ public class CiVisibilitySettings {
       boolean flakyTestRetriesEnabled,
       boolean impactedTestsDetectionEnabled,
       boolean knownTestsEnabled,
+      boolean coverageReportUploadEnabled,
       boolean failedTestReplayEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       TestManagementSettings testManagementSettings,
@@ -53,6 +56,7 @@ public class CiVisibilitySettings {
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.knownTestsEnabled = knownTestsEnabled;
+    this.coverageReportUploadEnabled = coverageReportUploadEnabled;
     this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
@@ -85,6 +89,10 @@ public class CiVisibilitySettings {
 
   public boolean isKnownTestsEnabled() {
     return knownTestsEnabled;
+  }
+
+  public boolean isCoverageReportUploadEnabled() {
+    return coverageReportUploadEnabled;
   }
 
   public boolean isFailedTestReplayEnabled() {
@@ -120,6 +128,7 @@ public class CiVisibilitySettings {
         && flakyTestRetriesEnabled == that.flakyTestRetriesEnabled
         && impactedTestsDetectionEnabled == that.impactedTestsDetectionEnabled
         && knownTestsEnabled == that.knownTestsEnabled
+        && coverageReportUploadEnabled == that.coverageReportUploadEnabled
         && failedTestReplayEnabled == that.failedTestReplayEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
@@ -136,6 +145,7 @@ public class CiVisibilitySettings {
         flakyTestRetriesEnabled,
         impactedTestsDetectionEnabled,
         knownTestsEnabled,
+        coverageReportUploadEnabled,
         failedTestReplayEnabled,
         earlyFlakeDetectionSettings,
         testManagementSettings,
@@ -164,6 +174,7 @@ public class CiVisibilitySettings {
           getBoolean(json, "flaky_test_retries_enabled", false),
           getBoolean(json, "impacted_tests_enabled", false),
           getBoolean(json, "known_tests_enabled", false),
+          getBoolean(json, "coverage_report_upload_enabled", false),
           getBoolean(json, "di_enabled", false),
           EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("early_flake_detection")),

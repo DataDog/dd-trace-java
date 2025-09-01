@@ -8,6 +8,8 @@ public final class CiVisibilityConfig {
       "civisibility.trace.sanitation.enabled";
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
+  public static final String CIVISIBILITY_INTAKE_AGENTLESS_URL =
+      "civisibility.intake.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
   public static final String CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED =
       "civisibility.build.instrumentation.enabled";
@@ -107,6 +109,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
       "civisibility.jacoco.plugin.version";
   public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
+  public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED =
+      "civisibility.code.coverage.report.upload.enabled";
 
   public static final String TEST_SESSION_NAME = "test.session.name";
 

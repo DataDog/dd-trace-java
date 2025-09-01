@@ -177,6 +177,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             settings,
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
+    boolean codeCoverageReportUpload =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isCoverageReportUploadEnabled,
+            Config::isCiVisibilityCodeCoverageReportUploadEnabled);
     boolean failedTestReplayEnabled =
         isFeatureEnabled(
             settings,
@@ -195,6 +200,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Known tests marking - {},\n"
             + "Auto test retries - {},\n"
             + "Test Management - {},\n"
+            + "Code coverage report upload - {}\n",
             + "Failed Test Replay - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
@@ -208,6 +214,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         knownTestsRequest,
         flakyTestRetriesEnabled,
         testManagementSettings.isEnabled(),
+        codeCoverageReportUpload,
         failedTestReplayEnabled);
 
     Future<SkippableTests> skippableTestsFuture =
@@ -260,6 +267,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               testSkippingEnabled,
               flakyTestRetriesEnabled,
               impactedTestsEnabled,
+              codeCoverageReportUpload,
               failedTestReplayEnabled,
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()

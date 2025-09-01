@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.percentage.child;
+package datadog.trace.civisibility.coverage.report.child;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.civisibility.ipc.ModuleSignal;

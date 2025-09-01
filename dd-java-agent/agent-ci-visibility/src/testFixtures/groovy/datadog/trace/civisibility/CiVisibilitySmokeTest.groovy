@@ -53,6 +53,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
     assert !receivedTelemetryDistributions.isEmpty()
   }
 
+  protected verifyCoverageReports(String projectName, List<CiVisibilityTestUtils.CoverageReport> reports, Map<String, String> replacements) {
+    CiVisibilityTestUtils.assertData(projectName, reports, replacements)
+  }
+
   protected static verifySnapshotLogs(List<Map<String, Object>> receivedLogs, int expectedProbes, int expectedSnapshots) {
     def logsPerProbe = 3 // 3 probe statuses per probe -> received, installed, emitting
 

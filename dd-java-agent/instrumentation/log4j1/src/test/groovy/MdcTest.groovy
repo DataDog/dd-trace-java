@@ -1,15 +1,10 @@
-import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import org.apache.log4j.Category
 import org.apache.log4j.MDC
 import org.apache.log4j.Priority
 import org.apache.log4j.spi.LoggingEvent
-import spock.lang.IgnoreIf
 
 class MdcTest extends AgentTestRunner {
-  @IgnoreIf(reason = "TODO: Fix for Java 25.", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(25)
-  })
   def "should preserve mdc when logging injection is #injectionEnabled"() {
     setup:
     injectSysConfig("logs.injection", injectionEnabled)

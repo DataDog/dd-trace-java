@@ -306,6 +306,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -370,6 +371,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -436,6 +438,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -502,6 +505,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -568,6 +572,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
