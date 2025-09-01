@@ -1,5 +1,6 @@
 package datadog.trace.core.monitor;
 
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.DDSpanId.ZERO;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
@@ -9,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
@@ -33,6 +35,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private static final String[] STATUS_OK_TAGS = STATUS_TAGS.apply(200);
   private final RadixTreeCache<String[]> statusTagsCache =
       new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
+  private static final String[] BASE_TAGS =
+      new String[] {
+        "lang:java", "env:" + Config.get().getEnv(), "tracer_version:" + TRACER_VERSION
+      };
 
   private final AtomicBoolean started = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<TracerHealthMetrics> cancellation;
@@ -529,18 +535,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
 
         reportIfChanged(
-            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
-
-        reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
+            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, BASE_TAGS);
         reportIfChanged(
-            target.statsd, "stats.p0_dropped_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
+            target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, BASE_TAGS);
         reportIfChanged(
-            target.statsd, "stats.p0_dropped_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
+            target.statsd, "stats.dropped_p0_traces", target.clientStatsP0DroppedTraces, BASE_TAGS);
         reportIfChanged(
-            target.statsd, "stats.flushed_payloads", target.clientStatsRequests, NO_TAGS);
-        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
+            target.statsd, "stats.dropped_p0_spans", target.clientStatsP0DroppedSpans, BASE_TAGS);
         reportIfChanged(
-            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
+            target.statsd, "stats.flush_payloads", target.clientStatsRequests, BASE_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, BASE_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, BASE_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
