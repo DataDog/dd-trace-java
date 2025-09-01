@@ -4,3 +4,4 @@ subject_pattern: "project_path:DataDog/apm-reliability/dd-trace-java:ref_type:(b
 
 permissions:
   contents: read
+
