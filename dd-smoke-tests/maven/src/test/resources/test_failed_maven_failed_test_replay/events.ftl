@@ -278,6 +278,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -342,6 +343,7 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -410,6 +412,7 @@
       "_dd.debug.error.exception_hash" : "4e99779ed72c43d4b87387ee7cf4695cd904d2c4853b6054adcacfcfeffa",
       "_dd.debug.error.exception_id" : ${content_meta__dd_debug_error_exception_id},
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
@@ -482,6 +485,7 @@
       "_dd.debug.error.exception_hash" : "4e99779ed72c43d4b87387ee7cf4695cd904d2c4853b6054adcacfcfeffa",
       "_dd.debug.error.exception_id" : ${content_meta__dd_debug_error_exception_id_2},
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.failed_test_replay" : "1",
