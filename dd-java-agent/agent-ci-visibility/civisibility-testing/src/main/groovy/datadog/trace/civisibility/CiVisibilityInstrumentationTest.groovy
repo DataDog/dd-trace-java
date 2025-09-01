@@ -287,21 +287,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       }
       return true
     }
-
-    boolean waitForSpan(Predicate<DDSpan> predicate, long timeoutMillis) {
-      long deadline = System.currentTimeMillis() + timeoutMillis
-      synchronized (lock) {
-        while (!spans.stream().anyMatch(predicate)) {
-          def timeLeft = deadline - System.currentTimeMillis()
-          if (timeLeft > 0) {
-            lock.wait(timeLeft)
-          } else {
-            return false
-          }
-        }
-        return true
-      }
-    }
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
