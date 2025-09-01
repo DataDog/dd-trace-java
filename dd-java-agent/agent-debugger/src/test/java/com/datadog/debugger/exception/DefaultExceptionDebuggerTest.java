@@ -282,6 +282,17 @@ public class DefaultExceptionDebuggerTest {
   }
 
   @Test
+  public void failedTestReplayModeWithoutActiveTest() {
+    // other execution path is tested with smoke tests
+    ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
+    exceptionDebugger =
+        new DefaultExceptionDebugger(
+            manager, configurationUpdater, classNameFiltering, 100, 3, false, true);
+    exceptionDebugger.handleException(new RuntimeException("test"), mock(AgentSpan.class));
+    verify(manager, times(0)).isAlreadyInstrumented(any());
+  }
+
+  @Test
   public void syncConfig() {
     RuntimeException exception = new RuntimeException("test");
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);

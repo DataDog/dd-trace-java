@@ -41,6 +41,12 @@ public final class DebuggerConfigBridge {
     }
   }
 
+  // for testing purposes
+  static void reset() {
+    UPDATER.set(null);
+    DEFERRED_UPDATES.clear();
+  }
+
   public static boolean isDynamicInstrumentationEnabled() {
     DebuggerConfigUpdater updater = UPDATER.get();
     if (updater != null) {

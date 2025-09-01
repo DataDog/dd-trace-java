@@ -6,13 +6,13 @@ public class DebuggerConfigUpdate {
   private final Boolean dynamicInstrumentationEnabled;
   private final Boolean exceptionReplayEnabled;
   private final Boolean codeOriginEnabled;
-  private final Boolean liveDebuggingEnabled;
+  private final Boolean distributedDebuggerEnabled;
 
   private DebuggerConfigUpdate(Builder builder) {
     this.dynamicInstrumentationEnabled = builder.dynamicInstrumentationEnabled;
     this.exceptionReplayEnabled = builder.exceptionReplayEnabled;
     this.codeOriginEnabled = builder.codeOriginEnabled;
-    this.liveDebuggingEnabled = builder.liveDebuggingEnabled;
+    this.distributedDebuggerEnabled = builder.distributedDebuggerEnabled;
   }
 
   public Boolean getDynamicInstrumentationEnabled() {
@@ -27,8 +27,8 @@ public class DebuggerConfigUpdate {
     return codeOriginEnabled;
   }
 
-  public Boolean getLiveDebuggingEnabled() {
-    return liveDebuggingEnabled;
+  public Boolean getDistributedDebuggerEnabled() {
+    return distributedDebuggerEnabled;
   }
 
   @Override
@@ -38,7 +38,7 @@ public class DebuggerConfigUpdate {
     return Objects.equals(dynamicInstrumentationEnabled, that.dynamicInstrumentationEnabled)
         && Objects.equals(exceptionReplayEnabled, that.exceptionReplayEnabled)
         && Objects.equals(codeOriginEnabled, that.codeOriginEnabled)
-        && Objects.equals(liveDebuggingEnabled, that.liveDebuggingEnabled);
+        && Objects.equals(distributedDebuggerEnabled, that.distributedDebuggerEnabled);
   }
 
   @Override
@@ -50,8 +50,8 @@ public class DebuggerConfigUpdate {
         + exceptionReplayEnabled
         + ", codeOriginEnabled="
         + codeOriginEnabled
-        + ", liveDebuggingEnabled="
-        + liveDebuggingEnabled
+        + ", distributedDebuggerEnabled="
+        + distributedDebuggerEnabled
         + '}';
   }
 
@@ -61,21 +61,21 @@ public class DebuggerConfigUpdate {
         dynamicInstrumentationEnabled,
         exceptionReplayEnabled,
         codeOriginEnabled,
-        liveDebuggingEnabled);
+        distributedDebuggerEnabled);
   }
 
   public boolean hasUpdates() {
     return dynamicInstrumentationEnabled != null
         || exceptionReplayEnabled != null
         || codeOriginEnabled != null
-        || liveDebuggingEnabled != null;
+        || distributedDebuggerEnabled != null;
   }
 
   public static final class Builder {
     private Boolean dynamicInstrumentationEnabled;
     private Boolean exceptionReplayEnabled;
     private Boolean codeOriginEnabled;
-    private Boolean liveDebuggingEnabled;
+    private Boolean distributedDebuggerEnabled;
 
     public Builder setDynamicInstrumentationEnabled(Boolean dynamicInstrumentationEnabled) {
       this.dynamicInstrumentationEnabled = dynamicInstrumentationEnabled;
@@ -92,8 +92,8 @@ public class DebuggerConfigUpdate {
       return this;
     }
 
-    public Builder setLiveDebuggingEnabled(Boolean liveDebuggingEnabled) {
-      this.liveDebuggingEnabled = liveDebuggingEnabled;
+    public Builder setDistributedDebuggerEnabled(Boolean distributedDebuggerEnabled) {
+      this.distributedDebuggerEnabled = distributedDebuggerEnabled;
       return this;
     }
 
@@ -101,14 +101,14 @@ public class DebuggerConfigUpdate {
       return setDynamicInstrumentationEnabled(true)
           .setExceptionReplayEnabled(true)
           .setCodeOriginEnabled(true)
-          .setLiveDebuggingEnabled(true);
+          .setDistributedDebuggerEnabled(true);
     }
 
     public Builder disableAll() {
       return setDynamicInstrumentationEnabled(false)
           .setExceptionReplayEnabled(false)
           .setCodeOriginEnabled(false)
-          .setLiveDebuggingEnabled(false);
+          .setDistributedDebuggerEnabled(false);
     }
 
     public DebuggerConfigUpdate build() {

@@ -31,7 +31,7 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
         DebuggerAgent::stopCodeOriginForSpans);
     startOrStopFeature(
         DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED,
-        update.getLiveDebuggingEnabled(),
+        update.getDistributedDebuggerEnabled(),
         DebuggerAgent::startDistributedDebugger,
         DebuggerAgent::stopDistributedDebugger);
   }

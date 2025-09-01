@@ -226,7 +226,7 @@ final class TracingConfigPoller {
             .setDynamicInstrumentationEnabled(libConfig.dynamicInstrumentationEnabled)
             .setExceptionReplayEnabled(libConfig.exceptionReplayEnabled)
             .setCodeOriginEnabled(libConfig.codeOriginEnabled)
-            .setLiveDebuggingEnabled(libConfig.liveDebuggingEnabled)
+            .setDistributedDebuggerEnabled(libConfig.liveDebuggingEnabled)
             .build());
     builder.apply();
   }
