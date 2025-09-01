@@ -39,7 +39,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
       "Aborting transform for class name = " + typeName + ", loader = " + classLoader)
     }
 
-    Object.onDiscovery(typeName, classLoader, module, loaded)
+    super.onDiscovery(typeName, classLoader, module, loaded)
   }
 
   def "#keyClassName structure modified = #shouldModifyStructure"() {
