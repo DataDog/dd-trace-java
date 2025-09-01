@@ -41,13 +41,13 @@ class ExcludeFilterForkedTest extends AgentTestRunner {
 
     where:
     clazz                    | hasRunnable | hasExecutor | hasAccessor
-    ExcludedRunnable         | false | false | false
-    NormalRunnable           | true  | false | true
-    RunnableExcludedExecutor | true  | false | true
-    ExcludedExecutor         | false | false | false
-    NormalExecutor           | false | true  | true
-    ExecutorExcludedRunnable | false | true  | true
-    ExecutorRunnable         | true  | true  | true
+    ExcludedRunnable         | false       | false       | false
+    NormalRunnable           | true        | false       | true
+    RunnableExcludedExecutor | true        | false       | true
+    ExcludedExecutor         | false       | false       | false
+    NormalExecutor           | false       | true        | true
+    ExecutorExcludedRunnable | false       | true        | true
+    ExecutorRunnable         | true        | true        | true
   }
 
   static class InjectionCheck {

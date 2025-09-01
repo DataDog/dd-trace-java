@@ -72,12 +72,12 @@ class FieldInjectionForkedTest extends AgentTestRunner {
 
     where:
     keyClass                            | shouldModifyStructure | isInstrumented
-    KeyClass                            | true  | true
-    UntransformableKeyClass             | false | false
-    ValidSerializableKeyClass           | true  | true
-    InvalidSerializableKeyClass         | true  | true
-    ValidInheritsSerializableKeyClass   | true  | true
-    InvalidInheritsSerializableKeyClass | true  | true
+    KeyClass                            | true                  | true
+    UntransformableKeyClass             | false                 | false
+    ValidSerializableKeyClass           | true                  | true
+    InvalidSerializableKeyClass         | true                  | true
+    ValidInheritsSerializableKeyClass   | true                  | true
+    InvalidInheritsSerializableKeyClass | true                  | true
 
     keyClassName = keyClass.getSimpleName()
   }
@@ -111,7 +111,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     new UntransformableKeyClass() | _
   }
 
-  @IgnoreIf({!InstrumenterConfig.get().isSerialVersionUIDFieldInjection()})
+  @IgnoreIf({ !InstrumenterConfig.get().isSerialVersionUIDFieldInjection() })
   def "serializability not impacted #serializable"() {
     expect:
     serialVersionUID(serializable) == serialVersionUID
