@@ -85,7 +85,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   SPAN_KIND_SERVER, SPAN_KIND_CLIENT, SPAN_KIND_CONSUMER, SPAN_KIND_PRODUCER)));
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION =
-      unmodifiableSet(new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER)));
+      unmodifiableSet(
+          new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
