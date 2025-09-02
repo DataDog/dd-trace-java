@@ -28,7 +28,7 @@ public interface Flow<T> {
     }
 
     class RequestBlockingAction implements Action {
-      private final int statusCode;
+      private final long statusCode;
       private final BlockingContentType blockingContentType;
       private final Map<String, String> extraHeaders;
 
@@ -56,7 +56,7 @@ public interface Flow<T> {
       }
 
       public int getStatusCode() {
-        return statusCode;
+        return Math.toIntExact(statusCode);
       }
 
       public BlockingContentType getBlockingContentType() {
