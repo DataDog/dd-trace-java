@@ -50,7 +50,7 @@ public final class SpockExtension
   }
 
   private static void assertNotBootstrapClass(final Class<?> testClass, final Class<?> clazz) {
-    if (!clazz.isPrimitive() && BootstrapClasspathSetup.isBootstrapClass(clazz.getName())) {
+    if (BootstrapClasspathSetup.isBootstrapClass(clazz)) {
       throw new IllegalStateException(
           testClass.getName()
               + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "

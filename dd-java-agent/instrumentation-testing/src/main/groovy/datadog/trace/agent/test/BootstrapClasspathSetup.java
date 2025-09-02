@@ -124,7 +124,7 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
     // Ensure there weren't any bootstrap classes loaded prematurely.
     Set<String> prematureBootstrapClasses = new TreeSet<>();
     for (Class clazz : ByteBuddyAgent.getInstrumentation().getAllLoadedClasses()) {
-      if (isBootstrapClass(clazz.getName())
+      if (isBootstrapClass(clazz)
           && clazz.getClassLoader() != null
           && !clazz.getName().equals("datadog.trace.api.DisableTestTrace")
           && !clazz.getName().startsWith("org.slf4j")) {
@@ -150,7 +150,7 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
   private static File createBootstrapJar() throws IOException {
     Set<String> bootstrapClasses = new HashSet<>();
     for (ClassPath.ClassInfo info : TEST_CLASSPATH.getAllClasses()) {
-      if (isBootstrapClass(info.getName())) {
+      if (isBootstrapClass(info)) {
         bootstrapClasses.add(info.getResourceName());
       }
     }
@@ -160,7 +160,18 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
     return new File(jar.getFile());
   }
 
-  public static boolean isBootstrapClass(final String name) {
+  public static boolean isBootstrapClass(final Class<?> clazz) {
+    String resource = clazz.getName().replace('.', '/') + ".class";
+    URL url = clazz.getClassLoader() != null ? clazz.getClassLoader().getResource(resource) : null;
+    return !clazz.isPrimitive() && isBootstrapClass(clazz.getName(), resource, url);
+  }
+
+  public static boolean isBootstrapClass(final ClassPath.ClassInfo info) {
+    return isBootstrapClass(info.getName(), info.getResourceName(), info.url());
+  }
+
+  private static boolean isBootstrapClass(
+      final String name, final String resourceName, final URL url) {
     for (String prefix : TEST_BOOTSTRAP_PREFIXES) {
       if (name.startsWith(prefix)) {
         for (String excluded : TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES) {
@@ -168,19 +179,25 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
             return false;
           }
         }
-        if (TEST_CLASS_PATTERN.matcher(name).matches()) {
-          // Tests should be loaded by the application classloader.
-          // If a test loaded by the bootstrap classloader,
-          // it will either fail during the test discovery phase
-          // (if method signatures contain classes loaded by the application classloader)
-          // or will not be discovered at all
-          // (because JUnit 5 will be looking for annotation classes loaded by the application
-          // classloader)
+        // Tests should be loaded by the application classloader.
+        // If a test is loaded by the bootstrap classloader,
+        // it will either fail during the test discovery phase
+        // (if its method signatures contain classes only visible to the app classloader)
+        // or will not be discovered at all
+        // (because JUnit will be looking for annotation classes loaded by the app classloader)
+        if (TEST_CLASS_PATTERN.matcher(name).matches() && isATest(resourceName, url)) {
           return false;
         }
         return true;
       }
     }
     return false;
+  }
+
+  // A safety check to only consider classes from "test/latestDepTest/forkedTest/etc" source roots
+  private static boolean isATest(String resourceName, URL url) {
+    return url != null
+        && (url.getPath().endsWith("test/" + resourceName)
+            || url.getPath().endsWith("Test/" + resourceName));
   }
 }
