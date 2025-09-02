@@ -52,7 +52,6 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -79,8 +78,6 @@ public class WAFModule implements AppSecModule {
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
 
   private static final JsonAdapter<List<WAFResultData>> RES_JSON_ADAPTER;
-
-  private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
   private boolean init = true;
@@ -117,12 +114,6 @@ public class WAFModule implements AppSecModule {
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER = moshi.adapter(Types.newParameterizedType(List.class, WAFResultData.class));
 
-    Map<String, Object> actionParams = new HashMap<>();
-    actionParams.put("status_code", 403);
-    actionParams.put("type", "auto");
-    actionParams.put("grpc_status_code", 10);
-    DEFAULT_ACTIONS =
-        Collections.singletonMap("block", new ActionInfo("block_request", actionParams));
     createLimitsObject();
   }
 
