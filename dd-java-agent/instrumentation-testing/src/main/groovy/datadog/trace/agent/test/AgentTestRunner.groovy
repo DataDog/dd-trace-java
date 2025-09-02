@@ -22,6 +22,7 @@ import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.TracerInstaller
+import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
@@ -461,6 +462,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
       spiedAgentSpan
     }
+
+    // if a test enables the instrumentation it verifies,
+    // the cache needs to be recomputed taking into account that instrumentation's matchers
+    ClassLoaderMatchers.resetState()
 
     assert ServiceLoader.load(InstrumenterModule, AgentTestRunner.getClassLoader())
     .iterator()
