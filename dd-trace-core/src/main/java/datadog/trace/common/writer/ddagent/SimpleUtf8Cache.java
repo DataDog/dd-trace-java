@@ -46,12 +46,12 @@ import java.util.Arrays;
 public final class SimpleUtf8Cache implements EncodingCache {
   private static final int MAX_PROBES = 4;
 
-  private final int SIZE = 128;
+  private final int SIZE = 64;
 
   private final int[] markers = new int[SIZE];
   private final CacheEntry[] entries = new CacheEntry[SIZE];
 
-  private static final double HIT_DECAY = 0.8D;
+  private static final double HIT_DECAY = 0.5D;
   private static final double PURGE_THRESHOLD = 0.25D;
 
   protected int hits = 0;
