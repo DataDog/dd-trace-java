@@ -41,6 +41,7 @@ import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
@@ -241,7 +242,7 @@ public class CiVisibilitySystem {
           repoServices.executionSettingsFactory,
           signalServer,
           repoServices.repoIndexProvider,
-          coverageServices.coverageCalculatorFactory);
+          coverageServices.coverageProcessorFactory);
     };
   }
 
@@ -265,6 +266,11 @@ public class CiVisibilitySystem {
               executionSettings,
               repoServices.sourcePathResolver,
               services.linesResolver);
+
+      // only add report upload capability for children sessions,
+      // because report upload is only supported when the build system is instrumented
+      capabilities = new ArrayList<>(capabilities);
+      capabilities.add(LibraryCapability.COV_REPORT_UPLOAD);
 
       return new ProxyTestSession(
           services.processHierarchy.parentProcessModuleContext,

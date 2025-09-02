@@ -7,18 +7,6 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
-import spock.lang.IgnoreIf
-
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import javax.xml.parsers.DocumentBuilder
-import javax.xml.parsers.DocumentBuilderFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -29,9 +17,17 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
+
+import javax.xml.parsers.DocumentBuilder
+import javax.xml.parsers.DocumentBuilderFactory
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
@@ -80,6 +76,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenImpactedTestsDetection(true)
 
+    def coverageReportExpected = jacocoCoverage && CiVisibilitySmokeTest.classLoader.getResource(projectName + "/coverage_report_event.ftl") != null
+    if (coverageReportExpected) {
+      mockBackend.givenCodeCoverageReportUpload(true)
+    }
+
     def agentArgs = jacocoCoverage ? [
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}" as String
     ] : []
@@ -93,6 +94,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(expectedEvents), mockBackend.waitForCoverages(expectedCoverages))
     verifyTelemetryMetrics(mockBackend.getAllReceivedTelemetryMetrics(), mockBackend.getAllReceivedTelemetryDistributions(), expectedEvents)
+
+    if (coverageReportExpected) {
+      def reports = mockBackend.waitForCoverageReports(1)
+      def realProjectHome = projectHome.toRealPath().toString()
+      verifyCoverageReports(projectName, reports, ["ci_workspace_path": realProjectHome])
+    }
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                              | minSupportedJavaVersion
@@ -395,6 +402,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
 
       if (setServiceName) {
