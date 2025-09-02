@@ -1,5 +1,6 @@
 package com.datadog.appsec.ddwaf
 
+import com.datadog.appsec.AppSecModule.AppSecModuleActivationException
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecConfigServiceImpl
@@ -147,8 +148,40 @@ class WAFModuleSpecification extends DDSpecification {
       listener.remove(config, null)
       return
     }
-    def json = ADAPTER.toJson(map)
+    // Convert Double values to Long for status codes
+    def convertedMap = convertDoublesToLongs(map)
+    def json = ADAPTER.toJson(convertedMap)
     listener.accept(config, json.getBytes(), null)
+  }
+
+  private static Map<String, Object> convertDoublesToLongs(Map<String, Object> map) {
+    def result = [:]
+    map.each { key, value ->
+      if (value instanceof Map) {
+        result[key] = convertDoublesToLongs(value as Map<String, Object>)
+      } else if (value instanceof List) {
+        result[key] = convertDoublesToLongs(value as List)
+      } else if (value instanceof Double && ((Double) value).longValue() == ((Double) value).doubleValue()) {
+        // Convert whole number doubles to longs
+        result[key] = ((Double) value).longValue()
+      } else {
+        result[key] = value
+      }
+    }
+    return result
+  }
+
+  private static List convertDoublesToLongs(List list) {
+    return list.collect { item ->
+      if (item instanceof Map) {
+        return convertDoublesToLongs(item as Map<String, Object>)
+      } else if (item instanceof List) {
+        return convertDoublesToLongs(item as List)
+      } else if (item instanceof Double && ((Double) item).longValue() == ((Double) item).doubleValue()) {
+        return ((Double) item).longValue()
+      }
+      return item
+    }
   }
 
   void 'override on_match through reconfiguration'() {
@@ -1309,8 +1342,9 @@ class WAFModuleSpecification extends DDSpecification {
     initialRuleAddWithMap(waf)
 
     then:
-    thrown RuntimeException
+    thrown AppSecModuleActivationException
     wafModule.dataSubscriptions.empty
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, false)
     0 * _
   }
 
@@ -1321,8 +1355,10 @@ class WAFModuleSpecification extends DDSpecification {
     initialRuleAddWithMap(waf)
 
     then:
-    thrown RuntimeException
+    thrown AppSecModuleActivationException
     wafModule.ctxAndAddresses.get() == null
+    // WAF initialization is attempted but fails, so wafInit is called with success=false
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, false)
     0 * _
   }
 
