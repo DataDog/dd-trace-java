@@ -46,7 +46,7 @@ import java.util.Arrays;
 public final class SimpleUtf8Cache implements EncodingCache {
   private static final int MAX_PROBES = 4;
 
-  private final int SIZE = 64;
+  private final int SIZE = 128;
 
   private final int[] markers = new int[SIZE];
   private final CacheEntry[] entries = new CacheEntry[SIZE];
@@ -75,7 +75,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
     Arrays.fill(this.markers, 0);
   }
-
+  
   @Override
   public byte[] encode(CharSequence charSeq) {
     if (charSeq instanceof String) {
@@ -164,9 +164,14 @@ public final class SimpleUtf8Cache implements EncodingCache {
     int index = initialBucketIndex(marks, newAdjHash);
 
     int priorMarkHash = marks[index];
-    marks[index] = newAdjHash;
 
-    return (priorMarkHash == newAdjHash);
+    boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
+    if (match) {
+      marks[index] = 0;
+    } else {
+      marks[index] = priorMarkHash | newAdjHash;
+    }
+    return match;
   }
 
   static final class CacheEntry {

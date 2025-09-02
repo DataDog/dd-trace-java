@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -65,10 +64,10 @@ import java.util.Arrays;
  * provide better cache utilization.
  */
 public final class GenerationalUtf8Cache implements EncodingCache {
-  private static final int MAX_PROBES = 4;
+  private static final int MAX_PROBES = 8;
 
   private static final int MIN_PROMOTION_TRESHOLD = 2;
-  private static final int INITIAL_PROMOTION_THRESHOLD = 10;
+  private static final int INITIAL_PROMOTION_THRESHOLD = 16;
 
   private static final double SCORE_DECAY = 0.8D;
   private static final double PURGE_THRESHOLD = 0.1D;
@@ -93,8 +92,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     this.accessTimeMs = System.currentTimeMillis();
 
     // These sizes must be powers of 2
-    this.edenEntries = new CacheEntry[64];
-    this.edenMarkers = new int[64];
+    this.edenEntries = new CacheEntry[128];
+    this.edenMarkers = new int[128];
 
     // The size must be a power of 2
     this.tenuredEntries = new CacheEntry[128];
@@ -115,27 +114,36 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   }
 
   /**
-   * Recalibrates the cache
-   * Applies a decay to existing entries - and purges entries below the PURGE_THRESHOLD
-   * 
-   * Adjusts the promotion threshold depending on ratio of promotions to 
-   * evictions, since prior recalibration
-   * 
-   * While still racy this method is synchronized to avoid simultaneous recalibrations
+   * Recalibrates the cache Applies a decay to existing entries - and purges entries below the
+   * PURGE_THRESHOLD
+   *
+   * <p>Adjusts the promotion threshold depending on ratio of promotions to evictions, since prior
+   * recalibration
+   *
+   * <p>While still racy this method is synchronized to avoid simultaneous recalibrations
    */
   public void recalibrate(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;
 
-    CacheEntry[] thisEntries = this.edenEntries;
-    for (int i = 0; i < thisEntries.length; ++i) {
-      CacheEntry entry = thisEntries[i];
+    CacheEntry[] edenEntries = this.edenEntries;
+    for (int i = 0; i < edenEntries.length; ++i) {
+      CacheEntry entry = edenEntries[i];
       if (entry == null) continue;
 
       boolean purge = entry.decay();
-      if (purge) this.edenEntries[i] = null;
+      if (purge) edenEntries[i] = null;
     }
 
     Arrays.fill(this.edenMarkers, 0);
+
+    CacheEntry[] tenuredEntries = this.tenuredEntries;
+    for (int i = 0; i < tenuredEntries.length; ++i) {
+      CacheEntry entry = tenuredEntries[i];
+      if (entry == null) continue;
+
+      boolean purge = entry.decay();
+      if (purge) tenuredEntries[i] = null;
+    }
 
     int totalPromotions = this.promotions + this.earlyPromotions;
     if (totalPromotions == 0 && this.promotionThreshold >= MIN_PROMOTION_TRESHOLD) {
@@ -174,26 +182,26 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   public final byte[] getUtf8(String value, long accessTimeMs) {
     int adjHash = CacheEntry.adjHash(value);
 
-    CacheEntry[] localEntries = this.edenEntries;
+    CacheEntry[] edenEntries = this.edenEntries;
     long lookupTimeMs = this.accessTimeMs;
 
-    int matchingLocalIndex = lookupEntryIndex(localEntries, adjHash, value, lookupTimeMs);
-    if (matchingLocalIndex != -1) {
-      CacheEntry localEntry = localEntries[matchingLocalIndex];
+    int matchingEdenIndex = lookupEntryIndex(edenEntries, adjHash, value, lookupTimeMs);
+    if (matchingEdenIndex != -1) {
+      CacheEntry edenEntry = edenEntries[matchingEdenIndex];
 
-      double hits = localEntry.hit(lookupTimeMs);
+      double hits = edenEntry.hit(lookupTimeMs);
       if (hits > this.promotionThreshold) {
         // mark promoted first - to avoid racy insertions
         this.promotions += 1;
 
-        boolean evicted = lruInsert(this.tenuredEntries, localEntry);
+        boolean evicted = lruInsert(this.tenuredEntries, edenEntry);
         if (evicted) this.tenuredEvictions += 1;
 
-        localEntries[matchingLocalIndex] = null;
+        edenEntries[matchingEdenIndex] = null;
       }
 
       this.edenHits += 1;
-      return localEntry.utf8();
+      return edenEntry.utf8();
     }
 
     CacheEntry[] promotedEntries = this.tenuredEntries;
@@ -219,12 +227,12 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     newEntry.hit(lookupTimeMs);
 
     // search for empty slot or failing that the MFU entry
-    int localMfuIndex = findFirstAvailableOrMfuIndex(localEntries, adjHash);
-    CacheEntry localMfuEntry = localEntries[localMfuIndex];
+    int localMfuIndex = findFirstAvailableOrMfuIndex(edenEntries, adjHash);
+    CacheEntry localMfuEntry = edenEntries[localMfuIndex];
 
     // Found an empty slot - fill it
     if (localMfuEntry == null) {
-      localEntries[localMfuIndex] = newEntry;
+      edenEntries[localMfuIndex] = newEntry;
       return newEntry.utf8();
     }
 
@@ -235,14 +243,14 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       promotedEntries[globalAvailableIndex] = localMfuEntry;
       this.earlyPromotions += 1;
 
-      localEntries[localMfuIndex] = newEntry;
+      edenEntries[localMfuIndex] = newEntry;
       return CacheEntry.utf8(value);
     }
 
     // No empty slot - or space to promote into the global cache
     // Insert into local cache while evicting the LFU
-    boolean evicted = lfuInsert(localEntries, newEntry);
-    if (evicted) this.tenuredEvictions += 1;
+    boolean evicted = lfuInsert(edenEntries, newEntry);
+    if (evicted) this.edenEvictions += 1;
 
     return newEntry.utf8();
   }
@@ -282,9 +290,14 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     int index = initialBucketIndex(marks, newAdjHash);
 
     int priorMarkHash = marks[index];
-    marks[index] = newAdjHash;
 
-    return (priorMarkHash == newAdjHash);
+    boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
+    if (match) {
+      marks[index] = 0;
+    } else {
+      marks[index] = priorMarkHash | newAdjHash;
+    }
+    return match;
   }
 
   static final boolean lfuInsert(CacheEntry[] entries, CacheEntry newEntry) {
