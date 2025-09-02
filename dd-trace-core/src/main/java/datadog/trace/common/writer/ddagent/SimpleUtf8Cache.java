@@ -58,10 +58,10 @@ public final class SimpleUtf8Cache implements EncodingCache {
   protected int evictions = 0;
 
   /**
-   * Recalibrates the cache
-   * Applies a decay to existing entries - and purges entries below the PURGE_THRESHOLD
-   * 
-   * While still racy this method is synchronized to avoid simultaneous recalibrations
+   * Recalibrates the cache Applies a decay to existing entries - and purges entries below the
+   * PURGE_THRESHOLD
+   *
+   * <p>While still racy this method is synchronized to avoid simultaneous recalibrations
    */
   public synchronized void recalibrate() {
     CacheEntry[] thisEntries = this.entries;
@@ -75,7 +75,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
     Arrays.fill(this.markers, 0);
   }
-  
+
   @Override
   public byte[] encode(CharSequence charSeq) {
     if (charSeq instanceof String) {
@@ -163,8 +163,18 @@ public final class SimpleUtf8Cache implements EncodingCache {
   static final boolean mark(int[] marks, int newAdjHash) {
     int index = initialBucketIndex(marks, newAdjHash);
 
-    int priorMarkHash = marks[index];
+    // This is the 4th iteration of the marking strategy
+    // First version - used a mark entry, but that would prematurely
+    // burn a slot in the cache
+    // Second version - used a mark boolean, that worked well, but
+    // was a overly permissive in allowing the next request to the same slot
+    // to immediately create a CacheEntry
+    // Third version - used a mark hash that to match exactly,
+    // that could lead to racy fights over the cache line
+    // So this version is a hybrid of 2nd & 3rd, using a bloom filter
+    // that effectively degenerates to a boolean
 
+    int priorMarkHash = marks[index];
     boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
     if (match) {
       marks[index] = 0;

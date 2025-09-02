@@ -289,8 +289,18 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   static final boolean mark(int[] marks, int newAdjHash) {
     int index = initialBucketIndex(marks, newAdjHash);
 
-    int priorMarkHash = marks[index];
+    // This is the 4th iteration of the marking strategy
+    // First version - used a mark entry, but that would prematurely
+    // burn a slot in the cache
+    // Second version - used a mark boolean, that worked well, but
+    // was a overly permissive in allowing the next request to the same slot
+    // to immediately create a CacheEntry
+    // Third version - used a mark hash that to match exactly,
+    // that could lead to racy fights over the cache line
+    // So this version is a hybrid of 2nd & 3rd, using a bloom filter
+    // that effectively degenerates to a boolean
 
+    int priorMarkHash = marks[index];
     boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
     if (match) {
       marks[index] = 0;
