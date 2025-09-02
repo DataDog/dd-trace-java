@@ -135,15 +135,15 @@ public final class SimpleUtf8Cache implements EncodingCache {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry == null || entry.score() == 0) {
+      if (entry == null || entry.isPurgeable()) {
         entries[index] = newEntry;
         return false;
-      } else {
-        double hits = entry.score();
-        if (hits < lowestHits) {
-          lowestHits = hits;
-          lfuIndex = index;
-        }
+      }
+
+      double hits = entry.score();
+      if (hits < lowestHits) {
+        lowestHits = hits;
+        lfuIndex = index;
       }
     }
 
@@ -227,12 +227,16 @@ public final class SimpleUtf8Cache implements EncodingCache {
     boolean decay() {
       this.score *= HIT_DECAY;
 
+      return this.isPurgeable();
+    }
+
+    boolean isPurgeable() {
       return (this.score < PURGE_THRESHOLD);
     }
 
     static final int adjHash(String value) {
       int hash = value.hashCode();
-      return (hash == 0) ? 0xDA7AD06 : hash;
+      return (hash == 0) ? 0xDA7AD06 : hash ^ (hash >>> 16);
     }
 
     static final byte[] utf8(String value) {

@@ -76,7 +76,7 @@ public class GenerationalUtf8CacheTest {
       assertSame(cached, second);
     }
 
-    assertNotEquals(0, cache.promotedHits);
+    assertNotEquals(0, cache.tenuredHits);
   }
 
   @Test
@@ -101,7 +101,7 @@ public class GenerationalUtf8CacheTest {
       }
 
       edenHits += cache.edenHits;
-      promotedHits += cache.promotedHits;
+      promotedHits += cache.tenuredHits;
 
       printStats(cache);
     }
@@ -147,7 +147,7 @@ public class GenerationalUtf8CacheTest {
     System.out.printf(
         "eden hits: %5d\tpromotion hits: %5d\tpromotions: %5d\tearly: %5d\tlocal evictions: %5d\tglobal evictions: %5d%n",
         cache.edenHits,
-        cache.promotedHits,
+        cache.tenuredHits,
         cache.promotions,
         cache.earlyPromotions,
         cache.edenEvictions,

@@ -82,7 +82,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   private double promotionThreshold = INITIAL_PROMOTION_THRESHOLD;
 
   int edenHits = 0;
-  int promotedHits = 0;
+  int tenuredHits = 0;
   int earlyPromotions = 0;
   int promotions = 0;
   int edenEvictions = 0;
@@ -153,7 +153,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     }
 
     this.edenHits = 0;
-    this.promotedHits = 0;
+    this.tenuredHits = 0;
     this.earlyPromotions = 0;
     this.promotions = 0;
     this.edenEvictions = 0;
@@ -181,10 +181,20 @@ public final class GenerationalUtf8Cache implements EncodingCache {
    */
   public final byte[] getUtf8(String value, long accessTimeMs) {
     int adjHash = CacheEntry.adjHash(value);
-
-    CacheEntry[] edenEntries = this.edenEntries;
     long lookupTimeMs = this.accessTimeMs;
 
+    CacheEntry[] tenuredEntries = this.tenuredEntries;
+    int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, adjHash, value, lookupTimeMs);
+    if (matchingTenuredIndex != -1) {
+      CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
+
+      tenuredEntry.hit(lookupTimeMs);
+
+      this.tenuredHits += 1;
+      return tenuredEntry.utf8();
+    }
+
+    CacheEntry[] edenEntries = this.edenEntries;
     int matchingEdenIndex = lookupEntryIndex(edenEntries, adjHash, value, lookupTimeMs);
     if (matchingEdenIndex != -1) {
       CacheEntry edenEntry = edenEntries[matchingEdenIndex];
@@ -202,17 +212,6 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
       this.edenHits += 1;
       return edenEntry.utf8();
-    }
-
-    CacheEntry[] promotedEntries = this.tenuredEntries;
-    int matchingPromotedIndex = lookupEntryIndex(promotedEntries, adjHash, value, lookupTimeMs);
-    if (matchingPromotedIndex != -1) {
-      CacheEntry promotedEntry = promotedEntries[matchingPromotedIndex];
-
-      promotedEntry.hit(lookupTimeMs);
-
-      this.promotedHits += 1;
-      return promotedEntry.utf8();
     }
 
     boolean wasMarked = mark(this.edenMarkers, adjHash);
@@ -238,9 +237,9 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
     // See if we can early promote the local MFU entry into the global cache
     // Early promotion doesn't evict from the global cache
-    int globalAvailableIndex = findAvailableIndex(promotedEntries, localMfuEntry.adjHash());
-    if (globalAvailableIndex != -1) {
-      promotedEntries[globalAvailableIndex] = localMfuEntry;
+    int tenuredAvailableIndex = findAvailableIndex(tenuredEntries, localMfuEntry.adjHash());
+    if (tenuredAvailableIndex != -1) {
+      tenuredEntries[tenuredAvailableIndex] = localMfuEntry;
       this.earlyPromotions += 1;
 
       edenEntries[localMfuIndex] = newEntry;
@@ -347,18 +346,15 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       if (index >= entries.length) index = 0;
 
       CacheEntry entry = entries[index];
-      if (entry == null) {
+      if (entry == null || entry.matches(newEntry)) {
         entries[index] = newEntry;
         return false;
-      } else if (entry.matches(newEntry)) {
-        entries[index] = newEntry;
-        return false;
-      } else {
-        long lastUsedMs = entry.lastUsedMs();
-        if (lastUsedMs < lowestUsedMs) {
-          lowestUsedMs = lastUsedMs;
-          lruIndex = index;
-        }
+      }
+
+      long lastUsedMs = entry.lastUsedMs();
+      if (lastUsedMs < lowestUsedMs) {
+        lowestUsedMs = lastUsedMs;
+        lruIndex = index;
       }
     }
 
