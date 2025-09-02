@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.jar.JarFile;
+import java.util.regex.Pattern;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
@@ -73,6 +74,10 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
   };
 
   public static final ClassPath TEST_CLASSPATH = computeTestClasspath();
+
+  // matches names ending with Test and inner classes (e.g. MyTest$1, MyTest$InnerClass,
+  // MyTest$InnerClass$2, etc)
+  private static final Pattern TEST_CLASS_PATTERN = Pattern.compile(".*Test(\\$\\w+)*$");
 
   static {
     ByteBuddyAgent.install();
@@ -162,6 +167,16 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
           if (name.startsWith(excluded)) {
             return false;
           }
+        }
+        if (TEST_CLASS_PATTERN.matcher(name).matches()) {
+          // Tests should be loaded by the application classloader.
+          // If a test loaded by the bootstrap classloader,
+          // it will either fail during the test discovery phase
+          // (if method signatures contain classes loaded by the application classloader)
+          // or will not be discovered at all
+          // (because JUnit 5 will be looking for annotation classes loaded by the application
+          // classloader)
+          return false;
         }
         return true;
       }
