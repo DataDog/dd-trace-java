@@ -17,6 +17,7 @@ import java.net.URLClassLoader;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -161,17 +162,27 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
   }
 
   public static boolean isBootstrapClass(final Class<?> clazz) {
-    String resource = clazz.getName().replace('.', '/') + ".class";
-    URL url = clazz.getClassLoader() != null ? clazz.getClassLoader().getResource(resource) : null;
-    return !clazz.isPrimitive() && isBootstrapClass(clazz.getName(), resource, url);
+    return !clazz.isPrimitive()
+        && isBootstrapClass(
+            clazz.getName(),
+            () -> {
+              String resource = clazz.getName().replace('.', '/') + ".class";
+              URL url =
+                  clazz.getClassLoader() != null
+                      ? clazz.getClassLoader().getResource(resource)
+                      : null;
+              return isATest(resource, url);
+            });
   }
 
   public static boolean isBootstrapClass(final ClassPath.ClassInfo info) {
-    return isBootstrapClass(info.getName(), info.getResourceName(), info.url());
+    return isBootstrapClass(info.getName(), () -> isATest(info.getResourceName(), info.url()));
   }
 
   private static boolean isBootstrapClass(
-      final String name, final String resourceName, final URL url) {
+      final String name,
+      final Supplier<Boolean> isATest // this check can be expensive so it is evaluated lazily
+      ) {
     for (String prefix : TEST_BOOTSTRAP_PREFIXES) {
       if (name.startsWith(prefix)) {
         for (String excluded : TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES) {
@@ -185,7 +196,7 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
         // (if its method signatures contain classes only visible to the app classloader)
         // or will not be discovered at all
         // (because JUnit will be looking for annotation classes loaded by the app classloader)
-        if (TEST_CLASS_PATTERN.matcher(name).matches() && isATest(resourceName, url)) {
+        if (TEST_CLASS_PATTERN.matcher(name).matches() && isATest.get()) {
           return false;
         }
         return true;
