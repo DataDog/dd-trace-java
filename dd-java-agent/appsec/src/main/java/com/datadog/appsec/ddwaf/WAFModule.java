@@ -34,7 +34,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
@@ -53,7 +52,6 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -80,8 +78,6 @@ public class WAFModule implements AppSecModule {
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
 
   private static final JsonAdapter<List<WAFResultData>> RES_JSON_ADAPTER;
-
-  private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
   private boolean init = true;
@@ -118,12 +114,6 @@ public class WAFModule implements AppSecModule {
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER = moshi.adapter(Types.newParameterizedType(List.class, WAFResultData.class));
 
-    Map<String, Object> actionParams = new HashMap<>();
-    actionParams.put("status_code", 403);
-    actionParams.put("type", "auto");
-    actionParams.put("grpc_status_code", 10);
-    DEFAULT_ACTIONS =
-        Collections.singletonMap("block", new ActionInfo("block_request", actionParams));
     createLimitsObject();
   }
 
@@ -406,6 +396,7 @@ public class WAFModule implements AppSecModule {
         boolean isThrottled = reqCtx.isThrottled(rateLimiter);
 
         if (resultWithData.keep) {
+          reqCtx.setManuallyKept(true);
           if (!isThrottled) {
             AgentSpan activeSpan = AgentTracer.get().activeSpan();
             if (activeSpan != null) {
@@ -430,19 +421,17 @@ public class WAFModule implements AppSecModule {
             }
           }
         }
-        if (resultWithData.events && !events.isEmpty() && !isThrottled) {
-          reqCtx.reportEvents(events);
-        }
 
         if (flow.isBlocking()) {
           if (!gwCtx.isRasp) {
             reqCtx.setWafBlocked();
           }
         }
+        // report is still done even without keep, in case sampler_keep is desired
+        if (resultWithData.events) {
+          reqCtx.reportEvents(events);
+        }
       }
-
-      reqCtx.setKeepType(
-          resultWithData.keep ? PrioritySampling.USER_KEEP : PrioritySampling.USER_DROP);
 
       if (resultWithData.attributes != null && !resultWithData.attributes.isEmpty()) {
         reqCtx.reportDerivatives(resultWithData.attributes);
