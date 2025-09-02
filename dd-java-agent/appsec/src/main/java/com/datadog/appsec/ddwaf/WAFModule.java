@@ -34,7 +34,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
@@ -53,7 +52,6 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -80,8 +78,6 @@ public class WAFModule implements AppSecModule {
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
 
   private static final JsonAdapter<List<WAFResultData>> RES_JSON_ADAPTER;
-
-  private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
   private boolean init = true;
@@ -118,12 +114,6 @@ public class WAFModule implements AppSecModule {
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER = moshi.adapter(Types.newParameterizedType(List.class, WAFResultData.class));
 
-    Map<String, Object> actionParams = new HashMap<>();
-    actionParams.put("status_code", 403);
-    actionParams.put("type", "auto");
-    actionParams.put("grpc_status_code", 10);
-    DEFAULT_ACTIONS =
-        Collections.singletonMap("block", new ActionInfo("block_request", actionParams));
     createLimitsObject();
   }
 
@@ -423,15 +413,16 @@ public class WAFModule implements AppSecModule {
               // If active span is not available then we need to set manual keep in GatewayBridge
               log.debug("There is no active span available");
             }
+
+            if (resultWithData.events) {
+              reqCtx.reportEvents(events);
+            }
           } else {
             log.debug("Rate limited WAF events");
             if (!gwCtx.isRasp) {
               reqCtx.setWafRateLimited();
             }
           }
-        }
-        if (resultWithData.events && !events.isEmpty() && !isThrottled) {
-          reqCtx.reportEvents(events);
         }
 
         if (flow.isBlocking()) {
@@ -440,9 +431,6 @@ public class WAFModule implements AppSecModule {
           }
         }
       }
-
-      reqCtx.setKeepType(
-          resultWithData.keep ? PrioritySampling.USER_KEEP : PrioritySampling.USER_DROP);
 
       if (resultWithData.attributes != null && !resultWithData.attributes.isEmpty()) {
         reqCtx.reportDerivatives(resultWithData.attributes);
