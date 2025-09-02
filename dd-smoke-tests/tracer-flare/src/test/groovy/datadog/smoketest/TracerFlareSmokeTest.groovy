@@ -23,6 +23,7 @@ import java.util.zip.ZipInputStream
  */
 class TracerFlareSmokeTest extends AbstractSmokeTest {
 
+
   // Time in seconds after which flare is triggered.
   // We delay the profiler start on Oracle JDK 8, so increase the wait time to at least 20s.
   private static final int FLARE_TRIGGER_SECONDS = 20
