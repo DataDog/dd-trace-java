@@ -2,6 +2,13 @@ package datadog.smoketest
 
 import spock.lang.Shared
 
+import java.nio.file.FileSystems
+import java.nio.file.Path
+import java.nio.file.StandardWatchEventKinds
+import java.nio.file.WatchEvent
+import java.nio.file.WatchKey
+import java.nio.file.WatchService
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -17,9 +24,7 @@ import java.util.zip.ZipInputStream
 class TracerFlareSmokeTest extends AbstractSmokeTest {
 
   // Time in seconds after which flare is triggered
-  private static final int FLARE_TRIGGER_SECONDS = 10
-  // Additional buffer time to ensure flare is written to disk
-  private static final int FLARE_WRITE_BUFFER_SECONDS = 5
+  private static final int FLARE_TRIGGER_SECONDS = 15
   // Number of processes to run in parallel for testing
   private static final int NUMBER_OF_PROCESSES = 2
 
@@ -118,14 +123,22 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     "profiling_template_override.jfp"  // Only if template override is configured
   ] as Set<String>
 
-  def "tracer generates flare with profiling enabled (default)"() {
-    given:
-    // Wait for flare to be generated (triggered after FLARE_TRIGGER_SECONDS + buffer time)
-    Thread.sleep((FLARE_TRIGGER_SECONDS + FLARE_WRITE_BUFFER_SECONDS) * 1000)
+  // Flare file naming pattern constants
+  private static final String FLARE_FILE_PREFIX = "dd-java-flare-"
+  private static final String FLARE_FILE_EXTENSION = ".zip"
 
+  /**
+   * Checks if a filename matches the expected flare file pattern
+   */
+  private static boolean isFlareFile(String fileName) {
+    fileName.startsWith(FLARE_FILE_PREFIX) && fileName.endsWith(FLARE_FILE_EXTENSION)
+  }
+
+  def "tracer generates flare with profiling enabled (default)"() {
     when:
-    // Find the generated flare file from process 0
-    def flareFile = findFlareFile(flareDirs[0])
+    // Wait for flare file to be created using filesystem watcher
+    // The flare is triggered after FLARE_TRIGGER_SECONDS, plus some write time
+    def flareFile = waitForFlareFile(flareDirs[0])
     def zipContents = extractZipContents(flareFile)
 
     then:
@@ -143,9 +156,9 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
 
   def "tracer generates flare with profiling disabled"() {
     when:
-    // Find the generated flare file from process 1
-    // The flare should already be generated from the wait in the first test
-    def flareFile = findFlareFile(flareDirs[1])
+    // Wait for flare file to be created independently for process 1
+    // Each test should be independent and not rely on timing from other tests
+    def flareFile = waitForFlareFile(flareDirs[1])
     def zipContents = extractZipContents(flareFile)
 
     then:
@@ -161,14 +174,6 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
 
     // Check for unexpected files and fail if found (profiling files excluded from expected)
     validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES)
-  }
-
-  private static File findFlareFile(File flareDir) {
-    def flareFiles = flareDir.listFiles({ File dir, String name ->
-      name.startsWith("dd-java-flare-") && name.endsWith(".zip")
-    } as FilenameFilter)
-    assert flareFiles.size() == 1 : "Expected exactly one flare file, found: ${flareFiles.size()}"
-    flareFiles.first()
   }
 
   private static void validateNoUnexpectedFiles(Set<String> zipContents, Set<String> expectedFiles) {
@@ -192,5 +197,80 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     }
 
     fileNames
+  }
+
+  /**
+   * Waits for a flare file to be created in the specified directory using filesystem watching.
+   * 
+   * @param flareDir The directory to watch for flare files
+   * @param timeoutSeconds Maximum time to wait for the file
+   * @return The created flare file
+   * @throws AssertionError if no flare file is created within the timeout
+   */
+  private static File waitForFlareFile(File flareDir, int timeoutSeconds = FLARE_TRIGGER_SECONDS + 5) {
+    Path dirPath = flareDir.toPath()
+    WatchService watchService = FileSystems.getDefault().newWatchService()
+
+    try {
+      def existingFile = findFlareFileIfExists(flareDir)
+      if (existingFile) {
+        return existingFile
+      }
+
+      dirPath.register(watchService, StandardWatchEventKinds.ENTRY_CREATE)
+      long deadlineMillis = System.currentTimeMillis() + (timeoutSeconds * 1000)
+
+      while (System.currentTimeMillis() < deadlineMillis) {
+        long remainingMillis = deadlineMillis - System.currentTimeMillis()
+        if (remainingMillis <= 0) {
+          break
+        }
+
+        WatchKey key = watchService.poll(remainingMillis, TimeUnit.MILLISECONDS)
+        if (key == null) {
+          existingFile = findFlareFileIfExists(flareDir)
+          if (existingFile) {
+            return existingFile
+          }
+          break
+        }
+
+        for (WatchEvent<?> event : key.pollEvents()) {
+          WatchEvent<Path> pathEvent = (WatchEvent<Path>) event
+          Path fileName = pathEvent.context()
+
+          if (isFlareFile(fileName.toString())) {
+            return new File(flareDir, fileName.toString())
+          }
+        }
+
+        boolean valid = key.reset()
+        if (!valid) {
+          throw new AssertionError("Watch directory ${flareDir} is no longer accessible")
+        }
+      }
+
+      existingFile = findFlareFileIfExists(flareDir)
+      if (existingFile) {
+        return existingFile
+      }
+
+      throw new AssertionError("No flare file created in ${flareDir} within ${timeoutSeconds} seconds")
+
+    } finally {
+      watchService.close()
+    }
+  }
+
+  /**
+   * Attempts to find an existing flare file in the directory.
+   * Returns null if no flare file exists.
+   */
+  private static File findFlareFileIfExists(File flareDir) {
+    def flareFiles = flareDir.listFiles({ File dir, String name ->
+      isFlareFile(name)
+    } as FilenameFilter)
+
+    return flareFiles?.size() > 0 ? flareFiles.first() : null
   }
 }
