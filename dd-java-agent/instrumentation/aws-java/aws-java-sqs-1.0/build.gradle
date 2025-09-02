@@ -18,6 +18,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
+// Increased time needed in CI due to migration from JUnit 4 SpockRunner to JUnit 5 SpockExtension
 forkedTest {
   timeout = Duration.of(15, ChronoUnit.MINUTES)
 }
