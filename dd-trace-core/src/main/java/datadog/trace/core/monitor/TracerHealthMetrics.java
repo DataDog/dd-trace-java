@@ -530,14 +530,12 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
         reportIfChanged(
             target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
-
         reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
         reportIfChanged(
-            target.statsd, "stats.p0_dropped_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
+            target.statsd, "stats.dropped_p0_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
         reportIfChanged(
-            target.statsd, "stats.p0_dropped_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
-        reportIfChanged(
-            target.statsd, "stats.flushed_payloads", target.clientStatsRequests, NO_TAGS);
+            target.statsd, "stats.dropped_p0_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_payloads", target.clientStatsRequests, NO_TAGS);
         reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
         reportIfChanged(
             target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
