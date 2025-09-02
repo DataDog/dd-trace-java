@@ -107,7 +107,7 @@ tasks.withType(Test).configureEach {
       } finally {
         scheduler.shutdown()
       }
-    }, 63, TimeUnit.SECONDS) // You can adjust this line with required delay.
+    }, 68, TimeUnit.SECONDS) // You can adjust this line with required delay.
 
     // Store handles for cancellation in doLast:
     ext.dumpFuture = future
