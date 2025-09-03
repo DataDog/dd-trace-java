@@ -60,8 +60,9 @@ class DebuggerConfigBridgeTest extends Specification {
     def updater = new MockDebuggerConfigUpdater()
 
     when:
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(false).build())
     DebuggerConfigBridge.updateConfig(DebuggerConfigUpdate.allEnabled())
-    DebuggerConfigBridge.updateConfig(DebuggerConfigUpdate.allDisabled())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(false).build())
 
     then:
     updater.calls == 0
@@ -70,19 +71,19 @@ class DebuggerConfigBridgeTest extends Specification {
     DebuggerConfigBridge.setUpdater(updater)
 
     then:
-    updater.calls == 2
-    !DebuggerConfigBridge.isDynamicInstrumentationEnabled()
+    updater.calls == 1
+    DebuggerConfigBridge.isDynamicInstrumentationEnabled()
     !DebuggerConfigBridge.isExceptionReplayEnabled()
-    !DebuggerConfigBridge.isCodeOriginEnabled()
-    !DebuggerConfigBridge.isDistributedDebuggerEnabled()
+    DebuggerConfigBridge.isCodeOriginEnabled()
+    DebuggerConfigBridge.isDistributedDebuggerEnabled()
   }
 
   private static class MockDebuggerConfigUpdater implements DebuggerConfigUpdater {
     private int calls = 0
     private boolean di
-    private boolean  er
-    private boolean  co
-    private boolean  dd
+    private boolean er
+    private boolean co
+    private boolean dd
 
     @Override
     void updateConfig(DebuggerConfigUpdate update) {

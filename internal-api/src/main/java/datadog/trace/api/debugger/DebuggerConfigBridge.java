@@ -1,8 +1,6 @@
 package datadog.trace.api.debugger;
 
 import datadog.trace.api.Config;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -11,9 +9,8 @@ import org.slf4j.LoggerFactory;
 public final class DebuggerConfigBridge {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerConfigBridge.class);
 
-  private static final int MAX_DEFERRED_UPDATES = 10;
-  private static final BlockingQueue<DebuggerConfigUpdate> DEFERRED_UPDATES =
-      new ArrayBlockingQueue<>(MAX_DEFERRED_UPDATES);
+  private static final AtomicReference<DebuggerConfigUpdate> DEFERRED_UPDATE =
+      new AtomicReference<>();
 
   private static final AtomicReference<DebuggerConfigUpdater> UPDATER = new AtomicReference<>();
 
@@ -27,9 +24,7 @@ public final class DebuggerConfigBridge {
       UPDATER.get().updateConfig(update);
     } else {
       LOGGER.debug("DebuggerConfigUpdater not available, deferring update");
-      if (!DEFERRED_UPDATES.offer(update)) {
-        LOGGER.debug("Queue is full, update not deferred");
-      }
+      DEFERRED_UPDATE.updateAndGet(existing -> DebuggerConfigUpdate.coalesce(existing, update));
     }
   }
 
@@ -37,14 +32,14 @@ public final class DebuggerConfigBridge {
     DebuggerConfigUpdater oldUpdater = UPDATER.getAndSet(updater);
     if (oldUpdater == null) {
       LOGGER.debug("DebuggerConfigUpdater set for first time, processing deferred updates");
-      processDeferredUpdates(updater);
+      processDeferredUpdate(updater);
     }
   }
 
   // for testing purposes
   static void reset() {
     UPDATER.set(null);
-    DEFERRED_UPDATES.clear();
+    DEFERRED_UPDATE.set(null);
   }
 
   public static boolean isDynamicInstrumentationEnabled() {
@@ -79,9 +74,9 @@ public final class DebuggerConfigBridge {
     return Config.get().isDistributedDebuggerEnabled();
   }
 
-  private static void processDeferredUpdates(DebuggerConfigUpdater updater) {
-    DebuggerConfigUpdate deferredUpdate;
-    while ((deferredUpdate = DEFERRED_UPDATES.poll()) != null) {
+  private static void processDeferredUpdate(DebuggerConfigUpdater updater) {
+    DebuggerConfigUpdate deferredUpdate = DEFERRED_UPDATE.getAndSet(null);
+    if (deferredUpdate != null) {
       updater.updateConfig(deferredUpdate);
       LOGGER.debug("Processed deferred update {}", deferredUpdate);
     }

@@ -71,6 +71,28 @@ public class DebuggerConfigUpdate {
         || distributedDebuggerEnabled != null;
   }
 
+  public static DebuggerConfigUpdate coalesce(
+      DebuggerConfigUpdate existing, DebuggerConfigUpdate update) {
+    if (existing == null) {
+      return update;
+    }
+
+    return new Builder()
+        .setDynamicInstrumentationEnabled(
+            coalesceSetting(
+                existing.dynamicInstrumentationEnabled, update.dynamicInstrumentationEnabled))
+        .setExceptionReplayEnabled(
+            coalesceSetting(existing.exceptionReplayEnabled, update.exceptionReplayEnabled))
+        .setCodeOriginEnabled(coalesceSetting(existing.codeOriginEnabled, update.codeOriginEnabled))
+        .setDistributedDebuggerEnabled(
+            coalesceSetting(existing.distributedDebuggerEnabled, update.distributedDebuggerEnabled))
+        .build();
+  }
+
+  private static Boolean coalesceSetting(Boolean existing, Boolean update) {
+    return update != null ? update : existing;
+  }
+
   public static final class Builder {
     private Boolean dynamicInstrumentationEnabled;
     private Boolean exceptionReplayEnabled;
