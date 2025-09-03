@@ -14,8 +14,6 @@ import org.slf4j.LoggerFactory
 import java.util.function.BiFunction
 import java.util.function.Supplier
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
-
 trait IastRequestContextPreparationTrait {
 
   static void iastSystemSetup(Closure reqEndAction = null) {
@@ -75,8 +73,8 @@ trait IastRequestContextPreparationTrait {
 
       private static Logger withLogger(final String name) {
         final logger = LoggerFactory.getLogger(name)
-        if (logger instanceof Logger) {
-          ((Logger) logger).level = ch.qos.logback.classic.Level.DEBUG
+        if (logger instanceof ch.qos.logback.classic.Logger) {
+          ((ch.qos.logback.classic.Logger) logger).level = ch.qos.logback.classic.Level.DEBUG
         }
         return logger
       }
