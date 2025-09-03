@@ -91,12 +91,12 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     priority == expectedPriority
 
     where:
-    service | env | clusterName | expectedPriority
-    "test-service" | "staging" | null | 5
-    "test-service" | "*" | null | 4
-    "*" | "staging" | null | 3
-    null | null | "test-cluster" | 2
-    "*" | "*" | null | 1
+    service        | env       | clusterName    | expectedPriority
+    "test-service" | "staging" | null           | 5
+    "test-service" | "*"       | null           | 4
+    "*"            | "staging" | null           | 3
+    null           | null      | "test-cluster" | 2
+    "*"            | "*"       | null           | 1
   }
 
 
@@ -179,10 +179,10 @@ class TracingConfigPollerTest extends DDCoreSpecification {
 
     then:
     // Service level config should take precedence due to higher priority (4 vs 1)
-    tracer.captureTraceConfig().serviceMapping == ["service-specific":"service-mapped"]
+    tracer.captureTraceConfig().serviceMapping == ["service-specific": "service-mapped"]
     tracer.captureTraceConfig().traceSampleRate == 1.0 // should be clamped to 1.0
-    tracer.captureTraceConfig().requestHeaderTags == ["x-custom-header":"custom.header"]
-    tracer.captureTraceConfig().responseHeaderTags == ["x-custom-header":"custom.header"]
+    tracer.captureTraceConfig().requestHeaderTags == ["x-custom-header": "custom.header"]
+    tracer.captureTraceConfig().responseHeaderTags == ["x-custom-header": "custom.header"]
 
     when:
     // Remove service level config
@@ -191,7 +191,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
 
     then:
     // Should fall back to org level config
-    tracer.captureTraceConfig().serviceMapping == ["org-service":"org-mapped"]
+    tracer.captureTraceConfig().serviceMapping == ["org-service": "org-mapped"]
     tracer.captureTraceConfig().traceSampleRate == 0.7
     tracer.captureTraceConfig().requestHeaderTags == [:]
     tracer.captureTraceConfig().responseHeaderTags == [:]
@@ -205,6 +205,74 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     // Should have no configs
     tracer.captureTraceConfig().serviceMapping == [:]
     tracer.captureTraceConfig().traceSampleRate == null
+
+    cleanup:
+    tracer?.close()
+  }
+
+  def "test two org levels config setting different flags works"() {
+    setup:
+    def orgConfig1Key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config1")
+    def orgConfig2Key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config2")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().isTraceEnabled() == true
+    tracer.captureTraceConfig().isDataStreamsEnabled() == false
+
+    when:
+    // Add org level config with ApmTracing enabled
+    updater.accept(orgConfig1Key, """
+      {
+        "service_target": {
+          "service": "*",
+          "env": "*"
+        },
+        "lib_config": {
+           "tracing_enabled": true
+        }
+      }
+    """.getBytes(StandardCharsets.UTF_8), null)
+
+    // Add second org level config with DataStreams enabled
+    updater.accept(orgConfig2Key, """
+      {
+        "service_target": {
+          "service": "*",
+          "env": "*"
+        },
+        "lib_config": {
+          "data_streams_enabled": true
+        }
+      }
+    """.getBytes(StandardCharsets.UTF_8), null)
+
+    // Commit both configs
+    updater.commit()
+
+    then:
+    // Both org level configs should be merged, with data streams enabled
+    tracer.captureTraceConfig().isTraceEnabled() == true
+    tracer.captureTraceConfig().isDataStreamsEnabled() == true
 
     cleanup:
     tracer?.close()
