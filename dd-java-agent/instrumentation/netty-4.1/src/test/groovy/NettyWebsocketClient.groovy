@@ -26,7 +26,8 @@ import java.util.concurrent.CountDownLatch
 import static io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory.newHandshaker
 
 class NettyWebsocketClient implements WebsocketClient {
-  static final LoggingHandler LOGGING_HANDLER = new LoggingHandler(NettyWebsocketClient.class.getName(), LogLevel.DEBUG)
+  static final LoggingHandler LOGGING_HANDLER = new LoggingHandler(NettyWebsocketClient.name, LogLevel.DEBUG)
+
   static class WebsocketHandler extends SimpleChannelInboundHandler<Object> {
     final URI uri
     WebSocketClientHandshaker handshaker

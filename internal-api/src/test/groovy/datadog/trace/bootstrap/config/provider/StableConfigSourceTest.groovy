@@ -222,7 +222,7 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
-  def static corruptYaml = ''' 
+  static corruptYaml = ''' 
         abc: 123
         def:
           ghi: "jkl"
@@ -230,8 +230,8 @@ class StableConfigSourceTest extends DDSpecification {
     '''
 
   // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
-  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), singletonMap("DD_KEY_THREE", "three"))
-  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), singletonMap("DD_KEY_FOUR", "four"))
+  static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), singletonMap("DD_KEY_THREE", "three"))
+  static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), singletonMap("DD_KEY_FOUR", "four"))
 
   def writeFileYaml(Path filePath, StableConfig stableConfigs) {
     Map<String, Object> yamlData = new HashMap<>()

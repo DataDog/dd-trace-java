@@ -68,6 +68,13 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   CharSequence getType();
 
+  /**
+   * Runs early {@link datadog.trace.core.tagprocessor.TagsPostProcessor} like base service and peer
+   * service computation. Such tags are needed before span serialization so they can’t be processed
+   * lazily as part of the {@link #processTagsAndBaggage(MetadataConsumer)} API.
+   */
+  void processServiceTags();
+
   void processTagsAndBaggage(MetadataConsumer consumer);
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);

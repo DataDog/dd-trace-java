@@ -90,7 +90,6 @@ public class TracingRequestHandler extends RequestHandler2 {
   @Override
   public void afterResponse(final Request<?> request, final Response<?> response) {
     final Context context = request.getHandlerContext(CONTEXT_CONTEXT_KEY);
-    log.warn("context {}", context);
     AgentSpan span = null;
     if (context != null) {
       request.addHandlerContext(CONTEXT_CONTEXT_KEY, null);

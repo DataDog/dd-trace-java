@@ -52,4 +52,8 @@ abstract class CiVisibilitySmokeTest extends Specification {
     // an even more basic smoke check for distributions: assert that we received some
     assert !receivedTelemetryDistributions.isEmpty()
   }
+
+  protected verifyCoverageReports(String projectName, List<CiVisibilityTestUtils.CoverageReport> reports, Map<String, String> replacements) {
+    CiVisibilityTestUtils.assertData(projectName, reports, replacements)
+  }
 }

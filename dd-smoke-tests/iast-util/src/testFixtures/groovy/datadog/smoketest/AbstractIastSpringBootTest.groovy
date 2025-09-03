@@ -50,13 +50,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     if (super.isErrorLog(log) || log.contains('Not starting IAST subsystem')) {
       return true
     }
+
     // Check that there's no logged exception about missing classes from Datadog.
     // We had this problem before with JDK9StackWalker.
-    if (log.contains('java.lang.ClassNotFoundException: datadog/')) {
-      return true
-    }
-
-    return false
+    return log.contains('java.lang.ClassNotFoundException: datadog/')
   }
 
   void 'default home page without errors'() {
@@ -80,15 +77,15 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/multipart"
 
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("theFile", "theFileName",
-      RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
-      .addFormDataPart("param1", "param1Value")
-      .build()
+    .addFormDataPart("theFile", "theFileName",
+    RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
+    .addFormDataPart("param1", "param1Value")
+    .build()
 
     Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
+    .url(url)
+    .post(requestBody)
+    .build()
     when:
     final retValue = client.newCall(request).execute().body().string()
 
@@ -96,10 +93,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     retValue == "fileName: theFile"
     hasTainted { tainted ->
       tainted.value == 'theFile' &&
-        tainted.ranges[0].source.name == 'Content-Disposition' &&
-        tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
+      tainted.ranges[0].source.name == 'Content-Disposition' &&
+      tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
     }
-
   }
 
   void 'Tainted mail Text Jakarta'() {
@@ -107,13 +103,13 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
     String messageText = "This is a test message"
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageText", messageText)
-      .addFormDataPart("sanitize", "false")
-      .build()
+    .addFormDataPart("messageText", messageText)
+    .addFormDataPart("sanitize", "false")
+    .build()
     Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
+    .url(url)
+    .post(requestBody)
+    .build()
 
     when:
     client.newCall(request).execute().body().string()
@@ -130,11 +126,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
     String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageContent", messageContent).build()
+    .addFormDataPart("messageContent", messageContent).build()
     Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
+    .url(url)
+    .post(requestBody)
+    .build()
 
     when:
     client.newCall(request).execute().body().string()
@@ -150,13 +146,13 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
     String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("messageContent", messageContent)
-      .addFormDataPart("sanitize", "true")
-      .build()
+    .addFormDataPart("messageContent", messageContent)
+    .addFormDataPart("sanitize", "true")
+    .build()
     Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
+    .url(url)
+    .post(requestBody)
+    .build()
 
     when:
     client.newCall(request).execute().body().string()
@@ -172,15 +168,15 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     String url = "http://localhost:${httpPort}/multipart"
 
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("theFile", "theFileName",
-      RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
-      .addFormDataPart("param1", "param1Value")
-      .build()
+    .addFormDataPart("theFile", "theFileName",
+    RequestBody.create(MediaType.parse("text/plain"), "FILE_CONTENT"))
+    .addFormDataPart("param1", "param1Value")
+    .build()
 
     Request request = new Request.Builder()
-      .url(url)
-      .post(requestBody)
-      .build()
+    .url(url)
+    .post(requestBody)
+    .build()
     when:
     final retValue = client.newCall(request).execute().body().string()
 
@@ -188,10 +184,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     retValue == "fileName: theFile"
     hasTainted { tainted ->
       tainted.value == 'theFileName' &&
-        tainted.ranges[0].source.name == 'filename' &&
-        tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
+      tainted.ranges[0].source.name == 'filename' &&
+      tainted.ranges[0].source.origin == 'http.request.multipart.parameter'
     }
-
   }
 
 
@@ -230,7 +225,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerability { vul ->
       vul.type == 'WEAK_HASH' &&
-        vul.evidence.value == 'MD5'
+      vul.evidence.value == 'MD5'
     }
   }
 
@@ -245,7 +240,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerability { vul ->
       vul.type == 'WEAK_CIPHER' &&
-        vul.evidence.value == 'DES'
+      vul.evidence.value == 'DES'
     }
   }
 
@@ -260,7 +255,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerability { vul ->
       vul.type == 'WEAK_CIPHER' &&
-        vul.evidence.value == 'DES'
+      vul.evidence.value == 'DES'
     }
   }
 
@@ -278,7 +273,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.header('Set-Cookie').contains('user-id')
     hasVulnerability { vul ->
       vul.type == 'INSECURE_COOKIE' &&
-        vul.evidence.value == 'user-id'
+      vul.evidence.value == 'user-id'
     }
   }
 
@@ -337,7 +332,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.header('Set-Cookie').contains('user-id')
     hasVulnerability { vul ->
       vul.type == 'NO_HTTPONLY_COOKIE' &&
-        vul.evidence.value == 'user-id'
+      vul.evidence.value == 'user-id'
     }
   }
 
@@ -354,7 +349,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.header('Set-Cookie').contains('user-id')
     hasVulnerability { vul ->
       vul.type == 'NO_SAMESITE_COOKIE' &&
-        vul.evidence.value == 'user-id'
+      vul.evidence.value == 'user-id'
     }
   }
 
@@ -371,7 +366,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     response.header('Set-Cookie').contains('user-id')
     hasVulnerability { vul ->
       vul.type == 'INSECURE_COOKIE' &&
-        vul.evidence.value == 'user-id'
+      vul.evidence.value == 'user-id'
     }
   }
 
@@ -389,13 +384,12 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     resp.close()
 
     and: 'a vulnerability pops in the logs (startup traces might not always be available)'
-    boolean found = false
     isLogPresent { String log ->
       def vulns = parseVulnerabilitiesLog(log)
       vulns.any { vul ->
         vul.type == 'WEAK_HASH' &&
-          vul.evidence.value == 'SHA1' &&
-          vul.location.spanId > 0
+        vul.evidence.value == 'SHA1' &&
+        vul.location.spanId > 0
       }
     }
   }
@@ -411,8 +405,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasVulnerability { vul ->
       vul.type == 'WEAK_HASH' &&
-        vul.evidence.value == 'MD4' &&
-        vul.location.spanId > 0
+      vul.evidence.value == 'MD4' &&
+      vul.location.spanId > 0
     }
   }
 
@@ -427,8 +421,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'A' &&
-        tainted.ranges[0].source.name == 'param' &&
-        tainted.ranges[0].source.origin == 'http.request.parameter'
+      tainted.ranges[0].source.name == 'param' &&
+      tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -537,11 +531,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'TRUST_BOUNDARY_VIOLATION' }
     hasTainted { tainted ->
       tainted.value == 'https%3A%2F%2Fuser-id2' &&
-        tainted.ranges[0].source.origin == 'http.request.cookie.name'
+      tainted.ranges[0].source.origin == 'http.request.cookie.name'
     }
     hasTainted { tainted ->
       tainted.value == 'https://kkk' &&
-        tainted.ranges[0].source.origin == 'http.request.cookie.value'
+      tainted.ranges[0].source.origin == 'http.request.cookie.value'
     }
   }
 
@@ -593,8 +587,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'binding' &&
-        tainted.ranges[0].source.name == 'value' &&
-        tainted.ranges[0].source.origin == 'http.request.parameter'
+      tainted.ranges[0].source.name == 'value' &&
+      tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -609,7 +603,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == url &&
-        tainted.ranges[0].source.origin == 'http.request.uri'
+      tainted.ranges[0].source.origin == 'http.request.uri'
     }
   }
 
@@ -624,8 +618,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'test' &&
-        tainted.ranges[0].source.name == 'test-header' &&
-        tainted.ranges[0].source.origin == 'http.request.header'
+      tainted.ranges[0].source.name == 'test-header' &&
+      tainted.ranges[0].source.origin == 'http.request.header'
     }
   }
 
@@ -640,8 +634,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'test' &&
-        tainted.ranges[0].source.name == 'param' &&
-        tainted.ranges[0].source.origin == 'http.request.parameter'
+      tainted.ranges[0].source.name == 'param' &&
+      tainted.ranges[0].source.origin == 'http.request.parameter'
     }
   }
 
@@ -656,7 +650,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'nameTest' &&
-        tainted.ranges[0].source.origin == 'http.request.body'
+      tainted.ranges[0].source.origin == 'http.request.body'
     }
   }
 
@@ -671,7 +665,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'key=value' &&
-        tainted.ranges[0].source.origin == 'http.request.query'
+      tainted.ranges[0].source.origin == 'http.request.query'
     }
   }
 
@@ -686,12 +680,12 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == 'name' &&
-        tainted.ranges[0].source.origin == 'http.request.cookie.name'
+      tainted.ranges[0].source.origin == 'http.request.cookie.name'
     }
     hasTainted { tainted ->
       tainted.value == 'value' &&
-        tainted.ranges[0].source.name == 'name' &&
-        tainted.ranges[0].source.origin == 'http.request.cookie.value'
+      tainted.ranges[0].source.name == 'name' &&
+      tainted.ranges[0].source.origin == 'http.request.cookie.value'
     }
   }
 
@@ -706,8 +700,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted {
       it.value == 'foobar' &&
-        it.ranges[0].source.origin == 'http.request.path.parameter' &&
-        it.ranges[0].source.name == 'var1'
+      it.ranges[0].source.origin == 'http.request.path.parameter' &&
+      it.ranges[0].source.name == 'var1'
     }
   }
 
@@ -724,29 +718,29 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasTainted { tainted ->
       final firstRange = tainted.ranges[0]
       tainted.value == 'value1' &&
-        firstRange?.source?.origin == 'http.request.path.parameter' &&
-        firstRange?.source?.name == 'var1'
+      firstRange?.source?.origin == 'http.request.path.parameter' &&
+      firstRange?.source?.name == 'var1'
     }
     ['xxx', 'aaa', 'bbb', 'yyy', 'ccc'].each {
       hasTainted { tainted ->
         final firstRange = tainted.ranges[0]
         tainted.value == it &&
-          firstRange?.source?.origin == 'http.request.matrix.parameter' &&
-          firstRange?.source?.name == 'var1'
+        firstRange?.source?.origin == 'http.request.matrix.parameter' &&
+        firstRange?.source?.name == 'var1'
       }
     }
     hasTainted { tainted ->
       final firstRange = tainted.ranges[0]
       tainted.value == 'value2' &&
-        firstRange?.source?.origin == 'http.request.path.parameter' &&
-        firstRange?.source?.name == 'var2'
+      firstRange?.source?.origin == 'http.request.path.parameter' &&
+      firstRange?.source?.name == 'var2'
     }
     ['zzz', 'ddd'].each {
       hasTainted { tainted ->
         final firstRange = tainted.ranges[0]
         tainted.value = it &&
-          firstRange?.source?.origin == 'http.request.matrix.parameter' &&
-          firstRange?.source?.name == 'var2'
+        firstRange?.source?.origin == 'http.request.matrix.parameter' &&
+        firstRange?.source?.name == 'var2'
       }
     }
   }
@@ -769,14 +763,16 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       if (parameter == 'url') {
         return parts.size() == 1
         && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-      } else if (parameter == 'host') {
+      }
+
+      if (parameter == 'host') {
         return parts.size() == 3
         && parts[0].value == 'https://' && parts[0].source == null
         && parts[1].value == value && parts[1].source.origin == 'http.request.parameter' && parts[1].source.name == parameter
         && parts[2].value == ':443/test' && parts[2].source == null
-      } else {
-        throw new IllegalArgumentException("Parameter $parameter not supported")
       }
+
+      throw new IllegalArgumentException("Parameter $parameter not supported")
     }
 
     where:
@@ -805,16 +801,20 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       if (parameter == 'url') {
         return parts.size() == 1
         && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-      } else if (parameter == 'host') {
+      }
+
+      if (parameter == 'host') {
         String protocol = protocolSecure ? 'https://' : 'http://'
         String finalValue = protocol + value + (endSlash ? '/' : '')
         return parts[0].value.endsWith(finalValue) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-      } else if (parameter == 'urlProducer' || parameter == 'urlHandler') {
+      }
+
+      if (parameter == 'urlProducer' || parameter == 'urlHandler') {
         return parts.size() == 1
         && parts[0].value.endsWith(value) && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-      } else {
-        throw new IllegalArgumentException("Parameter $parameter not supported")
       }
+
+      throw new IllegalArgumentException("Parameter $parameter not supported")
     }
 
     where:
@@ -992,7 +992,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     then:
     hasTainted { tainted ->
       tainted.value == '/getrequesturi' &&
-        tainted.ranges[0].source.origin == 'http.request.path'
+      tainted.ranges[0].source.origin == 'http.request.path'
     }
   }
 
@@ -1153,9 +1153,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     ObjectOutputStream oos = new ObjectOutputStream(baos)
     oos.writeObject("This is a test object.")
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("file", "test.txt",
-      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
-      .build()
+    .addFormDataPart("file", "test.txt",
+    RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+    .build()
     final request = new Request.Builder().url(url).post(requestBody).build()
 
     when:
@@ -1172,9 +1172,9 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     ObjectOutputStream oos = new ObjectOutputStream(baos)
     oos.writeObject("This is a test object.")
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("file", "test.txt",
-      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
-      .build()
+    .addFormDataPart("file", "test.txt",
+    RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+    .build()
     final request = new Request.Builder().url(url).post(requestBody).build()
 
     when:
@@ -1191,11 +1191,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     ObjectOutputStream oos = new ObjectOutputStream(baos)
     oos.writeObject("This is a test object.")
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("file", "test.txt",
-      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
-      .build()
+    .addFormDataPart("file", "test.txt",
+    RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+    .build()
     final request = new Request.Builder().url(url)
-      .post(requestBody).build()
+    .post(requestBody).build()
 
     when:
     client.newCall(request).execute()
@@ -1211,11 +1211,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     ObjectOutputStream oos = new ObjectOutputStream(baos)
     oos.writeObject("This is a test object.")
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("file", "test.txt",
-      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
-      .build()
+    .addFormDataPart("file", "test.txt",
+    RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+    .build()
     final request = new Request.Builder().url(url)
-      .post(requestBody).build()
+    .post(requestBody).build()
 
     when:
     client.newCall(request).execute()
@@ -1231,11 +1231,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     ObjectOutputStream oos = new ObjectOutputStream(baos)
     oos.writeObject("This is a test object.")
     RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("file", "test.txt",
-      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
-      .build()
+    .addFormDataPart("file", "test.txt",
+    RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+    .build()
     final request = new Request.Builder().url(url)
-      .post(requestBody).build()
+    .post(requestBody).build()
 
     when:
     client.newCall(request).execute()

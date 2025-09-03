@@ -43,6 +43,33 @@ class AddingSpanAttributesAnnotationTest extends AgentTestRunner {
     typeName = type.substring(0, 1).toUpperCase() + type.substring(1)
   }
 
+  def "test AddingSpanAttributes annotated method with multiple annotated parameters"() {
+    setup:
+    def methodName = "sayHelloWithMultipleAttributes"
+    def testSpan = TEST_TRACER.startSpan("test", "operation")
+    def scope = TEST_TRACER.activateManualSpan(testSpan)
+    AnnotatedMethods."$methodName"("param1", "param2")
+    scope.close()
+    testSpan.finish()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          resourceName "operation"
+          operationName "operation"
+          parent()
+          errored false
+          tags {
+            defaultTags()
+            "custom-tag1" "param1"
+            "custom-tag2" "param2"
+          }
+        }
+      }
+    }
+  }
+
   def "test AddingSpanAttributes annotated method is skipped if no active span"() {
     setup:
     def testSpan = TEST_TRACER.startSpan("test", "operation")
