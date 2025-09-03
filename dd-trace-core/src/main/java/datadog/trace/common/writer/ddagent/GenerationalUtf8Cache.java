@@ -185,7 +185,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     long lookupTimeMs = this.accessTimeMs;
 
     CacheEntry[] tenuredEntries = this.tenuredEntries;
-    int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, adjHash, value, lookupTimeMs);
+    int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value, lookupTimeMs);
     if (matchingTenuredIndex != -1) {
       CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
 
