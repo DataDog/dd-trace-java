@@ -32,7 +32,7 @@ dependencies {
     exclude group: 'com.datastax.cassandra', module: 'cassandra-driver-core'
   }
 
-  testImplementation project(':dd-java-agent:instrumentation:datastax-cassandra-3')
+  testImplementation project(':dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.0')
   testImplementation project(':dd-java-agent:instrumentation:guava-10')
 
   latestDepTestImplementation group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.8+'

@@ -13,8 +13,8 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.zip.ZipOutputStream;
 
-public final class ProfilerFlare implements TracerFlare.Reporter {
-  private static final ProfilerFlare INSTANCE = new ProfilerFlare();
+public final class ProfilerFlareReporter implements TracerFlare.Reporter {
+  private static final ProfilerFlareReporter INSTANCE = new ProfilerFlareReporter();
   private static Exception profilerInitializationException;
 
   public static void register() {
