@@ -36,7 +36,7 @@ public final class DebuggerConfigBridge {
   public static void setUpdater(@Nonnull DebuggerConfigUpdater updater) {
     DebuggerConfigUpdater oldUpdater = UPDATER.getAndSet(updater);
     if (oldUpdater == null) {
-      LOGGER.info("DebuggerConfigUpdater set for first time, processing deferred updates");
+      LOGGER.debug("DebuggerConfigUpdater set for first time, processing deferred updates");
       processDeferredUpdates(updater);
     }
   }
