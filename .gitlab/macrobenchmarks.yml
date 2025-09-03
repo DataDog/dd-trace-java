@@ -1,6 +1,8 @@
 include:
-  project: 'DataDog/benchmarking-platform-tools'
-  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/check-slo-breaches.template.yml'
 
 .macrobenchmarks:
   stage: macrobenchmarks
@@ -75,13 +77,9 @@ otel-latest:
 
 
 check-slo-breaches:
+  extends: .check-slo-breaches
   stage: macrobenchmarks
   interruptible: true
-  tags: ["arch:amd64"]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
   rules:
     - if: $POPULATE_CACHE
       when: never
@@ -99,8 +97,6 @@ check-slo-breaches:
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
-  before_script:
-    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > check-slo-breaches.github-token
   script:
     # macrobenchmarks are located here, files are already in "converted" format
     - export ARTIFACTS_DIR="$(pwd)/platform/artifacts/" && mkdir -p "${ARTIFACTS_DIR}"
@@ -123,10 +119,7 @@ check-slo-breaches:
           done
       done
     - ls -lah "$ARTIFACTS_DIR"
-    - export GITHUB_TOKEN=$(cat check-slo-breaches.github-token)
     - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
-  after_script:
-    - dd-octo-sts revoke -t $(cat check-slo-breaches.github-token)
   artifacts:
     name: "artifacts"
     when: always
@@ -134,6 +127,7 @@ check-slo-breaches:
       - platform/artifacts/
     expire_in: 1 week
   variables:
+    DDOCTOSTS_POLICY: "self.gitlab.github-access.read"
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID # The ID of the current project. This ID is unique across all projects on the GitLab instance.
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME # "dd-trace-java"
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
