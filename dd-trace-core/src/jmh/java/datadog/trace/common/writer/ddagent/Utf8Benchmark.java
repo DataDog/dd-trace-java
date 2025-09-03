@@ -12,7 +12,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * "-prof gc" to check bytes / op.
  *
  * <p>Since {@link String#getBytes(java.nio.charset.Charset)} is intrinsified the caches typically
- * perform worse throughput wise, the benefit of the caches is to reduce allocation.
+ * perform worse throughput wise, the benefit of the caches is to reduce allocation. * Intention of
+ * this benchmark is to create data that roughly resembles what might be seen in a trace payload.
+ * Tag names are quite static, tag values are mostly low cardinality, but some tag values have
+ * infinite cardinality.
  */
 @BenchmarkMode(Mode.Throughput)
 public class Utf8Benchmark {
