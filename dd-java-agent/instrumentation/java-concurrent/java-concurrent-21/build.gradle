@@ -1,6 +1,3 @@
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_21
   // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
@@ -60,66 +57,4 @@ project.tasks.withType(AbstractCompile).configureEach {
 compileJava.configure {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-tasks.withType(Test).configureEach {
-  doFirst {
-    // This manipulation is requred to move files into folder
-    // that will be collected by `collect_reports.sh` script.
-    String buildDir = layout.buildDirectory.asFile.get().absolutePath.replace("dd-trace-java/dd-java-agent",
-      "dd-trace-java/workspace/dd-java-agent")
-
-    def dupmsDir = new File(buildDir, "dumps")
-    dupmsDir.mkdirs()
-
-    // Scheduler to execute logic that will dump threads and heap
-    def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
-      Thread t = new Thread(r, "dump-scheduler")
-      t.setDaemon(true)
-      return t
-    })
-
-    // Schedule the dump job:
-    def future = scheduler.schedule({
-      try {
-        def threadDumpFile = new File(dupmsDir, "${System.currentTimeMillis()}-thread-dump.log")
-
-        new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
-          .redirectErrorStream(true)
-          .redirectOutput(threadDumpFile)
-          .start().waitFor()
-
-        // Collect PIDs of all Java processes:
-        def jvmProcesses = "jcmd -l".execute().text.readLines()
-        jvmProcesses.each { p ->
-          // Process only test executors.
-          if (!p.contains("Gradle Test Executor")) {
-            return
-          }
-
-          def pid = p.substring(0, p.indexOf(' '))
-          def heapDumpFile = "${dupmsDir.absolutePath}/${System.currentTimeMillis()}-${pid}.hprof"
-          def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
-          cmd.execute().waitFor()
-        }
-      } catch (Throwable t) {
-        logger.warn("Dumping failed: ${t.message}", t)
-      } finally {
-        scheduler.shutdown()
-      }
-    }, 68, TimeUnit.SECONDS) // You can adjust this line with required delay.
-
-    // Store handles for cancellation in doLast:
-    ext.dumpFuture = future
-    ext.dumpScheduler = scheduler
-  }
-
-  doLast {
-    // Cancel if task completed faster than specified timeout.
-    try {
-      ext.dumpFuture?.cancel(false)
-    } finally {
-      ext.dumpScheduler?.shutdownNow()
-    }
-  }
 }
