@@ -91,8 +91,23 @@ final class TypeOutline extends WithName {
   }
 
   @Override
+  public boolean isAbstract() {
+    return matchesMask(Opcodes.ACC_ABSTRACT);
+  }
+
+  @Override
+  public boolean isEnum() {
+    return matchesMask(Opcodes.ACC_ENUM);
+  }
+
+  @Override
   public boolean isInterface() {
     return matchesMask(Opcodes.ACC_INTERFACE);
+  }
+
+  @Override
+  public boolean isAnnotation() {
+    return matchesMask(Opcodes.ACC_ANNOTATION);
   }
 
   private boolean matchesMask(int mask) {
