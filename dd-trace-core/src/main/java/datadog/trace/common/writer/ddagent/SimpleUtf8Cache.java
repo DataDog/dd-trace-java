@@ -54,6 +54,8 @@ public final class SimpleUtf8Cache implements EncodingCache {
   private static final double HIT_DECAY = 0.5D;
   private static final double PURGE_THRESHOLD = 0.25D;
 
+  private static final int MAX_ENTRY_LEN = 128;
+
   protected int hits = 0;
   protected int evictions = 0;
 
@@ -88,6 +90,8 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
   /** Returns the UTF-8 encoding of value -- using a cache value if available */
   public final byte[] getUtf8(String value) {
+    if (value.length() > MAX_ENTRY_LEN) return CacheEntry.utf8(value);
+
     CacheEntry[] thisEntries = this.entries;
 
     int adjHash = CacheEntry.adjHash(value);

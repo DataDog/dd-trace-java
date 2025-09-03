@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
+import datadog.trace.common.writer.ddagent.SimpleUtf8Cache.CacheEntry;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -73,6 +74,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   private static final double SCORE_DECAY = 0.5D;
   private static final double PURGE_THRESHOLD = 0.25D;
   private static final double PROMOTION_THRESHOLD_ADJ_FACTOR = 1.5;
+
+  private static final int MAX_ENTRY_LEN = 256;
 
   private final CacheEntry[] edenEntries;
   private final int[] edenMarkers;
@@ -181,12 +184,13 @@ public final class GenerationalUtf8Cache implements EncodingCache {
    * the specified accessTimeMs is used to update the cache entry
    */
   public final byte[] getUtf8(String value, long accessTimeMs) {
+    if (value.length() > MAX_ENTRY_LEN) return CacheEntry.utf8(value);
+
     int adjHash = CacheEntry.adjHash(value);
     long lookupTimeMs = this.accessTimeMs;
 
     CacheEntry[] tenuredEntries = this.tenuredEntries;
-    int matchingTenuredIndex =
-        lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value, lookupTimeMs);
+    int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value);
     if (matchingTenuredIndex != -1) {
       CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
 
@@ -197,8 +201,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     }
 
     CacheEntry[] edenEntries = this.edenEntries;
-    int matchingEdenIndex =
-        lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value, lookupTimeMs);
+    int matchingEdenIndex = lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value);
     if (matchingEdenIndex != -1) {
       CacheEntry edenEntry = edenEntries[matchingEdenIndex];
 
@@ -250,7 +253,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       this.earlyPromotions += 1;
 
       edenEntries[edenMfuIndex] = newEntry;
-      return CacheEntry.utf8(value);
+      return newEntry.utf8();
     }
 
     // No empty slot - or space to promote into the global cache
@@ -384,7 +387,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   }
 
   static final int lookupEntryIndex(
-      CacheEntry[] entries, int numProbes, int adjHash, String value, long lookupTimeMs) {
+      CacheEntry[] entries, int numProbes, int adjHash, String value) {
     int initialBucketIndex = initialBucketIndex(entries, adjHash);
     for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
       if (index >= entries.length) index = 0;
