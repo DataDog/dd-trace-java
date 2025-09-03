@@ -48,4 +48,12 @@ public class EnclosedClasses {
       }.get();
     }
   }
+
+  public interface Interface {}
+
+  public abstract static class Abstract {}
+
+  public @interface Annotation {}
+
+  public enum Enum {}
 }
