@@ -41,7 +41,7 @@ trait IastRequestContextPreparationTrait {
   }
 
   static void iastSystemCleanup() {
-    datadog.trace.bootstrap.instrumentation.api.AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST).reset()
+    AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST).reset()
     InstrumentationBridge.clearIastModules()
   }
 
