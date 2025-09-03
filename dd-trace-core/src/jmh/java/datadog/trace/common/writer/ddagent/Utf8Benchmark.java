@@ -1,14 +1,14 @@
 package datadog.trace.common.writer.ddagent;
 
-import datadog.utf8.GeneratedTagUtf8Cache;
-import datadog.utf8.GenerationalUtf8Cache;
-import datadog.utf8.SimpleUtf8Cache;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.infra.Blackhole;
+
+import datadog.trace.common.writer.ddagent.GenerationalUtf8Cache;
+import datadog.trace.common.writer.ddagent.SimpleUtf8CacheTest;
 
 /**
  * This benchmark isn't really intended to used to measure throughput, but rather to be used with
@@ -76,16 +76,6 @@ public class Utf8Benchmark {
   @Benchmark
   public static final byte[] tagUtf8_nocache() {
     String tag = nextTag();
-    return tag.getBytes(StandardCharsets.UTF_8);
-  }
-
-  @Benchmark
-  public static final byte[] tagUtf8_w_generatedCache() {
-    String tag = nextTag();
-
-    byte[] cache = GeneratedTagUtf8Cache.lookup(tag);
-    if (cache != null) return cache;
-
     return tag.getBytes(StandardCharsets.UTF_8);
   }
 
