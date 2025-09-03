@@ -7,9 +7,6 @@ import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.infra.Blackhole;
 
-import datadog.trace.common.writer.ddagent.GenerationalUtf8Cache;
-import datadog.trace.common.writer.ddagent.SimpleUtf8CacheTest;
-
 /**
  * This benchmark isn't really intended to used to measure throughput, but rather to be used with
  * "-prof gc" to check bytes / op.

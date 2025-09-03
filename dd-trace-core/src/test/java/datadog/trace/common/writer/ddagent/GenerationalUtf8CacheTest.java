@@ -1,9 +1,10 @@
 package datadog.trace.common.writer.ddagent;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
@@ -108,6 +109,33 @@ public class GenerationalUtf8CacheTest {
 
     assertNotEquals(0, edenHits);
     assertNotEquals(0, promotedHits);
+  }
+
+  @Test
+  public void bigString_dont_cache() {
+    String lorem = "Lorem ipsum dolor sit amet";
+    while (lorem.length() < 500) {
+      lorem += lorem;
+    }
+    byte[] expected = lorem.getBytes(StandardCharsets.UTF_8);
+
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache();
+    byte[] first = cache.getUtf8(lorem);
+    assertArrayEquals(expected, first);
+
+    byte[] second = cache.getUtf8(lorem);
+    assertArrayEquals(expected, second);
+    assertNotSame(first, second);
+
+    for (int i = 0; i < 10; ++i) {
+      byte[] result = cache.getUtf8(lorem);
+      assertArrayEquals(expected, result);
+
+      assertNotSame(first, result);
+      assertNotSame(second, result);
+    }
+    assertEquals(0, cache.edenHits);
+    assertEquals(0, cache.tenuredHits);
   }
 
   static final String[] TAGS = {"foo", "bar", "baz"};
