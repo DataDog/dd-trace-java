@@ -2,11 +2,7 @@ package datadog.trace.civisibility
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import com.jayway.jsonpath.Configuration
-import com.jayway.jsonpath.JsonPath
-import com.jayway.jsonpath.Option
-import com.jayway.jsonpath.ReadContext
-import com.jayway.jsonpath.WriteContext
+import com.jayway.jsonpath.*
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
@@ -19,11 +15,19 @@ import freemarker.template.TemplateExceptionHandler
 import org.opentest4j.AssertionFailedError
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
+import org.w3c.dom.Document
+import org.xmlunit.builder.DiffBuilder
+import org.xmlunit.builder.Input
+import org.xmlunit.diff.Diff
+import org.xmlunit.util.Convert
 
+import javax.xml.parsers.DocumentBuilderFactory
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.regex.Pattern
 import java.util.stream.Collectors
+
+import static org.junit.jupiter.api.Assertions.assertEquals
 
 abstract class CiVisibilityTestUtils {
 
@@ -86,6 +90,44 @@ abstract class CiVisibilityTestUtils {
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
+  static void assertData(String baseTemplatesPath, List<CoverageReport> reports, Map<String, String> replacements) {
+    def expectedReportEvent = getFreemarkerTemplate(baseTemplatesPath + "/coverage_report_event.ftl", replacements)
+    def actualReportEvent = JSON_MAPPER.writeValueAsString(reports[0].event)
+
+    compareJson(expectedReportEvent, actualReportEvent)
+
+    def expectedReport = getFreemarkerTemplate(baseTemplatesPath + "/coverage_report.ftl", replacements)
+    def actualReport = reports[0].report
+
+    if (expectedReport.contains("<?xml")) {
+      compareXml(expectedReport, actualReport)
+    } else {
+      assertEquals(expectedReport, actualReport)
+    }
+  }
+
+  private static void compareXml(String expectedXml, String actualXml) {
+    DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance()
+    dbf.setValidating(false)
+    dbf.setFeature("http://xml.org/sax/features/validation", false)
+    dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
+    dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+
+    Document expected = Convert.toDocument(Input.fromString(expectedXml).build(), dbf)
+    Document actual = Convert.toDocument(Input.fromString(actualXml).build(), dbf)
+
+    Diff diff = DiffBuilder.compare(Input.fromDocument(actual))
+    .withTest(Input.fromDocument(expected))
+    .ignoreComments()
+    .ignoreWhitespace()
+    .checkForSimilar()
+    .build()
+
+    if (diff.hasDifferences()) {
+      throw new AssertionError("XML mismatch: " + diff.toString())
+    }
+  }
+
   static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags, List<String> additionalDynamicPaths = []) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
@@ -103,40 +145,34 @@ abstract class CiVisibilityTestUtils {
     // ignore provided tags
     events = removeTags(events, ignoredTags)
 
+    def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
+    def actualEvents = JSON_MAPPER.writeValueAsString(events)
+
+    compareJson(expectedEvents, actualEvents)
+
+    def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
+    def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
+    compareJson(expectedCoverages, actualCoverages)
+
+    return replacementMap
+  }
+
+  private static void compareJson(String expectedJson, String actualJson) {
     def environment = System.getenv()
     def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
     def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
 
-    def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
-    def actualEvents = JSON_MAPPER.writeValueAsString(events)
-
     try {
-      JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
+      JSONAssert.assertEquals(expectedJson, actualJson, comparisonMode)
     } catch (AssertionError e) {
       if (ciRun) {
         // When running in CI the assertion error message does not contain the actual diff,
         // so we print the events to the console to help debug the issue
-        println "Expected events: $expectedEvents"
-        println "Actual events: $actualEvents"
+        println "Expected JSON: $expectedJson"
+        println "Actual JSON: $actualJson"
       }
-      throw new AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
+      throw new AssertionFailedError("Coverage report events mismatch", expectedJson, actualJson, e)
     }
-
-    def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
-    def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
-    try {
-      JSONAssert.assertEquals(expectedCoverages, actualCoverages, comparisonMode)
-    } catch (AssertionError e) {
-      if (ciRun) {
-        // When running in CI the assertion error message does not contain the actual diff,
-        // so we print the events to the console to help debug the issue
-        println "Expected coverages: $expectedCoverages"
-        println "Actual coverages: $actualCoverages"
-      }
-      throw new AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
-    }
-
-    return replacementMap
   }
 
   static boolean assertTestsOrder(List<Map<?, ?>> events, List<TestFQN> expectedOrder) {
@@ -342,6 +378,16 @@ abstract class CiVisibilityTestUtils {
       this.rawPath = rawPath
       this.path = path
       this.unique = unique
+    }
+  }
+
+  static final class CoverageReport {
+    final Map<String, Object> event
+    final String report
+
+    CoverageReport(Map<String, Object> event, String report) {
+      this.event = event
+      this.report = report
     }
   }
 }

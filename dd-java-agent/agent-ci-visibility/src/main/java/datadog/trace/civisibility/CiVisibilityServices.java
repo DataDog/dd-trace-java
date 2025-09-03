@@ -66,6 +66,7 @@ public class CiVisibilityServices {
   final Config config;
   final CiVisibilityMetricCollector metricCollector;
   final BackendApi backendApi;
+  final BackendApi ciIntake;
   final JvmInfoFactory jvmInfoFactory;
   final CiEnvironment environment;
   final CIProviderInfoFactory ciProviderInfoFactory;
@@ -85,6 +86,8 @@ public class CiVisibilityServices {
     this.metricCollector = metricCollector;
     this.backendApi =
         new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.API);
+    this.ciIntake =
+        new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.CI_INTAKE);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 
