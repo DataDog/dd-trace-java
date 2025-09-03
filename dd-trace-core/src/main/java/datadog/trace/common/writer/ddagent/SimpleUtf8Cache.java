@@ -170,9 +170,14 @@ public final class SimpleUtf8Cache implements EncodingCache {
     // was a overly permissive in allowing the next request to the same slot
     // to immediately create a CacheEntry
     // Third version - used a mark hash that to match exactly,
-    // that could lead to racy fights over the cache line
+    // that could lead to access order fights over the cache slot
     // So this version is a hybrid of 2nd & 3rd, using a bloom filter
     // that effectively degenerates to a boolean
+
+    // This approach provides a nice balance when there's an A-B-A access pattern
+    // The first A will mark the slot
+    // Then B will mark the slot with A | B
+    // Then either A or B can claim and reset the slot
 
     int priorMarkHash = marks[index];
     boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);

@@ -185,7 +185,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     long lookupTimeMs = this.accessTimeMs;
 
     CacheEntry[] tenuredEntries = this.tenuredEntries;
-    int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value, lookupTimeMs);
+    int matchingTenuredIndex =
+        lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value, lookupTimeMs);
     if (matchingTenuredIndex != -1) {
       CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
 
@@ -196,7 +197,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     }
 
     CacheEntry[] edenEntries = this.edenEntries;
-    int matchingEdenIndex = lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value, lookupTimeMs);
+    int matchingEdenIndex =
+        lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value, lookupTimeMs);
     if (matchingEdenIndex != -1) {
       CacheEntry edenEntry = edenEntries[matchingEdenIndex];
 
@@ -227,23 +229,27 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     newEntry.hit(lookupTimeMs);
 
     // search for empty slot or failing that the MFU entry
-    int localMfuIndex = findFirstAvailableOrMfuIndex(edenEntries, MAX_EDEN_PROBES, adjHash);
-    CacheEntry localMfuEntry = edenEntries[localMfuIndex];
+    int edenMfuIndex = findFirstAvailableOrMfuIndex(edenEntries, MAX_EDEN_PROBES, adjHash);
+    CacheEntry edenMfuEntry = edenEntries[edenMfuIndex];
 
     // Found an empty slot - fill it
-    if (localMfuEntry == null) {
-      edenEntries[localMfuIndex] = newEntry;
+    if (edenMfuEntry == null) {
+      edenEntries[edenMfuIndex] = newEntry;
       return newEntry.utf8();
     }
 
     // See if we can early promote the local MFU entry into the global cache
     // Early promotion doesn't evict from the global cache
-    int tenuredAvailableIndex = findAvailableIndex(tenuredEntries, MAX_TENURED_PROBES, localMfuEntry.adjHash());
+
+    // NOTE: Need to make sure to use hash of the entry being promoted,
+    // since it may differ from the requested hash
+    int tenuredAvailableIndex =
+        findAvailableIndex(tenuredEntries, MAX_TENURED_PROBES, edenMfuEntry.adjHash());
     if (tenuredAvailableIndex != -1) {
-      tenuredEntries[tenuredAvailableIndex] = localMfuEntry;
+      tenuredEntries[tenuredAvailableIndex] = edenMfuEntry;
       this.earlyPromotions += 1;
 
-      edenEntries[localMfuIndex] = newEntry;
+      edenEntries[edenMfuIndex] = newEntry;
       return CacheEntry.utf8(value);
     }
 
@@ -266,7 +272,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     return -1;
   }
 
-  static final int findFirstAvailableOrMfuIndex(CacheEntry[] entries, int numProbes, int newAdjHash) {
+  static final int findFirstAvailableOrMfuIndex(
+      CacheEntry[] entries, int numProbes, int newAdjHash) {
     double mfuScore = Double.MIN_VALUE;
     int mfuIndex = -1;
 
@@ -296,9 +303,14 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     // was a overly permissive in allowing the next request to the same slot
     // to immediately create a CacheEntry
     // Third version - used a mark hash that to match exactly,
-    // that could lead to racy fights over the cache line
+    // that could lead to access order fights over the cache slot
     // So this version is a hybrid of 2nd & 3rd, using a bloom filter
     // that effectively degenerates to a boolean
+
+    // This approach provides a nice balance when there's an A-B-A access pattern
+    // The first A will mark the slot
+    // Then B will mark the slot with A | B
+    // Then either A or B can claim and reset the slot
 
     int priorMarkHash = marks[index];
     boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
