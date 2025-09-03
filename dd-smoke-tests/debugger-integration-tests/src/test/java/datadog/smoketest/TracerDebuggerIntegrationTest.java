@@ -11,6 +11,7 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -184,6 +185,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     ProcessBuilder processBuilder = createProcessBuilder(logFilePath, "--server.port=" + httpPort);
     if (enableProcessTags) {
       processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "true");
+    } else if (JavaVirtualMachine.isJavaVersion(21)) {
+      // disable explicitly since enable by default on 21
+      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "false");
     }
     targetProcess = processBuilder.start();
     // assert in logs app started
