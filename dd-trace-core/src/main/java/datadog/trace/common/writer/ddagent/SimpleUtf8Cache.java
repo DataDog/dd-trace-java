@@ -90,7 +90,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
   public final byte[] getUtf8(String value) {
     CacheEntry[] thisEntries = this.entries;
 
-    int adjHash = value.hashCode();
+    int adjHash = CacheEntry.adjHash(value);
 
     CacheEntry matchingEntry = lookupEntry(thisEntries, adjHash, value);
     if (matchingEntry != null) {
