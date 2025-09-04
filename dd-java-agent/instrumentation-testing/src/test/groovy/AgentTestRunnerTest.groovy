@@ -1,6 +1,6 @@
 import com.google.common.reflect.ClassPath
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.BootstrapClasspathSetup
+import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.agent.test.BootstrapClasspathSetupListener
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.Constants
@@ -15,7 +15,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 
-class AgentTestRunnerTest extends AgentTestRunner {
+class AgentTestRunnerTest extends InstrumentationSpecification {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null
   private static final BigDecimal JAVA_VERSION = new BigDecimal(System.getProperty("java.specification.version"))
   private static final boolean IS_AT_LEAST_JAVA_17 = JAVA_VERSION.isAtLeast(17.0)
@@ -36,14 +36,14 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
   def "spock runner bootstrap prefixes correct for test setup"() {
     expect:
-    BootstrapClasspathSetup.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
+    BootstrapClasspathSetupListener.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
   }
 
   def "classpath setup"() {
     setup:
     boolean jfrSupported = isJFRSupported()
     final List<String> bootstrapClassesIncorrectlyLoaded = []
-    for (ClassPath.ClassInfo info : BootstrapClasspathSetup.TEST_CLASSPATH.getAllClasses()) {
+    for (ClassPath.ClassInfo info : BootstrapClasspathSetupListener.TEST_CLASSPATH.getAllClasses()) {
       for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
           if (!jfrSupported && info.name.startsWith("datadog.trace.bootstrap.instrumentation.jfr.")) {

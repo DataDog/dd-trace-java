@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.CorrelationIdentifier
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
 
-class TraceCorrelationTest extends AgentTestRunner {
+class TraceCorrelationTest extends InstrumentationSpecification {
 
   def "access trace correlation only under trace"() {
     when:

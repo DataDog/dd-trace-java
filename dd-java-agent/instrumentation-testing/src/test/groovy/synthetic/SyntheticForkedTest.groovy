@@ -1,8 +1,8 @@
 package synthetic
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
-abstract class SyntheticForkedTestBase extends AgentTestRunner {
+abstract class SyntheticForkedTestBase extends InstrumentationSpecification {
 
   def "test Synthetic methods"() {
     expect:

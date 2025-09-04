@@ -1,6 +1,6 @@
 package locator
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
@@ -9,7 +9,7 @@ import spock.lang.Shared
 
 import java.lang.instrument.ClassFileTransformer
 
-class ClassInjectingForkedTest extends AgentTestRunner {
+class ClassInjectingForkedTest extends InstrumentationSpecification {
 
   static volatile ClassFileTransformer extraTransformer = null
 

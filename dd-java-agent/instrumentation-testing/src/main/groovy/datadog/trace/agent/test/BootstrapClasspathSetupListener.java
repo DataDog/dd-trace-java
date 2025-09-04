@@ -24,7 +24,21 @@ import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
 
-public class BootstrapClasspathSetup implements LauncherSessionListener {
+/**
+ * This class appends tracer classes from the packages listed in {@link #TEST_BOOTSTRAP_PREFIXES} to
+ * bootstrap classpath.
+ *
+ * <p>This needs to be done before these classes are loaded by the application classloader. JUnit 5
+ * does classpath scanning in order to discover tests, so this class has to be initialized early in
+ * JUnit 5 lifecycle (before classpath scanning takes place). It implements {@link
+ * LauncherSessionListener} as the latter is called early enough. Invoking the listener triggers
+ * class initialization and bootstrap classpath setup.
+ *
+ * <p><strong>IMPORTANT:</strong> the listener is loaded through the ServiceLoader mechanism, so if
+ * this class (and the corresponding {@code org.junit.platform.launcher.LauncherSessionListener}
+ * file) is on the classpath, it will be called and the bootstrap classpath will be patched!
+ */
+public class BootstrapClasspathSetupListener implements LauncherSessionListener {
 
   @Override
   public void launcherSessionOpened(LauncherSession session) {
@@ -86,7 +100,7 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
   }
 
   private static ClassPath computeTestClasspath() {
-    ClassLoader testClassLoader = AgentTestRunner.class.getClassLoader();
+    ClassLoader testClassLoader = InstrumentationSpecification.class.getClassLoader();
     if (!(testClassLoader instanceof URLClassLoader)) {
       // java9's system loader does not extend URLClassLoader
       // which breaks Guava ClassPath lookup
@@ -157,7 +171,8 @@ public class BootstrapClasspathSetup implements LauncherSessionListener {
     }
     URL jar =
         ClasspathUtils.createJarWithClasses(
-            SpockExtension.class.getClassLoader(), bootstrapClasses.toArray(new String[0]));
+            TestClassShadowingExtension.class.getClassLoader(),
+            bootstrapClasses.toArray(new String[0]));
     return new File(jar.getFile());
   }
 

@@ -1,6 +1,6 @@
 // This file includes software developed at SignalFx
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -13,7 +13,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Flaky("https://github.com/DataDog/dd-trace-java/issues/4004")
-class SpringJpaTest extends AgentTestRunner {
+class SpringJpaTest extends InstrumentationSpecification {
   def "test object method"() {
     setup:
     def context = new AnnotationConfigApplicationContext(JpaPersistenceConfig)

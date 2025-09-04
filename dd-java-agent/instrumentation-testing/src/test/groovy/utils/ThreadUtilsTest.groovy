@@ -1,6 +1,6 @@
 package utils
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.ThreadUtils
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.FailsWith
@@ -9,7 +9,7 @@ import spock.lang.Shared
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-class ThreadUtilsTest extends AgentTestRunner {
+class ThreadUtilsTest extends InstrumentationSpecification {
 
   @Shared
   def counter = new AtomicInteger()

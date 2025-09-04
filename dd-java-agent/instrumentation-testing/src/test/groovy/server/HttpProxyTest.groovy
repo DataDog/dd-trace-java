@@ -1,6 +1,6 @@
 package server
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.MediaType
@@ -19,7 +19,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 @Requires({
   !System.getProperty("java.vm.name").contains("IBM J9 VM")
 })
-class HttpProxyTest extends AgentTestRunner {
+class HttpProxyTest extends InstrumentationSpecification {
 
   @AutoCleanup
   @Shared

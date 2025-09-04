@@ -92,7 +92,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 /**
- * A spock test runner which automatically applies instrumentation and exposes a global trace
+ * A specification that automatically applies instrumentation and exposes a global trace
  * writer.
  *
  * <p>To use, write a regular spock test, but extend this class instead of {@link
@@ -102,14 +102,15 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
  * <ul>
  *   <li>All {@link InstrumenterModule}s on the test classpath will be applied. Matching preloaded classes
  *       will be retransformed.
- *   <li>{@link AgentTestRunner#TEST_WRITER} will be registered with the global tracer and available
+ *   <li>{@link InstrumentationSpecification#TEST_WRITER} will be registered with the global tracer and available
  *       in an initialized state.
  * </ul>
  */
-// CodeNarc incorrectly thinks ".class" is unnecessary in @RunWith
+// CodeNarc incorrectly thinks ".class" is unnecessary in @ExtendWith
 @SuppressWarnings('UnnecessaryDotClass')
-@ExtendWith(SpockExtension.class)
-abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.Listener {
+@ExtendWith(TestClassShadowingExtension.class)
+@ExtendWith(TooManyInvocationsErrorHandler.class)
+abstract class InstrumentationSpecification extends DDSpecification implements AgentBuilder.Listener {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20)
 
   protected static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation()
@@ -212,7 +213,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     @Override
     boolean isDataStreamsEnabled() {
-      return AgentTestRunner.this.isDataStreamsEnabled()
+      return InstrumentationSpecification.this.isDataStreamsEnabled()
     }
 
     @Override
@@ -467,7 +468,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     // the cache needs to be recomputed taking into account that instrumentation's matchers
     ClassLoaderMatchers.resetState()
 
-    assert ServiceLoader.load(InstrumenterModule, AgentTestRunner.getClassLoader())
+    assert ServiceLoader.load(InstrumenterModule, InstrumentationSpecification.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(

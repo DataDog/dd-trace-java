@@ -1,7 +1,7 @@
 package context
 
 import datadog.trace.agent.test.AbortTransformationException
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.InstrumenterConfig
 import datadog.trace.test.util.GCUtils
@@ -30,7 +30,7 @@ import static context.FieldInjectionTestInstrumentation.UntransformableKeyClass
 import static context.FieldInjectionTestInstrumentation.ValidInheritsSerializableKeyClass
 import static context.FieldInjectionTestInstrumentation.ValidSerializableKeyClass
 
-class FieldInjectionForkedTest extends AgentTestRunner {
+class FieldInjectionForkedTest extends InstrumentationSpecification {
 
   @Override
   void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
@@ -216,7 +216,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
 /**
  * Make sure that fields don't get injected into the class if it is disabled via system properties.
  */
-class FieldInjectionDisabledForkedTest extends AgentTestRunner {
+class FieldInjectionDisabledForkedTest extends InstrumentationSpecification {
   void configurePreAgent() {
     super.configurePreAgent()
 

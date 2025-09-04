@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Config
 import spock.lang.Shared
 
-class ConfigResetTest extends AgentTestRunner {
+class ConfigResetTest extends InstrumentationSpecification {
 
   @Shared
   def sharedInstance = checkStaticAssertions()

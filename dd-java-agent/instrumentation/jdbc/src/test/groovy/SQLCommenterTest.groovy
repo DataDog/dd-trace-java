@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -7,7 +7,7 @@ import datadog.trace.instrumentation.jdbc.SQLCommenter
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class SQLCommenterTest extends AgentTestRunner {
+class SQLCommenterTest extends InstrumentationSpecification {
 
   def "test find first word"() {
     setup:

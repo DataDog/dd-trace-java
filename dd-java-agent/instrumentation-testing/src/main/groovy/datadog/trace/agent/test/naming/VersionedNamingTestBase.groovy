@@ -1,9 +1,9 @@
 package datadog.trace.agent.test.naming
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TracerConfig
 
-abstract class VersionedNamingTestBase extends AgentTestRunner implements VersionedNamingTest {
+abstract class VersionedNamingTestBase extends InstrumentationSpecification implements VersionedNamingTest {
 
 
   @Override

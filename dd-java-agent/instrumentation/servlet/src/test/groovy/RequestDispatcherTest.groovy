@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.core.DDSpan
 
@@ -13,7 +13,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
-class RequestDispatcherTest extends AgentTestRunner {
+class RequestDispatcherTest extends InstrumentationSpecification {
 
   def request = Mock(HttpServletRequest)
   def response = Mock(HttpServletResponse)

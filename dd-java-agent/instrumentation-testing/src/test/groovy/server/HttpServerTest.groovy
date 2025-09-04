@@ -5,7 +5,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 import datadog.communication.util.IOUtils
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -13,7 +13,7 @@ import spock.lang.Shared
 
 /* Don't actually need AgentTestRunner, but it messes up the classloader for AgentTestRunnerTest if this runs first. */
 
-class HttpServerTest extends AgentTestRunner {
+class HttpServerTest extends InstrumentationSpecification {
   @Shared
   def client = OkHttpUtils.client()
 

@@ -1,11 +1,11 @@
 package utils
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.PortUtils
 
 import java.util.concurrent.TimeUnit
 
-class PortUtilsTest extends AgentTestRunner {
+class PortUtilsTest extends InstrumentationSpecification {
   def "expect waitForPortToOpen succeed"() {
     given:
     int port = PortUtils.randomOpenPort()

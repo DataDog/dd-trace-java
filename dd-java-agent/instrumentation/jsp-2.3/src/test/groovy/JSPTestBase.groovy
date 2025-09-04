@@ -1,5 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import net.bytebuddy.utility.JavaModule
@@ -9,7 +9,7 @@ import org.apache.catalina.LifecycleException
 import org.apache.catalina.startup.Tomcat
 import spock.lang.Shared
 
-abstract class JSPTestBase extends AgentTestRunner {
+abstract class JSPTestBase extends InstrumentationSpecification {
   @Shared
   int port
   @Shared

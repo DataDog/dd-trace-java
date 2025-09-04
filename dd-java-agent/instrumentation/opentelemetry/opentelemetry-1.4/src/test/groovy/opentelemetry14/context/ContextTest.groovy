@@ -1,6 +1,6 @@
 package opentelemetry14.context
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
@@ -14,7 +14,7 @@ import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_ROOT_S
 import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 
-class ContextTest extends AgentTestRunner {
+class ContextTest extends InstrumentationSpecification {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("context-instrumentation")
 

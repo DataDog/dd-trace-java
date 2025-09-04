@@ -1,1 +1,1 @@
-datadog.trace.agent.test.BootstrapClasspathSetup
+datadog.trace.agent.test.BootstrapClasspathSetupListener

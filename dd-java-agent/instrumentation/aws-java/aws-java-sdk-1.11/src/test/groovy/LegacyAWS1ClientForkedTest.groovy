@@ -32,7 +32,7 @@ import com.amazonaws.services.sns.model.PublishRequest
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import com.amazonaws.services.sqs.model.CreateQueueRequest
 import com.amazonaws.services.sqs.model.SendMessageRequest
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -48,7 +48,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class LegacyAWS1ClientForkedTest extends AgentTestRunner {
+class LegacyAWS1ClientForkedTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

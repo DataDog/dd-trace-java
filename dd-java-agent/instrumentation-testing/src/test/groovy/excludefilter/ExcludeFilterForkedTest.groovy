@@ -1,6 +1,6 @@
 package excludefilter
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.FieldBackedContextStores
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
 
@@ -16,7 +16,7 @@ import static excludefilter.ExcludeFilterTestInstrumentation.NormalExecutor
 import static excludefilter.ExcludeFilterTestInstrumentation.NormalRunnable
 import static excludefilter.ExcludeFilterTestInstrumentation.RunnableExcludedExecutor
 
-class ExcludeFilterForkedTest extends AgentTestRunner {
+class ExcludeFilterForkedTest extends InstrumentationSpecification {
 
   def "test ExcludeFilter #runnable.class.name"() {
     expect:

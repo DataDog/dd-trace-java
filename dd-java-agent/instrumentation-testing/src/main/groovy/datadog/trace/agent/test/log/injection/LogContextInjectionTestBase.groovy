@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.log.injection
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -14,7 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
  * This class represents the standard test cases that new logging library integrations MUST
  * satisfy in order to support log injection.
  */
-abstract class LogContextInjectionTestBase extends AgentTestRunner {
+abstract class LogContextInjectionTestBase extends InstrumentationSpecification {
   /**
    * Set in the framework-specific context the given value at the given key
    */

@@ -3,7 +3,7 @@ package datadog.trace.civisibility
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
@@ -62,7 +62,7 @@ import java.util.concurrent.TimeUnit
 import java.util.function.Predicate
 import java.util.stream.Collectors
 
-abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
+abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecification {
 
   public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
   public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000

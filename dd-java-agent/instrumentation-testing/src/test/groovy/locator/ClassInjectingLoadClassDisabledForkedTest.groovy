@@ -1,6 +1,6 @@
 package locator
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
@@ -12,7 +12,7 @@ import java.lang.instrument.ClassFileTransformer
 /**
  * This test checks that we don't fall back to loadClass when it is disabled.
  */
-class ClassInjectingLoadClassDisabledForkedTest extends AgentTestRunner {
+class ClassInjectingLoadClassDisabledForkedTest extends InstrumentationSpecification {
 
   static volatile ClassFileTransformer extraTransformer = null
 

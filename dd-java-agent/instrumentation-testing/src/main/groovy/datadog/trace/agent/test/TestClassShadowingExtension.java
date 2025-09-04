@@ -3,23 +3,27 @@ package datadog.trace.agent.test;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.List;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
-import org.spockframework.mock.IMockInvocation;
-import org.spockframework.mock.TooManyInvocationsError;
 
-public final class SpockExtension
-    implements BeforeAllCallback,
-        AfterAllCallback,
-        BeforeEachCallback,
-        AfterEachCallback,
-        TestExecutionExceptionHandler {
+/**
+ * This extension does the following:
+ *
+ * <ul>
+ *   <li>ensures that the test class does not refer to bootstrap classes (checks field types, method
+ *       return types, argument types)
+ *   <li>replaces context classloader with a custom one that "shadows" the test class by loading a
+ *       fresh copy of it before every test
+ * </ul>
+ *
+ * @see BootstrapClasspathSetupListener#isBootstrapClass(Class)
+ */
+public final class TestClassShadowingExtension
+    implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, AfterEachCallback {
 
   private static final ExtensionContext.Namespace NAMESPACE =
       ExtensionContext.Namespace.create("dd", "spock");
@@ -37,7 +41,7 @@ public final class SpockExtension
     ctx.getStore(NAMESPACE).put(INSTRUMENTATION_CLASSLOADER, custom);
   }
 
-  public static void assertNoBootstrapClassesInTestClass(final Class<?> testClass) {
+  private static void assertNoBootstrapClassesInTestClass(final Class<?> testClass) {
     for (final Field field : testClass.getDeclaredFields()) {
       assertNotBootstrapClass(testClass, field.getType());
     }
@@ -50,7 +54,7 @@ public final class SpockExtension
   }
 
   private static void assertNotBootstrapClass(final Class<?> testClass, final Class<?> clazz) {
-    if (BootstrapClasspathSetup.isBootstrapClass(clazz)) {
+    if (BootstrapClasspathSetupListener.isBootstrapClass(clazz)) {
       throw new IllegalStateException(
           testClass.getName()
               + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "
@@ -77,40 +81,6 @@ public final class SpockExtension
     ClassLoader prev = ctx.getStore(NAMESPACE).remove(ORIGINAL_CLASSLOADER, ClassLoader.class);
     if (prev != null) {
       Thread.currentThread().setContextClassLoader(prev);
-    }
-  }
-
-  @Override
-  public void handleTestExecutionException(ExtensionContext ctx, Throwable ex) throws Throwable {
-    if (ex instanceof TooManyInvocationsError) {
-      fixTooManyInvocationsError((TooManyInvocationsError) ex);
-      throw ex; // re‑throw so JUnit still marks the test as failed.
-    }
-    throw ex;
-  }
-
-  static void fixTooManyInvocationsError(final TooManyInvocationsError error) {
-    final List<IMockInvocation> accepted = error.getAcceptedInvocations();
-    for (final IMockInvocation invocation : accepted) {
-      try {
-        invocation.toString();
-      } catch (final Throwable t) {
-        final List<Object> args = invocation.getArguments();
-        for (int i = 0; i < args.size(); i++) {
-          final Object arg = args.get(i);
-          if (arg instanceof AssertionError) {
-            args.set(
-                i,
-                new AssertionError(
-                    "'"
-                        + arg.getClass().getName()
-                        + "' hidden due to '"
-                        + t.getClass().getName()
-                        + "'",
-                    t));
-          }
-        }
-      }
     }
   }
 

@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.SpockExtension
+import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.agent.test.TestClassShadowingExtension
 import org.spockframework.mock.*
 import org.spockframework.mock.runtime.MockInvocation
 
-class TooManyInvocationsErrorListenerTest extends AgentTestRunner {
+class TooManyInvocationsErrorListenerTest extends InstrumentationSpecification {
 
   @SuppressWarnings('GroovyAccessibility')
   void 'test that listener modifies failure'() {
@@ -21,7 +21,7 @@ class TooManyInvocationsErrorListenerTest extends AgentTestRunner {
     thrown(StackOverflowError)
 
     when:
-    SpockExtension.fixTooManyInvocationsError(error)
+    TestClassShadowingExtension.fixTooManyInvocationsError(error)
     error.getMessage()
 
     then:
