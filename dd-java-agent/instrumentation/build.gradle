@@ -95,12 +95,6 @@ subprojects { Project subProj ->
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->
-      // The `forkedTest` task is not a proper test suite, so it has to be configured directly
-      if (subTask.name == 'forkedTest') {
-        // See SpockRunner comment above
-        useJUnitPlatform()
-      }
-
       if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }
