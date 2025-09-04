@@ -16,7 +16,7 @@ public enum TagMapScenario {
     this.size = size;
   }
 
-  public int size() {
+  public final int size() {
     return this.size;
   }
 
