@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 /**
  * A simple UTF8 cache - primarily intended for tag names
@@ -44,12 +43,14 @@ import java.util.Arrays;
  * a LFU: least frequently used eviction policy is used to free up a slot.
  */
 public final class SimpleUtf8Cache implements EncodingCache {
+  static final int MAX_CAPACITY = 1024;
+
   private static final int MAX_PROBES = 4;
 
   private final int SIZE = 64;
 
-  private final int[] markers = new int[SIZE];
-  private final CacheEntry[] entries = new CacheEntry[SIZE];
+  private final int[] markers;
+  private final CacheEntry[] entries;
 
   private static final double HIT_DECAY = 0.5D;
   private static final double PURGE_THRESHOLD = 0.25D;
@@ -58,6 +59,17 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
   protected int hits = 0;
   protected int evictions = 0;
+
+  public SimpleUtf8Cache(int capacity) {
+    int size = Caching.cacheSizeFor(Math.min(capacity, MAX_CAPACITY));
+
+    this.markers = new int[size];
+    this.entries = new CacheEntry[size];
+  }
+
+  public int capacity() {
+    return this.entries.length;
+  }
 
   /**
    * Recalibrates the cache Applies a decay to existing entries - and purges entries below the
@@ -75,7 +87,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
       if (purge) thisEntries[i] = null;
     }
 
-    Arrays.fill(this.markers, 0);
+    Caching.reset(this.markers);
   }
 
   @Override
@@ -94,7 +106,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
     CacheEntry[] thisEntries = this.entries;
 
-    int adjHash = CacheEntry.adjHash(value);
+    int adjHash = Caching.adjHash(value);
 
     CacheEntry matchingEntry = lookupEntry(thisEntries, adjHash, value);
     if (matchingEntry != null) {
@@ -104,7 +116,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
       return matchingEntry.utf8();
     }
 
-    boolean wasMarked = mark(this.markers, adjHash);
+    boolean wasMarked = Caching.mark(this.markers, adjHash);
     if (!wasMarked) return CacheEntry.utf8(value);
 
     CacheEntry newEntry = new CacheEntry(adjHash, value);
@@ -117,7 +129,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
   }
 
   static final CacheEntry lookupEntry(CacheEntry[] entries, int adjHash, String value) {
-    int initialBucketIndex = initialBucketIndex(entries, adjHash);
+    int initialBucketIndex = Caching.bucketIndex(entries, adjHash);
     for (int probe = 0, index = initialBucketIndex; probe < MAX_PROBES; ++probe, ++index) {
       if (index >= entries.length) index = 0;
 
@@ -130,7 +142,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
   }
 
   static final boolean lfuInsert(CacheEntry[] entries, CacheEntry newEntry) {
-    int initialBucketIndex = initialBucketIndex(entries, newEntry.adjHash());
+    int initialBucketIndex = Caching.bucketIndex(entries, newEntry.adjHash());
 
     // initial scan to see if there's an empty slot or marker entry is already present
     double lowestHits = Double.MAX_VALUE;
@@ -154,43 +166,6 @@ public final class SimpleUtf8Cache implements EncodingCache {
     // If we get here, then we're evicting the LRU
     entries[lfuIndex] = newEntry;
     return true;
-  }
-
-  static final int initialBucketIndex(CacheEntry[] entries, int adjHash) {
-    return adjHash & (entries.length - 1);
-  }
-
-  static final int initialBucketIndex(int[] marks, int adjHash) {
-    return adjHash & (marks.length - 1);
-  }
-
-  static final boolean mark(int[] marks, int newAdjHash) {
-    int index = initialBucketIndex(marks, newAdjHash);
-
-    // This is the 4th iteration of the marking strategy
-    // First version - used a mark entry, but that would prematurely
-    // burn a slot in the cache
-    // Second version - used a mark boolean, that worked well, but
-    // was a overly permissive in allowing the next request to the same slot
-    // to immediately create a CacheEntry
-    // Third version - used a mark hash that to match exactly,
-    // that could lead to access order fights over the cache slot
-    // So this version is a hybrid of 2nd & 3rd, using a bloom filter
-    // that effectively degenerates to a boolean
-
-    // This approach provides a nice balance when there's an A-B-A access pattern
-    // The first A will mark the slot
-    // Then B will mark the slot with A | B
-    // Then either A or B can claim and reset the slot
-
-    int priorMarkHash = marks[index];
-    boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
-    if (match) {
-      marks[index] = 0;
-    } else {
-      marks[index] = priorMarkHash | newAdjHash;
-    }
-    return match;
   }
 
   static final class CacheEntry {
@@ -241,11 +216,6 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
     boolean isPurgeable() {
       return (this.score < PURGE_THRESHOLD);
-    }
-
-    static final int adjHash(String value) {
-      int hash = value.hashCode();
-      return (hash == 0) ? 0xDA7AD06 : hash ^ (hash >>> 16);
     }
 
     static final byte[] utf8(String value) {

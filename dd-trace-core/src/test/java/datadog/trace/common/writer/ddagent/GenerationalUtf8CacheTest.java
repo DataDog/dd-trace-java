@@ -14,10 +14,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class GenerationalUtf8CacheTest {
+  static final GenerationalUtf8Cache create() {
+    return new GenerationalUtf8Cache(64, 128);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"foo", "bar", "baz", "quux"})
   public void getUtf8(String value) {
-    GenerationalUtf8Cache cache = new GenerationalUtf8Cache();
+    GenerationalUtf8Cache cache = create();
 
     for (int i = 0; i < 10; ++i) {
       byte[] valueUtf8 = cache.getUtf8(value);
@@ -26,8 +30,38 @@ public class GenerationalUtf8CacheTest {
   }
 
   @Test
+  public void capacity() {
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache(192);
+    assertEquals(64, cache.edenCapacity());
+    assertEquals(128, cache.tenuredCapacity());
+  }
+
+  @Test
+  public void maxCapacity() {
+    GenerationalUtf8Cache cache =
+        new GenerationalUtf8Cache(
+            GenerationalUtf8Cache.MAX_EDEN_CAPACITY + 1,
+            GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 1);
+
+    assertEquals(GenerationalUtf8Cache.MAX_EDEN_CAPACITY, cache.edenCapacity());
+    assertEquals(GenerationalUtf8Cache.MAX_TENURED_CAPACITY, cache.tenuredCapacity());
+  }
+
+  @Test
+  public void maxCapacity_combined() {
+    GenerationalUtf8Cache cache =
+        new GenerationalUtf8Cache(
+            GenerationalUtf8Cache.MAX_EDEN_CAPACITY
+                + GenerationalUtf8Cache.MAX_TENURED_CAPACITY
+                + 2);
+
+    assertEquals(GenerationalUtf8Cache.MAX_EDEN_CAPACITY, cache.edenCapacity());
+    assertEquals(GenerationalUtf8Cache.MAX_TENURED_CAPACITY, cache.tenuredCapacity());
+  }
+
+  @Test
   public void caching() {
-    GenerationalUtf8Cache cache = new GenerationalUtf8Cache();
+    GenerationalUtf8Cache cache = create();
 
     String value = "bar";
     byte[] expected = value.getBytes(StandardCharsets.UTF_8);
@@ -50,7 +84,7 @@ public class GenerationalUtf8CacheTest {
 
   @Test
   public void promotion() {
-    GenerationalUtf8Cache cache = new GenerationalUtf8Cache();
+    GenerationalUtf8Cache cache = create();
 
     String value = "bar";
     byte[] expected = value.getBytes(StandardCharsets.UTF_8);
@@ -87,7 +121,7 @@ public class GenerationalUtf8CacheTest {
     int edenHits = 0;
     int promotedHits = 0;
 
-    GenerationalUtf8Cache cache = new GenerationalUtf8Cache();
+    GenerationalUtf8Cache cache = create();
     for (int i = 0; i < 1_000; ++i) {
       cache.recalibrate();
 
@@ -119,7 +153,7 @@ public class GenerationalUtf8CacheTest {
     }
     byte[] expected = lorem.getBytes(StandardCharsets.UTF_8);
 
-    GenerationalUtf8Cache cache = new GenerationalUtf8Cache();
+    GenerationalUtf8Cache cache = create();
     byte[] first = cache.getUtf8(lorem);
     assertArrayEquals(expected, first);
 

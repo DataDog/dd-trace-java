@@ -14,10 +14,27 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class SimpleUtf8CacheTest {
+  static final SimpleUtf8Cache create() {
+    return new SimpleUtf8Cache(64);
+  }
+
+  @Test
+  public void capacity() {
+    SimpleUtf8Cache cache = new SimpleUtf8Cache(128);
+    assertEquals(128, cache.capacity());
+  }
+
+  @Test
+  public void maxCapacity() {
+    SimpleUtf8Cache cache = new SimpleUtf8Cache(SimpleUtf8Cache.MAX_CAPACITY + 1);
+
+    assertEquals(SimpleUtf8Cache.MAX_CAPACITY, cache.capacity());
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"foo", "bar", "baz", "quux"})
   public void getUtf8(String value) {
-    SimpleUtf8Cache cache = new SimpleUtf8Cache();
+    SimpleUtf8Cache cache = create();
 
     for (int i = 0; i < 10; ++i) {
       byte[] valueUtf8 = cache.getUtf8(value);
@@ -27,7 +44,7 @@ public class SimpleUtf8CacheTest {
 
   @Test
   public void caching() {
-    SimpleUtf8Cache cache = new SimpleUtf8Cache();
+    SimpleUtf8Cache cache = create();
 
     String value = "bar";
     byte[] expected = value.getBytes(StandardCharsets.UTF_8);
@@ -54,7 +71,7 @@ public class SimpleUtf8CacheTest {
 
     int hits = 0;
 
-    SimpleUtf8Cache cache = new SimpleUtf8Cache();
+    SimpleUtf8Cache cache = create();
     for (int i = 0; i < 1_000; ++i) {
       cache.recalibrate();
 
@@ -84,7 +101,7 @@ public class SimpleUtf8CacheTest {
     }
     byte[] expected = lorem.getBytes(StandardCharsets.UTF_8);
 
-    SimpleUtf8Cache cache = new SimpleUtf8Cache();
+    SimpleUtf8Cache cache = create();
     byte[] first = cache.getUtf8(lorem);
     assertArrayEquals(expected, first);
 

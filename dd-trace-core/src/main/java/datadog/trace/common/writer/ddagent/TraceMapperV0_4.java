@@ -25,10 +25,14 @@ import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
   static final SimpleUtf8Cache TAG_CACHE =
-      Config.get().isUtf8CacheEnabled() ? new SimpleUtf8Cache() : null;
+      Config.get().getTagNameUtf8CacheSize() > 0
+          ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
+          : null;
 
   static final GenerationalUtf8Cache VALUE_CACHE =
-      Config.get().isUtf8CacheEnabled() ? new GenerationalUtf8Cache() : null;
+      Config.get().getTagValueUtf8CacheSize() > 0
+          ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
+          : null;
 
   private final int size;
 
