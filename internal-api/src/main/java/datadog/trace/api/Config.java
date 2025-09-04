@@ -1815,7 +1815,9 @@ public class Config {
     // Enable tracer computed trace metrics by default for Azure Functions
     tracerMetricsEnabled =
         configProvider.getBoolean(
-            TRACE_STATS_COMPUTATION_ENABLED, azureFunctions, TRACER_METRICS_ENABLED);
+            TRACE_STATS_COMPUTATION_ENABLED,
+            azureFunctions || JavaVirtualMachine.isJavaVersion(17),
+            TRACER_METRICS_ENABLED);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
