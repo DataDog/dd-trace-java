@@ -30,6 +30,7 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.workers.WorkAction
@@ -111,7 +112,8 @@ class MuzzlePlugin implements Plugin<Project> {
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     TaskProvider<Task> compileMuzzle = project.tasks.register('compileMuzzle') {
-      it.dependsOn(project.tasks.withType(InstrumentTask))
+      // TODO fix eagerness, check jetty an co projects
+      it.dependsOn project.tasks.matching { it instanceof AbstractCompile && it.name.startsWith('') }
       it.dependsOn bootstrapProject.tasks.named("compileJava")
       it.dependsOn bootstrapProject.tasks.named("compileMain_java11Java")
       it.dependsOn toolingProject.tasks.named("compileJava")
