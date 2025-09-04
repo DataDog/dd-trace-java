@@ -18,11 +18,13 @@ public final class StableConfig {
   public StableConfig(Object yaml) {
     Map<Object, Object> map = (Map<Object, Object>) yaml;
     this.configId = map.get("config_id") == null ? null : String.valueOf(map.get("config_id"));
-    
+
     // getOrDefault returns null if key exists with null value, so we need explicit null check
-    Map<String, Object> apmConfigDefault = (Map<String, Object>) map.get("apm_configuration_default");
-    this.apmConfigurationDefault = unmodifiableMap(apmConfigDefault != null ? apmConfigDefault : emptyMap());
-    
+    Map<String, Object> apmConfigDefault =
+        (Map<String, Object>) map.get("apm_configuration_default");
+    this.apmConfigurationDefault =
+        unmodifiableMap(apmConfigDefault != null ? apmConfigDefault : emptyMap());
+
     this.apmConfigurationRules = parseRules(map);
   }
 

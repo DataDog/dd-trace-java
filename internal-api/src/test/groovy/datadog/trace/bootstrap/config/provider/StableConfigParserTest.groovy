@@ -315,7 +315,7 @@ apm_configuration_rules:
     then:
     cfg.getConfigId() == "12345"
     cfg.getKeys().isEmpty()
-    
+
     cleanup:
     Files.delete(filePath)
   }
@@ -336,7 +336,7 @@ apm_configuration_rules:
     then:
     cfg.getConfigId() == "12345"
     cfg.getKeys().isEmpty()
-    
+
     cleanup:
     Files.delete(filePath)
   }
