@@ -52,7 +52,7 @@ class IastPekkoTest extends IastRequestTestRunner {
     }
     // After migrating from JUnit 4 to 5, the IAST instrumentation scope has expanded so that the following are tainted:
     // - Accept-Encoding, Connection, Host, HttpRequest, User-Agent, RequestContext, Timeout-Access, myValue
-    toc.size() == 8
+    toc.size() == 1
   }
 
   void 'cookie — #variant variant'() {

@@ -88,6 +88,19 @@ dependencies {
   latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.16')
 }
 
+iastTest {
+  filter {
+    // This class must be excluded from scanning because it references class from "org.apache.pekko.http" package.
+    // When JUnit 5 scans this class, it loads every other class that is present in its method signatures (arguments, return types, throws).
+    // As the result, some classes from the datadog.trace.instrumentation.pekkohttp.iast.MakeTaintableInstrumentation#knownMatchingTypes list are loaded.
+    // JUnit scanning (and class loading that it triggers) happens before instrumentations are applied.
+    // Later when MakeTaintableInstrumentation is applied (in InstrumentationSpecification#setupSpec),
+    // it fails to retransform the already-loaded org.apache.pekko.http classes,
+    // because it needs to change the set of implemented interfaces, which is not possible for already loaded classes.
+    excludeTestsMatching("*PekkoIastTestWebServer*")
+  }
+}
+
 tasks.named("test").configure {
   dependsOn "baseTest"
   dependsOn "iastTest"
