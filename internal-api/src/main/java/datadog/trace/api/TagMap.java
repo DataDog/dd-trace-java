@@ -466,7 +466,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return _isNumericPrimitive(curType) || (this.rawObj instanceof Number);
     }
 
-    private static boolean _isNumericPrimitive(byte type) {
+    static boolean _isNumericPrimitive(byte type) {
       return (type >= BYTE);
     }
 

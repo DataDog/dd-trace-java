@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.TagMap.Entry;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
 import org.junit.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -33,6 +35,21 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 public class TagMapEntryTest {
   @Test
+  public void isNumericPrimitive() {
+    assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.ANY));
+    assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.BOOLEAN));
+    assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.CHAR));
+    assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.OBJECT));
+    
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.BYTE));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.SHORT));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.INT));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.LONG));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.FLOAT));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.DOUBLE));
+  }
+  
+  @Test
   public void objectEntry() {
     test(
         () -> TagMap.Entry.newObjectEntry("foo", "bar"),
@@ -42,7 +59,8 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue("bar", entry),
                 checkEquals("bar", entry::stringValue),
-                checkTrue(entry::isObject)));
+                checkTrue(entry::isObject),
+                checkFalse(entry::isNumber)));
   }
 
   @Test
@@ -55,6 +73,7 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue("bar", entry),
                 checkTrue(entry::isObject),
+                checkFalse(entry::isNumber),
                 checkKey("foo", entry),
                 checkValue("bar", entry)));
   }
@@ -70,6 +89,7 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
+                checkFalse(entry::isNumber),
                 checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
@@ -84,6 +104,7 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
+                checkFalse(entry::isNumber),
                 checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
@@ -98,6 +119,7 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
+                checkFalse(entry::isNumber),
                 checkType(TagMap.Entry.BOOLEAN, entry),
                 checkValue(value, entry)));
   }
@@ -112,7 +134,8 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
                 checkType(TagMap.Entry.INT, entry)));
   }
 
@@ -126,7 +149,8 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
                 checkType(TagMap.Entry.INT, entry)));
   }
 
@@ -140,7 +164,8 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
                 checkType(TagMap.Entry.INT, entry),
                 checkValue(value, entry)));
   }
@@ -199,7 +224,7 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
                 checkType(TagMap.Entry.LONG, entry)));
   }
 
@@ -228,7 +253,7 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
                 checkTrue(() -> entry.is(TagMap.Entry.LONG)),
                 checkValue(value, entry)));
   }
@@ -257,7 +282,7 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
                 checkType(TagMap.Entry.FLOAT, entry)));
   }
 
@@ -286,7 +311,7 @@ public class TagMapEntryTest {
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
-                checkTrue(entry::isNumericPrimitive),
+                checkIsNumericPrimitive(entry),
                 checkType(TagMap.Entry.DOUBLE, entry)));
   }
 
@@ -416,6 +441,20 @@ public class TagMapEntryTest {
   static final Check checkKey(String expected, TagMap.Entry entry) {
     return multiCheck(checkEquals(expected, entry::tag), checkEquals(expected, entry::getKey));
   }
+  
+  static final Check checkIsNumericPrimitive(TagMap.Entry entry) {
+	return multiCheck(
+	  checkTrue(entry::isNumericPrimitive),
+	  checkTrue(entry::isNumber),
+	  checkInstanceOf(Number.class, entry));
+  }
+  
+  static final Check checkIsBigNumber(TagMap.Entry entry) {
+	return multiCheck(
+	  checkFalse(entry::isNumericPrimitive),
+	  checkTrue(entry::isNumber),
+	  checkInstanceOf(Number.class, entry));
+  }
 
   static final Check checkValue(Object expected, TagMap.Entry entry) {
     return multiCheck(
@@ -467,6 +506,16 @@ public class TagMapEntryTest {
         checkEquals(expected != 0D, entry::booleanValue),
         checkEquals(Double.toString(expected), entry::stringValue));
   }
+  
+  public static Check checkNumber(Number number, TagMap.Entry entry) {
+	return multiCheck(
+	   checkEquals(number, entry::objectValue),
+	   checkEquals(number.intValue(), entry::intValue),
+	   checkEquals(number.longValue(), entry::longValue),
+	   checkEquals(number.floatValue(), entry::floatValue),
+	   checkEquals(number.doubleValue(), entry::doubleValue),
+	   checkEquals(number.toString(), entry::stringValue));
+  }
 
   static final Check checkValue(float expected, TagMap.Entry entry) {
     return multiCheck(
@@ -477,6 +526,10 @@ public class TagMapEntryTest {
         checkEquals(expected != 0F, entry::booleanValue),
         checkEquals(Float.valueOf(expected), entry::objectValue),
         checkEquals(Float.toString(expected), entry::stringValue));
+  }
+  
+  static final Check checkInstanceOf(Class<?> klass, TagMap.Entry entry) {
+	return () -> assertTrue(klass.isAssignableFrom(entry.objectValue().getClass()), "instanceof " + klass.getSimpleName());
   }
 
   static final Check checkType(byte entryType, TagMap.Entry entry) {
@@ -496,23 +549,23 @@ public class TagMapEntryTest {
   }
 
   static final Check checkEquals(float expected, Supplier<Float> actual) {
-    return () -> assertEquals(expected, actual.get(), actual.toString());
+    return () -> assertEquals(expected, actual.get().floatValue(), actual.toString());
   }
 
   static final Check checkEquals(int expected, Supplier<Integer> actual) {
-    return () -> assertEquals(expected, actual.get(), actual.toString());
+    return () -> assertEquals(expected, actual.get().intValue(), actual.toString());
   }
 
   static final Check checkEquals(double expected, Supplier<Double> actual) {
-    return () -> assertEquals(expected, actual.get(), actual.toString());
+    return () -> assertEquals(expected, actual.get().doubleValue(), actual.toString());
   }
 
   static final Check checkEquals(long expected, Supplier<Long> actual) {
-    return () -> assertEquals(expected, actual.get(), actual.toString());
+    return () -> assertEquals(expected, actual.get().longValue(), actual.toString());
   }
 
   static final Check checkEquals(boolean expected, Supplier<Boolean> actual) {
-    return () -> assertEquals(expected, actual.get(), actual.toString());
+    return () -> assertEquals(expected, actual.get().booleanValue(), actual.toString());
   }
 
   static final Check checkEquals(Object expected, Supplier<Object> actual) {
