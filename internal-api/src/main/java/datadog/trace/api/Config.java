@@ -493,6 +493,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.COUCHBASE_INTE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
@@ -1044,8 +1045,9 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final String DBMPropagationMode;
-  private final boolean DBMTracePreparedStatements;
+  private final boolean dbmInjectSqlBaseHash;
+  private final String dbmPropagationMode;
+  private final boolean dbmTracePreparedStatements;
 
   private final boolean dynamicInstrumentationEnabled;
   private final int dynamicInstrumentationUploadTimeout;
@@ -1508,7 +1510,8 @@ public class Config {
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
+        configProvider.getBoolean(
+            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, JavaVirtualMachine.isJavaVersion(21));
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1575,13 +1578,15 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
 
-    DBMPropagationMode =
+    dbmPropagationMode =
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
-    DBMTracePreparedStatements =
+    dbmTracePreparedStatements =
         configProvider.getBoolean(
             DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
+    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -4890,12 +4895,16 @@ public class Config {
     return dependecyResolutionPeriodMillis;
   }
 
-  public boolean isDBMTracePreparedStatements() {
-    return DBMTracePreparedStatements;
+  public boolean isDbmInjectSqlBaseHash() {
+    return dbmInjectSqlBaseHash;
   }
 
-  public String getDBMPropagationMode() {
-    return DBMPropagationMode;
+  public boolean isDbmTracePreparedStatements() {
+    return dbmTracePreparedStatements;
+  }
+
+  public String getDbmPropagationMode() {
+    return dbmPropagationMode;
   }
 
   private void logIgnoredSettingWarning(
@@ -5400,10 +5409,12 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
-        + ", DBMPropagationMode="
-        + DBMPropagationMode
-        + ", DBMTracePreparedStatements="
-        + DBMTracePreparedStatements
+        + ", dbmInjectSqlBaseHash="
+        + dbmInjectSqlBaseHash
+        + ", dbmPropagationMode="
+        + dbmPropagationMode
+        + ", dbmTracePreparedStatements="
+        + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="

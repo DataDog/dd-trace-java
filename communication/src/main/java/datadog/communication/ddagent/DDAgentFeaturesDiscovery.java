@@ -15,6 +15,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
@@ -59,7 +60,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
-  public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
+  public static final String DEBUGGER_ENDPOINT_V1 = "debugger/v1/input";
+  public static final String DEBUGGER_ENDPOINT_V2 = "debugger/v2/input";
   public static final String DEBUGGER_DIAGNOSTICS_ENDPOINT = "debugger/v1/diagnostics";
 
   public static final String TELEMETRY_PROXY_ENDPOINT = "telemetry/proxy/";
@@ -228,7 +230,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private void processInfoResponseHeaders(Response response) {
-    ContainerInfo.get().setContainerTagsHash(response.header(DATADOG_CONTAINER_TAGS_HASH));
+    String newContainerTagsHash = response.header(DATADOG_CONTAINER_TAGS_HASH);
+    if (newContainerTagsHash != null) {
+      ContainerInfo containerInfo = ContainerInfo.get();
+      synchronized (containerInfo) {
+        if (!newContainerTagsHash.equals(containerInfo.getContainerTagsHash())) {
+          containerInfo.setContainerTagsHash(newContainerTagsHash);
+          BaseHash.recalcBaseHash(newContainerTagsHash);
+        }
+      }
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -266,8 +277,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT)) {
-        debuggerEndpoint = DEBUGGER_ENDPOINT;
+      // both debugger endpoint v2 and diagnostics endpoint are forwarding events to the DEBUGGER
+      // intake
+      // because older agents support diagnostics, we fallback to it before falling back to v1
+      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+        debuggerEndpoint = DEBUGGER_ENDPOINT_V2;
+      } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+        debuggerEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+      } else if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
+        debuggerEndpoint = DEBUGGER_ENDPOINT_V1;
       }
       if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
         debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
@@ -351,6 +369,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsDebugger() {
     return debuggerEndpoint != null;
+  }
+
+  public String getDebuggerEndpoint() {
+    return debuggerEndpoint;
   }
 
   public boolean supportsDebuggerDiagnostics() {

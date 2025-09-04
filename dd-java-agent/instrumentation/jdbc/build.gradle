@@ -89,8 +89,3 @@ tasks.named("latestDepJava11Test").configure {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
-
-jmh {
-  jmhVersion = libs.versions.jmh.get()
-  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-}
