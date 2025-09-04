@@ -19,9 +19,10 @@ public final class DebuggerConfigBridge {
       LOGGER.debug("No config update detected, skipping");
       return;
     }
-    if (UPDATER.get() != null) {
-      LOGGER.debug("DebuggerConfigUpdater available, performing update");
-      UPDATER.get().updateConfig(update);
+    DebuggerConfigUpdater updater = UPDATER.get();
+    if (updater != null) {
+      LOGGER.debug("DebuggerConfigUpdater available, performing update: {}", update);
+      updater.updateConfig(update);
     } else {
       LOGGER.debug("DebuggerConfigUpdater not available, deferring update");
       DEFERRED_UPDATE.updateAndGet(existing -> DebuggerConfigUpdate.coalesce(existing, update));

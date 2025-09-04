@@ -105,8 +105,7 @@ public class CiVisibilitySystem {
       }
 
       if (executionSettings.isFailedTestReplayEnabled()) {
-        DebuggerConfigBridge.updateConfig(
-            new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(true).build());
+        DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(null, true, null, null));
       }
 
       CiVisibilityCoverageServices.Child coverageServices =

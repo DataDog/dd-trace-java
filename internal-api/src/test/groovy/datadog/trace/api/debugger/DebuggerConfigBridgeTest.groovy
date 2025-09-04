@@ -20,14 +20,14 @@ class DebuggerConfigBridgeTest extends Specification {
 
     when:
     DebuggerConfigBridge.setUpdater(updater)
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(true).build())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(null, true, null, null))
 
     then:
     updater.calls == 1
     DebuggerConfigBridge.isExceptionReplayEnabled()
 
     when:
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setDynamicInstrumentationEnabled(true).build())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(true, null, null, null))
 
     then:
     updater.calls == 2
@@ -35,7 +35,7 @@ class DebuggerConfigBridgeTest extends Specification {
     DebuggerConfigBridge.isDynamicInstrumentationEnabled()
 
     when:
-    DebuggerConfigBridge.updateConfig(DebuggerConfigUpdate.allDisabled())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(false, false, false, false))
 
     then:
     updater.calls == 3
@@ -50,7 +50,7 @@ class DebuggerConfigBridgeTest extends Specification {
     DebuggerConfigBridge.setUpdater(updater)
 
     when:
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().build())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate())
 
     then:
     updater.calls == 0
@@ -60,9 +60,9 @@ class DebuggerConfigBridgeTest extends Specification {
     def updater = new MockDebuggerConfigUpdater()
 
     when:
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(false).build())
-    DebuggerConfigBridge.updateConfig(DebuggerConfigUpdate.allEnabled())
-    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(false).build())
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(null, false, null, null))
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(true, true, true, true))
+    DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(null, false, null, null))
 
     then:
     updater.calls == 0

@@ -5,8 +5,8 @@ import spock.lang.Specification
 class DebuggerConfigUpdateTest extends Specification {
 
   def "test update coalesce"() {
-    def existing = new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(true).setDynamicInstrumentationEnabled(false).build()
-    def update = new DebuggerConfigUpdate.Builder().setExceptionReplayEnabled(false).setCodeOriginEnabled(true).build()
+    def existing = new DebuggerConfigUpdate(false, true, null, null)
+    def update = new DebuggerConfigUpdate(null, false, true, null)
 
     when:
     def result = DebuggerConfigUpdate.coalesce(existing, update)

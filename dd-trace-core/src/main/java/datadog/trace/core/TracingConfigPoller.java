@@ -222,12 +222,11 @@ final class TracingConfigPoller {
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
     DebuggerConfigBridge.updateConfig(
-        new DebuggerConfigUpdate.Builder()
-            .setDynamicInstrumentationEnabled(libConfig.dynamicInstrumentationEnabled)
-            .setExceptionReplayEnabled(libConfig.exceptionReplayEnabled)
-            .setCodeOriginEnabled(libConfig.codeOriginEnabled)
-            .setDistributedDebuggerEnabled(libConfig.liveDebuggingEnabled)
-            .build());
+        new DebuggerConfigUpdate(
+            libConfig.dynamicInstrumentationEnabled,
+            libConfig.exceptionReplayEnabled,
+            libConfig.codeOriginEnabled,
+            libConfig.liveDebuggingEnabled));
     builder.apply();
   }
 
