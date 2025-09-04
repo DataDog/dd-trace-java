@@ -15,6 +15,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
@@ -228,7 +229,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private void processInfoResponseHeaders(Response response) {
-    ContainerInfo.get().setContainerTagsHash(response.header(DATADOG_CONTAINER_TAGS_HASH));
+    String newContainerTagsHash = response.header(DATADOG_CONTAINER_TAGS_HASH);
+    if (newContainerTagsHash != null) {
+      ContainerInfo containerInfo = ContainerInfo.get();
+      synchronized (containerInfo) {
+        if (!newContainerTagsHash.equals(containerInfo.getContainerTagsHash())) {
+          containerInfo.setContainerTagsHash(newContainerTagsHash);
+          BaseHash.recalcBaseHash(newContainerTagsHash);
+        }
+      }
+    }
   }
 
   @SuppressWarnings("unchecked")
