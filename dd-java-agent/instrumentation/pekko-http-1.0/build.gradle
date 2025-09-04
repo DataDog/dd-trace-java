@@ -101,6 +101,13 @@ iastTest {
   }
 }
 
+latestDepIastTest {
+  filter {
+    // Exclude the same problematic class as for iastTest to avoid class loading issues.
+    excludeTestsMatching("*PekkoIastTestWebServer*")
+  }
+}
+
 tasks.named("test").configure {
   dependsOn "baseTest"
   dependsOn "iastTest"
