@@ -12,15 +12,6 @@ latestDepTest {
   finalizedBy 'latestDepForkedTest'
 }
 
-// Increased time needed in CI due to migration from JUnit 4 SpockRunner to JUnit 5 SpockExtension
-forkedTest {
-  timeout = Duration.of(15, ChronoUnit.MINUTES)
-}
-
-latestDepForkedTest {
-  timeout = Duration.of(15, ChronoUnit.MINUTES)
-}
-
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
