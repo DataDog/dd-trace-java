@@ -82,8 +82,8 @@ tasks.named("compileMain_play27Java", JavaCompile) {
 }
 
 project.afterEvaluate {
-  tasks.named('instrumentJava') { dependsOn 'compileMain_play27Java' }
-  tasks.named('forbiddenApisMain_play27') { dependsOn 'instrumentMain_play27Java' }
+  // tasks.named('instrumentJava') { dependsOn 'compileMain_play27Java' }
+  tasks.named('forbiddenApisMain_play27') { dependsOn 'compileMain_play27Java' }
 }
 
 instrument {

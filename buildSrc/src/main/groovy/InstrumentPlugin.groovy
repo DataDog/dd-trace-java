@@ -1,19 +1,17 @@
-import org.gradle.api.DefaultTask
+import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.invocation.BuildInvocationDetails
+import org.gradle.api.logging.Logger
+import org.gradle.api.logging.Logging
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Classpath
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputDirectory
-import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
@@ -22,6 +20,9 @@ import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
 import javax.inject.Inject
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Matcher
 
@@ -30,18 +31,53 @@ import java.util.regex.Matcher
  */
 @SuppressWarnings('unused')
 class InstrumentPlugin implements Plugin<Project> {
+  public static final String DEFAULT_JAVA_VERSION = 'default'
+  private final Logger logger = Logging.getLogger(InstrumentPlugin)
+
   @Override
   void apply(Project project) {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
-    project.tasks.matching {
-      it.name in ['compileJava', 'compileScala', 'compileGroovy'] ||
-        it.name =~ /compileMain_.+Java/
-    }.all {
-      AbstractCompile compileTask = it as AbstractCompile
-      Matcher versionMatcher = it.name =~ /compileMain_(.+)Java/
-      project.afterEvaluate {
-        if (!compileTask.source.empty) {
+    project.pluginManager.withPlugin("java") {configurePostCompilationInstrumentation("java", project, extension) }
+    project.pluginManager.withPlugin("kotlin") {configurePostCompilationInstrumentation("kotlin", project, extension) }
+    project.pluginManager.withPlugin("scala") {configurePostCompilationInstrumentation("scala", project, extension) }
+    project.pluginManager.withPlugin("groovy") {configurePostCompilationInstrumentation("groovy", project, extension) }
+  }
+
+  private void configurePostCompilationInstrumentation(String language, Project project, InstrumentExtension extension) {
+    project.extensions.configure(SourceSetContainer) { SourceSetContainer sourceSets ->
+      // For any "main" source-set configure its compile task
+      sourceSets.configureEach { SourceSet sourceSet ->
+        def sourceSetName = sourceSet.name
+        logger.info("[InstrumentPlugin] source-set: $sourceSetName, language: $language")
+
+        if (!sourceSetName.startsWith(SourceSet.MAIN_SOURCE_SET_NAME)) {
+          logger.debug("[InstrumentPlugin] Skipping non-main source set {} for language {}", sourceSetName, language)
+          return
+        }
+
+        def compileTaskName = sourceSet.getCompileTaskName(language)
+        logger.info("[InstrumentPlugin] compile task name: " + compileTaskName)
+
+        // For each compile task, append an instrumenting post-processing step
+        // Examples of compile tasks:
+        // - compileJava,
+        // - compileMain_java17Java,
+        // - compileMain_jetty904Java,
+        // - compileMain_play25Java,
+        // - compileEe8TestJava,
+        // - compileLatestDepTestJava
+        // - compileKotlin,
+        // - compileScala,
+        // - compileGroovy,
+        project.tasks.named(compileTaskName, AbstractCompile) {
+          if (it.source.isEmpty()) {
+            logger.info("[InstrumentPlugin] Skipping $compileTaskName for source set $sourceSetName as it has no source files")
+            return
+          }
+
+          // Compute optional Java version
+          Matcher versionMatcher = compileTaskName =~ /compileMain_(.+)Java/
           String sourceSetSuffix = null
           String javaVersion = null
           if (versionMatcher.matches()) {
@@ -50,63 +86,56 @@ class InstrumentPlugin implements Plugin<Project> {
               javaVersion = sourceSetSuffix[4..-1]
             }
           }
+          javaVersion = javaVersion ?: DEFAULT_JAVA_VERSION // null not accepted
+          it.inputs.property("javaVersion", javaVersion)
 
-          // insert intermediate 'raw' directory for unprocessed classes
-          Directory classesDir = compileTask.destinationDirectory.get()
-          Directory rawClassesDir = classesDir.dir("../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
-          compileTask.destinationDirectory.set(rawClassesDir.asFile)
+          def plugins = extension.plugins
+          it.inputs.property("plugins", plugins)
 
-          // insert task between compile and jar, and before test*
-          String instrumentTaskName = compileTask.name.replace('compile', 'instrument')
-          def instrumentTask = project.tasks.register(instrumentTaskName, InstrumentTask) {
-            // Task configuration
-            it.group = 'Byte Buddy'
-            it.description = "Instruments the classes compiled by ${compileTask.name}"
-            it.inputs.dir(compileTask.destinationDirectory)
-            it.outputs.dir(classesDir)
-            // Task inputs
-            it.javaVersion = javaVersion
-            def instrumenterConfiguration = project.configurations.named('instrumentPluginClasspath')
-            if (instrumenterConfiguration.present) {
-              it.pluginClassPath.from(instrumenterConfiguration.get())
-            }
-            it.plugins = extension.plugins
-            it.instrumentingClassPath.from(
-              findCompileClassPath(project, it.name) +
-                rawClassesDir +
-                findAdditionalClassPath(extension, it.name)
+          def pluginClassPath = project.objects.fileCollection()
+          def instrumentConfiguration = project.configurations.findByName('instrumentPluginClasspath')
+          if (instrumentConfiguration != null) {
+            pluginClassPath.from(instrumentConfiguration)
+            it.inputs.files(pluginClassPath)
+          }
+
+          def compileTaskClasspath = it.classpath
+          def rawClassesDir = it.destinationDirectory
+
+          def additionalClassPath = findAdditionalClassPath(extension, it.name)
+          it.inputs.files(additionalClassPath)
+
+          def instrumentingClassPath = project.objects.fileCollection()
+          instrumentingClassPath.setFrom(
+            compileTaskClasspath,
+            rawClassesDir,
+            additionalClassPath,
+          )
+
+          // This were the post processing happens, i.e. were the instrumentation is applied
+          it.doLast(
+            "instrumentClasses",
+            project.objects.newInstance(
+              InstrumentPostProcessingAction,
+              javaVersion,
+              plugins,
+              pluginClassPath,
+              instrumentingClassPath,
+              rawClassesDir,
             )
-            it.sourceDirectory = rawClassesDir
-            // Task output
-            it.targetDirectory = classesDir
-          }
-          if (javaVersion) {
-            project.tasks.named(project.sourceSets."main_java${javaVersion}".classesTaskName) {
-              it.dependsOn(instrumentTask)
-            }
-          } else {
-            project.tasks.named(project.sourceSets.main.classesTaskName) {
-              it.dependsOn(instrumentTask)
-            }
-          }
+          )
+          logger.info("[InstrumentPlugin] Configured post-compile instrumentation for $compileTaskName for source-set $sourceSetName")
         }
       }
     }
   }
 
-  static findCompileClassPath(Project project, String taskName) {
-    def matcher = taskName =~ /instrument([A-Z].+)Java/
-    def cfgName = matcher.matches() ? "${matcher.group(1).uncapitalize()}CompileClasspath" : 'compileClasspath'
-    project.configurations.named(cfgName).findAll {
-      it.name != 'previous-compilation-data.bin' && !it.name.endsWith('.gz')
-    }
-  }
-
-  static findAdditionalClassPath(InstrumentExtension extension, String taskName) {
-    extension.additionalClasspath.getOrDefault(taskName, []).collect {
-      // insert intermediate 'raw' directory for unprocessed classes
-      def fileName = it.get().asFile.name
-      it.get().dir("../${fileName.replaceFirst('^main', 'raw')}")
+  private static List<Provider<Directory>> findAdditionalClassPath(InstrumentExtension extension, String taskName) {
+    return extension.additionalClasspath.getOrDefault(taskName, []).collect { dirProperty ->
+      dirProperty.map {
+        def fileName = it.asFile.name
+        it.dir("../${fileName.replaceFirst('^main', 'raw')}")
+      }
     }
   }
 }
@@ -116,21 +145,11 @@ abstract class InstrumentExtension {
   Map<String /* taskName */, List<DirectoryProperty>> additionalClasspath = [:]
 }
 
-abstract class InstrumentTask extends DefaultTask {
-  @Input @Optional
-  String javaVersion
-  @InputFiles @Classpath
-  abstract ConfigurableFileCollection getPluginClassPath()
-  @Input
-  ListProperty<String> plugins
-  @InputFiles @Classpath
-  abstract ConfigurableFileCollection getInstrumentingClassPath()
-  @InputDirectory
-  Directory sourceDirectory
+abstract class InstrumentPostProcessingAction implements Action<AbstractCompile> {
+  private final Logger logger = Logging.getLogger(InstrumentPostProcessingAction)
 
-  @OutputDirectory
-  Directory targetDirectory
-
+  @Inject
+  abstract Project getProject()
   @Inject
   abstract JavaToolchainService getJavaToolchainService()
   @Inject
@@ -138,20 +157,50 @@ abstract class InstrumentTask extends DefaultTask {
   @Inject
   abstract WorkerExecutor getWorkerExecutor()
 
-  @TaskAction
-  instrument() {
+  final String javaVersion
+  final ListProperty<String> plugins
+  final ConfigurableFileCollection pluginClassPath
+  final ConfigurableFileCollection instrumentingClassPath
+  final DirectoryProperty rawClassesDirectory
+
+  @Inject
+  InstrumentPostProcessingAction(
+    String javaVersion,
+    ListProperty<String> plugins,
+    ConfigurableFileCollection pluginClassPath,
+    ConfigurableFileCollection instrumentingClassPath,
+    DirectoryProperty rawClassesDir
+  ) {
+    this.javaVersion = javaVersion
+    this.plugins = plugins
+    this.pluginClassPath = pluginClassPath
+    this.instrumentingClassPath = instrumentingClassPath
+    this.rawClassesDirectory = rawClassesDir
+  }
+
+  @Override
+  void execute(AbstractCompile task) {
+    logger.info(
+      "values: " +
+      "javaVersion=${javaVersion}, " +
+      "plugins=${plugins.get()}, " +
+      "pluginClassPath=${pluginClassPath.files}, " +
+      "instrumentingClassPath=${instrumentingClassPath.files}, " +
+      "rawClassesDirectory=${rawClassesDirectory.get().asFile}"
+    )
+    def postCompileAction = this
     workQueue().submit(InstrumentAction.class, parameters -> {
-      parameters.buildStartedTime.set(this.invocationDetails.buildStartedTime)
-      parameters.pluginClassPath.from(this.pluginClassPath)
-      parameters.plugins.set(this.plugins)
-      parameters.instrumentingClassPath.setFrom(this.instrumentingClassPath)
-      parameters.sourceDirectory.set(this.sourceDirectory.asFile)
-      parameters.targetDirectory.set(this.targetDirectory.asFile)
+      parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
+      parameters.pluginClassPath.from(postCompileAction.pluginClassPath)
+      parameters.plugins.set(postCompileAction.plugins)
+      parameters.instrumentingClassPath.setFrom(postCompileAction.instrumentingClassPath)
+      parameters.classesDirectory.set(postCompileAction.rawClassesDirectory)
+      parameters.tmpDirectory.set(project.layout.buildDirectory.dir("tmp/${task.name}-raw-classes"))
     })
   }
 
   private workQueue() {
-    if (!this.javaVersion) {
+    if (!this.javaVersion != InstrumentPlugin.DEFAULT_JAVA_VERSION) {
       this.javaVersion = "8"
     }
     def javaLauncher = this.javaToolchainService.launcherFor { spec ->
@@ -170,8 +219,8 @@ interface InstrumentWorkParameters extends WorkParameters {
   ConfigurableFileCollection getPluginClassPath()
   ListProperty<String> getPlugins()
   ConfigurableFileCollection getInstrumentingClassPath()
-  DirectoryProperty getSourceDirectory()
-  DirectoryProperty getTargetDirectory()
+  DirectoryProperty getClassesDirectory()
+  DirectoryProperty getTmpDirectory()
 }
 
 abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> {
@@ -197,10 +246,29 @@ abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> 
         }
       }
     }
-    File sourceDirectory = parameters.getSourceDirectory().get().asFile
-    File targetDirectory = parameters.getTargetDirectory().get().asFile
+    Path classesDirectory = parameters.classesDirectory.get().asFile.toPath()
+    Path tmpSourceDir = parameters.tmpDirectory.get().asFile.toPath()
+
+    // Delete tmpSourceDir contents recursively
+    if (tmpSourceDir.exists()) {
+      Files.walk(tmpSourceDir)
+        .sorted(Comparator.reverseOrder())
+        .forEach { p ->
+          if (!p.equals(tmpSourceDir)) {
+            java.nio.file.Files.deleteIfExists(p)
+          }
+        }
+    }
+
+    Files.move(
+      classesDirectory,
+      tmpSourceDir,
+      StandardCopyOption.REPLACE_EXISTING,
+      StandardCopyOption.ATOMIC_MOVE,
+    )
+
     ClassLoader instrumentingCL = createClassLoader(parameters.instrumentingClassPath, pluginCL)
-    InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, sourceDirectory, targetDirectory)
+    InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, tmpSourceDir, classesDirectory)
   }
 
   static ClassLoader createClassLoader(cp, parent = InstrumentAction.classLoader) {
