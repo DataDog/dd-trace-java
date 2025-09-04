@@ -18,6 +18,9 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class SerializingMetricWriterTest extends DDSpecification {
 
+  public static final int IS_TRACE_ROOT_TRUE = 1
+  public static final int IS_TRACE_ROOT_FALSE = 2
+
   def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {
     setup:
     if (withProcessTags) {
@@ -177,7 +180,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackBoolean() == key.isSynthetics()
         ++elementCount
         assert unpacker.unpackString() == "IsTraceRoot"
-        assert unpacker.unpackInt() == (key.isTraceRoot() ? 1 : 2)
+        assert unpacker.unpackInt() == (key.isTraceRoot() ? IS_TRACE_ROOT_TRUE : IS_TRACE_ROOT_FALSE)
         ++elementCount
         assert unpacker.unpackString() == "SpanKind"
         assert unpacker.unpackString() == key.getSpanKind() as String

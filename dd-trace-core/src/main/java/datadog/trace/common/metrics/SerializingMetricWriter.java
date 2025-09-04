@@ -1,14 +1,15 @@
 package datadog.trace.common.metrics;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+
 import java.util.List;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
@@ -35,6 +36,9 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
+  // Is trace root is a tristate (0 unknown, 1 true, 2 false)
+  public static final int IS_TRACE_ROOT_TRUE = 1;
+  public static final int IS_TRACE_ROOT_FALSE = 2;
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
@@ -118,7 +122,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBoolean(key.isSynthetics());
 
     writer.writeUTF8(IS_TRACE_ROOT);
-    writer.writeInt(key.isTraceRoot() ? 1 : 2); // tristate (0 unknown, 1 true, 2 false)
+    writer.writeInt(key.isTraceRoot() ? IS_TRACE_ROOT_TRUE : IS_TRACE_ROOT_FALSE);
 
     writer.writeUTF8(SPAN_KIND);
     writer.writeUTF8(key.getSpanKind());
