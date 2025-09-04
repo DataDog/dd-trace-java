@@ -19,7 +19,7 @@ muzzle {
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies +="org.mule.runtime:mule-tracer-customization-impl:$muleVersion"
+    additionalDependencies += "org.mule.runtime:mule-tracer-customization-impl:$muleVersion"
   }
   pass {
     group = 'org.mule.runtime'
@@ -29,14 +29,14 @@ muzzle {
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies +="org.mule.runtime:mule-core:$muleVersion"
+    additionalDependencies += "org.mule.runtime:mule-core:$muleVersion"
   }
 
   fail {
     name = 'before-4.5.0'
     group = 'org.mule.runtime'
     module = 'mule-core'
-    versions =  "[, $muleVersion)"
+    versions = "[, $muleVersion)"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
   }
@@ -263,5 +263,29 @@ spotless {
 idea {
   module {
     jdkName = '11'
+  }
+}
+
+// TODO: Remove once correct version of mule-extensions-xxx will be released.
+dependencies {
+  def reason = 'Temporary hardcode to `1.9.9` because `1.9.10` is failing during latest dependencies resolution on not existing `mule-plugin-mgmt-parent-pom:4.9.8-rc1`'
+
+  constraints {
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-api') {
+      version { strictly '1.9.9' }
+      because reason
+    }
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-mime-types') {
+      version { strictly '1.9.9' }
+      because reason
+    }
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-api-dsql') {
+      version { strictly '1.9.9' }
+      because reason
+    }
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-api-persistence') {
+      version { strictly '1.9.9' }
+      because reason
+    }
   }
 }
