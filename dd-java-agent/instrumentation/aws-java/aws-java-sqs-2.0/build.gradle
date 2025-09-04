@@ -19,6 +19,16 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
+// Increased time needed in CI due to migration from JUnit 4 SpockRunner to JUnit 5 SpockExtension
+forkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
+
+latestDepForkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
+
+
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
   compileOnly group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '2.0.0'
