@@ -79,7 +79,7 @@ check-slo-breaches:
   stage: macrobenchmarks
   interruptible: true
   tags: ["arch:amd64"]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest_20250820_1050
   rules:
     - if: $POPULATE_CACHE
       when: never
@@ -119,6 +119,7 @@ check-slo-breaches:
           done
       done
     - ls -lah "$ARTIFACTS_DIR"
+    - export CI_COMMIT_REF_NAME=$CI_DEFAULT_BRANCH
     - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
   artifacts:
     name: "artifacts"
