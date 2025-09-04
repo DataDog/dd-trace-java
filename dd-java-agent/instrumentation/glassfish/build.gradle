@@ -20,8 +20,8 @@ dependencies {
   testImplementation libs.guava
   testImplementation group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '4.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:grizzly-2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:grizzly:grizzly-2.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:grizzly:grizzly-http-2.3.20')
 
   latestDepTestImplementation group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '5+'
 }
