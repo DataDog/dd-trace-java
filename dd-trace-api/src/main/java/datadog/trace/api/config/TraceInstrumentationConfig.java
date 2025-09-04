@@ -66,8 +66,8 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
 
+  public static final String DB_DBM_INJECT_SQL_BASEHASH = "dbm.inject.sql.basehash";
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
-
   public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
