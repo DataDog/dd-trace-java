@@ -6,7 +6,9 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CON
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
+import com.datadog.debugger.exception.AbstractExceptionDebugger;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
+import com.datadog.debugger.exception.FailedTestReplayExceptionDebugger;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
@@ -62,7 +64,7 @@ public class DebuggerAgent {
   private static volatile ClassNameFilter classNameFilter;
   private static volatile SymDBEnablement symDBEnablement;
   private static volatile ConfigurationUpdater configurationUpdater;
-  private static volatile DefaultExceptionDebugger exceptionDebugger;
+  private static volatile AbstractExceptionDebugger exceptionDebugger;
   private static final AtomicBoolean commonInitDone = new AtomicBoolean();
   static final AtomicBoolean dynamicInstrumentationEnabled = new AtomicBoolean();
   static final AtomicBoolean exceptionReplayEnabled = new AtomicBoolean();
@@ -211,7 +213,13 @@ public class DebuggerAgent {
     Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
-    exceptionDebugger = new DefaultExceptionDebugger(configurationUpdater, classNameFilter, config);
+    if (config.isCiVisibilityEnabled()) {
+      exceptionDebugger =
+          new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFilter, config);
+    } else {
+      exceptionDebugger =
+          new DefaultExceptionDebugger(configurationUpdater, classNameFilter, config);
+    }
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }

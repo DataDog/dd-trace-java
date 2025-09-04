@@ -384,7 +384,7 @@ public class ExceptionProbeInstrumentationTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     DefaultExceptionDebugger exceptionDebugger =
         new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3, true, false);
+            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3, true);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;
