@@ -78,7 +78,7 @@ dependencies {
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12")
-  testImplementation project(':dd-java-agent:appsec:appsec-testing')
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
   testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-11'))

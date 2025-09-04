@@ -27,7 +27,7 @@ addTestSuiteForDir('karate131Test', 'test')
 dependencies {
   compileOnly group: 'com.intuit.karate', name: 'karate-core', version: '1.0.0'
 
-  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-testing')
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
   testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.8.2'
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
 

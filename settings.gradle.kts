@@ -112,14 +112,14 @@ include(
 
 include(
   ":dd-java-agent:appsec",
-  ":dd-java-agent:appsec:appsec-testing",
+  ":dd-java-agent:appsec:appsec-test-fixtures",
 )
 
 // ci-visibility
 include(
   ":dd-java-agent:agent-ci-visibility",
-  ":dd-java-agent:agent-ci-visibility:civisibility-testing",
-  ":dd-java-agent:agent-ci-visibility:civisibility-instrumentation-testing",
+  ":dd-java-agent:agent-ci-visibility:civisibility-test-fixtures",
+  ":dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures",
 )
 
 // llm-observability
@@ -130,7 +130,7 @@ include(
 // iast
 include(
   ":dd-java-agent:agent-iast",
-  ":dd-java-agent:agent-iast:iast-testing",
+  ":dd-java-agent:agent-iast:iast-test-fixtures",
 )
 
 include(

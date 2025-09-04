@@ -62,7 +62,7 @@ dependencies {
   baseTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.12', version: '1.0.1'
 
   iastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.12', version: '2.1.0'
-  iastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
+  iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
@@ -84,7 +84,7 @@ dependencies {
   latestDepIastTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.13', version: '1.0.+'
   latestDepIastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.13', version: '2.+'
   latestDepIastTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.0.+'
-  latestDepIastTestImplementation project(':dd-java-agent:agent-iast:iast-testing')
+  latestDepIastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.16')
 }
 

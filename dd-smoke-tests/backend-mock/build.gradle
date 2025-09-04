@@ -3,5 +3,5 @@ description = 'Mock Datadog backend used by smoke tests.'
 
 dependencies {
   implementation project(':dd-smoke-tests')
-  api project(':dd-java-agent:agent-ci-visibility:civisibility-testing')
+  api project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 }

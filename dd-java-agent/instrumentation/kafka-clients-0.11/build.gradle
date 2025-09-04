@@ -44,7 +44,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
-  testImplementation project(':dd-java-agent:agent-iast:iast-testing')
+  testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
 
   // IAST testing dependencies
@@ -72,7 +72,7 @@ dependencies {
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
   iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
-  iastLatestDepTest3Implementation project(':dd-java-agent:agent-iast:iast-testing')
+  iastLatestDepTest3Implementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
 }
 

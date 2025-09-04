@@ -187,7 +187,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
   testFixturesImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
-  testImplementation project(':dd-java-agent:appsec:appsec-testing')
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
   jetty92TestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
   jetty92TestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.2.30.v20200428'
