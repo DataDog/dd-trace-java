@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.jetty11;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty11.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -21,9 +20,9 @@ public class JettyServerAdvice {
         @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (existingSpan instanceof AgentSpan) {
-        return activateSpan((AgentSpan) existingSpan);
+      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (existingContext instanceof Context) {
+        return ((Context) existingContext).attach();
       }
 
       final Context parentContext = DECORATE.extract(req);
@@ -34,7 +33,7 @@ public class JettyServerAdvice {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, parentContext);
 
-      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       return scope;
@@ -58,12 +57,15 @@ public class JettyServerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpChannel channel) {
       Request req = channel.getRequest();
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (spanObj instanceof AgentSpan) {
-        final AgentSpan span = (AgentSpan) spanObj;
-        DECORATE.onResponse(span, channel);
-        DECORATE.beforeFinish(span);
-        span.finish();
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        final Context context = (Context) contextObj;
+        final AgentSpan span = fromContext(context);
+        if (span != null) {
+          DECORATE.onResponse(span, channel);
+          DECORATE.beforeFinish(context);
+          span.finish();
+        }
       }
     }
 

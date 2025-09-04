@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.context.Context.root;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -33,18 +35,22 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       final FilterChain filterChain)
       throws ServletException, IOException {
 
-    final Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
-    if (parentSpan instanceof AgentSpan) {
-      PathMatchingHttpServletRequestWrapper wrappedRequest =
-          new PathMatchingHttpServletRequestWrapper(request);
-      try {
-        if (findMapping(wrappedRequest)) {
-          // Name the parent span based on the matching pattern
-          // Let the parent span resource name be set with the attribute set in findMapping.
-          DECORATE.onRequest((AgentSpan) parentSpan, wrappedRequest, wrappedRequest, root());
+    final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (contextObj instanceof Context) {
+      Context context = (Context) contextObj;
+      AgentSpan parentSpan = spanFromContext(context);
+      if (parentSpan != null) {
+        PathMatchingHttpServletRequestWrapper wrappedRequest =
+            new PathMatchingHttpServletRequestWrapper(request);
+        try {
+          if (findMapping(wrappedRequest)) {
+            // Name the parent span based on the matching pattern
+            // Let the parent span resource name be set with the attribute set in findMapping.
+            DECORATE.onRequest(parentSpan, wrappedRequest, wrappedRequest, root());
+          }
+        } catch (final Exception ignored) {
+          // mapping.getHandler() threw exception.  Ignore
         }
-      } catch (final Exception ignored) {
-        // mapping.getHandler() threw exception.  Ignore
       }
     }
 
