@@ -1080,7 +1080,7 @@ abstract class TagMapFactory<MapT extends TagMap> {
       createFactory(Config.get().isOptimizedMapEnabled());
 
   static final TagMapFactory<?> createFactory(boolean useOptimized) {
-    return useOptimized ? new OptimizedTagMapFactory() : new LegacyTagMapFactory();
+    return useOptimized ? OptimizedTagMapFactory.INSTANCE : LegacyTagMapFactory.INSTANCE;
   }
 
   public abstract MapT create();
@@ -1091,6 +1091,10 @@ abstract class TagMapFactory<MapT extends TagMap> {
 }
 
 final class OptimizedTagMapFactory extends TagMapFactory<OptimizedTagMap> {
+  static final OptimizedTagMapFactory INSTANCE = new OptimizedTagMapFactory();
+
+  private OptimizedTagMapFactory() {}
+
   @Override
   public OptimizedTagMap create() {
     return new OptimizedTagMap();
@@ -1108,6 +1112,10 @@ final class OptimizedTagMapFactory extends TagMapFactory<OptimizedTagMap> {
 }
 
 final class LegacyTagMapFactory extends TagMapFactory<LegacyTagMap> {
+  static final LegacyTagMapFactory INSTANCE = new LegacyTagMapFactory();
+
+  private LegacyTagMapFactory() {}
+
   @Override
   public LegacyTagMap create() {
     return new LegacyTagMap();
