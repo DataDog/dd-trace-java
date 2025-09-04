@@ -111,31 +111,34 @@ public class TagMapTest {
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void booleanEntry(TagMapType mapType) {
+    String BOOL = "bool";
+    String UNSET = "unset";
+
     boolean first = false;
     boolean second = true;
 
     TagMap map = mapType.create();
-    map.set("bool", first);
+    map.set(BOOL, first);
 
-    TagMap.Entry firstEntry = map.getEntry("bool");
+    TagMap.Entry firstEntry = map.getEntry(BOOL);
     if (map.isOptimized()) {
       assertEquals(TagMap.Entry.BOOLEAN, firstEntry.rawType);
     }
 
     assertEquals(first, firstEntry.booleanValue());
-    assertEquals(first, map.getBoolean("bool"));
+    assertEquals(first, map.getBoolean(BOOL));
 
-    TagMap.Entry priorEntry = map.getAndSet("bool", second);
+    TagMap.Entry priorEntry = map.getAndSet(BOOL, second);
     if (map.isOptimized()) {
       assertSame(priorEntry, firstEntry);
     }
     assertEquals(first, priorEntry.booleanValue());
 
-    TagMap.Entry newEntry = map.getEntry("bool");
+    TagMap.Entry newEntry = map.getEntry(BOOL);
     assertEquals(second, newEntry.booleanValue());
 
-    assertFalse(map.getBoolean("unset"));
-    assertTrue(map.getBooleanOrDefault("unset", true));
+    assertEquals(false, map.getBoolean(UNSET));
+    assertEquals(true, map.getBooleanOrDefault(UNSET, true));
   }
 
   @ParameterizedTest
@@ -153,14 +156,14 @@ public class TagMapTest {
             .set("doubleObj", Double.valueOf(0D))
             .build(mapType.factory);
 
-    assertFalse(map.getBoolean("int"));
-    assertFalse(map.getBoolean("intObj"));
-    assertFalse(map.getBoolean("long"));
-    assertFalse(map.getBoolean("longObj"));
-    assertFalse(map.getBoolean("float"));
-    assertFalse(map.getBoolean("floatObj"));
-    assertFalse(map.getBoolean("double"));
-    assertFalse(map.getBoolean("doubleObj"));
+    assertBoolean(false, map, "int");
+    assertBoolean(false, map, "intObj");
+    assertBoolean(false, map, "long");
+    assertBoolean(false, map, "longObj");
+    assertBoolean(false, map, "float");
+    assertBoolean(false, map, "floatObj");
+    assertBoolean(false, map, "double");
+    assertBoolean(false, map, "doubleObj");
   }
 
   @ParameterizedTest
@@ -178,14 +181,14 @@ public class TagMapTest {
             .set("doubleObj", Double.valueOf(1D))
             .build(mapType.factory);
 
-    assertTrue(map.getBoolean("int"));
-    assertTrue(map.getBoolean("intObj"));
-    assertTrue(map.getBoolean("long"));
-    assertTrue(map.getBoolean("longObj"));
-    assertTrue(map.getBoolean("float"));
-    assertTrue(map.getBoolean("floatObj"));
-    assertTrue(map.getBoolean("double"));
-    assertTrue(map.getBoolean("doubleObj"));
+    assertBoolean(true, map, "int");
+    assertBoolean(true, map, "intObj");
+    assertBoolean(true, map, "long");
+    assertBoolean(true, map, "longObj");
+    assertBoolean(true, map, "float");
+    assertBoolean(true, map, "floatObj");
+    assertBoolean(true, map, "double");
+    assertBoolean(true, map, "doubleObj");
   }
 
   @ParameterizedTest
@@ -198,9 +201,9 @@ public class TagMapTest {
             .set("falseStr", "false")
             .build(mapType.factory);
 
-    assertTrue(map.getBoolean("obj"));
-    assertTrue(map.getBoolean("trueStr"));
-    assertTrue(map.getBoolean("falseStr"));
+    assertBoolean(true, map, "obj");
+    assertBoolean(true, map, "trueStr");
+    assertBoolean(true, map, "falseStr");
   }
 
   @ParameterizedTest
@@ -208,10 +211,10 @@ public class TagMapTest {
   public void booleanToNumericCoercion_true(TagMapType mapType) {
     TagMap map = TagMap.ledger().set("true", true).build(mapType.factory);
 
-    assertEquals(1, map.getInt("true"));
-    assertEquals(1L, map.getLong("true"));
-    assertEquals(1F, map.getFloat("true"));
-    assertEquals(1D, map.getDouble("true"));
+    assertInt(1, map, "true");
+    assertLong(1L, map, "true");
+    assertFloat(1F, map, "true");
+    assertDouble(1D, map, "true");
   }
 
   @ParameterizedTest
@@ -219,10 +222,10 @@ public class TagMapTest {
   public void booleanToNumericCoercion_false(TagMapType mapType) {
     TagMap map = TagMap.ledger().set("false", false).build(mapType.factory);
 
-    assertEquals(0, map.getInt("false"));
-    assertEquals(0L, map.getLong("false"));
-    assertEquals(0F, map.getFloat("false"));
-    assertEquals(0D, map.getDouble("false"));
+    assertInt(0, map, "false");
+    assertLong(0L, map, "false");
+    assertFloat(0F, map, "false");
+    assertDouble(0D, map, "false");
   }
 
   @ParameterizedTest
@@ -230,7 +233,8 @@ public class TagMapTest {
   public void emptyToPrimitiveCoercion(TagMapType mapType) {
     TagMap map = mapType.empty();
 
-    assertFalse(map.getBoolean("dne"));
+    // DQH - assert<type> helpers also check get<type>OrDefault, so they don't work here
+    assertEquals(false, map.getBoolean("dne"));
     assertEquals(0, map.getInt("dne"));
     assertEquals(0L, map.getLong("dne"));
     assertEquals(0F, map.getFloat("dne"));
@@ -240,11 +244,14 @@ public class TagMapTest {
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void intEntry(TagMapType mapType) {
+    String INT = "int";
+    String UNSET = "unset";
+
     int first = 3142;
     int second = 2718;
 
     TagMap map = mapType.create();
-    map.set("int", first);
+    map.set(INT, first);
 
     TagMap.Entry firstEntry = map.getEntry("int");
     if (map.isOptimized()) {
@@ -262,19 +269,21 @@ public class TagMapTest {
 
     TagMap.Entry newEntry = map.getEntry("int");
     assertEquals(second, newEntry.intValue());
-
-    assertEquals(0, map.getInt("unset"));
-    assertEquals(21, map.getIntOrDefault("unset", 21));
+    assertEquals(0, map.getInt(UNSET));
+    assertEquals(21, map.getIntOrDefault(UNSET, 21));
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void longEntry(TagMapType mapType) {
+    String LONG = "long";
+    String UNSET = "unset";
+
     long first = 3142L;
     long second = 2718L;
 
     TagMap map = mapType.create();
-    map.set("long", first);
+    map.set(LONG, first);
 
     TagMap.Entry firstEntry = map.getEntry("long");
     if (map.isOptimized()) {
@@ -293,68 +302,74 @@ public class TagMapTest {
     TagMap.Entry newEntry = map.getEntry("long");
     assertEquals(second, newEntry.longValue());
 
-    assertEquals(0L, map.getLong("unset"));
-    assertEquals(21L, map.getLongOrDefault("unset", 21L));
+    assertEquals(0L, map.getLong(UNSET));
+    assertEquals(21L, map.getLongOrDefault(UNSET, 21L));
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void floatEntry(TagMapType mapType) {
+    String FLOAT = "float";
+    String UNSET = "unset";
+
     float first = 3.14F;
     float second = 2.718F;
 
     TagMap map = mapType.create();
-    map.set("float", first);
+    map.set(FLOAT, first);
 
-    TagMap.Entry firstEntry = map.getEntry("float");
+    TagMap.Entry firstEntry = map.getEntry(FLOAT);
     if (map.isOptimized()) {
       assertEquals(TagMap.Entry.FLOAT, firstEntry.rawType);
     }
 
     assertEquals(first, firstEntry.floatValue());
-    assertEquals(first, map.getFloat("float"));
+    assertEquals(first, map.getFloat(FLOAT));
 
-    TagMap.Entry priorEntry = map.getAndSet("float", second);
+    TagMap.Entry priorEntry = map.getAndSet(FLOAT, second);
     if (map.isOptimized()) {
       assertSame(priorEntry, firstEntry);
     }
     assertEquals(first, priorEntry.floatValue());
 
-    TagMap.Entry newEntry = map.getEntry("float");
+    TagMap.Entry newEntry = map.getEntry(FLOAT);
     assertEquals(second, newEntry.floatValue());
 
-    assertEquals(0F, map.getFloat("unset"));
-    assertEquals(2.718F, map.getFloatOrDefault("unset", 2.718F));
+    assertEquals(0F, map.getFloat(UNSET));
+    assertEquals(2.718F, map.getFloatOrDefault(UNSET, 2.718F));
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void doubleEntry(TagMapType mapType) {
+    String DOUBLE = "double";
+    String UNSET = "unset";
+
     double first = Math.PI;
     double second = Math.E;
 
     TagMap map = mapType.create();
-    map.set("double", Math.PI);
+    map.set(DOUBLE, Math.PI);
 
-    TagMap.Entry firstEntry = map.getEntry("double");
+    TagMap.Entry firstEntry = map.getEntry(DOUBLE);
     if (map.isOptimized()) {
       assertEquals(TagMap.Entry.DOUBLE, firstEntry.rawType);
     }
 
     assertEquals(first, firstEntry.doubleValue());
-    assertEquals(first, map.getDouble("double"));
+    assertEquals(first, map.getDouble(DOUBLE));
 
-    TagMap.Entry priorEntry = map.getAndSet("double", second);
+    TagMap.Entry priorEntry = map.getAndSet(DOUBLE, second);
     if (map.isOptimized()) {
       assertSame(priorEntry, firstEntry);
     }
     assertEquals(first, priorEntry.doubleValue());
 
-    TagMap.Entry newEntry = map.getEntry("double");
+    TagMap.Entry newEntry = map.getEntry(DOUBLE);
     assertEquals(second, newEntry.doubleValue());
 
-    assertEquals(0D, map.getDouble("unset"));
-    assertEquals(2.718D, map.getDoubleOrDefault("unset", 2.718D));
+    assertEquals(0D, map.getDouble(UNSET));
+    assertEquals(2.718D, map.getDoubleOrDefault(UNSET, 2.718D));
   }
 
   @ParameterizedTest
@@ -827,7 +842,36 @@ public class TagMapTest {
     return count;
   }
 
-  static void assertEntry(String key, String value, TagMap map) {
+  static final void assertBoolean(boolean expected, TagMap map, String key) {
+    assertEquals(expected, map.getBoolean(key));
+    assertEquals(expected, map.getBooleanOrDefault(key, !expected));
+  }
+
+  static final void assertInt(int expected, TagMap map, String key) {
+    assertEquals(expected, map.getInt(key));
+    assertEquals(expected, map.getIntOrDefault(key, Integer.MAX_VALUE));
+  }
+
+  static final void assertLong(long expected, TagMap map, String key) {
+    assertEquals(expected, map.getLong(key));
+    assertEquals(expected, map.getLongOrDefault(key, Long.MAX_VALUE));
+  }
+
+  static final void assertFloat(float expected, TagMap map, String key) {
+    assertEquals(expected, map.getFloat(key));
+    assertEquals(expected, map.getFloatOrDefault(key, Float.MAX_VALUE));
+  }
+
+  static final void assertDouble(double expected, TagMap map, String key) {
+    assertEquals(expected, map.getDouble(key));
+    assertEquals(expected, map.getDoubleOrDefault(key, Double.MAX_VALUE));
+  }
+
+  static final void assertString(String expected, TagMap map, String key) {
+    assertEquals(expected, map.getString(key));
+  }
+
+  static final void assertEntry(String key, String value, TagMap map) {
     TagMap.Entry entry = map.getEntry(key);
     assertNotNull(entry);
 
@@ -841,21 +885,21 @@ public class TagMapTest {
     assertEquals(value, entry.stringValue());
 
     assertTrue(map.containsKey(key));
-    assertTrue(map.containsKey(key));
+    assertTrue(map.keySet().contains(key));
 
     assertTrue(map.containsValue(value));
-    assertTrue(map.containsValue(value));
+    assertTrue(map.values().contains(value));
   }
 
-  static void assertSize(int size, TagMap map) {
+  static final void assertSize(int size, TagMap map) {
     if (map instanceof OptimizedTagMap) {
       assertEquals(size, ((OptimizedTagMap) map).computeSize());
     }
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
-    assertEquals(size, map.size());
-    assertEquals(size, map.size());
+    assertEquals(size, map.keySet().size());
+    assertEquals(size, map.values().size());
     assertEquals(size, count(map.keySet()));
     assertEquals(size, count(map.values()));
   }
