@@ -175,12 +175,12 @@ public final class Initializer {
                       LOG.debug("Deleting config file: {}", cfgPath);
                       Files.deleteIfExists(cfgPath);
                     } catch (IOException e) {
-                      LOG.warn(SEND_TELEMETRY, "Failed deleting config file: " + cfgPath, e);
+                      LOG.warn(SEND_TELEMETRY, "Failed deleting config file: {}", cfgPath, e);
                     }
                   }));
       LOG.debug("Config file written: {}", cfgPath);
     } catch (IOException e) {
-      LOG.warn(SEND_TELEMETRY, "Failed writing config file: " + cfgPath);
+      LOG.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgPath);
       try {
         Files.deleteIfExists(cfgPath);
       } catch (IOException ignored) {
@@ -349,10 +349,8 @@ public final class Initializer {
     } else {
       LOG.warn(
           SEND_TELEMETRY,
-          msg
-              + " ["
-              + t.getMessage()
-              + "] (Change the logging level to debug to see the full stacktrace)");
+          msg + " [{}] (Change the logging level to debug to see the full stacktrace)",
+          t.getMessage());
     }
   }
 }
