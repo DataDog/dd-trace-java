@@ -15,12 +15,6 @@ import reactor.core.publisher.SignalType;
 
 public class ReactorHelper {
 
-  private static Consumer<SignalType> beforeFinish(AgentSpan span) {
-    return signalType -> {
-      span.finish();
-    };
-  }
-
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(
       Function<Publisher<?>, Publisher<?>> operator,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
@@ -31,30 +25,19 @@ public class ReactorHelper {
         current = owned;
         NoopDecorator.DECORATE.afterStart(current);
       }
+      NoopDecorator.DECORATE.decorate(current, null);
       try (AgentScope scope = activateSpan(current)) {
         Publisher<?> ret = operator.apply(value);
         attachContext.accept(ret, current);
         if (owned == null) {
           return ret;
         }
-        return scheduleSpanFinish(ret, owned);
+        return scheduleOwnedSpanFinish(ret, owned);
       }
     };
   }
 
-  private static Publisher<?> scheduleSpanFinish(Publisher<?> publisher, AgentSpan owned) {
-    if (publisher instanceof Flux<?>) {
-      return ((Flux<?>) publisher).doFinally(beforeFinish(owned));
-    } else if (publisher instanceof Mono<?>) {
-      return ((Mono<?>) publisher).doFinally(beforeFinish(owned));
-    } else {
-      // can't schedule span finish - finish immediately
-      owned.finish();
-    }
-    return publisher;
-  }
-
-  public static <T> Publisher<?> wrap(
+  public static <T> Publisher<?> wrapPublisher(
       Publisher<?> publisher,
       AbstractResilience4jDecorator<T> spanDecorator,
       T data,
@@ -67,16 +50,37 @@ public class ReactorHelper {
     }
     spanDecorator.decorate(current, data);
 
-    Publisher<?> newResult = scheduleSpanFinish(publisher, owned);
+    Publisher<?> newResult = scheduleOwnedSpanFinish(publisher, owned);
     if (newResult instanceof Scannable) {
       Scannable parent = (Scannable) newResult;
       while (parent != null) {
         if (parent instanceof Publisher) {
-          attachContext.accept((Publisher) parent, current);
+          attachContext.accept((Publisher<?>) parent, current);
         }
         parent = parent.scan(Scannable.Attr.PARENT);
       }
     }
     return newResult;
+  }
+
+  private static Publisher<?> scheduleOwnedSpanFinish(Publisher<?> publisher, AgentSpan owned) {
+    if (owned == null) {
+      return publisher;
+    }
+    if (publisher instanceof Flux<?>) {
+      return ((Flux<?>) publisher).doFinally(beforeFinish(owned));
+    } else if (publisher instanceof Mono<?>) {
+      return ((Mono<?>) publisher).doFinally(beforeFinish(owned));
+    } else {
+      // can't schedule span finish - finish immediately
+      owned.finish();
+    }
+    return publisher;
+  }
+
+  private static Consumer<SignalType> beforeFinish(AgentSpan span) {
+    return signalType -> {
+      span.finish();
+    };
   }
 }

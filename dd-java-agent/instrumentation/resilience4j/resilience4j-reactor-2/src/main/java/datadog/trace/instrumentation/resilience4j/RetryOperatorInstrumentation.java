@@ -63,7 +63,7 @@ public class RetryOperatorInstrumentation extends AbstractResilience4jInstrument
         @Advice.FieldValue(value = "retry") Retry retry) {
 
       result =
-          ReactorHelper.wrap(
+          ReactorHelper.wrapPublisher(
               result,
               RetryDecorator.DECORATE,
               retry,

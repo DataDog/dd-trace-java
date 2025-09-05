@@ -64,7 +64,7 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
       result =
-          ReactorHelper.wrap(
+          ReactorHelper.wrapPublisher(
               result,
               CircuitBreakerDecorator.DECORATE,
               circuitBreaker,
