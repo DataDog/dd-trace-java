@@ -102,7 +102,7 @@ public class Utf8Benchmark {
     }
   }
 
-  static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache();
+  static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(128);
 
   @Benchmark
   public static final void valueUtf8_cache_generational(Blackhole bh) {
@@ -118,7 +118,7 @@ public class Utf8Benchmark {
     }
   }
 
-  static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache();
+  static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache(128);
 
   @Benchmark
   public static final void valueUtf8_cache_simple(Blackhole bh) {
