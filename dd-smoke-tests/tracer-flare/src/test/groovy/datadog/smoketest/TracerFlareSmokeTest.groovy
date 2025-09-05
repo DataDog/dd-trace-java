@@ -57,24 +57,28 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
 
     def command = [javaPath()]
 
-    if (processIndex == 0) {
+    switch (processIndex) {
+      case 0:
       // Process 0: Profiling enabled (default)
-      command.addAll(defaultJavaProperties)
-    } else if (processIndex == 1) {
+        command.addAll(defaultJavaProperties)
+        break
+      case 1:
       // Process 1: Profiling disabled
-      def filteredProperties = defaultJavaProperties.findAll { prop ->
-        !prop.startsWith("-Ddd.profiling.")
-      }
-      command.addAll(filteredProperties)
-      command.add("-Ddd.profiling.enabled=false")
-    } else {
+        def filteredProperties = defaultJavaProperties.findAll { prop ->
+          !prop.startsWith("-Ddd.profiling.")
+        }
+        command.addAll(filteredProperties)
+        command.add("-Ddd.profiling.enabled=false")
+        break
+      case 2:
       // Process 2: Profiling enabled with template override
-      command.addAll(defaultJavaProperties)
+        command.addAll(defaultJavaProperties)
       // Create a temp file with the override content
-      def tempOverrideFile = File.createTempFile("test-override-", ".jfp")
-      tempOverrideFile.deleteOnExit()
-      tempOverrideFile.text = "datadog.ExceptionSample#enabled=false" // Arbitrary event choice
-      command.add("-Ddd.profiling.jfr-template-override-file=" + tempOverrideFile.absolutePath)
+        def tempOverrideFile = File.createTempFile("test-override-", ".jfp")
+        tempOverrideFile.deleteOnExit()
+        tempOverrideFile.text = "datadog.ExceptionSample#enabled=false" // Arbitrary event choice
+        command.add("-Ddd.profiling.jfr-template-override-file=" + tempOverrideFile.absolutePath)
+        break
     }
 
     // Configure flare generation
