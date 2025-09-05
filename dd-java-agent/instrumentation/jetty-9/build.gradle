@@ -91,7 +91,6 @@ List<DirectoryProperty> extraInstrumentJavaDirs = []
   extraInstrumentJavaDirs << compileTask.destinationDirectory
   compileTask.dependsOn tasks['compileJava']
   project.afterEvaluate { p ->
-    tasks['instrumentJava'].dependsOn compileTask
     tasks["forbiddenApis${it.capitalize()}"].dependsOn("instrument${it.capitalize()}Java")
   }
 }
