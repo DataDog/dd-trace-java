@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import reactor.core.publisher.ConnectableFlux
@@ -107,6 +108,51 @@ class CircuitBreakerTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test circuit-breaker state reporting"() {
+    def cb = Mock(CircuitBreaker)
+    cb.getState() >> state
+    cb.tryAcquirePermission() >> false
+
+    ConnectableFlux<String> connection = Flux.just("foo", "bar")
+      .transformDeferred(CircuitBreakerOperator.of(cb))
+      .publishOn(Schedulers.boundedElastic())
+      .publish()
+
+    when:
+    connection.subscribe {
+      AgentTracer.startSpan("test", it).finish()
+    }
+
+    runnableUnderTrace("parent", {
+      connection.connect()
+    })
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          errored false
+        }
+        span(1) {
+          operationName "resilience4j"
+          childOf(span(0))
+          errored false
+          tags {
+            "$Tags.COMPONENT" "resilience4j"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
+            "resilience4j.circuit_breaker.state" state.toString()
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    where:
+    state << CircuitBreaker.State.values()
   }
 
   def <T> T serviceCall(T value) {
