@@ -6,7 +6,9 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CON
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
+import com.datadog.debugger.exception.AbstractExceptionDebugger;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
+import com.datadog.debugger.exception.FailedTestReplayExceptionDebugger;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
@@ -25,6 +27,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -40,7 +43,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -62,7 +64,7 @@ public class DebuggerAgent {
   private static volatile ClassNameFilter classNameFilter;
   private static volatile SymDBEnablement symDBEnablement;
   private static volatile ConfigurationUpdater configurationUpdater;
-  private static volatile DefaultExceptionDebugger exceptionDebugger;
+  private static volatile AbstractExceptionDebugger exceptionDebugger;
   private static final AtomicBoolean commonInitDone = new AtomicBoolean();
   static final AtomicBoolean dynamicInstrumentationEnabled = new AtomicBoolean();
   static final AtomicBoolean exceptionReplayEnabled = new AtomicBoolean();
@@ -74,9 +76,10 @@ public class DebuggerAgent {
     instrumentation = inst;
     sharedCommunicationObjects = sco;
     Config config = Config.get();
-    DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    // set config updater after setup is done, as some deferred updates might be immediately called
+    DebuggerConfigBridge.setUpdater(new DefaultDebuggerConfigUpdater());
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
@@ -211,13 +214,13 @@ public class DebuggerAgent {
     Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
-    exceptionDebugger =
-        new DefaultExceptionDebugger(
-            configurationUpdater,
-            classNameFilter,
-            Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond(),
-            config.getDebuggerExceptionMaxCapturedFrames());
+    if (config.isCiVisibilityEnabled()) {
+      exceptionDebugger =
+          new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFilter, config);
+    } else {
+      exceptionDebugger =
+          new DefaultExceptionDebugger(configurationUpdater, classNameFilter, config);
+    }
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }

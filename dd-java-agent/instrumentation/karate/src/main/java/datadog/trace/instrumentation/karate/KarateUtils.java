@@ -56,6 +56,7 @@ public abstract class KarateUtils {
       Arrays.asList(
           LibraryCapability.ATR,
           LibraryCapability.EFD,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.ATTEMPT_TO_FIX);
 
@@ -63,6 +64,7 @@ public abstract class KarateUtils {
       Arrays.asList(
           LibraryCapability.ATR,
           LibraryCapability.EFD,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.ATTEMPT_TO_FIX,
           LibraryCapability.TIA,

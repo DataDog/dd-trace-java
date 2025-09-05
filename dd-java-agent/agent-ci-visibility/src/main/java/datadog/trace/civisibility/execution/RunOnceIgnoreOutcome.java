@@ -48,4 +48,9 @@ public class RunOnceIgnoreOutcome implements TestExecutionPolicy {
   public boolean hasSucceededAllRetries() {
     return false;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return false;
+  }
 }

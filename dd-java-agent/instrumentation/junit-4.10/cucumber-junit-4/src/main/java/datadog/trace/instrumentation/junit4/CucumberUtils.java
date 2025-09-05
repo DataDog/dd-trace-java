@@ -73,6 +73,7 @@ public abstract class CucumberUtils {
           LibraryCapability.TIA,
           LibraryCapability.ATR,
           LibraryCapability.EFD,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX);

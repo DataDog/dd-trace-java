@@ -21,7 +21,9 @@ excludedClassesCoverage += [
   // only static classes
   'com.datadog.debugger.util.MoshiSnapshotHelper',
   // based on JDK WeakHashMap
-  'com.datadog.debugger.util.WeakIdentityHashMap*'
+  'com.datadog.debugger.util.WeakIdentityHashMap*',
+  // tested through smoke tests
+  'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger'
 ]
 
 dependencies {

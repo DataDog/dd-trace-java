@@ -35,4 +35,7 @@ public interface TestExecutionHistory {
    *     multiple retries)
    */
   boolean hasSucceededAllRetries();
+
+  /** @return {@code true} if the test should be instrumented by FTR */
+  boolean failedTestReplayApplicable();
 }

@@ -86,6 +86,8 @@ public class DebuggerSink {
   }
 
   public void stop() {
+    lowRateFlush(this);
+    snapshotSink.highRateFlush(null);
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
     probeStatusSink.stop();
