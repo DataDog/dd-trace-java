@@ -164,7 +164,7 @@ public final class AgentCLI {
                     log.debug("Adding new jar: {}", temp.getAbsolutePath());
                     recursiveDependencySearch(invoker, temp);
                     if (!temp.delete()) {
-                      log.error("Error deleting temp file:{}", temp.getAbsolutePath());
+                      log.error("Error deleting temp file: {}", temp.getAbsolutePath());
                     }
                   } catch (Exception ex) {
                     log.error("Error unzipping file", ex);

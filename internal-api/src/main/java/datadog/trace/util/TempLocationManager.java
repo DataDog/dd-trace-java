@@ -281,8 +281,8 @@ public final class TempLocationManager {
           SEND_TELEMETRY,
           "Base temp directory, as defined in '"
               + ProfilingConfig.PROFILING_TEMP_DIR
-              + "' does not exist: "
-              + configuredTempDir);
+              + "' does not exist: {}",
+          configuredTempDir);
       throw new IllegalStateException(
           "Base temp directory, as defined in '"
               + ProfilingConfig.PROFILING_TEMP_DIR

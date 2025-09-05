@@ -177,10 +177,9 @@ public class EvalProcessingWorker implements AutoCloseable {
             this.buffer.clear();
           } else {
             log.error(
-                "Could not submit eval metrics (HTTP code "
-                    + response.code()
-                    + ")"
-                    + (response.body() != null ? ": " + response.body().string() : ""));
+                "Could not submit eval metrics (HTTP code {}) {}",
+                response.code(),
+                response.body() != null ? response.body().string() : "");
           }
         } catch (Exception e) {
           log.error("Could not submit eval metrics", e);
