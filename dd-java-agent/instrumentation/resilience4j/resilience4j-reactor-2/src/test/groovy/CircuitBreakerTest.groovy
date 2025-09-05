@@ -29,30 +29,25 @@ class CircuitBreakerTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(5) {
+      trace(4) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
           errored false
         }
         span(1) {
-          operationName "C1"
+          operationName "resilience4j"
           childOf(span(0))
           errored false
         }
         span(2) {
-          operationName "C2"
+          operationName "foo"
           childOf(span(1))
           errored false
         }
         span(3) {
-          operationName "foo"
-          childOf(span(2))
-          errored false
-        }
-        span(4) {
           operationName "bar"
-          childOf(span(2))
+          childOf(span(1))
           errored false
         }
       }
@@ -79,40 +74,35 @@ class CircuitBreakerTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(7) {
+      trace(6) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
           errored false
         }
         span(1) {
-          operationName "C1"
+          operationName "resilience4j"
           childOf(span(0))
           errored false
         }
         span(2) {
-          operationName "C2"
+          operationName "serviceCall"
           childOf(span(1))
           errored false
         }
         span(3) {
           operationName "serviceCall"
-          childOf(span(2))
+          childOf(span(1))
           errored false
         }
         span(4) {
-          operationName "serviceCall"
-          childOf(span(2))
+          operationName "foo"
+          childOf(span(1))
           errored false
         }
         span(5) {
-          operationName "foo"
-          childOf(span(2))
-          errored false
-        }
-        span(6) {
           operationName "bar"
-          childOf(span(2))
+          childOf(span(1))
           errored false
         }
       }

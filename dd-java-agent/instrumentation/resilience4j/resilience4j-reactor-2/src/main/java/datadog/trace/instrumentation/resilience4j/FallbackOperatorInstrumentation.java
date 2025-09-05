@@ -54,7 +54,6 @@ public class FallbackOperatorInstrumentation extends AbstractResilience4jInstrum
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> ret = new HashMap<>();
-    //    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
     ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
     return ret;
   }

@@ -38,7 +38,7 @@ class StackedOperatorsTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(7) {
+      trace(4) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -46,33 +46,18 @@ class StackedOperatorsTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "R0"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }
         span(2) {
-          operationName "C1"
+          operationName "serviceCall/abc"
           childOf span(1)
           errored false
         }
         span(3) {
-          operationName "R1"
-          childOf span(2)
-          errored false
-        }
-        span(4) {
-          operationName "C2"
-          childOf span(3)
-          errored false
-        }
-        span(5) {
-          operationName "serviceCall/abc"
-          childOf span(4)
-          errored false
-        }
-        span(6) {
           operationName "serviceCall/def"
-          childOf span(4)
+          childOf span(1)
           errored false
         }
         //        span(5) {

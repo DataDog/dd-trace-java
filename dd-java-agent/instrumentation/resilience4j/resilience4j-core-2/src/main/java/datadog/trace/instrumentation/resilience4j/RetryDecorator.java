@@ -17,7 +17,15 @@ public final class RetryDecorator extends AbstractResilience4jDecorator<Retry> {
 
   @Override
   public void decorate(AgentSpan span, Retry data) {
-    span.setSpanName(data.getName());
+    span.setTag("resilience4j.retry.name", data.getName());
+    //    span.setTag("resilience4j.retry.number_of_successful_calls_with_retry_attempt",
+    // data.getMetrics().getNumberOfSuccessfulCallsWithRetryAttempt());
+    //    span.setTag("resilience4j.retry.number_of_failed_calls_with_retry_attempt",
+    // data.getMetrics().getNumberOfFailedCallsWithRetryAttempt());
+    //    span.setTag("resilience4j.retry.number_of_successful_calls_without_retry_attempt",
+    // data.getMetrics().getNumberOfSuccessfulCallsWithoutRetryAttempt());
+    //    span.setTag("resilience4j.retry.number_of_failed_calls_without_retry_attempt",
+    // data.getMetrics().getNumberOfFailedCallsWithoutRetryAttempt());
     // TODO
   }
 }

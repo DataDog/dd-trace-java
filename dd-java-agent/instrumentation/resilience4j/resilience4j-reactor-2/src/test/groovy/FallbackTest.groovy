@@ -37,7 +37,7 @@ class FallbackTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(12) {
+      trace(11) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -45,57 +45,52 @@ class FallbackTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "fallback"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }
         span(2) {
-          operationName "R0"
+          operationName "in1"
           childOf span(1)
           errored false
         }
         span(3) {
-          operationName "in1"
-          childOf span(2)
+          operationName "in1" // retry second attempt
+          childOf span(1)
           errored false
         }
         span(4) {
-          operationName "in1" // retry second attempt
-          childOf span(2)
+          operationName "out1" // only one out1 for two in1 attempts
+          childOf span(1)
           errored false
         }
         span(5) {
-          operationName "out1" // only one out1 for two in1 attempts
-          childOf span(2)
+          operationName "in2"
+          childOf span(1)
           errored false
         }
         span(6) {
-          operationName "in2"
-          childOf span(2)
-          errored false
-        }
-        span(7) {
           operationName "out2"
-          childOf span(2)
+          childOf span(1)
           errored false
         }
         // fallback elements go after all Flux elements
-        span(8) {
+        span(7) {
           operationName "in-1"
           childOf span(1)
           errored false
         }
-        span(9) {
+        span(8) {
           operationName "out-1"
           childOf span(1)
           errored false
         }
-        span(10) {
+        span(9) {
           operationName "in-2"
           childOf span(1)
           errored false
         }
-        span(11) {
+        span(10) {
           operationName "out-2"
           childOf span(1)
           errored false
@@ -127,7 +122,7 @@ class FallbackTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(7) {
+      trace(6) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -135,31 +130,26 @@ class FallbackTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "fallback"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }
-        span(2) {
-          operationName "R0"
+        span(2) { // first attempt
+          operationName "in1"
           childOf span(1)
           errored false
         }
-        span(3) { // first attempt
+        span(3) { // second attempt
           operationName "in1"
-          childOf span(2)
+          childOf span(1)
           errored false
         }
-        span(4) { // second attempt
-          operationName "in1"
-          childOf span(2)
-          errored false
-        }
-        span(5) {// fallback
+        span(4) {// fallback
           operationName "in-1"
           childOf span(1)
           errored false
         }
-        span(6) {
+        span(5) {
           operationName "out-1"
           childOf span(1)
           errored false

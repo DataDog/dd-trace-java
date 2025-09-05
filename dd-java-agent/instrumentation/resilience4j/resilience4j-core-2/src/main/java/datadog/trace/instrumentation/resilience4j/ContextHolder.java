@@ -84,20 +84,14 @@ public class ContextHolder<T> {
     this.data = data;
   }
 
-  public void startSpan() {
-    if (span == null) {
-      span = ActiveResilience4jSpan.start();
-      spanDecorator.afterStart(span);
-    }
-  }
-
   public AgentScope activateScope() {
-    //    AgentSpan current = ActiveResilience4jSpan.current();
-    //    if (current == null) {
-    AgentSpan current = ActiveResilience4jSpan.start();
-    this.span = current;
+    AgentSpan current = ActiveResilience4jSpan.current();
+    AgentSpan owned = current == null ? ActiveResilience4jSpan.start() : null;
+    if (owned != null) {
+      current = owned;
+    }
+    this.span = owned;
     spanDecorator.afterStart(current);
-    //    }
     spanDecorator.decorate(current, data);
     return AgentTracer.activateSpan(current);
   }
@@ -105,7 +99,7 @@ public class ContextHolder<T> {
   public void finishSpanIfNeeded() {
     if (span != null) {
       spanDecorator.beforeFinish(span);
-      ActiveResilience4jSpan.finish(span);
+      ActiveResilience4jSpan.finish(span); // TODO
       span = null;
     }
   }

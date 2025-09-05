@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.bulkhead.Bulkhead
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.decorators.Decorators
@@ -52,7 +53,7 @@ class StackedDecoratorsTest extends AgentTestRunner {
 
   private void assertExpectedTrace() {
     assertTraces(1) {
-      trace(5) {
+      trace(3) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -63,20 +64,18 @@ class StackedDecoratorsTest extends AgentTestRunner {
           operationName "resilience4j"
           childOf span(0)
           errored false
+          tags {
+            "$Tags.COMPONENT" "resilience4j"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
+            "resilience4j.circuit_breaker.name" "A"
+            "resilience4j.circuit_breaker.state" "CLOSED"
+            "resilience4j.retry.name" "R"
+            defaultTags()
+          }
         }
         span(2) {
-          operationName "R"
-          childOf span(1)
-          errored false
-        }
-        span(3) {
-          operationName "A"
-          childOf span(2)
-          errored false
-        }
-        span(4) {
           operationName "serviceCall"
-          childOf span(3)
+          childOf span(1)
           errored false
         }
       }

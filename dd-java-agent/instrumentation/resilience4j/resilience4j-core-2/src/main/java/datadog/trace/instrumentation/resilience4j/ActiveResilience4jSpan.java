@@ -9,7 +9,6 @@ public class ActiveResilience4jSpan {
   public static final String INSTRUMENTATION_NAME = "resilience4j";
 
   public static AgentSpan current() {
-    System.err.println(">>> ActiveResilience4jSpan.current()");
     AgentSpan span = AgentTracer.activeSpan();
     if (span == null || !SPAN_NAME.equals(span.getOperationName())) {
       return null;
@@ -18,7 +17,6 @@ public class ActiveResilience4jSpan {
   }
 
   public static AgentSpan start() {
-    System.err.println(">>> ActiveResilience4jSpan.start()");
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
     // TODO decorate
     return span;
@@ -26,7 +24,6 @@ public class ActiveResilience4jSpan {
 
   public static void finish(AgentSpan span) {
     if (span != null) {
-      System.err.println(">>> ActiveResilience4jSpan.finish()");
       // TODO decorate
       span.finish();
     }
