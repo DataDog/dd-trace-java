@@ -15,13 +15,7 @@ import org.eclipse.aether.spi.connector.transport.TransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.eclipse.aether.version.Version
-import org.gradle.api.Action
-import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
-import org.gradle.api.NamedDomainObjectProvider
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.api.Task
+import org.gradle.api.*
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
@@ -30,7 +24,6 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskProvider
-import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.workers.WorkAction
@@ -40,7 +33,6 @@ import org.gradle.workers.WorkerExecutor
 import java.lang.reflect.Method
 import java.util.function.BiFunction
 import java.util.regex.Pattern
-
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
@@ -111,9 +103,15 @@ class MuzzlePlugin implements Plugin<Project> {
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
+
+
+    def mainSourceSetOutputs = project.providers.provider {
+      project.sourceSets.matching { sourceSetName.startsWith(SourceSet.MAIN_SOURCE_SET_NAME) }.collect {
+        it.output
+      }
+    }
     TaskProvider<Task> compileMuzzle = project.tasks.register('compileMuzzle') {
-      // TODO fix eagerness, check jetty an co projects
-      it.dependsOn project.tasks.matching { it instanceof AbstractCompile && it.name.startsWith('') }
+      it.inputs.files(mainSourceSetOutputs)
       it.dependsOn bootstrapProject.tasks.named("compileJava")
       it.dependsOn bootstrapProject.tasks.named("compileMain_java11Java")
       it.dependsOn toolingProject.tasks.named("compileJava")
