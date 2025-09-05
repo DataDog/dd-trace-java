@@ -2,6 +2,8 @@ package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
 import datadog.trace.common.writer.ddagent.SimpleUtf8Cache.CacheEntry;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -63,6 +65,9 @@ import java.nio.charset.StandardCharsets;
  * calling ValueUtf8Cache#reclibrate will adjust promotion thresholds to
  * provide better cache utilization.
  */
+@SuppressFBWarnings(
+  value="IS2_INCONSISTENT_SYNC",
+  justification="stat updates are deliberately racy - sync is only used to prevent simultaneous bulk updates")
 public final class GenerationalUtf8Cache implements EncodingCache {
   static final int MAX_EDEN_CAPACITY = 512;
   static final int MAX_TENURED_CAPACITY = 1024;
