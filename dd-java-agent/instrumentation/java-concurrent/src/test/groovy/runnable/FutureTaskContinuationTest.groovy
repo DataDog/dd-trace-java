@@ -1,13 +1,13 @@
 package runnable
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
 import java.util.concurrent.ExecutionException
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class FutureTaskContinuationTest extends AgentTestRunner {
+class FutureTaskContinuationTest extends InstrumentationSpecification {
   SettableFuture future
 
   @Override

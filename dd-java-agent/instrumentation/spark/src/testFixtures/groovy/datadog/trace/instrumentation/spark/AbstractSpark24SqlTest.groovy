@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.spark
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import groovy.json.JsonSlurper
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
@@ -8,7 +8,7 @@ import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 
-abstract class AbstractSpark24SqlTest extends AgentTestRunner {
+abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

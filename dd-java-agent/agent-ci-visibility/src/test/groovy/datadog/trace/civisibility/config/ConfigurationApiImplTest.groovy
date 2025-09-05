@@ -11,7 +11,11 @@ import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
-import datadog.trace.civisibility.CiVisibilityTestUtils
+import freemarker.core.Environment
+import freemarker.core.InvalidReferenceException
+import freemarker.template.Template
+import freemarker.template.TemplateException
+import freemarker.template.TemplateExceptionHandler
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
@@ -233,7 +237,7 @@ class ConfigurationApiImplTest extends Specification {
     httpServer {
       handlers {
         prefix(path) {
-          def expectedRequestBody = CiVisibilityTestUtils.getFreemarkerTemplate(requestTemplate, requestData)
+          def expectedRequestBody = getFreemarkerTemplate(requestTemplate, requestData)
 
           def response = response
           try {
@@ -242,7 +246,7 @@ class ConfigurationApiImplTest extends Specification {
             response.status(400).send(error.getMessage().bytes)
           }
 
-          def responseBody = CiVisibilityTestUtils.getFreemarkerTemplate(responseTemplate, responseData).bytes
+          def responseBody = getFreemarkerTemplate(responseTemplate, responseData).bytes
           def header = request.getHeader("Accept-Encoding")
           def gzipSupported = header != null && header.contains("gzip")
           if (gzipSupported) {
@@ -314,5 +318,38 @@ class ConfigurationApiImplTest extends Specification {
       bitSet.set(bit)
     }
     return bitSet
+  }
+
+  static final TemplateExceptionHandler SUPPRESS_EXCEPTION_HANDLER = new TemplateExceptionHandler() {
+    @Override
+    void handleTemplateException(TemplateException e, Environment environment, Writer writer) throws TemplateException {
+      if (e instanceof InvalidReferenceException) {
+        writer.write('"<VALUE_MISSING>"')
+      } else {
+        throw e
+      }
+    }
+  }
+
+  static final freemarker.template.Configuration FREEMARKER = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30) { {
+      setClassLoaderForTemplateLoading(ConfigurationApiImplTest.classLoader, "")
+      setDefaultEncoding("UTF-8")
+      setTemplateExceptionHandler(SUPPRESS_EXCEPTION_HANDLER)
+      setLogTemplateExceptions(false)
+      setWrapUncheckedExceptions(true)
+      setFallbackOnNullLoopVariable(false)
+      setNumberFormat("0.######")
+    }
+  }
+
+  static String getFreemarkerTemplate(String templatePath, Map<String, Object> replacements, List<Map<?, ?>> replacementsSource = []) {
+    try {
+      Template coveragesTemplate = FREEMARKER.getTemplate(templatePath)
+      StringWriter coveragesOut = new StringWriter()
+      coveragesTemplate.process(replacements, coveragesOut)
+      return coveragesOut.toString()
+    } catch (Exception e) {
+      throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
+    }
   }
 }

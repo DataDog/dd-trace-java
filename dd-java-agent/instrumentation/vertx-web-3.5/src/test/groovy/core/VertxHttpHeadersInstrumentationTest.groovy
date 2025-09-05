@@ -1,6 +1,6 @@
 package core
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -12,7 +12,7 @@ import io.vertx.core.MultiMap
 import io.vertx.core.http.impl.headers.VertxHttpHeaders
 
 @CompileDynamic
-class VertxHttpHeadersInstrumentationTest extends AgentTestRunner {
+class VertxHttpHeadersInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

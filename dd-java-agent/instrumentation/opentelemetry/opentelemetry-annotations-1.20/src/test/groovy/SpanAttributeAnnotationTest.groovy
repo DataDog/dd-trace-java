@@ -1,8 +1,8 @@
 import annotatedsample.TracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-class SpanAttributeAnnotationTest extends AgentTestRunner {
+class SpanAttributeAnnotationTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

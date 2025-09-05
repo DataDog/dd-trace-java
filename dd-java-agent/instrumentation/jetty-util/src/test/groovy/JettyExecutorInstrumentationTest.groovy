@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import org.eclipse.jetty.util.thread.MonitoredQueuedThreadPool
@@ -12,7 +12,7 @@ import java.util.concurrent.Executors
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
-class JettyExecutorInstrumentationTest extends AgentTestRunner {
+class JettyExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   ExecutorService exHolder = null

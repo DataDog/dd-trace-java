@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.axis2
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
@@ -42,7 +42,7 @@ import static org.apache.axis2.engine.Handler.InvocationResponse.CONTINUE
 import static org.apache.axis2.engine.Handler.InvocationResponse.SUSPEND
 import static org.apache.axis2.util.MessageContextBuilder.createFaultMessageContext
 
-class AxisEngineTest extends AgentTestRunner {
+class AxisEngineTest extends InstrumentationSpecification {
 
   @Shared
   SOAPFactory soapFactory = getSOAP11Factory()

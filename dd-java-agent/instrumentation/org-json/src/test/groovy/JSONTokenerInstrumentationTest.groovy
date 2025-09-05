@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONTokener
 
-class JSONTokenerInstrumentationTest extends AgentTestRunner {
+class JSONTokenerInstrumentationTest extends InstrumentationSpecification {
 
   private static final String JSON_STRING = '{"name": "nameTest", "value" : "valueTest"}' // Reused JSON String
 

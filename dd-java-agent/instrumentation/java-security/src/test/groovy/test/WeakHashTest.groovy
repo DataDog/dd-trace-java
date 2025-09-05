@@ -1,6 +1,6 @@
 package test
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.WeakHashModule
 import foo.bar.TestSuite
@@ -11,7 +11,7 @@ import java.security.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakHashTest extends AgentTestRunner {
+class WeakHashTest extends InstrumentationSpecification {
 
   def "unavailable hash algorithm"() {
 

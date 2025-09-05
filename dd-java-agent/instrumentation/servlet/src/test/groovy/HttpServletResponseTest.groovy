@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import groovy.servlet.AbstractHttpServlet
 
 import javax.servlet.ServletException
@@ -11,7 +11,7 @@ import javax.servlet.http.HttpServletResponse
 
 import static java.util.Collections.emptyEnumeration
 
-class HttpServletResponseTest extends AgentTestRunner {
+class HttpServletResponseTest extends InstrumentationSpecification {
 
   def request = Mock(HttpServletRequest) {
     getMethod() >> "GET"

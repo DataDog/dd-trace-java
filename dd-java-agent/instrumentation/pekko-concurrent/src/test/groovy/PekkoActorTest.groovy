@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
-class PekkoActorTest extends AgentTestRunner {
+class PekkoActorTest extends InstrumentationSpecification {
 
   @Shared
   def pekkoTester = new PekkoActors()

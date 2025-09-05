@@ -1,11 +1,11 @@
 import annotatedsample.TracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.CountDownLatch
 
-class WithSpanAnnotationTest extends AgentTestRunner {
+class WithSpanAnnotationTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

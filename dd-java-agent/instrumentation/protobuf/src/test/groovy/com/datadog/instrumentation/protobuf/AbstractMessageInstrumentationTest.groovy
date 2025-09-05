@@ -4,14 +4,14 @@ import com.datadog.instrumentation.protobuf.generated.Message.MyMessage
 import com.datadog.instrumentation.protobuf.generated.Message.OtherMessage
 import com.datadog.instrumentation.protobuf.generated.Message.RecursiveMessage
 import com.google.protobuf.InvalidProtocolBufferException
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class AbstractMessageInstrumentationTest extends AgentTestRunner {
+class AbstractMessageInstrumentationTest extends InstrumentationSpecification {
   @Override
   protected boolean isDataStreamsEnabled() {
     return true

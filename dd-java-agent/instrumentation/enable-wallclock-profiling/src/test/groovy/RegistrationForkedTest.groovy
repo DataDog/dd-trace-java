@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import io.netty.channel.nio.NioEventLoopGroup
 
 import java.util.concurrent.CountDownLatch
@@ -7,7 +7,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class RegistrationForkedTest extends AgentTestRunner {
+class RegistrationForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

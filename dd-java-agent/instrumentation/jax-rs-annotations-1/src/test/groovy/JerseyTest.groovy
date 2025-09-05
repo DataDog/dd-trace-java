@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.dropwizard.testing.junit.ResourceTestRule
@@ -7,7 +7,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class JerseyTest extends AgentTestRunner {
+class JerseyTest extends InstrumentationSpecification {
 
   @Shared
   @ClassRule

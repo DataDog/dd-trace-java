@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ReflectionInjectionModule
 import foo.bar.TestLookupSuite
 
 import java.lang.invoke.MethodType
 
-class LookupCallSiteTest extends AgentTestRunner {
+class LookupCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

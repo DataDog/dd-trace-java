@@ -5,7 +5,7 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.AnonymousAWSCredentials
 import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
@@ -19,7 +19,7 @@ import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class LegacySqsClientForkedTest extends AgentTestRunner {
+class LegacySqsClientForkedTest extends InstrumentationSpecification {
 
   def setup() {
     System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")

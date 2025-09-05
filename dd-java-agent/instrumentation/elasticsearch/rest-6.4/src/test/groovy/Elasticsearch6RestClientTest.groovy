@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -19,7 +19,7 @@ import org.elasticsearch.transport.Netty4Plugin
 import spock.lang.Shared
 
 @Flaky
-class Elasticsearch6RestClientTest extends AgentTestRunner {
+class Elasticsearch6RestClientTest extends InstrumentationSpecification {
   @Shared
   TransportAddress httpTransportAddress
   @Shared

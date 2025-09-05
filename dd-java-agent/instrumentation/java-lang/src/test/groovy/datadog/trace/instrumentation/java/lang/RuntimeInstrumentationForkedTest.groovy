@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.gateway.CallbackProvider
 import static datadog.trace.api.gateway.Events.EVENTS
@@ -14,7 +14,7 @@ import spock.lang.Shared
 
 import java.util.function.BiFunction
 
-class RuntimeInstrumentationForkedTest extends AgentTestRunner{
+class RuntimeInstrumentationForkedTest extends InstrumentationSpecification{
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()

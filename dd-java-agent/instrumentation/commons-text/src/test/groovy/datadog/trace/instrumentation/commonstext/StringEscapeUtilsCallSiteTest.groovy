@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.commonstext
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -8,7 +8,7 @@ import foo.bar.TestStringEscapeUtilsSuite
 import groovy.transform.CompileDynamic
 
 @CompileDynamic
-class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
+class StringEscapeUtilsCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

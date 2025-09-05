@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -28,7 +28,7 @@ import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-class ConnectWorkerInstrumentationTest extends AgentTestRunner {
+class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
   @Shared
   EmbeddedKafkaBroker embeddedKafka = new EmbeddedKafkaBroker(1, false, 1, 'test-topic')
 

@@ -1,5 +1,5 @@
 import datadog.environment.JavaVirtualMachine
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.TestProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 
@@ -9,7 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class QueueTimingForkedTest extends AgentTestRunner {
+class QueueTimingForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

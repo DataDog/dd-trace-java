@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.CommandInjectionModule
 import foo.bar.TestProcessBuilderSuite
 
-class ProcessBuilderCallSiteTest extends AgentTestRunner {
+class ProcessBuilderCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -8,7 +8,7 @@ import foo.bar.TestByteBufferSuite
 
 import java.nio.ByteBuffer
 
-class ByteBufferTest extends AgentTestRunner {
+class ByteBufferTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

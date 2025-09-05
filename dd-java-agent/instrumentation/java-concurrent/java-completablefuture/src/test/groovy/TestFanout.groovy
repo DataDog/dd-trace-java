@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class TestFanout extends AgentTestRunner {
+class TestFanout extends InstrumentationSpecification {
 
   def "test propagate with fanout"() {
     when:

@@ -3,13 +3,13 @@ import static annotatedsample.ReactiveStreamsTracedMethods.TestPublisher.ofFaili
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 
 import java.util.concurrent.CountDownLatch
 
-class PublishSubscribeTest extends AgentTestRunner {
+class PublishSubscribeTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

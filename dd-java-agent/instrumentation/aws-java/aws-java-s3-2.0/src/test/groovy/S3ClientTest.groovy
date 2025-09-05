@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
@@ -17,7 +17,7 @@ import spock.lang.Shared
 
 import java.time.Duration
 
-class S3ClientTest extends AgentTestRunner {
+class S3ClientTest extends InstrumentationSpecification {
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "s3")

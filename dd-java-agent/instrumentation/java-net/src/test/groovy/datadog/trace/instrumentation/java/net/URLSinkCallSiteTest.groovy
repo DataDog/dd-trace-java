@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.net
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.gateway.CallbackProvider
@@ -18,7 +18,7 @@ import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class URLSinkCallSiteTest extends AgentTestRunner {
+class URLSinkCallSiteTest extends InstrumentationSpecification {
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()

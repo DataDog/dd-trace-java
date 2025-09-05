@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.h2.Driver
@@ -14,7 +14,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
  * This tests all combinations of wrapped/unwrapped connections and prepared statements
  * H2 classes are called out because the don't implement the Wrapper interface.  They are based an older spec leading to AbstractMethodError
  */
-class JDBCWrappedInterfacesTest extends AgentTestRunner {
+class JDBCWrappedInterfacesTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

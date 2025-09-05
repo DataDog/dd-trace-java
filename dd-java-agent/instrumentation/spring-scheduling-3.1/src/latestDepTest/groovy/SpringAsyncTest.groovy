@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class SpringAsyncTest extends AgentTestRunner {
+class SpringAsyncTest extends InstrumentationSpecification {
 
   def "context propagated through @async annotation"() {
     setup:

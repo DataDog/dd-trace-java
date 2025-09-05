@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.velocity
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestEscapeToolSuite
@@ -10,7 +10,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.SQL_INJECTION_MARK
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
 
 @CompileDynamic
-class EscapeToolCallSiteTest extends AgentTestRunner {
+class EscapeToolCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

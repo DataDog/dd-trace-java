@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -21,7 +21,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper
 import datadog.trace.agent.tooling.iast.TaintableEnumeration
 import jakarta.servlet.http.HttpSession
 
-class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
+class JakartaHttpServletRequestInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

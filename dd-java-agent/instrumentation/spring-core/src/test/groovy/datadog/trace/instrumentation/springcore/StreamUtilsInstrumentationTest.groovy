@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.springcore
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.springframework.util.StreamUtils
 
 import java.nio.charset.StandardCharsets
 
-class StreamUtilsInstrumentationTest extends AgentTestRunner {
+class StreamUtilsInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

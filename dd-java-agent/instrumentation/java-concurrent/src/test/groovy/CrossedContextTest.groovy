@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
 import io.netty.channel.ThreadPerChannelEventLoop
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class CrossedContextTest extends AgentTestRunner {
+class CrossedContextTest extends InstrumentationSpecification {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }

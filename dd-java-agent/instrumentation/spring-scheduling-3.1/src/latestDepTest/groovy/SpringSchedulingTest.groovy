@@ -1,13 +1,13 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.boot.actuate.scheduling.ScheduledTasksEndpoint
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 import java.util.concurrent.TimeUnit
 
-class SpringSchedulingTest extends AgentTestRunner {
+class SpringSchedulingTest extends InstrumentationSpecification {
 
   def legacyTracing() {
     false

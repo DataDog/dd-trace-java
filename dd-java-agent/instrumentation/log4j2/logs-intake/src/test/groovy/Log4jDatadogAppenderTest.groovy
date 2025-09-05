@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.logging.intake.LogsIntake
 import datadog.trace.api.logging.intake.LogsWriter
@@ -10,7 +10,7 @@ import spock.util.environment.Jvm
 import java.nio.file.Files
 import java.nio.file.Path
 
-class Log4jDatadogAppenderTest extends AgentTestRunner {
+class Log4jDatadogAppenderTest extends InstrumentationSpecification {
 
   private static Path agentKeyFile
   private static DummyLogsWriter logsWriter

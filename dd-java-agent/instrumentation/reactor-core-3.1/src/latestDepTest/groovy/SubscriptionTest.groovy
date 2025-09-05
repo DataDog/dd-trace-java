@@ -1,14 +1,14 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 
 import java.util.concurrent.CountDownLatch
 
-class SubscriptionTest extends AgentTestRunner {
+class SubscriptionTest extends InstrumentationSpecification {
 
   def "subscription test with Sinks.Many sink #sink.class and #consumers consumers"() {
     when:

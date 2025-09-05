@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.servlet.filter.FilterDecorator
 
 import javax.servlet.Filter
@@ -11,7 +11,7 @@ import javax.servlet.ServletResponse
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class FilterTest extends AgentTestRunner {
+class FilterTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

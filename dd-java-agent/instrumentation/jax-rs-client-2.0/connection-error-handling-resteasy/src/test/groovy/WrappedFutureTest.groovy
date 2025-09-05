@@ -1,13 +1,13 @@
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_EXCEPTION_AS_ERROR_ENABLED
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.connection_error.resteasy.WrappedFuture
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter
 import java.util.concurrent.CompletableFuture
 import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration
 import org.jboss.resteasy.spi.ResteasyProviderFactory
 
-class WrappedFutureTest extends AgentTestRunner {
+class WrappedFutureTest extends InstrumentationSpecification {
   def "wrappedFuture does not generate traces for non-exceptions"() {
     setup:
     if (jaxRsExceptionAsErrorEnabled != null) {

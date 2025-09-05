@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.util.concurrent
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.WeakRandomnessModule
 import foo.bar.TestThreadLocalRandomSuite
 
 import java.util.concurrent.ThreadLocalRandom
 
-class ThreadLocalRandomCallSiteTest extends AgentTestRunner {
+class ThreadLocalRandomCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

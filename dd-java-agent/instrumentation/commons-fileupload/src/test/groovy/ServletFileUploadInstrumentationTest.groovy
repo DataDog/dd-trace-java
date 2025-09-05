@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -11,7 +11,7 @@ import org.apache.commons.fileupload.FileItemIterator
 import org.apache.commons.fileupload.disk.DiskFileItemFactory
 import org.apache.commons.fileupload.servlet.ServletFileUpload
 
-class ServletFileUploadInstrumentationTest extends AgentTestRunner {
+class ServletFileUploadInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

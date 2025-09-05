@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.util
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.WeakRandomnessModule
 import foo.bar.TestRandomSuite
 
 import java.security.SecureRandom
 
-class RandomCallSiteTest extends AgentTestRunner {
+class RandomCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

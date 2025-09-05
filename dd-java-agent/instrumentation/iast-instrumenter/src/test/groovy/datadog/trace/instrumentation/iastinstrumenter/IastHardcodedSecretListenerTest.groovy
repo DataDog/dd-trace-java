@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.iastinstrumenter
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool
 import datadog.trace.agent.tooling.iast.IastSecretClassReader
 import datadog.trace.api.iast.InstrumentationBridge
@@ -8,7 +8,7 @@ import datadog.trace.api.iast.sink.HardcodedSecretModule
 import net.bytebuddy.description.type.TypeDescription
 import org.apache.commons.io.IOUtils
 
-class IastHardcodedSecretListenerTest extends AgentTestRunner{
+class IastHardcodedSecretListenerTest extends InstrumentationSpecification{
 
 
   void 'test onConstantPool'(){

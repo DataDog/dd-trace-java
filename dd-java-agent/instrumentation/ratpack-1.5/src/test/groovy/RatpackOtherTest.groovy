@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -8,7 +8,7 @@ import okhttp3.Request
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.path.PathBinding
 
-class RatpackOtherTest extends AgentTestRunner {
+class RatpackOtherTest extends InstrumentationSpecification {
 
   OkHttpClient client = OkHttpUtils.client()
 

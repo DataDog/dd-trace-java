@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
@@ -7,7 +7,7 @@ import io.netty.channel.ChannelInitializer
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.codec.http.HttpClientCodec
 
-class Netty41PipelineTest extends AgentTestRunner {
+class Netty41PipelineTest extends InstrumentationSpecification {
 
   def "when a handler is added to the netty pipeline we add our tracing handler"() {
     setup:

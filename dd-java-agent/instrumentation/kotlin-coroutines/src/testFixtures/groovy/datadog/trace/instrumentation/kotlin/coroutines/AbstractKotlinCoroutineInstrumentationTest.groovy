@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.kotlin.coroutines
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
 import spock.lang.Shared
 
-abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCoroutineTests> extends AgentTestRunner {
+abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCoroutineTests> extends InstrumentationSpecification {
 
   protected abstract T getCoreKotlinCoroutineTestsInstance(CoroutineDispatcher dispatcher)
 

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.smoketest.MockFileItemStream
 
-class FileItemStreamInstrumentationTest extends AgentTestRunner {
+class FileItemStreamInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

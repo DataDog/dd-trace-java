@@ -1,6 +1,6 @@
 package executor
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
-class NettyExecutorInstrumentationTest extends AgentTestRunner {
+class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux")

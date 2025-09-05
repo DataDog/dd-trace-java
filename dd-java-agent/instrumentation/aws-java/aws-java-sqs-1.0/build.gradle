@@ -1,3 +1,5 @@
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 muzzle {
   pass {
@@ -13,6 +15,17 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+// Increased time needed in CI due to migration from JUnit 4 SpockRunner to JUnit 5 SpockExtension
+forkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
+
+latestDepForkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
 
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.0'

@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.jboss.modules.ModuleFinder
 import org.jboss.modules.ModuleIdentifier
 import org.jboss.modules.ModuleLoadException
 import org.jboss.modules.ModuleLoader
 import org.jboss.modules.ModuleSpec
 
-class JBossClassloadingTest extends AgentTestRunner {
+class JBossClassloadingTest extends InstrumentationSpecification {
   def "delegates to bootstrap class loader for agent classes"() {
     setup:
     def moduleFinders = new ModuleFinder[1]

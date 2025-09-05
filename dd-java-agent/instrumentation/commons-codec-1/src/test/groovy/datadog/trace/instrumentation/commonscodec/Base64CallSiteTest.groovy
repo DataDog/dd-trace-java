@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.commonscodec
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
 import foo.bar.TestBase64CallSiteSuite
@@ -8,7 +8,7 @@ import groovy.transform.CompileDynamic
 import org.apache.commons.codec.binary.Base64
 
 @CompileDynamic
-class Base64CallSiteTest extends AgentTestRunner {
+class Base64CallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

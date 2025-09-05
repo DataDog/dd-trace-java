@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import dd.test.trace.annotation.SayTracedHello
 
 import java.util.concurrent.Callable
 
-class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
+class ConfiguredTraceAnnotationsTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

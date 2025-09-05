@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.apache.tomcat.util.threads.TaskQueue
 import org.apache.tomcat.util.threads.ThreadPoolExecutor
 import spock.lang.Shared
@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ExecutorLambdaTest extends AgentTestRunner {
+class ExecutorLambdaTest extends InstrumentationSpecification {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared

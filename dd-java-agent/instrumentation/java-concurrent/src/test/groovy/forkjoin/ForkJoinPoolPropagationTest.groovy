@@ -1,11 +1,11 @@
 package forkjoin
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 
 import java.util.concurrent.ForkJoinPool
 
-class ForkJoinPoolPropagationTest extends AgentTestRunner {
+class ForkJoinPoolPropagationTest extends InstrumentationSpecification {
   def "test imbalanced recursive task propagation #parallelism FJP threads (async #async)" () {
     when:
     ForkJoinPool fjp = new ForkJoinPool(parallelism,

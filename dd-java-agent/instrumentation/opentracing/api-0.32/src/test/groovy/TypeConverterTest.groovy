@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.datastreams.NoopPathwayContext
@@ -14,7 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
 
-class TypeConverterTest extends AgentTestRunner {
+class TypeConverterTest extends InstrumentationSpecification {
   TypeConverter typeConverter = new TypeConverter(new DefaultLogHandler())
 
   def "should avoid the noop span wrapper allocation"() {

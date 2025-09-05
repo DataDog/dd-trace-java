@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -10,7 +10,7 @@ import groovy.transform.CompileDynamic
 import javax.servlet.http.Cookie
 
 @CompileDynamic
-class CookieInstrumentationTest extends AgentTestRunner {
+class CookieInstrumentationTest extends InstrumentationSpecification {
 
   private static final String NAME = 'name'
   private static final String VALUE = 'value'

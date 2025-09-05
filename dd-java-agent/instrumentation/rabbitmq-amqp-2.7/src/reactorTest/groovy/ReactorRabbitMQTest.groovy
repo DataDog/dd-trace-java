@@ -1,7 +1,7 @@
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.PortUtils
 import org.testcontainers.containers.RabbitMQContainer
 import reactor.core.publisher.Mono
@@ -14,7 +14,7 @@ import spock.lang.Shared
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-class ReactorRabbitMQTest extends AgentTestRunner {
+class ReactorRabbitMQTest extends InstrumentationSpecification {
   @Shared
   def rabbitMQContainer
   @Shared

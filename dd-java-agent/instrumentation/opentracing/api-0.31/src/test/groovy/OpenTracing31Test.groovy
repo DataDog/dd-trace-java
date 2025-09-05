@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -30,7 +30,7 @@ import spock.lang.Subject
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 
-class OpenTracing31Test extends AgentTestRunner {
+class OpenTracing31Test extends InstrumentationSpecification {
 
   @Subject
   def tracer = GlobalTracer.get()

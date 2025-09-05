@@ -1,6 +1,6 @@
 package core
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -20,7 +20,7 @@ import spock.lang.IgnoreIf
 import static datadog.trace.api.iast.SourceTypes.namedSource
 
 @CompileDynamic
-class MultiMapInstrumentationTest extends AgentTestRunner {
+class MultiMapInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

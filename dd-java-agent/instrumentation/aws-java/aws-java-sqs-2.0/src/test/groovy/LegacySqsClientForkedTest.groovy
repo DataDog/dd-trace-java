@@ -1,6 +1,6 @@
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
@@ -22,7 +22,7 @@ import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class LegacySqsClientForkedTest extends AgentTestRunner {
+class LegacySqsClientForkedTest extends InstrumentationSpecification {
 
   def setup() {
     System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key")

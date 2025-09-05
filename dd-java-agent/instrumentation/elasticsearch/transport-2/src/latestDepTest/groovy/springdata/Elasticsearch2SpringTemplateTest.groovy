@@ -1,7 +1,7 @@
 package springdata
 
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -23,7 +23,7 @@ import spock.lang.Shared
 import java.util.concurrent.atomic.AtomicLong
 
 @Flaky
-class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
+class Elasticsearch2SpringTemplateTest extends InstrumentationSpecification {
   public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared

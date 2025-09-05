@@ -1,5 +1,5 @@
 import datadog.environment.JavaVirtualMachine
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import reactor.netty.DisposableServer
@@ -15,7 +15,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @IgnoreIf(reason = "TLS issues with OpenJ9", value = {
   JavaVirtualMachine.isJ9()
 })
-class ReactorNettyHttp2ClientTest extends AgentTestRunner {
+class ReactorNettyHttp2ClientTest extends InstrumentationSpecification {
   @Shared
   DisposableServer server = HttpServer.create()
   .protocol(HttpProtocol.H2C, HttpProtocol.HTTP11)

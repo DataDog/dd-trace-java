@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import net.bytebuddy.jar.asm.ClassReader
 import net.bytebuddy.jar.asm.ClassVisitor
 import net.bytebuddy.jar.asm.MethodVisitor
@@ -9,7 +9,7 @@ import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.IllegalClassFormatException
 import java.security.ProtectionDomain
 
-class HttpChannelAppSecTest extends AgentTestRunner {
+class HttpChannelAppSecTest extends InstrumentationSpecification {
 
   void 'test blocking capabilities in HttpChannel'() {
     given:

@@ -2,11 +2,11 @@ package datadog.trace.instrumentation.gson
 
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 
-class JsonReaderInstrumentationTest extends AgentTestRunner {
+class JsonReaderInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

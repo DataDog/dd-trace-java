@@ -1,7 +1,7 @@
 import datadog.smoketest.controller.JavaxHttpServletRequestTestSuite
 import datadog.smoketest.controller.JavaxHttpServletRequestWrapperTestSuite
 import datadog.smoketest.controller.ServletRequestTestSuite
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletRequestWrapper
 
 import datadog.trace.agent.tooling.iast.TaintableEnumeration
 
-class HttpServletRequestTest extends AgentTestRunner {
+class HttpServletRequestTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import test.TestConnection
 import test.TestPreparedStatement
 import test.TestStatement
 
-class DBMInjectionForkedTest extends AgentTestRunner {
+class DBMInjectionForkedTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

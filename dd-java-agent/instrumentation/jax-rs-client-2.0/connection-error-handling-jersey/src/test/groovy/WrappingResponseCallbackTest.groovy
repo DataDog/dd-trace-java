@@ -1,6 +1,6 @@
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_EXCEPTION_AS_ERROR_ENABLED
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter
 import javax.ws.rs.ProcessingException
 import org.glassfish.jersey.client.ClientConfig
@@ -9,7 +9,7 @@ import org.glassfish.jersey.client.JerseyClient
 import org.glassfish.jersey.client.WrappingResponseCallback
 import org.glassfish.jersey.internal.MapPropertiesDelegate
 
-class WrappingResponseCallbackTest extends AgentTestRunner {
+class WrappingResponseCallbackTest extends InstrumentationSpecification {
   def "handleProcessingException properly utilizes the config"() {
     setup:
     if (jaxRsExceptionAsErrorEnabled != null) {

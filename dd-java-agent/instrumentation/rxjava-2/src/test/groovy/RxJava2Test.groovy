@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -16,7 +16,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-class RxJava2Test extends AgentTestRunner {
+class RxJava2Test extends InstrumentationSpecification {
 
   public static final String EXCEPTION_MESSAGE = "test exception"
 

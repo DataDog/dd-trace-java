@@ -16,7 +16,7 @@
 
 
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import listener.Config
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
@@ -26,7 +26,7 @@ import javax.jms.ConnectionFactory
 import static JMS2Test.consumerTrace
 import static JMS2Test.producerTrace
 
-class SpringListenerJMS2Test extends AgentTestRunner {
+class SpringListenerJMS2Test extends InstrumentationSpecification {
 
   def "receiving message in spring listener generates spans"() {
     setup:

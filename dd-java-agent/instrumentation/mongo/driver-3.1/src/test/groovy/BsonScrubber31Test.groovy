@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.mongo.BsonScrubber31
 import org.bson.BsonDocument
 import org.bson.BsonDocumentReader
 
-class BsonScrubber31Test extends AgentTestRunner {
+class BsonScrubber31Test extends InstrumentationSpecification {
 
   def "test BSON scrubber"() {
     setup:

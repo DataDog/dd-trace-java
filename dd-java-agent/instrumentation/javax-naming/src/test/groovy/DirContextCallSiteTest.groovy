@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.LdapInjectionModule
 import foo.bar.TestDirContextSuite
@@ -10,7 +10,7 @@ import javax.naming.directory.InitialDirContext
 import javax.naming.directory.SearchControls
 
 @CompileDynamic
-class DirContextCallSiteTest extends AgentTestRunner {
+class DirContextCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

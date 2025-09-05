@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.spark
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import groovy.json.JsonSlurper
 import org.apache.spark.sql.SparkSession
 
-abstract class AbstractSpark32SqlTest extends AgentTestRunner {
+abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

@@ -1,6 +1,6 @@
 package executor
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 
 import java.util.concurrent.Executors
@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ContextLeakTest extends AgentTestRunner {
+class ContextLeakTest extends InstrumentationSpecification {
 
   def "trace should not leak into TPE Worker task when '#name'"() {
     setup:

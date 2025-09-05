@@ -1,6 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
-class ClassloadingTest extends AgentTestRunner {
+class ClassloadingTest extends InstrumentationSpecification {
   def "delegates to bootstrap class loader for agent classes"() {
     setup:
     def classLoader = new NonDelegatingURLClassLoader()

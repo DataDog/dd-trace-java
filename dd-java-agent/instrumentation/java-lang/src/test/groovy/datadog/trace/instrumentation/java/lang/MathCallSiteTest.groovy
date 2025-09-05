@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.WeakRandomnessModule
 import foo.bar.TestMathSuite
 
-class MathCallSiteTest extends AgentTestRunner {
+class MathCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

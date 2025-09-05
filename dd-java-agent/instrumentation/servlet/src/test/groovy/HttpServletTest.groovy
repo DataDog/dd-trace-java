@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import groovy.servlet.AbstractHttpServlet
 
 import javax.servlet.http.HttpServletRequest
@@ -7,7 +7,7 @@ import javax.servlet.http.HttpServletResponse
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class HttpServletTest extends AgentTestRunner {
+class HttpServletTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

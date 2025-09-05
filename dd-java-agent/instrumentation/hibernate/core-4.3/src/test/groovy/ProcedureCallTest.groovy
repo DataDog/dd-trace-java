@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.hibernate.Session
@@ -16,7 +16,7 @@ import java.sql.Statement
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class ProcedureCallTest extends AgentTestRunner {
+class ProcedureCallTest extends InstrumentationSpecification {
 
   @Override
   boolean useStrictTraceWrites() {

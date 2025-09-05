@@ -8,7 +8,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketSendSpan
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -35,7 +35,7 @@ import java.time.Duration
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 classes = [SpringWebFluxTestApplication],
 properties = "server.http2.enabled=true")
-class SpringWebfluxHttp11Test extends AgentTestRunner {
+class SpringWebfluxHttp11Test extends InstrumentationSpecification {
   protected HttpClient buildClient() {
     HttpClient.create().protocol(HttpProtocol.HTTP11)
   }

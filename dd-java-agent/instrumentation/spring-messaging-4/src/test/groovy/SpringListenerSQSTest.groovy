@@ -1,6 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
@@ -15,7 +15,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.messaging.support.GenericMessage
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
-class SpringListenerSQSTest extends AgentTestRunner {
+class SpringListenerSQSTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

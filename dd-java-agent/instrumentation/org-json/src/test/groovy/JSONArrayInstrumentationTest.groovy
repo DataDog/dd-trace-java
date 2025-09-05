@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONArray
 import org.json.JSONObject
 
-class JSONArrayInstrumentationTest extends AgentTestRunner {
+class JSONArrayInstrumentationTest extends InstrumentationSpecification {
 
   private static json = """{"menu": {
     "name": "nameTest",

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springweb
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -21,7 +21,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 // https://mvnrepository.com/artifact/org.springframework/spring-test-mvc?repo=springio-plugins-release
 // https://github.com/spring-attic/spring-test-mvc
 @ContextConfiguration(classes = TestConfiguration, loader = AnnotationConfigWebContextLoader)
-class HandlerMappingResourceNameFilterForkedTest extends AgentTestRunner {
+class HandlerMappingResourceNameFilterForkedTest extends InstrumentationSpecification {
   @EnableWebMvc
   @Configuration
   @ComponentScan(basePackages = "datadog.trace.instrumentation.springweb")

@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper
 
 import java.util.concurrent.Callable
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.FutureTask
 
-class TaskUnwrappingForkedTest extends AgentTestRunner {
+class TaskUnwrappingForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

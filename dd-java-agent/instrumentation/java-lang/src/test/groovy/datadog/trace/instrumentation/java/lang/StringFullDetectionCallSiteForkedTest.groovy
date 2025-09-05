@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.iast.IastDetectionMode
 import datadog.trace.api.iast.InstrumentationBridge
@@ -11,7 +11,7 @@ import foo.bar.TestStringSuite
 
 import java.nio.charset.Charset
 
-class StringFullDetectionCallSiteForkedTest extends AgentTestRunner {
+class StringFullDetectionCallSiteForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

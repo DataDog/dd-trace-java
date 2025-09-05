@@ -68,4 +68,14 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
   String operation() {
     return "play-ws.request"
   }
+
+  protected void runInAdHocThread(Closure callback) {
+    if (callback != null) {
+      // Execute callback in a separate thread to clear trace context
+      def thread = new Thread({ callback.call() })
+      thread.start()
+      thread.join()
+    }
+  }
+
 }

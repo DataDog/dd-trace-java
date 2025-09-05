@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.commonslang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestStringEscapeUtilsSuite
@@ -11,7 +11,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
 import static datadog.trace.api.iast.VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK
 
 @CompileDynamic
-class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
+class StringEscapeUtilsCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

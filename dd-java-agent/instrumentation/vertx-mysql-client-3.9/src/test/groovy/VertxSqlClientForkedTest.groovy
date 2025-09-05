@@ -1,5 +1,5 @@
 import TestDatabases.TestDBInfo
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class VertxSqlClientForkedTest extends AgentTestRunner {
+class VertxSqlClientForkedTest extends InstrumentationSpecification {
   @AutoCleanup
   @Shared
   // This database name must match up with the name in the CircleCI MySQL Docker definition

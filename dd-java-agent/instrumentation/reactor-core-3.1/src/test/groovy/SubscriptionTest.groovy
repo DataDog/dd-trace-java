@@ -2,7 +2,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -16,7 +16,7 @@ import reactor.core.publisher.WorkQueueProcessor
 
 import java.util.concurrent.CountDownLatch
 
-class SubscriptionTest extends AgentTestRunner {
+class SubscriptionTest extends InstrumentationSpecification {
 
   def "subscription test with processor #processor.class and #consumers consumers"() {
     when:

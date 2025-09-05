@@ -1,3 +1,5 @@
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -8,6 +10,15 @@ apply from: "$rootDir/gradle/configure_tests.gradle"
 
 latestDepTest {
   finalizedBy 'latestDepForkedTest'
+}
+
+// Increased time needed in CI due to migration from JUnit 4 SpockRunner to JUnit 5 SpockExtension
+forkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
+}
+
+latestDepForkedTest {
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
 }
 
 dependencies {

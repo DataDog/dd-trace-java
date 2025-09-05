@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.apache.log4j.Category
 import org.apache.log4j.MDC
 import org.apache.log4j.Priority
 import org.apache.log4j.spi.LoggingEvent
 
-class MdcTest extends AgentTestRunner {
+class MdcTest extends InstrumentationSpecification {
   def "should preserve mdc when logging injection is #injectionEnabled"() {
     setup:
     injectSysConfig("logs.injection", injectionEnabled)

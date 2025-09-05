@@ -1,5 +1,5 @@
 import datadog.environment.JavaVirtualMachine
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import jdk.jfr.FlightRecorder
@@ -19,7 +19,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @Requires({
   !JavaVirtualMachine.isJ9()
 })
-class DirectAllocationTrackingTest extends AgentTestRunner {
+class DirectAllocationTrackingTest extends InstrumentationSpecification {
 
   Recording recording
   Instant start

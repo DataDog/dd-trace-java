@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.quartz.CronScheduleBuilder
@@ -19,7 +19,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QU
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class QuartzTest extends AgentTestRunner {
+class QuartzTest extends InstrumentationSpecification {
   public static final String JOB_NAME = "job"
   public static final String GROUP_NAME = "group"
   public static final String TRIGGER_NAME = "trigger"
