@@ -245,7 +245,7 @@
       "test.framework_version" : "4.13.2",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "datadog.smoke.TestFailed",
       "test.type" : "test",
       "test_session.name" : "mvn -B test"

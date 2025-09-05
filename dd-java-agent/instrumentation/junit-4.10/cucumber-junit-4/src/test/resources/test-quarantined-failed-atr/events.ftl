@@ -12,7 +12,7 @@
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "cucumber-junit-4",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -297,7 +297,7 @@
       "test.command" : "cucumber-junit-4",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -330,7 +330,7 @@
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "cucumber-junit-4",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"

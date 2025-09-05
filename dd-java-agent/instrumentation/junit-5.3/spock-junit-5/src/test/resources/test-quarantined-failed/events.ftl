@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "spock-junit-5",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedSpock",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -104,7 +104,7 @@
       "test.command" : "spock-junit-5",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -137,7 +137,7 @@
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "spock-junit-5",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"

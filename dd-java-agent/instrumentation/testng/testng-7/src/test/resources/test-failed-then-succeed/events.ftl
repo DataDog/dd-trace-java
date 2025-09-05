@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedThenSucceed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -205,7 +205,7 @@
       "test.command" : "testng-7",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -237,7 +237,7 @@
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

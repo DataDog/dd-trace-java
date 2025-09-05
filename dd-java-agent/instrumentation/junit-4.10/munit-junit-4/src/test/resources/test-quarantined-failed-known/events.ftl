@@ -17,7 +17,7 @@
       "test.early_flake.enabled" : "true",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -51,7 +51,7 @@
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "munit-junit-4",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -84,7 +84,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "munit-junit-4",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedMUnit",
       "test.type" : "test",
       "test_session.name" : "session-name"

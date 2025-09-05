@@ -84,7 +84,7 @@
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "karate",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "[org/example/test_failed_then_succeed] test failed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -258,7 +258,7 @@
       "test.command" : "karate",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -290,7 +290,7 @@
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "karate",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

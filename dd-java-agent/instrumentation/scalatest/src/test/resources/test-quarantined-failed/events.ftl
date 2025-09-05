@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "scalatest",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -101,7 +101,7 @@
       "test.command" : "scalatest",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -134,7 +134,7 @@
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "scalatest",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
