@@ -580,7 +580,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.31.1
+    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.33.0
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
