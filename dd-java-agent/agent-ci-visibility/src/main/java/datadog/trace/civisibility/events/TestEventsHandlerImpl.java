@@ -264,6 +264,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       if (outcome.lastExecution() && testModule.isAttemptToFix(test.getIdentifier())) {
         test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, outcome.succeededAllRetries());
       }
+
+      if (outcome.failureSuppressed()) {
+        test.setTag(Tags.TEST_FAILURE_SUPPRESSED, true);
+      }
     }
 
     test.end(endTime);
