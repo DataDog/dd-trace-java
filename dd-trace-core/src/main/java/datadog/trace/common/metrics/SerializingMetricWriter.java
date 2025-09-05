@@ -36,6 +36,12 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
 
+  @SuppressWarnings("unused") // Kept for representing all possible states
+  public static final int TRISTATE_UNKNOWN = 0;
+
+  public static final int TRISTATE_TRUE = 1;
+  public static final int TRISTATE_FALSE = 2;
+
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
   private final Sink sink;
@@ -118,7 +124,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBoolean(key.isSynthetics());
 
     writer.writeUTF8(IS_TRACE_ROOT);
-    writer.writeInt(key.isTraceRoot() ? 1 : 2); // tristate (0 unknown, 1 true, 2 false)
+    writer.writeInt(key.isTraceRoot() ? TRISTATE_TRUE : TRISTATE_FALSE);
 
     writer.writeUTF8(SPAN_KIND);
     writer.writeUTF8(key.getSpanKind());
