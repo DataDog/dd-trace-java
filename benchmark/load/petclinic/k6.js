@@ -20,6 +20,9 @@ const variants = {
   "code_origins": {
     "APP_URL": 'http://localhost:8085',
   }
+  "config_sources": {
+    "APP_URL": 'http://localhost:8086',
+  }
 }
 
 export const options = function (variants) {
