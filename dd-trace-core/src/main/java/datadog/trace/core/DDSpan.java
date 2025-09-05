@@ -27,12 +27,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -109,6 +111,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private volatile int longRunningVersion = 0;
 
   protected final List<AgentSpanLink> links;
+
+  private List<DDSpanEvent> events;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -710,7 +714,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, links);
+    context.processTagsAndBaggage(consumer, longRunningVersion, links, events);
   }
 
   @Override
@@ -867,5 +871,34 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       context.setOrigin(sourceSpanContext.getOrigin());
       sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
     }
+  }
+
+  public AgentSpan addEvent(String name) {
+    return addEvent(name, null);
+  }
+
+  public AgentSpan addEvent(String name, SpanNativeAttributes attributes) {
+    if (this.events == null) {
+      this.events = new CopyOnWriteArrayList<>();
+    }
+    if (name != null) {
+      events.add(new DDSpanEvent(name, attributes));
+    }
+    return this;
+  }
+
+  public AgentSpan addEvent(
+      String name, SpanNativeAttributes attributes, long timestamp, TimeUnit unit) {
+    if (this.events == null) {
+      this.events = new CopyOnWriteArrayList<>();
+    }
+    if (name != null) {
+      events.add(new DDSpanEvent(name, attributes, unit.toNanos(timestamp)));
+    }
+    return this;
+  }
+
+  public List<DDSpanEvent> getEvents() {
+    return events;
   }
 }

@@ -9,6 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
+import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -466,5 +467,78 @@ class DDSpanTest extends DDCoreSpecification {
     span.setError(true, Byte.MAX_VALUE)
     then:
     span.isError()
+  }
+
+  def "span events are added"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+    def eventName = "test-event"
+    def attributes = SpanNativeAttributes.builder()
+      .put("key1", "value1")
+      .put("key2", 123L)
+      .build()
+    def timestamp = System.currentTimeMillis()
+
+    when:
+    span.addEvent(eventName)
+    def events = span.getEvents()
+
+    then:
+    events.size() == 1
+    events[0].name == eventName
+    events[0].attributes == null || events[0].attributes.isEmpty()
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent(eventName, attributes)
+    events = span.getEvents()
+
+    then:
+    events.size() == 1
+    events[0].name == eventName
+    events[0].attributes == attributes
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent(eventName, attributes, timestamp, TimeUnit.MILLISECONDS)
+    events = span.getEvents()
+
+    then:
+    events.size() == 1
+    events[0].name == eventName
+    events[0].attributes == attributes
+    events[0].timestampNanos == TimeUnit.MILLISECONDS.toNanos(timestamp)
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent("event1")
+    span.addEvent("event2", SpanNativeAttributes.builder()
+      .put("key", "value")
+      .build())
+    span.addEvent("event3", null, timestamp, TimeUnit.MILLISECONDS)
+    events = span.getEvents()
+
+    then:
+    events.size() == 3
+    events[0].name == "event1"
+    events[1].name == "event2"
+    events[2].name == "event3"
+    events[0].attributes == null
+    events[1].attributes == SpanNativeAttributes.builder()
+      .put("key", "value")
+      .build()
+    events[2].attributes == null
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent(null)
+    span.addEvent(null, SpanNativeAttributes.builder()
+      .put("key", "value")
+      .build())
+    span.addEvent(null, null, timestamp, TimeUnit.MILLISECONDS)
+    events = span.getEvents()
+
+    then:
+    events.isEmpty()
   }
 }
