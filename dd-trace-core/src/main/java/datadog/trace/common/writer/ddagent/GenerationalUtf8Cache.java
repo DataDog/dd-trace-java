@@ -156,7 +156,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
    *
    * <p>While still racy this method is synchronized to avoid simultaneous recalibrations
    */
-  public void recalibrate(long accessTimeMs) {
+  public synchronized void recalibrate(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;
 
     recalibrate(this.edenEntries);
