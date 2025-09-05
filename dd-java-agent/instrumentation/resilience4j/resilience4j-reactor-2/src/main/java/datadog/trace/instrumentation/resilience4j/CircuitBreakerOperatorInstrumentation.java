@@ -14,7 +14,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.reactivestreams.Publisher;
 
 @AutoService(InstrumenterModule.class)
@@ -61,7 +60,7 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Argument(value = 0, readOnly = false) Publisher<?> source,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result,
+        @Advice.Return(readOnly = false) Publisher<?> result,
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
       result =

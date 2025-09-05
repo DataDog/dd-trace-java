@@ -37,21 +37,25 @@ public class ReactorHelper {
         if (owned == null) {
           return ret;
         }
-        if (ret instanceof Flux<?>) {
-          return ((Flux<?>) ret).doFinally(beforeFinish(owned));
-        } else if (ret instanceof Mono<?>) {
-          return ((Mono<?>) ret).doFinally(beforeFinish(owned));
-        } else {
-          // can't schedule span finish - finish immediately
-          owned.finish();
-        }
-        return ret;
+        return scheduleSpanFinish(ret, owned);
       }
     };
   }
 
-  public static <T> Object wrap(
-      Object result,
+  private static Publisher<?> scheduleSpanFinish(Publisher<?> publisher, AgentSpan owned) {
+    if (publisher instanceof Flux<?>) {
+      return ((Flux<?>) publisher).doFinally(beforeFinish(owned));
+    } else if (publisher instanceof Mono<?>) {
+      return ((Mono<?>) publisher).doFinally(beforeFinish(owned));
+    } else {
+      // can't schedule span finish - finish immediately
+      owned.finish();
+    }
+    return publisher;
+  }
+
+  public static <T> Publisher<?> wrap(
+      Publisher<?> publisher,
       AbstractResilience4jDecorator<T> spanDecorator,
       T data,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
@@ -63,15 +67,7 @@ public class ReactorHelper {
     }
     spanDecorator.decorate(current, data);
 
-    Object newResult = result;
-    if (result instanceof Flux<?>) {
-      newResult = ((Flux<?>) result).doFinally(beforeFinish(owned));
-    } else if (result instanceof Mono<?>) {
-      newResult = ((Mono<?>) result).doFinally(beforeFinish(owned));
-    } else {
-      // can't schedule span finish - finish immediately
-      owned.finish();
-    }
+    Publisher<?> newResult = scheduleSpanFinish(publisher, owned);
     if (newResult instanceof Scannable) {
       Scannable parent = (Scannable) newResult;
       while (parent != null) {
