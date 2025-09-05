@@ -94,13 +94,14 @@ public class WriterFactory {
             "CI Visibility functionality is limited. Please upgrade to Agent v6.40+ or v7.40+ or enable Agentless mode.");
       }
     }
+
     if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isLlmObsEnabled())) {
       featuresDiscovery.discoverIfOutdated();
-      if (featuresDiscovery.supportsEvpProxy() || config.isLlmObsAgentlessEnabled()) {
-        configuredType = DD_INTAKE_WRITER_TYPE;
-      } else {
-        log.info("LLM Observability functionality is limited.");
-        // TODO: add supported agent version to this log line for llm obs
+      boolean agentRunning = featuresDiscovery.getTraceEndpoint() != null;
+      if (!agentRunning) {
+        log.debug(
+            "Agent is not running, not configuring agent writer with LLM Observability enabled.");
+        return null;
       }
     }
 
@@ -190,8 +191,21 @@ public class WriterFactory {
       TrackType trackType) {
     featuresDiscovery.discoverIfOutdated();
     boolean evpProxySupported = featuresDiscovery.supportsEvpProxy();
+
+    boolean agentRunning = null != featuresDiscovery.getTraceEndpoint();
+    boolean useLlmObsAgentless =
+        config.isLlmObsAgentlessEnabled() || (agentRunning && !evpProxySupported);
+    if (useLlmObsAgentless && !config.isLlmObsAgentlessEnabled()) {
+      log.info(
+          "LLM Observability configured to use agent proxy, but is not compatible or agent is not running (agentRunning={}, compatible={}). "
+              + "Will use agentless data submission instead. Compatible agent versions are >=7.55.0 (found version={}).",
+          agentRunning,
+          evpProxySupported,
+          featuresDiscovery.getVersion());
+    }
+
     boolean useProxyApi =
-        (evpProxySupported && TrackType.LLMOBS == trackType && !config.isLlmObsAgentlessEnabled())
+        (TrackType.LLMOBS == trackType && !useLlmObsAgentless)
             || (evpProxySupported
                 && (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType)
                 && !config.isCiVisibilityAgentlessEnabled());
