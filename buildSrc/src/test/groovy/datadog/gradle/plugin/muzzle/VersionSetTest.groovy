@@ -1,18 +1,19 @@
+package datadog.gradle.plugin.muzzle
+
+
 import org.eclipse.aether.version.Version
 import spock.lang.Specification
-
-import static VersionSet.ParsedVersion
 
 class VersionSetTest extends Specification {
 
   def "parse versions properly"() {
     when:
-    def parsed = new ParsedVersion(version)
+    def parsed = new VersionSet.ParsedVersion(version)
 
     then:
     parsed.versionNumber == versionNumber
     parsed.ending == ending
-    parsed.majorMinor == versionNumber >> ParsedVersion.VERSION_SHIFT
+    parsed.majorMinor == versionNumber >> VersionSet.ParsedVersion.VERSION_SHIFT
 
     where:
     version                 | versionNumber   | ending
