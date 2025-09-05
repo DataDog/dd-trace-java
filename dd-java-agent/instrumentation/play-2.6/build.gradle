@@ -77,7 +77,7 @@ jar {
 }
 compileMain_play27Java.dependsOn compileJava
 project.afterEvaluate { p ->
-//  instrumentJava.dependsOn compileMain_play27Java
+  //  instrumentJava.dependsOn compileMain_play27Java
   forbiddenApisMain_play27.dependsOn compileMain_play27Java
 }
 instrument {
