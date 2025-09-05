@@ -134,7 +134,6 @@ final class Aggregator implements Runnable {
               batch.contributeTo(v);
               return v;
             });
-        // batch.contributeTo(aggregate);
         dirty = true;
         // return the batch for reuse
         batchPool.offer(batch);
@@ -174,6 +173,11 @@ final class Aggregator implements Runnable {
     }
   }
 
+  /**
+   * Remove keys whose values have zeroed metrics.
+   *
+   * @return a set containing the keys still valid.
+   */
   private Set<MetricKey> expungeStaleAggregates() {
     final HashSet<MetricKey> ret = new HashSet<>();
     for (MetricKey metricKey : new HashSet<>(aggregates.keySet())) {
