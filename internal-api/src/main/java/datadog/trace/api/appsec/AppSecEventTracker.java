@@ -92,6 +92,18 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
     }
   }
 
+  @SuppressWarnings("deprecation")
+  @Override
+  public final void trackCustomEvent(String eventName, Map<String, String> metadata) {
+    if (eventName == null || eventName.isEmpty()) {
+      throw new IllegalArgumentException("eventName is null or empty");
+    }
+    WafMetricCollector.get().appSecSdkEvent(CUSTOM, V1);
+    if (handleLoginEvent(V1, eventName, SDK, null, null, null, metadata)) {
+      throw new BlockingException("Blocked request (for custom event)");
+    }
+  }
+
   @Override
   public void trackUserLoginSuccess(
       final String login, final String userId, final Map<String, String> metadata) {
@@ -116,9 +128,8 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
     }
   }
 
-  @SuppressWarnings("deprecation")
   @Override
-  public final void trackCustomEvent(String eventName, Map<String, String> metadata) {
+  public final void trackCustomEventV2(final String eventName, final Map<String, String> metadata) {
     if (eventName == null || eventName.isEmpty()) {
       throw new IllegalArgumentException("eventName is null or empty");
     }
