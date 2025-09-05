@@ -36,7 +36,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
       return false;
     }
     createExecutionPolicy(result);
-    return !executionPolicy.wasLastExecution();
+    return executionPolicy.applicable();
   }
 
   public void setSuppressFailures(ITestResult result) {

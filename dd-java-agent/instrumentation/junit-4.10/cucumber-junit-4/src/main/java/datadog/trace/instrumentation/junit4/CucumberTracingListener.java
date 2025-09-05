@@ -85,8 +85,7 @@ public class CucumberTracingListener extends TracingListener {
             null,
             categories,
             TestSourceData.UNKNOWN,
-            null,
-            executionHistories.get(description));
+            null);
 
     recordFeatureFileCodeCoverage(description);
   }

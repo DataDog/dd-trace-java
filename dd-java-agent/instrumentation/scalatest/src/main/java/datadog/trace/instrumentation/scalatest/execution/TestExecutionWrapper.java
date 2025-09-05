@@ -31,7 +31,7 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
     return outcome;
   }
 
-  public boolean wasLastExecution() {
-    return executionPolicy.wasLastExecution();
+  public boolean applicable() {
+    return executionPolicy.applicable();
   }
 }

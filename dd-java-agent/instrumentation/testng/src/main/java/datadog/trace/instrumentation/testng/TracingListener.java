@@ -92,8 +92,7 @@ public class TracingListener extends TestNGClassListener
         testParameters,
         groups,
         testSourceData,
-        null,
-        executionHistory(result));
+        null);
   }
 
   @Nullable

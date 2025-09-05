@@ -16,7 +16,7 @@
       "test.command" : "munit-junit-4",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -48,7 +48,7 @@
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "munit-junit-4",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -80,7 +80,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "munit-junit-4",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedThenSucceedMUnit",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -118,6 +118,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.failure_suppressed" : "true",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "munit-junit-4",
@@ -166,6 +167,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.failure_suppressed" : "true",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.is_retry" : "true",

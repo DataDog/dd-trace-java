@@ -134,8 +134,7 @@ public class SpockTracingListener implements EngineExecutionListener {
             testParameters,
             tags,
             testSourceData,
-            null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            null);
   }
 
   private void testCaseExecutionFinished(

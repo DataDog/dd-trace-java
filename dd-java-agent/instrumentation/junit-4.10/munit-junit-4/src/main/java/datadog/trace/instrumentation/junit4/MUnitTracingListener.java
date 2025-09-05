@@ -87,8 +87,7 @@ public class MUnitTracingListener extends TracingListener {
             null,
             categories,
             JUnit4Utils.toTestSourceData(description),
-            null,
-            executionHistories.get(description));
+            null);
   }
 
   @Override
@@ -174,7 +173,6 @@ public class MUnitTracingListener extends TracingListener {
                 null,
                 categories,
                 JUnit4Utils.toTestSourceData(description),
-                null,
                 null);
       }
       TestEventsHandlerHolder.HANDLERS
