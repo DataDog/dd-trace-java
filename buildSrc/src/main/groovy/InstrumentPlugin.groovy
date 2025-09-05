@@ -65,8 +65,6 @@ class InstrumentPlugin implements Plugin<Project> {
         // - compileMain_java17Java,
         // - compileMain_jetty904Java,
         // - compileMain_play25Java,
-        // - compileEe8TestJava,
-        // - compileLatestDepTestJava
         // - compileKotlin,
         // - compileScala,
         // - compileGroovy,

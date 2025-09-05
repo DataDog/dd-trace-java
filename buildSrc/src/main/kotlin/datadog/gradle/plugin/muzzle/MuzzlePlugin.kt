@@ -14,6 +14,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.kotlin.dsl.create
@@ -72,9 +73,8 @@ class MuzzlePlugin : Plugin<Project> {
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
-    @Suppress("UNCHECKED_CAST")
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-      dependsOn(project.tasks.matching { it is AbstractCompile && it.name.startsWith("") })
+      inputs.files(project.providers.provider { project.allMainSourceSet })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
