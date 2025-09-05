@@ -79,7 +79,7 @@ public class Utf8Benchmark {
     return tag.getBytes(StandardCharsets.UTF_8);
   }
 
-  static final SimpleUtf8Cache TAG_CACHE = new SimpleUtf8Cache();
+  static final SimpleUtf8Cache TAG_CACHE = new SimpleUtf8Cache(128);
 
   @Benchmark
   public static final byte[] tagUtf8_w_cache() {
@@ -102,7 +102,7 @@ public class Utf8Benchmark {
     }
   }
 
-  static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(128);
+  static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(64, 128);
 
   @Benchmark
   public static final void valueUtf8_cache_generational(Blackhole bh) {
