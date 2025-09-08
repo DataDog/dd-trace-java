@@ -14,7 +14,6 @@ dependencies {
 
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
 
-  testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
   testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'

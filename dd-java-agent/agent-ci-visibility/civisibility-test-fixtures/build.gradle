@@ -4,7 +4,6 @@ apply from: "$rootDir/gradle/version.gradle"
 dependencies {
   api project(':dd-java-agent:agent-ci-visibility')
   api project(':dd-java-agent:testing')
-  api project(':utils:test-utils')
 
   api group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
   api group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
