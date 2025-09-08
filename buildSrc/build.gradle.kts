@@ -30,7 +30,7 @@ gradlePlugin {
       id = "tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
-    create("config-generation") {
+    create("supported-config-generation") {
       id = "supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }

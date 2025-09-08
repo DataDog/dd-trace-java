@@ -3,7 +3,7 @@ package datadog.communication.ddagent
 import datadog.common.container.ContainerInfo
 import datadog.communication.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
-import Strings
+import datadog.config.util.Strings
 import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.HttpUrl

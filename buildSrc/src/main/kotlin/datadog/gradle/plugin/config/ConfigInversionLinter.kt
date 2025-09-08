@@ -5,35 +5,32 @@ import org.gradle.api.Project
 import org.gradle.api.GradleException
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.internal.impldep.kotlinx.metadata.impl.extensions.KmExtension
+import org.gradle.kotlin.dsl.accessors.runtime.externalModuleDependencyFor
+import org.gradle.kotlin.dsl.getByType
 import java.net.URLClassLoader
 import java.nio.file.Path
 
 class ConfigInversionLinter : Plugin<Project> {
   override fun apply(target: Project) {
-    registerLogEnvVarUsages(target)
+    val extension = target.extensions.create("supportedTracerConfigurations", SupportedTracerConfigurations::class.java)
+    registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
   }
 }
 
 /** Registers `logEnvVarUsages` (scan for DD_/OTEL_ tokens and fail if unsupported). */
-private fun registerLogEnvVarUsages(target: Project) {
-  val ownerPath = ":utils:config-utils" // <-- change to the module that contains the generated class
-  val generatedFile = "datadog.config.GeneratedSupportedConfigurations"
+private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerConfigurations) {
+  val ownerPath = extension.configOwnerPath.get()
+  val generatedFile = extension.className.get()
 
   // token check that uses the generated class instead of JSON
   target.tasks.register("logEnvVarUsages") {
     group = "verification"
     description = "Scan Java files for DD_/OTEL_ tokens and fail if unsupported (using generated constants)"
 
-    val owner = target.project(ownerPath)
-    val sourceSets = owner.extensions.getByType(SourceSetContainer::class.java)
-    val main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-
-    // ensure the owner project generated/compiled the class
-    dependsOn(
-      owner.tasks.named("generateSupportedConfigurations"),
-      owner.tasks.named("classes") // compiles main (including generated sources)
-    )
+    val mainSourceSetOutput = target.project(ownerPath).extensions.getByType<SourceSetContainer>().named(SourceSet.MAIN_SOURCE_SET_NAME).map { it.output }
+    inputs.files(mainSourceSetOutput)
 
     // inputs for incrementality (your own source files, not the owner’s)
     val javaFiles = target.fileTree(target.projectDir) {
@@ -41,46 +38,45 @@ private fun registerLogEnvVarUsages(target: Project) {
       exclude("**/build/**", "**/dd-smoke-tests/**")
     }
     inputs.files(javaFiles)
-    outputs.upToDateWhen { true}
+    outputs.upToDateWhen { true }
     doLast {
       // 1) Build classloader from the owner project’s runtime classpath
-      val urls = main.runtimeClasspath.files.map { it.toURI().toURL() }.toTypedArray()
-      URLClassLoader(urls, javaClass.classLoader).use { cl ->
+      val urls = mainSourceSetOutput.get().files.map { it.toURI().toURL() }.toTypedArray()
+      val supported: Set<String> = URLClassLoader(urls, javaClass.classLoader).use { cl ->
         // 2) Load the generated class + read static field
         val clazz = Class.forName(generatedFile, true, cl)
-
         @Suppress("UNCHECKED_CAST")
-        val supported: Set<String> = clazz.getField("SUPPORTED").get(null) as Set<String>
+        clazz.getField("SUPPORTED").get(null) as Set<String>
+      }
 
-        // 3) Scan our sources and compare
-        val repoRoot = target.projectDir.toPath()
-        val tokenRegex = Regex("\"(?:DD_|OTEL_)[A-Za-z0-9_]+\"")
+      // 3) Scan our sources and compare
+      val repoRoot = target.projectDir.toPath()
+      val tokenRegex = Regex("\"(?:DD_|OTEL_)[A-Za-z0-9_]+\"")
 
-        val violations = mutableListOf<String>()
-        javaFiles.files.forEach { f ->
-          val rel = repoRoot.relativize(f.toPath()).toString()
-          var inBlock = false
-          f.readLines().forEachIndexed { i, raw ->
-            val trimmed = raw.trim()
-            if (trimmed.startsWith("//")) return@forEachIndexed
-            if (!inBlock && trimmed.contains("/*")) inBlock = true
-            if (inBlock) {
-              if (trimmed.contains("*/")) inBlock = false
-              return@forEachIndexed
-            }
-            tokenRegex.findAll(raw).forEach { m ->
-              val token = m.value.trim('"')
-              if (token !in supported) violations += "$rel:${i + 1} -> Unsupported token '$token'"
-            }
+      val violations = mutableListOf<String>()
+      javaFiles.files.forEach { f ->
+        val rel = repoRoot.relativize(f.toPath()).toString()
+        var inBlock = false
+        f.readLines().forEachIndexed { i, raw ->
+          val trimmed = raw.trim()
+          if (trimmed.startsWith("//")) return@forEachIndexed
+          if (!inBlock && trimmed.contains("/*")) inBlock = true
+          if (inBlock) {
+            if (trimmed.contains("*/")) inBlock = false
+            return@forEachIndexed
+          }
+          tokenRegex.findAll(raw).forEach { m ->
+            val token = m.value.trim('"')
+            if (token !in supported) violations += "$rel:${i + 1} -> Unsupported token '$token'"
           }
         }
+      }
 
-        if (violations.isNotEmpty()) {
-          violations.forEach { target.logger.error(it) }
-          throw GradleException("Unsupported DD_/OTEL_ tokens found! See errors above.")
-        } else {
-          target.logger.lifecycle("All DD_/OTEL_ tokens are supported.")
-        }
+      if (violations.isNotEmpty()) {
+        violations.forEach { target.logger.error(it) }
+        throw GradleException("Unsupported DD_/OTEL_ tokens found! See errors above.")
+      } else {
+        target.logger.lifecycle("All DD_/OTEL_ tokens are supported.")
       }
     }
   }

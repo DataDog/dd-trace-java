@@ -8,28 +8,33 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import java.io.File
 import java.io.FileInputStream
 import java.io.PrintWriter
 import javax.inject.Inject
 
+@CacheableTask
 abstract class ParseSupportedConfigurationsTask  @Inject constructor(
   private val objects: ObjectFactory
 ) : DefaultTask() {
   @InputFile
+  @PathSensitive(PathSensitivity.NONE)
   val jsonFile = objects.fileProperty()
 
   @get:OutputDirectory
   val destinationDirectory = objects.directoryProperty()
 
   @Input
-  val className =  objects.property(String::class.java)
+  val className = objects.property(String::class.java)
 
   @TaskAction
   fun generate() {
     val input = jsonFile.get().asFile
     val outputDir = destinationDirectory.get().asFile
-    val fqcn = className.get()
+    val finalClassName = className.get()
     outputDir.mkdirs()
 
     // Read JSON (directly from the file, not classpath)
@@ -51,14 +56,17 @@ abstract class ParseSupportedConfigurationsTask  @Inject constructor(
     }
 
     // Build the output .java path from the fully-qualified class name
-    val pkgPath = fqcn.substringBeforeLast('.', "").replace('.', File.separatorChar)
-    val simpleName = fqcn.substringAfterLast('.')
+    val pkgName = finalClassName.substringBeforeLast('.', "")
+    val pkgPath = pkgName.replace('.', File.separatorChar)
+    val simpleName = finalClassName.substringAfterLast('.')
     val pkgDir = if (pkgPath.isEmpty()) outputDir else File(outputDir, pkgPath).also { it.mkdirs() }
     val generatedFile = File(pkgDir, "$simpleName.java").absolutePath
 
     // Call your existing generator (same signature as in your Java code)
     generateJavaFile(
       generatedFile,
+      simpleName,
+      pkgName,
       supported.keys,
       aliases,
       aliasMapping,
@@ -68,6 +76,8 @@ abstract class ParseSupportedConfigurationsTask  @Inject constructor(
 
   private fun generateJavaFile(
     outputPath: String,
+    className: String,
+    packageName: String,
     supportedKeys: Set<String>,
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
@@ -78,11 +88,11 @@ abstract class ParseSupportedConfigurationsTask  @Inject constructor(
 
     PrintWriter(outFile).use { out ->
       // NOTE: adjust these if you want to match task's className
-      out.println("package datadog.config;")
+      out.println("package $packageName;")
       out.println()
       out.println("import java.util.*;")
       out.println()
-      out.println("public final class GeneratedSupportedConfigurations {")
+      out.println("public final class $className {")
       out.println()
       out.println("  public static final Set<String> SUPPORTED;")
       out.println()

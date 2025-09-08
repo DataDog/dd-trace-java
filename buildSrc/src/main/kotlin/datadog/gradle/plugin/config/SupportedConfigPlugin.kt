@@ -7,18 +7,17 @@ import org.gradle.api.tasks.SourceSetContainer
 
 class SupportedConfigPlugin : Plugin<Project> {
   override fun apply(targetProject: Project) {
-    generateSupportedConfigurations(targetProject)
+    val extension = targetProject.extensions.create("supportedTracerConfigurations", SupportedTracerConfigurations::class.java)
+    generateSupportedConfigurations(targetProject, extension)
   }
 
-  private fun generateSupportedConfigurations(targetProject: Project) {
+  private fun generateSupportedConfigurations(targetProject: Project, extension: SupportedTracerConfigurations) {
     val generateTask =
       targetProject.tasks.register("generateSupportedConfigurations", ParseSupportedConfigurationsTask::class.java) {
-        jsonFile.set(project.file("src/main/resources/supported-configurations.json"))
-        destinationDirectory.set(project.layout.buildDirectory.dir("generated/supportedConfigurations"))
-        className.set("datadog.config.GeneratedSupportedConfigurations")
+        jsonFile.set(extension.jsonFile)
+        destinationDirectory.set(extension.destinationDirectory)
+        className.set(extension.className)
       }
-
-    // Ensure Java compilation depends on the generated sources
 
     val sourceset = targetProject.extensions.getByType(SourceSetContainer::class.java).named(SourceSet.MAIN_SOURCE_SET_NAME)
     sourceset.configure {
