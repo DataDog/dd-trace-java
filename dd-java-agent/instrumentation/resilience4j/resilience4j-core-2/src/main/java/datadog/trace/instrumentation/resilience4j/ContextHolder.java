@@ -89,9 +89,9 @@ public class ContextHolder<T> {
     AgentSpan owned = current == null ? ActiveResilience4jSpan.start() : null;
     if (owned != null) {
       current = owned;
+      spanDecorator.afterStart(owned);
     }
     this.span = owned;
-    spanDecorator.afterStart(current);
     spanDecorator.decorate(current, data);
     return AgentTracer.activateSpan(current);
   }

@@ -13,7 +13,12 @@ public final class CircuitBreakerDecorator extends AbstractResilience4jDecorator
   @Override
   public void decorate(AgentSpan span, CircuitBreaker data) {
     // TODO
-    span.setTag("resilience4j.circuit_breaker.name", data.getName())
-        .setTag("resilience4j.circuit_breaker.state", data.getState().toString());
+    span.setTag("resilience4j.circuit_breaker.name", data.getName());
+    span.setTag("resilience4j.circuit_breaker.state", data.getState().toString());
+    span.setTag(
+        "resilience4j.circuit_breaker.metrics.failureRate", data.getMetrics().getFailureRate());
+    span.setTag(
+        "resilience4j.circuit_breaker.metrics.numberOfFailedCalls",
+        data.getMetrics().getNumberOfFailedCalls());
   }
 }
