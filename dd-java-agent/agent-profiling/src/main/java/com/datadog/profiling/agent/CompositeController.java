@@ -1,5 +1,6 @@
 package com.datadog.profiling.agent;
 
+import static com.datadog.profiling.controller.ProfilerFlareReporter.Logger.*;
 import static datadog.environment.OperatingSystem.isLinux;
 import static datadog.environment.OperatingSystem.isMacOs;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
@@ -156,7 +157,7 @@ public class CompositeController implements Controller {
           Class.forName("com.oracle.jrockit.jfr.Producer");
           controllers.add(OracleJdkController.instance(provider));
         } catch (Throwable t) {
-          log.debug(SEND_TELEMETRY, "Failed to load oracle profiler: " + t.getMessage(), t);
+          flareLog("Failed to load oracle profiler", t);
         }
       }
       if (!isOracleJDK8) {
@@ -164,15 +165,13 @@ public class CompositeController implements Controller {
           if (Platform.hasJfr()) {
             controllers.add(OpenJdkController.instance(provider));
           } else {
-            log.debug(
-                SEND_TELEMETRY,
-                "JFR is not available on this platform: "
-                    + OperatingSystem.current()
-                    + ", "
-                    + Arch.current());
+            flareLog(
+                "JFR is not available on this platform: {}, {}",
+                OperatingSystem.current(),
+                Arch.current());
           }
         } catch (Throwable t) {
-          log.debug(SEND_TELEMETRY, "Failed to load openjdk profiler: " + t.getMessage(), t);
+          flareLog("Failed to load openjdk profiler", t);
         }
       }
     }
@@ -188,7 +187,7 @@ public class CompositeController implements Controller {
         context.setDatadogProfilerUnavailableReason(rootCause.getMessage());
         OperatingSystem os = OperatingSystem.current();
         if (os != OperatingSystem.linux) {
-          log.debug(SEND_TELEMETRY, "Datadog profiler only supported on Linux", rootCause);
+          flareLog("Datadog profiler only supported on Linux", rootCause);
         } else if (!log.isDebugEnabled()) {
           log.warn(
               "failed to instantiate Datadog profiler on {} {} because: {}",
@@ -196,12 +195,8 @@ public class CompositeController implements Controller {
               Arch.current(),
               rootCause.getMessage());
         } else {
-          log.debug(
-              SEND_TELEMETRY,
-              "failed to instantiate Datadog profiler on {} {}",
-              os,
-              Arch.current(),
-              rootCause);
+          flareLog(
+              "Failed to instantiate Datadog profiler on {} {}", os, Arch.current(), rootCause);
         }
       }
     } else {
