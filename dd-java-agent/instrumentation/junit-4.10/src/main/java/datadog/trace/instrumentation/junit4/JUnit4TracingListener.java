@@ -89,7 +89,8 @@ public class JUnit4TracingListener extends TracingListener {
             testParameters,
             categories,
             testSourceData,
-            null);
+            null,
+            executionHistories.get(description));
   }
 
   @Override
