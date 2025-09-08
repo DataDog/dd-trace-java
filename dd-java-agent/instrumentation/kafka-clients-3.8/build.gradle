@@ -57,7 +57,7 @@ dependencies {
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
 
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'

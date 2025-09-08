@@ -133,8 +133,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
             null,
             tags,
             TestSourceData.UNKNOWN,
-            null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            null);
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
