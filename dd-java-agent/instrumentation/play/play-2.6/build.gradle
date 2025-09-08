@@ -77,19 +77,19 @@ tasks.named("jar", Jar) {
   from sourceSets.main_play27.output
 }
 
-tasks.named("compileMain_play27Java", JavaCompile) {
-  dependsOn(compileJava)
+tasks.named('compileMain_play27Java') {
+  dependsOn(tasks.named('compileJava'))
 }
-
 project.afterEvaluate {
-  // tasks.named('instrumentJava') { dependsOn 'compileMain_play27Java' }
-  tasks.named('forbiddenApisMain_play27') { dependsOn 'compileMain_play27Java' }
+  tasks.named('forbiddenApisMain_play27') {
+    dependsOn(tasks.named('compileMain_play27Java'))
+  }
 }
 
 instrument {
-  additionalClasspath = [
-    instrumentJava: compileMain_play27Java.destinationDirectory
-  ]
+  additionalClasspath.add(
+    tasks.named('compileMain_play27Java', AbstractCompile).map { it.destinationDirectory }
+  )
 }
 
 dependencies {

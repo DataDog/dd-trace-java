@@ -62,15 +62,19 @@ tasks.named("jar", Jar) {
   from sourceSets.main_play25.output
 }
 
+tasks.named('compileMain_play25Java') {
+  dependsOn(tasks.named('compileJava'))
+}
 project.afterEvaluate {
-  //tasks.named('instrumentJava') { dependsOn 'compileMain_play25Java' }
-  tasks.named('forbiddenApisMain_play25') { dependsOn 'compileMain_play25Java' }
+  tasks.named('forbiddenApisMain_play25') {
+    dependsOn(tasks.named('compileMain_play25Java'))
+  }
 }
 
 instrument {
-  additionalClasspath = [
-    instrumentJava: compileMain_play25Java.destinationDirectory
-  ]
+  additionalClasspath.add(
+    tasks.named('compileMain_play25Java', AbstractCompile).map { it.destinationDirectory }
+  )
 }
 
 dependencies {

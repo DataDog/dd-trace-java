@@ -2,7 +2,6 @@ import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
 import org.gradle.api.invocation.BuildInvocationDetails
@@ -10,7 +9,6 @@ import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.AbstractCompile
@@ -102,20 +100,21 @@ class InstrumentPlugin implements Plugin<Project> {
           javaVersion = javaVersion ?: DEFAULT_JAVA_VERSION // null not accepted
           it.inputs.property("javaVersion", javaVersion)
 
-          def plugins = extension.plugins
-          it.inputs.property("plugins", plugins)
+          it.inputs.property("plugins", extension.plugins)
 
-          def compileTaskClasspath = it.classpath
-          def rawClassesDir = it.destinationDirectory
+          it.inputs.files(extension.additionalClasspath)
 
-          def additionalClassPath = findAdditionalClassPath(extension)
-          it.inputs.files(additionalClassPath)
+          // Temporary location for raw (un-instrumented) classes
+          DirectoryProperty tmpUninstrumentedClasses = project.objects.directoryProperty().value(
+            project.layout.buildDirectory.dir("tmp/${it.name}-raw-classes")
+          )
 
-          def instrumentingClassPath = project.objects.fileCollection()
+          // Class path to use for instrumentation post-processing
+          ConfigurableFileCollection instrumentingClassPath = project.objects.fileCollection()
           instrumentingClassPath.setFrom(
-            compileTaskClasspath,
-            rawClassesDir,
-            additionalClassPath,
+            it.classpath,
+            extension.additionalClasspath,
+            tmpUninstrumentedClasses
           )
 
           // This were the post processing happens, i.e. were the instrumentation is applied
@@ -124,9 +123,10 @@ class InstrumentPlugin implements Plugin<Project> {
             project.objects.newInstance(
               InstrumentPostProcessingAction,
               javaVersion,
-              plugins,
+              extension.plugins,
               instrumentingClassPath,
-              rawClassesDir,
+              it.destinationDirectory,
+              tmpUninstrumentedClasses
             )
           )
           logger.info("[InstrumentPlugin] Configured post-compile instrumentation for $compileTaskName for source-set $sourceSetName")
@@ -134,20 +134,11 @@ class InstrumentPlugin implements Plugin<Project> {
       }
     }
   }
-
-  private static List<Provider<Directory>> findAdditionalClassPath(InstrumentExtension extension) {
-    return extension.additionalClasspath.getOrDefault('instrumentJava', []).collect { dirProperty ->
-      dirProperty.map {
-        def fileName = it.asFile.name
-        it.dir("../${fileName.replaceFirst('^main', 'raw')}") // TODO there's a hidden contract here
-      }
-    }
-  }
 }
 
 abstract class InstrumentExtension {
   abstract ListProperty<String> getPlugins()
-  Map<String /* taskName */, List<DirectoryProperty>> additionalClasspath = [:]
+  abstract ListProperty<DirectoryProperty> getAdditionalClasspath()
 }
 
 abstract class InstrumentPostProcessingAction implements Action<AbstractCompile> {
@@ -165,22 +156,26 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
   @Inject
   abstract WorkerExecutor getWorkerExecutor()
 
+  // Those cannot be private other wise Groovy will fail at runtime with a missing property ex
   final String javaVersion
   final ListProperty<String> plugins
   final FileCollection instrumentingClassPath
-  final DirectoryProperty rawClassesDirectory
+  final DirectoryProperty compilerOutputDirectory
+  final DirectoryProperty tmpDirectory
 
   @Inject
   InstrumentPostProcessingAction(
     String javaVersion,
     ListProperty<String> plugins,
     FileCollection instrumentingClassPath,
-    DirectoryProperty rawClassesDir
+    DirectoryProperty compilerOutputDirectory,
+    DirectoryProperty tmpDirectory
   ) {
     this.javaVersion = javaVersion
     this.plugins = plugins
     this.instrumentingClassPath = instrumentingClassPath
-    this.rawClassesDirectory = rawClassesDir
+    this.compilerOutputDirectory = compilerOutputDirectory
+    this.tmpDirectory = tmpDirectory
   }
 
   @Override
@@ -190,7 +185,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
         "  javaVersion=${javaVersion}, \n" +
         "  plugins=${plugins.get()}, \n" +
         "  instrumentingClassPath=${instrumentingClassPath.files}, \n" +
-        "  rawClassesDirectory=${rawClassesDirectory.get().asFile}"
+        "  rawClassesDirectory=${compilerOutputDirectory.get().asFile}"
     )
     def postCompileAction = this
     workQueue().submit(InstrumentAction.class, parameters -> {
@@ -201,8 +196,8 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
       )
       parameters.plugins.set(postCompileAction.plugins)
       parameters.instrumentingClassPath.setFrom(postCompileAction.instrumentingClassPath)
-      parameters.classesDirectory.set(postCompileAction.rawClassesDirectory)
-      parameters.tmpDirectory.set(project.layout.buildDirectory.dir("tmp/${task.name}-raw-classes"))
+      parameters.compilerOutputDirectory.set(postCompileAction.compilerOutputDirectory)
+      parameters.tmpDirectory.set(postCompileAction.tmpDirectory)
     })
   }
 
@@ -226,7 +221,7 @@ interface InstrumentWorkParameters extends WorkParameters {
   ConfigurableFileCollection getPluginClassPath()
   ListProperty<String> getPlugins()
   ConfigurableFileCollection getInstrumentingClassPath()
-  DirectoryProperty getClassesDirectory()
+  DirectoryProperty getCompilerOutputDirectory()
   DirectoryProperty getTmpDirectory()
 }
 
@@ -253,15 +248,15 @@ abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> 
         }
       }
     }
-    Path classesDirectory = parameters.classesDirectory.get().asFile.toPath()
-    Path tmpSourceDir = parameters.tmpDirectory.get().asFile.toPath()
+    Path classesDirectory = parameters.compilerOutputDirectory.get().asFile.toPath()
+    Path tmpUninstrumentedDir = parameters.tmpDirectory.get().asFile.toPath()
 
-    // Delete tmpSourceDir contents recursively
-    if (Files.exists(tmpSourceDir)) {
-      Files.walk(tmpSourceDir)
+    // Delete previous tmpSourceDir contents recursively
+    if (Files.exists(tmpUninstrumentedDir)) {
+      Files.walk(tmpUninstrumentedDir)
         .sorted(Comparator.reverseOrder())
         .forEach { p ->
-          if (!p.equals(tmpSourceDir)) {
+          if (!p.equals(tmpUninstrumentedDir)) {
             Files.deleteIfExists(p)
           }
         }
@@ -269,13 +264,13 @@ abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> 
 
     Files.move(
       classesDirectory,
-      tmpSourceDir,
+      tmpUninstrumentedDir,
       StandardCopyOption.REPLACE_EXISTING,
       StandardCopyOption.ATOMIC_MOVE,
     )
 
     ClassLoader instrumentingCL = createClassLoader(parameters.instrumentingClassPath, pluginCL)
-    InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, tmpSourceDir.toFile(), classesDirectory.toFile())
+    InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, tmpUninstrumentedDir.toFile(), classesDirectory.toFile())
   }
 
   static ClassLoader createClassLoader(cp, parent = InstrumentAction.classLoader) {
