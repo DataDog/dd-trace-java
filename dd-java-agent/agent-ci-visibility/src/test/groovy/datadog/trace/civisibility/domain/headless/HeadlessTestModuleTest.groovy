@@ -26,25 +26,25 @@ class HeadlessTestModuleTest extends SpanWriterTest {
 
     then:
     retryPolicy1.registerExecution(TestStatus.fail, 1L) // 1st test execution
-    !retryPolicy1.wasLastExecution()
+    retryPolicy1.applicable()
     retryPolicy1.registerExecution(TestStatus.fail, 1L) // 2nd test execution, 1st retry globally
-    retryPolicy1.wasLastExecution() // asking for 3rd test execution - local limit reached
+    !retryPolicy1.applicable() // asking for 3rd test execution - local limit reached
 
     when:
     def retryPolicy2 = headlessTestModule.executionPolicy(new TestIdentifier("suite", "test-2", null), TestSourceData.UNKNOWN, [])
 
     then:
     retryPolicy2.registerExecution(TestStatus.fail, 1L) // 1st test execution
-    !retryPolicy2.wasLastExecution()
+    retryPolicy2.applicable()
     retryPolicy2.registerExecution(TestStatus.fail, 1L) // 2nd test execution, 1st retry globally
-    retryPolicy2.wasLastExecution() // asking for 3rd test execution - local limit reached
+    !retryPolicy2.applicable() // asking for 3rd test execution - local limit reached
 
     when:
     def retryPolicy3 = headlessTestModule.executionPolicy(new TestIdentifier("suite", "test-3", null), TestSourceData.UNKNOWN, [])
 
     then:
     retryPolicy3.registerExecution(TestStatus.fail, 1L) // 1st test execution
-    retryPolicy3.wasLastExecution() // asking for 3rd retry globally - global limit reached
+    !retryPolicy3.applicable() // asking for 3rd retry globally - global limit reached
   }
 
   private HeadlessTestModule givenAHeadlessTestModule() {

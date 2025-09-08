@@ -12,7 +12,7 @@
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "cucumber-junit-5",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -47,6 +47,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
+      "test.failure_suppressed" : "true",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "cucumber-junit-5",
@@ -96,7 +97,7 @@
       "test.early_flake.enabled" : "true",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -130,7 +131,7 @@
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "cucumber-junit-5",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"

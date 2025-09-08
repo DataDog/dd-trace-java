@@ -263,7 +263,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, kind).setTag("peer.hostname", "localhost").setTag("_dd.base_service", "test")
+      .setTag(SPAN_KIND, kind).setTag("peer.hostname", "localhost").setTag("_dd.base_service", UTF8BytesString.create("test"))
     ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)

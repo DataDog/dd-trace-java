@@ -134,8 +134,7 @@ public class TracingListener implements EngineExecutionListener {
             testParameters,
             tags,
             testSourceData,
-            null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            null);
   }
 
   private void testCaseExecutionFinished(
