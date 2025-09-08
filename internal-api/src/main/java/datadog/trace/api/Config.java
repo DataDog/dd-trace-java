@@ -1812,7 +1812,10 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    // Enable tracer computed trace metrics by default for Azure Functions
+    // Enable tracer computed trace metrics by default for Azure Functions or for applications using
+    // java 17
+    // We're rolling out progressively CSS so we'll target a slice of the java pool.
+    // That will be removed once will be activated by default
     tracerMetricsEnabled =
         configProvider.getBoolean(
             TRACE_STATS_COMPUTATION_ENABLED,
