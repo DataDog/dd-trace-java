@@ -1,12 +1,11 @@
 package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.BaseHash
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.TraceConfig
-import datadog.trace.api.WellKnownTags
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
@@ -16,20 +15,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
-
 import java.util.function.Consumer
-
 import static datadog.context.Context.root
 import static datadog.trace.api.TracePropagationStyle.DATADOG
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
-import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static datadog.trace.api.datastreams.DataStreamsContext.create
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class DefaultPathwayContextTest extends DDCoreSpecification {
-  def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
   long baseHash = 12
 
   static final DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
@@ -52,7 +46,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "First Set checkpoint starts the context."() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(50)
@@ -67,7 +61,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Checkpoint generated"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(50)
@@ -96,7 +90,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Checkpoint with payload size"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(25)
@@ -120,7 +114,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Multiple checkpoints generated"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(50)
@@ -165,7 +159,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Exception thrown when trying to encode unstarted context"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     context.encode()
@@ -177,14 +171,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Set checkpoint with dataset tags"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.INBOUND, null, "my_object.csv", "my_bucket")), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     def tg = DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.OUTBOUND, null, "my_object.csv", "my_bucket")
     context.setCheckpoint(fromTags(tg), pointConsumer)
@@ -204,14 +198,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", null, "topic", "group", null)), pointConsumer)
 
@@ -234,7 +228,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Set checkpoint with timestamp"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
     def timeFromQueue = timeSource.getCurrentTimeMillis() - 200
     when:
     context.setCheckpoint(create(DataStreamsTags.create("internal", null), timeFromQueue, 0), pointConsumer)
@@ -255,7 +249,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
@@ -263,7 +257,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)), pointConsumer)
 
@@ -285,7 +279,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     def secondEncode = decodedContext.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.decode(timeSource, baseHash, null, secondEncode)
+    def secondDecode = DefaultPathwayContext.decode(timeSource, null, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
     context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)), pointConsumer)
 
@@ -309,7 +303,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
     def contextVisitor = new Base64MapContextVisitor()
 
     when:
@@ -319,7 +313,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
+    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null)), pointConsumer)
 
@@ -342,7 +336,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def secondEncode = decodedContext.encode()
     carrier = [(PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
+    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
     context.setCheckpoint(fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topicB", "group", null)), pointConsumer)
 
@@ -366,7 +360,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
     def contextVisitor = new Base64MapContextVisitor()
 
     when:
@@ -376,7 +370,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
+    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
     context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.OUTBOUND, "topic", null, null)), pointConsumer)
 
@@ -398,7 +392,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def secondEncode = decodedContext.encode()
     carrier = [(PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
+    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
     context.setCheckpoint(fromTags(DataStreamsTags.create("sqs", DataStreamsTags.Direction.INBOUND, "topicB", null, null)), pointConsumer)
 
@@ -419,7 +413,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
   def "Empty tags not set"() {
     given:
     def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    def context = new DefaultPathwayContext(timeSource, null)
 
     when:
     timeSource.advance(50)
@@ -453,34 +447,6 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
-  def "Primary tag used in hash calculation"() {
-    when:
-    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    injectSysConfig(PRIMARY_TAG, "region-2")
-    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    then:
-    firstBaseHash != secondBaseHash
-  }
-
-  def "Process Tags used in hash calculation"() {
-    when:
-    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    ProcessTags.reset()
-    ProcessTags.addTag("000", "first")
-    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
-
-    then:
-    firstBaseHash != secondBaseHash
-    assert ProcessTags.getTagsForSerialization().startsWithAny("000:first,")
-    cleanup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
-    ProcessTags.reset()
-  }
-
   def "Check context extractor decorator behavior"() {
     given:
     def sink = Mock(Sink)
@@ -500,10 +466,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
     AgentTracer.forceRegister(tracerApi)
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
-    DataStreamsTags.setGlobalBaseHash(baseHash)
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    BaseHash.updateBaseHash(baseHash)
+    def context = new DefaultPathwayContext(timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
@@ -554,10 +520,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
     AgentTracer.forceRegister(tracerApi)
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
-    DataStreamsTags.setGlobalBaseHash(baseHash)
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    BaseHash.updateBaseHash(baseHash)
+    def context = new DefaultPathwayContext(timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
@@ -608,11 +574,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
     AgentTracer.forceRegister(tracerApi)
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig },
-    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
-    DataStreamsTags.setGlobalBaseHash(baseHash)
-    def context = new DefaultPathwayContext(timeSource, baseHash, null)
+    BaseHash.updateBaseHash(baseHash)
+    def context = new DefaultPathwayContext(timeSource, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.INBOUND)), pointConsumer)
     def encoded = context.encode()
@@ -663,8 +628,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> true
     }
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig },
-    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()

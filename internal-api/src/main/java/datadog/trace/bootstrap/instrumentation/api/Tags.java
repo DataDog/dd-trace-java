@@ -97,6 +97,7 @@ public class Tags {
   public static final String TEST_RETRY_REASON = "test.retry_reason";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
+  public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";
   public static final String TEST_TEST_MANAGEMENT_ENABLED = "test.test_management.enabled";
   public static final String TEST_TEST_MANAGEMENT_IS_QUARANTINED =
       "test.test_management.is_quarantined";

@@ -495,6 +495,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.COUCHBASE_INTE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
@@ -1048,8 +1049,9 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final String DBMPropagationMode;
-  private final boolean DBMTracePreparedStatements;
+  private final boolean dbmInjectSqlBaseHash;
+  private final String dbmPropagationMode;
+  private final boolean dbmTracePreparedStatements;
 
   private final boolean dynamicInstrumentationEnabled;
   private final String dynamicInstrumentationSnapshotUrl;
@@ -1231,6 +1233,8 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean optimizedMapEnabled;
+  private final int tagNameUtf8CacheSize;
+  private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
 
   private final RumInjectorConfig rumInjectorConfig;
@@ -1513,7 +1517,8 @@ public class Config {
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
+        configProvider.getBoolean(
+            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, JavaVirtualMachine.isJavaVersion(21));
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1580,13 +1585,15 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
 
-    DBMPropagationMode =
+    dbmPropagationMode =
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
-    DBMTracePreparedStatements =
+    dbmTracePreparedStatements =
         configProvider.getBoolean(
             DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
+    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -2140,7 +2147,9 @@ public class Config {
 
     llmObsAgentlessEnabled =
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
-    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    llmObsMlApp =
+        tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -2651,13 +2660,6 @@ public class Config {
             TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isLlmObsEnabled()) {
-      log.debug("Attempting to enable LLM Observability");
-      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
-        throw new IllegalArgumentException(
-            "Attempt to enable LLM Observability without ML app defined."
-                + "Please ensure that the name of the ML app is provided through properties or env variable");
-      }
-
       log.debug(
           "LLM Observability enabled for ML app {}, agentless mode {}",
           llmObsMlApp,
@@ -2742,6 +2744,10 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.tagNameUtf8CacheSize =
+        Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
+    this.tagValueUtf8CacheSize =
+        Math.max(configProvider.getInteger(GeneralConfig.TAG_VALUE_UTF8_CACHE_SIZE, 384), 0);
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
@@ -4463,6 +4469,14 @@ public class Config {
     return optimizedMapEnabled;
   }
 
+  public int getTagNameUtf8CacheSize() {
+    return tagNameUtf8CacheSize;
+  }
+
+  public int getTagValueUtf8CacheSize() {
+    return tagValueUtf8CacheSize;
+  }
+
   public int getStackTraceLengthLimit() {
     return stackTraceLengthLimit;
   }
@@ -4913,12 +4927,16 @@ public class Config {
     return dependecyResolutionPeriodMillis;
   }
 
-  public boolean isDBMTracePreparedStatements() {
-    return DBMTracePreparedStatements;
+  public boolean isDbmInjectSqlBaseHash() {
+    return dbmInjectSqlBaseHash;
   }
 
-  public String getDBMPropagationMode() {
-    return DBMPropagationMode;
+  public boolean isDbmTracePreparedStatements() {
+    return dbmTracePreparedStatements;
+  }
+
+  public String getDbmPropagationMode() {
+    return dbmPropagationMode;
   }
 
   private void logIgnoredSettingWarning(
@@ -5423,10 +5441,12 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
-        + ", DBMPropagationMode="
-        + DBMPropagationMode
-        + ", DBMTracePreparedStatements="
-        + DBMTracePreparedStatements
+        + ", dbmInjectSqlBaseHash="
+        + dbmInjectSqlBaseHash
+        + ", dbmPropagationMode="
+        + dbmPropagationMode
+        + ", dbmTracePreparedStatements="
+        + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="

@@ -212,7 +212,8 @@ public abstract class ProfilerSettingsSupport {
         try {
           return Integer.parseInt(value.substring(start, end));
         } catch (NumberFormatException e) {
-          logger.debug(SEND_TELEMETRY, "Failed to parse stack depth from JFR options: " + value, e);
+          logger.debug(
+              SEND_TELEMETRY, "Failed to parse stack depth from JFR options: {}", value, e);
         }
       }
     }
