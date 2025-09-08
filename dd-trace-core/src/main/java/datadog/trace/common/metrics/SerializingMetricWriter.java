@@ -36,11 +36,9 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
 
-  @SuppressWarnings("unused") // Kept for representing all possible states
-  public static final int TRISTATE_UNKNOWN = 0;
-
-  public static final int TRISTATE_TRUE = 1;
-  public static final int TRISTATE_FALSE = 2;
+  // Constant declared here for compile-time folding
+  public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
+  public static final int TRISTATE_FALSE = TriState.FALSE.serialValue;
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
