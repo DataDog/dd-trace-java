@@ -82,7 +82,6 @@ abstract class CiVisibilitySmokeTest extends Specification {
     def requiredSnapshotFields = ["captures", "exceptionId", "probe", "stack"]
 
     logs.each { log ->
-      assert log.product == "test_optimization"
       requiredLogFields.each { field -> log.containsKey(field) }
 
       Map<String, Object> debuggerMap = log.debugger as Map<String, Object>

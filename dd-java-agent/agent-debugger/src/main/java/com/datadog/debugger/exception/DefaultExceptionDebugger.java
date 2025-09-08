@@ -27,7 +27,7 @@ public class DefaultExceptionDebugger extends AbstractExceptionDebugger {
         classNameFiltering,
         config.getDebuggerMaxExceptionPerSecond(),
         config.getDebuggerExceptionMaxCapturedFrames(),
-        config.isDebuggerExceptionAsyncConfig());
+        true);
   }
 
   DefaultExceptionDebugger(

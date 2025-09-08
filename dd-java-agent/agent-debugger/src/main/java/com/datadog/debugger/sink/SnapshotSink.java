@@ -45,12 +45,10 @@ public class SnapshotSink {
   private final AtomicBoolean started = new AtomicBoolean();
   private volatile AgentTaskScheduler.Scheduled<SnapshotSink> highRateScheduled;
   private volatile long currentHighRateFlushInterval = HIGH_RATE_MAX_FLUSH_INTERVAL_MS;
-  private final Config config;
 
   public SnapshotSink(Config config, String tags, BatchUploader snapshotUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
-    this.config = config;
     this.tags = tags;
     this.snapshotUploader = snapshotUploader;
   }
@@ -185,8 +183,7 @@ public class SnapshotSink {
 
   private String serializeSnapshot(String serviceName, Snapshot snapshot) {
     snapshot.getId(); // Ensure id is generated
-    String str =
-        DebuggerAgent.getSnapshotSerializer().serializeSnapshot(serviceName, snapshot, config);
+    String str = DebuggerAgent.getSnapshotSerializer().serializeSnapshot(serviceName, snapshot);
     String prunedStr = SnapshotPruner.prune(str, MAX_SNAPSHOT_SIZE, 4);
     if (prunedStr.length() != str.length()) {
       LOGGER.debug(

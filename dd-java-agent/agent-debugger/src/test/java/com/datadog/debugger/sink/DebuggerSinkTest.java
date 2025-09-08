@@ -125,22 +125,6 @@ public class DebuggerSinkTest {
   }
 
   @Test
-  public void addFailedTestReplaySnapshot() throws IOException {
-    when(config.isCiVisibilityEnabled()).thenReturn(true);
-    ProcessTags.reset(config);
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    Snapshot snapshot = createSnapshot();
-    sink.addSnapshot(snapshot);
-    sink.lowRateFlush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
-    assertEquals(JsonSnapshotSerializer.TEST_OPT_PRODUCT, intakeRequest.getProduct());
-  }
-
-  @Test
   public void addMultipleSnapshots() throws IOException {
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(2);
     DebuggerSink sink = createDefaultDebuggerSink();

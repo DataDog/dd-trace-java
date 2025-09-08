@@ -54,7 +54,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ASYNC_CONFIG;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
@@ -282,7 +281,6 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTL
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ASYNC_CONFIG;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES;
@@ -1083,7 +1081,6 @@ public class Config {
   private final boolean debuggerExceptionCaptureIntermediateSpansEnabled;
   private final int debuggerExceptionMaxCapturedFrames;
   private final int debuggerExceptionCaptureInterval;
-  private final boolean debuggerExceptionAsyncConfig;
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
@@ -2456,9 +2453,6 @@ public class Config {
         configProvider.getInteger(
             DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
             DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
-    debuggerExceptionAsyncConfig =
-        configProvider.getBoolean(
-            DEBUGGER_EXCEPTION_ASYNC_CONFIG, DEFAULT_DEBUGGER_EXCEPTION_ASYNC_CONFIG);
     debuggerSourceFileTrackingEnabled =
         configProvider.getBoolean(
             DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
@@ -4118,10 +4112,6 @@ public class Config {
 
   public int getDebuggerExceptionCaptureInterval() {
     return debuggerExceptionCaptureInterval;
-  }
-
-  public boolean isDebuggerExceptionAsyncConfig() {
-    return debuggerExceptionAsyncConfig;
   }
 
   public boolean isDebuggerCodeOriginEnabled() {
