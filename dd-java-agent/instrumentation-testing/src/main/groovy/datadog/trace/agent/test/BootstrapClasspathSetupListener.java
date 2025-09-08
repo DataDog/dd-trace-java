@@ -15,10 +15,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -118,9 +120,8 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
           urls.add(new URL("file", null, new File(entry).getAbsolutePath()));
         }
       } catch (final MalformedURLException e) {
-        System.err.println(
-            String.format(
-                "Error injecting bootstrap jar: Malformed classpath entry: %s. %s", entry, e));
+        System.err.printf(
+            "Error injecting bootstrap jar: Malformed classpath entry: %s. %s%n", entry, e);
       }
     }
     return new URLClassLoader(urls.build().toArray(new URL[0]), null);
@@ -167,28 +168,41 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     return new File(jar.getFile());
   }
 
+  public static boolean isBootstrapClass(final ClassPath.ClassInfo info) {
+    return isBootstrapClass(
+        info,
+        ClassPath.ClassInfo::getName,
+        ClassPath.ClassInfo::getResourceName,
+        ClassPath.ClassInfo::url);
+  }
+
   public static boolean isBootstrapClass(final Class<?> clazz) {
     return !clazz.isPrimitive()
         && isBootstrapClass(
-            clazz.getName(),
-            () -> {
-              String resource = clazz.getName().replace('.', '/') + ".class";
-              URL url =
-                  clazz.getClassLoader() != null
-                      ? clazz.getClassLoader().getResource(resource)
-                      : null;
-              return isATest(resource, url);
-            });
+            clazz,
+            Class::getName,
+            BootstrapClasspathSetupListener::classToResourceName,
+            BootstrapClasspathSetupListener::classToUrl);
   }
 
-  public static boolean isBootstrapClass(final ClassPath.ClassInfo info) {
-    return isBootstrapClass(info.getName(), () -> isATest(info.getResourceName(), info.url()));
+  private static final Map<String, String> CLASS_NAME_TO_RESOURCE_NAME = new HashMap<>();
+
+  private static String classToResourceName(final Class<?> clazz) {
+    return CLASS_NAME_TO_RESOURCE_NAME.computeIfAbsent(
+        clazz.getName(), k -> k.replace('.', '/') + ".class");
   }
 
-  private static boolean isBootstrapClass(
-      final String name,
-      final Supplier<Boolean> isATest // this check can be expensive so it is evaluated lazily
-      ) {
+  private static URL classToUrl(final Class<?> clazz) {
+    ClassLoader classLoader = clazz.getClassLoader();
+    return classLoader == null ? null : classLoader.getResource(classToResourceName(clazz));
+  }
+
+  private static <T> boolean isBootstrapClass(
+      final T type,
+      final Function<T, String> toName,
+      final Function<T, String> toResourceName,
+      final Function<T, URL> toUrl) {
+    String name = toName.apply(type);
     for (String prefix : TEST_BOOTSTRAP_PREFIXES) {
       if (name.startsWith(prefix)) {
         for (String excluded : TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES) {
@@ -202,8 +216,12 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
         // (if its method signatures contain classes only visible to the app classloader)
         // or will not be discovered at all
         // (because JUnit will be looking for annotation classes loaded by the app classloader)
-        if (TEST_CLASS_PATTERN.matcher(name).matches() && isATest.get()) {
-          return false;
+        if (TEST_CLASS_PATTERN.matcher(name).matches()) {
+          String resource = toResourceName.apply(type);
+          URL url = toUrl.apply(type);
+          if (isATest(resource, url)) {
+            return false;
+          }
         }
         return true;
       }
