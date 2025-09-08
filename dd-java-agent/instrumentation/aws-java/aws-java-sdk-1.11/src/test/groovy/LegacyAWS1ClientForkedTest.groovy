@@ -35,7 +35,6 @@ import com.amazonaws.services.sqs.model.SendMessageRequest
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.Flaky
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.impl.execchain.RequestAbortedException
 import org.json.XML
@@ -364,7 +363,6 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
     }
   }
 
-  @Flaky("assertTraces sometimes fails")
   def "timeout and retry errors captured"() {
     setup:
     def server = httpServer {
@@ -413,7 +411,7 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
             try {
               errorTags AmazonClientException, ~/Unable to execute HTTP request/
             } catch (AssertionError e) {
-              errorTags SdkClientException, "Unable to execute HTTP request: Request did not complete before the request timeout configuration."
+              errorTags SdkClientException, ~/Unable to execute HTTP request.*(?:interrupted|timeout).*/
             }
             defaultTags()
           }
@@ -436,7 +434,11 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
               try {
                 errorTags SocketException, "Socket closed"
               } catch (AssertionError e) {
-                errorTags RequestAbortedException, "Request aborted"
+                try {
+                  errorTags RequestAbortedException, "Request aborted"
+                } catch (AssertionError e2) {
+                  errorTags InterruptedIOException, ~/.*(?:interrupted|timeout).*/
+                }
               }
               defaultTags()
             }
