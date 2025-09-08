@@ -95,16 +95,6 @@ public class WriterFactory {
       }
     }
 
-    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isLlmObsEnabled())) {
-      featuresDiscovery.discoverIfOutdated();
-      boolean agentRunning = featuresDiscovery.getTraceEndpoint() != null;
-      if (!agentRunning) {
-        log.debug(
-            "Agent is not running, not configuring agent writer with LLM Observability enabled.");
-        return null;
-      }
-    }
-
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
