@@ -1228,6 +1228,8 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean optimizedMapEnabled;
+  private final int tagNameUtf8CacheSize;
+  private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
 
   private final RumInjectorConfig rumInjectorConfig;
@@ -2140,7 +2142,9 @@ public class Config {
 
     llmObsAgentlessEnabled =
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
-    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    llmObsMlApp =
+        tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -2647,13 +2651,6 @@ public class Config {
             TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isLlmObsEnabled()) {
-      log.debug("Attempting to enable LLM Observability");
-      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
-        throw new IllegalArgumentException(
-            "Attempt to enable LLM Observability without ML app defined."
-                + "Please ensure that the name of the ML app is provided through properties or env variable");
-      }
-
       log.debug(
           "LLM Observability enabled for ML app {}, agentless mode {}",
           llmObsMlApp,
@@ -2738,6 +2735,10 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.tagNameUtf8CacheSize =
+        Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
+    this.tagValueUtf8CacheSize =
+        Math.max(configProvider.getInteger(GeneralConfig.TAG_VALUE_UTF8_CACHE_SIZE, 384), 0);
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
@@ -4443,6 +4444,14 @@ public class Config {
 
   public boolean isOptimizedMapEnabled() {
     return optimizedMapEnabled;
+  }
+
+  public int getTagNameUtf8CacheSize() {
+    return tagNameUtf8CacheSize;
+  }
+
+  public int getTagValueUtf8CacheSize() {
+    return tagValueUtf8CacheSize;
   }
 
   public int getStackTraceLengthLimit() {
