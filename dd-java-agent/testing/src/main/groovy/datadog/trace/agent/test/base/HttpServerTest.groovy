@@ -174,6 +174,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  /**
+   * Hook method to allow subclasses to wait for request processing to complete.
+   * This is particularly useful for asynchronous HTTP server implementations
+   * where spans may still not be closed after the HTTP response is sent.
+   */
+  protected void waitForRequestToComplete() {
+    // Default implementation does nothing - override in subclasses as needed
+  }
+
   // used in blocking tests to check if the handler was skipped
   volatile boolean handlerRan
 
@@ -1194,6 +1203,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
+
+    waitForRequestToComplete()
 
     expect:
     response.code() == EXCEPTION.status
