@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedParameterized",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -100,6 +100,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.failure_suppressed" : "true",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
@@ -152,7 +153,7 @@
       "test.command" : "testng-7",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -185,7 +186,7 @@
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"

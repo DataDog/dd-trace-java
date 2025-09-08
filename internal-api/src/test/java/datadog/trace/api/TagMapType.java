@@ -1,8 +1,8 @@
 package datadog.trace.api;
 
 public enum TagMapType {
-  OPTIMIZED(new OptimizedTagMapFactory()),
-  LEGACY(new LegacyTagMapFactory());
+  OPTIMIZED(OptimizedTagMapFactory.INSTANCE),
+  LEGACY(LegacyTagMapFactory.INSTANCE);
 
   final TagMapFactory<?> factory;
 
