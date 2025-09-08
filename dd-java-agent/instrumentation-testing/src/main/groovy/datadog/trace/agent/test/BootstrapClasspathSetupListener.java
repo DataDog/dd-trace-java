@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
@@ -50,22 +51,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     "ch.qos.logback.classic.servlet", // this draws javax.servlet deps that are not needed
   };
 
-  private static final String[] TEST_BOOTSTRAP_PREFIXES = {
-    "datadog.slf4j",
-    "datadog.context",
-    "datadog.environment",
-    "datadog.json",
-    "datadog.yaml",
-    "datadog.appsec.api",
-    "datadog.trace.api",
-    "datadog.trace.bootstrap",
-    "datadog.trace.context",
-    "datadog.trace.instrumentation.api",
-    "datadog.trace.logging",
-    "datadog.trace.util",
-    "org.slf4j",
-    "ch.qos.logback",
-  };
+  private static final String[] TEST_BOOTSTRAP_PREFIXES;
 
   /**
    * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
@@ -95,6 +81,11 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
   private static final Pattern TEST_CLASS_PATTERN = Pattern.compile(".*Test(\\$\\w+)*$");
 
   static {
+    TEST_BOOTSTRAP_PREFIXES =
+        Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 2);
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "org.slf4j";
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 1] = "ch.qos.logback";
+
     ByteBuddyAgent.install();
     setupBootstrapClasspath();
   }
