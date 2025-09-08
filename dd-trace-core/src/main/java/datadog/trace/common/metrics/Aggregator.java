@@ -125,6 +125,7 @@ final class Aggregator implements Runnable {
         MetricKey key = batch.getKey();
         // important that it is still *this* batch pending, must not remove otherwise
         pending.remove(key, batch);
+        // operations concerning the aggregates should be atomic not to potentially loose points.
         aggregates.compute(
             key,
             (k, v) -> {
@@ -150,6 +151,8 @@ final class Aggregator implements Runnable {
           skipped = false;
           writer.startBucket(validKeys.size(), when, reportingIntervalNanos);
           for (MetricKey key : validKeys) {
+            // operations concerning the aggregates should be atomic not to potentially loose
+            // points.
             aggregates.computeIfPresent(
                 key,
                 (k, v) -> {
@@ -181,6 +184,7 @@ final class Aggregator implements Runnable {
   private Set<MetricKey> expungeStaleAggregates() {
     final HashSet<MetricKey> ret = new HashSet<>();
     for (MetricKey metricKey : new HashSet<>(aggregates.keySet())) {
+      // operations concerning the aggregates should be atomic not to potentially loose points.
       aggregates.computeIfPresent(
           metricKey,
           (k, v) -> {
