@@ -46,7 +46,7 @@ repositories {
   }
 }
 
-tasks.withType(org.gradle.api.tasks.scala.ScalaCompile) {
+tasks.withType(ScalaCompile).configureEach {
   it.javaLauncher = getJavaLauncherFor(8)
 }
 
@@ -60,14 +60,17 @@ sourceSets {
 jar {
   from sourceSets.main_play25.output
 }
-project.afterEvaluate { p ->
-  //  instrumentJava.dependsOn compileMain_play25Java  // TODO remove
-  forbiddenApisMain_play25.dependsOn compileMain_play25Java
+
+project.afterEvaluate {
+  tasks.named('forbiddenApisMain_play25') {
+    dependsOn(tasks.named('compileMain_play25Java'))
+  }
 }
+
 instrument {
-  additionalClasspath = [
-    instrumentJava: compileMain_play25Java.destinationDirectory
-  ]
+  additionalClasspath.add(
+    tasks.named('compileMain_play25Java', AbstractCompile).map { it.destinationDirectory }
+  )
 }
 
 dependencies {

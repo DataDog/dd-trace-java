@@ -85,26 +85,23 @@ jar {
   from sourceSets.main_jetty10.output
 }
 
-List<DirectoryProperty> extraInstrumentJavaDirs = []
-['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each {
-  JavaCompile compileTask = tasks["compile${it.capitalize()}Java"]
-  extraInstrumentJavaDirs << compileTask.destinationDirectory
-  compileTask.dependsOn tasks['compileJava']
-  project.afterEvaluate { p ->
-    tasks["forbiddenApis${it.capitalize()}"].dependsOn("instrument${it.capitalize()}Java")
+['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each { String sourceSet ->
+  tasks.named("compile${sourceSet.capitalize()}Java", JavaCompile) {
+    it.dependsOn tasks.named('compileJava')
+    // the instrumenters are in main, but helpers/advice in possibly other sourceSets
+    // The muzzle generator of references run as part of InstrumentJava needs access to
+    // these extra classes. The task dependencies for instrumentJava are added above
+    instrument.additionalClasspath.add(it.destinationDirectory)
+  }
+
+  project.afterEvaluate {
+    tasks.named("forbiddenApis${sourceSet.capitalize()}") {
+      it.dependsOn("compile${sourceSet.capitalize()}Java")
+    }
   }
 }
 
-instrument {
-  // the instrumenters are in main, but helpers/advice in possibly other sourceSets
-  // The muzzle generator of references run as part of InstrumentJava needs access to
-  // these extra classes. The task dependencies for instrumentJava are added above
-  additionalClasspath = [
-    instrumentJava: extraInstrumentJavaDirs
-  ]
-}
-
-tasks['compileMain_jetty10Java'].configure {
+tasks.named('compileMain_jetty10Java').configure {
   setJavaVersion(it, 11)
 }
 
