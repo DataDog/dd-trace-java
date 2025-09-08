@@ -123,6 +123,10 @@ dependencies {
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '9.+'
 
+  tomcat9TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
+  tomcat9TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
+  tomcat9TestImplementation(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
+
   latest10TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.+'
   latest10TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '10.+'
   latest10TestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
