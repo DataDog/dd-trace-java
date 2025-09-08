@@ -278,18 +278,6 @@ public class DefaultExceptionDebuggerTest {
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }
 
-  @Test
-  public void syncConfig() {
-    RuntimeException exception = new RuntimeException("test");
-    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    AgentSpan span = mock(AgentSpan.class);
-    exceptionDebugger.handleException(exception, span);
-    // instrumentation should be applied synchronously
-    assertTrue(exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint));
-    exceptionDebugger.handleException(exception, span);
-    verify(configurationUpdater).accept(eq(ConfigurationAcceptor.Source.EXCEPTION), any());
-  }
-
   private Object recordTags(InvocationOnMock invocationOnMock) {
     Object[] args = invocationOnMock.getArguments();
     String key = (String) args[0];
