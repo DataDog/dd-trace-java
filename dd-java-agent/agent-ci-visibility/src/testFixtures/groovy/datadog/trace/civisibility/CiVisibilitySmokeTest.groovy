@@ -1,10 +1,83 @@
 package datadog.trace.civisibility
 
+import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.TestFQN
+import datadog.trace.api.config.CiVisibilityConfig
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.util.Strings
 import spock.lang.Specification
+import spock.util.environment.Jvm
 
 abstract class CiVisibilitySmokeTest extends Specification {
   static final List<String> SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']"]
+
+  protected static final String AGENT_JAR = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  protected static final String TEST_ENVIRONMENT_NAME = "integration-test"
+  protected static final String JAVAC_PLUGIN_VERSION = Config.get().ciVisibilityCompilerPluginVersion
+  protected static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
+
+  private static final Map<String,String> DEFAULT_TRACER_CONFIG = defaultJvmArguments()
+
+  protected static String buildJavaHome() {
+    if (Jvm.current.isJava8()) {
+      return System.getenv("JAVA_8_HOME")
+    }
+    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
+  }
+
+  protected static String javaPath() {
+    final String separator = System.getProperty("file.separator")
+    return "${buildJavaHome()}${separator}bin${separator}java"
+  }
+
+  protected static String javacPath() {
+    final String separator = System.getProperty("file.separator")
+    return "${buildJavaHome()}${separator}bin${separator}javac"
+  }
+
+  private static Map<String, String> defaultJvmArguments() {
+    Map<String, String> argMap = new HashMap<>()
+    argMap.put(GeneralConfig.TRACE_DEBUG, "true")
+    argMap.put(GeneralConfig.ENV, TEST_ENVIRONMENT_NAME)
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, "false")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED, "false")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, "true")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION, JAVAC_PLUGIN_VERSION)
+    return argMap
+  }
+
+  private static Map<String, String> buildJvmArgMap(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
+    Map<String, String> argMap = new HashMap<>(DEFAULT_TRACER_CONFIG)
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL, mockBackendIntakeUrl)
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL, mockBackendIntakeUrl)
+    argMap.putAll(additionalArgs)
+
+    if (serviceName != null) {
+      argMap.put(GeneralConfig.SERVICE_NAME, serviceName)
+    }
+
+    return argMap
+  }
+
+  protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
+    List<String> arguments = []
+    Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
+
+    // for convenience when debugging locally
+    if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
+      arguments +=  "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
+    }
+    if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null) {
+      argMap.put(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT, "5055")
+    }
+
+    String agentArgs = argMap.collect { k, v -> "${Strings.propertyNameToSystemPropertyName(k)}=${v}" }.join(",")
+    arguments += "-javaagent:${AGENT_JAR}=${agentArgs}".toString()
+
+    return arguments
+  }
 
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]

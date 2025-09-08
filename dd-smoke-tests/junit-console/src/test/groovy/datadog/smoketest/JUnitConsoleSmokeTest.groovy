@@ -4,7 +4,6 @@ package datadog.smoketest
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
-import datadog.trace.util.Strings
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,7 +17,6 @@ import org.slf4j.LoggerFactory
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.TempDir
-import spock.util.environment.Jvm
 
 class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   // CodeNarc incorrectly thinks ".class" is unnecessary in getLogger
@@ -26,7 +24,6 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitConsoleSmokeTest.class)
 
   private static final String TEST_SERVICE_NAME = "test-headless-service"
-  private static final String TEST_ENVIRONMENT_NAME = "integration-test"
 
   private static final int PROCESS_TIMEOUT_SECS = 60
   private static final String JUNIT_CONSOLE_JAR_PATH = System.getProperty("datadog.smoketest.junit.console.jar.path")
@@ -54,8 +51,8 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     assert compileCode == 0
 
     def exitCode = whenRunningJUnitConsole([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT)}=3" as String,
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL)}=${mockBackend.intakeUrl}" as String
+      (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT): "3",
+      (GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL): mockBackend.intakeUrl
     ],
     [:])
     assert exitCode == 1
@@ -168,7 +165,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     return javaFiles
   }
 
-  private int whenRunningJUnitConsole(List<String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
+  private int whenRunningJUnitConsole(Map<String, String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
     def processBuilder = createConsoleProcessBuilder(["execute"], additionalAgentArgs, additionalEnvVars)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
@@ -190,7 +187,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     return p.exitValue()
   }
 
-  ProcessBuilder createConsoleProcessBuilder(List<String> consoleCommand, List<String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
+  ProcessBuilder createConsoleProcessBuilder(List<String> consoleCommand, Map<String, String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
     assert new File(JUNIT_CONSOLE_JAR_PATH).isFile()
 
     List<String> command = new ArrayList<>()
@@ -220,50 +217,9 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     return processBuilder
   }
 
-  String javaPath() {
-    final String separator = System.getProperty("file.separator")
-    return JAVA_HOME + separator + "bin" + separator + "java"
-  }
-
-  String javacPath() {
-    final String separator = System.getProperty("file.separator")
-    return JAVA_HOME + separator + "bin" + separator + "javac"
-  }
-
-  String javaToolOptions(List<String> additionalAgentArgs) {
-    def arguments = []
-
-    if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
-      // for convenience when debugging locally
-      arguments += "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
-    }
-
-    def agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
-    def agentArgument = "-javaagent:${agentShadowJar}=" +
-      // for convenience when debugging locally
-      (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
-
-    agentArgument += additionalAgentArgs.join(",")
-
-    arguments += agentArgument.toString()
-    return arguments.join("\\ ")
-  }
-
-  private static String buildJavaHome() {
-    if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
-    }
-    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
+  String javaToolOptions(Map<String, String> additionalAgentArgs) {
+    additionalAgentArgs.put(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED, "false")
+    return buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalAgentArgs).join("\\ ")
   }
 
   private static class StreamConsumer extends Thread {
