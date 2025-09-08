@@ -141,8 +141,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final @Nullable Long startTime,
-      final @Nullable TestExecutionHistory testExecutionHistory) {
+      final @Nullable Long startTime) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -178,14 +177,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     if (testModule.isAttemptToFix(thisTest)) {
       test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX, true);
-    }
-
-    if (testExecutionHistory != null) {
-      RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
-      if (retryReason != null) {
-        test.setTag(Tags.TEST_IS_RETRY, true);
-        test.setTag(Tags.TEST_RETRY_REASON, retryReason);
-      }
     }
 
     if (testFramework != null) {
@@ -254,20 +245,28 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       return;
     }
 
-    TestIdentifier thisTest = test.getIdentifier();
     if (testExecutionHistory != null) {
       TestStatus testStatus = test.getStatus();
-      testExecutionHistory.registerExecution(
-          testStatus != null ? testStatus : TestStatus.skip, test.getDuration(endTime));
+      TestExecutionHistory.ExecutionOutcome outcome =
+          testExecutionHistory.registerExecution(
+              testStatus != null ? testStatus : TestStatus.skip, test.getDuration(endTime));
 
-      if (testExecutionHistory.hasFailedAllRetries()) {
+      RetryReason retryReason = outcome.retryReason();
+      if (retryReason != null) {
+        test.setTag(Tags.TEST_IS_RETRY, true);
+        test.setTag(Tags.TEST_RETRY_REASON, retryReason);
+      }
+
+      if (outcome.failedAllRetries()) {
         test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
       }
 
-      if (testExecutionHistory.wasLastExecution() && testModule.isAttemptToFix(thisTest)) {
-        test.setTag(
-            Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED,
-            testExecutionHistory.hasSucceededAllRetries());
+      if (outcome.lastExecution() && testModule.isAttemptToFix(test.getIdentifier())) {
+        test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, outcome.succeededAllRetries());
+      }
+
+      if (outcome.failureSuppressed()) {
+        test.setTag(Tags.TEST_FAILURE_SUPPRESSED, true);
       }
     }
 
@@ -295,8 +294,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testParameters,
         categories,
         testSourceData,
-        null,
-        testExecutionHistory);
+        null);
     onTestSkip(testDescriptor, reason);
     onTestFinish(testDescriptor, null, testExecutionHistory);
   }
