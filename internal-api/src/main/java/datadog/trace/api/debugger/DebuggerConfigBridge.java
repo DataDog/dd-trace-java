@@ -28,43 +28,46 @@ public final class DebuggerConfigBridge {
   public static synchronized void setUpdater(@Nonnull DebuggerConfigUpdater updater) {
     UPDATER = updater;
     if (DEFERRED_UPDATE != null && DEFERRED_UPDATE.hasUpdates()) {
-      DebuggerConfigUpdate toApply = DEFERRED_UPDATE;
+      LOGGER.debug("Processing deferred update {}", DEFERRED_UPDATE);
+      updater.updateConfig(DEFERRED_UPDATE);
       DEFERRED_UPDATE = null;
-      LOGGER.debug("Processing deferred update {}", toApply);
-      updater.updateConfig(toApply);
     }
   }
 
   // for testing purposes
-  static void reset() {
+  static synchronized void reset() {
     UPDATER = null;
     DEFERRED_UPDATE = null;
   }
 
   public static boolean isDynamicInstrumentationEnabled() {
-    if (UPDATER != null) {
-      return UPDATER.isDynamicInstrumentationEnabled();
+    DebuggerConfigUpdater updater = UPDATER;
+    if (updater != null) {
+      return updater.isDynamicInstrumentationEnabled();
     }
     return Config.get().isDynamicInstrumentationEnabled();
   }
 
   public static boolean isExceptionReplayEnabled() {
-    if (UPDATER != null) {
-      return UPDATER.isExceptionReplayEnabled();
+    DebuggerConfigUpdater updater = UPDATER;
+    if (updater != null) {
+      return updater.isExceptionReplayEnabled();
     }
     return Config.get().isDebuggerExceptionEnabled();
   }
 
   public static boolean isCodeOriginEnabled() {
-    if (UPDATER != null) {
-      return UPDATER.isCodeOriginEnabled();
+    DebuggerConfigUpdater updater = UPDATER;
+    if (updater != null) {
+      return updater.isCodeOriginEnabled();
     }
     return Config.get().isDebuggerCodeOriginEnabled();
   }
 
   public static boolean isDistributedDebuggerEnabled() {
-    if (UPDATER != null) {
-      return UPDATER.isDistributedDebuggerEnabled();
+    DebuggerConfigUpdater updater = UPDATER;
+    if (updater != null) {
+      return updater.isDistributedDebuggerEnabled();
     }
     return Config.get().isDistributedDebuggerEnabled();
   }
