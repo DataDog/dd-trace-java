@@ -542,6 +542,40 @@
       "envars": null
     },
     {
+      "id": "ibm_ikeycmd",
+      "description": "Skip IBM ikeycmd utility",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "com.ibm.gsk.ikeyman.ikeycmd"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "ibm_ikeyman",
+      "description": "Skip IBM Ikeyman utility",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "com.ibm.gsk.ikeyman.Ikeyman"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
       "id": "elasticsearch7",
       "description": "Skip Elastic Search 7+ commands",
       "os": null,
