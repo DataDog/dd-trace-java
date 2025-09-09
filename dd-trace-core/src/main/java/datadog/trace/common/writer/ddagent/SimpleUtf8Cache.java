@@ -47,8 +47,6 @@ public final class SimpleUtf8Cache implements EncodingCache {
 
   private static final int MAX_PROBES = 4;
 
-  private final int SIZE = 64;
-
   private final int[] markers;
   private final CacheEntry[] entries;
 
