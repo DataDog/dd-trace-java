@@ -53,9 +53,12 @@ public final class Batch implements InboxItem {
   }
 
   public Batch reset(MetricKey key) {
-    this.key = key;
-    COUNT.lazySet(this, 0);
-    return this;
+    if (isUsed()) {
+      this.key = key;
+      COUNT.lazySet(this, 0);
+      return this;
+    }
+    return null;
   }
 
   public boolean isUsed() {

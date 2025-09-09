@@ -288,6 +288,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
       healthMetrics.onClientStatTraceComputed(
           counted, trace.size(), features.supportsDropping() && !forceKeep);
+    } else {
+      System.err.println("Metrics disabled. Skipping span begins: " + trace.size());
     }
     return forceKeep;
   }
@@ -394,10 +396,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private Batch newBatch(MetricKey key) {
     Batch batch = batchPool.poll();
-    if (null == batch) {
+    if (null == batch || null == (batch = batch.reset(key))) {
       return new Batch(key);
     }
-    return batch.reset(key);
+    return batch;
   }
 
   public void stop() {
