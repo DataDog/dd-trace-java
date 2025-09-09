@@ -64,7 +64,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable Long startTime);
+      @Nullable Long startTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 

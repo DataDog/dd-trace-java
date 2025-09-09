@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.config
 
 import datadog.communication.BackendApi
-import datadog.communication.BackendApiFactory
 import datadog.communication.EvpProxyApi
 import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
@@ -12,6 +11,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.CiVisibilityTestUtils
+import datadog.trace.api.intake.Intake
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
@@ -55,10 +55,10 @@ class ConfigurationApiImplTest extends Specification {
 
     where:
     agentless | compression | expectedSettings
-    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, null)
-    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, "main")
-    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10), "master")
-    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20), "prod")
+    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, null)
+    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, "main")
+    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, false, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10), "master")
+    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, true, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20), "prod")
   }
 
   def "test skippable tests request"() {
@@ -273,7 +273,7 @@ class ConfigurationApiImplTest extends Specification {
   }
 
   private BackendApi givenIntakeApi(URI address, boolean responseCompression) {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", address.toString(), BackendApiFactory.Intake.API.version))
+    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", address.toString(), Intake.API.getVersion()))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"

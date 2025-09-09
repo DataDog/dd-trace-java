@@ -11,6 +11,9 @@ public interface TestExecutionHistory {
    */
   ExecutionOutcome registerExecution(TestStatus status, long durationMillis);
 
+  /** @return {@code true} if the test should be instrumented by FTR */
+  boolean failedTestReplayApplicable();
+
   interface ExecutionOutcome {
     /** @return {@code true} if this execution failed and the failure was suppressed */
     boolean failureSuppressed();

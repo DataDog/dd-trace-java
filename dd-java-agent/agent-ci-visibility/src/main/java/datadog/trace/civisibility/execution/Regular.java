@@ -61,4 +61,9 @@ public class Regular implements TestExecutionPolicy {
       return null;
     }
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return false;
+  }
 }
