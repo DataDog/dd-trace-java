@@ -11,6 +11,7 @@ public final class NoopDecorator extends AbstractResilience4jDecorator<Void> {
 
   @Override
   public void decorate(final AgentSpan span, final Void data) {
-    // No-op
+    // noop
+    //    span.setSpanName("resilience4j.fallback");
   }
 }

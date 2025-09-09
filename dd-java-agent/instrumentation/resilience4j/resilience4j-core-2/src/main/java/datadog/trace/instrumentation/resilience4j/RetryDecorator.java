@@ -17,19 +17,27 @@ public final class RetryDecorator extends AbstractResilience4jDecorator<Retry> {
 
   @Override
   public void decorate(AgentSpan span, Retry data) {
+    //    span.setSpanName("resilience4j.retry");
+    //    span.setResourceName(data.getName());
+
     span.setTag("resilience4j.retry.name", data.getName());
+    span.setTag("resilience4j.retry.max_attempts", data.getRetryConfig().getMaxAttempts());
     span.setTag(
-        "resilience4j.retry.number_of_successful_calls_with_retry_attempt",
-        data.getMetrics().getNumberOfSuccessfulCallsWithRetryAttempt());
+        "resilience4j.retry.fail_after_max_attempts",
+        data.getRetryConfig().isFailAfterMaxAttempts());
+
+    Retry.Metrics ms = data.getMetrics();
     span.setTag(
-        "resilience4j.retry.number_of_failed_calls_with_retry_attempt",
-        data.getMetrics().getNumberOfFailedCallsWithRetryAttempt());
+        "resilience4j.retry.metrics.success_without_retry",
+        ms.getNumberOfSuccessfulCallsWithoutRetryAttempt());
     span.setTag(
-        "resilience4j.retry.number_of_successful_calls_without_retry_attempt",
-        data.getMetrics().getNumberOfSuccessfulCallsWithoutRetryAttempt());
+        "resilience4j.retry.metrics.failed_without_retry",
+        ms.getNumberOfFailedCallsWithoutRetryAttempt());
     span.setTag(
-        "resilience4j.retry.number_of_failed_calls_without_retry_attempt",
-        data.getMetrics().getNumberOfFailedCallsWithoutRetryAttempt());
-    // TODO
+        "resilience4j.retry.metrics.success_with_retry",
+        ms.getNumberOfSuccessfulCallsWithRetryAttempt());
+    span.setTag(
+        "resilience4j.retry.metrics.failed_with_retry",
+        ms.getNumberOfFailedCallsWithRetryAttempt());
   }
 }

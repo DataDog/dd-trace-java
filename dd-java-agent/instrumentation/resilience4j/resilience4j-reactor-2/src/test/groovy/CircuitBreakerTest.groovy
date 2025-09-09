@@ -110,10 +110,23 @@ class CircuitBreakerTest extends AgentTestRunner {
     }
   }
 
-  def "test circuit-breaker state reporting"() {
+  def "decorate span with circuit-breaker"() {
+    def ms = Mock(CircuitBreaker.Metrics)
+
     def cb = Mock(CircuitBreaker)
-    cb.getState() >> state
-    cb.tryAcquirePermission() >> false
+    cb.getName() >> "cb1"
+    cb.getState() >> CircuitBreaker.State.CLOSED
+    cb.tryAcquirePermission() >> true
+    cb.getMetrics() >> ms
+    ms.getFailureRate() >> 0.1f
+    ms.getSlowCallRate() >> 0.2f
+    ms.getNumberOfBufferedCalls() >> 12
+    ms.getNumberOfFailedCalls() >> 13
+    ms.getNumberOfNotPermittedCalls() >> 2
+    ms.getNumberOfSlowCalls() >> 23
+    ms.getNumberOfSlowFailedCalls() >> 3
+    ms.getNumberOfSlowSuccessfulCalls() >> 33
+    ms.getNumberOfSuccessfulCalls() >> 50
 
     ConnectableFlux<String> connection = Flux.just("foo", "bar")
       .transformDeferred(CircuitBreakerOperator.of(cb))
@@ -131,7 +144,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(2) {
+      trace(4) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -144,15 +157,32 @@ class CircuitBreakerTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "resilience4j"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
-            "resilience4j.circuit_breaker.state" state.toString()
+            "resilience4j.circuit_breaker.name" "cb1"
+            "resilience4j.circuit_breaker.state" "CLOSED"
+            "resilience4j.circuit-breaker.metrics.failure_rate" 0.1f
+            "resilience4j.circuit-breaker.metrics.slow_call_rate" 0.2f
+            "resilience4j.circuit-breaker.metrics.number_of_buffered_calls" 12
+            "resilience4j.circuit-breaker.metrics.number_of_failed_calls" 13
+            "resilience4j.circuit-breaker.metrics.number_of_not_permitted_calls" 2
+            "resilience4j.circuit-breaker.metrics.number_of_slow_calls" 23
+            "resilience4j.circuit-breaker.metrics.number_of_slow_failed_calls" 3
+            "resilience4j.circuit-breaker.metrics.number_of_slow_successful_calls" 33
+            "resilience4j.circuit-breaker.metrics.number_of_successful_calls" 50
             defaultTags()
           }
         }
+        span(2) {
+          operationName "foo"
+          childOf(span(1))
+          errored false
+        }
+        span(3) {
+          operationName "bar"
+          childOf(span(1))
+          errored false
+        }
       }
     }
-
-    where:
-    state << CircuitBreaker.State.values()
   }
 
   def <T> T serviceCall(T value) {

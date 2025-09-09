@@ -26,6 +26,7 @@ public class ReactorHelper {
         NoopDecorator.DECORATE.afterStart(current);
       }
       NoopDecorator.DECORATE.decorate(current, null);
+      // TODO explain why we need an active scope
       try (AgentScope scope = activateSpan(current)) {
         Publisher<?> ret = operator.apply(value);
         attachContext.accept(ret, current);
@@ -42,6 +43,8 @@ public class ReactorHelper {
       AbstractResilience4jDecorator<T> spanDecorator,
       T data,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
+    // Create span at construction (needs transformDeferred which is the case for Spring
+    // annotations)
     AgentSpan current = ActiveResilience4jSpan.current();
     AgentSpan owned = current == null ? ActiveResilience4jSpan.start() : null;
     if (owned != null) {
@@ -50,11 +53,14 @@ public class ReactorHelper {
     }
     spanDecorator.decorate(current, data);
 
+    // This schedules a span to be finished when the publisher finishes to be non-zero
     Publisher<?> newResult = scheduleOwnedSpanFinish(publisher, owned);
     if (newResult instanceof Scannable) {
       Scannable parent = (Scannable) newResult;
       while (parent != null) {
         if (parent instanceof Publisher) {
+          // Attach the span to the publisher to be activated by the reactive streams
+          // instrumentation to scope child spans
           attachContext.accept((Publisher<?>) parent, current);
         }
         parent = parent.scan(Scannable.Attr.PARENT);
@@ -80,7 +86,7 @@ public class ReactorHelper {
 
   private static Consumer<SignalType> beforeFinish(AgentSpan span) {
     return signalType -> {
-      span.finish();
+      ActiveResilience4jSpan.finish(span);
     };
   }
 }
