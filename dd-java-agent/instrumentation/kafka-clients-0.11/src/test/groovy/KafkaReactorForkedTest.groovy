@@ -1,7 +1,7 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -26,7 +26,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class KafkaReactorForkedTest extends AgentTestRunner {
+class KafkaReactorForkedTest extends InstrumentationSpecification {
   @Rule
   // create 4 partitions for more parallelism
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)

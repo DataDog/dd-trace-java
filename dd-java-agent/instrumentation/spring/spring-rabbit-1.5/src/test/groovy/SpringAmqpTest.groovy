@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.PortUtils
 import org.testcontainers.containers.RabbitMQContainer
 import rabbit.MessagingRabbitMQApplication
@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class SpringAmqpTest extends AgentTestRunner {
+class SpringAmqpTest extends InstrumentationSpecification {
 
   @Shared
   RabbitMQContainer rabbit

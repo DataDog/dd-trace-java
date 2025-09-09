@@ -31,7 +31,6 @@ forbiddenApisMain_java11 {
 }
 
 test {
-  useJUnit()
   useJUnitPlatform()
 }
 

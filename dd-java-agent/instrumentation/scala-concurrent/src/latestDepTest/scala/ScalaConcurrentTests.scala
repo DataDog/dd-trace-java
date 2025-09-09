@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
+import datadog.trace.agent.test.InstrumentationSpecification.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{setAsyncPropagationEnabled, activeSpan}
 

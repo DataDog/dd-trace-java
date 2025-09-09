@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.TestProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import io.netty.util.concurrent.DefaultEventExecutorGroup
@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class TimingTest extends AgentTestRunner {
+class TimingTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

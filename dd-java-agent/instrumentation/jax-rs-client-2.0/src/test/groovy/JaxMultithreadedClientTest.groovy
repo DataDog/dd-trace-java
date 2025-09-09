@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.glassfish.jersey.client.JerseyClientBuilder
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class JaxMultithreadedClientTest extends AgentTestRunner {
+class JaxMultithreadedClientTest extends InstrumentationSpecification {
 
   @Shared
   ExecutorService executor = Executors.newFixedThreadPool(10)

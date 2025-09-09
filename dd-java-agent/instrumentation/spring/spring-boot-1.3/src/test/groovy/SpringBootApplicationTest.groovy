@@ -2,13 +2,13 @@ import datadog.trace.api.ProcessTags
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.SpringApplication
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 
-class SpringBootApplicationTest extends AgentTestRunner {
+class SpringBootApplicationTest extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -53,7 +53,7 @@ class SpringBootApplicationTest extends AgentTestRunner {
   }
 }
 
-class SpringBootApplicationNotAppliedForkedTest extends AgentTestRunner {
+class SpringBootApplicationNotAppliedForkedTest extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()

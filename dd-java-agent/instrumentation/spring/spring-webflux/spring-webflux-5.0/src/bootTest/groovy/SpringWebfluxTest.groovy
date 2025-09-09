@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.OkHttpWebsocketClient
 import datadog.trace.api.DDSpanTypes
@@ -32,7 +32,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.websocketSendSpan
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration],
 properties = "server.http2.enabled=true")
-class SpringWebfluxTest extends AgentTestRunner {
+class SpringWebfluxTest extends InstrumentationSpecification {
 
   @TestConfiguration
   static class ForceNettyAutoConfiguration {

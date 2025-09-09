@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -29,7 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 @Flaky("https://github.com/DataDog/dd-trace-java/issues/3865")
-class KafkaStreamsTest extends AgentTestRunner {
+class KafkaStreamsTest extends InstrumentationSpecification {
   static final STREAM_PENDING = "test.pending"
   static final STREAM_PROCESSED = "test.processed"
 

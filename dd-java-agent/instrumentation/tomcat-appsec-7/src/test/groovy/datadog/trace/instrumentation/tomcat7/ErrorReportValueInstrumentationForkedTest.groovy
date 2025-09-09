@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.tomcat7
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.StacktraceLeakModule
 import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
 import org.apache.catalina.valves.ErrorReportValve
 
-class ErrorReportValueInstrumentationForkedTest extends AgentTestRunner {
+class ErrorReportValueInstrumentationForkedTest extends InstrumentationSpecification {
 
   void 'test vulnerability detection'() {
     given:

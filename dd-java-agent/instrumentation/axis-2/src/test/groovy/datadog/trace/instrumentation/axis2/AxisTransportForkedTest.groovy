@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.axis2
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.TraceInstrumentationConfig
@@ -32,7 +32,7 @@ import static org.apache.axis2.description.WSDL2Constants.MEP_URI_IN_ONLY
 import static org.apache.axis2.description.WSDL2Constants.MEP_URI_IN_OUT
 import static org.apache.axis2.description.WSDL2Constants.MEP_URI_ROBUST_IN_ONLY
 
-class AxisTransportForkedTest extends AgentTestRunner {
+class AxisTransportForkedTest extends InstrumentationSpecification {
 
   @Shared
   SOAPFactory soapFactory = getSOAP11Factory()

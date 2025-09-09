@@ -3,7 +3,7 @@ import akka.dispatch.ForkJoinExecutorConfigurator
 import akka.dispatch.forkjoin.ForkJoinPool
 import akka.dispatch.forkjoin.ForkJoinTask
 import com.typesafe.config.ConfigFactory
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import spock.lang.Shared
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  * Test executor instrumentation for Akka specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
  */
-class AkkaExecutorInstrumentationTest extends AgentTestRunner {
+class AkkaExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
