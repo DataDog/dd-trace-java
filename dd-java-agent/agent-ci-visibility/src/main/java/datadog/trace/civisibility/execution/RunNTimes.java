@@ -74,4 +74,9 @@ public class RunNTimes implements TestExecutionPolicy {
     }
     return 0;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return false;
+  }
 }

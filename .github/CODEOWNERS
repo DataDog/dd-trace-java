@@ -87,6 +87,7 @@
 /dd-java-agent/instrumentation/maven-surefire/      @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/weaver/              @DataDog/ci-app-libraries-java
 /dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries-java
+/dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries-java
 /dd-smoke-tests/maven/                              @DataDog/ci-app-libraries-java
 /internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries-java
 **/civisibility/                                    @DataDog/ci-app-libraries-java
@@ -94,8 +95,9 @@
 **/CiVisibility*.groovy                             @DataDog/ci-app-libraries-java
 
 # @DataDog/debugger-java (Live Debugger)
-/dd-java-agent/agent-debugger/               @DataDog/debugger-java
-/dd-smoke-tests/debugger-integration-tests/  @DataDog/debugger-java
+/dd-java-agent/agent-debugger/                          @DataDog/debugger-java
+/dd-smoke-tests/debugger-integration-tests/             @DataDog/debugger-java
+/internal-api/src/main/java/datadog/trace/api/debugger/ @DataDog/debugger-java
 
 # @DataDog/data-jobs-monitoring
 /dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
