@@ -28,7 +28,7 @@ iastTest {
 }
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:netty-promise-4')
@@ -51,7 +51,7 @@ dependencies {
     exclude group: 'org.hamcrest', module: 'hamcrest-core'
     exclude group: 'org.hamcrest', module: 'hamcrest-library'
   }
-  bootTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
+  bootTestImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
   // our default version of spock is too old
   bootTestImplementation libs.bundles.spock24.spring
 
@@ -60,14 +60,14 @@ dependencies {
     exclude group: 'org.hamcrest', module: 'hamcrest-core'
     exclude group: 'org.hamcrest', module: 'hamcrest-library'
   }
-  latestDepBootTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
+  latestDepBootTestImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
   // our default version of spock is too old
   latestDepBootTestImplementation libs.bundles.spock24.spring
 
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
   iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
-  iastTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
+  iastTestImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
 

@@ -54,7 +54,7 @@
 /dd-smoke-tests/iast-util/                                      @DataDog/asm-java
 /dd-smoke-tests/spring-security/                                @DataDog/asm-java
 /dd-java-agent/instrumentation/commons-fileupload/              @DataDog/asm-java
-/dd-java-agent/instrumentation/spring-security-5/               @DataDog/asm-java
+/dd-java-agent/instrumentation/spring/spring-security/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
