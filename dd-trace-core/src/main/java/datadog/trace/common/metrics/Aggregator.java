@@ -126,6 +126,11 @@ final class Aggregator implements Runnable {
         // important that it is still *this* batch pending, must not remove otherwise
         pending.remove(key, batch);
         AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
+        System.err.println(
+            "Batch "
+                + batch.getKey().getResource()
+                + " contributing to Aggregate "
+                + key.getResource());
         batch.contributeTo(aggregate);
         dirty = true;
         // return the batch for reuse
@@ -143,6 +148,7 @@ final class Aggregator implements Runnable {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
           for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
+            System.err.println("Writing metric for aggregate " + aggregate.getKey().getResource());
             writer.add(aggregate.getKey(), aggregate.getValue());
             aggregate.getValue().clear();
           }

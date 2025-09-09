@@ -347,6 +347,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     // must offer to the queue after adding to pending
     inbox.offer(batch);
     // force keep keys we haven't seen before or errors
+    System.err.println(
+        "Published metrics for "
+            + key.getResource().toString()
+            + " and span resource "
+            + span.getResourceName().toString());
     return isNewKey || span.getError() > 0;
   }
 
