@@ -1,5 +1,7 @@
 package datadog.trace.agent.test.base
 
+
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
@@ -26,9 +28,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.*
 
 abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
@@ -862,22 +862,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           "$DDTags.PATHWAY_HASH" { String }
         }
         if (exception) {
-          // PlayWS classes throw different exception types for the same connection failures
-          if (this.class.name.contains("Play") &&
-            (exception instanceof java.net.ConnectException ||
-            exception instanceof java.net.SocketTimeoutException ||
-            exception instanceof java.util.concurrent.TimeoutException)) {
-            tag("error.type", {
-              String actualType = it as String
-              return actualType == "java.net.ConnectException" ||
-                actualType == "java.net.SocketTimeoutException" ||
-                actualType == "java.util.concurrent.TimeoutException"
-            })
-            tag("error.stack", String)
-            tag("error.message", { it instanceof String })
-          } else {
-            errorTags(exception.class, exception.message)
-          }
+          assertErrorTags(it, exception)
         }
         peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
@@ -886,6 +871,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         }
       }
     }
+  }
+
+  void assertErrorTags(TagsAssert tagsAssert, Throwable exception) {
+    tagsAssert.errorTags(exception.class, exception.message)
   }
 
   int size(int size) {

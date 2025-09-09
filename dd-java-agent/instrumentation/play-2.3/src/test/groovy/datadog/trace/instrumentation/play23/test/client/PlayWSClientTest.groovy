@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.play23.test.client
 
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
@@ -10,6 +11,7 @@ import play.test.Helpers
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 class PlayWSClientTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
   @Shared
@@ -75,5 +77,24 @@ class PlayWSClientTest extends HttpClientTest implements TestingNettyHttpNamingC
     // span.operationName = "netty.connect"
     // span.resourceName = "netty.connect"
     false
+  }
+
+  @Override
+  void assertErrorTags(TagsAssert tagsAssert, Throwable exception) {
+    // PlayWS classes throw different exception types for the same connection failures
+    if (exception instanceof ConnectException ||
+      exception instanceof SocketTimeoutException ||
+      exception instanceof TimeoutException) {
+      tagsAssert.tag("error.type", {
+        String actualType = it as String
+        return actualType == "java.net.ConnectException" ||
+          actualType == "java.net.SocketTimeoutException" ||
+          actualType == "java.util.concurrent.TimeoutException"
+      })
+      tagsAssert.tag("error.stack", String)
+      tagsAssert.tag("error.message", String)
+    } else {
+      assertErrorTags(tagsAssert, exception)
+    }
   }
 }

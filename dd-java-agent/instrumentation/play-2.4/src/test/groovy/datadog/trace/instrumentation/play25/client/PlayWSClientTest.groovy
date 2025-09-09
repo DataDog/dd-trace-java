@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.play25.client
 
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import play.libs.ws.WS
@@ -7,6 +8,8 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Subject
 import spock.lang.Timeout
+
+import java.util.concurrent.TimeoutException
 
 // Play 2.6+ uses a separately versioned client that shades the underlying dependency
 // This means our built in instrumentation won't work.
@@ -52,6 +55,25 @@ abstract class PlayWSClientTest extends HttpClientTest {
   @Override
   boolean testRemoteConnection() {
     return false
+  }
+
+  @Override
+  void assertErrorTags(TagsAssert tagsAssert, Throwable exception) {
+    // PlayWS classes throw different exception types for the same connection failures
+    if (exception instanceof ConnectException ||
+      exception instanceof SocketTimeoutException ||
+      exception instanceof TimeoutException) {
+      tagsAssert.tag("error.type", {
+        String actualType = it as String
+        return actualType == "java.net.ConnectException" ||
+          actualType == "java.net.SocketTimeoutException" ||
+          actualType == "java.util.concurrent.TimeoutException"
+      })
+      tagsAssert.tag("error.stack", String)
+      tagsAssert.tag("error.message", String)
+    } else {
+      assertErrorTags(tagsAssert, exception)
+    }
   }
 }
 

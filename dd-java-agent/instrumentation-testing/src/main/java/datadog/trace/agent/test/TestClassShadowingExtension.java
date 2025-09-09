@@ -101,11 +101,11 @@ public final class TestClassShadowingExtension
       if (loaded != null && loaded.getClassLoader() == this) {
         return loaded;
       }
-      byte[] classBytes =
-          ClassFileLocator.ForClassLoader.of(clazz.getClassLoader())
-              .locate(clazz.getName())
-              .resolve();
-      return defineClass(clazz.getName(), classBytes, 0, classBytes.length);
+      try (ClassFileLocator classFileLocator =
+          ClassFileLocator.ForClassLoader.of(clazz.getClassLoader())) {
+        byte[] classBytes = classFileLocator.locate(clazz.getName()).resolve();
+        return defineClass(clazz.getName(), classBytes, 0, classBytes.length);
+      }
     }
 
     @Override
