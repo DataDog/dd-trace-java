@@ -274,6 +274,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     int counted = 0;
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
+        System.err.println("Span begins: " + span.getResourceName());
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span)) {
           if (ignoredResources.contains(span.getResourceName().toString())) {
@@ -303,6 +304,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
+    System.err.println("About to publish metrics for " + span.getResourceName().toString());
     final CharSequence spanKind = span.getTag(SPAN_KIND, "");
     MetricKey newKey =
         new MetricKey(
@@ -333,6 +335,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         // added to a pending batch prior to consumption,
         // so skip publishing to the queue (we also know
         // the key isn't rare enough to override the sampler)
+        System.err.println("Won race condition " + batch.getKey().getResource());
         return false;
       }
       // recycle the older key
