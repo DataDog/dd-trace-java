@@ -93,7 +93,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
   }
 
   private static ClassPath computeTestClasspath() {
-    ClassLoader testClassLoader = InstrumentationSpecification.class.getClassLoader();
+    ClassLoader testClassLoader = BootstrapClasspathSetupListener.class.getClassLoader();
     if (!(testClassLoader instanceof URLClassLoader)) {
       // java9's system loader does not extend URLClassLoader
       // which breaks Guava ClassPath lookup
