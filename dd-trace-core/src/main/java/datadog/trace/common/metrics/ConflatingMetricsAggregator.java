@@ -293,6 +293,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private boolean shouldComputeMetric(CoreSpan<?> span) {
     return (span.isMeasured() || span.isTopLevel() || spanKindEligible(span))
+        && span.getLongRunningVersion() <= 0 // span not long running or long running published
         && span.getDurationNano() > 0;
   }
 
