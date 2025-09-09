@@ -121,6 +121,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.civisibility.config.TestSourceData",
     "datadog.trace.api.civisibility.config.LibraryCapability",
     "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
+    "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge.TotalProbeCount",
     "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
     "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
     "datadog.trace.api.civisibility.coverage.NoOpCoverageStore.Factory",
