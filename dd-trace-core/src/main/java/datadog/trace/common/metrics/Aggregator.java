@@ -4,7 +4,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -121,12 +121,20 @@ final class Aggregator implements Runnable {
           signal.ignore();
         }
       } else if (item instanceof Batch && !stopped) {
-        Batch batch = (Batch) item;
+        final Batch batch = (Batch) item;
         MetricKey key = batch.getKey();
         // important that it is still *this* batch pending, must not remove otherwise
         pending.remove(key, batch);
-        AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        batch.contributeTo(aggregate);
+        // operations concerning the aggregates should be atomic not to potentially loose points.
+        aggregates.compute(
+            key,
+            (k, v) -> {
+              if (v == null) {
+                v = new AggregateMetric();
+              }
+              batch.contributeTo(v);
+              return v;
+            });
         dirty = true;
         // return the batch for reuse
         batchPool.offer(batch);
@@ -138,13 +146,20 @@ final class Aggregator implements Runnable {
     boolean skipped = true;
     if (dirty) {
       try {
-        expungeStaleAggregates();
-        if (!aggregates.isEmpty()) {
+        final Set<MetricKey> validKeys = expungeStaleAggregates();
+        if (!validKeys.isEmpty()) {
           skipped = false;
-          writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-            writer.add(aggregate.getKey(), aggregate.getValue());
-            aggregate.getValue().clear();
+          writer.startBucket(validKeys.size(), when, reportingIntervalNanos);
+          for (MetricKey key : validKeys) {
+            // operations concerning the aggregates should be atomic not to potentially loose
+            // points.
+            aggregates.computeIfPresent(
+                key,
+                (k, v) -> {
+                  writer.add(k, v);
+                  v.clear();
+                  return v;
+                });
           }
           // note that this may do IO and block
           writer.finishBucket();
@@ -161,16 +176,27 @@ final class Aggregator implements Runnable {
     }
   }
 
-  private void expungeStaleAggregates() {
-    Iterator<Map.Entry<MetricKey, AggregateMetric>> it = aggregates.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<MetricKey, AggregateMetric> pair = it.next();
-      AggregateMetric metric = pair.getValue();
-      if (metric.getHitCount() == 0) {
-        it.remove();
-        commonKeys.remove(pair.getKey());
-      }
+  /**
+   * Remove keys whose values have zeroed metrics.
+   *
+   * @return a set containing the keys still valid.
+   */
+  private Set<MetricKey> expungeStaleAggregates() {
+    final HashSet<MetricKey> ret = new HashSet<>();
+    for (MetricKey metricKey : new HashSet<>(aggregates.keySet())) {
+      // operations concerning the aggregates should be atomic not to potentially loose points.
+      aggregates.computeIfPresent(
+          metricKey,
+          (k, v) -> {
+            if (v.getHitCount() == 0) {
+              commonKeys.remove(k);
+              return null;
+            }
+            ret.add(k);
+            return v;
+          });
     }
+    return ret;
   }
 
   private long wallClockTime() {
