@@ -72,7 +72,7 @@ abstract class PlayWSClientTest extends HttpClientTest {
       tagsAssert.tag("error.stack", String)
       tagsAssert.tag("error.message", String)
     } else {
-      assertErrorTags(tagsAssert, exception)
+      super.assertErrorTags(tagsAssert, exception)
     }
   }
 }
