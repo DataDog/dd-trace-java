@@ -15,24 +15,12 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.asserts.*Assert',
   'datadog.trace.agent.test.asserts.*Assert.*',
   'datadog.trace.agent.test.base.*',
-  'datadog.trace.agent.test.log.*',
-  // Util class used in TestFrameworkTest
-  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore',
-  'datadog.trace.agent.test.civisibility.coverage.NoopCoverageProbeStore.NoopCoverageProbeStoreFactory',
-  // Groovy generates unreachable lines see:
-  // https://issues.apache.org/jira/browse/GROOVY-9610
-  'datadog.trace.agent.test.AgentTestRunner',
-  'datadog.trace.agent.test.AbortTransformationException',
-  'datadog.trace.agent.test.naming.VersionedNamingTestBase',
   'datadog.trace.agent.test.server.http.HttpProxy.AsyncPipe',
   'datadog.trace.agent.test.server.http.TestHttpServer.*',
   'datadog.trace.agent.test.utils.*',
   // Avoid applying jacoco instrumentation to classes instrumented by tested agent
   'context.FieldInjectionTestInstrumentation**',
   'context.ExcludeFilterTestInstrumentation**',
-  'datadog.trace.agent.test.AgentTestRunner**',
-  'datadog.trace.agent.test.checkpoints.**',
-  'datadog.trace.agent.test.datastreams.**',
   // profiling
   'datadog.trace.agent.test.TestProfilingContextIntegration',
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'

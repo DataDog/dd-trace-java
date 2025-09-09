@@ -45,6 +45,7 @@
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java
 /dd-java-agent/agent-iast/                                      @DataDog/asm-java
+/dd-java-agent/appsec/appsec-test-fixtures/                     @DataDog/asm-java
 /dd-java-agent/instrumentation/*iast*                           @DataDog/asm-java
 /dd-java-agent/instrumentation/*appsec*                         @DataDog/asm-java
 /dd-java-agent/instrumentation/json/                            @DataDog/asm-java
