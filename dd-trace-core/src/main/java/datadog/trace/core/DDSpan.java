@@ -869,4 +869,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
     }
   }
+
+  @Override
+  public int getLongRunningVersion() {
+    return longRunningVersion;
+  }
 }

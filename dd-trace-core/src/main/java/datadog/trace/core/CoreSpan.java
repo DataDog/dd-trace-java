@@ -114,4 +114,14 @@ public interface CoreSpan<T extends CoreSpan<T>> {
    * @return this
    */
   T setMetaStruct(final String field, final Object value);
+
+  /**
+   * Version of a span that can be set by the long running spans feature:
+   * <li>eq 0 -> span is not long running.
+   * <li>lt 0 -> finished span that had running versions previously written.
+   * <li>gt 0 -> long running span and its write version.
+   *
+   * @return the version.
+   */
+  int getLongRunningVersion();
 }
