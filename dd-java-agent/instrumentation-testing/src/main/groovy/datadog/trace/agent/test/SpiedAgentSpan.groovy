@@ -19,7 +19,7 @@ class SpiedAgentSpan implements AgentSpan {
   private final AgentSpan delegate
   private final ConcurrentHashMap<AgentSpan, List<Exception>> spanFinishLocations
   private final ConcurrentHashMap<AgentSpan, AgentSpan> originalToSpySpan
-  private final boolean useStrictTraceWrites
+  private final RequestContext spiedRequestContext
 
   SpiedAgentSpan(AgentSpan delegate,
   ConcurrentHashMap<AgentSpan, List<Exception>> spanFinishLocations,
@@ -28,7 +28,9 @@ class SpiedAgentSpan implements AgentSpan {
     this.delegate = delegate
     this.spanFinishLocations = spanFinishLocations
     this.originalToSpySpan = originalToSpySpan
-    this.useStrictTraceWrites = useStrictTraceWrites
+
+    RequestContext requestContext = delegate.getRequestContext()
+    this.spiedRequestContext = new SpiedRequestContext(requestContext, this, useStrictTraceWrites)
   }
 
   @Override
@@ -87,8 +89,7 @@ class SpiedAgentSpan implements AgentSpan {
 
   @Override
   RequestContext getRequestContext() {
-    RequestContext requestContext = delegate.getRequestContext()
-    return new SpiedRequestContext(requestContext, this, useStrictTraceWrites)
+    return spiedRequestContext
   }
 
   @Override

@@ -10,13 +10,20 @@ import java.util.function.Function
 class SpiedRequestContext implements RequestContext {
 
   private final RequestContext delegate
-  private final SpiedAgentSpan spiedAgentSpan
-  private final boolean useStrictTraceWrites
+  private final TraceSegment traceSegment
 
   SpiedRequestContext(RequestContext delegate, SpiedAgentSpan spiedAgentSpan, boolean useStrictTraceWrites) {
     this.delegate = delegate
-    this.spiedAgentSpan = spiedAgentSpan
-    this.useStrictTraceWrites = useStrictTraceWrites
+
+    def segment = delegate.getTraceSegment()
+    this.traceSegment = new PreconditionCheckTraceSegment(
+      segment, {
+        ->
+        if (useStrictTraceWrites && spiedAgentSpan.localRootSpan.durationNano != 0) {
+          throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
+        }
+      }
+      )
   }
 
   @Override
@@ -26,14 +33,7 @@ class SpiedRequestContext implements RequestContext {
 
   @Override
   TraceSegment getTraceSegment() {
-    def segment = delegate.getTraceSegment()
-    return new PreconditionCheckTraceSegment(
-      segment, {
-        -> if (useStrictTraceWrites && spiedAgentSpan.localRootSpan.durationNano != 0) {
-          throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
-        }
-      }
-      )
+    return traceSegment
   }
 
   @Override
