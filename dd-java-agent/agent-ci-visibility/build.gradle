@@ -58,8 +58,6 @@ dependencies {
   testImplementation group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
-
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.2") // Required to update dependency lock files
 }
 
 shadowJar {
