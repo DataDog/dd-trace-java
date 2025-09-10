@@ -833,7 +833,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
-      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 1),
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 12345),
       new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 0)
     ])
     aggregator.report()
