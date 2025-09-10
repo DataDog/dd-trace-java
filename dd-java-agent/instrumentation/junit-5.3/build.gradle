@@ -22,6 +22,10 @@ muzzle {
   }
 }
 
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
+}
+
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -48,3 +52,9 @@ configurations.matching({ it.name.startsWith('test') }).each({
     force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.12.0'
   }
 })
+
+tasks.named("compileLatestDepTestJava").configure {
+  setJavaVersion(it, 17)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
