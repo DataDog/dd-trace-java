@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.dropwizard.testing.junit.ResourceTestRule
@@ -19,7 +19,7 @@ import javax.ws.rs.ext.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-abstract class JaxRsFilterTest extends AgentTestRunner {
+abstract class JaxRsFilterTest extends InstrumentationSpecification {
 
   @Shared
   SimpleRequestFilter simpleRequestFilter = new SimpleRequestFilter()

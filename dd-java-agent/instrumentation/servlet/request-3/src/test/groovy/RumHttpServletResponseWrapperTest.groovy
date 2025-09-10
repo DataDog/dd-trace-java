@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.rum.RumTelemetryCollector
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream
@@ -12,7 +12,7 @@ import javax.servlet.ServletContext
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-class RumHttpServletResponseWrapperTest extends AgentTestRunner {
+class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
   private static final String SERVLET_VERSION = "3"
 
   def mockRequest = Mock(HttpServletRequest)

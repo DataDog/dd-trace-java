@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.java.net
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestURLEncoderCallSiteSuite
 
-class URLEncoderCallSiteTest extends AgentTestRunner {
+class URLEncoderCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

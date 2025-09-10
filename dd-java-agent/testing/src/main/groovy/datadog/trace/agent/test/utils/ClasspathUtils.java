@@ -1,30 +1,20 @@
 package datadog.trace.agent.test.utils;
 
-import static com.google.common.base.StandardSystemProperty.JAVA_CLASS_PATH;
-import static com.google.common.base.StandardSystemProperty.PATH_SEPARATOR;
 import static datadog.trace.util.Strings.getResourceName;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
-import com.google.common.reflect.ClassPath;
-import datadog.trace.agent.test.AgentTestRunner;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public class ClasspathUtils {
-  private static final ClassPath testClasspath = computeTestClasspath();
 
   public static byte[] convertToByteArray(final InputStream resource) throws IOException {
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -117,46 +107,6 @@ public class ClasspathUtils {
     jarOutputStream.putNextEntry(entry);
     jarOutputStream.write(bytes, 0, bytes.length);
     jarOutputStream.closeEntry();
-  }
-
-  public static ClassPath getTestClasspath() {
-    return testClasspath;
-  }
-
-  private static ClassPath computeTestClasspath() {
-    ClassLoader testClassLoader = AgentTestRunner.class.getClassLoader();
-    if (!(testClassLoader instanceof URLClassLoader)) {
-      // java9's system loader does not extend URLClassLoader
-      // which breaks Guava ClassPath lookup
-      testClassLoader = buildJavaClassPathClassLoader();
-    }
-    try {
-      return ClassPath.from(testClassLoader);
-    } catch (final IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  /**
-   * Parse JVM classpath and return ClassLoader containing all classpath entries. Inspired by Guava.
-   */
-  @SuppressForbidden
-  private static ClassLoader buildJavaClassPathClassLoader() {
-    final ImmutableList.Builder<URL> urls = ImmutableList.builder();
-    for (final String entry : Splitter.on(PATH_SEPARATOR.value()).split(JAVA_CLASS_PATH.value())) {
-      try {
-        try {
-          urls.add(new File(entry).toURI().toURL());
-        } catch (final SecurityException e) { // File.toURI checks to see if the file is a directory
-          urls.add(new URL("file", null, new File(entry).getAbsolutePath()));
-        }
-      } catch (final MalformedURLException e) {
-        System.err.println(
-            String.format(
-                "Error injecting bootstrap jar: Malformed classpath entry: %s. %s", entry, e));
-      }
-    }
-    return new URLClassLoader(urls.build().toArray(new URL[0]), null);
   }
 
   // Moved this to a java class because groovy was adding a hard ref to classLoader

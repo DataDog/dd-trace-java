@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.java.lang.jdk15
 
 import com.github.javaparser.utils.StringEscapeUtils
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringJDK15Suite
@@ -10,7 +10,7 @@ import spock.lang.Requires
 @Requires({
   jvm.java15Compatible
 })
-class StringCallSiteTest extends AgentTestRunner {
+class StringCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

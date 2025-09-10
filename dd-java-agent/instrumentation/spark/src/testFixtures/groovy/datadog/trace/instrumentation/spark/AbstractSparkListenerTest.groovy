@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.spark
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.apache.spark.SparkConf
 import org.apache.spark.Success$
 import org.apache.spark.executor.TaskMetrics
@@ -28,7 +28,7 @@ import scala.collection.immutable.Seq
 
 import scala.collection.JavaConverters
 
-abstract class AbstractSparkListenerTest extends AgentTestRunner {
+abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
   protected abstract AbstractDatadogSparkListener getTestDatadogSparkListener()
   protected abstract AbstractDatadogSparkListener getTestDatadogSparkListener(SparkConf conf)

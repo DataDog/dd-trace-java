@@ -1,6 +1,6 @@
 package dd.trace.instrumentation.springwebflux.client
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -10,7 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.DummyRequest
 import org.springframework.http.server.ServletServerHttpRequest
 
-class HeadersAdviceForkedTest extends AgentTestRunner {
+class HeadersAdviceForkedTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

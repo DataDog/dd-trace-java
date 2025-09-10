@@ -1,6 +1,6 @@
 package core
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -14,7 +14,7 @@ import io.vertx.core.http.CaseInsensitiveHeaders
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 @CompileDynamic
-class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
+class CaseInsensitiveHeadersInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

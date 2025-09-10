@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
@@ -8,7 +8,7 @@ import okhttp3.Request
 import spark.Spark
 import spock.lang.Shared
 
-class SparkJavaBasedTest extends AgentTestRunner {
+class SparkJavaBasedTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {
