@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 
-import static org.junit.Assert.fail
+import static org.junit.jupiter.api.Assertions.fail
 
 class WebServiceProviderTest extends InstrumentationSpecification {
 
