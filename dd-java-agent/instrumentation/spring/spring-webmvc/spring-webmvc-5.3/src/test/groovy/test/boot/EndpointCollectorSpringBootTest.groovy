@@ -1,6 +1,6 @@
 package test.boot
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.EndpointCollector
@@ -20,7 +20,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLEC
 @SpringBootTest(classes = DiscoveryController)
 @EnableWebMvc
 @AutoConfigureMockMvc
-class EndpointCollectorSpringBootTest extends AgentTestRunner {
+class EndpointCollectorSpringBootTest extends InstrumentationSpecification {
 
   @Controller
   static class DiscoveryController {

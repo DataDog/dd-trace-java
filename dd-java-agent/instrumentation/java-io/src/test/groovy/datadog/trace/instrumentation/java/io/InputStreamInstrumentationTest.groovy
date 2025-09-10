@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestInputStreamSuite
 
-class InputStreamInstrumentationTest extends AgentTestRunner {
+class InputStreamInstrumentationTest extends InstrumentationSpecification {
 
 
   @Override

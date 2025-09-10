@@ -1,6 +1,6 @@
 package test.apms8174
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(classes = [TestController, TestConfig])
 @EnableWebMvc
 @AutoConfigureMockMvc
-class ServletPathRequestFilterTest extends AgentTestRunner {
+class ServletPathRequestFilterTest extends InstrumentationSpecification {
 
   static class TestConfig {
     @Bean

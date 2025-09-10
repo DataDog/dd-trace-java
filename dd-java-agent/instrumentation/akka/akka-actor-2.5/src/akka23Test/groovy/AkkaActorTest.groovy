@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
-class AkkaActorTest extends AgentTestRunner {
+class AkkaActorTest extends InstrumentationSpecification {
   @Shared
   def akkaTester = new AkkaActors()
 

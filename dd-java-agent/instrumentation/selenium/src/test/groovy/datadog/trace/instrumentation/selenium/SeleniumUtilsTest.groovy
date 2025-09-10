@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.selenium
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
-class SeleniumUtilsTest extends AgentTestRunner {
+class SeleniumUtilsTest extends InstrumentationSpecification {
 
   def "test IPv4 address detection: #host"() {
     expect:
