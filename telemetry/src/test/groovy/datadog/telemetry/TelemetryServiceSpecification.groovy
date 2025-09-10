@@ -304,61 +304,60 @@ class TelemetryServiceSpecification extends DDSpecification {
     false       | false     | 0
   }
 
-  // COMMENTED OUT BECAUSE FAILING
-  //  def 'split telemetry requests if the size above the limit'() {
-  //    setup:
-  //    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
-  //    TelemetryService telemetryService = new TelemetryService(testHttpClient, 5000, false)
-  //
-  //    when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
-  //    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-  //    telemetryService.sendTelemetryEvents()
-  //
-  //    then: 'get body size'
-  //    def bodySize = testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).bodySize()
-  //    bodySize > 0
-  //
-  //    when: 'sending first part of data'
-  //    telemetryService = new TelemetryService(testHttpClient, bodySize + 500, false)
-  //
-  //    telemetryService.addConfiguration(configuration)
-  //    telemetryService.addIntegration(integration)
-  //    telemetryService.addDependency(dependency)
-  //    telemetryService.addMetric(metric)
-  //    telemetryService.addDistributionSeries(distribution)
-  //    telemetryService.addLogMessage(logMessage)
-  //    telemetryService.addProductChange(productChange)
-  //    telemetryService.addEndpoint(endpoint)
-  //
-  //    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-  //    telemetryService.sendTelemetryEvents()
-  //
-  //    then: 'attempt with SUCCESS'
-  //    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-  //      .assertBatch(5)
-  //      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-  //      .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
-  //      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
-  //      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
-  //      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
-  //      // no more data fit this message is sent in the next message
-  //      .assertNoMoreMessages()
-  //
-  //    when: 'sending second part of data'
-  //    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-  //    !telemetryService.sendTelemetryEvents()
-  //
-  //    then:
-  //    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-  //      .assertBatch(5)
-  //      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-  //      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
-  //      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
-  //      .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
-  //      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
-  //      .assertNoMoreMessages()
-  //    testHttpClient.assertNoMoreRequests()
-  //  }
+  def 'split telemetry requests if the size above the limit'() {
+    setup:
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 5000, false)
+
+    when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'get body size'
+    def bodySize = testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).bodySize()
+    bodySize > 0
+
+    when: 'sending first part of data'
+    telemetryService = new TelemetryService(testHttpClient, bodySize + 510, false)
+
+    telemetryService.addConfiguration(configuration)
+    telemetryService.addIntegration(integration)
+    telemetryService.addDependency(dependency)
+    telemetryService.addMetric(metric)
+    telemetryService.addDistributionSeries(distribution)
+    telemetryService.addLogMessage(logMessage)
+    telemetryService.addProductChange(productChange)
+    telemetryService.addEndpoint(endpoint)
+
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendTelemetryEvents()
+
+    then: 'attempt with SUCCESS'
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(5)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
+      .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
+      .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED).hasPayload().dependencies([dependency])
+      .assertNextMessage(RequestType.GENERATE_METRICS).hasPayload().namespace("tracers").metrics([metric])
+      // no more data fit this message is sent in the next message
+      .assertNoMoreMessages()
+
+    when: 'sending second part of data'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    !telemetryService.sendTelemetryEvents()
+
+    then:
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(5)
+      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
+      .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
+      .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
+      .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
+      .assertNoMoreMessages()
+    testHttpClient.assertNoMoreRequests()
+  }
 
   def 'send all collected data with extended-heartbeat request every time'() {
     setup:
