@@ -154,11 +154,11 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+  // "stable" is calculated as the largest X found in JAVA_X_HOME
   if (testJvm == "stable") {
     def javaVersions = System.getenv()
       .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
       .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
-      .findAll { it != 25 }  // Exclude LTS JDK v25 (early access)
 
     if (javaVersions.isEmpty()) {
       throw new GradleException("No valid JAVA_X_HOME environment variables found.")
