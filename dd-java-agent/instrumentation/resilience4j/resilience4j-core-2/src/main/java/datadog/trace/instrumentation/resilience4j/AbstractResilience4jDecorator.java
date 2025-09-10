@@ -28,6 +28,7 @@ public abstract class AbstractResilience4jDecorator<T> extends BaseDecorator {
     super.afterStart(span);
     span.setSpanName(RESILIENCE4J);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
+    // TODO measured
     return span;
   }
 

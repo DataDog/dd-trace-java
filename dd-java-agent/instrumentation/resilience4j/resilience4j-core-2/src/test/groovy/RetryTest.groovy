@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
@@ -13,11 +14,69 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class RetryTest extends AgentTestRunner {
-
-  // TODO use Retry mocks to test more scenarios
   // TODO test all io.github.resilience4j.decorators.Decorators.of* decorators
   // TODO test throwing serviceCall
-  // TODO test stacked decorators
+
+  def "decorate span with retry"() {
+    def ms = Mock(Retry.Metrics)
+    def rc = Mock(RetryConfig)
+    def rt = Mock(Retry)
+    def cx = Mock(Retry.Context)
+    rt.getName() >> "rt1"
+    rt.getRetryConfig() >> rc
+    rt.getMetrics() >> ms
+    rt.context() >> cx
+    rc.getMaxAttempts() >> 23
+    rc.isFailAfterMaxAttempts() >> true
+    ms.getNumberOfFailedCallsWithoutRetryAttempt() >> 1
+    ms.getNumberOfFailedCallsWithRetryAttempt() >> 2
+    ms.getNumberOfSuccessfulCallsWithoutRetryAttempt() >> 3
+    ms.getNumberOfSuccessfulCallsWithRetryAttempt() >> 4
+
+    when:
+    Supplier<String> supplier = Decorators
+      .ofSupplier{serviceCall("foobar")}
+      .withRetry(rt)
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){supplier.get()} == "foobar"
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          errored false
+        }
+        span(1) {
+          operationName "resilience4j"
+          childOf(span(0))
+          errored false
+          tags {
+            "$Tags.COMPONENT" "resilience4j"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
+            "resilience4j.retry.name" "rt1"
+            "resilience4j.retry.max_attempts" 23
+            "resilience4j.retry.fail_after_max_attempts" true
+            "resilience4j.retry.metrics.failed_without_retry" 1
+            "resilience4j.retry.metrics.failed_with_retry" 2
+            "resilience4j.retry.metrics.success_without_retry" 3
+            "resilience4j.retry.metrics.success_with_retry" 4
+            defaultTags()
+          }
+        }
+
+        span(2) {
+          operationName "serviceCall"
+          childOf(span(1))
+          errored false
+        }
+      }
+    }
+  }
+
 
   def "decorateCheckedSupplier"() {
     when:

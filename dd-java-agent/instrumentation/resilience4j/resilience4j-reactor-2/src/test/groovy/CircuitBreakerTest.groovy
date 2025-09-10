@@ -128,18 +128,15 @@ class CircuitBreakerTest extends AgentTestRunner {
     ms.getNumberOfSlowSuccessfulCalls() >> 33
     ms.getNumberOfSuccessfulCalls() >> 50
 
-    ConnectableFlux<String> connection = Flux.just("foo", "bar")
+    Flux<String> flux = Flux.just("foo", "bar")
       .transformDeferred(CircuitBreakerOperator.of(cb))
       .publishOn(Schedulers.boundedElastic())
-      .publish()
 
     when:
-    connection.subscribe {
-      AgentTracer.startSpan("test", it).finish()
-    }
-
     runnableUnderTrace("parent", {
-      connection.connect()
+      flux.subscribe {
+        AgentTracer.startSpan("test", it).finish()
+      }
     })
 
     then:
