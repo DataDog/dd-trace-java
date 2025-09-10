@@ -65,16 +65,16 @@ apply from: "$rootDir/gradle/java.gradle"
 
 sourceSets {
   main_jetty904 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty904"
+    java.srcDirs "${projectDir}/src/main/java_jetty904"
   }
   main_jetty93 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty93"
+    java.srcDirs "${projectDir}/src/main/java_jetty93"
   }
   main_jetty9421 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty9421"
+    java.srcDirs "${projectDir}/src/main/java_jetty9421"
   }
   main_jetty10 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty10"
+    java.srcDirs "${projectDir}/src/main/java_jetty10"
   }
 }
 
@@ -85,21 +85,56 @@ jar {
   from sourceSets.main_jetty10.output
 }
 
-['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each { String sourceSet ->
-  tasks.named("compile${sourceSet.capitalize()}Java", JavaCompile) {
-    it.dependsOn tasks.named('compileJava')
-    // the instrumenters are in main, but helpers/advice in possibly other sourceSets
-    // The muzzle generator of references run as part of InstrumentJava needs access to
-    // these extra classes. The task dependencies for instrumentJava are added above
-    instrument.additionalClasspath.add(it.destinationDirectory)
+def mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME)
+def mainCompileOnlyConfiguration = mainSourceSet
+  .map {configurations.named(it.compileOnlyConfigurationName).get() }
+sourceSets.configureEach { sourceSet ->
+  if (sourceSet.name == SourceSet.MAIN_SOURCE_SET_NAME) {
+    return
   }
 
+  sourceSet.compileClasspath += mainSourceSet.get().output
+
+  def compileOnlyConfigurationName = sourceSet.compileOnlyConfigurationName
+  configurations.configureEach {
+    if (it.name == compileOnlyConfigurationName) {
+      logger.debug("Configuring $it.name to extend from main compileOnly")
+      it.extendsFrom(mainCompileOnlyConfiguration.get())
+    }
+  }
+
+//  def compileTask = sourceSet.getCompileTaskName("java")
+//  tasks.named(compileTask, JavaCompile) {
+//    it.dependsOn tasks.named('compileJava')
+//    // the instrumenters are in main, but helpers/advice in possibly other sourceSets
+//    // The muzzle generator of references run as part of InstrumentJava needs access to
+//    // these extra classes. The task dependencies for instrumentJava are added above
+//    instrument.additionalClasspath.add(it.destinationDirectory)
+//  }
+
   project.afterEvaluate {
-    tasks.named("forbiddenApis${sourceSet.capitalize()}") {
-      it.dependsOn("compile${sourceSet.capitalize()}Java")
+    tasks.named("forbiddenApis${sourceSet.name.capitalize()}") {
+      it.dependsOn("compile${sourceSet.name.capitalize()}Java")
     }
   }
 }
+
+//['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each { String sourceSet ->
+//  tasks.named("compile${sourceSet.capitalize()}Java", JavaCompile) {
+//    it.dependsOn tasks.named('compileJava')
+//    // the instrumenters are in main, but helpers/advice in possibly other sourceSets
+//    // The muzzle generator of references run as part of InstrumentJava needs access to
+//    // these extra classes. The task dependencies for instrumentJava are added above
+//    instrument.additionalClasspath.add(it.destinationDirectory)
+//  }
+//
+//  project.afterEvaluate {
+//    tasks.named("forbiddenApis${sourceSet.capitalize()}") {
+//      it.dependsOn("compile${sourceSet.capitalize()}Java")
+//    }
+//  }
+//}
+
 
 tasks.named('compileMain_jetty10Java').configure {
   setJavaVersion(it, 11)
@@ -131,23 +166,23 @@ dependencies {
   // intermediation of the InstrumentPlugin, creating a circular
   // dependency (the instrument plugin needs all the sourceSets
   // compiled to properly generate References)
-  main_jetty904CompileOnly files("$project.buildDir/classes/java/raw")
+//  main_jetty904CompileOnly files("$project.buildDir/classes/java/raw")
 
   main_jetty93CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
   main_jetty93CompileOnly project(':internal-api')
   main_jetty93CompileOnly project(':dd-java-agent:agent-tooling')
   main_jetty93CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_jetty93CompileOnly files("$project.buildDir/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
+//  main_jetty93CompileOnly files("$project.buildDir/classes/java/raw") {
+//    builtBy = ['compileJava']
+//  }
 
   main_jetty9421CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.21.v20190926'
   main_jetty9421CompileOnly project(':internal-api')
   main_jetty9421CompileOnly project(':dd-java-agent:agent-tooling')
   main_jetty9421CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_jetty9421CompileOnly files("$project.buildDir/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
+//  main_jetty9421CompileOnly files("$project.buildDir/classes/java/raw") {
+//    builtBy = ['compileJava']
+//  }
 
   main_jetty10CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
 
@@ -155,9 +190,9 @@ dependencies {
   main_jetty10CompileOnly project(':dd-java-agent:agent-tooling')
   main_jetty10CompileOnly project(':dd-java-agent:agent-bootstrap')
   main_jetty10Implementation project(':dd-java-agent:instrumentation:jetty-common')
-  main_jetty10CompileOnly files("$project.buildDir/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
+//  main_jetty10CompileOnly files("$project.buildDir/classes/java/raw") {
+//    builtBy = ['compileJava']
+//  }
 
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -213,6 +248,8 @@ dependencies {
   latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty-appsec-9.3')
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
 }
-configurations.getByName('latestDepForkedTestRuntimeClasspath').resolutionStrategy {
-  force libs.slf4j
+configurations.named('latestDepForkedTestRuntimeClasspath').configure {
+  it.resolutionStrategy {
+    force libs.slf4j
+  }
 }
