@@ -42,7 +42,7 @@
       "env" : "none",
       "error.message" : ${content_meta_error_message},
       "error.stack" : ${content_meta_error_stack},
-      "error.type" : "java.lang.AssertionError",
+      "error.type" : "org.opentest4j.AssertionFailedError",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},

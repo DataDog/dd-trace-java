@@ -535,10 +535,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
     for (MethodNode methodNode : classNode.methods) {
       List<ProbeDefinition> matchingDefs = new ArrayList<>();
       for (ProbeDefinition definition : definitions) {
-        if (definition.getWhere().isMethodMatching(methodNode, classFileLines)
-            && remainingDefinitions.contains(definition)) {
-          matchingDefs.add(definition);
-          remainingDefinitions.remove(definition);
+        Where.MethodMatching methodMatching =
+            definition.getWhere().isMethodMatching(methodNode, classFileLines);
+        if (remainingDefinitions.contains(definition)) {
+          if (methodMatching == Where.MethodMatching.MATCH) {
+            // method matches, add into collection of definitions to instrument
+            matchingDefs.add(definition);
+          }
+          if (methodMatching == Where.MethodMatching.MATCH
+              || methodMatching == Where.MethodMatching.SKIP)
+            // match or need to skip instrumentation (because bridge) remove from remaining
+            // definitions to avoid reporting error
+            remainingDefinitions.remove(definition);
         }
       }
       if (matchingDefs.isEmpty()) {
@@ -850,7 +858,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     List<MethodNode> result = new ArrayList<>();
     try {
       for (MethodNode methodNode : classNode.methods) {
-        if (where.isMethodMatching(methodNode, classFileLines)) {
+        if (where.isMethodMatching(methodNode, classFileLines) == Where.MethodMatching.MATCH) {
           result.add(methodNode);
         }
       }
