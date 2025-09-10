@@ -108,6 +108,8 @@ public class Tags {
   public static final String TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED =
       "test.test_management.attempt_to_fix_passed";
 
+  public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
+
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";
   public static final String CI_PIPELINE_NAME = "ci.pipeline.name";

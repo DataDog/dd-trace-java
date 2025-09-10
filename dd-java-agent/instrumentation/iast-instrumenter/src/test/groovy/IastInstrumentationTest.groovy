@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
 import net.bytebuddy.description.type.TypeDescription
 
-class IastInstrumentationTest extends AgentTestRunner {
+class IastInstrumentationTest extends InstrumentationSpecification {
 
   void 'test Iast Instrumentation type matching'() {
     given:

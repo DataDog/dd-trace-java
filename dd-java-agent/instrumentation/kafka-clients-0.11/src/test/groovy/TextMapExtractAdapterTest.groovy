@@ -1,5 +1,5 @@
 import com.google.common.io.BaseEncoding
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter
 import org.apache.kafka.common.header.Headers
@@ -8,7 +8,7 @@ import org.apache.kafka.common.header.internals.RecordHeaders
 
 import java.nio.charset.StandardCharsets
 
-class TextMapExtractAdapterTest extends AgentTestRunner {
+class TextMapExtractAdapterTest extends InstrumentationSpecification {
 
   def "check can decode base64 mangled headers"() {
     given:

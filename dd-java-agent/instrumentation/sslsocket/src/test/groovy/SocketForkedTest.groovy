@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class SocketForkedTest extends AgentTestRunner {
+class SocketForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

@@ -3,7 +3,6 @@ package datadog.smoketest
 import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.utils.ShellCommandExecutor
 import org.opentest4j.AssertionFailedError
-import spock.util.environment.Jvm
 
 /**
  * This test runs Gradle Launcher with the Java Tracer injected
@@ -13,7 +12,6 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
 
-  private static final String AGENT_JAR = System.getProperty("datadog.smoketest.agent.shadowJar.path")
   private static final String JAVA_HOME = buildJavaHome()
 
   def "test Gradle Launcher injects tracer into Gradle Daemon: v#gradleVersion, cmd line - #gradleDaemonCmdLineParams"() {
@@ -77,13 +75,5 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       }
     }
     return true
-  }
-
-  private static String buildJavaHome() {
-    if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
-    }
-
-    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
   }
 }

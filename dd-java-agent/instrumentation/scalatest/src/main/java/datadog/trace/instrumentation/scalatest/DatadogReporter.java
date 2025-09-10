@@ -169,7 +169,8 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        null);
+        null,
+        context.getExecutionHistory(testIdentifier));
   }
 
   private static void onTestSuccess(TestSucceeded event) {

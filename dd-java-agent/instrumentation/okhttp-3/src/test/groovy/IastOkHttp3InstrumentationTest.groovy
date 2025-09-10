@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -11,7 +11,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class IastOkHttp3InstrumentationTest extends AgentTestRunner {
+class IastOkHttp3InstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

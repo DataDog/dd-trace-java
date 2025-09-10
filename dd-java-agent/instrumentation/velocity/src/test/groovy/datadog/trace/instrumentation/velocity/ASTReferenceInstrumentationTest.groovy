@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.velocity
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
 import org.apache.velocity.Template
@@ -9,7 +9,7 @@ import org.apache.velocity.app.VelocityEngine
 import org.apache.velocity.runtime.RuntimeConstants
 import org.apache.velocity.tools.generic.EscapeTool
 
-class ASTReferenceInstrumentationTest extends AgentTestRunner {
+class ASTReferenceInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

@@ -1,10 +1,10 @@
 import annotatedsample.RxJava2TracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.CountDownLatch
 
-class RxJava2ResultExtensionTest extends AgentTestRunner {
+class RxJava2ResultExtensionTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

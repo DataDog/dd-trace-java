@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.lang.invoke
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringConcatFactorySuite
@@ -11,7 +11,7 @@ import static foo.bar.TestStringConcatFactorySuite.stringPlusWithPrimitive
 @Requires({
   jvm.java9Compatible
 })
-class StringConcatFactoryCallSiteTest extends AgentTestRunner {
+class StringConcatFactoryCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {
