@@ -168,6 +168,12 @@ public final class ConfigDefaults {
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED = true;
+
+  // HTTP Endpoint Tagging feature flags
+  static final boolean DEFAULT_RESOURCE_RENAMING_ENABLED =
+      false; // Default enablement of resource renaming
+  static final boolean DEFAULT_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT =
+      false; // Manual disablement of resource renaming
   static final long DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS = 30_000;
   static final long DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS = 30_000;
   static final long DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS = 60_000;

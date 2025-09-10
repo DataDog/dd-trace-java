@@ -3,6 +3,8 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -307,6 +309,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
     final CharSequence spanKind = span.getTag(SPAN_KIND, "");
+    final CharSequence httpMethod = span.getTag(HTTP_METHOD, "");
+    final CharSequence httpEndpoint = span.getTag(HTTP_ENDPOINT, "");
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -318,7 +322,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()));
+            getPeerTags(span, spanKind.toString()),
+            httpMethod,
+            httpEndpoint);
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {

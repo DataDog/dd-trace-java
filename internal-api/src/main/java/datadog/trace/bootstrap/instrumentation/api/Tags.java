@@ -19,6 +19,7 @@ public class Tags {
   public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
+  public static final String HTTP_ENDPOINT = "http.endpoint";
   public static final String HTTP_FORWARDED = "http.forwarded";
   public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";
   public static final String HTTP_FORWARDED_HOST = "http.forwarded.host";

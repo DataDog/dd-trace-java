@@ -149,6 +149,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       setLongRunningVersion(-this.longRunningVersion);
       this.metrics.onSpanFinished();
+
+      // Apply HTTP endpoint tagging for HTTP server spans before publishing
+      // This ensures endpoint tagging is applied when all tags are available
+      datadog.trace.common.metrics.HttpEndpointTagging.setEndpointTag(
+          context, datadog.trace.api.Config.get());
+
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {

@@ -18,6 +18,8 @@ public final class MetricKey {
   private final boolean isTraceRoot;
   private final UTF8BytesString spanKind;
   private final List<UTF8BytesString> peerTags;
+  private final UTF8BytesString httpMethod;
+  private final UTF8BytesString httpEndpoint;
 
   public MetricKey(
       CharSequence resource,
@@ -28,7 +30,9 @@ public final class MetricKey {
       boolean synthetics,
       boolean isTraceRoot,
       CharSequence spanKind,
-      List<UTF8BytesString> peerTags) {
+      List<UTF8BytesString> peerTags,
+      CharSequence httpMethod,
+      CharSequence httpEndpoint) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
@@ -38,6 +42,8 @@ public final class MetricKey {
     this.isTraceRoot = isTraceRoot;
     this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
+    this.httpMethod = null == httpMethod ? EMPTY : UTF8BytesString.create(httpMethod);
+    this.httpEndpoint = null == httpEndpoint ? EMPTY : UTF8BytesString.create(httpEndpoint);
 
     // Unrolled polynomial hashcode to avoid varargs allocation
     // and eliminate data dependency between iterations as in Arrays.hashCode.
@@ -55,6 +61,8 @@ public final class MetricKey {
             + 29791 * this.operationName.hashCode()
             + 961 * this.type.hashCode()
             + 31 * httpStatusCode
+            + 29 * this.httpMethod.hashCode()
+            + 27 * this.httpEndpoint.hashCode()
             + (this.synthetics ? 1 : 0);
   }
 
@@ -94,6 +102,14 @@ public final class MetricKey {
     return peerTags;
   }
 
+  public UTF8BytesString getHttpMethod() {
+    return httpMethod;
+  }
+
+  public UTF8BytesString getHttpEndpoint() {
+    return httpEndpoint;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -110,7 +126,9 @@ public final class MetricKey {
           && type.equals(metricKey.type)
           && isTraceRoot == metricKey.isTraceRoot
           && spanKind.equals(metricKey.spanKind)
-          && peerTags.equals(metricKey.peerTags);
+          && peerTags.equals(metricKey.peerTags)
+          && httpMethod.equals(metricKey.httpMethod)
+          && httpEndpoint.equals(metricKey.httpEndpoint);
     }
     return false;
   }
