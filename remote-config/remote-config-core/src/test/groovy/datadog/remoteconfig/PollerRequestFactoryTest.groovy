@@ -59,10 +59,7 @@ class PollerRequestFactoryTest extends DDSpecification {
 
   void 'remote config provides process tags when enabled  = #enabled'() {
     setup:
-    // to be changed when activated by default
-    if (enabled) {
-      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    } else if (JavaVirtualMachine.isJavaVersion(21)) {
+    if (!enabled) {
       injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     }
     ProcessTags.reset()

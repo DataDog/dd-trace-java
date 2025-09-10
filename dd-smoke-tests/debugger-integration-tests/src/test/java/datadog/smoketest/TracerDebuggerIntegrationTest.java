@@ -183,10 +183,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
     ProcessBuilder processBuilder = createProcessBuilder(logFilePath, "--server.port=" + httpPort);
-    if (enableProcessTags) {
-      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "true");
-    } else if (JavaVirtualMachine.isJavaVersion(21)) {
-      // disable explicitly since enable by default on 21
+    if (!enableProcessTags) {
       processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "false");
     }
     targetProcess = processBuilder.start();
