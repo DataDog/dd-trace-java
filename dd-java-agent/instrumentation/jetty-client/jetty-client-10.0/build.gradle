@@ -38,11 +38,12 @@ dependencies {
   }
   //because contains some instrumentation that still apply
   testImplementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-9.1'))
-  testImplementation(project(path:':dd-java-agent:testing', configuration:'shadow')) {
+  testImplementation(project(path:':dd-java-agent:testing', 'configuration': 'shadow')) {
     // explicitly declared below.
     exclude group: 'org.eclipse.jetty'
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty-util')
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'
   jetty10LatestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.+'
   jetty11TestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '11.0.0'

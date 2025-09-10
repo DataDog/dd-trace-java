@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.spark
 
 import datadog.environment.JavaVirtualMachine
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
@@ -24,7 +24,7 @@ import spock.lang.IgnoreIf
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
   JavaVirtualMachine.isJ9()
 })
-abstract class AbstractSparkTest extends AgentTestRunner {
+abstract class AbstractSparkTest extends InstrumentationSpecification {
   @Override
   protected boolean isDataJobsEnabled() {
     return true

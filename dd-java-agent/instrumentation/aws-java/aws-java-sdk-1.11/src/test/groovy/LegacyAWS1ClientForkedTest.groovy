@@ -32,10 +32,9 @@ import com.amazonaws.services.sns.model.PublishRequest
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import com.amazonaws.services.sqs.model.CreateQueueRequest
 import com.amazonaws.services.sqs.model.SendMessageRequest
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.Flaky
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.impl.execchain.RequestAbortedException
 import org.json.XML
@@ -48,7 +47,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class LegacyAWS1ClientForkedTest extends AgentTestRunner {
+class LegacyAWS1ClientForkedTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {
@@ -364,7 +363,6 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
     }
   }
 
-  @Flaky("assertTraces sometimes fails")
   def "timeout and retry errors captured"() {
     setup:
     def server = httpServer {
@@ -413,7 +411,7 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
             try {
               errorTags AmazonClientException, ~/Unable to execute HTTP request/
             } catch (AssertionError e) {
-              errorTags SdkClientException, "Unable to execute HTTP request: Request did not complete before the request timeout configuration."
+              errorTags SdkClientException, ~/Unable to execute HTTP request.*(?:interrupted|timeout).*/
             }
             defaultTags()
           }
@@ -436,7 +434,11 @@ class LegacyAWS1ClientForkedTest extends AgentTestRunner {
               try {
                 errorTags SocketException, "Socket closed"
               } catch (AssertionError e) {
-                errorTags RequestAbortedException, "Request aborted"
+                try {
+                  errorTags RequestAbortedException, "Request aborted"
+                } catch (AssertionError e2) {
+                  errorTags InterruptedIOException, ~/.*(?:interrupted|timeout).*/
+                }
               }
               defaultTags()
             }

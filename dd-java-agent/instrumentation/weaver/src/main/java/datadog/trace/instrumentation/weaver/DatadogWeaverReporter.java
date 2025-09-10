@@ -113,7 +113,8 @@ public class DatadogWeaverReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, testMethod, testMethodName),
-        startMicros);
+        startMicros,
+        executionHistory);
 
     if (testOutcome.result() instanceof Result.Ignored) {
       Result.Ignored result = (Result.Ignored) testOutcome.result();

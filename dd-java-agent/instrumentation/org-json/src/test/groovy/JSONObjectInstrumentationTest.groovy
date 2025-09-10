@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONObject
 import org.json.JSONTokener
 import spock.lang.Shared
 
-class JSONObjectInstrumentationTest extends AgentTestRunner {
+class JSONObjectInstrumentationTest extends InstrumentationSpecification {
 
   @Override void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")

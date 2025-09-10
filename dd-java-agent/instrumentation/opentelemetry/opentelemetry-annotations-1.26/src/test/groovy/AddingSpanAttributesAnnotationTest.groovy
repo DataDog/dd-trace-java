@@ -1,7 +1,7 @@
 import annotatedsample.AnnotatedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
-class AddingSpanAttributesAnnotationTest extends AgentTestRunner {
+class AddingSpanAttributesAnnotationTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

@@ -59,4 +59,9 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
     // the +1 is because this method is called _before_ subsequent execution is registered
     return executions + 1 < maxExecutions || suppressFailures;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return true;
+  }
 }

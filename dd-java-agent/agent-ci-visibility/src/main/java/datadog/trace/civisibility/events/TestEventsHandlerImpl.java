@@ -141,7 +141,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final @Nullable Long startTime) {
+      final @Nullable Long startTime,
+      final @Nullable TestExecutionHistory testExecutionHistory) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -177,6 +178,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     if (testModule.isAttemptToFix(thisTest)) {
       test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX, true);
+    }
+
+    if (testExecutionHistory != null) {
+      test.getContext().set(TestExecutionHistory.class, testExecutionHistory);
     }
 
     if (testFramework != null) {
@@ -294,7 +299,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         testParameters,
         categories,
         testSourceData,
-        null);
+        null,
+        testExecutionHistory);
     onTestSkip(testDescriptor, reason);
     onTestFinish(testDescriptor, null, testExecutionHistory);
   }

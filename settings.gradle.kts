@@ -112,11 +112,14 @@ include(
 
 include(
   ":dd-java-agent:appsec",
+  ":dd-java-agent:appsec:appsec-test-fixtures",
 )
 
 // ci-visibility
 include(
   ":dd-java-agent:agent-ci-visibility",
+  ":dd-java-agent:agent-ci-visibility:civisibility-test-fixtures",
+  ":dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures",
 )
 
 // llm-observability
@@ -127,6 +130,7 @@ include(
 // iast
 include(
   ":dd-java-agent:agent-iast",
+  ":dd-java-agent:agent-iast:iast-test-fixtures",
 )
 
 include(
@@ -163,6 +167,7 @@ include(
   ":dd-smoke-tests:jersey-2",
   ":dd-smoke-tests:jersey-3",
   ":dd-smoke-tests:jboss-modules",
+  ":dd-smoke-tests:junit-console",
   ":dd-smoke-tests:kafka-2",
   ":dd-smoke-tests:kafka-3",
   ":dd-smoke-tests:lib-injection",
@@ -240,6 +245,11 @@ include(
 // annotation processor for checking instrumentation advice
 include(
   ":dd-java-agent:instrumentation-annotation-processor",
+)
+
+// utilities and fixtures for instrumentation tests
+include(
+  ":dd-java-agent:instrumentation-testing",
 )
 
 // instrumentation:

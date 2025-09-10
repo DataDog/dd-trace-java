@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.springweb
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.jboss.resteasy.plugins.spring.SpringBeanProcessor
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.beans.factory.support.GenericBeanDefinition
 import test.boot.TestProvider
 
-class ResteasySpringBeanProcessorForkedTest extends AgentTestRunner {
+class ResteasySpringBeanProcessorForkedTest extends InstrumentationSpecification {
 
   interface TestBeanFactory extends ConfigurableListableBeanFactory, BeanDefinitionRegistry {}
 

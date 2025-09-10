@@ -62,7 +62,7 @@ dependencies {
   baseTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.12', version: '1.0.1'
 
   iastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.12', version: '2.1.0'
-  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
@@ -84,8 +84,28 @@ dependencies {
   latestDepIastTestImplementation group: 'org.apache.pekko', name: 'pekko-stream_2.13', version: '1.0.+'
   latestDepIastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.13', version: '2.+'
   latestDepIastTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.0.+'
-  latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  latestDepIastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.16')
+}
+
+iastTest {
+  filter {
+    // This class must be excluded from scanning because it references class from "org.apache.pekko.http" package.
+    // When JUnit 5 scans this class, it loads every other class that is present in its method signatures (arguments, return types, throws).
+    // As the result, some classes from the datadog.trace.instrumentation.pekkohttp.iast.MakeTaintableInstrumentation#knownMatchingTypes list are loaded.
+    // JUnit scanning (and class loading that it triggers) happens before instrumentations are applied.
+    // Later when MakeTaintableInstrumentation is applied (in InstrumentationSpecification#setupSpec),
+    // it fails to retransform the already-loaded org.apache.pekko.http classes,
+    // because it needs to change the set of implemented interfaces, which is not possible for already loaded classes.
+    excludeTestsMatching("*PekkoIastTestWebServer*")
+  }
+}
+
+latestDepIastTest {
+  filter {
+    // Exclude the same problematic class as for iastTest to avoid class loading issues.
+    excludeTestsMatching("*PekkoIastTestWebServer*")
+  }
 }
 
 tasks.named("test").configure {

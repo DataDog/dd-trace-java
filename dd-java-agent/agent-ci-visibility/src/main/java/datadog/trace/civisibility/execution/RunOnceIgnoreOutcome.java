@@ -26,4 +26,9 @@ public class RunOnceIgnoreOutcome implements TestExecutionPolicy {
   public boolean suppressFailures() {
     return true;
   }
+
+  @Override
+  public boolean failedTestReplayApplicable() {
+    return false;
+  }
 }

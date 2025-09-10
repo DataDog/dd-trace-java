@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-abstract class BaseIoCallSiteTest extends AgentTestRunner {
+abstract class BaseIoCallSiteTest extends InstrumentationSpecification {
 
   @Rule
   TemporaryFolder temporaryFolder = new TemporaryFolder(parentFolder())
