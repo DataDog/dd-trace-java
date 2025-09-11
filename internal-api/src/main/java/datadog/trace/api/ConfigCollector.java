@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.ConfigOrigin.DEFAULT;
+import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
 import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
 
 import java.util.Collections;
@@ -27,24 +28,16 @@ public class ConfigCollector {
   }
 
   public void put(String key, Object value, ConfigOrigin origin) {
-    ConfigSetting setting = ConfigSetting.of(key, value, origin);
-    Map<String, ConfigSetting> configMap =
-        collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    put(key, value, origin, ABSENT_SEQ_ID, null);
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
-    ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId);
-    Map<String, ConfigSetting> configMap =
-        collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    put(key, value, origin, seqId, null);
   }
 
+  // There are no usages of this function
   public void put(String key, Object value, ConfigOrigin origin, String configId) {
-    ConfigSetting setting = ConfigSetting.of(key, value, origin, configId);
-    Map<String, ConfigSetting> configMap =
-        collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    put(key, value, origin, ABSENT_SEQ_ID, configId);
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
