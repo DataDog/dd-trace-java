@@ -19,8 +19,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class CircuitBreakerTest extends AgentTestRunner {
 
-  // TODO test all io.github.resilience4j.decorators.Decorators.of* decorators
-
   def "decorate span with circuit-breaker"() {
     def ms = Mock(CircuitBreaker.Metrics)
 
@@ -93,19 +91,6 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  def "decorateRunnable"() {
-    when:
-    Runnable runnable = CircuitBreaker.decorateRunnable(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
-
-    then:
-    runUnderTrace("parent") {
-      runnable.run()
-      "a"
-    }
-    and:
-    assertExpectedTrace()
-  }
-
   def "decorateCompletionStage"() {
     setup:
     def executor = Executors.newSingleThreadExecutor()
@@ -164,26 +149,6 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  def "decorateFunction"() {
-    when:
-    Function<String, String> function = CircuitBreaker.decorateFunction(CircuitBreaker.ofDefaults("cb")) { v -> serviceCall("foobar-$v") }
-
-    then:
-    runUnderTrace("parent"){function.apply("test")} == "foobar-test"
-    and:
-    assertExpectedTrace()
-  }
-
-  def "decorateCheckedFunction"() {
-    when:
-    CheckedFunction<String, String> function = CircuitBreaker.decorateCheckedFunction(CircuitBreaker.ofDefaults("cb")) { v -> serviceCall("foobar-$v") }
-
-    then:
-    runUnderTrace("parent") { function.apply("test") } == "foobar-test"
-    and:
-    assertExpectedTrace()
-  }
-
   def "decorateConsumer"() {
 
     when:
@@ -211,6 +176,64 @@ class CircuitBreakerTest extends AgentTestRunner {
     and:
     assertExpectedTrace()
   }
+
+  def "decorateRunnable"() {
+    when:
+    Runnable runnable = CircuitBreaker.decorateRunnable(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
+
+    then:
+    runUnderTrace("parent") {
+      runnable.run()
+      "a"
+    }
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateFunction"() {
+    when:
+    Function<String, String> function = CircuitBreaker.decorateFunction(CircuitBreaker.ofDefaults("cb")) { v -> serviceCall("foobar-$v") }
+
+    then:
+    runUnderTrace("parent"){function.apply("test")} == "foobar-test"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedFunction"() {
+    when:
+    CheckedFunction<String, String> function = CircuitBreaker.decorateCheckedFunction(CircuitBreaker.ofDefaults("cb")) { v -> serviceCall("foobar-$v") }
+
+    then:
+    runUnderTrace("parent") { function.apply("test") } == "foobar-test"
+    and:
+    assertExpectedTrace()
+  }
+
+  //  def "decorateFuture"() {
+  //    setup:
+  //    def executor = Executors.newSingleThreadExecutor()
+  //    Thread testThread = Thread.currentThread()
+  //    when:
+  //    Supplier<Future<String>> supplier = CircuitBreaker.decorateFuture(CircuitBreaker.ofDefaults("cb"), {
+  //      CompletableFuture.supplyAsync({
+  //        // prevent completion on the same thread
+  //        Thread.sleep(100)
+  //        serviceCall("foobar")
+  //      }, executor).whenComplete { r, e ->
+  //        assert Thread.currentThread() != testThread,
+  //        "Make sure that the thread running whenComplete is different from the one running the test. " +
+  //        "This verifies that the scope we create does not cross the thread boundaries. " +
+  //        "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
+  //      }
+  //    })
+  //
+  //    then:
+  //    def future = runUnderTrace("parent"){supplier.get()}
+  //    future.get() == "foobar"
+  //    and:
+  //    assertExpectedTrace()
+  //  }
 
   private void assertExpectedTrace() {
     assertTraces(1) {
