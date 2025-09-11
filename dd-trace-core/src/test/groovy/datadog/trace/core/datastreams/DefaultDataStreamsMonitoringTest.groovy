@@ -3,7 +3,6 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
-import datadog.trace.api.WellKnownTags
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.experimental.DataStreamsContextCarrier
@@ -20,8 +19,6 @@ import static DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
-  def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
-
   static final DEFAULT_BUCKET_DURATION_NANOS = Config.get().getDataStreamsBucketDurationNanoseconds()
 
   def "No payloads written if data streams not supported or not enabled"() {
@@ -39,7 +36,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     dataStreams.add(new StatsPoint(DataStreamsTags.create("testType", null, "testTopic", "testGroup", null), 0, 0, 0, timeSource.currentTimeNanos, 0, 0, 0, null))
     dataStreams.report()
@@ -75,7 +72,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     then:
     // the first received schema is sampled, with a weight of one.
@@ -129,7 +126,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -178,7 +175,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, bucketDuration)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, bucketDuration)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -224,7 +221,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -273,7 +270,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     def tg2 = DataStreamsTags.create("testType", null, "testTopic2", "testGroup", null)
@@ -335,7 +332,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     dataStreams.trackBacklog(DataStreamsTags.createWithPartition("kafka_commit", "testTopic", "2", null, "testGroup"), 23)
     dataStreams.trackBacklog(DataStreamsTags.createWithPartition("kafka_commit", "testTopic", "2", null, "testGroup"), 24)
@@ -389,7 +386,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -453,7 +450,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     when:
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     dataStreams.add(new StatsPoint(tg, 1, 2, 1, timeSource.currentTimeNanos, 0, 0, 0, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
@@ -533,7 +530,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when: "reporting points when data streams is not supported"
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -610,7 +607,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when: "reporting points after a downgrade"
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     supportsDataStreaming = false
     dataStreams.onEvent(EventListener.EventType.DOWNGRADED, "")
@@ -678,7 +675,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     when: "reporting points when data streams is not enabled"
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
@@ -763,7 +760,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when: "reporting points when data streams is not supported"
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -842,7 +839,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     when: "reporting points when data streams is not supported"
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
     dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))

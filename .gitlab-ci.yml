@@ -30,7 +30,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|stable)$/
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/ # the latest "stable" version is LTS v25
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -61,7 +61,6 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "stable"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -69,6 +68,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
+      # - "stable"
     CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
@@ -580,7 +580,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.31.1
+    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.33.1
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -636,7 +636,7 @@ test_inst_latest:
     CACHE_TYPE: "latestDep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "stable"]
+      - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -688,7 +688,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|stable|semeru8)$/
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "stable" version is LTS v25
   parallel:
     matrix: *test_matrix
 

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
@@ -19,7 +19,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class TimeInQueueForkedTest extends AgentTestRunner {
+class TimeInQueueForkedTest extends InstrumentationSpecification {
 
   def setup() {
     System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key")

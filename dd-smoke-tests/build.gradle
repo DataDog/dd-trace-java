@@ -6,7 +6,6 @@ dependencies {
   api libs.bundles.spock
   api libs.okhttp
   api project(':dd-java-agent:testing')
-  api project(':utils:test-utils')
   api project(':utils:test-agent-utils:decoder')
 }
 

@@ -112,11 +112,14 @@ include(
 
 include(
   ":dd-java-agent:appsec",
+  ":dd-java-agent:appsec:appsec-test-fixtures",
 )
 
 // ci-visibility
 include(
   ":dd-java-agent:agent-ci-visibility",
+  ":dd-java-agent:agent-ci-visibility:civisibility-test-fixtures",
+  ":dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures",
 )
 
 // llm-observability
@@ -127,6 +130,7 @@ include(
 // iast
 include(
   ":dd-java-agent:agent-iast",
+  ":dd-java-agent:agent-iast:iast-test-fixtures",
 )
 
 include(
@@ -163,6 +167,7 @@ include(
   ":dd-smoke-tests:jersey-2",
   ":dd-smoke-tests:jersey-3",
   ":dd-smoke-tests:jboss-modules",
+  ":dd-smoke-tests:junit-console",
   ":dd-smoke-tests:kafka-2",
   ":dd-smoke-tests:kafka-3",
   ":dd-smoke-tests:lib-injection",
@@ -215,6 +220,7 @@ include(
   ":dd-smoke-tests:springboot-tomcat",
   ":dd-smoke-tests:springboot-tomcat-jsp",
   ":dd-smoke-tests:springboot-velocity",
+  ":dd-smoke-tests:tracer-flare",
   ":dd-smoke-tests:vertx-3.4",
   ":dd-smoke-tests:vertx-3.9",
   ":dd-smoke-tests:vertx-3.9-resteasy",
@@ -239,6 +245,11 @@ include(
 // annotation processor for checking instrumentation advice
 include(
   ":dd-java-agent:instrumentation-annotation-processor",
+)
+
+// utilities and fixtures for instrumentation tests
+include(
+  ":dd-java-agent:instrumentation-testing",
 )
 
 // instrumentation:
@@ -291,9 +302,9 @@ include(
   ":dd-java-agent:instrumentation:cucumber",
   ":dd-java-agent:instrumentation:cxf-2.1",
   ":dd-java-agent:instrumentation:datanucleus-4",
-  ":dd-java-agent:instrumentation:datastax-cassandra-3",
-  ":dd-java-agent:instrumentation:datastax-cassandra-3.8",
-  ":dd-java-agent:instrumentation:datastax-cassandra-4",
+  ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.0",
+  ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.8",
+  ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0",
   ":dd-java-agent:instrumentation:dropwizard",
   ":dd-java-agent:instrumentation:dropwizard:dropwizard-views",
   ":dd-java-agent:instrumentation:elasticsearch",
@@ -321,15 +332,15 @@ include(
   ":dd-java-agent:instrumentation:graphql-java:graphql-java-14.0",
   ":dd-java-agent:instrumentation:graphql-java:graphql-java-20.0",
   ":dd-java-agent:instrumentation:graphql-java:graphql-java-common",
-  ":dd-java-agent:instrumentation:grizzly-2",
-  ":dd-java-agent:instrumentation:grizzly-client-1.9",
-  ":dd-java-agent:instrumentation:grizzly-http-2.3.20",
+  ":dd-java-agent:instrumentation:grizzly:grizzly-2.0",
+  ":dd-java-agent:instrumentation:grizzly:grizzly-client-1.9",
+  ":dd-java-agent:instrumentation:grizzly:grizzly-http-2.3.20",
   ":dd-java-agent:instrumentation:grpc-1.5",
   ":dd-java-agent:instrumentation:gson-1.6",
   ":dd-java-agent:instrumentation:guava-10",
-  ":dd-java-agent:instrumentation:hazelcast-3.6",
-  ":dd-java-agent:instrumentation:hazelcast-3.9",
-  ":dd-java-agent:instrumentation:hazelcast-4.0",
+  ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6",
+  ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.9",
+  ":dd-java-agent:instrumentation:hazelcast:hazelcast-4.0",
   ":dd-java-agent:instrumentation:hibernate",
   ":dd-java-agent:instrumentation:hibernate:core-3.3",
   ":dd-java-agent:instrumentation:hibernate:core-4.0",
@@ -519,23 +530,23 @@ include(
   ":dd-java-agent:instrumentation:spark-executor",
   ":dd-java-agent:instrumentation:sparkjava-2.3",
   ":dd-java-agent:instrumentation:spray-1.3",
-  ":dd-java-agent:instrumentation:spring-beans",
-  ":dd-java-agent:instrumentation:spring-boot",
-  ":dd-java-agent:instrumentation:spring-cloud-zuul-2",
-  ":dd-java-agent:instrumentation:spring-core",
-  ":dd-java-agent:instrumentation:spring-data-1.8",
-  ":dd-java-agent:instrumentation:spring-jms-3.1",
-  ":dd-java-agent:instrumentation:spring-messaging-4",
-  ":dd-java-agent:instrumentation:spring-rabbit",
-  ":dd-java-agent:instrumentation:spring-scheduling-3.1",
-  ":dd-java-agent:instrumentation:spring-security-5",
-  ":dd-java-agent:instrumentation:spring-security-6",
-  ":dd-java-agent:instrumentation:spring-webflux-5",
-  ":dd-java-agent:instrumentation:spring-webflux-6",
-  ":dd-java-agent:instrumentation:spring-webmvc-3.1",
-  ":dd-java-agent:instrumentation:spring-webmvc-5.3",
-  ":dd-java-agent:instrumentation:spring-webmvc-6.0",
-  ":dd-java-agent:instrumentation:spring-ws-2",
+  ":dd-java-agent:instrumentation:spring:spring-beans-3.1",
+  ":dd-java-agent:instrumentation:spring:spring-boot-1.3",
+  ":dd-java-agent:instrumentation:spring:spring-cloud-zuul-2.0",
+  ":dd-java-agent:instrumentation:spring:spring-core-3.2.2",
+  ":dd-java-agent:instrumentation:spring:spring-data-1.8",
+  ":dd-java-agent:instrumentation:spring:spring-jms-3.1",
+  ":dd-java-agent:instrumentation:spring:spring-messaging-4.0",
+  ":dd-java-agent:instrumentation:spring:spring-rabbit-1.5",
+  ":dd-java-agent:instrumentation:spring:spring-scheduling-3.1",
+  ":dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0",
+  ":dd-java-agent:instrumentation:spring:spring-security:spring-security-6.0",
+  ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0",
+  ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-6.0",
+  ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1",
+  ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-5.3",
+  ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-6.0",
+  ":dd-java-agent:instrumentation:spring:spring-ws-2.0",
   ":dd-java-agent:instrumentation:spymemcached-2.10",
   ":dd-java-agent:instrumentation:sslsocket",
   ":dd-java-agent:instrumentation:synapse-3",

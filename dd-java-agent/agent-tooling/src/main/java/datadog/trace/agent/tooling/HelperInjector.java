@@ -158,7 +158,6 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
                 "Failed to inject helper classes - instrumentation.class="
                     + requestingName
                     + " instrumentation.target.classloader={} instrumentation.target.class={}",
-                requestingName,
                 classLoader,
                 typeDescription,
                 e);

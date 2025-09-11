@@ -11,6 +11,7 @@
       "impacted_tests_enabled": ${settings.impactedTestsDetectionEnabled?c},
       "known_tests_enabled": ${settings.knownTestsEnabled?c},
       "coverage_report_upload_enabled": ${settings.coverageReportUploadEnabled?c},
+      "di_enabled": ${settings.failedTestReplayEnabled?c},
       <#if settings.defaultBranch??>
         "default_branch": "${settings.defaultBranch}",
       </#if>

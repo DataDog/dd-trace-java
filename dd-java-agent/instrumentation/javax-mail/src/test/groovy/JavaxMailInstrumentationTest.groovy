@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.EmailInjectionModule
 
@@ -13,7 +13,7 @@ import javax.mail.Provider
 import javax.mail.internet.MimeMultipart
 
 
-class JavaxMailInstrumentationTest extends AgentTestRunner {
+class JavaxMailInstrumentationTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")

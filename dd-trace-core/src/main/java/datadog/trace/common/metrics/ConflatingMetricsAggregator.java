@@ -293,6 +293,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private boolean shouldComputeMetric(CoreSpan<?> span) {
     return (span.isMeasured() || span.isTopLevel() || spanKindEligible(span))
+        && span.getLongRunningVersion()
+            <= 0 // either not long-running or unpublished long-running span
         && span.getDurationNano() > 0;
   }
 
@@ -367,12 +369,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       return peerTags;
     } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
       // in this case only the base service should be aggregated if present
-      final String baseService = span.getTag(BASE_SERVICE);
+      final Object baseService = span.getTag(BASE_SERVICE);
       if (baseService != null) {
         final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
             cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
         return Collections.singletonList(
-            cacheAndCreator.getLeft().computeIfAbsent(baseService, cacheAndCreator.getRight()));
+            cacheAndCreator
+                .getLeft()
+                .computeIfAbsent(baseService.toString(), cacheAndCreator.getRight()));
       }
     }
     return Collections.emptyList();

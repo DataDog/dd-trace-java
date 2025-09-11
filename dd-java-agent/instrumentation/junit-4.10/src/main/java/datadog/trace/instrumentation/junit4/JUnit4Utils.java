@@ -65,6 +65,7 @@ public abstract class JUnit4Utils {
           LibraryCapability.ATR,
           LibraryCapability.EFD,
           LibraryCapability.IMPACTED,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX);

@@ -18,6 +18,7 @@ public class CiVisibilitySettings {
           false,
           false,
           false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
           TestManagementSettings.DEFAULT,
           null);
@@ -30,6 +31,7 @@ public class CiVisibilitySettings {
   private final boolean impactedTestsDetectionEnabled;
   private final boolean knownTestsEnabled;
   private final boolean coverageReportUploadEnabled;
+  private final boolean failedTestReplayEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
   @Nullable private final String defaultBranch;
@@ -43,6 +45,7 @@ public class CiVisibilitySettings {
       boolean impactedTestsDetectionEnabled,
       boolean knownTestsEnabled,
       boolean coverageReportUploadEnabled,
+      boolean failedTestReplayEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       TestManagementSettings testManagementSettings,
       @Nullable String defaultBranch) {
@@ -54,6 +57,7 @@ public class CiVisibilitySettings {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.knownTestsEnabled = knownTestsEnabled;
     this.coverageReportUploadEnabled = coverageReportUploadEnabled;
+    this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
     this.defaultBranch = defaultBranch;
@@ -91,6 +95,10 @@ public class CiVisibilitySettings {
     return coverageReportUploadEnabled;
   }
 
+  public boolean isFailedTestReplayEnabled() {
+    return failedTestReplayEnabled;
+  }
+
   public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
     return earlyFlakeDetectionSettings;
   }
@@ -121,6 +129,7 @@ public class CiVisibilitySettings {
         && impactedTestsDetectionEnabled == that.impactedTestsDetectionEnabled
         && knownTestsEnabled == that.knownTestsEnabled
         && coverageReportUploadEnabled == that.coverageReportUploadEnabled
+        && failedTestReplayEnabled == that.failedTestReplayEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(defaultBranch, that.defaultBranch);
@@ -137,6 +146,7 @@ public class CiVisibilitySettings {
         impactedTestsDetectionEnabled,
         knownTestsEnabled,
         coverageReportUploadEnabled,
+        failedTestReplayEnabled,
         earlyFlakeDetectionSettings,
         testManagementSettings,
         defaultBranch);
@@ -165,6 +175,7 @@ public class CiVisibilitySettings {
           getBoolean(json, "impacted_tests_enabled", false),
           getBoolean(json, "known_tests_enabled", false),
           getBoolean(json, "coverage_report_upload_enabled", false),
+          getBoolean(json, "di_enabled", false),
           EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("early_flake_detection")),
           TestManagementSettings.JsonAdapter.INSTANCE.fromJson(

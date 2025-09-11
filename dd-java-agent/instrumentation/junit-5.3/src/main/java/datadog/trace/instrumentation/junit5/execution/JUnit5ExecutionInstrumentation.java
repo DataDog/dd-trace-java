@@ -169,7 +169,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
         factory.setSuppressFailures(false); // restore default behavior
 
-        if (executionPolicy.wasLastExecution()) {
+        if (!executionPolicy.applicable()) {
           break;
         }
 

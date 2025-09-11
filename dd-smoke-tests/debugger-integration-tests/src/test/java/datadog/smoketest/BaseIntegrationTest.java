@@ -1,8 +1,8 @@
 package datadog.smoketest;
 
 import static datadog.smoketest.ProcessBuilderHelper.buildDirectory;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -533,7 +533,7 @@ public abstract class BaseIntegrationTest {
     assertEquals(typeName, capturedValue.getType());
     Object objValue = capturedValue.getValue();
     assertNotNull(
-        "objValue null for argName=" + name + " capturedValue=" + capturedValue, objValue);
+        objValue, "objValue null for argName=" + name + " capturedValue=" + capturedValue);
     if (objValue.getClass().isArray()) {
       assertEquals(value, Arrays.toString((Object[]) objValue));
     } else {

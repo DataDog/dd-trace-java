@@ -4,4 +4,7 @@ dependencies {
   testImplementation libs.bundles.spock
   testImplementation libs.groovy
   testImplementation libs.bundles.test.logging
+
+  // Required to update dependency lock files
+  testRuntimeOnly libs.bundles.junit.platform
 }

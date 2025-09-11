@@ -272,6 +272,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SAN
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
@@ -304,6 +305,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PR
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS;
@@ -493,6 +495,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.COUCHBASE_INTE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
@@ -644,6 +647,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
@@ -1033,6 +1037,7 @@ public class Config {
   private final String gitPullRequestBaseBranch;
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
+  private final boolean ciVisibilityFailedTestReplayEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1044,10 +1049,12 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final String DBMPropagationMode;
-  private final boolean DBMTracePreparedStatements;
+  private final boolean dbmInjectSqlBaseHash;
+  private final String dbmPropagationMode;
+  private final boolean dbmTracePreparedStatements;
 
   private final boolean dynamicInstrumentationEnabled;
+  private final String dynamicInstrumentationSnapshotUrl;
   private final int dynamicInstrumentationUploadTimeout;
   private final int dynamicInstrumentationUploadFlushInterval;
   private final boolean dynamicInstrumentationClassFileDumpEnabled;
@@ -1226,6 +1233,8 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean optimizedMapEnabled;
+  private final int tagNameUtf8CacheSize;
+  private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
 
   private final RumInjectorConfig rumInjectorConfig;
@@ -1508,7 +1517,8 @@ public class Config {
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
+        configProvider.getBoolean(
+            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, JavaVirtualMachine.isJavaVersion(21));
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1575,13 +1585,15 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
 
-    DBMPropagationMode =
+    dbmPropagationMode =
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
-    DBMTracePreparedStatements =
+    dbmTracePreparedStatements =
         configProvider.getBoolean(
             DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
+    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -2135,7 +2147,9 @@ public class Config {
 
     llmObsAgentlessEnabled =
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
-    llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
+    llmObsMlApp =
+        tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -2307,6 +2321,8 @@ public class Config {
     gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
     gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
+    ciVisibilityFailedTestReplayEnabled =
+        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2335,6 +2351,8 @@ public class Config {
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    dynamicInstrumentationSnapshotUrl =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL);
     distributedDebuggerEnabled =
         configProvider.getBoolean(
             DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
@@ -2642,13 +2660,6 @@ public class Config {
             TRACE_POST_PROCESSING_TIMEOUT, DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isLlmObsEnabled()) {
-      log.debug("Attempting to enable LLM Observability");
-      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
-        throw new IllegalArgumentException(
-            "Attempt to enable LLM Observability without ML app defined."
-                + "Please ensure that the name of the ML app is provided through properties or env variable");
-      }
-
       log.debug(
           "LLM Observability enabled for ML app {}, agentless mode {}",
           llmObsMlApp,
@@ -2733,6 +2744,10 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.tagNameUtf8CacheSize =
+        Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
+    this.tagValueUtf8CacheSize =
+        Math.max(configProvider.getInteger(GeneralConfig.TAG_VALUE_UTF8_CACHE_SIZE, 384), 0);
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
@@ -3957,6 +3972,10 @@ public class Config {
     return ciVisibilityTestManagementAttemptToFixRetries;
   }
 
+  public boolean isCiVisibilityFailedTestReplayEnabled() {
+    return ciVisibilityFailedTestReplayEnabled;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -4139,11 +4158,21 @@ public class Config {
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    if (Strings.isNotBlank(dynamicInstrumentationSnapshotUrl)) {
+      return dynamicInstrumentationSnapshotUrl;
+    } else if (isCiVisibilityAgentlessEnabled()) {
+      return Intake.LOGS.getAgentlessUrl(this) + "logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    }
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+    if (isCiVisibilityAgentlessEnabled()) {
+      return Intake.LOGS.getAgentlessUrl(this) + "logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+    }
   }
 
   public String getDynamicInstrumentationProbeFile() {
@@ -4438,6 +4467,14 @@ public class Config {
 
   public boolean isOptimizedMapEnabled() {
     return optimizedMapEnabled;
+  }
+
+  public int getTagNameUtf8CacheSize() {
+    return tagNameUtf8CacheSize;
+  }
+
+  public int getTagValueUtf8CacheSize() {
+    return tagValueUtf8CacheSize;
   }
 
   public int getStackTraceLengthLimit() {
@@ -4890,12 +4927,16 @@ public class Config {
     return dependecyResolutionPeriodMillis;
   }
 
-  public boolean isDBMTracePreparedStatements() {
-    return DBMTracePreparedStatements;
+  public boolean isDbmInjectSqlBaseHash() {
+    return dbmInjectSqlBaseHash;
   }
 
-  public String getDBMPropagationMode() {
-    return DBMPropagationMode;
+  public boolean isDbmTracePreparedStatements() {
+    return dbmTracePreparedStatements;
+  }
+
+  public String getDbmPropagationMode() {
+    return dbmPropagationMode;
   }
 
   private void logIgnoredSettingWarning(
@@ -5400,10 +5441,12 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
-        + ", DBMPropagationMode="
-        + DBMPropagationMode
-        + ", DBMTracePreparedStatements="
-        + DBMTracePreparedStatements
+        + ", dbmInjectSqlBaseHash="
+        + dbmInjectSqlBaseHash
+        + ", dbmPropagationMode="
+        + dbmPropagationMode
+        + ", dbmTracePreparedStatements="
+        + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="

@@ -21,6 +21,6 @@ dependencies {
   testImplementation group: 'io.spray', name: "spray-can_$scalaVersion", version: '1.3.3'
   testImplementation group: 'io.spray', name: "spray-routing_$scalaVersion", version: '1.3.1'
 
-  testImplementation project(':dd-java-agent:testing')
+  testImplementation project(':dd-java-agent:instrumentation-testing')
 }
 

@@ -1,7 +1,7 @@
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.TracerConfig
@@ -12,7 +12,7 @@ import org.apache.catalina.Context
 import org.apache.catalina.Wrapper
 import spock.lang.Shared
 
-class TomcatNoPropagationForkedTest extends AgentTestRunner {
+class TomcatNoPropagationForkedTest extends InstrumentationSpecification {
   @Shared
   TomcatServer server = new TomcatServer("/", false, { Context ctx ->
     Wrapper wrapper = ctx.createWrapper()

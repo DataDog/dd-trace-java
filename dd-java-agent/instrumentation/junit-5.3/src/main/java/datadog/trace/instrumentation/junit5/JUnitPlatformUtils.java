@@ -59,6 +59,7 @@ public abstract class JUnitPlatformUtils {
           LibraryCapability.ATR,
           LibraryCapability.EFD,
           LibraryCapability.IMPACTED,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX);
@@ -69,6 +70,7 @@ public abstract class JUnitPlatformUtils {
           LibraryCapability.ATR,
           LibraryCapability.EFD,
           LibraryCapability.IMPACTED,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX,
@@ -80,6 +82,7 @@ public abstract class JUnitPlatformUtils {
           LibraryCapability.ATR,
           LibraryCapability.EFD,
           LibraryCapability.IMPACTED,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX);
@@ -89,6 +92,7 @@ public abstract class JUnitPlatformUtils {
           LibraryCapability.TIA,
           LibraryCapability.ATR,
           LibraryCapability.EFD,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.DISABLED,
           LibraryCapability.ATTEMPT_TO_FIX);
