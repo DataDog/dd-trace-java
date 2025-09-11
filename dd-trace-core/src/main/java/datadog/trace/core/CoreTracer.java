@@ -1277,6 +1277,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     tracerFlarePoller.stop();
+    healthMetrics.close();
   }
 
   @Override
