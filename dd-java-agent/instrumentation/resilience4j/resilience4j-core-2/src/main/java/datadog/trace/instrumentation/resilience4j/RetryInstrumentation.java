@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public final class RetryInstrumentation extends AbstractResilience4jInstrumentation {
+public final class RetryInstrumentation extends Resilience4jInstrumentation {
 
   private static final String RETRY_FQCN = "io.github.resilience4j.retry.Retry";
 

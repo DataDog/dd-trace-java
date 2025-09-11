@@ -12,7 +12,11 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class FallbackCompletionStageInstrumentation extends FallbackAbstractInstrumentation {
+public class FallbackCompletionStageInstrumentation extends Resilience4jInstrumentation {
+  public FallbackCompletionStageInstrumentation() {
+    super("resilience4j-fallback");
+  }
+
   @Override
   public String instrumentedType() {
     return "io.github.resilience4j.core.CompletionStageUtils";
@@ -31,7 +35,7 @@ public class FallbackCompletionStageInstrumentation extends FallbackAbstractInst
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
       outbound =
           new ContextHolder.SupplierCompletionStageWithContext<>(
-              outbound, NoopDecorator.DECORATE, null);
+              outbound, FallbackDecorator.DECORATE, null);
     }
   }
 }

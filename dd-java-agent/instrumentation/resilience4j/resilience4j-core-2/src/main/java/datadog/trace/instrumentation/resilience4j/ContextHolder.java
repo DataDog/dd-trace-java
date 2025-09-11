@@ -14,7 +14,7 @@ public class ContextHolder<T> {
     private final CheckedSupplier<?> outbound;
 
     public CheckedSupplierWithContext(
-        CheckedSupplier<?> outbound, AbstractResilience4jDecorator<T> spanDecorator, T data) {
+        CheckedSupplier<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
@@ -34,7 +34,7 @@ public class ContextHolder<T> {
     private final Supplier<?> outbound;
 
     public SupplierWithContext(
-        Supplier<?> outbound, AbstractResilience4jDecorator<T> spanDecorator, T data) {
+        Supplier<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
@@ -54,9 +54,7 @@ public class ContextHolder<T> {
     private final Supplier<CompletionStage<?>> outbound;
 
     public SupplierCompletionStageWithContext(
-        Supplier<CompletionStage<?>> outbound,
-        AbstractResilience4jDecorator<T> spanDecorator,
-        T data) {
+        Supplier<CompletionStage<?>> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
@@ -75,18 +73,18 @@ public class ContextHolder<T> {
     }
   }
 
-  private final AbstractResilience4jDecorator<T> spanDecorator;
+  private final Resilience4jSpanDecorator<T> spanDecorator;
   private final T data;
   private AgentSpan span;
 
-  public ContextHolder(AbstractResilience4jDecorator<T> spanDecorator, T data) {
+  public ContextHolder(Resilience4jSpanDecorator<T> spanDecorator, T data) {
     this.spanDecorator = spanDecorator;
     this.data = data;
   }
 
   public AgentScope activateScope() {
-    AgentSpan current = ActiveResilience4jSpan.current();
-    AgentSpan owned = current == null ? ActiveResilience4jSpan.start() : null;
+    AgentSpan current = Resilience4jSpan.current();
+    AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
     if (owned != null) {
       current = owned;
       spanDecorator.afterStart(owned);
@@ -99,7 +97,7 @@ public class ContextHolder<T> {
   public void finishSpanIfNeeded() {
     if (span != null) {
       spanDecorator.beforeFinish(span);
-      ActiveResilience4jSpan.finish(span); // TODO
+      Resilience4jSpan.finish(span); // TODO
       span = null;
     }
   }

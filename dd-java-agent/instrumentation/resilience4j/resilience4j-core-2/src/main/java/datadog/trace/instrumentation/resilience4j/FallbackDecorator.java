@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.resilience4j;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public final class NoopDecorator extends AbstractResilience4jDecorator<Void> {
-  public static final NoopDecorator DECORATE = new NoopDecorator();
+public final class FallbackDecorator extends Resilience4jSpanDecorator<Void> {
+  public static final FallbackDecorator DECORATE = new FallbackDecorator();
 
-  private NoopDecorator() {
+  private FallbackDecorator() {
     super();
   }
 

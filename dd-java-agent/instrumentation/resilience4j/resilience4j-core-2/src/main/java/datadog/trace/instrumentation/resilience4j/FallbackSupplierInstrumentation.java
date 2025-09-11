@@ -11,7 +11,10 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumentation {
+public class FallbackSupplierInstrumentation extends Resilience4jInstrumentation {
+  public FallbackSupplierInstrumentation() {
+    super("resilience4j-fallback");
+  }
 
   @Override
   public String instrumentedType() {
@@ -28,7 +31,8 @@ public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumenta
   public static class SupplierAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(@Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext<>(outbound, NoopDecorator.DECORATE, null);
+      outbound =
+          new ContextHolder.SupplierWithContext<>(outbound, FallbackDecorator.DECORATE, null);
     }
   }
 }

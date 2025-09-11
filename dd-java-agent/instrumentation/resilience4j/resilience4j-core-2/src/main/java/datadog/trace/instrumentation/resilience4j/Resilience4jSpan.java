@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
-public class ActiveResilience4jSpan {
+public class Resilience4jSpan {
   public static final CharSequence SPAN_NAME = UTF8BytesString.create("resilience4j");
   public static final String INSTRUMENTATION_NAME = "resilience4j";
 

@@ -19,13 +19,13 @@ public class ReactorHelper {
       Function<Publisher<?>, Publisher<?>> operator,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
     return (value) -> {
-      AgentSpan current = ActiveResilience4jSpan.current();
-      AgentSpan owned = current == null ? ActiveResilience4jSpan.start() : null;
+      AgentSpan current = Resilience4jSpan.current();
+      AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
       if (owned != null) {
         current = owned;
-        NoopDecorator.DECORATE.afterStart(current);
+        FallbackDecorator.DECORATE.afterStart(current);
       }
-      NoopDecorator.DECORATE.decorate(current, null);
+      FallbackDecorator.DECORATE.decorate(current, null);
       // TODO explain why we need an active scope
       try (AgentScope scope = activateSpan(current)) {
         Publisher<?> ret = operator.apply(value);
@@ -40,13 +40,13 @@ public class ReactorHelper {
 
   public static <T> Publisher<?> wrapPublisher(
       Publisher<?> publisher,
-      AbstractResilience4jDecorator<T> spanDecorator,
+      Resilience4jSpanDecorator<T> spanDecorator,
       T data,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
     // Create span at construction (needs transformDeferred which is the case for Spring
     // annotations)
-    AgentSpan current = ActiveResilience4jSpan.current();
-    AgentSpan owned = current == null ? ActiveResilience4jSpan.start() : null;
+    AgentSpan current = Resilience4jSpan.current();
+    AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
     if (owned != null) {
       current = owned;
       spanDecorator.afterStart(current);
@@ -86,7 +86,7 @@ public class ReactorHelper {
 
   private static Consumer<SignalType> beforeFinish(AgentSpan span) {
     return signalType -> {
-      ActiveResilience4jSpan.finish(span);
+      Resilience4jSpan.finish(span);
     };
   }
 }

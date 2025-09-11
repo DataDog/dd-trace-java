@@ -9,34 +9,21 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.retry.Retry;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
 @AutoService(InstrumenterModule.class)
-public class RetryOperatorInstrumentation extends AbstractResilience4jInstrumentation {
+public class RetryOperatorInstrumentation extends Resilience4jReactorInstrumentation {
 
   public RetryOperatorInstrumentation() {
-    super("resilience4j-retry", "resilience4j-reactor");
+    super("resilience4j-retry");
   }
 
   @Override
   public String instrumentedType() {
     return "io.github.resilience4j.reactor.retry.RetryOperator";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    ArrayList<String> ret = new ArrayList<>();
-
-    ret.add(packageName + ".ReactorHelper");
-
-    ret.addAll(Arrays.asList(super.helperClassNames()));
-
-    return ret.toArray(new String[0]);
   }
 
   @Override

@@ -9,8 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -18,26 +16,15 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
 @AutoService(InstrumenterModule.class)
-public class FallbackOperatorInstrumentation extends AbstractResilience4jInstrumentation {
+public class FallbackOperatorInstrumentation extends Resilience4jReactorInstrumentation {
 
   public FallbackOperatorInstrumentation() {
-    super("resilience4j-fallback", "resilience4j-reactor");
+    super("resilience4j-fallback");
   }
 
   @Override
   public String instrumentedType() {
     return "io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    ArrayList<String> ret = new ArrayList<>();
-
-    ret.add(packageName + ".ReactorHelper");
-
-    ret.addAll(Arrays.asList(super.helperClassNames()));
-
-    return ret.toArray(new String[0]);
   }
 
   @Override
@@ -62,8 +49,6 @@ public class FallbackOperatorInstrumentation extends AbstractResilience4jInstrum
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
-        //        @Advice.Argument(value = 0, readOnly = false) UnaryOperator<Publisher<?>>
-        // operator,
         @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
 
       result =
