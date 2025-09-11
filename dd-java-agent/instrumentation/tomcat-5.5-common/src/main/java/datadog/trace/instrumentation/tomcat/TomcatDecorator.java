@@ -94,7 +94,7 @@ public class TomcatDecorator
       final AgentSpan span,
       final Request connection,
       final Request request,
-      final Context context) {
+      final Context parentContext) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -112,7 +112,7 @@ public class TomcatDecorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request, context);
+    return super.onRequest(span, connection, request, parentContext);
   }
 
   @Override
