@@ -62,13 +62,13 @@ class CircuitBreakerTest extends AgentTestRunner {
             "resilience4j.circuit_breaker.state" "CLOSED"
             "resilience4j.circuit-breaker.metrics.failure_rate" 0.1f
             "resilience4j.circuit-breaker.metrics.slow_call_rate" 0.2f
-            "resilience4j.circuit-breaker.metrics.number_of_buffered_calls" 12
-            "resilience4j.circuit-breaker.metrics.number_of_failed_calls" 13
-            "resilience4j.circuit-breaker.metrics.number_of_not_permitted_calls" 2
-            "resilience4j.circuit-breaker.metrics.number_of_slow_calls" 23
-            "resilience4j.circuit-breaker.metrics.number_of_slow_failed_calls" 3
-            "resilience4j.circuit-breaker.metrics.number_of_slow_successful_calls" 33
-            "resilience4j.circuit-breaker.metrics.number_of_successful_calls" 50
+            "resilience4j.circuit-breaker.metrics.buffered_calls" 12
+            "resilience4j.circuit-breaker.metrics.failed_calls" 13
+            "resilience4j.circuit-breaker.metrics.not_permitted_calls" 2
+            "resilience4j.circuit-breaker.metrics.slow_calls" 23
+            "resilience4j.circuit-breaker.metrics.slow_failed_calls" 3
+            "resilience4j.circuit-breaker.metrics.slow_successful_calls" 33
+            "resilience4j.circuit-breaker.metrics.successful_calls" 50
             defaultTags()
           }
         }

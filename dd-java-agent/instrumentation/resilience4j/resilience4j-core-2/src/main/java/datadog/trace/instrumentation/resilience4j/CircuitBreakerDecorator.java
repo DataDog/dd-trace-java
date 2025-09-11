@@ -21,24 +21,19 @@ public final class CircuitBreakerDecorator extends Resilience4jSpanDecorator<Cir
     CircuitBreaker.Metrics ms = data.getMetrics();
     span.setTag("resilience4j.circuit-breaker.metrics.failure_rate", ms.getFailureRate());
     span.setTag("resilience4j.circuit-breaker.metrics.slow_call_rate", ms.getSlowCallRate());
+    span.setTag("resilience4j.circuit-breaker.metrics.slow_calls", ms.getNumberOfSlowCalls());
     span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_slow_calls", ms.getNumberOfSlowCalls());
-    span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_slow_successful_calls",
+        "resilience4j.circuit-breaker.metrics.slow_successful_calls",
         ms.getNumberOfSlowSuccessfulCalls());
     span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_slow_failed_calls",
-        ms.getNumberOfSlowFailedCalls());
+        "resilience4j.circuit-breaker.metrics.slow_failed_calls", ms.getNumberOfSlowFailedCalls());
     span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_buffered_calls",
-        ms.getNumberOfBufferedCalls());
+        "resilience4j.circuit-breaker.metrics.buffered_calls", ms.getNumberOfBufferedCalls());
+    span.setTag("resilience4j.circuit-breaker.metrics.failed_calls", ms.getNumberOfFailedCalls());
     span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_failed_calls", ms.getNumberOfFailedCalls());
-    span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_not_permitted_calls",
+        "resilience4j.circuit-breaker.metrics.not_permitted_calls",
         ms.getNumberOfNotPermittedCalls());
     span.setTag(
-        "resilience4j.circuit-breaker.metrics.number_of_successful_calls",
-        ms.getNumberOfSuccessfulCalls());
+        "resilience4j.circuit-breaker.metrics.successful_calls", ms.getNumberOfSuccessfulCalls());
   }
 }
