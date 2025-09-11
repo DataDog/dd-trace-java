@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
@@ -141,6 +142,22 @@ class RetryTest extends AgentTestRunner {
     then:
     def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
     future.get() == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedRunnable"() {
+    when:
+    CheckedRunnable runnable = Decorators
+      .ofCheckedRunnable { serviceCall("foobar") }
+      .withRetry(Retry.ofDefaults("rt"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent") {
+      runnable.run()
+      "a"
+    }
     and:
     assertExpectedTrace()
   }

@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import java.util.concurrent.CompletableFuture
@@ -81,32 +82,6 @@ class CircuitBreakerTest extends AgentTestRunner {
     }
   }
 
-  def "decorateSupplier"() {
-    when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
-
-    then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
-    and:
-    assertExpectedTrace()
-  }
-
-  def "decorateFunction"() {
-    when:
-    Function<String, String> function = Decorators
-      .ofFunction{v -> serviceCall("foobar-$v")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
-
-    then:
-    runUnderTrace("parent"){function.apply("test")} == "foobar-test"
-    and:
-    assertExpectedTrace()
-  }
-
   def "decorateCheckedSupplier"() {
     when:
     CheckedSupplier<String> supplier = Decorators
@@ -144,6 +119,48 @@ class CircuitBreakerTest extends AgentTestRunner {
     then:
     def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
     future.get() == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedRunnable"() {
+    when:
+    CheckedRunnable runnable = Decorators
+      .ofCheckedRunnable { serviceCall("foobar") }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent") {
+      runnable.run()
+      "a"
+    }
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateSupplier"() {
+    when:
+    Supplier<String> supplier = Decorators
+      .ofSupplier{serviceCall("foobar")}
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){supplier.get()} == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateFunction"() {
+    when:
+    Function<String, String> function = Decorators
+      .ofFunction{v -> serviceCall("foobar-$v")}
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){function.apply("test")} == "foobar-test"
     and:
     assertExpectedTrace()
   }

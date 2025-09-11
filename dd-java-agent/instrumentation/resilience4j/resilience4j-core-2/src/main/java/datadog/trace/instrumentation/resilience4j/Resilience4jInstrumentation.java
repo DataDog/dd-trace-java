@@ -10,6 +10,8 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
 
   public static final String CHECKED_SUPPLIER_FQCN =
       "io.github.resilience4j.core.functions.CheckedSupplier";
+  public static final String CHECKED_RUNNABLE_FQCN =
+      "io.github.resilience4j.core.functions.CheckedRunnable";
   public static final String SUPPLIER_FQCN = Supplier.class.getName();
   public static final String FUNCTION_FQCN = Function.class.getName();
 

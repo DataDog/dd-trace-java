@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -35,20 +36,6 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
-            .and(named("decorateSupplier"))
-            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(SUPPLIER_FQCN))),
-        CircuitBreakerInstrumentation.class.getName() + "$SupplierAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
-            .and(named("decorateFunction"))
-            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(FUNCTION_FQCN))),
-        CircuitBreakerInstrumentation.class.getName() + "$FunctionAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
             .and(returns(named(CHECKED_SUPPLIER_FQCN))),
@@ -60,6 +47,27 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
         CircuitBreakerInstrumentation.class.getName() + "$CompletionStageAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateCheckedRunnable"))
+            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(returns(named(CHECKED_RUNNABLE_FQCN))),
+        CircuitBreakerInstrumentation.class.getName() + "$CheckedRunnableAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateSupplier"))
+            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(returns(named(SUPPLIER_FQCN))),
+        CircuitBreakerInstrumentation.class.getName() + "$SupplierAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateFunction"))
+            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(returns(named(FUNCTION_FQCN))),
+        CircuitBreakerInstrumentation.class.getName() + "$FunctionAdvice");
   }
 
   public static class SupplierAdvice {
@@ -91,6 +99,17 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
       outbound =
           new ContextHolder.CheckedSupplierWithContext<>(
+              outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+    }
+  }
+
+  public static class CheckedRunnableAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
+        @Advice.Return(readOnly = false) CheckedRunnable outbound) {
+      outbound =
+          new ContextHolder.CheckedRunnableWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
