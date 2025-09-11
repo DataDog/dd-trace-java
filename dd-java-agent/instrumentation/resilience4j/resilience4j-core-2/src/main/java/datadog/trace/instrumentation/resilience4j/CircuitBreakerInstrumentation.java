@@ -91,6 +91,13 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
+            .and(named("decorateRunnable"))
+            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(returns(named(RUNNABLE_FQCN))),
+        THIS_CLASS + "$RunnableAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
@@ -122,6 +129,17 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Return(readOnly = false) Callable<?> outbound) {
       outbound =
           new ContextHolder.CallableWithContext<>(
+              outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+    }
+  }
+
+  public static class RunnableAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
+        @Advice.Return(readOnly = false) Runnable outbound) {
+      outbound =
+          new ContextHolder.RunnableWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }

@@ -22,6 +22,7 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
   public static final String FUNCTION_FQCN = Function.class.getName();
   public static final String CONSUMER_FQCN = Consumer.class.getName();
   public static final String CALLABLE_FQCN = Callable.class.getName();
+  public static final String RUNNABLE_FQCN = Runnable.class.getName();
 
   public Resilience4jInstrumentation(String... additionalNames) {
     super("resilience4j-core", additionalNames);
@@ -33,6 +34,7 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
       packageName + ".ContextHolder",
       packageName + ".ContextHolder$CallableWithContext",
       packageName + ".ContextHolder$CheckedRunnableWithContext",
+      packageName + ".ContextHolder$RunnableWithContext",
       packageName + ".ContextHolder$CheckedFunctionWithContext",
       packageName + ".ContextHolder$ConsumerWithContext",
       packageName + ".ContextHolder$CheckedSupplierWithContext",

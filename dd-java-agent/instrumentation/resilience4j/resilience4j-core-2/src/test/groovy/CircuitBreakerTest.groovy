@@ -100,6 +100,20 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
+  def "decorateRunnable"() {
+    when:
+    Runnable runnable = CircuitBreaker.ofDefaults("cb")
+      .decorateRunnable { serviceCall("foobar") }
+
+    then:
+    runUnderTrace("parent") {
+      runnable.run()
+      "a"
+    }
+    and:
+    assertExpectedTrace()
+  }
+
   def "decorateCompletionStage"() {
     setup:
     def executor = Executors.newSingleThreadExecutor()

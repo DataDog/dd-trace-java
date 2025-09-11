@@ -175,6 +175,25 @@ public class ContextHolder<T> {
     }
   }
 
+  public static final class RunnableWithContext<T> extends ContextHolder<T> implements Runnable {
+    private final Runnable outbound;
+
+    public RunnableWithContext(
+        Runnable outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public void run() {
+      try (AgentScope scope = activateScope()) {
+        outbound.run();
+      } finally {
+        finishSpanIfNeeded();
+      }
+    }
+  }
+
   public static final class SupplierCompletionStageWithContext<T> extends ContextHolder<T>
       implements Supplier<CompletionStage<?>> {
     private final Supplier<CompletionStage<?>> outbound;
