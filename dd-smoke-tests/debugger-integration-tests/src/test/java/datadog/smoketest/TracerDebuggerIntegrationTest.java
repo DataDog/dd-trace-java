@@ -11,7 +11,6 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
