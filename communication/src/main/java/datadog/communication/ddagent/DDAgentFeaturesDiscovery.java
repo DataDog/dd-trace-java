@@ -89,7 +89,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     boolean supportsDropping;
     String state;
     String configEndpoint;
-    String debuggerEndpoint;
+    String debuggerLogEndpoint;
+    String debuggerSnapshotEndpoint;
     String debuggerDiagnosticsEndpoint;
     String evpProxyEndpoint;
     String version;
@@ -266,15 +267,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      // both debugger endpoint v2 and diagnostics endpoint are forwarding events to the DEBUGGER
-      // intake
-      // because older agents support diagnostics, we fallback to it before falling back to v1
+      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
+        newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
+      }
+      // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
+      // because older agents support diagnostics, we fall back to it before falling back to v1
       if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
-        newState.debuggerEndpoint = DEBUGGER_ENDPOINT_V2;
+        newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
       } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+        newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
       } else if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
-        newState.debuggerEndpoint = DEBUGGER_ENDPOINT_V1;
+        newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V1;
       }
       if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
         newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
@@ -359,11 +362,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public boolean supportsDebugger() {
-    return discoveryState.debuggerEndpoint != null;
+    return discoveryState.debuggerLogEndpoint != null;
   }
 
-  public String getDebuggerEndpoint() {
-    return discoveryState.debuggerEndpoint;
+  public String getDebuggerSnapshotEndpoint() {
+    return discoveryState.debuggerSnapshotEndpoint;
+  }
+
+  public String getDebuggerLogEndpoint() {
+    return discoveryState.debuggerLogEndpoint;
   }
 
   public boolean supportsDebuggerDiagnostics() {

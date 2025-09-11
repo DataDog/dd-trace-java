@@ -22,6 +22,11 @@ muzzle {
   }
 }
 
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+addTestSuiteForDir('latest5Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -36,6 +41,10 @@ dependencies {
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: libs.versions.junit5.get()
 
+  latest5TestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.+'
+  latest5TestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.+'
+  latest5TestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.+'
+
   latestDepTestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '+'
   latestDepTestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '+'
   latestDepTestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '+'
@@ -48,3 +57,9 @@ configurations.matching({ it.name.startsWith('test') }).each({
     force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: libs.versions.junit5.get()
   }
 })
+
+tasks.named("compileLatestDepTestJava").configure {
+  setJavaVersion(it, 17)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}

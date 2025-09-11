@@ -96,6 +96,7 @@ public class ProfilingAgent {
       // Register the profiler flare before we start the profiling system, but early during the
       // profiler lifecycle
       ProfilerFlareReporter.register();
+      ProcessContext.register(configProvider);
 
       boolean startForceFirst =
           Platform.isNativeImage()

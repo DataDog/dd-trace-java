@@ -49,6 +49,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
+      packageName + ".ExecutionRequestFactory",
       packageName + ".TestDataFactory",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
@@ -118,7 +119,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
       executionRequest =
-          JUnitPlatformUtils.createExecutionRequest(executionRequest, compositeListener);
+          ExecutionRequestFactory.createExecutionRequest(executionRequest, compositeListener);
     }
 
     // JUnit 5.3.0 and above
