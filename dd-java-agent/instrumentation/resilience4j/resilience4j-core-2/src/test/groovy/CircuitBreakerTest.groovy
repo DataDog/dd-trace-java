@@ -6,7 +6,6 @@ import io.github.resilience4j.core.functions.CheckedConsumer
 import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.core.functions.CheckedFunction
-import io.github.resilience4j.decorators.Decorators
 
 import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
@@ -41,10 +40,7 @@ class CircuitBreakerTest extends AgentTestRunner {
     ms.getNumberOfSuccessfulCalls() >> 50
 
     when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(cb)
-      .decorate()
+    Supplier<String> supplier = CircuitBreaker.decorateSupplier(cb) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){supplier.get()} == "foobar"
@@ -89,10 +85,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateCheckedSupplier"() {
     when:
-    CheckedSupplier<String> supplier = Decorators
-      .ofCheckedSupplier { serviceCall("foobar") }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    CheckedSupplier<String> supplier = CircuitBreaker.decorateCheckedSupplier(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){supplier.get()} == "foobar"
@@ -102,8 +95,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateRunnable"() {
     when:
-    Runnable runnable = CircuitBreaker.ofDefaults("cb")
-      .decorateRunnable { serviceCall("foobar") }
+    Runnable runnable = CircuitBreaker.decorateRunnable(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent") {
@@ -119,21 +111,18 @@ class CircuitBreakerTest extends AgentTestRunner {
     def executor = Executors.newSingleThreadExecutor()
     Thread testThread = Thread.currentThread()
     when:
-    Supplier<CompletionStage<String>> supplier = Decorators
-      .ofCompletionStage{
-        CompletableFuture.supplyAsync({
-          // prevent completion on the same thread
-          Thread.sleep(100)
-          serviceCall("foobar")
-        }, executor).whenComplete { r, e ->
-          assert Thread.currentThread() != testThread,
-          "Make sure that the thread running whenComplete is different from the one running the test. " +
-          "This verifies that the scope we create does not cross the thread boundaries. " +
-          "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
-        }
+    Supplier<CompletionStage<String>> supplier = CircuitBreaker.decorateCompletionStage(CircuitBreaker.ofDefaults("cb"), {
+      CompletableFuture.supplyAsync({
+        // prevent completion on the same thread
+        Thread.sleep(100)
+        serviceCall("foobar")
+      }, executor).whenComplete { r, e ->
+        assert Thread.currentThread() != testThread,
+        "Make sure that the thread running whenComplete is different from the one running the test. " +
+        "This verifies that the scope we create does not cross the thread boundaries. " +
+        "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
       }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    })
 
     then:
     def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
@@ -144,10 +133,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateCheckedRunnable"() {
     when:
-    CheckedRunnable runnable = Decorators
-      .ofCheckedRunnable { serviceCall("foobar") }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    CheckedRunnable runnable = CircuitBreaker.decorateCheckedRunnable(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent") {
@@ -160,10 +146,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateCallable"() {
     when:
-    Callable<String> callable = Decorators
-      .ofCallable {serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    Callable<String> callable = CircuitBreaker.decorateCallable(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){callable.call()} == "foobar"
@@ -173,10 +156,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateSupplier"() {
     when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    Supplier<String> supplier = CircuitBreaker.decorateSupplier(CircuitBreaker.ofDefaults("cb")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){supplier.get()} == "foobar"
@@ -186,10 +166,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateFunction"() {
     when:
-    Function<String, String> function = Decorators
-      .ofFunction{v -> serviceCall("foobar-$v")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    Function<String, String> function = CircuitBreaker.decorateFunction(CircuitBreaker.ofDefaults("cb")) { v -> serviceCall("foobar-$v") }
 
     then:
     runUnderTrace("parent"){function.apply("test")} == "foobar-test"
@@ -199,10 +176,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   def "decorateCheckedFunction"() {
     when:
-    CheckedFunction<String, String> function = Decorators
-      .ofCheckedFunction { v -> serviceCall("foobar-$v") }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    CheckedFunction<String, String> function = CircuitBreaker.decorateCheckedFunction(CircuitBreaker.ofDefaults("cb")) { v -> serviceCall("foobar-$v") }
 
     then:
     runUnderTrace("parent") { function.apply("test") } == "foobar-test"
@@ -213,10 +187,7 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateConsumer"() {
 
     when:
-    Consumer<String> consumer = Decorators
-      .ofConsumer { s -> serviceCall(s) }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
-      .decorate()
+    Consumer<String> consumer = CircuitBreaker.decorateConsumer(CircuitBreaker.ofDefaults("cb")) { s -> serviceCall(s) }
 
     then:
     runUnderTrace("parent") {
@@ -230,7 +201,7 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateCheckedConsumer"() {
 
     when:
-    CheckedConsumer<String> consumer = CircuitBreaker.ofDefaults("cb").decorateCheckedConsumer { s -> serviceCall(s) }
+    CheckedConsumer<String> consumer = CircuitBreaker.decorateCheckedConsumer(CircuitBreaker.ofDefaults("cb")) { s -> serviceCall(s) }
 
     then:
     runUnderTrace("parent") {

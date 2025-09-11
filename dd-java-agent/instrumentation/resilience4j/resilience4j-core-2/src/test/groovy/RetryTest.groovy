@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.core.functions.CheckedFunction
 import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
-import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
 import java.util.concurrent.Callable
@@ -38,10 +37,7 @@ class RetryTest extends AgentTestRunner {
     ms.getNumberOfSuccessfulCallsWithRetryAttempt() >> 4
 
     when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withRetry(rt)
-      .decorate()
+    Supplier<String> supplier = Retry.decorateSupplier(rt) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){supplier.get()} == "foobar"
@@ -83,10 +79,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCallable"() {
     when:
-    Callable<String> callable = Decorators
-      .ofCallable {serviceCall("foobar")}
-      .withRetry(Retry.ofDefaults("rt"))
-      .decorate()
+    Callable<String> callable = Retry.decorateCallable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){callable.call()} == "foobar"
@@ -96,10 +89,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCheckedFunction"() {
     when:
-    CheckedFunction<String, String> function = Decorators
-      .ofCheckedFunction { v -> serviceCall("foobar-$v") }
-      .withRetry(Retry.ofDefaults("rt"))
-      .decorate()
+    CheckedFunction<String, String> function = Retry.decorateCheckedFunction(Retry.ofDefaults("rt")) { v -> serviceCall("foobar-$v") }
 
     then:
     runUnderTrace("parent") { function.apply("test") } == "foobar-test"
@@ -109,10 +99,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateSupplier"() {
     when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withRetry(Retry.ofDefaults("rt"))
-      .decorate()
+    Supplier<String> supplier = Retry.decorateSupplier(Retry.ofDefaults("rt")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){supplier.get()} == "foobar"
@@ -122,10 +109,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateFunction"() {
     when:
-    Function<String, String> function = Decorators
-      .ofFunction{v -> serviceCall("foobar-$v")}
-      .withRetry(Retry.ofDefaults("rt"))
-      .decorate()
+    Function<String, String> function = Retry.decorateFunction(Retry.ofDefaults("rt")) { v -> serviceCall("foobar-$v") }
 
     then:
     runUnderTrace("parent"){function.apply("test")} == "foobar-test"
@@ -135,10 +119,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCheckedSupplier"() {
     when:
-    CheckedSupplier<String> supplier = Decorators
-      .ofCheckedSupplier{serviceCall("foobar")}
-      .withRetry(Retry.ofDefaults("rt"))
-      .decorate()
+    CheckedSupplier<String> supplier = Retry.decorateCheckedSupplier(Retry.ofDefaults("rt")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent"){supplier.get()} == "foobar"
@@ -151,8 +132,9 @@ class RetryTest extends AgentTestRunner {
     def executor = Executors.newSingleThreadExecutor()
     Thread testThread = Thread.currentThread()
     when:
-    Supplier<CompletionStage<String>> supplier = Decorators
-      .ofCompletionStage{
+    def scheduler = Executors.newSingleThreadScheduledExecutor()
+    Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(
+      Retry.ofDefaults("rt"), scheduler, {
         CompletableFuture.supplyAsync({
           // prevent completion on the same thread
           Thread.sleep(100)
@@ -164,8 +146,7 @@ class RetryTest extends AgentTestRunner {
           "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
         }
       }
-      .withRetry(Retry.ofDefaults("rt"), Executors.newSingleThreadScheduledExecutor())
-      .decorate()
+      )
 
     then:
     def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
@@ -176,10 +157,7 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCheckedRunnable"() {
     when:
-    CheckedRunnable runnable = Decorators
-      .ofCheckedRunnable { serviceCall("foobar") }
-      .withRetry(Retry.ofDefaults("rt"))
-      .decorate()
+    CheckedRunnable runnable = Retry.decorateCheckedRunnable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
 
     then:
     runUnderTrace("parent") {
@@ -192,10 +170,9 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateSupplier retry twice on error"() {
     when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCallErr(new IllegalStateException("error"))}
-      .withRetry(Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()))
-      .decorate()
+    Supplier<String> supplier = Retry.decorateSupplier(
+      Retry.of("rt", RetryConfig.custom().maxAttempts(2).build())
+      ) { serviceCallErr(new IllegalStateException("error")) }
     runUnderTrace("parent") { supplier.get() }
     then:
     thrown(IllegalStateException)
@@ -232,14 +209,14 @@ class RetryTest extends AgentTestRunner {
     setup:
     def executor = Executors.newSingleThreadExecutor()
     when:
-    Supplier<CompletionStage<String>> supplier = Decorators
-      .<String>ofCompletionStage {
+    def scheduler2 = Executors.newSingleThreadScheduledExecutor()
+    Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(
+      Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()), scheduler2, {
         CompletableFuture.supplyAsync({
           serviceCallErr(new IllegalStateException("error"))
         }, executor)
       }
-      .withRetry(Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()), Executors.newSingleThreadScheduledExecutor())
-      .decorate()
+      )
     def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
     future.get()
 
