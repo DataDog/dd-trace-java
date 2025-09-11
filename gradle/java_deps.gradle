@@ -5,6 +5,8 @@ dependencies {
   testImplementation libs.groovy
   testImplementation libs.bundles.test.logging
 
-  // Required to update dependency lock files
+  // JUnit and Mockito compatible with Spock 2.4.0
+  testRuntimeOnly libs.bundles.junit5
   testRuntimeOnly libs.bundles.junit.platform
+  testRuntimeOnly libs.mokito.core
 }
