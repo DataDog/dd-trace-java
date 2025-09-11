@@ -5,10 +5,6 @@ plugins {
   id 'com.diffplug.spotless' version '6.13.0'
 }
 
-// required for Spock compatibility
-ext['junit-jupiter.version'] = libs.versions.junit5.get()
-ext['junit-platform.version'] = libs.versions.junit.platform.get()
-
 def sharedRootDir = "$rootDir/../../../"
 def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
