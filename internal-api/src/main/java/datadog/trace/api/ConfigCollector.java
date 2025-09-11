@@ -1,12 +1,14 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.ConfigOrigin.DEFAULT;
+import static datadog.trace.api.ConfigOrigin.REMOTE;
 import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
 import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -23,12 +25,21 @@ public class ConfigCollector {
   private volatile Map<ConfigOrigin, Map<String, ConfigSetting>> collected =
       new ConcurrentHashMap<>();
 
+  private volatile Map<String, AtomicInteger> highestSeqId = new ConcurrentHashMap<>();
+
   public static ConfigCollector get() {
     return INSTANCE;
   }
 
+  // There are no non-test usages of this function
   public void put(String key, Object value, ConfigOrigin origin) {
     put(key, value, origin, ABSENT_SEQ_ID, null);
+  }
+
+  public void putRemoteConfig(String key, Object value) {
+    int remoteSeqId =
+        highestSeqId.containsKey(key) ? highestSeqId.get(key).get() + 1 : DEFAULT_SEQ_ID + 1;
+    put(key, value, REMOTE, remoteSeqId, null);
   }
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
@@ -45,6 +56,7 @@ public class ConfigCollector {
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
     configMap.put(key, setting); // replaces any previous value for this key at origin
+    highestSeqId.computeIfAbsent(key, k -> new AtomicInteger()).set(seqId);
   }
 
   // put method specifically for DEFAULT origins. We don't allow overrides for configs from DEFAULT
@@ -58,9 +70,9 @@ public class ConfigCollector {
     }
   }
 
-  public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
+  public void putRemoteConfigPayload(Map<String, Object> keysAndValues, ConfigOrigin origin) {
     for (Map.Entry<String, Object> entry : keysAndValues.entrySet()) {
-      put(entry.getKey(), entry.getValue(), origin);
+      putRemoteConfig(entry.getKey(), entry.getValue());
     }
   }
 
