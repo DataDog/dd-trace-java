@@ -34,7 +34,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
@@ -440,9 +439,6 @@ public class WAFModule implements AppSecModule {
           }
         }
       }
-
-      reqCtx.setKeepType(
-          resultWithData.keep ? PrioritySampling.USER_KEEP : PrioritySampling.USER_DROP);
 
       if (resultWithData.attributes != null && !resultWithData.attributes.isEmpty()) {
         reqCtx.reportDerivatives(resultWithData.attributes);

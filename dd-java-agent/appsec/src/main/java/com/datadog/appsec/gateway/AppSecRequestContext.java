@@ -13,7 +13,6 @@ import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.io.Closeable;
 import java.util.*;
@@ -147,7 +146,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
-  private volatile byte keepType = PrioritySampling.SAMPLER_KEEP;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
@@ -361,14 +359,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Long getApiSecurityEndpointHash() {
     return this.apiSecurityEndpointHash;
-  }
-
-  public void setKeepType(byte keepType) {
-    this.keepType = keepType;
-  }
-
-  public byte getKeepType() {
-    return this.keepType;
   }
 
   void addRequestHeader(String name, String value) {
