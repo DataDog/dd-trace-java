@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.core.functions.CheckedConsumer
 import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.core.functions.CheckedFunction
@@ -202,6 +203,20 @@ class CircuitBreakerTest extends AgentTestRunner {
       .ofConsumer { s -> serviceCall(s) }
       .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
       .decorate()
+
+    then:
+    runUnderTrace("parent") {
+      consumer.accept("test")
+      "a"
+    }
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedConsumer"() {
+
+    when:
+    CheckedConsumer<String> consumer = CircuitBreaker.ofDefaults("cb").decorateCheckedConsumer { s -> serviceCall(s) }
 
     then:
     runUnderTrace("parent") {

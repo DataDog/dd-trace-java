@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.resilience4j;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import io.github.resilience4j.core.functions.CheckedConsumer;
 import io.github.resilience4j.core.functions.CheckedFunction;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
@@ -13,6 +14,26 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class ContextHolder<T> {
+
+  public static final class CheckedConsumerWithContext<T> extends ContextHolder<T>
+      implements CheckedConsumer<Object> {
+    private final CheckedConsumer<Object> outbound;
+
+    public CheckedConsumerWithContext(
+        CheckedConsumer<Object> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public void accept(Object arg) throws Throwable {
+      try (AgentScope ignore = activateScope()) {
+        outbound.accept(arg);
+      } finally {
+        finishSpanIfNeeded();
+      }
+    }
+  }
 
   public static final class ConsumerWithContext<T> extends ContextHolder<T>
       implements Consumer<Object> {

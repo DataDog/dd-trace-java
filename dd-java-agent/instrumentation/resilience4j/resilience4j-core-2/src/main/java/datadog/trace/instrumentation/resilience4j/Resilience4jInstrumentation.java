@@ -16,6 +16,8 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
       "io.github.resilience4j.core.functions.CheckedRunnable";
   public static final String CHECKED_FUNCTION_FQCN =
       "io.github.resilience4j.core.functions.CheckedFunction";
+  public static final String CHECKED_CONSUMER_FQCN =
+      "io.github.resilience4j.core.functions.CheckedConsumer";
   public static final String SUPPLIER_FQCN = Supplier.class.getName();
   public static final String FUNCTION_FQCN = Function.class.getName();
   public static final String CONSUMER_FQCN = Consumer.class.getName();
@@ -34,6 +36,7 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
       packageName + ".ContextHolder$CheckedFunctionWithContext",
       packageName + ".ContextHolder$ConsumerWithContext",
       packageName + ".ContextHolder$CheckedSupplierWithContext",
+      packageName + ".ContextHolder$CheckedConsumerWithContext",
       packageName + ".ContextHolder$FunctionWithContext",
       packageName + ".ContextHolder$SupplierCompletionStageWithContext",
       packageName + ".ContextHolder$SupplierWithContext",
