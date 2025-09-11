@@ -147,7 +147,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
-  private volatile byte keepType = PrioritySampling.SAMPLER_KEEP;
+  private volatile byte keepType = PrioritySampling.USER_DROP;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");

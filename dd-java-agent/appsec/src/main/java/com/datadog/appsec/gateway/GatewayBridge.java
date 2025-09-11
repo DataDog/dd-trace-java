@@ -31,6 +31,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -739,6 +740,10 @@ public class GatewayBridge {
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
+      // Set sampling priority if it was explicitly set by trace tagging rules
+      if (ctx.getKeepType() != PrioritySampling.SAMPLER_KEEP) {
+        traceSeg.setTagTop(SAMPLING_PRIORITY, ctx.getKeepType());
+      }
       traceSeg.setTagTop("_dd.appsec.enabled", 1);
       traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
@@ -752,7 +757,7 @@ public class GatewayBridge {
       if (!collectedEvents.isEmpty()) {
         // Set asm keep in case that root span was not available when events are detected
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(SAMPLING_PRIORITY, ctx.getKeepType());
+        // Sampling priority is now set above, independently of events
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         traceSeg.setTagTop("appsec.event", true);
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());

@@ -39,6 +39,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode as InternalWafErrorCode
@@ -1945,6 +1946,111 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.setKeepType(_)
     0 * ctx._(*_)
     !flow3.blocking
+  }
+
+  void 'test trace tagging rule with attributes, no keep and event (dynamic value extraction)'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      metadata: [
+        rules_version: '1.2.7'
+      ],
+      rules: [
+        [
+          id: 'arachni_rule',
+          name: 'Arachni',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^Arachni\\/v'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          transformers: [],
+          on_match: ['block']
+        ]
+      ],
+      rules_compat: [
+        [
+          id: 'ttr-000-004',
+          name: 'Trace Tagging Rule: Attributes, No Keep, Event',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^TraceTagging\\/v4'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          output: [
+            event: true,
+            keep: false,
+            attributes: [
+              '_dd.appsec.trace.integer': [
+                value: 1729
+              ],
+              '_dd.appsec.trace.agent': [
+                address: 'server.request.headers.no_cookies',
+                key_path: ['user-agent']
+              ]
+            ]
+          ],
+          on_match: []
+        ]
+      ]
+    ]
+
+    when:
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+
+    then:
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.wafUpdates(_, true)
+    1 * reconf.reloadSubscriptions()
+    0 * _
+
+    when: 'test trace tagging rule with attributes, no keep and event (dynamic value extraction)'
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'TraceTagging/v4']))
+    def flow = new ChangeableFlow()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    // Should report derivatives with dynamic value extraction - the user-agent value should be extracted
+    1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'TraceTagging/v4', '_dd.appsec.trace.integer': 1729])
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.isThrottled(null)
+    // CRITICAL: Verify that setKeepType is called with USER_DROP when keep: false
+    1 * ctx.setKeepType(PrioritySampling.USER_DROP)
+    0 * ctx._(*_)
+    !flow.blocking // Should not block since keep: false
   }
 
   private static class BadConfig implements Map<String, Object> {
