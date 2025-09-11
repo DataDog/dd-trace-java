@@ -186,10 +186,11 @@ public class WriterFactory {
     if (useLlmObsAgentless && !config.isLlmObsAgentlessEnabled()) {
       boolean agentRunning = null != featuresDiscovery.getTraceEndpoint();
       log.info(
-          "LLM Observability configured to use agent proxy, but is not compatible or agent is not running (agentRunning={}, compatible={}). "
-              + "Will use agentless data submission instead. Compatible agent versions are >=7.55.0 (found version={}).",
+          "LLM Observability configured to use agent proxy, but is not compatible or agent is not running (agentRunning={}, compatible={})",
           agentRunning,
-          evpProxySupported,
+          evpProxySupported);
+      log.info(
+          "LLM Observability will use agentless data submission instead. Compatible agent versions are >=7.55.0 (found version={}",
           featuresDiscovery.getVersion());
     }
 
