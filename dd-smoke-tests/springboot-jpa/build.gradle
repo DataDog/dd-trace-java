@@ -4,6 +4,10 @@ plugins {
   id 'org.springframework.boot' version '2.6.0'
 }
 
+// required for Spock compatibility
+ext['junit-jupiter.version'] = libs.versions.junit5.get()
+ext['junit-platform.version'] = libs.versions.junit.platform.get()
+
 apply plugin: 'io.spring.dependency-management'
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot JPA Smoke Tests.'

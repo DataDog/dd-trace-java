@@ -5,6 +5,10 @@ plugins {
   id 'java-test-fixtures'
 }
 
+// required for Spock compatibility
+ext['junit-jupiter.version'] = libs.versions.junit5.get()
+ext['junit-platform.version'] = libs.versions.junit.platform.get()
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Velocity Smoke Tests.'
 

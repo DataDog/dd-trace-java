@@ -9,6 +9,10 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+// required for Spock compatibility
+ext['junit-jupiter.version'] = libs.versions.junit5.get()
+ext['junit-platform.version'] = libs.versions.junit.platform.get()
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Java 11 Smoke Tests.'
 
