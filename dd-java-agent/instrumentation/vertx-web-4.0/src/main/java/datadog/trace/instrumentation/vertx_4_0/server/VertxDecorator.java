@@ -59,7 +59,7 @@ public class VertxDecorator
       final AgentSpan span,
       final RoutingContext connection,
       final RoutingContext routingContext,
-      final Context context) {
+      final Context parentContext) {
     return span;
   }
 
