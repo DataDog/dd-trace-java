@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.resilience4j;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tracing
@@ -10,6 +11,7 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
   public static final String CHECKED_SUPPLIER_FQCN =
       "io.github.resilience4j.core.functions.CheckedSupplier";
   public static final String SUPPLIER_FQCN = Supplier.class.getName();
+  public static final String FUNCTION_FQCN = Function.class.getName();
 
   public Resilience4jInstrumentation(String... additionalNames) {
     super("resilience4j-core", additionalNames);

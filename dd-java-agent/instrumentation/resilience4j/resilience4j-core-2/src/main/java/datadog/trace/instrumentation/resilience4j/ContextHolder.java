@@ -5,29 +5,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class ContextHolder<T> {
-
-  public static final class CheckedSupplierWithContext<T> extends ContextHolder<T>
-      implements CheckedSupplier<Object> {
-    private final CheckedSupplier<?> outbound;
-
-    public CheckedSupplierWithContext(
-        CheckedSupplier<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
-      super(spanDecorator, data);
-      this.outbound = outbound;
-    }
-
-    @Override
-    public Object get() throws Throwable {
-      try (AgentScope scope = activateScope()) {
-        return outbound.get();
-      } finally {
-        finishSpanIfNeeded();
-      }
-    }
-  }
 
   public static final class SupplierWithContext<T> extends ContextHolder<T>
       implements Supplier<Object> {
@@ -42,6 +23,46 @@ public class ContextHolder<T> {
     @Override
     public Object get() {
       try (AgentScope ignore = activateScope()) {
+        return outbound.get();
+      } finally {
+        finishSpanIfNeeded();
+      }
+    }
+  }
+
+  public static final class FunctionWithContext<T> extends ContextHolder<T>
+      implements Function<Object, Object> {
+    private final Function<Object, ?> outbound;
+
+    public FunctionWithContext(
+        Function<Object, ?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public Object apply(Object arg) {
+      try (AgentScope ignore = activateScope()) {
+        return outbound.apply(arg);
+      } finally {
+        finishSpanIfNeeded();
+      }
+    }
+  }
+
+  public static final class CheckedSupplierWithContext<T> extends ContextHolder<T>
+      implements CheckedSupplier<Object> {
+    private final CheckedSupplier<?> outbound;
+
+    public CheckedSupplierWithContext(
+        CheckedSupplier<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public Object get() throws Throwable {
+      try (AgentScope scope = activateScope()) {
         return outbound.get();
       } finally {
         finishSpanIfNeeded();

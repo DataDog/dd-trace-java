@@ -4,12 +4,14 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import io.github.resilience4j.retry.Retry;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
@@ -32,21 +34,46 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
-            .and(named("decorateCheckedSupplier"))
-            .and(returns(named(CHECKED_SUPPLIER_FQCN))),
-        RetryInstrumentation.class.getName() + "$CheckedSupplierAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
             .and(named("decorateSupplier"))
             .and(returns(named(SUPPLIER_FQCN))),
         RetryInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
+            .and(named("decorateFunction"))
+            .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(returns(named(FUNCTION_FQCN))),
+        RetryInstrumentation.class.getName() + "$FunctionAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateCheckedSupplier"))
+            .and(returns(named(CHECKED_SUPPLIER_FQCN))),
+        RetryInstrumentation.class.getName() + "$CheckedSupplierAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(returns(named(SUPPLIER_FQCN))),
         RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
+  }
+
+  public static class SupplierAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Return(readOnly = false) Supplier<?> outbound) {
+      outbound = new ContextHolder.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+    }
+  }
+
+  public static class FunctionAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Return(readOnly = false) Function<Object, ?> outbound) {
+      outbound = new ContextHolder.FunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+    }
   }
 
   public static class CheckedSupplierAdvice {
@@ -56,15 +83,6 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
       outbound =
           new ContextHolder.CheckedSupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
-    }
-  }
-
-  public static class SupplierAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterExecute(
-        @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 

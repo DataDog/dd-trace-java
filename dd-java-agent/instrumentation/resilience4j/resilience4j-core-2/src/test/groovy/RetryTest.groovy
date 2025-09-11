@@ -9,6 +9,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.function.Function
 import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -77,11 +78,10 @@ class RetryTest extends AgentTestRunner {
     }
   }
 
-
-  def "decorateCheckedSupplier"() {
+  def "decorateSupplier"() {
     when:
-    CheckedSupplier<String> supplier = Decorators
-      .ofCheckedSupplier{serviceCall("foobar")}
+    Supplier<String> supplier = Decorators
+      .ofSupplier{serviceCall("foobar")}
       .withRetry(Retry.ofDefaults("rt"))
       .decorate()
 
@@ -91,10 +91,23 @@ class RetryTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  def "decorateSupplier"() {
+  def "decorateFunction"() {
     when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
+    Function<String, String> function = Decorators
+      .ofFunction{v -> serviceCall("foobar-$v")}
+      .withRetry(Retry.ofDefaults("rt"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){function.apply("test")} == "foobar-test"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedSupplier"() {
+    when:
+    CheckedSupplier<String> supplier = Decorators
+      .ofCheckedSupplier{serviceCall("foobar")}
       .withRetry(Retry.ofDefaults("rt"))
       .decorate()
 

@@ -15,6 +15,40 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class FallbackTest extends AgentTestRunner {
 
+  def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
+    setup:
+    def supplier = decorateSupplier.decorate()
+
+    when:
+    def result = runUnderTrace("parent") { supplier.get() }
+
+    then:
+    result == "fallbackResult"
+    and:
+    assertExpectedTrace()
+
+    where:
+    decorateSupplier << [
+      Decorators.ofSupplier{
+        serviceCallErr(new IllegalStateException("test"))
+      }.withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
+      ,
+      Decorators.ofSupplier{
+        serviceCall("badResult", "serviceCall")
+      }.withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
+      ,
+      Decorators.ofSupplier{
+        serviceCallErr(new IllegalStateException("test"))
+      }
+      .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
+      ,
+      Decorators.ofSupplier{
+        serviceCallErr(new IllegalStateException("test"))
+      }
+      .withFallback(List.of(IllegalStateException), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
+    ]
+  }
+
   def "ofCompletionStage"() {
     setup:
     def executor = Executors.newSingleThreadExecutor()
@@ -38,42 +72,6 @@ class FallbackTest extends AgentTestRunner {
     assertExpectedTrace()
 
     //TODO test all variants
-  }
-
-  def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
-    setup:
-    def supplier = decorateSupplier.decorate()
-
-    when:
-    def result = runUnderTrace("parent") { supplier.get() }
-
-    then:
-    result == "fallbackResult"
-    and:
-    assertExpectedTrace()
-
-    where:
-    decorateSupplier << [
-      Decorators.ofSupplier{
-        serviceCallErr(new IllegalStateException("test"))
-      }
-      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
-      ,
-      Decorators.ofSupplier{
-        serviceCall("badResult", "serviceCall")
-      }
-      .withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
-      ,
-      Decorators.ofSupplier{
-        serviceCallErr(new IllegalStateException("test"))
-      }
-      .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
-      ,
-      Decorators.ofSupplier{
-        serviceCallErr(new IllegalStateException("test"))
-      }
-      .withFallback(List.of(IllegalStateException), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
-    ]
   }
 
   private void assertExpectedTrace() {
