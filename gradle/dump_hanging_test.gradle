@@ -13,12 +13,12 @@ tasks.withType(Test).configureEach {
       buildDir = buildDir.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent')
     }
 
-    // Scheduler that triggers thread/heap dumps near the test timeout.
     def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
       Thread t = new Thread(r, 'dump-scheduler')
       t.daemon = true
       t
     })
+
     // Calculate delay for taking dumps as test timeout minus 2 minutes, but no less than 5 minutes.
     def delay = timeout.get().minusMinutes(2)
     long delayMinutes = Math.max(5L, delay.toMinutes())
@@ -26,7 +26,6 @@ tasks.withType(Test).configureEach {
     // Schedule the dump job.
     def future = scheduler.schedule({
       try {
-        // Create a directory to store thread and heap dumps.
         def dumpDir = new File(buildDir, 'dumps')
         dumpDir.mkdirs()
 
