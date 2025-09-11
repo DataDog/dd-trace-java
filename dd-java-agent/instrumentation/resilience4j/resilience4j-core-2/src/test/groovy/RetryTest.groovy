@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.github.resilience4j.core.functions.CheckedFunction
 import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
@@ -89,6 +90,19 @@ class RetryTest extends AgentTestRunner {
 
     then:
     runUnderTrace("parent"){callable.call()} == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedFunction"() {
+    when:
+    CheckedFunction<String, String> function = Decorators
+      .ofCheckedFunction { v -> serviceCall("foobar-$v") }
+      .withRetry(Retry.ofDefaults("rt"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent") { function.apply("test") } == "foobar-test"
     and:
     assertExpectedTrace()
   }

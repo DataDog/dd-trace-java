@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import io.github.resilience4j.core.functions.CheckedFunction;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import io.github.resilience4j.retry.Retry;
@@ -76,6 +77,13 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(FUNCTION_FQCN))),
         THIS_CLASS + "$FunctionAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateCheckedFunction"))
+            .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(returns(named(CHECKED_FUNCTION_FQCN))),
+        THIS_CLASS + "$CheckedFunctionAdvice");
   }
 
   public static class SupplierAdvice {
@@ -102,6 +110,16 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Function<Object, ?> outbound) {
       outbound = new ContextHolder.FunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+    }
+  }
+
+  public static class CheckedFunctionAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Return(readOnly = false) CheckedFunction<Object, ?> outbound) {
+      outbound =
+          new ContextHolder.CheckedFunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
