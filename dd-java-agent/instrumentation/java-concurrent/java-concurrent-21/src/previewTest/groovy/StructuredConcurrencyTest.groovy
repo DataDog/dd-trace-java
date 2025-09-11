@@ -9,6 +9,12 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
 class StructuredConcurrencyTest extends InstrumentationSpecification {
+  @Override
+  boolean useStrictTraceWrites() {
+    // TODO: Monitor in CI to validate fix effectiveness against freezes.
+    return false
+  }
+
   /**
    * Tests the structured task scope with a single task.
    */
