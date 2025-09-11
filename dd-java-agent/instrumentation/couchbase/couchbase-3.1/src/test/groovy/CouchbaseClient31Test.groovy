@@ -17,11 +17,11 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
-import java.time.Duration
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
 import spock.lang.Shared
+
+import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -39,12 +39,28 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   Bucket bucket
 
   def setupSpec() {
+    LOGGER.info("[raph] ${this.getClass().getSimpleName()} setup starting at ${new Date()}")
+
     def arch = System.getProperty("os.arch") == "aarch64" ? "-aarch64" : ""
     couchbase = new CouchbaseContainer("couchbase/server:7.1.0${arch}")
       .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(true))
-      .withStartupTimeout(Duration.ofSeconds(240))
-      .withStartupAttempts(3)
-    couchbase.start()
+      .withStartupTimeout(Duration.ofSeconds(100))
+      .withStartupAttempts(1)
+
+    long startTime = System.nanoTime()
+    try {
+      couchbase.start()
+    }
+    catch (Exception e) {
+      double durationSeconds = (System.nanoTime() - startTime) / 1e9
+      LOGGER.error("[raph] caught error after ${String.format('%.1f', durationSeconds)} s, gonna retry\n" + e.toString())
+      couchbase.start()
+    } finally {
+      double durationSeconds = (System.nanoTime() - startTime) / 1e9
+      LOGGER.info("[raph] couchbase.start took ${String.format('%.1f', durationSeconds)} s")
+    }
+
+    LOGGER.info("[raph] if this log is printed, then there was no error in starting couchbase")
 
     ClusterEnvironment environment = ClusterEnvironment.builder()
       .timeoutConfig(TimeoutConfig.kvTimeout(Duration.ofSeconds(10)))
@@ -63,6 +79,9 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
       insertData(bucket, "$type $it", something, orOther)
     }
     cluster.queryIndexes().createIndex(BUCKET, 'test-index', Arrays.asList('something', 'or_other'))
+
+    double durationSeconds = (System.nanoTime() - startTime) / 1e9
+    LOGGER.info("[raph] couchbase.start + rest of the setup took ${String.format('%.1f', durationSeconds)} s")
   }
 
   def cleanupSpec() {
@@ -83,6 +102,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   }
 
   def "check basic spans"() {
+    LOGGER.info("[raph] first test is being run")
     setup:
     def collection = bucket.defaultCollection()
 
@@ -104,6 +124,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
         assertCouchbaseDispatchCall(it, span(0))
       }
     }
+    LOGGER.info("[raph] end of first test (if this is printed, I think it means it was successful ?)")
   }
 
   def "check basic error spans with internal spans enabled #internalEnabled"() {
