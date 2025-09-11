@@ -66,6 +66,7 @@ public class ProductState {
             getTargetOrThrow(fleetResponse, configKey);
         configBeenUsedByProduct.add(configKey);
 
+        // 没有变化，就不会获取file，因为此时 file为空。
         if (isTargetChanged(configKey, target)) {
           changesDetected = true;
           byte[] content = getTargetFileContent(fleetResponse, configKey);

@@ -82,6 +82,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   @Override
   public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
     try {
+      // 1 有变化，在这里执行
       LOGGER.debug("Received new definitions from {}", source);
       definitionSources.put(source, definitions);
       Configuration newConfiguration = createConfiguration(definitionSources);

@@ -382,6 +382,7 @@ public class DefaultConfigurationPoller
     }
 
     try {
+      // 默认不开启数据签名校验。
       verifyTargetsSignature(fleetResponse);
       verifyTargetsPresence(fleetResponse);
     } catch (RuntimeException rte) {
@@ -395,6 +396,7 @@ public class DefaultConfigurationPoller
 
     Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
 
+    // 从clientConfigs中获取配置列表，放到parsedKeysByProduct中
     for (String configKey : fleetResponse.getClientConfigs()) {
       try {
         ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
