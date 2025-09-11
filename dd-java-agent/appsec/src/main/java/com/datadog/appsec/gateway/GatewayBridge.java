@@ -593,14 +593,9 @@ public class GatewayBridge {
               obj,
               ctx,
               () -> {
-                if (Config.get().isAppSecRaspCollectRequestBody()) {
-                  ctx_.getTraceSegment()
-                      .setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
-                }
+                ctx.setProcessedResponseBodySizeExceeded(true);
               });
-      if (Config.get().isAppSecRaspCollectRequestBody()) {
-        ctx.setProcessedRequestBody(converted);
-      }
+      ctx.setProcessedRequestBody(converted);
       DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
@@ -769,14 +764,14 @@ public class GatewayBridge {
 
         // Report collected request and response headers based on allow list
         boolean collectAll =
-            Config.get().isAppSecCollectAllHeaders()
+            ctx.isExtendedDataCollection()
                 // Until redaction is defined we don't want to collect all headers due to risk of
                 // leaking sensitive data
-                && !Config.get().isAppSecHeaderCollectionRedactionEnabled();
+                && !ctx.isExtendedDataCollectionRedactionEnabled();
         writeRequestHeaders(
-            traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), collectAll);
+            ctx, traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), collectAll);
         writeResponseHeaders(
-            traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), collectAll);
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), collectAll);
 
         // Report collected stack traces
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
@@ -784,19 +779,22 @@ public class GatewayBridge {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
 
-        // Report collected parsed request body if there is a RASP event
-        if (ctx.isRaspMatched() && ctx.getProcessedRequestBody() != null) {
+        if (ctx.isExtendedDataCollection() && ctx.getProcessedRequestBody() != null) {
           ctx_.getOrCreateMetaStructTop(
               METASTRUCT_REQUEST_BODY, k -> ctx.getProcessedRequestBody());
+          if (ctx.isProcessedResponseBodySizeExceeded()) {
+            traceSeg.setTagTop("_dd.appsec.request_body_size.exceeded", true);
+          }
         }
 
       } else if (hasUserInfo(traceSeg)) {
         // Report all collected request headers on user tracking event
-        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeRequestHeaders(
+            ctx, traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       } else {
         // Report minimum set of collected request headers
         writeRequestHeaders(
-            traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+            ctx, traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       }
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
@@ -909,24 +907,39 @@ public class GatewayBridge {
   }
 
   private static void writeRequestHeaders(
+      AppSecRequestContext ctx,
       final TraceSegment traceSeg,
       final Set<String> allowed,
       final Map<String, List<String>> headers,
       final boolean collectAll) {
     writeHeaders(
-        traceSeg, "http.request.headers.", "_dd.appsec.request.", allowed, headers, collectAll);
+        ctx,
+        traceSeg,
+        "http.request.headers.",
+        "_dd.appsec.request.",
+        allowed,
+        headers,
+        collectAll);
   }
 
   private static void writeResponseHeaders(
+      AppSecRequestContext ctx,
       final TraceSegment traceSeg,
       final Set<String> allowed,
       final Map<String, List<String>> headers,
       final boolean collectAll) {
     writeHeaders(
-        traceSeg, "http.response.headers.", "_dd.appsec.response.", allowed, headers, collectAll);
+        ctx,
+        traceSeg,
+        "http.response.headers.",
+        "_dd.appsec.response.",
+        allowed,
+        headers,
+        collectAll);
   }
 
   private static void writeHeaders(
+      AppSecRequestContext ctx,
       final TraceSegment traceSeg,
       final String prefix,
       final String discardedPrefix,
@@ -938,7 +951,7 @@ public class GatewayBridge {
       return;
     }
 
-    final int headerLimit = Config.get().getAppsecMaxCollectedHeaders();
+    final int headerLimit = ctx.getExtendedDataCollectionMaxHeaders();
     final Set<String> added = new HashSet<>();
     int excluded = 0;
 

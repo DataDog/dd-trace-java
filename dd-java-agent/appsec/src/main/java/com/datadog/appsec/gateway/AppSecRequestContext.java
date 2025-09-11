@@ -99,6 +99,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int peerPort;
   private String inferredClientIp;
 
+  private boolean extendedDataCollection = false;
+  private boolean extendedDataCollectionRedactionEnabled = true;
+  private int extendedDataCollectionMaxHeaders = 50;
+
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
 
@@ -133,6 +137,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile boolean processedResponseBodySizeExceeded;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -241,6 +246,31 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public int getRaspTimeouts() {
     return raspTimeouts;
+  }
+
+  public boolean isExtendedDataCollection() {
+    return extendedDataCollection;
+  }
+
+  public void setExtendedDataCollection(boolean extendedDataCollection) {
+    this.extendedDataCollection = extendedDataCollection;
+  }
+
+  public boolean isExtendedDataCollectionRedactionEnabled() {
+    return extendedDataCollectionRedactionEnabled;
+  }
+
+  public void setExtendedDataCollectionRedactionEnabled(
+      boolean extendedDataCollectionRedactionEnabled) {
+    this.extendedDataCollectionRedactionEnabled = extendedDataCollectionRedactionEnabled;
+  }
+
+  public int getExtendedDataCollectionMaxHeaders() {
+    return extendedDataCollectionMaxHeaders;
+  }
+
+  public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
+    this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
   public WafContext getOrCreateWafContext(
@@ -939,6 +969,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Object getProcessedRequestBody() {
     return processedRequestBody;
+  }
+
+  public boolean isProcessedResponseBodySizeExceeded() {
+    return processedResponseBodySizeExceeded;
+  }
+
+  public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
+    this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
   }
 
   public boolean isRaspMatched() {
