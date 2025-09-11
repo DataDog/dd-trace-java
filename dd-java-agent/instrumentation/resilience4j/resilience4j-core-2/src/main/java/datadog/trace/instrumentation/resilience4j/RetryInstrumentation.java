@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import io.github.resilience4j.retry.Retry;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -20,6 +21,7 @@ import net.bytebuddy.asm.Advice;
 public final class RetryInstrumentation extends Resilience4jInstrumentation {
 
   private static final String RETRY_FQCN = "io.github.resilience4j.retry.Retry";
+  private static final String THIS_CLASS = RetryInstrumentation.class.getName();
 
   public RetryInstrumentation() {
     super("resilience4j-retry");
@@ -38,35 +40,42 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
-        RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
+        THIS_CLASS + "$CompletionStageAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(CHECKED_SUPPLIER_FQCN))),
-        RetryInstrumentation.class.getName() + "$CheckedSupplierAdvice");
+        THIS_CLASS + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCheckedRunnable"))
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(CHECKED_RUNNABLE_FQCN))),
-        RetryInstrumentation.class.getName() + "$CheckedRunnableAdvice");
+        THIS_CLASS + "$CheckedRunnableAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateCallable"))
+            .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(returns(named(CALLABLE_FQCN))),
+        THIS_CLASS + "$CallableAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
-        RetryInstrumentation.class.getName() + "$SupplierAdvice");
+        THIS_CLASS + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateFunction"))
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(FUNCTION_FQCN))),
-        RetryInstrumentation.class.getName() + "$FunctionAdvice");
+        THIS_CLASS + "$FunctionAdvice");
   }
 
   public static class SupplierAdvice {
@@ -75,6 +84,15 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
       outbound = new ContextHolder.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+    }
+  }
+
+  public static class CallableAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Return(readOnly = false) Callable<?> outbound) {
+      outbound = new ContextHolder.CallableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 

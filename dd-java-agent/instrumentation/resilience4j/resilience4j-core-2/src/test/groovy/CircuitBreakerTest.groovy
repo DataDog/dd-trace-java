@@ -5,6 +5,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedRunnable
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
+
+import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
@@ -135,6 +137,19 @@ class CircuitBreakerTest extends AgentTestRunner {
       runnable.run()
       "a"
     }
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCallable"() {
+    when:
+    Callable<String> callable = Decorators
+      .ofCallable {serviceCall("foobar")}
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){callable.call()} == "foobar"
     and:
     assertExpectedTrace()
   }

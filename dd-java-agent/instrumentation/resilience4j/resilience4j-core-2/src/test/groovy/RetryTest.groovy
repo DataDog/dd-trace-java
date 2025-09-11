@@ -6,6 +6,7 @@ import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
+import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.ExecutionException
@@ -77,6 +78,19 @@ class RetryTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "decorateCallable"() {
+    when:
+    Callable<String> callable = Decorators
+      .ofCallable {serviceCall("foobar")}
+      .withRetry(Retry.ofDefaults("rt"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){callable.call()} == "foobar"
+    and:
+    assertExpectedTrace()
   }
 
   def "decorateSupplier"() {

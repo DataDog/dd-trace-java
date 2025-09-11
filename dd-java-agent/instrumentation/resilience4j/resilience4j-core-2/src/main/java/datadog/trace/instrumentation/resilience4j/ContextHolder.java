@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -25,6 +26,26 @@ public class ContextHolder<T> {
     public Object get() {
       try (AgentScope ignore = activateScope()) {
         return outbound.get();
+      } finally {
+        finishSpanIfNeeded();
+      }
+    }
+  }
+
+  public static final class CallableWithContext<T> extends ContextHolder<T>
+      implements Callable<Object> {
+    private final Callable<?> outbound;
+
+    public CallableWithContext(
+        Callable<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public Object call() throws Exception {
+      try (AgentScope ignore = activateScope()) {
+        return outbound.call();
       } finally {
         finishSpanIfNeeded();
       }
