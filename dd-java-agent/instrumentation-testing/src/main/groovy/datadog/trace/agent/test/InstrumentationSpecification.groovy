@@ -23,7 +23,6 @@ import datadog.trace.api.*
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
