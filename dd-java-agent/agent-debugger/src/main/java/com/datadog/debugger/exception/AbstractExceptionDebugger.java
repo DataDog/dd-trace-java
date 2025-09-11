@@ -94,8 +94,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
           if (!applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
           } else {
-            AgentTaskScheduler.getInstance()
-                .execute(() -> applyExceptionConfiguration(fingerprint));
+            AgentTaskScheduler.get().execute(() -> applyExceptionConfiguration(fingerprint));
           }
           break;
         } else {

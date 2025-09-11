@@ -36,7 +36,7 @@ public class DebuggerSink {
   private final String tags;
   private final AtomicLong highRateDropped = new AtomicLong();
   private final int uploadFlushInterval;
-  private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.getInstance();
+  private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.get();
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> lowRateScheduled;
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentLowRateFlushInterval = LOW_RATE_INITIAL_FLUSH_INTERVAL;

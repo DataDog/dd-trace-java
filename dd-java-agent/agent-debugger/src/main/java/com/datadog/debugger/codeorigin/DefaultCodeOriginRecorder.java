@@ -48,7 +48,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private AgentTaskScheduler scheduler;
 
   public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
-    this(config, configurationUpdater, AgentTaskScheduler.getInstance());
+    this(config, configurationUpdater, AgentTaskScheduler.get());
   }
 
   public DefaultCodeOriginRecorder(

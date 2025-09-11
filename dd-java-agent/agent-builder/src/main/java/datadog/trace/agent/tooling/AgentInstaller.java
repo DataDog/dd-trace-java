@@ -83,7 +83,7 @@ public class AgentInstaller {
       }
       int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
       if (poolCleaningInterval > 0) {
-        AgentTaskScheduler.getInstance()
+        AgentTaskScheduler.get()
             .scheduleAtFixedRate(
                 SharedTypePools::clear,
                 poolCleaningInterval,

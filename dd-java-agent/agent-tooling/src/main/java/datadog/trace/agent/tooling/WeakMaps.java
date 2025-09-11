@@ -14,7 +14,7 @@ public class WeakMaps {
   public static <K, V> WeakMap<K, V> newWeakMap() {
     final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);
     if (!Platform.isNativeImageBuilder()) {
-      AgentTaskScheduler.getInstance()
+      AgentTaskScheduler.get()
           .weakScheduleAtFixedRate(
               MapCleaningTask.INSTANCE,
               map,

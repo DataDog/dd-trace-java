@@ -64,10 +64,10 @@ public class SymbolAggregator {
 
   public void start() {
     flushRemainingScopeScheduled =
-        AgentTaskScheduler.getInstance()
+        AgentTaskScheduler.get()
             .scheduleAtFixedRate(this::flushRemainingScopes, this, 0, 1, TimeUnit.SECONDS);
     scanJarsScheduled =
-        AgentTaskScheduler.getInstance()
+        AgentTaskScheduler.get()
             .scheduleAtFixedRate(this::scanQueuedJars, this, 0, 1, TimeUnit.SECONDS);
   }
 

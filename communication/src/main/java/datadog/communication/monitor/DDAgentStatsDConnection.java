@@ -87,7 +87,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         log.debug(
             "Scheduling StatsD connection in {} seconds - {}", remainingDelay, statsDAddress());
       }
-      AgentTaskScheduler.getInstance()
+      AgentTaskScheduler.get()
           .scheduleWithJitter(ConnectTask.INSTANCE, this, remainingDelay, SECONDS);
     } else {
       doConnect();
@@ -168,7 +168,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
               log.debug(
                   "Scheduling StatsD connection in {} seconds - {}", RETRY_DELAY, statsDAddress());
             }
-            AgentTaskScheduler.getInstance()
+            AgentTaskScheduler.get()
                 .scheduleWithJitter(ConnectTask.INSTANCE, this, RETRY_DELAY, SECONDS);
           } else {
             log.debug("Max retries have been reached. Will not attempt again.");

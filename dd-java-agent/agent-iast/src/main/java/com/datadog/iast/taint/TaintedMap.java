@@ -76,11 +76,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
   static TaintedMap buildWithPurge(final int capacity, int maxAge, TimeUnit maxAgeUnit) {
     final TaintedMapImpl map =
         new TaintedMapImpl(
-            capacity,
-            DEFAULT_MAX_BUCKET_SIZE,
-            maxAge,
-            maxAgeUnit,
-            AgentTaskScheduler.getInstance());
+            capacity, DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, AgentTaskScheduler.get());
     return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
@@ -136,7 +132,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
      */
     TaintedMapImpl(
         final int capacity, final int maxBucketSize, final int maxAge, final TimeUnit maxAgeUnit) {
-      this(capacity, maxBucketSize, maxAge, maxAgeUnit, AgentTaskScheduler.getInstance());
+      this(capacity, maxBucketSize, maxAge, maxAgeUnit, AgentTaskScheduler.get());
     }
 
     TaintedMapImpl(
@@ -352,7 +348,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       delegate.put(entry);
       final long putOps = puts.updateAndGet(current -> current == Long.MAX_VALUE ? 0 : current + 1);
       if (putOps % COMPUTE_STATISTICS_INTERVAL == 0 && LOGGER.isDebugEnabled()) {
-        AgentTaskScheduler.getInstance().execute(this::computeStatistics);
+        AgentTaskScheduler.get().execute(this::computeStatistics);
       }
     }
 

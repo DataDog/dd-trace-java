@@ -430,7 +430,7 @@ public final class ContinuableScopeManager implements ContextManager {
 
     public static void scheduleFor(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
       long period = Math.min(iterationKeepAlive, 10_000);
-      AgentTaskScheduler.getInstance()
+      AgentTaskScheduler.get()
           .scheduleAtFixedRate(
               CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
     }

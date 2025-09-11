@@ -27,8 +27,20 @@ public class AgentTaskScheduler implements Executor {
 
   private static final long SHUTDOWN_TIMEOUT = 5; // seconds
 
-  public static AgentTaskScheduler getInstance() {
+  public static AgentTaskScheduler get() {
     return INSTANCE;
+  }
+
+  /**
+   * This method is only for testing. It shuts down the existing executor and swap the instance with
+   * a fresh one.
+   *
+   * @param timeout the amount of time to wait for the shutdown.
+   * @param unit the unit of the time amount.
+   */
+  static void shutdownAndReset(long timeout, TimeUnit unit) {
+    INSTANCE.shutdown(timeout, unit);
+    INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
   }
 
   public interface Task<T> {

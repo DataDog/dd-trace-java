@@ -203,7 +203,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     sink.register(this);
     thread.start();
     cancellation =
-        AgentTaskScheduler.getInstance()
+        AgentTaskScheduler.get()
             .scheduleAtFixedRate(
                 new ReportTask(),
                 this,

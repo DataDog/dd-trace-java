@@ -31,7 +31,7 @@ public class DependencyService implements Runnable {
 
   public void schedulePeriodicResolution() {
     scheduledTask =
-        AgentTaskScheduler.getInstance()
+        AgentTaskScheduler.get()
             .scheduleAtFixedRate(
                 AgentTaskScheduler.RunnableTask.INSTANCE,
                 this,

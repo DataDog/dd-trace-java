@@ -1,6 +1,5 @@
 package datadog.trace.core.test
 
-import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
@@ -36,7 +35,6 @@ abstract class DDCoreSpecification extends DDSpecification {
   }
 
 
-
   protected boolean useNoopStatsDClient() {
     return true
   }
@@ -58,10 +56,14 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   @Override
   void cleanup() {
-    unclosedTracers.each {it.close()}
+    unclosedTracers.each {
+      try {
+        it.close()
+      } catch (Throwable ignored) {
+      }
+    }
     unclosedTracers.clear()
-    AgentTaskScheduler.getInstance().shutdown(10, TimeUnit.SECONDS)
-    AgentTaskScheduler.INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER)
+    AgentTaskScheduler.shutdownAndReset(10, TimeUnit.SECONDS)
   }
 
   protected CoreTracerBuilder tracerBuilder() {
