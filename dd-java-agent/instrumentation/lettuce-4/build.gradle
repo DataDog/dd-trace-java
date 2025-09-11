@@ -1,3 +1,4 @@
+
 muzzle {
   pass {
     group = "biz.paluch.redis"
