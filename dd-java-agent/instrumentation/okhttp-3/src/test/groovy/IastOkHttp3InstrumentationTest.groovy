@@ -18,6 +18,9 @@ class IastOkHttp3InstrumentationTest extends InstrumentationSpecification {
     // HttpUrl gets loaded early so we have to disable the advice transformer
     IastHttpUrlInstrumentation.ENABLE_ADVICE_TRANSFORMER = false
     injectSysConfig('dd.iast.enabled', 'true')
+    // disable tracer metrics because it uses OkHttp and class loading is
+    // not isolated in tests
+    injectSysConfig("trace.stats.computation.enabled", "false")
   }
 
   @Override
