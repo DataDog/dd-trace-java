@@ -133,6 +133,10 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return null;
       }
 
+      if (!TestDataFactory.shouldBeTraced(testDescriptor)) {
+        return null;
+      }
+
       String engineId = JUnitPlatformUtils.getEngineId(testDescriptor);
       TestFrameworkInstrumentation framework = JUnitPlatformUtils.engineIdToFramework(engineId);
 
