@@ -68,6 +68,10 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          assertEquals("snapshot", intakeRequest.getType());
+        });
     registerSnapshotListener(
         snapshot -> {
           assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());

@@ -325,6 +325,7 @@ class ProbeStatusSinkTest {
         MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
     ProbeStatus probeStatus = adapter.fromJson(buffer);
     assertEquals("dd_debugger", probeStatus.getDdSource());
+    assertEquals("diagnostic", probeStatus.getType());
     assertEquals(SERVICE_NAME, probeStatus.getService());
     assertEquals("Error installing probe " + PROBE_ID + ".", probeStatus.getMessage());
     assertEquals(PROBE_ID, probeStatus.getDiagnostics().getProbeId());
