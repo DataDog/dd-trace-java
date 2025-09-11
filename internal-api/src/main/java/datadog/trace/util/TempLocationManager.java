@@ -298,7 +298,7 @@ public final class TempLocationManager {
     tempDir = baseTempDir.resolve(TEMPDIR_PREFIX + pid);
     if (runStartupCleanup) {
       // do not execute the background cleanup task when running in tests
-      AgentTaskScheduler.INSTANCE.execute(cleanupTask);
+      AgentTaskScheduler.getInstance().execute(cleanupTask);
     }
 
     createTempDir(tempDir);

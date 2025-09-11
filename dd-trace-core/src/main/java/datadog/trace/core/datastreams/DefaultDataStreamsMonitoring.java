@@ -128,8 +128,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void start() {
     checkDynamicConfig();
     cancellation =
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
+        AgentTaskScheduler.getInstance()
+            .scheduleAtFixedRate(
+                new ReportTask(),
+                this,
+                bucketDurationNanos,
+                bucketDurationNanos,
+                TimeUnit.NANOSECONDS);
     thread.start();
   }
 

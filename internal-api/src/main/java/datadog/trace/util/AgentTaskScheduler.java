@@ -21,9 +21,15 @@ import org.slf4j.LoggerFactory;
 
 public class AgentTaskScheduler implements Executor {
   private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
-  public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
+
+  // not final for testing purposes
+  private static AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
   private static final long SHUTDOWN_TIMEOUT = 5; // seconds
+
+  public static AgentTaskScheduler getInstance() {
+    return INSTANCE;
+  }
 
   public interface Task<T> {
     void run(T target);

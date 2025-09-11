@@ -1,10 +1,12 @@
 package datadog.trace.core.test
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
+
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
@@ -14,8 +16,26 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.AgentTaskScheduler
+import spock.lang.Shared
+
+import java.util.concurrent.TimeUnit
 
 abstract class DDCoreSpecification extends DDSpecification {
+  @Shared
+  static List<CoreTracer> unclosedTracers = []
+
+
+  static class AutoCloseableCoreTracerBuilder extends CoreTracerBuilder {
+    @Override
+    CoreTracer build() {
+      def ret = super.build()
+      unclosedTracers.add(ret)
+      ret
+    }
+  }
+
+
 
   protected boolean useNoopStatsDClient() {
     return true
@@ -36,12 +56,20 @@ abstract class DDCoreSpecification extends DDSpecification {
     TagsPostProcessorFactory.reset()
   }
 
+  @Override
+  void cleanup() {
+    unclosedTracers.each {it.close()}
+    unclosedTracers.clear()
+    AgentTaskScheduler.getInstance().shutdown(10, TimeUnit.SECONDS)
+    AgentTaskScheduler.INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER)
+  }
+
   protected CoreTracerBuilder tracerBuilder() {
-    def builder = CoreTracer.builder()
+    def builder = new AutoCloseableCoreTracerBuilder()
     if (useNoopStatsDClient()) {
       builder = builder.statsDClient(StatsDClient.NO_OP)
     }
-    return builder.strictTraceWrites(useStrictTraceWrites())
+    builder.strictTraceWrites(useStrictTraceWrites())
   }
 
   protected DDSpan buildSpan(long timestamp, CharSequence spanType, Map<String, Object> tags) {
