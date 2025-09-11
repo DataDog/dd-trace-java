@@ -513,7 +513,7 @@ public class Agent {
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
     // one minute fail-safe in case the class was unintentionally loaded during premain
-    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
+    AgentTaskScheduler.get().schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -526,7 +526,7 @@ public class Agent {
 
   private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
     // one minute fail-safe in case the class was unintentionally loaded during premain
-    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
+    AgentTaskScheduler.get().schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -785,7 +785,7 @@ public class Agent {
       if (forceEarlyStart) {
         initializeCrashTrackingDefault();
       } else {
-        AgentTaskScheduler.INSTANCE.execute(Agent::initializeCrashTrackingDefault);
+        AgentTaskScheduler.get().execute(Agent::initializeCrashTrackingDefault);
       }
     } else {
       // for Java 8 we are relying on JMX to give us the process PID
@@ -796,8 +796,8 @@ public class Agent {
 
   private static void scheduleJmxStart(final int jmxStartDelay) {
     if (jmxStartDelay > 0) {
-      AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-          new JmxStartTask(), jmxStartDelay, TimeUnit.SECONDS);
+      AgentTaskScheduler.get()
+          .scheduleWithJitter(new JmxStartTask(), jmxStartDelay, TimeUnit.SECONDS);
     } else {
       startJmx();
     }
@@ -843,8 +843,8 @@ public class Agent {
           */
           if (getJmxStartDelay() == 0) {
             log.debug("Waiting for profiler initialization");
-            AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-                PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
+            AgentTaskScheduler.get()
+                .scheduleWithJitter(PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
           } else {
             log.debug("Initializing profiler");
             PROFILER_INIT_AFTER_JMX.run();

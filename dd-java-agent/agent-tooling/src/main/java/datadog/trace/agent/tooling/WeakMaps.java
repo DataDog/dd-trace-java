@@ -14,12 +14,13 @@ public class WeakMaps {
   public static <K, V> WeakMap<K, V> newWeakMap() {
     final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);
     if (!Platform.isNativeImageBuilder()) {
-      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
-          MapCleaningTask.INSTANCE,
-          map,
-          CLEAN_FREQUENCY_SECONDS,
-          CLEAN_FREQUENCY_SECONDS,
-          TimeUnit.SECONDS);
+      AgentTaskScheduler.get()
+          .weakScheduleAtFixedRate(
+              MapCleaningTask.INSTANCE,
+              map,
+              CLEAN_FREQUENCY_SECONDS,
+              CLEAN_FREQUENCY_SECONDS,
+              TimeUnit.SECONDS);
     }
     return new Adapter<>(map);
   }

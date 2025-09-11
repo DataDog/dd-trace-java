@@ -53,7 +53,7 @@ public class SymbolSink {
   public SymbolSink(Config config) {
     this(
         config,
-        new BatchUploader(config, config.getFinalDebuggerSymDBUrl(), RETRY_POLICY),
+        new BatchUploader("SymDB", config, config.getFinalDebuggerSymDBUrl(), RETRY_POLICY),
         MAX_SYMDB_UPLOAD_SIZE);
   }
 

@@ -97,7 +97,7 @@ public class SpringWebHttpServerDecorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      final Context context) {
+      final Context parentContext) {
     if (request != null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =

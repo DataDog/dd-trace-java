@@ -48,7 +48,10 @@ public class ProbeStatusSink {
   private final boolean useMultiPart;
 
   public ProbeStatusSink(Config config, String diagnosticsEndpoint, boolean useMultiPart) {
-    this(config, new BatchUploader(config, diagnosticsEndpoint, RETRY_POLICY), useMultiPart);
+    this(
+        config,
+        new BatchUploader("Diagnostics", config, diagnosticsEndpoint, RETRY_POLICY),
+        useMultiPart);
   }
 
   ProbeStatusSink(Config config, BatchUploader diagnosticUploader, boolean useMultiPart) {

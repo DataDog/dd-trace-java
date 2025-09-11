@@ -181,7 +181,15 @@ public class DebuggerTransformer implements ClassFileTransformer {
                 config,
                 "",
                 new BatchUploader(
-                    config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
+                    "Snapshots",
+                    config,
+                    config.getFinalDebuggerSnapshotUrl(),
+                    SnapshotSink.RETRY_POLICY),
+                new BatchUploader(
+                    "Logs",
+                    config,
+                    config.getFinalDebuggerSnapshotUrl(),
+                    SnapshotSink.RETRY_POLICY)),
             new SymbolSink(config)));
   }
 

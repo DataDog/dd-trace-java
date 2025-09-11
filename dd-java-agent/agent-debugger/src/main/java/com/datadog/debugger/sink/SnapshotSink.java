@@ -18,7 +18,11 @@ import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Collects snapshots that needs to be sent to the backend */
+/**
+ * Collects snapshots that needs to be sent to the backend the notion of high/low rate is used to
+ * control the flush interval low rate is used for snapshots with Captures (deep variable capture,
+ * captureSnapshot = true) high rate is used for snapshots without Captures (dynamic templated logs)
+ */
 public class SnapshotSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotSink.class);
   public static final int MAX_SNAPSHOT_SIZE = 1024 * 1024;
@@ -32,25 +36,32 @@ public class SnapshotSink {
   static final long HIGH_RATE_STEP_SIZE = 10;
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(0);
 
+  // low rate queue (aka snapshots)
   private final BlockingQueue<Snapshot> lowRateSnapshots =
       new ArrayBlockingQueue<>(LOW_RATE_CAPACITY);
+  // high rate queue (aka dynamic templated logs)
   private final BlockingQueue<Snapshot> highRateSnapshots =
       new ArrayBlockingQueue<>(HIGH_RATE_CAPACITY);
   private final String serviceName;
   private final int batchSize;
   private final String tags;
-  private final BatchUploader snapshotUploader;
+  // uploader for low rate (aka snapshots)
+  private final BatchUploader lowRateUploader;
+  // uploader for high rate (aka dynamic templated logs)
+  private final BatchUploader highRateUploader;
   private final AgentTaskScheduler highRateScheduler =
       new AgentTaskScheduler(AgentThreadFactory.AgentThread.DEBUGGER_SNAPSHOT_SERIALIZER);
   private final AtomicBoolean started = new AtomicBoolean();
   private volatile AgentTaskScheduler.Scheduled<SnapshotSink> highRateScheduled;
   private volatile long currentHighRateFlushInterval = HIGH_RATE_MAX_FLUSH_INTERVAL_MS;
 
-  public SnapshotSink(Config config, String tags, BatchUploader snapshotUploader) {
+  public SnapshotSink(
+      Config config, String tags, BatchUploader lowRateUploader, BatchUploader highRateUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
     this.tags = tags;
-    this.snapshotUploader = snapshotUploader;
+    this.lowRateUploader = lowRateUploader;
+    this.highRateUploader = highRateUploader;
   }
 
   public void start() {
@@ -66,7 +77,8 @@ public class SnapshotSink {
     if (localScheduled != null) {
       localScheduled.cancel();
     }
-    snapshotUploader.shutdown();
+    lowRateUploader.shutdown();
+    highRateUploader.shutdown();
     started.set(false);
   }
 
@@ -75,7 +87,7 @@ public class SnapshotSink {
     if (snapshots.isEmpty()) {
       return;
     }
-    uploadPayloads(snapshots, tags);
+    uploadPayloads(lowRateUploader, snapshots, tags);
   }
 
   public void highRateFlush(SnapshotSink ignored) {
@@ -87,12 +99,12 @@ public class SnapshotSink {
       }
       int count = snapshots.size();
       reconsiderHighRateFlushInterval(count);
-      uploadPayloads(snapshots, tags);
+      uploadPayloads(highRateUploader, snapshots, tags);
     } while (!highRateSnapshots.isEmpty());
   }
 
   public HttpUrl getUrl() {
-    return snapshotUploader.getUrl();
+    return lowRateUploader.getUrl();
   }
 
   public long remainingCapacity() {
@@ -194,10 +206,10 @@ public class SnapshotSink {
     return prunedStr;
   }
 
-  private void uploadPayloads(List<String> payloads, String tags) {
+  private static void uploadPayloads(BatchUploader uploader, List<String> payloads, String tags) {
     List<byte[]> batches = IntakeBatchHelper.createBatches(payloads);
     for (byte[] batch : batches) {
-      snapshotUploader.upload(batch, tags);
+      uploader.upload(batch, tags);
     }
   }
 }

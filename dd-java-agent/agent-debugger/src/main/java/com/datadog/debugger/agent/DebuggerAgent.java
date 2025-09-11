@@ -282,14 +282,19 @@ public class DebuggerAgent {
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       ProbeStatusSink probeStatusSink) {
     String tags = getDefaultTagsMergedWithGlobalTags(config);
-    SnapshotSink snapshotSink =
-        new SnapshotSink(
+    BatchUploader lowRateUploader =
+        new BatchUploader(
+            "Snapshots",
             config,
-            tags,
-            new BatchUploader(
-                config,
-                getDebuggerEndpoint(config, ddAgentFeaturesDiscovery),
-                SnapshotSink.RETRY_POLICY));
+            getSnapshotEndpoint(config, ddAgentFeaturesDiscovery),
+            SnapshotSink.RETRY_POLICY);
+    BatchUploader highRateUploader =
+        new BatchUploader(
+            "Logs",
+            config,
+            getLogEndpoint(config, ddAgentFeaturesDiscovery),
+            SnapshotSink.RETRY_POLICY);
+    SnapshotSink snapshotSink = new SnapshotSink(config, tags, lowRateUploader, highRateUploader);
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
         config,
@@ -323,11 +328,21 @@ public class DebuggerAgent {
     return debuggerTags + "," + globalTags;
   }
 
-  private static String getDebuggerEndpoint(
+  private static String getLogEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
     if (ddAgentFeaturesDiscovery.supportsDebugger()) {
       return ddAgentFeaturesDiscovery
-          .buildUrl(ddAgentFeaturesDiscovery.getDebuggerEndpoint())
+          .buildUrl(ddAgentFeaturesDiscovery.getDebuggerLogEndpoint())
+          .toString();
+    }
+    return config.getFinalDebuggerSnapshotUrl();
+  }
+
+  private static String getSnapshotEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
+      return ddAgentFeaturesDiscovery
+          .buildUrl(ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint())
           .toString();
     }
     return config.getFinalDebuggerSnapshotUrl();
