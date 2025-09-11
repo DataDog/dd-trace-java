@@ -82,7 +82,7 @@ public class Servlet3Decorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      final Context context) {
+      final Context parentContext) {
     assert span != null;
     ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
     if (request != null) {
@@ -97,7 +97,7 @@ public class Servlet3Decorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request, context);
+    return super.onRequest(span, connection, request, parentContext);
   }
 
   @Override

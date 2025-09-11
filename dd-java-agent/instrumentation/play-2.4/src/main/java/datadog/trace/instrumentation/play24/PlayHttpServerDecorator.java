@@ -87,8 +87,8 @@ public class PlayHttpServerDecorator
       final AgentSpan span,
       final Request<?> connection,
       final Request<?> request,
-      final Context context) {
-    super.onRequest(span, connection, request, context);
+      final Context parentContext) {
+    super.onRequest(span, connection, request, parentContext);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes
