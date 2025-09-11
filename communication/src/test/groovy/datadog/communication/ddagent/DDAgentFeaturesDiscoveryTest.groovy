@@ -66,7 +66,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
-    features.getDebuggerEndpoint() == "debugger/v2/input"
+    features.getDebuggerSnapshotEndpoint() == "debugger/v2/input"
     features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
     features.supportsContentEncodingHeadersWithEvpProxy()
@@ -440,7 +440,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_TELEMETRY_PROXY_RESPONSE) }
     features.supportsTelemetryProxy()
     features.supportsDebugger()
-    features.getDebuggerEndpoint() == "debugger/v1/input"
+    features.getDebuggerSnapshotEndpoint() == "debugger/v1/input"
     !features.supportsDebuggerDiagnostics()
     0 * _
   }
@@ -459,7 +459,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getEvpProxyEndpoint() == "evp_proxy/v2/" // v3 is advertised, but the tracer should ignore it
     !features.supportsContentEncodingHeadersWithEvpProxy()
     features.supportsDebugger()
-    features.getDebuggerEndpoint() == "debugger/v1/diagnostics"
+    features.getDebuggerSnapshotEndpoint() == "debugger/v1/diagnostics"
     features.supportsDebuggerDiagnostics()
     0 * _
   }
