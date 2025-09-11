@@ -79,12 +79,12 @@ public class Servlet2Decorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      final Context context) {
+      final Context parentContext) {
     assert span != null;
     if (request != null) {
       span.setTag("servlet.context", request.getContextPath());
       span.setTag("servlet.path", request.getServletPath());
     }
-    return super.onRequest(span, connection, request, context);
+    return super.onRequest(span, connection, request, parentContext);
   }
 }

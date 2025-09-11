@@ -16,7 +16,7 @@
 
 
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -30,7 +30,7 @@ import salistener.Config
 
 import javax.jms.ConnectionFactory
 
-class SpringSAListenerTest extends AgentTestRunner {
+class SpringSAListenerTest extends InstrumentationSpecification {
 
   def configClass() {
     return Config

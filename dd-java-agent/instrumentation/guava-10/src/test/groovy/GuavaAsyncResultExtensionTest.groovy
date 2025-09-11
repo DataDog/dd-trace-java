@@ -1,5 +1,5 @@
 import annotatedsample.GuavaTracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class GuavaAsyncResultExtensionTest extends AgentTestRunner {
+class GuavaAsyncResultExtensionTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

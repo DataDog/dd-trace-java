@@ -207,6 +207,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 501 &&
       rba.blockingContentType == BlockingContentType.JSON
     })
+    1 * ctx.setKeepType(_)
 
     1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * tracer.activeSpan()
@@ -240,6 +241,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
       rba.blockingContentType == BlockingContentType.AUTO
     })
+    1 * ctx.setKeepType(_)
     1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
       wafContext = new WafContext(it[0])
     }
@@ -284,6 +286,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * flow.isBlocking()
+    1 * ctx.setKeepType(_)
     1 * ctx.isThrottled(null)
     0 * _
 
@@ -308,6 +311,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
     0 * _
 
     when: 'changes the rules config'
@@ -359,6 +363,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
     0 * _
 
     when:
@@ -374,6 +379,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
+    1 * ctx.setKeepType(_)
     0 * _
   }
 
@@ -430,6 +436,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
     0 * _
 
     when:
@@ -447,6 +454,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
+    1 * ctx.setKeepType(_)
     0 * _
   }
 
@@ -505,6 +513,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * ctx.setWafBlocked()
+    1 * ctx.setKeepType(_)
     1 * ctx.isThrottled(null)
     0 * _
   }
@@ -570,6 +579,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
+    1 * ctx.setKeepType(_)
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
     0 * _
@@ -593,6 +603,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
     0 * ctx._(*_)
     flow.blocking
     flow.action instanceof Flow.Action.RequestBlockingAction
@@ -656,6 +667,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
     0 * ctx._(*_)
     flow.blocking
     flow.action.statusCode == 418
@@ -683,6 +695,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
     0 * ctx._(*_)
     metrics == null
   }
@@ -734,6 +747,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     1 * ctx.isWafContextClosed() >> false
+    1 * ctx.setKeepType(_)
     0 * ctx._(*_)
     flow.blocking
   }
@@ -995,6 +1009,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     2 * tracer.activeSpan()
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
+    1 * ctx.setKeepType(_)
     0 * _
   }
 
@@ -1032,6 +1047,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * flow.isBlocking()
+    1 * ctx.setKeepType(_)
     1 * ctx.isThrottled(null)
     0 * _
   }
@@ -1098,6 +1114,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1116,6 +1133,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * reconf.reloadSubscriptions()
     1 * ctx.closeWafContext()
     2 * ctx.getWafMetrics()
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1137,6 +1155,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * flow.isBlocking()
+    1 * ctx.setKeepType(_)
     1 * ctx.isThrottled(null)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
@@ -1155,6 +1174,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1183,6 +1203,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext() >> {
       wafContext.close()
     }
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1205,6 +1226,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext() >> {
       wafContext.close()
     }
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1232,6 +1254,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext() >> {
       wafContext.close()
     }
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     1 * ctx.isThrottled(null)
@@ -1257,6 +1280,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext() >> {
       wafContext.close()
     }
+    1 * ctx.setKeepType(_)
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1328,7 +1352,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'bad ResultWithData - empty list'() {
     def waf = new WAFModule()
-    Waf.ResultWithData rwd = new Waf.ResultWithData(null, "[]", null, null)
+    Waf.ResultWithData rwd = new Waf.ResultWithData(null, "[]", null, null, false, 0, false)
     Collection ret
 
     when:
@@ -1340,7 +1364,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'bad ResultWithData - empty object'() {
     def waf = new WAFModule()
-    Waf.ResultWithData rwd = new Waf.ResultWithData(null, "[{}]", null, null)
+    Waf.ResultWithData rwd = new Waf.ResultWithData(null, "[{}]", null, null, false, 0, false)
     Collection ret
 
     when:
@@ -1372,6 +1396,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
     1 * ctx.isWafContextClosed() >> false
+    1 * ctx.setKeepType(_)
     0 * _
 
     when:
@@ -1385,6 +1410,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
       it[0].iterator().next().ruleMatches[0].parameters[0].value == 'user-to-block-1'
     }
+    1 * ctx.setKeepType(_)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1463,6 +1489,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isThrottled(null)
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.closeWafContext()
+    1 * ctx.setKeepType(_)
     1 * ctx.isWafContextClosed()
     2 * tracer.activeSpan()
     1 * flow.isBlocking()
@@ -1496,6 +1523,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.closeWafContext()
     2 * tracer.activeSpan()
+    1 * ctx.setKeepType(_)
     0 * _
   }
 
@@ -1682,7 +1710,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'ResultWithData - null data'() {
     def waf = new WAFModule()
-    Waf.ResultWithData rwd = new Waf.ResultWithData(null, null, null, null)
+    Waf.ResultWithData rwd = new Waf.ResultWithData(null, null, null, null, false, 0, false)
     Collection ret
 
     when:
@@ -1709,6 +1737,214 @@ class WAFModuleSpecification extends DDSpecification {
       default:
       throw new IllegalStateException("Unhandled WafErrorCode: $code")
     }
+  }
+
+  void 'test rules_compat with output attributes'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      metadata: [
+        rules_version: '1.2.7'
+      ],
+      rules: [
+        [
+          id: 'arachni_rule',
+          name: 'Arachni',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^Arachni\\/v'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          transformers: [],
+          on_match: ['block']
+        ]
+      ],
+      rules_compat: [
+        [
+          id: 'rc-000-001',
+          name: 'Rules Compat Test: Attributes, No Keep, No Event',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^RulesCompat\\/v1'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          output: [
+            event: false,
+            keep: false,
+            attributes: [
+              '_dd.appsec.trace.integer': [
+                value: 123456789
+              ],
+              '_dd.appsec.trace.agent': [
+                value: 'RulesCompat/v1'
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id: 'rc-000-002',
+          name: 'Rules Compat Test: Attributes, Keep, No Event',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^RulesCompat\\/v2'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          output: [
+            event: false,
+            keep: true,
+            attributes: [
+              '_dd.appsec.trace.integer': [
+                value: 987654321
+              ],
+              '_dd.appsec.trace.agent': [
+                value: 'RulesCompat/v2'
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id: 'rc-000-003',
+          name: 'Rules Compat Test: Attributes, Keep, Event',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^RulesCompat\\/v3'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          output: [
+            event: true,
+            keep: true,
+            attributes: [
+              '_dd.appsec.trace.integer': [
+                value: 555666777
+              ],
+              '_dd.appsec.trace.agent': [
+                value: 'RulesCompat/v3'
+              ]
+            ]
+          ],
+          on_match: []
+        ]
+      ]
+    ]
+
+    when:
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+
+    then:
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.wafUpdates(_, true)
+    1 * reconf.reloadSubscriptions()
+    0 * _
+
+    when: 'test rules_compat rule with attributes, no keep and no event'
+    def bundle1 = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'RulesCompat/v1']))
+    def flow1 = new ChangeableFlow()
+    dataListener.onDataAvailable(flow1, ctx, bundle1, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v1', '_dd.appsec.trace.integer': 123456789])
+    1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
+    0 * ctx._(*_)
+    !flow1.blocking
+
+    when: 'test rules_compat rule with attributes, keep and no event'
+    def bundle2 = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'RulesCompat/v2']))
+    def flow2 = new ChangeableFlow()
+    dataListener.onDataAvailable(flow2, ctx, bundle2, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v2', '_dd.appsec.trace.integer': 987654321])
+    1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
+    0 * ctx._(*_)
+    !flow2.blocking
+
+    when: 'test rules_compat rule with attributes, keep and event'
+    def bundle3 = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'RulesCompat/v3']))
+    def flow3 = new ChangeableFlow()
+    dataListener.onDataAvailable(flow3, ctx, bundle3, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v3', '_dd.appsec.trace.integer': 555666777])
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.isThrottled(null)
+    1 * ctx.setKeepType(_)
+    0 * ctx._(*_)
+    !flow3.blocking
   }
 
   private static class BadConfig implements Map<String, Object> {

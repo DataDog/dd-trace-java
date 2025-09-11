@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import groovy.json.JsonSlurper
@@ -20,7 +20,7 @@ import spock.lang.Shared
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 
-class EventBridgeClientTest extends AgentTestRunner {
+class EventBridgeClientTest extends InstrumentationSpecification {
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "sns,sqs,events")

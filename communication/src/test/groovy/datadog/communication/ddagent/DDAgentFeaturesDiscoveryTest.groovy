@@ -66,7 +66,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
-    features.getDebuggerEndpoint() == "debugger/v2/input"
+    features.getDebuggerSnapshotEndpoint() == "debugger/v2/input"
     features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
     features.supportsContentEncodingHeadersWithEvpProxy()
@@ -75,6 +75,32 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsLongRunning()
     !features.supportsTelemetryProxy()
     0 * _
+  }
+
+  def "Should change discovery state atomically after discovery happened"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then: "info returned"
+    1 * client.newCall(_) >> {
+      Request request -> infoResponse(request, INFO_RESPONSE)
+    }
+    features.supportsMetrics()
+
+    when: "discovery again"
+    features.discover()
+
+    then: "should continue having metrics discovered while discovering"
+    1 * client.newCall(_) >> {
+      Request request -> {
+        assert features.supportsMetrics(): "metrics should stay supported until the discovery has finished"
+        infoResponse(request, INFO_RESPONSE)
+      }
+    }
   }
 
   def "test parse /info response with discoverIfOutdated"() {
@@ -414,7 +440,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_TELEMETRY_PROXY_RESPONSE) }
     features.supportsTelemetryProxy()
     features.supportsDebugger()
-    features.getDebuggerEndpoint() == "debugger/v1/input"
+    features.getDebuggerSnapshotEndpoint() == "debugger/v1/input"
     !features.supportsDebuggerDiagnostics()
     0 * _
   }
@@ -433,7 +459,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getEvpProxyEndpoint() == "evp_proxy/v2/" // v3 is advertised, but the tracer should ignore it
     !features.supportsContentEncodingHeadersWithEvpProxy()
     features.supportsDebugger()
-    features.getDebuggerEndpoint() == "debugger/v1/diagnostics"
+    features.getDebuggerSnapshotEndpoint() == "debugger/v1/diagnostics"
     features.supportsDebuggerDiagnostics()
     0 * _
   }
@@ -457,19 +483,19 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE
     features.supportsDropping()
     features.peerTags().containsAll(
-      "_dd.base_service",
-      "active_record.db.vendor",
-      "amqp.destination",
-      "amqp.exchange",
-      "amqp.queue",
-      "grpc.host",
-      "hostname",
-      "http.host",
-      "http.server_name",
-      "streamname",
-      "tablename",
-      "topicname"
-      )
+    "_dd.base_service",
+    "active_record.db.vendor",
+    "amqp.destination",
+    "amqp.exchange",
+    "amqp.queue",
+    "grpc.host",
+    "hostname",
+    "http.host",
+    "http.server_name",
+    "streamname",
+    "tablename",
+    "topicname"
+    )
   }
 
   def "should send container id as header on the info request and parse the hash in the response"() {
@@ -498,52 +524,52 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def infoResponse(Request request, String json, Headers headers = new Headers.Builder().build()) {
     return Mock(Call) {
       it.execute() >> new Response.Builder()
-        .code(200)
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .message("")
-        .headers(headers)
-        .body(ResponseBody.create(MediaType.get("application/json"), json))
-        .build()
+      .code(200)
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .message("")
+      .headers(headers)
+      .body(ResponseBody.create(MediaType.get("application/json"), json))
+      .build()
     }
   }
 
   def notFound(Request request) {
     return Mock(Call) {
       it.execute() >> new Response.Builder()
-        .code(404)
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .message("")
-        .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
-        .body(ResponseBody.create(MediaType.get("application/json"), ""))
-        .build()
+      .code(404)
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .message("")
+      .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
+      .body(ResponseBody.create(MediaType.get("application/json"), ""))
+      .build()
     }
   }
 
   def clientError(Request request) {
     return Mock(Call) {
       it.execute() >> new Response.Builder()
-        .code(400)
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .message("")
-        .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
-        .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
-        .build()
+      .code(400)
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .message("")
+      .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
+      .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
+      .build()
     }
   }
 
   def success(Request request) {
     return Mock(Call) {
       it.execute() >> new Response.Builder()
-        .code(200)
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .message("")
-        .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
-        .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
-        .build()
+      .code(200)
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .message("")
+      .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
+      .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
+      .build()
     }
   }
 

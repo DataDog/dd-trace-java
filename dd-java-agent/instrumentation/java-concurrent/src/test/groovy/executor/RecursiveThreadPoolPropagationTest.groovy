@@ -1,6 +1,6 @@
 package executor
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 import executor.recursive.RecursiveThreadPoolExecution
 import executor.recursive.RecursiveThreadPoolMixedSubmissionAndExecution
@@ -11,7 +11,7 @@ import spock.lang.Shared
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 
-class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
+class RecursiveThreadPoolPropagationTest extends InstrumentationSpecification {
 
   @Shared
   def recursiveSubmission = { executor, depth -> executor.submit(new RecursiveThreadPoolSubmission(executor, depth, 0)) }

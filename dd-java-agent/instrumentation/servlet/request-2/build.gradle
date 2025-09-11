@@ -34,7 +34,7 @@ dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'
   implementation project(':dd-java-agent:instrumentation:servlet-common')
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty-7.0') // See if there's any conflicts.

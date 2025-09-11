@@ -28,8 +28,9 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.sampling.SamplingRule;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
@@ -245,11 +246,12 @@ final class TracingConfigPoller {
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
-    DebuggerContext.updateConfig(
-        libConfig.dynamicInstrumentationEnabled,
-        libConfig.exceptionReplayEnabled,
-        libConfig.codeOriginEnabled,
-        libConfig.liveDebuggingEnabled);
+    DebuggerConfigBridge.updateConfig(
+        new DebuggerConfigUpdate(
+            libConfig.dynamicInstrumentationEnabled,
+            libConfig.exceptionReplayEnabled,
+            libConfig.codeOriginEnabled,
+            libConfig.liveDebuggingEnabled));
     builder.apply();
   }
 

@@ -1,6 +1,6 @@
 package test.iast
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.api.iast.sink.XssModule
@@ -11,7 +11,7 @@ import org.springframework.web.servlet.ModelAndView
 import org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor
 import org.springframework.web.servlet.view.AbstractUrlBasedView
 
-class HandlerMethodReturnValueHandlerCompositeInstrumentationTest extends AgentTestRunner {
+class HandlerMethodReturnValueHandlerCompositeInstrumentationTest extends InstrumentationSpecification {
 
   private static final TARGET_CLASS_NAME = 'org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite'
 

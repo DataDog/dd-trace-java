@@ -34,6 +34,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
@@ -402,12 +403,13 @@ public class WAFModule implements AppSecModule {
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
+        boolean isThrottled = reqCtx.isThrottled(rateLimiter);
 
-        if (!events.isEmpty()) {
-          if (!reqCtx.isThrottled(rateLimiter)) {
+        if (resultWithData.keep) {
+          if (!isThrottled) {
             AgentSpan activeSpan = AgentTracer.get().activeSpan();
             if (activeSpan != null) {
-              log.debug("Setting force-keep tag on the current span");
+              log.debug("Setting force-keep tag and manual keep tag on the current span");
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
               activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
@@ -418,17 +420,18 @@ public class WAFModule implements AppSecModule {
                   .getLocalRootSpan()
                   .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
             } else {
-              // If active span is not available the ASM_KEEP tag will be set in the GatewayBridge
-              // when the request ends
+              // If active span is not available then we need to set manual keep in GatewayBridge
               log.debug("There is no active span available");
             }
-            reqCtx.reportEvents(events);
           } else {
             log.debug("Rate limited WAF events");
             if (!gwCtx.isRasp) {
               reqCtx.setWafRateLimited();
             }
           }
+        }
+        if (resultWithData.events && !events.isEmpty() && !isThrottled) {
+          reqCtx.reportEvents(events);
         }
 
         if (flow.isBlocking()) {
@@ -438,8 +441,11 @@ public class WAFModule implements AppSecModule {
         }
       }
 
-      if (resultWithData.derivatives != null) {
-        reqCtx.reportDerivatives(resultWithData.derivatives);
+      reqCtx.setKeepType(
+          resultWithData.keep ? PrioritySampling.USER_KEEP : PrioritySampling.USER_DROP);
+
+      if (resultWithData.attributes != null && !resultWithData.attributes.isEmpty()) {
+        reqCtx.reportDerivatives(resultWithData.attributes);
       }
     }
 
@@ -564,6 +570,10 @@ public class WAFModule implements AppSecModule {
     }
     Collection<WAFResultData> listResults;
     try {
+      if (actionWithData.data == null || actionWithData.data.isEmpty()) {
+        log.debug("WAF returned no data");
+        return emptyList();
+      }
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
     } catch (IOException e) {
       throw new UndeclaredThrowableException(e);

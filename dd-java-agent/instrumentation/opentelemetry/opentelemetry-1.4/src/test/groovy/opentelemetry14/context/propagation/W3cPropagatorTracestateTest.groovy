@@ -1,13 +1,13 @@
 package opentelemetry14.context.propagation
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import io.opentelemetry.api.GlobalOpenTelemetry
 import spock.lang.Subject
 
 import static io.opentelemetry.context.Context.current
 import static io.opentelemetry.context.Context.root
 
-class W3cPropagatorTracestateTest extends AgentTestRunner {
+class W3cPropagatorTracestateTest extends InstrumentationSpecification {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("tracecontext-propagator-tracestate")
 

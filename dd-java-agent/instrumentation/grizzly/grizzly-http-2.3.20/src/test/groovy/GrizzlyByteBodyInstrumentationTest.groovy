@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -21,7 +21,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 /**
  * @see GrizzlyByteBodyInstrumentation
  */
-class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
+class GrizzlyByteBodyInstrumentationTest extends InstrumentationSpecification {
   NIOInputStream nioInputStream = Class.forName('org.glassfish.grizzly.http.server.NIOInputStreamImpl').newInstance()
   HttpHeader mockHttpHeader = Mock()
   InputBuffer mockInputBuffer = Mock()

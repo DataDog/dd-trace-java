@@ -15,13 +15,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.sink.Snapshot;
-import com.squareup.moshi.JsonAdapter;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -33,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import okhttp3.mockwebserver.RecordedRequest;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -48,8 +45,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
+    AtomicBoolean snapshotReceived = new AtomicBoolean(false);
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotReceived.set(true);
+        });
+    processRequests(snapshotReceived::get);
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
@@ -323,8 +324,16 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         createProcessBuilder(
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
-    int count = countSnapshots();
-    assertTrue(count >= 2 && count <= 20, "snapshots=" + count);
+    AtomicInteger snapshotCount = new AtomicInteger();
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotCount.incrementAndGet();
+        });
+    processRequests(
+        () -> {
+          LOG.info("snapshots={}", snapshotCount.get());
+          return snapshotCount.get() >= 2 && snapshotCount.get() <= 20;
+        });
   }
 
   @Test
@@ -349,8 +358,16 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         createProcessBuilder(
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
-    int count = countSnapshots();
-    assertTrue(count >= 850 && count <= 1000, "logs=" + count);
+    AtomicInteger snapshotCount = new AtomicInteger();
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotCount.incrementAndGet();
+        });
+    processRequests(
+        () -> {
+          LOG.info("snapshots={}", snapshotCount.get());
+          return snapshotCount.get() >= 850 && snapshotCount.get() <= 1000;
+        });
   }
 
   @Test
@@ -375,7 +392,16 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         createProcessBuilder(
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
-    assertTrue(countSnapshots() < 200);
+    AtomicInteger snapshotCount = new AtomicInteger();
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotCount.incrementAndGet();
+        });
+    processRequests(
+        () -> {
+          LOG.info("snapshots={}", snapshotCount.get());
+          return snapshotCount.get() > 0 && snapshotCount.get() < 200;
+        });
   }
 
   @Test
@@ -393,22 +419,20 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess =
         createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS, "uncaught").start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
-    Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-    assertEquals("123356536", snapshot.getProbe().getId());
-    CapturedContext.CapturedThrowable throwable =
-        snapshot.getCaptures().getReturn().getCapturedThrowable();
-    assertEquals("oops uncaught!", throwable.getMessage());
-    assertTrue(throwable.getStacktrace().size() > 0);
-    assertEquals(
-        "datadog.smoketest.debugger.Main.exceptionMethod",
-        throwable.getStacktrace().get(0).getFunction());
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals("123356536", snapshot.getProbe().getId());
+          CapturedContext.CapturedThrowable throwable =
+              snapshot.getCaptures().getReturn().getCapturedThrowable();
+          assertEquals("oops uncaught!", throwable.getMessage());
+          assertTrue(throwable.getStacktrace().size() > 0);
+          assertEquals(
+              "datadog.smoketest.debugger.Main.exceptionMethod",
+              throwable.getStacktrace().get(0).getFunction());
+          snapshotReceived.set(true);
+        });
+    processRequests(snapshotReceived::get);
   }
 
   @Test
@@ -426,43 +450,20 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     setCurrentConfiguration(createConfig(probe));
     targetProcess =
         createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS, "caught").start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
-    Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
-    assertEquals("123356536", snapshot.getProbe().getId());
-    assertEquals(1, snapshot.getCaptures().getCaughtExceptions().size());
-    CapturedContext.CapturedThrowable throwable =
-        snapshot.getCaptures().getCaughtExceptions().get(0);
-    assertEquals("oops caught!", throwable.getMessage());
-    assertEquals(
-        "datadog.smoketest.debugger.Main.exceptionMethod",
-        throwable.getStacktrace().get(0).getFunction());
-  }
-
-  private int countSnapshots() throws Exception {
-    int snapshotCount = 0;
-    RecordedRequest request;
-    do {
-      request = retrieveSnapshotRequest();
-      if (request != null) {
-        String bodyStr = request.getBody().readUtf8();
-        JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter =
-            createAdapterForSnapshot();
-        List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
-        long count =
-            intakeRequests.stream()
-                .map(intakeRequest -> intakeRequest.getDebugger().getSnapshot())
-                .count();
-        snapshotCount += count;
-      }
-    } while (request != null);
-    LOG.info("snapshots={}", snapshotCount);
-    return snapshotCount;
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals("123356536", snapshot.getProbe().getId());
+          assertEquals(1, snapshot.getCaptures().getCaughtExceptions().size());
+          CapturedContext.CapturedThrowable throwable =
+              snapshot.getCaptures().getCaughtExceptions().get(0);
+          assertEquals("oops caught!", throwable.getMessage());
+          assertEquals(
+              "datadog.smoketest.debugger.Main.exceptionMethod",
+              throwable.getStacktrace().get(0).getFunction());
+          snapshotReceived.set(true);
+        });
+    processRequests(snapshotReceived::get);
   }
 
   private ProbeId getProbeId(int i) {

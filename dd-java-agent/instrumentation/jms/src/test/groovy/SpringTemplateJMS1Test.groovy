@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.test.util.Flaky
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 import static JMS1Test.consumerTrace
 import static JMS1Test.producerTrace
 
-class SpringTemplateJMS1Test extends AgentTestRunner {
+class SpringTemplateJMS1Test extends InstrumentationSpecification {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
