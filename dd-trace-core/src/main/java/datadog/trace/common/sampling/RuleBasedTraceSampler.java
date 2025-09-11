@@ -22,6 +22,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
 
   public static final String SAMPLING_RULE_RATE = "_dd.rule_psr";
   public static final String SAMPLING_LIMIT_RATE = "_dd.limit_psr";
+  public static final String KNUTH_SAMPLING_RATE = "_dd.p.ksr";
 
   public RuleBasedTraceSampler(
       final List<RateSamplingRule> samplingRules,
@@ -168,6 +169,15 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
             matchedRule.getSampler().getSampleRate(),
             matchedRule.getMechanism());
       }
+
+      // Set Knuth sampling rate tag
+      String ksrRate = formatKnuthSamplingRate(matchedRule.getSampler().getSampleRate());
+      span.setTag(KNUTH_SAMPLING_RATE, ksrRate);
     }
+  }
+
+  private String formatKnuthSamplingRate(double rate) {
+    // Format to up to 6 decimal places, removing trailing zeros
+    return String.format("%.6f", rate).replaceAll("0*$", "").replaceAll("\\.$", "");
   }
 }
