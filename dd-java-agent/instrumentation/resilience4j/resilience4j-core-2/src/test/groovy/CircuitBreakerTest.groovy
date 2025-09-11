@@ -10,6 +10,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
+import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -176,6 +177,23 @@ class CircuitBreakerTest extends AgentTestRunner {
 
     then:
     runUnderTrace("parent"){function.apply("test")} == "foobar-test"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateConsumer"() {
+
+    when:
+    Consumer<String> consumer = Decorators
+      .ofConsumer { s -> serviceCall(s) }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("cb"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent") {
+      consumer.accept("test")
+      "a"
+    }
     and:
     assertExpectedTrace()
   }

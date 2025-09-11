@@ -7,10 +7,31 @@ import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class ContextHolder<T> {
+
+  public static final class ConsumerWithContext<T> extends ContextHolder<T>
+      implements Consumer<Object> {
+    private final Consumer<Object> outbound;
+
+    public ConsumerWithContext(
+        Consumer<Object> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public void accept(Object arg) {
+      try (AgentScope ignore = activateScope()) {
+        outbound.accept(arg);
+      } finally {
+        finishSpanIfNeeded();
+      }
+    }
+  }
 
   public static final class SupplierWithContext<T> extends ContextHolder<T>
       implements Supplier<Object> {

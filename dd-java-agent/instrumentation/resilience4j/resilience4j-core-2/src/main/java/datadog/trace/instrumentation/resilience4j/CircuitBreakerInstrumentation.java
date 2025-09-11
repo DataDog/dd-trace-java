@@ -13,6 +13,7 @@ import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
@@ -50,6 +51,13 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
         THIS_CLASS + "$CompletionStageAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateConsumer"))
+            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(returns(named(CONSUMER_FQCN))),
+        THIS_CLASS + "$ConsumerAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -131,6 +139,17 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Return(readOnly = false) CheckedRunnable outbound) {
       outbound =
           new ContextHolder.CheckedRunnableWithContext<>(
+              outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+    }
+  }
+
+  public static class ConsumerAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
+        @Advice.Return(readOnly = false) Consumer<Object> outbound) {
+      outbound =
+          new ContextHolder.ConsumerWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
