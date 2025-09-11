@@ -2,7 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.version.Version
-import java.util.*
+import java.util.Locale
 
 internal object MuzzleVersionUtils {
   private val END_NMN_PATTERN = Regex("^.*\\.[0-9]+[mM][0-9]+$")

@@ -1,7 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.version.Version
-import java.util.*
+import java.util.SortedSet
 
 class VersionSet(versions: Collection<Version>) {
     private val sortedVersions: SortedSet<ParsedVersion> = sortedSetOf()
