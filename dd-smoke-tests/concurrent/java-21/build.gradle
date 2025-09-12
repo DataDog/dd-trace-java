@@ -5,6 +5,7 @@ plugins {
 
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_21
+  maxJavaVersionForTests = JavaVersion.VERSION_25
 }
 
 apply from: "$rootDir/gradle/java.gradle"
