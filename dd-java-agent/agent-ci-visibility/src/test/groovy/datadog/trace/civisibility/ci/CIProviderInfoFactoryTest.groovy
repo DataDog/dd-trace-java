@@ -2,10 +2,9 @@ package datadog.trace.civisibility.ci
 
 import datadog.trace.api.Config
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
+import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
+import uk.org.webcompere.systemstubs.jupiter.SystemStub
 
 import java.nio.file.Paths
 
@@ -21,18 +20,8 @@ import static datadog.trace.civisibility.ci.JenkinsInfo.JENKINS
 import static datadog.trace.civisibility.ci.TravisInfo.TRAVIS
 
 class CIProviderInfoFactoryTest extends Specification {
-  @Rule
+  @SystemStub
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-
-  def setup() {
-    // Clear all environment variables to avoid clashes between
-    // real CI/Git environment variables and the spec CI/Git
-    // environment variables.
-    environmentVariables.clear(System.getenv().keySet() as String[])
-  }
 
   def "test correct info is selected"() {
     setup:

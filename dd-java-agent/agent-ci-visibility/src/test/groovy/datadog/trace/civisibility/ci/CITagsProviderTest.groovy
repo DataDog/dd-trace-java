@@ -9,10 +9,9 @@ import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
 import datadog.trace.civisibility.git.tree.GitClient
 import datadog.trace.util.Strings
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
+import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
+import uk.org.webcompere.systemstubs.jupiter.SystemStub
 
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -22,20 +21,10 @@ abstract class CITagsProviderTest extends Specification {
   static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
   static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
 
-  @Rule
+  @SystemStub
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-
   protected final String localFSGitWorkspace = resolve(CI_WORKSPACE_PATH_FOR_TESTS)
-
-  def setup() {
-    // Clear all environment variables to avoid clashes between
-    // real CI/Git environment variables and the spec CI/Git
-    // environment variables.
-    environmentVariables.clear(System.getenv().keySet() as String[])
-  }
 
   def "test ci provider info is set properly: #ciSpec.providerName #ciSpec.idx #ciSpec.testCaseName"() {
     setup:
