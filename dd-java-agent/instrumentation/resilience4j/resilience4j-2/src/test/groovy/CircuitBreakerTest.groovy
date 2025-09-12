@@ -11,6 +11,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
@@ -201,30 +202,22 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  //  def "decorateFuture"() {
-  //    setup:
-  //    def executor = singleThreadExecutor
-  //    Thread testThread = Thread.currentThread()
-  //    when:
-  //    Supplier<Future<String>> supplier = CircuitBreaker.decorateFuture(CircuitBreaker.ofDefaults("cb"), {
-  //      CompletableFuture.supplyAsync({
-  //        // prevent completion on the same thread
-  //        Thread.sleep(100)
-  //        serviceCall("foobar")
-  //      }, executor).whenComplete { r, e ->
-  //        assert Thread.currentThread() != testThread,
-  //        "Make sure that the thread running whenComplete is different from the one running the test. " +
-  //        "This verifies that the scope we create does not cross the thread boundaries. " +
-  //        "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
-  //      }
-  //    })
-  //
-  //    then:
-  //    def future = runUnderTrace("parent"){supplier.get()}
-  //    future.get() == "foobar"
-  //    and:
-  //    assertExpectedTrace()
-  //  }
+  def "decorateFuture"() {
+    setup:
+    def executor = singleThreadExecutor
+    when:
+    Supplier<Future<String>> supplier = CircuitBreaker.decorateFuture(CircuitBreaker.ofDefaults("cb"), {
+      CompletableFuture.supplyAsync({
+        serviceCall("foobar")
+      }, executor)
+    })
+
+    then:
+    def future = runUnderTrace("parent"){supplier.get()}
+    future.get() == "foobar"
+    and:
+    assertExpectedTrace()
+  }
 
   private void assertExpectedTrace() {
     assertTraces(1) {

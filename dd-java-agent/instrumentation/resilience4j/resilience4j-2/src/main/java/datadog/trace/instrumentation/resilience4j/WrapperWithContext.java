@@ -8,7 +8,12 @@ import io.github.resilience4j.core.functions.CheckedFunction;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -147,7 +152,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public O get() throws Throwable {
-      try (AgentScope scope = activateScope()) {
+      try (AgentScope ignore = activateScope()) {
         return outbound.get();
       } finally {
         finishSpanIfNeeded();
@@ -167,7 +172,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public void run() throws Throwable {
-      try (AgentScope scope = activateScope()) {
+      try (AgentScope ignore = activateScope()) {
         outbound.run();
       } finally {
         finishSpanIfNeeded();
@@ -187,7 +192,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public void run() {
-      try (AgentScope scope = activateScope()) {
+      try (AgentScope ignore = activateScope()) {
         outbound.run();
       } finally {
         finishSpanIfNeeded();
@@ -214,6 +219,81 @@ public class WrapperWithContext<T> {
                 (v, e) -> {
                   finishSpanIfNeeded();
                 });
+      }
+    }
+  }
+
+  public static final class SupplierOfFutureWithContext<T> extends WrapperWithContext<T>
+      implements Supplier<Future<?>> {
+    private final Supplier<Future<?>> outbound;
+
+    public SupplierOfFutureWithContext(
+        Supplier<Future<?>> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
+      this.outbound = outbound;
+    }
+
+    @Override
+    public Future<?> get() {
+      try (AgentScope ignore = activateScope()) {
+        Future<?> future = outbound.get();
+        if (future instanceof CompletableFuture) {
+          ((CompletableFuture<?>) future)
+              .whenComplete(
+                  (v, e) -> {
+                    finishSpanIfNeeded();
+                  });
+          return future;
+        }
+        return new FinishOnGetFuture<>(future, this);
+      }
+    }
+  }
+
+  private static final class FinishOnGetFuture<V> implements Future<V> {
+    private final Future<V> delegate;
+    private final WrapperWithContext<?> context;
+
+    FinishOnGetFuture(Future<V> delegate, WrapperWithContext<?> context) {
+      this.delegate = delegate;
+      this.context = context;
+    }
+
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      try {
+        return delegate.cancel(mayInterruptIfRunning);
+      } finally {
+        context.finishSpanIfNeeded();
+      }
+    }
+
+    @Override
+    public boolean isCancelled() {
+      return delegate.isCancelled();
+    }
+
+    @Override
+    public boolean isDone() {
+      return delegate.isDone();
+    }
+
+    @Override
+    public V get() throws InterruptedException, ExecutionException {
+      try {
+        return delegate.get();
+      } finally {
+        context.finishSpanIfNeeded();
+      }
+    }
+
+    @Override
+    public V get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+      try {
+        return delegate.get(timeout, unit);
+      } finally {
+        context.finishSpanIfNeeded();
       }
     }
   }

@@ -42,6 +42,8 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
       packageName + ".WrapperWithContext$FunctionWithContext",
       packageName + ".WrapperWithContext$SupplierOfCompletionStageWithContext",
       packageName + ".WrapperWithContext$SupplierWithContext",
+      packageName + ".WrapperWithContext$SupplierOfFutureWithContext",
+      packageName + ".WrapperWithContext$FinishOnGetFuture",
       packageName + ".Resilience4jSpanDecorator",
       packageName + ".Resilience4jSpan",
       packageName + ".CircuitBreakerDecorator",
