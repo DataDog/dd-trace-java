@@ -182,14 +182,27 @@ class MuzzlePlugin : Plugin<Project> {
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
       muzzleTooling: NamedDomainObjectProvider<Configuration>
     ): TaskProvider<MuzzleTask> {
-      val muzzleTaskName = if (muzzleDirective.isCoreJdk) {
-        "muzzle-Assert$muzzleDirective"
-      } else {
-        "muzzle-Assert${if (muzzleDirective.assertPass) "Pass" else "Fail"}-${versionArtifact?.groupId}-${versionArtifact?.artifactId}-${versionArtifact?.version}${if (muzzleDirective.name != null) "-${muzzleDirective.name}" else ""}"
+      val muzzleTaskName = buildString {
+        append("muzzle-Assert")
+        when {
+            muzzleDirective.isCoreJdk -> {
+              append(muzzleDirective)
+            }
+            else -> {
+              append(if (muzzleDirective.assertPass) "Pass" else "Fail")
+              append("-")
+              append(versionArtifact?.groupId)
+              append("-")
+              append(versionArtifact?.artifactId)
+              append("-")
+              append(versionArtifact?.version)
+              append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
+            }
+        }
       }
       instrumentationProject.configurations.register(muzzleTaskName) {
         if (!muzzleDirective.isCoreJdk && versionArtifact != null) {
-          var depId = buildString {
+          val depId = buildString {
             append("${versionArtifact.groupId}:${versionArtifact.artifactId}:${versionArtifact.version}")
 
             versionArtifact.classifier?.let {

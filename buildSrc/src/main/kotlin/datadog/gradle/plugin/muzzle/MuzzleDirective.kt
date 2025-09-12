@@ -85,9 +85,8 @@ open class MuzzleDirective {
    *
    * @return A slug of the name or an empty string if name is empty. E.g. 'My Directive' --> 'My-Directive'
    */
-  fun getNameSlug(): String {
-    return name?.trim()?.replace(Regex("[^a-zA-Z0-9]+"), "-") ?: ""
-  }
+  val nameSlug: String
+    get() = name?.trim()?.replace(Regex("[^a-zA-Z0-9]+"), "-") ?: ""
 
   override fun toString(): String {
     return if (isCoreJdk) {
