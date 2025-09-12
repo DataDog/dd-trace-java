@@ -20,7 +20,7 @@ gradlePlugin {
     }
     create("muzzle-plugin") {
       id = "muzzle"
-      implementationClass = "MuzzlePlugin"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"

@@ -19,7 +19,7 @@ muzzle {
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies += "org.mule.runtime:mule-tracer-customization-impl:$muleVersion"
+    additionalDependencies.add('org.mule.runtime:mule-tracer-customization-impl:' + muleVersion)
   }
   pass {
     group = 'org.mule.runtime'
@@ -29,7 +29,7 @@ muzzle {
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
-    additionalDependencies += "org.mule.runtime:mule-core:$muleVersion"
+    additionalDependencies.add('org.mule.runtime:mule-core:' + muleVersion)
   }
 
   fail {
