@@ -11,6 +11,8 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.plugins.JavaBasePlugin
+import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.exclude
@@ -33,12 +35,21 @@ class MuzzlePlugin : Plugin<Project> {
    * @param project The Gradle project to apply the plugin to.
    */
   override fun apply(project: Project) {
+    // create extension first, if java plugin is applied after muzzle
+    project.extensions.create<MuzzleExtension>("muzzle", project.objects)
+
+    // Configure muzzle only when java plugin is applied, because this plugin requires
+    // the project's SourceSetContainer, which created by the java plugin (via the JvmEcosystemPlugin)
+    project.pluginManager.withPlugin("java") {
+      configureMuzzle(project)
+    }
+  }
+
+  private fun configureMuzzle(project: Project) {
     val rootProjects = project.rootProject.childProjects
     val ddJavaAgent = rootProjects["dd-java-agent"]?.childProjects ?: error(":dd-java-agent child projects not found")
     val bootstrapProject = ddJavaAgent["agent-bootstrap"] ?: error(":dd-java-agent:agent-bootstrap project not found")
     val toolingProject = ddJavaAgent["agent-tooling"] ?: error(":dd-java-agent:agent-tooling project not found")
-
-    project.extensions.create<MuzzleExtension>("muzzle", project.objects)
 
     val muzzleBootstrap = project.configurations.register("muzzleBootstrap") {
       isCanBeConsumed = false
