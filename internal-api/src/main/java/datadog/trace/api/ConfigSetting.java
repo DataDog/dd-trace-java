@@ -14,6 +14,7 @@ public final class ConfigSetting {
 
   public final int seqId;
   public static final int DEFAULT_SEQ_ID = 1;
+  // Only used for backwards compatibility with unit tests
   public static final int ABSENT_SEQ_ID = 0;
 
   /** The config ID associated with this setting, or {@code null} if not applicable. */
@@ -31,6 +32,7 @@ public final class ConfigSetting {
     return new ConfigSetting(key, value, origin, seqId, null);
   }
 
+  // No usages of this function
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin, String configId) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, configId);
   }

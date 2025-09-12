@@ -79,6 +79,7 @@ public class ConfigCollector {
   @SuppressWarnings("unchecked")
   public Map<ConfigOrigin, Map<String, ConfigSetting>> collect() {
     if (!collected.isEmpty()) {
+      highestSeqId = new ConcurrentHashMap<>();
       return COLLECTED_UPDATER.getAndSet(this, new ConcurrentHashMap<>());
     } else {
       return Collections.emptyMap();
