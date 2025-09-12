@@ -6,11 +6,10 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
-spock = "2.3-groovy-3.0"
-spock24 = "2.4-M6-groovy-3.0"
+spock = "2.4-M6-groovy-3.0"
 groovy = "3.0.24"
-junit5 = "5.9.2"
-junit-platform = "1.9.2"
+junit5 = "5.12.2"
+junit-platform = "1.12.2"
 logback = "1.2.13"
 bytebuddy = "1.17.5"
 scala = "2.11.12" # Last version to support Java 7 (2.12+ require Java 8+)
@@ -65,11 +64,8 @@ aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2'}
 # Testing
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
 spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
+spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
-
-spock24-core = { module = "org.spockframework:spock-core", version.ref = "spock24" }
-spock24-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock24" }
-spock24-spring = { module = "org.spockframework:spock-spring", version.ref = "spock24" }
 
 groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
 groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }
@@ -109,7 +105,6 @@ asm = ["asm", "asmcommons"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 # Testing
 spock = ["spock-core", "spock-junit4", "objenesis"]
-spock24-spring = ["spock24-core", "spock24-junit4", "spock24-spring"]
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "byte-buddy", "byte-buddy-agent"]
