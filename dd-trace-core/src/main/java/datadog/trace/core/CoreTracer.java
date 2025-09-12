@@ -243,6 +243,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
+  // Cache used by buildSpan
+  private final ThreadLocal<CoreSpanBuilder> tlSpanBuilder =
+      new ThreadLocal<CoreSpanBuilder>() {
+        @Override
+        protected CoreSpanBuilder initialValue() {
+          return new CoreSpanBuilder(CoreTracer.this);
+        }
+      };
+
   @Override
   public ConfigSnapshot captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
@@ -968,7 +977,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
-    return new CoreSpanBuilder(this, instrumentationName, operationName);
+    CoreSpanBuilder tlSpanBuilder = this.tlSpanBuilder.get();
+    tlSpanBuilder.reset(instrumentationName, operationName);
+    return tlSpanBuilder;
   }
 
   @Override
@@ -1401,9 +1412,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Spans are built using this builder */
   public static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
-    private final String instrumentationName;
-    private final CharSequence operationName;
     private final CoreTracer tracer;
+
+    private String instrumentationName;
+    private CharSequence operationName;
 
     // Builder attributes
     private TagMap.Ledger tagLedger;
@@ -1420,13 +1432,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private List<AgentSpanLink> links;
     private long spanId;
 
-    CoreSpanBuilder(
-        final CoreTracer tracer,
-        final String instrumentationName,
-        final CharSequence operationName) {
+    CoreSpanBuilder(CoreTracer tracer) {
+      this.tracer = tracer;
+    }
+
+    void reset(String instrumentationName, CharSequence operationName) {
       this.instrumentationName = instrumentationName;
       this.operationName = operationName;
-      this.tracer = tracer;
+
+      if (this.tagLedger != null) this.tagLedger.reset();
+      this.timestampMicro = 0L;
+      this.parent = null;
+      this.serviceName = null;
+      this.resourceName = null;
+      this.errorFlag = false;
+      this.spanType = null;
+      this.ignoreScope = false;
+      this.builderCiVisibilityContextData = null;
+      this.builderRequestContextDataIast = null;
+      this.builderCiVisibilityContextData = null;
+      this.links = null;
+      this.spanId = 0L;
     }
 
     @Override
