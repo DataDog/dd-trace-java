@@ -84,20 +84,8 @@ class FallbackTest extends AgentTestRunner {
     ]
   }
 
-  def "ofCompletionStage"() {
-    setup:
-    def executor = Executors.newSingleThreadExecutor()
+  def "ofCompletionStage"(Supplier<CompletionStage<String>> supplier) {
     when:
-    Supplier<CompletionStage<String>> supplier = Decorators
-      .ofCompletionStage {
-        CompletableFuture.supplyAsync({
-          serviceCallErr(new IllegalStateException("test"))
-        }, executor)
-      }
-      .withFallback({ Throwable t ->
-        serviceCall("fallbackResult", "fallbackCall")
-      } as Function<Throwable, String>)
-      .decorate()
     def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
 
     then:
@@ -106,7 +94,43 @@ class FallbackTest extends AgentTestRunner {
     then:
     assertExpectedTrace()
 
-    //TODO test all variants
+    where:
+    supplier << [
+      Decorators
+      .ofCompletionStage {
+        CompletableFuture.supplyAsync({
+          serviceCallErr(new IllegalStateException("test"))
+        }, Executors.newSingleThreadExecutor())
+      }
+      .withFallback({ Throwable t ->
+        serviceCall("fallbackResult", "fallbackCall")
+      } as Function<Throwable, String>)
+      .decorate(),
+      Decorators
+      .ofCompletionStage {
+        CompletableFuture.supplyAsync({
+          serviceCall("badResult", "serviceCall")
+        }, Executors.newSingleThreadExecutor())
+      }
+      .withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
+      .decorate(),
+      Decorators
+      .ofCompletionStage {
+        CompletableFuture.supplyAsync({
+          serviceCallErr(new IllegalStateException("test"))
+        }, Executors.newSingleThreadExecutor())
+      }
+      .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
+      .decorate(),
+      Decorators
+      .ofCompletionStage {
+        CompletableFuture.supplyAsync({
+          serviceCallErr(new IllegalStateException("test"))
+        }, Executors.newSingleThreadExecutor())
+      }
+      .withFallback(List.of(IllegalStateException), { t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
+      .decorate(),
+    ]
   }
 
   private void assertExpectedTrace() {
