@@ -4,6 +4,7 @@ import java.time.temporal.ChronoUnit
 def isTestingInstrumentation(Project project) {
   return [
     "junit-4.10",
+    "cucumber",
     "cucumber-junit-4",
     "junit-4.13",
     "munit-junit-4",
@@ -15,6 +16,7 @@ def isTestingInstrumentation(Project project) {
     "testng-7",
     "karate",
     "scalatest",
+    "selenium",
     "weaver"
   ].contains(project.name)
 }
