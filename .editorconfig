@@ -7,17 +7,54 @@ end_of_line=lf
 insert_final_newline=true
 indent_style=space
 indent_size=2
-
-[*.json]
-indent_style=space
-indent_size=2
+ij_continuation_indent_size=4
 
 [*.java]
-indent_style=space
-indent_size=2
-continuation_indent_size=4
+ij_java_class_count_to_use_import_on_demand = 99
+ij_java_insert_inner_class_imports = false
+ij_java_imports_layout = |,$*,|,*,|
+ij_java_layout_on_demand_import_from_same_package_first = true
+ij_java_layout_static_imports_separately = true
+ij_java_names_count_to_use_import_on_demand = 99
+ij_java_packages_to_use_import_on_demand = java.awt.*,javax.swing.*
+
+
+ij_java_block_comment_add_space = false
+ij_java_block_comment_at_first_column = false
+ij_java_line_comment_add_space = true
+ij_java_line_comment_add_space_on_reformat = false
+ij_java_line_comment_at_first_column = false
+
+
+[*.groovy]
+ij_groovy_class_count_to_use_import_on_demand = 99
+ij_groovy_imports_layout = $*,|,*,|
+ij_groovy_names_count_to_use_import_on_demand = 99
+ij_groovy_packages_to_use_import_on_demand = java.awt.*,javax.swing.*
+
+ij_groovy_block_comment_add_space = false
+ij_groovy_block_comment_at_first_column = false
+ij_groovy_line_comment_add_space = true
+ij_groovy_line_comment_add_space_on_reformat = false
+ij_groovy_line_comment_at_first_column = false
+
+[{*.kt,*.kts}]
+ij_kotlin_import_nested_classes = false
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
+
+ij_kotlin_name_count_to_use_star_import = 99
+ij_kotlin_name_count_to_use_star_import_for_members = 99
+ij_kotlin_packages_to_use_import_on_demand = kotlinx.android.synthetic.**,io.ktor.**
+
+ij_kotlin_block_comment_add_space = false
+ij_kotlin_block_comment_at_first_column = false
+ij_kotlin_line_comment_add_space = true
+ij_kotlin_line_comment_add_space_on_reformat = false
+ij_kotlin_line_comment_at_first_column = false
+
 
 [{*.yml,*.yaml}]
-indent_style=space
-indent_size=2
+ij_yaml_line_comment_add_space = true
+ij_yaml_line_comment_add_space_on_reformat = false
+ij_yaml_line_comment_at_first_column = false
 
