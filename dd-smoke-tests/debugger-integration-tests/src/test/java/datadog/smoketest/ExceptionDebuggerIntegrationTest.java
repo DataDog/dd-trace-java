@@ -53,6 +53,10 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          assertEquals("snapshot", intakeRequest.getType());
+        });
     processRequests(
         () -> {
           if (snapshotIdTags.isEmpty()) {

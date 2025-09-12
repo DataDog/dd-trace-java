@@ -25,6 +25,8 @@ public class ProbeStatus {
   @Json(name = "ddsource")
   private final String ddSource = "dd_debugger";
 
+  private final String type = "diagnostic";
+
   private final String service;
   private final String message;
   private final long timestamp;
@@ -49,6 +51,10 @@ public class ProbeStatus {
 
   public String getDdSource() {
     return ddSource;
+  }
+
+  public String getType() {
+    return type;
   }
 
   public String getService() {
