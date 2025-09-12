@@ -21,15 +21,20 @@ class ConfigInversionLinter : Plugin<Project> {
 
 /** Registers `logEnvVarUsages` (scan for DD_/OTEL_ tokens and fail if unsupported). */
 private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerConfigurations) {
-  val ownerPath = extension.configOwnerPath.get()
-  val generatedFile = extension.className.get()
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
 
   // token check that uses the generated class instead of JSON
   target.tasks.register("logEnvVarUsages") {
     group = "verification"
     description = "Scan Java files for DD_/OTEL_ tokens and fail if unsupported (using generated constants)"
 
-    val mainSourceSetOutput = target.project(ownerPath).extensions.getByType<SourceSetContainer>().named(SourceSet.MAIN_SOURCE_SET_NAME).map { it.output }
+    val mainSourceSetOutput = ownerPath.map {
+      target.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
     inputs.files(mainSourceSetOutput)
 
     // inputs for incrementality (your own source files, not the owner’s)
@@ -41,10 +46,10 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
     outputs.upToDateWhen { true }
     doLast {
       // 1) Build classloader from the owner project’s runtime classpath
-      val urls = mainSourceSetOutput.get().files.map { it.toURI().toURL() }.toTypedArray()
+      val urls = mainSourceSetOutput.get().get().files.map { it.toURI().toURL() }.toTypedArray()
       val supported: Set<String> = URLClassLoader(urls, javaClass.classLoader).use { cl ->
         // 2) Load the generated class + read static field
-        val clazz = Class.forName(generatedFile, true, cl)
+        val clazz = Class.forName(generatedFile.get(), true, cl)
         @Suppress("UNCHECKED_CAST")
         clazz.getField("SUPPORTED").get(null) as Set<String>
       }
@@ -76,7 +81,7 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
         violations.forEach { target.logger.error(it) }
         throw GradleException("Unsupported DD_/OTEL_ tokens found! See errors above.")
       } else {
-        target.logger.lifecycle("All DD_/OTEL_ tokens are supported.")
+        target.logger.info("All DD_/OTEL_ tokens are supported.")
       }
     }
   }
@@ -115,7 +120,7 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
         matches.forEach { project.logger.lifecycle(it) }
         throw GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
       } else {
-        project.logger.lifecycle("No forbidden EnvironmentVariables.get(...) usages found in src/main/java.")
+        project.logger.info("No forbidden EnvironmentVariables.get(...) usages found in src/main/java.")
       }
     }
   }

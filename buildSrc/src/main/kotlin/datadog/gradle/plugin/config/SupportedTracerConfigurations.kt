@@ -11,7 +11,4 @@ open class SupportedTracerConfigurations @Inject constructor(objects: ObjectFact
   val jsonFile = objects.fileProperty().convention(layout.projectDirectory.file("src/main/resources/supported-configurations.json"))
 
   val destinationDirectory = objects.directoryProperty().convention(layout.buildDirectory.dir("generated/supportedConfigurations"))
-
-  // ... other configs
-  // maybe excluded files in specific submodules like "internal-api/...", "dd-java-agent/..."
 }
