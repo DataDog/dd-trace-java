@@ -22,6 +22,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private static final Logger log = LoggerFactory.getLogger(RateByServiceTraceSampler.class);
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
+  public static final String KNUTH_SAMPLING_RATE = "_dd.p.ksr";
 
   private static final double DEFAULT_RATE = 1.0;
 
@@ -56,10 +57,19 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
           sampler.getSampleRate(),
           SamplingMechanism.AGENT_RATE);
     }
+
+    // Set Knuth sampling rate tag
+    String ksrRate = formatKnuthSamplingRate(sampler.getSampleRate());
+    span.setTag(KNUTH_SAMPLING_RATE, ksrRate);
   }
 
   private <T extends CoreSpan<T>> String getSpanEnv(final T span) {
     return span.getTag("env", "");
+  }
+
+  private String formatKnuthSamplingRate(double rate) {
+    // Format to up to 6 decimal places, removing trailing zeros
+    return String.format("%.6f", rate).replaceAll("0*$", "").replaceAll("\\.$", "");
   }
 
   @Override
