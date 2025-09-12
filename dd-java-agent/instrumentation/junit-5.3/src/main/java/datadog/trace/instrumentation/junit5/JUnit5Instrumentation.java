@@ -50,6 +50,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
     return new String[] {
       packageName + ".JUnitPlatformUtils",
       packageName + ".ExecutionRequestFactory",
+      packageName + ".TestDataFactory",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
       packageName + ".CompositeEngineListener",

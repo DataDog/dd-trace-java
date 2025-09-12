@@ -11,8 +11,8 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Tomcat Smoke Tests.'
-
 
 repositories {
   ivy {
