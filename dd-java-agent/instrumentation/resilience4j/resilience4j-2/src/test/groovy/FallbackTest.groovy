@@ -19,6 +19,7 @@ import java.util.function.UnaryOperator
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class FallbackTest extends AgentTestRunner {
+  static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
   def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
     setup:
@@ -138,7 +139,7 @@ class FallbackTest extends AgentTestRunner {
       .ofCompletionStage {
         CompletableFuture.supplyAsync({
           serviceCallErr(new IllegalStateException("test"))
-        }, Executors.newSingleThreadExecutor())
+        }, singleThreadExecutor)
       }
       .withFallback({ Throwable t ->
         serviceCall("fallbackResult", "fallbackCall")
@@ -148,7 +149,7 @@ class FallbackTest extends AgentTestRunner {
       .ofCompletionStage {
         CompletableFuture.supplyAsync({
           serviceCall("badResult", "serviceCall")
-        }, Executors.newSingleThreadExecutor())
+        }, singleThreadExecutor)
       }
       .withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
       .decorate(),
@@ -156,7 +157,7 @@ class FallbackTest extends AgentTestRunner {
       .ofCompletionStage {
         CompletableFuture.supplyAsync({
           serviceCallErr(new IllegalStateException("test"))
-        }, Executors.newSingleThreadExecutor())
+        }, singleThreadExecutor)
       }
       .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
       .decorate(),
@@ -164,7 +165,7 @@ class FallbackTest extends AgentTestRunner {
       .ofCompletionStage {
         CompletableFuture.supplyAsync({
           serviceCallErr(new IllegalStateException("test"))
-        }, Executors.newSingleThreadExecutor())
+        }, singleThreadExecutor)
       }
       .withFallback(List.of(IllegalStateException), { t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
       .decorate(),

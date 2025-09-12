@@ -25,7 +25,7 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
   public static final String RUNNABLE_FQCN = Runnable.class.getName();
 
   public Resilience4jInstrumentation(String... additionalNames) {
-    super("resilience4j-core", additionalNames);
+    super("resilience4j", additionalNames);
   }
 
   @Override

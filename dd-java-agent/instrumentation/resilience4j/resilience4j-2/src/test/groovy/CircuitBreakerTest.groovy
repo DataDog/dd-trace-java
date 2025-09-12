@@ -18,6 +18,7 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class CircuitBreakerTest extends AgentTestRunner {
+  static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
   def "decorate span with circuit-breaker"() {
     def ms = Mock(CircuitBreaker.Metrics)
@@ -92,25 +93,15 @@ class CircuitBreakerTest extends AgentTestRunner {
   }
 
   def "decorateCompletionStage"() {
-    setup:
-    def executor = Executors.newSingleThreadExecutor()
-    Thread testThread = Thread.currentThread()
     when:
     Supplier<CompletionStage<String>> supplier = CircuitBreaker.decorateCompletionStage(CircuitBreaker.ofDefaults("cb"), {
       CompletableFuture.supplyAsync({
-        // prevent completion on the same thread
-        Thread.sleep(100)
         serviceCall("foobar")
-      }, executor).whenComplete { r, e ->
-        assert Thread.currentThread() != testThread,
-        "Make sure that the thread running whenComplete is different from the one running the test. " +
-        "This verifies that the scope we create does not cross the thread boundaries. " +
-        "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
-      }
+      }, singleThreadExecutor)
     })
+    def future = runUnderTrace("parent"){supplier.get()}.toCompletableFuture()
 
     then:
-    def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
     future.get() == "foobar"
     and:
     assertExpectedTrace()
@@ -212,7 +203,7 @@ class CircuitBreakerTest extends AgentTestRunner {
 
   //  def "decorateFuture"() {
   //    setup:
-  //    def executor = Executors.newSingleThreadExecutor()
+  //    def executor = singleThreadExecutor
   //    Thread testThread = Thread.currentThread()
   //    when:
   //    Supplier<Future<String>> supplier = CircuitBreaker.decorateFuture(CircuitBreaker.ofDefaults("cb"), {

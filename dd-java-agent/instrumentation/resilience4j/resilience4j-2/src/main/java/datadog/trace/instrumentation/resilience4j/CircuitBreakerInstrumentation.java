@@ -29,7 +29,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
   private static final String THIS_CLASS = CircuitBreakerInstrumentation.class.getName();
 
   public CircuitBreakerInstrumentation() {
-    super("resilience4j-circuitbreaker", "resilience4j-core");
+    super("resilience4j-circuitbreaker");
   }
 
   @Override

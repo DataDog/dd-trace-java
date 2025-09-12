@@ -30,7 +30,7 @@ public class Resilience4jSpanDecorator<T> extends BaseDecorator {
     super.afterStart(span);
     span.setSpanName(RESILIENCE4J);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    // TODO measured
+    span.setMeasured(true); // TODO only if enabled in the config
     return span;
   }
 

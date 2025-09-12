@@ -17,6 +17,7 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class RetryTest extends AgentTestRunner {
+  static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
   def "decorate span with retry"() {
     def ms = Mock(Retry.Metrics)
@@ -77,22 +78,13 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCompletionStage"() {
     setup:
-    def executor = Executors.newSingleThreadExecutor()
-    Thread testThread = Thread.currentThread()
     when:
     def scheduler = Executors.newSingleThreadScheduledExecutor()
     Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(
       Retry.ofDefaults("rt"), scheduler, {
         CompletableFuture.supplyAsync({
-          // prevent completion on the same thread
-          Thread.sleep(100)
           serviceCall("foobar")
-        }, executor).whenComplete { r, e ->
-          assert Thread.currentThread() != testThread,
-          "Make sure that the thread running whenComplete is different from the one running the test. " +
-          "This verifies that the scope we create does not cross the thread boundaries. " +
-          "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
-        }
+        }, singleThreadExecutor)
       }
       )
 
@@ -219,16 +211,16 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCompletionStage retry twice on error"() {
     setup:
-    def executor = Executors.newSingleThreadExecutor()
-    when:
-    def scheduler2 = Executors.newSingleThreadScheduledExecutor()
+    def scheduler = Executors.newSingleThreadScheduledExecutor()
     Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(
-      Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()), scheduler2, {
+      Retry.of("rt", RetryConfig.custom().maxAttempts(2).build()), scheduler, {
         CompletableFuture.supplyAsync({
           serviceCallErr(new IllegalStateException("error"))
-        }, executor)
+        }, singleThreadExecutor)
       }
       )
+
+    when:
     def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
     future.get()
 

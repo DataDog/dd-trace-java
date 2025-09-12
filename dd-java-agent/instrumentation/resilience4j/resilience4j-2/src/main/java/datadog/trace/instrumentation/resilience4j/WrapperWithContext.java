@@ -222,7 +222,7 @@ public class WrapperWithContext<T> {
   private final T data;
   private AgentSpan span;
 
-  public WrapperWithContext(Resilience4jSpanDecorator<T> spanDecorator, T data) {
+  protected WrapperWithContext(Resilience4jSpanDecorator<T> spanDecorator, T data) {
     this.spanDecorator = spanDecorator;
     this.data = data;
   }
@@ -233,8 +233,8 @@ public class WrapperWithContext<T> {
     if (owned != null) {
       current = owned;
       spanDecorator.afterStart(owned);
+      this.span = owned;
     }
-    this.span = owned;
     spanDecorator.decorate(current, data);
     return AgentTracer.activateSpan(current);
   }

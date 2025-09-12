@@ -21,7 +21,7 @@ idea {
   }
 }
 
-// Set all compile tasks to use JDK17 but let instrumentation code targets 1.8 compatibility
+// Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility
 project.tasks.withType(AbstractCompile).configureEach {
   setJavaVersion(it, 17)
 }

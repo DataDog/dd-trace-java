@@ -12,9 +12,6 @@ public final class CircuitBreakerDecorator extends Resilience4jSpanDecorator<Cir
 
   @Override
   public void decorate(AgentSpan span, CircuitBreaker data) {
-    //    span.setSpanName("resilience4j.circuit-breaker");
-    //    span.setResourceName(data.getName());
-
     span.setTag("resilience4j.circuit_breaker.name", data.getName());
     span.setTag("resilience4j.circuit_breaker.state", data.getState().toString());
 
