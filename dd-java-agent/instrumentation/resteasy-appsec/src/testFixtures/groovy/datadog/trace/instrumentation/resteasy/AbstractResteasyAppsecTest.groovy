@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.resteasy
 
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.appsec.api.blocking.BlockingException
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.function.TriConsumer
@@ -39,7 +39,7 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 
-abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
+abstract class AbstractResteasyAppsecTest extends InstrumentationSpecification {
 
   @Shared
   URI address

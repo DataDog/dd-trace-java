@@ -36,7 +36,7 @@ muzzle {
     name = 'before-4.5.0'
     group = 'org.mule.runtime'
     module = 'mule-core'
-    versions =  "[, $muleVersion)"
+    versions = "[, $muleVersion)"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
   }
@@ -144,9 +144,9 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
-  testImplementation project(':dd-java-agent:instrumentation:grizzly-2')
-  testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
-  testImplementation project(':dd-java-agent:instrumentation:grizzly-client-1.9')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly:grizzly-2.0')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly:grizzly-http-2.3.20')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly:grizzly-client-1.9')
   testImplementation project(':dd-java-agent:instrumentation:caffeine')
   testImplementation project(':dd-java-agent:instrumentation:quartz-2')
 
@@ -263,5 +263,29 @@ spotless {
 idea {
   module {
     jdkName = '11'
+  }
+}
+
+// TODO: Remove once correct version of mule-extensions-xxx will be released.
+dependencies {
+  def reason = 'Temporary hardcode to `1.9.9` because `1.9.10` is failing during latest dependencies resolution on not existing `mule-plugin-mgmt-parent-pom:4.9.8-rc1`'
+
+  constraints {
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-api') {
+      version { strictly '1.9.9' }
+      because reason
+    }
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-mime-types') {
+      version { strictly '1.9.9' }
+      because reason
+    }
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-api-dsql') {
+      version { strictly '1.9.9' }
+      because reason
+    }
+    add('latestDepForkedTestImplementation', 'org.mule.runtime:mule-extensions-api-persistence') {
+      version { strictly '1.9.9' }
+      because reason
+    }
   }
 }

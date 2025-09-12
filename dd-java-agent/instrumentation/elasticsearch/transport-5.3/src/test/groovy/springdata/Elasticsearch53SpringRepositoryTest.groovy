@@ -1,6 +1,6 @@
 package springdata
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -17,7 +17,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_RE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Flaky
-class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
+class Elasticsearch53SpringRepositoryTest extends InstrumentationSpecification {
   // Setting up appContext & repo with @Shared doesn't allow
   // spring-data instrumentation to applied.
   // To change the timing without adding ugly checks everywhere -

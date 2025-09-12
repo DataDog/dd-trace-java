@@ -16,6 +16,7 @@
     "/evp_proxy/v3/",
     "/evp_proxy/v4/",
     "/debugger/v1/input",
+    "/debugger/v2/input",
     "/debugger/v1/diagnostics",
     "/v0.7/config"
   ],

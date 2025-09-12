@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import spock.lang.Shared
@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class VirtualThreadTest extends AgentTestRunner {
+class VirtualThreadTest extends InstrumentationSpecification {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
@@ -59,17 +59,15 @@ class VirtualThreadTest extends AgentTestRunner {
     }
 
     where:
-    // spotless:off
-    name                     | method              | poolImpl
-    "execute Runnable"       | executeRunnable     | Executors.newVirtualThreadPerTaskExecutor()
-    "submit Runnable"        | submitRunnable      | Executors.newVirtualThreadPerTaskExecutor()
-    "submit Callable"        | submitCallable      | Executors.newVirtualThreadPerTaskExecutor()
+    name                     | method                                  | poolImpl
+    "execute Runnable"       | executeRunnable                         | Executors.newVirtualThreadPerTaskExecutor()
+    "submit Runnable"        | submitRunnable                          | Executors.newVirtualThreadPerTaskExecutor()
+    "submit Callable"        | submitCallable                          | Executors.newVirtualThreadPerTaskExecutor()
     "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
-    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
-    "invokeAll"              | invokeAll           | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAll with timeout" | invokeAllTimeout    | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAny"              | invokeAny           | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAny with timeout" | invokeAnyTimeout    | Executors.newVirtualThreadPerTaskExecutor()
-     // spotless:on
+    "submit Callable ECS"    | submitCallable                          | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
+    "invokeAll"              | invokeAll                               | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAll with timeout" | invokeAllTimeout                        | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAny"              | invokeAny                               | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAny with timeout" | invokeAnyTimeout                        | Executors.newVirtualThreadPerTaskExecutor()
   }
 }

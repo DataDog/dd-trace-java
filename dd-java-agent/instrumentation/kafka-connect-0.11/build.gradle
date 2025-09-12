@@ -13,7 +13,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'connect-runtime', version: '0.11.0.0'
 
-  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java-lang')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')

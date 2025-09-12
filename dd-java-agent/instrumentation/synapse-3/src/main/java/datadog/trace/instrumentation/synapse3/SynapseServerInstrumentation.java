@@ -72,7 +72,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       ContextScope scope = context.attach();
       AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, connection, request, context);
+      DECORATE.onRequest(span, connection, request, parentContext);
 
       // capture span to be finished by one of the various server response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);

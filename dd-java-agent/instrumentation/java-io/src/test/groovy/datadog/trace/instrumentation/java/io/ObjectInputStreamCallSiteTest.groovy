@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UntrustedDeserializationModule
 import foo.bar.TestObjectInputStreamSuite
 
 import foo.bar.TestCustomObjectInputStream
 
-class ObjectInputStreamCallSiteTest extends AgentTestRunner {
+class ObjectInputStreamCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

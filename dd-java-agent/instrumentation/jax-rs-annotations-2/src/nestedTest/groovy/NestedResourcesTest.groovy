@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.dropwizard.testing.junit.ResourceTestRule
@@ -9,7 +9,7 @@ import javax.ws.rs.core.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class NestedResourcesTest extends AgentTestRunner {
+class NestedResourcesTest extends InstrumentationSpecification {
   @Shared
   @ClassRule
   ResourceTestRule resources = ResourceTestRule.builder()

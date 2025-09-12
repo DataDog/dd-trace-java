@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.reactivex.Maybe
 
@@ -7,7 +7,7 @@ import java.util.concurrent.CountDownLatch
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class SubscriptionTest extends AgentTestRunner {
+class SubscriptionTest extends InstrumentationSpecification {
 
   def "subscription test"() {
     when:

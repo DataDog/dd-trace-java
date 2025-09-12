@@ -61,7 +61,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     testcaseName                                         | success | tests
     "test-succeed"                                       | true    | [TestSucceed]
     "test-inheritance"                                   | true    | [TestInheritance]
-    "test-parameterized"                                 | true    | [TestParameterized]
+    "test-parameterized${version()}"                     | true    | [TestParameterized]
     "test-repeated"                                      | true    | [TestRepeated]
     "test-template"                                      | true    | [TestTemplate]
     "test-factory"                                       | true    | [TestFactory]
@@ -92,17 +92,17 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                       | tests                         | skippedTests
-    "test-itr-skipping"                | [TestFailedAndSucceed]        | [
+    testcaseName                                 | tests                         | skippedTests
+    "test-itr-skipping"                          | [TestFailedAndSucceed]        | [
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null),
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null)
     ]
-    "test-itr-skipping-parametrized"   | [TestParameterized]           | [
+    "test-itr-skipping-parametrized${version()}" | [TestParameterized]           | [
       new TestIdentifier("org.example.TestParameterized", "test_parameterized", '{"metadata":{"test_name":"[1] 0, 0, 0, some:\\\"parameter\\\""}}')
     ]
-    "test-itr-unskippable"             | [TestSucceedUnskippable]      | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
-    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
-    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable]      | []
+    "test-itr-unskippable"                       | [TestSucceedUnskippable]      | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
+    "test-itr-unskippable-suite"                 | [TestSucceedUnskippableSuite] | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
+    "test-itr-unskippable-not-skipped"           | [TestSucceedUnskippable]      | []
   }
 
   def "test flaky retries #testcaseName"() {
@@ -122,7 +122,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestFQN("org.example.TestFailedFactory", "test_factory")]
     "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
     "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
-    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+    "test-retry-parameterized${version()}"   | false   | [TestFailedParameterized]      | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
     "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
   }
 
@@ -135,19 +135,19 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | success | tests                  | knownTestsList
-    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "test_succeed")]
-    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestFQN("org.example.TestParameterized", "test_parameterized")]
-    "test-efd-new-test"                 | true    | [TestSucceed]          | []
-    "test-efd-new-parameterized-test"   | true    | [TestParameterized]    | []
-    "test-efd-known-tests-and-new-test" | false   | [TestFailedAndSucceed] | [
+    testcaseName                                    | success | tests                  | knownTestsList
+    "test-efd-known-test"                           | true    | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+    "test-efd-known-parameterized-test${version()}" | true    | [TestParameterized]    | [new TestFQN("org.example.TestParameterized", "test_parameterized")]
+    "test-efd-new-test"                             | true    | [TestSucceed]          | []
+    "test-efd-new-parameterized-test${version()}"   | true    | [TestParameterized]    | []
+    "test-efd-known-tests-and-new-test"             | false   | [TestFailedAndSucceed] | [
       new TestFQN("org.example.TestFailedAndSucceed", "test_failed"),
       new TestFQN("org.example.TestFailedAndSucceed", "test_succeed")
     ]
-    "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
-    "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
-    "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
-    "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
+    "test-efd-new-slow-test"                        | true    | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-new-very-slow-test"                   | true    | [TestSucceedVerySlow]  | [] // is executed only once
+    "test-efd-faulty-session-threshold"             | false   | [TestFailedAndSucceed] | []
+    "test-efd-skip-new-test"                        | true    | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -173,9 +173,9 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                            | tests                     | quarantined
-    "test-quarantined-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
-    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+    testcaseName                                        | tests                     | quarantined
+    "test-quarantined-failed"                           | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-parameterized${version()}" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
@@ -219,9 +219,9 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                         | tests                     | disabled
-    "test-disabled-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
-    "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+    testcaseName                                     | tests                     | disabled
+    "test-disabled-failed"                           | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-disabled-failed-parameterized${version()}" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
   }
 
   def "test attempt to fix #testcaseName"() {
@@ -287,6 +287,11 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     } finally {
       TestEventsHandlerHolder.stop()
     }
+  }
+
+  private static String version() {
+    def version = JupiterTestEngine.package.getImplementationVersion()
+    return version.startsWith("6") ? "-6" : ""
   }
 
   @Override

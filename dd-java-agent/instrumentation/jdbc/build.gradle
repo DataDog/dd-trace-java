@@ -3,6 +3,10 @@ plugins {
   id 'me.champeau.jmh'
 }
 
+ext {
+  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -21,7 +25,7 @@ addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
-  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   // jdbc unit testing
   testImplementation group: 'com.h2database', name: 'h2', version: '[1.3.168,1.3.169]'// first jdk 1.6 compatible
@@ -84,9 +88,4 @@ tasks.named("latestDepJava11Test").configure {
 
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
-}
-
-jmh {
-  jmhVersion = libs.versions.jmh.get()
-  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

@@ -13,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
@@ -84,6 +85,7 @@ public enum CiVisibilityCountMetric {
       IsRetry.class,
       HasFailedAllRetries.class,
       RetryReason.class,
+      FailedTestReplayEnabled.TestMetric.class,
       IsRum.class,
       BrowserDriver.class),
   /** The number of successfully collected code coverages that are empty */
@@ -138,6 +140,7 @@ public enum CiVisibilityCountMetric {
       ImpactedTestsDetectionEnabled.class,
       KnownTestsEnabled.class,
       TestManagementEnabled.class,
+      FailedTestReplayEnabled.SettingsMetric.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),
@@ -167,7 +170,12 @@ public enum CiVisibilityCountMetric {
   TEST_MANAGEMENT_TESTS_REQUEST("test_management.request", RequestCompressed.class),
   /** The number of tests requests sent to the test management tests endpoint that errored */
   TEST_MANAGEMENT_TESTS_REQUEST_ERRORS(
-      "test_management.request_errors", ErrorType.class, StatusCode.class);
+      "test_management.request_errors", ErrorType.class, StatusCode.class),
+  /** The number of coverage upload requests sent */
+  COVERAGE_UPLOAD_REQUEST("coverage_upload.request", RequestCompressed.class),
+  /** The number of coverage upload requests that errored */
+  COVERAGE_UPLOAD_REQUEST_ERRORS(
+      "coverage_upload.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

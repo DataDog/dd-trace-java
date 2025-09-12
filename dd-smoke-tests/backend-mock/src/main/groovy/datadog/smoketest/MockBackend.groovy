@@ -1,17 +1,20 @@
 package datadog.smoketest
 
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.civisibility.CiVisibilityTestUtils
 import datadog.trace.test.util.MultipartRequestParser
+import org.apache.commons.fileupload.FileItem
+import org.apache.commons.io.IOUtils
+import org.msgpack.jackson.dataformat.MessagePackFactory
+import spock.util.concurrent.PollingConditions
+
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
-import org.apache.commons.io.IOUtils
-import org.msgpack.jackson.dataformat.MessagePackFactory
-import spock.util.concurrent.PollingConditions
+
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class MockBackend implements AutoCloseable {
 
@@ -27,6 +30,8 @@ class MockBackend implements AutoCloseable {
   private final Queue<Map<String, Object>> receivedTelemetryDistributions = new ConcurrentLinkedQueue<>()
   private final Queue<Map<String, Object>> receivedLogs = new ConcurrentLinkedQueue<>()
 
+  private final Queue<Map<String, List<FileItem>>> receivedCoverageReports = new ConcurrentLinkedQueue<>()
+
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> knownTests = new CopyOnWriteArrayList<>()
@@ -39,7 +44,9 @@ class MockBackend implements AutoCloseable {
   private boolean impactedTestsDetectionEnabled = false
   private boolean knownTestsEnabled = false
   private boolean testManagementEnabled = false
+  private boolean codeCoverageReportUploadEnabled = false
   private int attemptToFixRetries = 0
+  private boolean failedTestReplayEnabled = false
 
   void reset() {
     receivedTraces.clear()
@@ -47,6 +54,7 @@ class MockBackend implements AutoCloseable {
     receivedTelemetryMetrics.clear()
     receivedTelemetryDistributions.clear()
     receivedLogs.clear()
+    receivedCoverageReports.clear()
 
     skippableTests.clear()
     flakyTests.clear()
@@ -60,7 +68,9 @@ class MockBackend implements AutoCloseable {
     impactedTestsDetectionEnabled = false
     knownTestsEnabled = false
     testManagementEnabled = false
+    codeCoverageReportUploadEnabled = false
     attemptToFixRetries = 0
+    failedTestReplayEnabled = false
   }
 
   @Override
@@ -100,6 +110,10 @@ class MockBackend implements AutoCloseable {
     this.testManagementEnabled = testManagementEnabled
   }
 
+  void givenCodeCoverageReportUpload(boolean codeCoverageReportUploadEnabled) {
+    this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled
+  }
+
   void givenAttemptToFixRetries(int attemptToFixRetries) {
     this.attemptToFixRetries = attemptToFixRetries
   }
@@ -129,6 +143,10 @@ class MockBackend implements AutoCloseable {
       "name"      : name,
       "properties": ["attempt_to_fix": true]
     ])
+  }
+
+  void givenFailedTestReplay(boolean failedTestReplayEnabled) {
+    this.failedTestReplayEnabled = failedTestReplayEnabled
   }
 
   String getIntakeUrl() {
@@ -177,6 +195,8 @@ class MockBackend implements AutoCloseable {
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
               "impacted_tests_enabled": $impactedTestsDetectionEnabled,
               "known_tests_enabled": $knownTestsEnabled,
+              "coverage_report_upload_enabled": $codeCoverageReportUploadEnabled,
+              "di_enabled": $failedTestReplayEnabled,
               "test_management": {
                 "enabled": $testManagementEnabled,
                 "attempt_to_fix_retries": $attemptToFixRetries
@@ -332,6 +352,12 @@ class MockBackend implements AutoCloseable {
 
         response.status(200).send()
       }
+
+      prefix('/api/v2/cicovreprt') {
+        def parsed = MultipartRequestParser.parseRequest(request.body, request.headers.get("Content-Type"))
+        receivedCoverageReports.add(parsed)
+        response.status(200).send()
+      }
     }
   }
 
@@ -417,6 +443,22 @@ class MockBackend implements AutoCloseable {
       logs.add(receivedLogs.poll())
     }
     return logs
+  }
+
+  List<CiVisibilityTestUtils.CoverageReport> waitForCoverageReports(int expectedCount) {
+    def receiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
+    receiveConditions.eventually {
+      assert receivedCoverageReports.size() == expectedCount
+    }
+
+    List<CiVisibilityTestUtils.CoverageReport> reports = new ArrayList<>()
+    while (!receivedCoverageReports.isEmpty()) {
+      def multipartRequest = receivedCoverageReports.poll()
+      Map<String, Object> event = JSON_MAPPER.readValue(multipartRequest["event"].get(0).get(), Map)
+      String report = new String(decompress(multipartRequest["coverage"].get(0).get()))
+      reports.add(new CiVisibilityTestUtils.CoverageReport(event, report))
+    }
+    return reports
   }
 
   List<Map<String, Object>> getAllReceivedTelemetryMetrics() {

@@ -1,6 +1,6 @@
 package executor
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.core.DDSpan
 import executor.rejectedexecutionhandler.ExecutingRejectedExecutionHandler
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class RejectedExecutionTest extends AgentTestRunner {
+class RejectedExecutionTest extends InstrumentationSpecification {
 
   // TODO test elasticsearch RejectedExecutionHandlers which downcast or throw
 
