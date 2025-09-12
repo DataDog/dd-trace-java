@@ -32,7 +32,7 @@ public class FallbackSupplierInstrumentation extends Resilience4jInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(@Advice.Return(readOnly = false) Supplier<?> outbound) {
       outbound =
-          new ContextHolder.SupplierWithContext<>(
+          new WrapperWithContext.SupplierWithContext<>(
               outbound, Resilience4jSpanDecorator.DECORATE, null);
     }
   }

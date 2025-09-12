@@ -98,7 +98,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+      outbound =
+          new WrapperWithContext.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -107,7 +108,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Callable<?> outbound) {
-      outbound = new ContextHolder.CallableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+      outbound =
+          new WrapperWithContext.CallableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -115,8 +117,9 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Function<Object, ?> outbound) {
-      outbound = new ContextHolder.FunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+        @Advice.Return(readOnly = false) Function<?, ?> outbound) {
+      outbound =
+          new WrapperWithContext.FunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -124,9 +127,10 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) CheckedFunction<Object, ?> outbound) {
+        @Advice.Return(readOnly = false) CheckedFunction<?, ?> outbound) {
       outbound =
-          new ContextHolder.CheckedFunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+          new WrapperWithContext.CheckedFunctionWithContext<>(
+              outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -136,7 +140,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
       outbound =
-          new ContextHolder.CheckedSupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+          new WrapperWithContext.CheckedSupplierWithContext<>(
+              outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -146,7 +151,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) CheckedRunnable outbound) {
       outbound =
-          new ContextHolder.CheckedRunnableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+          new WrapperWithContext.CheckedRunnableWithContext<>(
+              outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -156,7 +162,7 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
       outbound =
-          new ContextHolder.SupplierCompletionStageWithContext<>(
+          new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
               outbound, RetryDecorator.DECORATE, retry);
     }
   }
@@ -166,7 +172,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Runnable outbound) {
-      outbound = new ContextHolder.RunnableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+      outbound =
+          new WrapperWithContext.RunnableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 }

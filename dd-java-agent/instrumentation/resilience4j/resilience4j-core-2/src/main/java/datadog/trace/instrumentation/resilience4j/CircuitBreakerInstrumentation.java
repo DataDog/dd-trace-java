@@ -117,7 +117,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
       outbound =
-          new ContextHolder.SupplierWithContext<>(
+          new WrapperWithContext.SupplierWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -128,7 +128,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Callable<?> outbound) {
       outbound =
-          new ContextHolder.CallableWithContext<>(
+          new WrapperWithContext.CallableWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -139,7 +139,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Runnable outbound) {
       outbound =
-          new ContextHolder.RunnableWithContext<>(
+          new WrapperWithContext.RunnableWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -148,9 +148,9 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) Function<Object, ?> outbound) {
+        @Advice.Return(readOnly = false) Function<?, ?> outbound) {
       outbound =
-          new ContextHolder.FunctionWithContext<>(
+          new WrapperWithContext.FunctionWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -161,7 +161,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
       outbound =
-          new ContextHolder.CheckedSupplierWithContext<>(
+          new WrapperWithContext.CheckedSupplierWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -170,9 +170,9 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) CheckedFunction<Object, ?> outbound) {
+        @Advice.Return(readOnly = false) CheckedFunction<?, ?> outbound) {
       outbound =
-          new ContextHolder.CheckedFunctionWithContext<>(
+          new WrapperWithContext.CheckedFunctionWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -181,9 +181,9 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) CheckedConsumer<Object> outbound) {
+        @Advice.Return(readOnly = false) CheckedConsumer<?> outbound) {
       outbound =
-          new ContextHolder.CheckedConsumerWithContext<>(
+          new WrapperWithContext.CheckedConsumerWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -194,7 +194,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) CheckedRunnable outbound) {
       outbound =
-          new ContextHolder.CheckedRunnableWithContext<>(
+          new WrapperWithContext.CheckedRunnableWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -203,9 +203,9 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) Consumer<Object> outbound) {
+        @Advice.Return(readOnly = false) Consumer<?> outbound) {
       outbound =
-          new ContextHolder.ConsumerWithContext<>(
+          new WrapperWithContext.ConsumerWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
@@ -216,7 +216,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
       outbound =
-          new ContextHolder.SupplierCompletionStageWithContext<>(
+          new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
               outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }

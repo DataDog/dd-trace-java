@@ -13,20 +13,20 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class ContextHolder<T> {
+public class WrapperWithContext<T> {
 
-  public static final class CheckedConsumerWithContext<T> extends ContextHolder<T>
-      implements CheckedConsumer<Object> {
-    private final CheckedConsumer<Object> outbound;
+  public static final class CheckedConsumerWithContext<T, I> extends WrapperWithContext<T>
+      implements CheckedConsumer<I> {
+    private final CheckedConsumer<I> outbound;
 
     public CheckedConsumerWithContext(
-        CheckedConsumer<Object> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedConsumer<I> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public void accept(Object arg) throws Throwable {
+    public void accept(I arg) throws Throwable {
       try (AgentScope ignore = activateScope()) {
         outbound.accept(arg);
       } finally {
@@ -35,18 +35,18 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class ConsumerWithContext<T> extends ContextHolder<T>
-      implements Consumer<Object> {
-    private final Consumer<Object> outbound;
+  public static final class ConsumerWithContext<T, I> extends WrapperWithContext<T>
+      implements Consumer<I> {
+    private final Consumer<I> outbound;
 
     public ConsumerWithContext(
-        Consumer<Object> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Consumer<I> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public void accept(Object arg) {
+    public void accept(I arg) {
       try (AgentScope ignore = activateScope()) {
         outbound.accept(arg);
       } finally {
@@ -55,18 +55,18 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class CheckedFunctionWithContext<T> extends ContextHolder<T>
-      implements CheckedFunction<Object, Object> {
-    private final CheckedFunction<Object, ?> outbound;
+  public static final class CheckedFunctionWithContext<T, I, O> extends WrapperWithContext<T>
+      implements CheckedFunction<I, O> {
+    private final CheckedFunction<I, O> outbound;
 
     public CheckedFunctionWithContext(
-        CheckedFunction<Object, ?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedFunction<I, O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public Object apply(Object arg) throws Throwable {
+    public O apply(I arg) throws Throwable {
       try (AgentScope ignore = activateScope()) {
         return outbound.apply(arg);
       } finally {
@@ -75,18 +75,18 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class SupplierWithContext<T> extends ContextHolder<T>
-      implements Supplier<Object> {
-    private final Supplier<?> outbound;
+  public static final class SupplierWithContext<T, O> extends WrapperWithContext<T>
+      implements Supplier<O> {
+    private final Supplier<O> outbound;
 
     public SupplierWithContext(
-        Supplier<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Supplier<O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public Object get() {
+    public O get() {
       try (AgentScope ignore = activateScope()) {
         return outbound.get();
       } finally {
@@ -95,18 +95,18 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class CallableWithContext<T> extends ContextHolder<T>
-      implements Callable<Object> {
-    private final Callable<?> outbound;
+  public static final class CallableWithContext<T, O> extends WrapperWithContext<T>
+      implements Callable<O> {
+    private final Callable<O> outbound;
 
     public CallableWithContext(
-        Callable<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Callable<O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public Object call() throws Exception {
+    public O call() throws Exception {
       try (AgentScope ignore = activateScope()) {
         return outbound.call();
       } finally {
@@ -115,18 +115,18 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class FunctionWithContext<T> extends ContextHolder<T>
-      implements Function<Object, Object> {
-    private final Function<Object, ?> outbound;
+  public static final class FunctionWithContext<T, I, O> extends WrapperWithContext<T>
+      implements Function<I, O> {
+    private final Function<I, O> outbound;
 
     public FunctionWithContext(
-        Function<Object, ?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Function<I, O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public Object apply(Object arg) {
+    public O apply(I arg) {
       try (AgentScope ignore = activateScope()) {
         return outbound.apply(arg);
       } finally {
@@ -135,18 +135,18 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class CheckedSupplierWithContext<T> extends ContextHolder<T>
-      implements CheckedSupplier<Object> {
-    private final CheckedSupplier<?> outbound;
+  public static final class CheckedSupplierWithContext<T, O> extends WrapperWithContext<T>
+      implements CheckedSupplier<O> {
+    private final CheckedSupplier<O> outbound;
 
     public CheckedSupplierWithContext(
-        CheckedSupplier<?> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedSupplier<O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
-    public Object get() throws Throwable {
+    public O get() throws Throwable {
       try (AgentScope scope = activateScope()) {
         return outbound.get();
       } finally {
@@ -155,7 +155,7 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class CheckedRunnableWithContext<T> extends ContextHolder<T>
+  public static final class CheckedRunnableWithContext<T> extends WrapperWithContext<T>
       implements CheckedRunnable {
     private final CheckedRunnable outbound;
 
@@ -175,7 +175,8 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class RunnableWithContext<T> extends ContextHolder<T> implements Runnable {
+  public static final class RunnableWithContext<T> extends WrapperWithContext<T>
+      implements Runnable {
     private final Runnable outbound;
 
     public RunnableWithContext(
@@ -194,11 +195,11 @@ public class ContextHolder<T> {
     }
   }
 
-  public static final class SupplierCompletionStageWithContext<T> extends ContextHolder<T>
+  public static final class SupplierOfCompletionStageWithContext<T> extends WrapperWithContext<T>
       implements Supplier<CompletionStage<?>> {
     private final Supplier<CompletionStage<?>> outbound;
 
-    public SupplierCompletionStageWithContext(
+    public SupplierOfCompletionStageWithContext(
         Supplier<CompletionStage<?>> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
       this.outbound = outbound;
@@ -211,7 +212,6 @@ public class ContextHolder<T> {
             .get()
             .whenComplete(
                 (v, e) -> {
-                  // TODO decorate when error
                   finishSpanIfNeeded();
                 });
       }
@@ -222,7 +222,7 @@ public class ContextHolder<T> {
   private final T data;
   private AgentSpan span;
 
-  public ContextHolder(Resilience4jSpanDecorator<T> spanDecorator, T data) {
+  public WrapperWithContext(Resilience4jSpanDecorator<T> spanDecorator, T data) {
     this.spanDecorator = spanDecorator;
     this.data = data;
   }
@@ -242,7 +242,7 @@ public class ContextHolder<T> {
   public void finishSpanIfNeeded() {
     if (span != null) {
       spanDecorator.beforeFinish(span);
-      Resilience4jSpan.finish(span); // TODO
+      Resilience4jSpan.finish(span);
       span = null;
     }
   }
