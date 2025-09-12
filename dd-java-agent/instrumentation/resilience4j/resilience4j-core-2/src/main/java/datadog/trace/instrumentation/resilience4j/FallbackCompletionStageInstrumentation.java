@@ -35,7 +35,7 @@ public class FallbackCompletionStageInstrumentation extends Resilience4jInstrume
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
       outbound =
           new ContextHolder.SupplierCompletionStageWithContext<>(
-              outbound, FallbackDecorator.DECORATE, null);
+              outbound, Resilience4jSpanDecorator.DECORATE, null);
     }
   }
 }

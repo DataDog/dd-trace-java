@@ -23,9 +23,9 @@ public class ReactorHelper {
       AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
       if (owned != null) {
         current = owned;
-        FallbackDecorator.DECORATE.afterStart(current);
+        Resilience4jSpanDecorator.DECORATE.afterStart(current);
       }
-      FallbackDecorator.DECORATE.decorate(current, null);
+      Resilience4jSpanDecorator.DECORATE.decorate(current, null);
       // TODO explain why we need an active scope
       try (AgentScope scope = activateSpan(current)) {
         Publisher<?> ret = operator.apply(value);

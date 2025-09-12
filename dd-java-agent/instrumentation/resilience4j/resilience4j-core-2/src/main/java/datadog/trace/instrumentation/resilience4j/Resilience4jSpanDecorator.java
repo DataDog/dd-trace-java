@@ -5,7 +5,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
-public abstract class Resilience4jSpanDecorator<T> extends BaseDecorator {
+public class Resilience4jSpanDecorator<T> extends BaseDecorator {
+  public static final Resilience4jSpanDecorator<Void> DECORATE = new Resilience4jSpanDecorator<>();
+
   private static final CharSequence RESILIENCE4J = UTF8BytesString.create("resilience4j");
 
   @Override
@@ -32,5 +34,5 @@ public abstract class Resilience4jSpanDecorator<T> extends BaseDecorator {
     return span;
   }
 
-  public abstract void decorate(AgentSpan span, T data);
+  public void decorate(AgentSpan span, T data) {}
 }

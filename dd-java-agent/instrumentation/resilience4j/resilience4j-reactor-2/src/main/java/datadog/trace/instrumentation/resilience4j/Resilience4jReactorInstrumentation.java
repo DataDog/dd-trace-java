@@ -14,7 +14,6 @@ public abstract class Resilience4jReactorInstrumentation extends InstrumenterMod
     return new String[] {
       packageName + ".Resilience4jSpan",
       packageName + ".Resilience4jSpanDecorator",
-      packageName + ".FallbackDecorator",
       packageName + ".CircuitBreakerDecorator",
       packageName + ".RetryDecorator",
       packageName + ".ReactorHelper",

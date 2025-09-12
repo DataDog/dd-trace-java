@@ -46,7 +46,6 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
       packageName + ".Resilience4jSpan",
       packageName + ".CircuitBreakerDecorator",
       packageName + ".RetryDecorator",
-      packageName + ".FallbackDecorator",
     };
   }
 }
