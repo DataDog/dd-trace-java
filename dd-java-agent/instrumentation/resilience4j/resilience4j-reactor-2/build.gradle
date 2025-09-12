@@ -9,8 +9,8 @@ muzzle {
   pass {
     group = 'io.github.resilience4j'
     module = 'resilience4j-reactor'
-    versions = '[2.0.0,)' //TODO there are plenty of customers still using 1.x, primarily 1.7. Perhaps main reason is that 2.x is Java 17 only
-    assertInverse = false // FIXME make sure muzzle fails for (,2.0.0)
+    versions = '[2.0.0,)'
+    assertInverse = true
     javaVersion = "17"
   }
 }

@@ -9,6 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,6 +55,11 @@ public class FallbackOperatorInstrumentation extends Resilience4jReactorInstrume
       result =
           ReactorHelper.wrapFunction(
               result, InstrumentationContext.get(Publisher.class, AgentSpan.class)::putIfAbsent);
+    }
+
+    // 2.0.0+
+    public static void muzzleCheck(CheckedSupplier<?> cs) throws Throwable {
+      cs.get();
     }
   }
 }
