@@ -1,10 +1,7 @@
 package datadog.trace.agent.test;
 
-import static com.google.common.base.StandardSystemProperty.JAVA_CLASS_PATH;
-import static com.google.common.base.StandardSystemProperty.PATH_SEPARATOR;
+import static java.io.File.pathSeparator;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.utils.ClasspathUtils;
 import datadog.trace.bootstrap.BootstrapProxy;
@@ -14,9 +11,11 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -111,26 +110,28 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
    */
   @SuppressForbidden
   private static ClassLoader buildJavaClassPathClassLoader() {
-    final ImmutableList.Builder<URL> urls = ImmutableList.builder();
-    for (final String entry : Splitter.on(PATH_SEPARATOR.value()).split(JAVA_CLASS_PATH.value())) {
+    List<URL> urls = new ArrayList<>();
+    String classPath = System.getProperty("java.class.path", "");
+    for (String entry : classPath.split(pathSeparator)) {
       try {
+        File pathEntry = new File(entry);
         try {
-          urls.add(new File(entry).toURI().toURL());
-        } catch (final SecurityException e) { // File.toURI checks to see if the file is a directory
-          urls.add(new URL("file", null, new File(entry).getAbsolutePath()));
+          urls.add(pathEntry.toURI().toURL());
+        } catch (final SecurityException e) {
+          urls.add(new URL("file", null, pathEntry.getAbsolutePath()));
         }
       } catch (final MalformedURLException e) {
         System.err.printf(
             "Error injecting bootstrap jar: Malformed classpath entry: %s. %s%n", entry, e);
       }
     }
-    return new URLClassLoader(urls.build().toArray(new URL[0]), null);
+    return new URLClassLoader(urls.toArray(new URL[0]), null);
   }
 
   private static void setupBootstrapClasspath() {
     // Ensure there weren't any bootstrap classes loaded prematurely.
     Set<String> prematureBootstrapClasses = new TreeSet<>();
-    for (Class clazz : ByteBuddyAgent.getInstrumentation().getAllLoadedClasses()) {
+    for (Class<?> clazz : ByteBuddyAgent.getInstrumentation().getAllLoadedClasses()) {
       if (isBootstrapClass(clazz)
           && clazz.getClassLoader() != null
           && !clazz.getName().equals("datadog.trace.api.DisableTestTrace")
