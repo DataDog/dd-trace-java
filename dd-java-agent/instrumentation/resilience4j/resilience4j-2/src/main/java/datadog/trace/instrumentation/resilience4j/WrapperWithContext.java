@@ -242,7 +242,7 @@ public class WrapperWithContext<T> {
   public void finishSpanIfNeeded() {
     if (span != null) {
       spanDecorator.beforeFinish(span);
-      Resilience4jSpan.finish(span);
+      span.finish();
       span = null;
     }
   }

@@ -8,6 +8,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,25 +17,27 @@ import reactor.core.publisher.SignalType;
 
 public class ReactorHelper {
 
+  private static final Logger log = LoggerFactory.getLogger(ReactorHelper.class);
+
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(
       Function<Publisher<?>, Publisher<?>> operator,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
     return (value) -> {
       AgentSpan current = Resilience4jSpan.current();
       AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
+      Resilience4jSpanDecorator<Void> spanDecorator = Resilience4jSpanDecorator.DECORATE;
       if (owned != null) {
         current = owned;
-        Resilience4jSpanDecorator.DECORATE.afterStart(current);
+        spanDecorator.afterStart(current);
       }
-      Resilience4jSpanDecorator.DECORATE.decorate(current, null);
-      // TODO explain why we need an active scope
+      spanDecorator.decorate(current, null);
       try (AgentScope scope = activateSpan(current)) {
         Publisher<?> ret = operator.apply(value);
         attachContext.accept(ret, current);
         if (owned == null) {
           return ret;
         }
-        return scheduleOwnedSpanFinish(ret, owned);
+        return scheduleOwnedSpanFinish(ret, spanDecorator, owned);
       }
     };
   }
@@ -54,7 +58,7 @@ public class ReactorHelper {
     spanDecorator.decorate(current, data);
 
     // This schedules a span to be finished when the publisher finishes to be non-zero
-    Publisher<?> newResult = scheduleOwnedSpanFinish(publisher, owned);
+    Publisher<?> newResult = scheduleOwnedSpanFinish(publisher, spanDecorator, owned);
     if (newResult instanceof Scannable) {
       Scannable parent = (Scannable) newResult;
       while (parent != null) {
@@ -69,24 +73,29 @@ public class ReactorHelper {
     return newResult;
   }
 
-  private static Publisher<?> scheduleOwnedSpanFinish(Publisher<?> publisher, AgentSpan owned) {
+  private static <T> Publisher<?> scheduleOwnedSpanFinish(
+      Publisher<?> publisher, Resilience4jSpanDecorator<T> spanDecorator, AgentSpan owned) {
     if (owned == null) {
       return publisher;
     }
     if (publisher instanceof Flux<?>) {
-      return ((Flux<?>) publisher).doFinally(beforeFinish(owned));
+      return ((Flux<?>) publisher).doFinally(beforeFinish(spanDecorator, owned));
     } else if (publisher instanceof Mono<?>) {
-      return ((Mono<?>) publisher).doFinally(beforeFinish(owned));
+      return ((Mono<?>) publisher).doFinally(beforeFinish(spanDecorator, owned));
     } else {
+      log.debug("Unexpected type of publisher {}", publisher);
       // can't schedule span finish - finish immediately
+      spanDecorator.beforeFinish(owned);
       owned.finish();
     }
     return publisher;
   }
 
-  private static Consumer<SignalType> beforeFinish(AgentSpan span) {
+  private static <T> Consumer<SignalType> beforeFinish(
+      Resilience4jSpanDecorator<T> spanDecorator, AgentSpan span) {
     return signalType -> {
-      Resilience4jSpan.finish(span);
+      spanDecorator.beforeFinish(span);
+      span.finish();
     };
   }
 }

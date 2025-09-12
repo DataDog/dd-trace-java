@@ -17,15 +17,6 @@ public class Resilience4jSpan {
   }
 
   public static AgentSpan start() {
-    AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
-    // TODO decorate
-    return span;
-  }
-
-  public static void finish(AgentSpan span) {
-    if (span != null) {
-      // TODO decorate
-      span.finish();
-    }
+    return AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
   }
 }
