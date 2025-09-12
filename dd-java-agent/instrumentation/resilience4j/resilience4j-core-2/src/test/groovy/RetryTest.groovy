@@ -17,8 +17,6 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class RetryTest extends AgentTestRunner {
-  // TODO test all io.github.resilience4j.decorators.Decorators.of* decorators
-  // TODO test throwing serviceCall
 
   def "decorate span with retry"() {
     def ms = Mock(Retry.Metrics)
@@ -77,12 +75,52 @@ class RetryTest extends AgentTestRunner {
     }
   }
 
-  def "decorateCallable"() {
+  def "decorateCompletionStage"() {
+    setup:
+    def executor = Executors.newSingleThreadExecutor()
+    Thread testThread = Thread.currentThread()
     when:
-    Callable<String> callable = Retry.decorateCallable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
+    def scheduler = Executors.newSingleThreadScheduledExecutor()
+    Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(
+      Retry.ofDefaults("rt"), scheduler, {
+        CompletableFuture.supplyAsync({
+          // prevent completion on the same thread
+          Thread.sleep(100)
+          serviceCall("foobar")
+        }, executor).whenComplete { r, e ->
+          assert Thread.currentThread() != testThread,
+          "Make sure that the thread running whenComplete is different from the one running the test. " +
+          "This verifies that the scope we create does not cross the thread boundaries. " +
+          "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
+        }
+      }
+      )
 
     then:
-    runUnderTrace("parent"){callable.call()} == "foobar"
+    runUnderTrace("parent"){supplier.get().toCompletableFuture()}.get() == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedSupplier"() {
+    when:
+    CheckedSupplier<String> supplier = Retry.decorateCheckedSupplier(Retry.ofDefaults("rt")) { serviceCall("foobar") }
+
+    then:
+    runUnderTrace("parent"){supplier.get()} == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateCheckedRunnable"() {
+    when:
+    CheckedRunnable runnable = Retry.decorateCheckedRunnable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
+
+    then:
+    runUnderTrace("parent") {
+      runnable.run()
+      "a"
+    }
     and:
     assertExpectedTrace()
   }
@@ -107,6 +145,29 @@ class RetryTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
+  def "decorateCallable"() {
+    when:
+    Callable<String> callable = Retry.decorateCallable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
+
+    then:
+    runUnderTrace("parent"){callable.call()} == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateRunnable"() {
+    when:
+    Runnable runnable = Retry.decorateRunnable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
+
+    then:
+    runUnderTrace("parent") {
+      runnable.run()
+      "a"
+    }
+    and:
+    assertExpectedTrace()
+  }
+
   def "decorateFunction"() {
     when:
     Function<String, String> function = Retry.decorateFunction(Retry.ofDefaults("rt")) { v -> serviceCall("foobar-$v") }
@@ -117,56 +178,7 @@ class RetryTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  def "decorateCheckedSupplier"() {
-    when:
-    CheckedSupplier<String> supplier = Retry.decorateCheckedSupplier(Retry.ofDefaults("rt")) { serviceCall("foobar") }
-
-    then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
-    and:
-    assertExpectedTrace()
-  }
-
-  def "decorateCompletionStage"() {
-    setup:
-    def executor = Executors.newSingleThreadExecutor()
-    Thread testThread = Thread.currentThread()
-    when:
-    def scheduler = Executors.newSingleThreadScheduledExecutor()
-    Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(
-      Retry.ofDefaults("rt"), scheduler, {
-        CompletableFuture.supplyAsync({
-          // prevent completion on the same thread
-          Thread.sleep(100)
-          serviceCall("foobar")
-        }, executor).whenComplete { r, e ->
-          assert Thread.currentThread() != testThread,
-          "Make sure that the thread running whenComplete is different from the one running the test. " +
-          "This verifies that the scope we create does not cross the thread boundaries. " +
-          "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
-        }
-      }
-      )
-
-    then:
-    def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
-    future.get() == "foobar"
-    and:
-    assertExpectedTrace()
-  }
-
-  def "decorateCheckedRunnable"() {
-    when:
-    CheckedRunnable runnable = Retry.decorateCheckedRunnable(Retry.ofDefaults("rt")) { serviceCall("foobar") }
-
-    then:
-    runUnderTrace("parent") {
-      runnable.run()
-      "a"
-    }
-    and:
-    assertExpectedTrace()
-  }
+  /////
 
   def "decorateSupplier retry twice on error"() {
     when:

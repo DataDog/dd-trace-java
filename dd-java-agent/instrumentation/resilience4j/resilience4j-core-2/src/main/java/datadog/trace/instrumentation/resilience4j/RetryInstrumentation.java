@@ -84,6 +84,13 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
             .and(takesArgument(0, named(RETRY_FQCN)))
             .and(returns(named(CHECKED_FUNCTION_FQCN))),
         THIS_CLASS + "$CheckedFunctionAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateRunnable"))
+            .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(returns(named(RUNNABLE_FQCN))),
+        THIS_CLASS + "$RunnableAdvice");
   }
 
   public static class SupplierAdvice {
@@ -151,6 +158,15 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
       outbound =
           new ContextHolder.SupplierCompletionStageWithContext<>(
               outbound, RetryDecorator.DECORATE, retry);
+    }
+  }
+
+  public static class RunnableAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Return(readOnly = false) Runnable outbound) {
+      outbound = new ContextHolder.RunnableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 }
