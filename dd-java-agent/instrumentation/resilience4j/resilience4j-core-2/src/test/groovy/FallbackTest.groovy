@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.decorators.Decorators.DecorateSupplier
+import io.github.resilience4j.decorators.Decorators.DecorateCallable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
@@ -46,6 +47,40 @@ class FallbackTest extends AgentTestRunner {
         serviceCallErr(new IllegalStateException("test"))
       }
       .withFallback(List.of(IllegalStateException), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
+    ]
+  }
+
+  def "ofCallable"(DecorateCallable<String> decorateCallable) {
+    setup:
+    def callable = decorateCallable.decorate()
+
+    when:
+    def result = runUnderTrace("parent") { callable.call() }
+
+    then:
+    result == "fallbackResult"
+    and:
+    assertExpectedTrace()
+
+    where:
+    decorateCallable << [
+      Decorators.ofCallable{ v ->
+        serviceCallErr(new IllegalStateException("test"))
+      }.withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
+      ,
+      Decorators.ofCallable{ v ->
+        serviceCall("badResult", "serviceCall")
+      }.withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
+      ,
+      Decorators.ofCallable{ v ->
+        serviceCallErr(new IllegalStateException("test"))
+      }
+      .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
+      ,
+      Decorators.ofCallable{ v ->
+        serviceCallErr(new IllegalStateException("test"))
+      }
+      .withFallback(List.of(IllegalStateException), { t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
     ]
   }
 
