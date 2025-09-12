@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.Callable;
 import net.bytebuddy.asm.Advice;
 
@@ -33,6 +34,11 @@ public class FallbackCallableInstrumentation extends Resilience4jInstrumentation
       callable =
           new WrapperWithContext.CallableWithContext<>(
               callable, Resilience4jSpanDecorator.DECORATE, null);
+    }
+
+    // 2.0.0+
+    public static void muzzleCheck(CheckedSupplier<?> cs) throws Throwable {
+      cs.get();
     }
   }
 }
