@@ -13,7 +13,6 @@ import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.exclude
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.project
@@ -47,7 +46,7 @@ class MuzzlePlugin : Plugin<Project> {
 
       dependencies.add(project.dependencies.project(bootstrapProject.path))
     }
-    
+
     val muzzleTooling = project.configurations.register("muzzleTooling") {
       isCanBeConsumed = false
       isCanBeResolved = true
