@@ -47,27 +47,24 @@ public class ClasspathUtils {
    * @param loader classloader used to load bytes
    * @param resourceNames names of resources to copy into the new jar
    * @return the location of the newly created jar.
-   * @throws IOException
+   * @throws IOException if the jar file cannot be created.
    */
   public static URL createJarWithClasses(final ClassLoader loader, final String... resourceNames)
       throws IOException {
-    final File tmpJar = File.createTempFile(UUID.randomUUID().toString() + "", ".jar");
+    final File tmpJar = File.createTempFile(UUID.randomUUID().toString(), ".jar");
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    final JarOutputStream target = new JarOutputStream(new FileOutputStream(tmpJar), manifest);
-    for (final String resourceName : resourceNames) {
-      InputStream is = null;
-      try {
-        is = loader.getResourceAsStream(resourceName);
-        addToJar(resourceName, convertToByteArray(is), target);
-      } finally {
-        if (null != is) {
-          is.close();
+    try (final JarOutputStream target =
+        new JarOutputStream(new FileOutputStream(tmpJar), manifest)) {
+      for (final String resourceName : resourceNames) {
+        try (InputStream is = loader.getResourceAsStream(resourceName)) {
+          if (is != null) {
+            addToJar(resourceName, convertToByteArray(is), target);
+          }
         }
       }
     }
-    target.close();
 
     return tmpJar.toURI().toURL();
   }

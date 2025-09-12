@@ -54,7 +54,7 @@ class PlayJavaStreamedWSClientTest extends PlayWSClientTestBase {
         runInAdHocThread(callback)
       }).toCompletableFuture().get(5, TimeUnit.SECONDS)
 
-    // The status can be ready before the body so explicity call wait for body to be ready
+    // The status can be ready before the body so explicitly call wait for body to be ready
     wsResponse.getBodyAsSource().runFold("", { acc, out -> "" }, materializer)
     .toCompletableFuture().get(5, TimeUnit.SECONDS)
     return wsResponse.getStatus()
@@ -119,7 +119,7 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
 
     play.api.libs.ws.StandaloneWSResponse wsResponse = Await.result(futureResponse, Duration.apply(5, TimeUnit.SECONDS))
 
-    // The status can be ready before the body so explicity call wait for body to be ready
+    // The status can be ready before the body so explicitly call wait for body to be ready
     Await.result(
       wsResponse.bodyAsSource().runFold("", { acc, out -> "" }, materializer),
       Duration.apply(5, TimeUnit.SECONDS))
