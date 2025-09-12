@@ -12,8 +12,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class FallbackTest extends AgentTestRunner {
 
-  //TODO test with and without retry part by adjusting retryOnResult and assertions
-
   def "Flux Retry Fallback"() {
     setup:
     RetryConfig config = RetryConfig.custom()
@@ -160,7 +158,6 @@ class FallbackTest extends AgentTestRunner {
 
   def <T> T serviceCall(T value) {
     AgentTracer.startSpan("test", "serviceCall/$value").finish()
-    System.err.println(">>> serviceCall/$value")
     value
   }
 

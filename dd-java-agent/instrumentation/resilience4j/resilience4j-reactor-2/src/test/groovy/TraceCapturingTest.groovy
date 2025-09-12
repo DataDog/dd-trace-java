@@ -206,7 +206,6 @@ class TraceCapturingTest extends AgentTestRunner {
     (1..3).each {
       runUnderTrace("sub" + it) {
         flux.subscribe(v -> runnableUnderTrace("out" + v) {
-          //          System.err.println(">>> out" + v)
         })
       }
     }

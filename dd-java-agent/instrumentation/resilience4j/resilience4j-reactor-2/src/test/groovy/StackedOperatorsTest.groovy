@@ -18,19 +18,15 @@ class StackedOperatorsTest extends AgentTestRunner {
     ConnectableFlux<String> connection = Flux
       .just("abc", "def")
       .map({ serviceCall(it)})
-      //      .map({ serviceCallErr(it, new IllegalStateException("error"))})
-      //      .transformDeferred(RetryOperator.of(Retry.of("R2", RetryConfig.custom().maxAttempts(3).build())))
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C2")))
       .transformDeferred(RetryOperator.of(Retry.of("R1", RetryConfig.custom().maxAttempts(3).build())))
-      .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C1"))) // TODO test various combination of stacked operators
-      .transformDeferred(RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(2).build())))
       .publishOn(Schedulers.boundedElastic())
       .publish()
 
     when:
-    //    connection.subscribe {
-    //      runnableUnderTrace("child-" + it) {} // won't show up because of errors upstream
-    //    }
+    connection.subscribe {
+      runnableUnderTrace("child-" + it) {}
+    }
 
     runnableUnderTrace("parent", {
       connection.connect()
@@ -38,7 +34,7 @@ class StackedOperatorsTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(4) {
+      trace(6) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -60,34 +56,22 @@ class StackedOperatorsTest extends AgentTestRunner {
           childOf span(1)
           errored false
         }
-        //        span(5) {
-        //          operationName "child-abc"
-        //          childOf span(4)
-        //          errored false
-        //        }
-        //        span(5) {
-        //          operationName "child-def"
-        //          childOf span(4)
-        //          errored false
-        //        }
+        span(4) {
+          operationName "child-abc"
+          childOf span(1)
+          errored false
+        }
+        span(5) {
+          operationName "child-def"
+          childOf span(1)
+          errored false
+        }
       }
     }
   }
 
   def <T> T serviceCall(T value) {
     AgentTracer.startSpan("test", "serviceCall/$value").finish()
-    System.err.println(">>> serviceCall/$value")
     value
-  }
-
-  void serviceCallErr(String value, IllegalStateException e) {
-    def span = AgentTracer.startSpan("test", "serviceCallErr/$value")
-    def scope = AgentTracer.activateSpan(span)
-    try {
-      throw e
-    } finally {
-      scope.close()
-      span.finish()
-    }
   }
 }
