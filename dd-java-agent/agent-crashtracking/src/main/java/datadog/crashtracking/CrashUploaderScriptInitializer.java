@@ -67,28 +67,21 @@ public final class CrashUploaderScriptInitializer {
     } catch (UnsupportedOperationException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Unsupported permissions '"
-              + RWXRWXRWX
-              + "' for "
-              + scriptDirectory
-              + ". "
-              + SETUP_FAILURE_MESSAGE);
+          "Unsupported permissions '" + RWXRWXRWX + "' for {}. " + SETUP_FAILURE_MESSAGE,
+          scriptDirectory);
       return false;
     } catch (FileAlreadyExistsException ignored) {
       // can be safely ignored; if the folder exists we will just reuse it
       if (!Files.isWritable(scriptDirectory)) {
         LOG.warn(
-            SEND_TELEMETRY,
-            "Read only directory " + scriptDirectory + ". " + SETUP_FAILURE_MESSAGE);
+            SEND_TELEMETRY, "Read only directory {}. " + SETUP_FAILURE_MESSAGE, scriptDirectory);
         return false;
       }
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Failed to create writable crash tracking script folder "
-              + scriptDirectory
-              + ". "
-              + SETUP_FAILURE_MESSAGE);
+          "Failed to create writable crash tracking script folder {}. " + SETUP_FAILURE_MESSAGE,
+          scriptDirectory);
       return false;
     }
     try {
@@ -97,7 +90,8 @@ public final class CrashUploaderScriptInitializer {
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Failed to copy crash tracking script " + scriptPath + ". " + SETUP_FAILURE_MESSAGE);
+          "Failed to copy crash tracking script {}. " + SETUP_FAILURE_MESSAGE,
+          scriptPath);
       return false;
     }
     return true;

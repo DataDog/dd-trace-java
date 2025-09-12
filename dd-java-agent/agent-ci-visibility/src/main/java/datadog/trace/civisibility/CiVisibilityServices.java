@@ -180,10 +180,9 @@ public class CiVisibilityServices {
         return adapter.fromJson(response.body().source());
       } else {
         logger.warn(
-            "Could not get remote CI environment (HTTP code "
-                + response.code()
-                + ")"
-                + (response.body() != null ? ": " + response.body().string() : ""));
+            "Could not get remote CI environment (HTTP code {}) {}",
+            response.code(),
+            response.body() != null ? ": " + response.body().string() : "");
         return Collections.emptyMap();
       }
 
