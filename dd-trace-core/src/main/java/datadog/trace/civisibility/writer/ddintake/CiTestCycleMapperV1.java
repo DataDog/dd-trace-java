@@ -9,6 +9,7 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
@@ -84,16 +85,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     for (final CoreSpan<?> span : trace) {
       DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
-      span.removeTag(Tags.TEST_SESSION_ID);
-
       Number testModuleId = span.getTag(Tags.TEST_MODULE_ID);
-      span.removeTag(Tags.TEST_MODULE_ID);
-
       Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
-      span.removeTag(Tags.TEST_SUITE_ID);
-
       String itrCorrelationId = span.getTag(Tags.ITR_CORRELATION_ID);
-      span.removeTag(Tags.ITR_CORRELATION_ID);
 
       int topLevelTagsCount = 0;
       if (testSessionId != null) {
@@ -323,12 +317,18 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public void accept(Metadata metadata) {
+      TagMap tags = metadata.getTags().copy();
+
+      for (String ignoredTag : DEFAULT_TOP_LEVEL_TAGS) {
+        tags.remove(ignoredTag);
+      }
+
       int metaSize =
           metadata.getBaggage().size()
-              + metadata.getTags().size()
+              + tags.size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1);
       int metricsSize = 0;
-      for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
+      for (Map.Entry<String, Object> tag : tags.entrySet()) {
         if (tag.getValue() instanceof Number) {
           ++metricsSize;
           --metaSize;
@@ -336,7 +336,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       }
       writable.writeUTF8(METRICS);
       writable.startMap(metricsSize);
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
+      for (Map.Entry<String, Object> entry : tags.entrySet()) {
         if (entry.getValue() instanceof Number) {
           writable.writeString(entry.getKey(), null);
           writable.writeObject(entry.getValue(), null);
@@ -356,7 +356,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeUTF8(HTTP_STATUS);
         writable.writeUTF8(metadata.getHttpStatusCode());
       }
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
+      for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();
         if (!(value instanceof Number)) {
           writable.writeString(entry.getKey(), null);
