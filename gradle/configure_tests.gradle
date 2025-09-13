@@ -1,6 +1,8 @@
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
+apply from: "$rootDir/gradle/dump_hanging_test.gradle"
+
 def isTestingInstrumentation(Project project) {
   return [
     "junit-4.10",
@@ -128,7 +130,7 @@ if (!project.property("activePartition")) {
   }
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
   // https://docs.gradle.com/develocity/flaky-test-detection/
   // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
   develocity.testRetry {
