@@ -50,7 +50,7 @@ TestJvm 'JAVA_8_HOME' '1.8'
 TestJvm 'JAVA_11_HOME' '11'
 TestJvm 'JAVA_17_HOME' '17'
 TestJvm 'JAVA_21_HOME' '21'
-TestJvm 'JAVA_24_HOME' '24'
+TestJvm 'JAVA_25_HOME' '25'
 # GraalVM cannot currently be installed due to license change in October 2024 for GraalVM 17.0.13 and later.
 # TestJvm 'JAVA_GRAALVM17_HOME' '17'
 
