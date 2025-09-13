@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller;
 
+import static com.datadog.profiling.controller.ProfilerFlareReporter.Logger.flareLog;
 import static datadog.environment.OperatingSystem.isLinux;
 import static datadog.environment.OperatingSystem.isMacOs;
 import static datadog.environment.OperatingSystem.isWindows;
@@ -163,15 +164,20 @@ public final class ProfilingSystem {
           TimeUnit.MILLISECONDS);
       started = true;
     } catch (UnsupportedEnvironmentException unsupported) {
-      log.warn(
-          SEND_TELEMETRY,
+      flareLog(
           "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
               + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
           isLinux() ? "Linux" : isWindows() ? "Windows" : isMacOs() ? "MacOS" : "Other",
           JavaVirtualMachine.getLangVersion(),
           JavaVirtualMachine.getRuntimeVersion(),
           JavaVirtualMachine.getRuntimeVendor(),
-          "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements");
+          "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements",
+          unsupported);
+
+      log.warn(
+          SEND_TELEMETRY,
+          "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
+              + "See https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements for more details about supported JVMs.");
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         // Possibly a wrapped exception related to Oracle JDK 8 JFR MX beans
@@ -180,9 +186,10 @@ public final class ProfilingSystem {
           String msg = inspecting.getMessage();
           if (msg != null && msg.contains("com.oracle.jrockit:type=FlightRecorder")) {
             // Yes, the commercial JFR is not enabled
-            log.warn(
-                SEND_TELEMETRY,
-                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.");
+            String logMsg =
+                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.";
+            flareLog(logMsg, t);
+            log.warn(SEND_TELEMETRY, logMsg);
             // Do not log the underlying exception
             t = null;
             break;
@@ -192,9 +199,14 @@ public final class ProfilingSystem {
       }
       if (t != null) {
         if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
-          log.debug("Shutdown in progress, cannot start profiling");
+          String logMsg = "Shutdown in progress, cannot start profiling";
+          log.debug(SEND_TELEMETRY, logMsg);
+          flareLog(logMsg, t);
         } else {
-          log.error(SEND_TELEMETRY, "Fatal exception during profiling startup", t);
+          String logMsg = "Failed to start profiling";
+          log.error(SEND_TELEMETRY, logMsg);
+          flareLog(logMsg, t);
+
           throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
         }
       }

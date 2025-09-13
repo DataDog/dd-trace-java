@@ -1,6 +1,5 @@
-package com.datadog.profiling.agent;
+package com.datadog.profiling.controller;
 
-import com.datadog.profiling.controller.ProfilingSupport;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.flare.TracerFlare;
@@ -10,12 +9,57 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipOutputStream;
+import org.slf4j.helpers.FormattingTuple;
+import org.slf4j.helpers.MessageFormatter;
 
 public final class ProfilerFlareReporter implements TracerFlare.Reporter {
   private static final ProfilerFlareReporter INSTANCE = new ProfilerFlareReporter();
-  private static Exception profilerInitializationException;
+  private static volatile Exception profilerInitializationException;
+
+  public static final class Logger {
+    private static final int REPORT_CAPACITY = 2 * 1024 * 1024; // 2MiB max in profiler reports
+    private static final List<String> flareReportLines = new ArrayList<>();
+    private static int usedReportCapacity = 0;
+
+    @FunctionalInterface
+    interface ExceptionalConsumer<V, T extends Throwable> {
+      void accept(V value) throws T;
+    }
+
+    public static boolean flareLog(String msgFormat, Object... args) {
+      FormattingTuple ft = MessageFormatter.arrayFormat(msgFormat, args);
+      StringBuilder sb =
+          new StringBuilder(Instant.now().atZone(ZoneOffset.UTC).toString())
+              .append('\t')
+              .append(ft.getMessage())
+              .append('\n');
+      if (ft.getThrowable() != null) {
+        sb.append(ft.getThrowable());
+      }
+      synchronized (flareReportLines) {
+        if (usedReportCapacity + sb.length() < REPORT_CAPACITY) {
+          flareReportLines.add(sb.toString());
+          usedReportCapacity += sb.length();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    static void dump(ExceptionalConsumer<String, IOException> consumer) throws IOException {
+      synchronized (flareReportLines) {
+        if (!flareReportLines.isEmpty()) {
+          consumer.accept(String.join("\n", flareReportLines));
+        }
+      }
+    }
+  }
 
   public static void register() {
     TracerFlare.addReporter(INSTANCE);
@@ -40,6 +84,13 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         // no-op, ignore if we can't read the template override file
       }
     }
+    Logger.dump(s -> TracerFlare.addText(zip, "profiler_log.txt", s));
+
+    StringBuilder envCheck = new StringBuilder();
+    String tempDir = ConfigProvider.getInstance().getString(ProfilingConfig.PROFILING_TEMP_DIR);
+    EnvironmentChecker.checkEnvironment(
+        tempDir != null ? tempDir : System.getProperty("java.io.tmpdir"), envCheck);
+    TracerFlare.addText(zip, "profiler_env.txt", envCheck.toString());
   }
 
   private String getProfilerConfig() {
