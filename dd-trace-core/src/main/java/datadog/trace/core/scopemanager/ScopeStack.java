@@ -24,12 +24,8 @@ final class ScopeStack {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
-  ScopeStack copy() {
-    ScopeStack copy = new ScopeStack(profilingContextIntegration);
-    copy.stack.addAll(stack);
-    copy.top = top;
-    copy.overdueRootScope = overdueRootScope;
-    return copy;
+  ScopeStack empty() {
+    return new ScopeStack(profilingContextIntegration);
   }
 
   ContinuableScope active() {

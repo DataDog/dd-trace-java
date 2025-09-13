@@ -2,13 +2,17 @@ package datadog.trace.core.scopemanager;
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nullable;
 
 /** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
 final class ScopeContext implements Context {
-  private final Thread originalThread = Thread.currentThread();
-  private final ScopeStack scopeStack;
+
+  private static final AtomicReferenceFieldUpdater<ScopeContext, ScopeStack> SCOPE_STACK_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(ScopeContext.class, ScopeStack.class, "scopeStack");
+
   private final Context context;
+  private volatile ScopeStack scopeStack;
 
   ScopeContext(ScopeStack scopeStack) {
     this(scopeStack, scopeStack.top != null ? scopeStack.top.context : Context.root());
@@ -20,8 +24,8 @@ final class ScopeContext implements Context {
   }
 
   ScopeStack restore() {
-    // take defensive copy of original scope stack when restoring on different thread
-    return originalThread == Thread.currentThread() ? scopeStack : scopeStack.copy();
+    // only restore original scope stack once; if we're asked to restore again use empty stack
+    return SCOPE_STACK_UPDATER.getAndSet(this, scopeStack.empty());
   }
 
   @Nullable
