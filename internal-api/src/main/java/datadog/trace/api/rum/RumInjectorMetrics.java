@@ -50,7 +50,6 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
             "integration_version:" + servletVersion,
             "remote_config_used:" + remoteConfigUsed);
 
-    System.out.println("========= rum injection succeeded with tags: " + tags);
     MetricCollector.Metric metric =
         new MetricCollector.Metric("rum", false, "injection.succeed", "count", 1, tags);
     metrics.offer(metric);
