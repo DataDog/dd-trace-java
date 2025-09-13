@@ -4,7 +4,6 @@ import datadog.trace.api.Config
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import spock.lang.Specification
 import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
-import uk.org.webcompere.systemstubs.jupiter.SystemStub
 
 import java.nio.file.Paths
 
@@ -20,8 +19,15 @@ import static datadog.trace.civisibility.ci.JenkinsInfo.JENKINS
 import static datadog.trace.civisibility.ci.TravisInfo.TRAVIS
 
 class CIProviderInfoFactoryTest extends Specification {
-  @SystemStub
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+  private final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+
+  void setup() {
+    environmentVariables.setup()
+  }
+
+  void cleanup() {
+    environmentVariables.teardown()
+  }
 
   def "test correct info is selected"() {
     setup:

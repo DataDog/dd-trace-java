@@ -11,7 +11,6 @@ import datadog.trace.civisibility.git.tree.GitClient
 import datadog.trace.util.Strings
 import spock.lang.Specification
 import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
-import uk.org.webcompere.systemstubs.jupiter.SystemStub
 
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -21,10 +20,17 @@ abstract class CITagsProviderTest extends Specification {
   static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
   static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
 
-  @SystemStub
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+  protected final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
   protected final String localFSGitWorkspace = resolve(CI_WORKSPACE_PATH_FOR_TESTS)
+
+  void setup() {
+    environmentVariables.setup()
+  }
+
+  void cleanup() {
+    environmentVariables.teardown()
+  }
 
   def "test ci provider info is set properly: #ciSpec.providerName #ciSpec.idx #ciSpec.testCaseName"() {
     setup:

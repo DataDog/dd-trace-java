@@ -4,7 +4,6 @@ import de.thetaphi.forbiddenapis.SuppressForbidden
 import spock.lang.Shared
 import spock.lang.Specification
 import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
-import uk.org.webcompere.systemstubs.jupiter.SystemStub
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -35,8 +34,7 @@ abstract class DDSpecification extends Specification {
   private static isConfigInstanceModifiable = false
   static configModificationFailed = false
 
-  @SystemStub
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+  protected EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
   // Intentionally not using the RestoreSystemProperties @Rule because this needs to save properties
   // in the BeforeClass stage instead of Before stage.  Even manually calling before()/after
@@ -147,6 +145,8 @@ abstract class DDSpecification extends Specification {
   }
 
   void setup() {
+    environmentVariables.setup()
+
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
@@ -158,6 +158,8 @@ abstract class DDSpecification extends Specification {
   }
 
   void cleanup() {
+    environmentVariables.teardown()
+
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
