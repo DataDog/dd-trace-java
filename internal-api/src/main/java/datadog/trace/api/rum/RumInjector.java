@@ -126,18 +126,14 @@ public final class RumInjector {
   }
 
   /**
-   * Starts telemetry collection and reports metrics via StatsDClient.
-   *
-   * @param statsDClient The StatsDClient to report metrics to.
+   * Starts telemetry collection via the Datadog telemetry system. Only collects telemetry if RUM
+   * injection is enabled.
    */
-  public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
-    if (statsDClient != null) {
-      RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
+  public static void enableTelemetry() {
+    if (INSTANCE.isEnabled()) {
+      RumInjectorMetrics metrics = new RumInjectorMetrics();
       telemetryCollector = metrics;
-
-      if (INSTANCE.isEnabled()) {
-        telemetryCollector.onInitializationSucceed();
-      }
+      telemetryCollector.onInitializationSucceed();
     } else {
       telemetryCollector = RumTelemetryCollector.NO_OP;
     }
@@ -165,5 +161,18 @@ public final class RumInjector {
    */
   public static RumTelemetryCollector getTelemetryCollector() {
     return telemetryCollector;
+  }
+
+  /**
+   * Gets the concrete RumInjectorMetrics instance.
+   *
+   * @return The RumInjectorMetrics instance or null if telemetry not initialized or using NO_OP.
+   */
+  public static RumInjectorMetrics getMetricsInstance() {
+    RumTelemetryCollector collector = telemetryCollector;
+    if (collector instanceof RumInjectorMetrics) {
+      return (RumInjectorMetrics) collector;
+    }
+    return null;
   }
 }

@@ -716,7 +716,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     // Start RUM injector telemetry
     if (InstrumenterConfig.get().isRumEnabled()) {
-      RumInjector.enableTelemetry(this.statsDClient);
+      RumInjector.enableTelemetry();
     }
 
     performanceMonitoring =
