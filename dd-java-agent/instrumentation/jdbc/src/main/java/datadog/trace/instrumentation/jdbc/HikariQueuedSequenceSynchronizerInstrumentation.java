@@ -7,19 +7,29 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
-/** Blocked getConnection() tracking for Hikari starting before commit f0b3c520c. */
+/**
+ * Detect blocking for older Hikari versions before commit f0b3c520c (<2.6.0) by looking for calls
+ * to <code>synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code>.
+ */
 @AutoService(InstrumenterModule.class)
 public final class HikariQueuedSequenceSynchronizerInstrumentation
     extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HikariQueuedSequenceSynchronizerInstrumentation() {
-    super("jdbc-datasource");
+    super("jdbc");
   }
 
   @Override
   public String instrumentedType() {
     return "com.zaxxer.hikari.util.QueuedSequenceSynchronizer";
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".HikariBlockedTracker",
+    };
   }
 
   @Override

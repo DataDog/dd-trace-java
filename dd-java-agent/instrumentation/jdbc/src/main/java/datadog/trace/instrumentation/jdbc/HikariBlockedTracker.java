@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
-/** Shared blocked getConnection() tracking ThreadLocking for Hikari. */
+/** Shared blocked getConnection() tracking {@link ThreadLocal} for Hikari. */
 public class HikariBlockedTracker {
   private static final ThreadLocal<Boolean> tracker = ThreadLocal.withInitial(() -> false);
 

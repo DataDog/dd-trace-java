@@ -6,24 +6,32 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
-import com.zaxxer.hikari.pool.HikariPool;
 import com.zaxxer.hikari.util.ConcurrentBag;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.asm.Advice;
 
 /**
  * Instrument Hikari's ConcurrentBag class to detect when blocking occurs trying to get an entry
- * from the connection pool.
+ * from the connection pool. There are two related instrumentations to detect blocking for different
+ * versions of Hikari. The {@link HikariBlockedTracker} contextStore is used to pass blocking state
+ * from the other instrumentations to this class.
+ *
+ * <ul>
+ *   <li>Before commit f0b3c520c (2.4.0 <= version < 2.6.0): calls to <code>
+ *       synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code> with {@link
+ *       HikariQueuedSequenceSynchronizerInstrumentation}
+ *   <li>Commit f0b3c520c and later (version >= 2.6.0): calls to <code>
+ *       handoffQueue.poll(timeout, NANOSECONDS)</code> with {@link
+ *       HikariQueuedSequenceSynchronizerInstrumentation}
+ * </ul>
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariConcurrentBagInstrumentation extends InstrumenterModule.Tracing
@@ -46,60 +54,26 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HikariBlockedTrackingSynchronousQueue",
-      packageName + ".HikariBlockedTracker",
-      packageName + ".PoolWaitingDecorator"
+      packageName + ".HikariBlockedTracker", packageName + ".PoolWaitingDecorator"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    // For getting the poolName
+    // The contextStore Map is populated by HikariPoolInstrumentation
     return singletonMap("com.zaxxer.hikari.util.ConcurrentBag", String.class.getName());
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), HikariConcurrentBagInstrumentation.class.getName() + "$ConstructorAdvice");
-    transformer.applyAdvice(
         named("borrow"), HikariConcurrentBagInstrumentation.class.getName() + "$BorrowAdvice");
   }
 
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.This ConcurrentBag<?> thiz)
-        throws IllegalAccessException, NoSuchFieldException {
-      try {
-        Field handoffQueueField = thiz.getClass().getDeclaredField("handoffQueue");
-        handoffQueueField.setAccessible(true);
-        handoffQueueField.set(thiz, new HikariBlockedTrackingSynchronousQueue<>());
-      } catch (NoSuchFieldException e) {
-        // ignore -- see HikariQueuedSequenceSynchronizerInstrumentation for older Hikari versions
-      }
-
-      Field hikariPoolField = thiz.getClass().getDeclaredField("listener");
-      hikariPoolField.setAccessible(true);
-      HikariPool hikariPool = (HikariPool) hikariPoolField.get(thiz);
-
-      /*
-       * In earlier versions of Hikari, poolName is directly inside HikariPool, and
-       * in later versions it is in the PoolBase superclass.
-       */
-      final Class<?> hikariPoolSuper = hikariPool.getClass().getSuperclass();
-      final Class<?> poolNameContainingClass;
-      if (!hikariPoolSuper.getName().equals("java.lang.Object")) {
-        poolNameContainingClass = hikariPoolSuper;
-      } else {
-        poolNameContainingClass = hikariPool.getClass();
-      }
-      Field poolNameField = poolNameContainingClass.getDeclaredField("poolName");
-      poolNameField.setAccessible(true);
-      String poolName = (String) poolNameField.get(hikariPool);
-      InstrumentationContext.get(ConcurrentBag.class, String.class).put(thiz, poolName);
-    }
-  }
-
+  /**
+   * Instead of always starting and ending a span, a pool.waiting span is only created if blocking
+   * is detected when attempting to get a connection from the pool.
+   */
   public static class BorrowAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Long onEnter() {
