@@ -16,6 +16,7 @@ import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
+import datadog.telemetry.rum.RumPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
@@ -68,6 +69,9 @@ public class TelemetrySystem {
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
       log.debug("Telemetry log collection enabled");
+    }
+    if (datadog.trace.api.InstrumenterConfig.get().isRumEnabled()) {
+      actions.add(new RumPeriodicAction());
     }
     actions.add(new ProductChangeAction());
     if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
