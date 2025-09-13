@@ -209,21 +209,21 @@ class RumInjectorMetricsTest extends Specification {
     def drained = metrics.drainDistributionSeries()
     drained.size() == 2
 
-    def first = drained[0]
-    first.namespace == "rum"
-    first.metricName == "injection.ms"
-    first.value == 15
-    first.common == false
-    first.tags.contains("integration_name:servlet")
-    first.tags.contains("integration_version:3")
+    def servlet3 = drained[0]
+    servlet3.namespace == "rum"
+    servlet3.metricName == "injection.ms"
+    servlet3.value == 15
+    servlet3.common == false
+    servlet3.tags.contains("integration_name:servlet")
+    servlet3.tags.contains("integration_version:3")
 
-    def second = drained[1]
-    second.namespace == "rum"
-    second.metricName == "injection.ms"
-    second.value == 25
-    second.common == false
-    second.tags.contains("integration_name:servlet")
-    second.tags.contains("integration_version:5")
+    def servlet5 = drained[1]
+    servlet5.namespace == "rum"
+    servlet5.metricName == "injection.ms"
+    servlet5.value == 25
+    servlet5.common == false
+    servlet5.tags.contains("integration_name:servlet")
+    servlet5.tags.contains("integration_version:5")
   }
 
   def "test drain methods"() {

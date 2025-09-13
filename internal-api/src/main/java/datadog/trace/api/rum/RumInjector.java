@@ -125,10 +125,7 @@ public final class RumInjector {
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 
-  /**
-   * Starts telemetry collection via the Datadog telemetry system. Only collects telemetry if RUM
-   * injection is enabled.
-   */
+  /** Starts telemetry collection if RUM injection is enabled. */
   public static void enableTelemetry() {
     if (INSTANCE.isEnabled()) {
       RumInjectorMetrics metrics = new RumInjectorMetrics();
@@ -166,7 +163,7 @@ public final class RumInjector {
   /**
    * Gets the concrete RumInjectorMetrics instance.
    *
-   * @return The RumInjectorMetrics instance or null if telemetry not initialized or using NO_OP.
+   * @return The RumInjectorMetrics instance or null if telemetry is NO_OP.
    */
   public static RumInjectorMetrics getMetricsInstance() {
     RumTelemetryCollector collector = telemetryCollector;

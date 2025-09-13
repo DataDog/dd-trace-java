@@ -13,12 +13,12 @@ class RumPeriodicActionTest extends Specification {
 
   void 'push RUM metrics into the telemetry service'() {
     setup:
-    def metricsInstance = new RumInjectorMetrics()
-    metricsInstance.onInjectionSucceed("3")
-    metricsInstance.onInjectionFailed("5", "gzip")
-    metricsInstance.onInjectionResponseSize("3", 1024)
+    def metricsCollector = new RumInjectorMetrics()
+    metricsCollector.onInjectionSucceed("3")
+    metricsCollector.onInjectionFailed("5", "gzip")
+    metricsCollector.onInjectionResponseSize("3", 1024)
 
-    RumInjector.setTelemetryCollector(metricsInstance)
+    RumInjector.setTelemetryCollector(metricsCollector)
 
     when:
     periodicAction.doIteration(telemetryService)

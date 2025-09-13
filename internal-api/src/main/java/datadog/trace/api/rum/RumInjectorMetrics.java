@@ -12,7 +12,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * This class implements the RumTelemetryCollector interface, which is used to collect telemetry
- * from the RumInjector. Metrics are then sent via the Datadog telemetry intake system.
+ * from the RumInjector. Metrics are then reported via the Datadog telemetry intake system.
  *
  * @see <a
  *     href="https://github.com/DataDog/dd-go/blob/prod/trace/apps/tracer-telemetry-intake/telemetry-metrics/static/common_metrics.json">common
