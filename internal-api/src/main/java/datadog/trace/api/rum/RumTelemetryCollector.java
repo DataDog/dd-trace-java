@@ -31,11 +31,6 @@ public interface RumTelemetryCollector {
 
         @Override
         public void close() {}
-
-        @Override
-        public String summary() {
-          return "";
-        }
       };
 
   /**
@@ -88,9 +83,4 @@ public interface RumTelemetryCollector {
 
   /** Closes the telemetry collector. */
   default void close() {}
-
-  /** Returns a human-readable summary of the telemetry collected. */
-  default String summary() {
-    return "";
-  }
 }

@@ -25,14 +25,6 @@ class RumTelemetryCollectorTest extends Specification {
     noExceptionThrown()
   }
 
-  def "test default NO_OP summary returns an empty string"() {
-    when:
-    def summary = RumTelemetryCollector.NO_OP.summary()
-
-    then:
-    summary == ""
-  }
-
   def "test default NO_OP close method does not throw exception"() {
     when:
     RumTelemetryCollector.NO_OP.close()
@@ -75,11 +67,9 @@ class RumTelemetryCollectorTest extends Specification {
 
     when:
     customCollector.close()
-    def summary = customCollector.summary()
 
     then:
     noExceptionThrown()
-    summary == ""
   }
 
   def "test multiple close calls do not throw exception"() {
@@ -90,17 +80,5 @@ class RumTelemetryCollectorTest extends Specification {
 
     then:
     noExceptionThrown()
-  }
-
-  def "test multiple summary calls return the same empty string"() {
-    when:
-    def summary1 = RumTelemetryCollector.NO_OP.summary()
-    def summary2 = RumTelemetryCollector.NO_OP.summary()
-    def summary3 = RumTelemetryCollector.NO_OP.summary()
-
-    then:
-    summary1 == ""
-    summary1 == summary2
-    summary2 == summary3
   }
 }
