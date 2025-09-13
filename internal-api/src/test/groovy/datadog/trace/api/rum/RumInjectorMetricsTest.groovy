@@ -25,7 +25,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet3.metricName == "injection.succeed"
     servlet3.type == "count"
     servlet3.value == 1
-    servlet3.common == false
+    servlet3.common == true
     servlet3.tags.contains("integration_name:servlet")
     servlet3.tags.contains("integration_version:3")
 
@@ -34,7 +34,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet5.metricName == "injection.succeed"
     servlet5.type == "count"
     servlet5.value == 1
-    servlet5.common == false
+    servlet5.common == true
     servlet5.tags.contains("integration_name:servlet")
     servlet5.tags.contains("integration_version:5")
 
@@ -43,7 +43,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet6.metricName == "injection.succeed"
     servlet6.type == "count"
     servlet6.value == 1
-    servlet6.common == false
+    servlet6.common == true
     servlet6.tags.contains("integration_name:servlet")
     servlet6.tags.contains("integration_version:6")
   }
@@ -63,7 +63,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet3.metricName == "injection.failed"
     servlet3.type == "count"
     servlet3.value == 1
-    servlet3.common == false
+    servlet3.common == true
     servlet3.tags.contains("content_encoding:gzip")
     servlet3.tags.contains("integration_name:servlet")
     servlet3.tags.contains("integration_version:3")
@@ -74,7 +74,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet5.metricName == "injection.failed"
     servlet5.type == "count"
     servlet5.value == 1
-    servlet5.common == false
+    servlet5.common == true
     !servlet5.tags.any { it.startsWith("content_encoding:") }
     servlet5.tags.contains("integration_name:servlet")
     servlet5.tags.contains("integration_version:5")
@@ -85,7 +85,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet6.metricName == "injection.failed"
     servlet6.type == "count"
     servlet6.value == 1
-    servlet6.common == false
+    servlet6.common == true
     servlet6.tags.contains("content_encoding:gzip")
     servlet6.tags.contains("integration_name:servlet")
     servlet6.tags.contains("integration_version:6")
@@ -107,7 +107,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet3.metricName == "injection.skipped"
     servlet3.type == "count"
     servlet3.value == 1
-    servlet3.common == false
+    servlet3.common == true
     servlet3.tags.contains("integration_name:servlet")
     servlet3.tags.contains("integration_version:3")
     servlet3.tags.contains("reason:should_not_inject")
@@ -117,7 +117,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet5.metricName == "injection.skipped"
     servlet5.type == "count"
     servlet5.value == 1
-    servlet5.common == false
+    servlet5.common == true
     servlet5.tags.contains("integration_name:servlet")
     servlet5.tags.contains("integration_version:5")
     servlet5.tags.contains("reason:should_not_inject")
@@ -127,7 +127,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet6.metricName == "injection.skipped"
     servlet6.type == "count"
     servlet6.value == 1
-    servlet6.common == false
+    servlet6.common == true
     servlet6.tags.contains("integration_name:servlet")
     servlet6.tags.contains("integration_version:6")
     servlet6.tags.contains("reason:should_not_inject")
@@ -146,7 +146,7 @@ class RumInjectorMetricsTest extends Specification {
     metric.metricName == "injection.initialization.succeed"
     metric.type == "count"
     metric.value == 1
-    metric.common == false
+    metric.common == true
     metric.tags.contains("integration_name:servlet")
     metric.tags.contains("integration_version:N/A")
   }
@@ -164,7 +164,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet5.metricName == "injection.content_security_policy"
     servlet5.type == "count"
     servlet5.value == 1
-    servlet5.common == false
+    servlet5.common == true
     servlet5.tags.contains("integration_name:servlet")
     servlet5.tags.contains("integration_version:5")
     servlet5.tags.contains("kind:header")
@@ -185,7 +185,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet3.namespace == "rum"
     servlet3.metricName == "injection.response.bytes"
     servlet3.value == 1024
-    servlet3.common == false
+    servlet3.common == true
     servlet3.tags.contains("integration_name:servlet")
     servlet3.tags.contains("integration_version:3")
     servlet3.tags.contains("response_kind:header")
@@ -194,7 +194,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet5.namespace == "rum"
     servlet5.metricName == "injection.response.bytes"
     servlet5.value == 2048
-    servlet5.common == false
+    servlet5.common == true
     servlet5.tags.contains("integration_name:servlet")
     servlet5.tags.contains("integration_version:5")
     servlet5.tags.contains("response_kind:header")
@@ -213,7 +213,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet3.namespace == "rum"
     servlet3.metricName == "injection.ms"
     servlet3.value == 15
-    servlet3.common == false
+    servlet3.common == true
     servlet3.tags.contains("integration_name:servlet")
     servlet3.tags.contains("integration_version:3")
 
@@ -221,7 +221,7 @@ class RumInjectorMetricsTest extends Specification {
     servlet5.namespace == "rum"
     servlet5.metricName == "injection.ms"
     servlet5.value == 25
-    servlet5.common == false
+    servlet5.common == true
     servlet5.tags.contains("integration_name:servlet")
     servlet5.tags.contains("integration_version:5")
   }

@@ -51,7 +51,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
             "remote_config_used:" + remoteConfigUsed);
 
     MetricCollector.Metric metric =
-        new MetricCollector.Metric("rum", false, "injection.succeed", "count", 1, tags);
+        new MetricCollector.Metric("rum", true, "injection.succeed", "count", 1, tags);
     metrics.offer(metric);
   }
 
@@ -68,7 +68,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     tags.add("remote_config_used:" + remoteConfigUsed);
 
     MetricCollector.Metric metric =
-        new MetricCollector.Metric("rum", false, "injection.failed", "count", 1, tags);
+        new MetricCollector.Metric("rum", true, "injection.failed", "count", 1, tags);
     metrics.offer(metric);
   }
 
@@ -83,7 +83,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
             "remote_config_used:" + remoteConfigUsed);
 
     MetricCollector.Metric metric =
-        new MetricCollector.Metric("rum", false, "injection.skipped", "count", 1, tags);
+        new MetricCollector.Metric("rum", true, "injection.skipped", "count", 1, tags);
     metrics.offer(metric);
   }
 
@@ -93,7 +93,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
     MetricCollector.Metric metric =
         new MetricCollector.Metric(
-            "rum", false, "injection.initialization.succeed", "count", 1, tags);
+            "rum", true, "injection.initialization.succeed", "count", 1, tags);
     metrics.offer(metric);
   }
 
@@ -109,7 +109,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
     MetricCollector.Metric metric =
         new MetricCollector.Metric(
-            "rum", false, "injection.content_security_policy", "count", 1, tags);
+            "rum", true, "injection.content_security_policy", "count", 1, tags);
     metrics.offer(metric);
   }
 
@@ -123,7 +123,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
     MetricCollector.DistributionSeriesPoint distribution =
         new MetricCollector.DistributionSeriesPoint(
-            "injection.response.bytes", false, "rum", (int) bytes, tags);
+            "injection.response.bytes", true, "rum", (int) bytes, tags);
     distributions.offer(distribution);
   }
 
@@ -134,7 +134,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
     MetricCollector.DistributionSeriesPoint distribution =
         new MetricCollector.DistributionSeriesPoint(
-            "injection.ms", false, "rum", (int) milliseconds, tags);
+            "injection.ms", true, "rum", (int) milliseconds, tags);
     distributions.offer(distribution);
   }
 
