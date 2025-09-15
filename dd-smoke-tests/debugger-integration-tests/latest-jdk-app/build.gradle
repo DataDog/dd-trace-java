@@ -11,7 +11,7 @@ shadowJar {
 
 def latestJdk = 17
 
-def latestJdkHome = System.getenv("JAVA_${latestJdk}_HOME")
+def latestJdkHome = providers.environmentVariable("JAVA_${latestJdk}_HOME").orNull
 if (latestJdkHome != null) {
   tasks.withType(JavaCompile) {
     options.fork = true

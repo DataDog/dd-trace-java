@@ -20,7 +20,7 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-if (tasks.matching({it.name == 'forkedTest'}).empty) {
+if (tasks.matching({ it.name == 'forkedTest' }).empty) {
   tasks.register('forkedTest', Test).configure {
     useJUnitPlatform()
   }
@@ -154,11 +154,14 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+
   // "stable" is calculated as the largest X found in JAVA_X_HOME
   if (testJvm == "stable") {
-    def javaVersions = System.getenv()
-      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
-      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+    def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
+      javaHomes
+        .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+        .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+    }.get()
 
     if (javaVersions.isEmpty()) {
       throw new GradleException("No valid JAVA_X_HOME environment variables found.")
@@ -166,6 +169,7 @@ project.afterEvaluate {
 
     testJvm = javaVersions.max().toString()
   }
+
   if (testJvm) {
     def testJvmHomePath
     if (Files.exists(Paths.get(testJvm))) {
@@ -177,7 +181,7 @@ project.afterEvaluate {
       }
       def testJvmLanguageVersion = matcher.group(2) as Integer
       def testJvmEnv = "JAVA_${testJvm}_HOME"
-      def testJvmHome = System.getenv(testJvmEnv)
+      def testJvmHome = providers.environmentVariable(testJvmEnv).orNull
       if (!testJvmHome) {
         throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
       }
