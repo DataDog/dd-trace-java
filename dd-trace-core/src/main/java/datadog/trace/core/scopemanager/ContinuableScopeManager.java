@@ -367,7 +367,7 @@ public final class ContinuableScopeManager implements ContextManager {
     ContinuableScope newScope;
     if (context instanceof ScopeContext) {
       // restore previously swapped context stack
-      newStack = ((ScopeContext) context).restore();
+      newStack = ((ScopeContext) context).restore(profilingContextIntegration);
       newScope = newStack.top;
     } else if (context != Context.root()) {
       // start a new stack and record the new context as active
