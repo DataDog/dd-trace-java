@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Pair;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
@@ -24,7 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -73,9 +73,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
-// @DisabledIf(
-//    value = "isJavaVersionAtLeast24",
-//    disabledReason = "Failing on Java 24. Skip until we have a fix.")
 class JFRBasedProfilingIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(JFRBasedProfilingIntegrationTest.class);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
@@ -860,10 +857,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private static String javaPath() {
-    final String separator = FileSystems.getDefault().getSeparator();
-    String cmd = System.getProperty("java.home") + separator + "bin" + separator + "java";
-    System.err.println("===> Java: " + cmd);
-    return cmd;
+    return Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java").toString();
   }
 
   private static String buildDirectory() {
