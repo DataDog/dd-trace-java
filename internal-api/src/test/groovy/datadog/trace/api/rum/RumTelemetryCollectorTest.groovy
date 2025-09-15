@@ -91,4 +91,27 @@ class RumTelemetryCollectorTest extends Specification {
     then:
     noExceptionThrown()
   }
+
+  def "test default NO_OP drain methods return empty collections"() {
+    when:
+    def drainedCounts = RumTelemetryCollector.NO_OP.drain()
+    def drainedDistributions = RumTelemetryCollector.NO_OP.drainDistributionSeries()
+
+    then:
+    drainedCounts != null
+    drainedCounts.isEmpty()
+    drainedDistributions != null
+    drainedDistributions.isEmpty()
+  }
+
+  def "test default NO_OP drain methods do not throw exception"() {
+    when:
+    RumTelemetryCollector.NO_OP.drain()
+    RumTelemetryCollector.NO_OP.drain()
+    RumTelemetryCollector.NO_OP.drainDistributionSeries()
+    RumTelemetryCollector.NO_OP.drainDistributionSeries()
+
+    then:
+    noExceptionThrown()
+  }
 }
