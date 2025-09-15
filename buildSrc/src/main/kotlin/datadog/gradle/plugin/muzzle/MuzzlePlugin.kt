@@ -82,13 +82,6 @@ class MuzzlePlugin : Plugin<Project> {
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
       this.muzzleBootstrap.set(muzzleBootstrap)
       this.muzzleTooling.set(muzzleTooling)
-      // description = "Run instrumentation muzzle on compile time dependencies"
-      // doLast {
-      //   if (!project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
-      //     project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
-      //     assertMuzzle(muzzleBootstrap, muzzleTooling, project)
-      //   }
-      // }
       dependsOn(compileMuzzle)
     }
 
@@ -123,7 +116,7 @@ class MuzzlePlugin : Plugin<Project> {
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
 
       project.extensions.getByType<MuzzleExtension>().directives.forEach { directive ->
-        project.logger.debug("configuring $directive")
+        project.logger.debug("configuring {}", directive)
 
         if (directive.isCoreJdk) {
           runAfter = addMuzzleTask(directive, null, project, runAfter, muzzleBootstrap, muzzleTooling)
@@ -242,9 +235,6 @@ class MuzzlePlugin : Plugin<Project> {
         this.muzzleDirective.set(muzzleDirective)
         this.muzzleBootstrap.set(muzzleBootstrap)
         this.muzzleTooling.set(muzzleTooling)
-        // doLast {
-        //   assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
-        // }
       }
 
       runAfterTask.configure {
