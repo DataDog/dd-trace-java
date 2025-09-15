@@ -34,6 +34,7 @@ import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -62,6 +63,8 @@ public final class OpenJdkController implements Controller {
   private static final String EXPLICITLY_ENABLED = "explicitly enabled by user";
   private static final String EXPENSIVE_ON_CURRENT_JVM =
       "expensive on this version of the JVM (" + JavaVirtualMachine.getRuntimeVersion() + ")";
+  private static final String CPUTIME_SAMPLE_JDK25 = "Switching to CPUTimeSample on JDK 25+";
+
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
   private final ConfigProvider configProvider;
@@ -162,6 +165,13 @@ public final class OpenJdkController implements Controller {
               configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
+    }
+
+    // switch to CPUTimeSample event on JDK 25 and Linux
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25) && OperatingSystem.isLinux()) {
+      disableEvent(recordingSettings, "jdk.ExecutionSample", CPUTIME_SAMPLE_JDK25);
+      enableEvent(recordingSettings, "jdk.CPUTimeSample", CPUTIME_SAMPLE_JDK25);
+      enableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", CPUTIME_SAMPLE_JDK25);
     }
 
     // Toggle settings from override args
