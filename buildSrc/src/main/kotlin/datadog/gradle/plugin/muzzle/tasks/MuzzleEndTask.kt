@@ -1,0 +1,36 @@
+package datadog.gradle.plugin.muzzle.tasks
+
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
+
+abstract class MuzzleEndTask : AbstractMuzzleTask() {
+  @get:Input
+  abstract val startTimeMs: Property<Long>
+
+  @TaskAction
+  fun generatesResultFile() {
+    val endTimeMs = System.currentTimeMillis()
+    val seconds = (endTimeMs - startTimeMs.get()).toDouble() / 1000.0
+    val name = "${project.path}:muzzle"
+    val dirname = name.replaceFirst("^:".toRegex(), "").replace(":", "_")
+    val dir = project.rootProject.layout.buildDirectory.dir("${MUZZLE_TEST_RESULTS}/$dirname/results.xml")
+    with(project.file(dir)) {
+      parentFile.mkdirs()
+      writeText(
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <testsuite name="$name" tests="1" id="0" time="$seconds">
+          <testcase name="$name" time="$seconds">
+          </testcase>
+        </testsuite>
+        """.trimIndent()
+      )
+      project.logger.info("Wrote muzzle results report to\n  $this")
+    }
+  }
+
+  companion object {
+    private const val MUZZLE_TEST_RESULTS = "muzzle-test-results"
+  }
+}

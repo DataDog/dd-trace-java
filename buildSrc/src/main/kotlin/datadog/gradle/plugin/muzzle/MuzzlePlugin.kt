@@ -3,6 +3,7 @@ package datadog.gradle.plugin.muzzle
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.inverseOf
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
+import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzlePrintReferencesTask
@@ -79,13 +80,15 @@ class MuzzlePlugin : Plugin<Project> {
     }
 
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
-      description = "Run instrumentation muzzle on compile time dependencies"
-      doLast {
-        if (!project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
-          project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
-          assertMuzzle(muzzleBootstrap, muzzleTooling, project)
-        }
-      }
+      this.muzzleBootstrap.set(muzzleBootstrap)
+      this.muzzleTooling.set(muzzleTooling)
+      // description = "Run instrumentation muzzle on compile time dependencies"
+      // doLast {
+      //   if (!project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
+      //     project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
+      //     assertMuzzle(muzzleBootstrap, muzzleTooling, project)
+      //   }
+      // }
       dependsOn(compileMuzzle)
     }
 
@@ -144,11 +147,8 @@ class MuzzlePlugin : Plugin<Project> {
         project.logger.info("configured $directive")
       }
 
-      val timingTask = project.tasks.register("muzzle-end") {
-        doLast {
-          val endTime = System.currentTimeMillis()
-          MuzzleReportUtils.generateResultsXML(project, endTime - startTime)
-        }
+      val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
+        startTimeMs.set(startTime)
       }
       // last muzzle task to run
       runAfter.configure {
@@ -239,9 +239,12 @@ class MuzzlePlugin : Plugin<Project> {
       }
 
       val muzzleTask = instrumentationProject.tasks.register<MuzzleTask>(muzzleTaskName) {
-        doLast {
-          assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
-        }
+        this.muzzleDirective.set(muzzleDirective)
+        this.muzzleBootstrap.set(muzzleBootstrap)
+        this.muzzleTooling.set(muzzleTooling)
+        // doLast {
+        //   assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
+        // }
       }
 
       runAfterTask.configure {
