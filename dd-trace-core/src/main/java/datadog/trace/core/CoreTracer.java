@@ -977,27 +977,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
-	// retrieve the thread's typical SpanBuilder and check if it is currently in use
-	CoreSpanBuilder tlSpanBuilder = this.tlSpanBuilder.get();
-	boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
-    if ( wasReset ) return tlSpanBuilder;
-    
+    // retrieve the thread's typical SpanBuilder and check if it is currently in use
+    CoreSpanBuilder tlSpanBuilder = this.tlSpanBuilder.get();
+    boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
+    if (wasReset) return tlSpanBuilder;
+
     // TODO: counter for how often the fallback is used?
     CoreSpanBuilder newSpanBuilder = new CoreSpanBuilder(this);
     newSpanBuilder.reset(instrumentationName, operationName);
-    
-    // DQH - Debated how best to handle the case of someone requesting a CoreSpanBuilder 
-    // and then not using it.  Without an ability to replace the cached CoreSpanBuilder, 
+
+    // DQH - Debated how best to handle the case of someone requesting a CoreSpanBuilder
+    // and then not using it.  Without an ability to replace the cached CoreSpanBuilder,
     // that case could result in permanently burning the cache for a given thread.
-    
-    // That could be solved with additional logic during CoreSpanBuilder#build 
-    // that checks to see if the cached CoreSpanBuilder is in use and then replaces it 
+
+    // That could be solved with additional logic during CoreSpanBuilder#build
+    // that checks to see if the cached CoreSpanBuilder is in use and then replaces it
     // with the freed CoreSpanBuilder, but that would put extra logic in the common path.
-    
-    // Instead of making the release process more complicating, I'm chosing to just 
+
+    // Instead of making the release process more complicating, I'm chosing to just
     // override here when we know we're already in an uncommon path.
     this.tlSpanBuilder.set(newSpanBuilder);
-    
+
     return newSpanBuilder;
   }
 
@@ -1428,7 +1428,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     return Collections.unmodifiableMap(inverted);
   }
-  
+
   /** Spans are built using this builder */
   /*
    * To reduce overhead, CoreSpanBuilders are reused.
@@ -1436,7 +1436,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   public static final class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CoreTracer tracer;
-    
+
     private boolean inUse = false;
 
     private String instrumentationName;
@@ -1462,9 +1462,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     boolean reset(String instrumentationName, CharSequence operationName) {
-      if ( this.inUse ) return false;
+      if (this.inUse) return false;
       this.inUse = true;
-      
+
       this.instrumentationName = instrumentationName;
       this.operationName = operationName;
 
@@ -1481,7 +1481,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.builderCiVisibilityContextData = null;
       this.links = null;
       this.spanId = 0L;
-      
+
       return true;
     }
 
@@ -1499,7 +1499,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           span.setEndpointTracker(tracker);
         }
       }
-      
+
       this.inUse = false;
       return span;
     }
