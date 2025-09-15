@@ -244,7 +244,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
     }
 
     static <T> T controller(RoutingContext ctx, HttpServerTest.ServerEndpoint endpoint, Closure<T> closure) {
-      ctx.response().putHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
+      ctx.response().putHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
       controller(endpoint, closure)
     }
   }

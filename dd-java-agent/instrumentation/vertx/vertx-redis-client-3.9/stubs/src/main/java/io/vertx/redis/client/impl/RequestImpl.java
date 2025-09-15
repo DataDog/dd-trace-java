@@ -1,4 +1,4 @@
-package vertx.redis.client.impl;
+package io.vertx.redis.client.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.redis.client.Command;

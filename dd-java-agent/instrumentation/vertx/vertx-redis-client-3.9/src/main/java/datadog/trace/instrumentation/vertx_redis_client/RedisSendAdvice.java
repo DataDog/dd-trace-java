@@ -23,8 +23,8 @@ import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisConnection;
 import io.vertx.redis.client.Request;
 import io.vertx.redis.client.Response;
+import io.vertx.redis.client.impl.RequestImpl;
 import net.bytebuddy.asm.Advice;
-import vertx.redis.client.impl.RequestImpl;
 
 public class RedisSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
