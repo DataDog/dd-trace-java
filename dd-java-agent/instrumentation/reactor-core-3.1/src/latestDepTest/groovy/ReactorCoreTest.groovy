@@ -389,11 +389,11 @@ class ReactorCoreTest extends AgentTestRunner {
       Mono.defer {
         def span = buildSpan()
         Mono.just(0)
-        .contextWrite(Context.of("dd.span", span))
-        .doFinally { ignored -> finishSpan(span) }
+          .contextWrite(Context.of("dd.span", span))
+          .doFinally { ignored -> finishSpan(span) }
       }
-      .map(this::addOneFunc)
-      .block()
+        .map(this::addOneFunc)
+        .block()
     })
     then:
     assertTraces(1, {
@@ -421,9 +421,9 @@ class ReactorCoreTest extends AgentTestRunner {
     when:
     runUnderTrace("parent", {
       Mono.just(1)
-      .contextWrite(Context.of("dd.span", "Hello world"))
-      .map(this::addOneFunc)
-      .block()
+        .contextWrite(Context.of("dd.span", "Hello world"))
+        .map(this::addOneFunc)
+        .block()
     })
     then:
     assertTraces(1, {
@@ -465,7 +465,7 @@ class ReactorCoreTest extends AgentTestRunner {
         }.contextWrite(Context.of("dd.span", TEST_TRACER.activeSpan()))
         mono
       })
-      .block()
+        .block()
     })
     then:
     assert result == "hello world"
@@ -508,19 +508,19 @@ class ReactorCoreTest extends AgentTestRunner {
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {
-        void onSubscribe(Subscription subscription) {
-          subscription.cancel()
-        }
+      void onSubscribe(Subscription subscription) {
+        subscription.cancel()
+      }
 
-        void onNext(Integer t) {
-        }
+      void onNext(Integer t) {
+      }
 
-        void onError(Throwable error) {
-        }
+      void onError(Throwable error) {
+      }
 
-        void onComplete() {
-        }
-      })
+      void onComplete() {
+      }
+    })
 
     scope.close()
     span.finish()

@@ -67,6 +67,7 @@ public class TraceConfigInstrumentation extends InstrumenterModule {
       List<String> integrationNames = singletonList("trace-config_" + entry.getKey());
       if (InstrumenterConfig.get().isIntegrationEnabled(integrationNames, true)) {
         typeInstrumentations.add(new TracerClassInstrumentation(entry.getKey(), entry.getValue()));
+        System.out.println("Instrumenting " + entry.getKey() + " with " + entry.getValue());
       }
     }
     return typeInstrumentations;

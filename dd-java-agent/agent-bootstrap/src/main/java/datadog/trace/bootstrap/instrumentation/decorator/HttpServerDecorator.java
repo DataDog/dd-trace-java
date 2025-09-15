@@ -38,6 +38,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -62,6 +63,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
+
+  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
+
+  static {
+    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
+    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
+    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
+    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
+  }
+
+  private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
+
+  private static final Boolean HTTP_ERROR_ENBALED = Config.get().isHttpErrorEnabled();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
@@ -329,6 +343,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
+      if (HTTP_ERROR_ENBALED && CLIENT_ERROR_STATUSES.get(status)) {
+        span.setError(true);
+      }else
       // explicitly set here because some other decorators might already set an error without
       // looking at the status code
       // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,

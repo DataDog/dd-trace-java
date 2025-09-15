@@ -18,6 +18,7 @@ import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
 import okhttp3.MediaType;
@@ -89,10 +90,39 @@ public class TelemetryRequest {
     }
     try {
       requestBody.beginConfiguration();
-      while (eventSource.hasConfigChangeEvent() && isWithinSizeLimits()) {
-        ConfigSetting event = eventSource.nextConfigChangeEvent();
+      //      while (eventSource.hasConfigChangeEvent() && isWithinSizeLimits()) {
+      //        ConfigSetting event = eventSource.nextConfigChangeEvent();
+      //        requestBody.writeConfiguration(event);
+      //        eventSink.addConfigChangeEvent(event);
+      //      }
+      ArrayList<ConfigSetting> configSettings = eventSource.allConfigSettingEvent();
+      for (ConfigSetting event : configSettings) {
         requestBody.writeConfiguration(event);
         eventSink.addConfigChangeEvent(event);
+      }
+      requestBody.endConfiguration();
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("configuration-object", e);
+    }
+  }
+
+  public void writeConfigurations(String name) {
+    if (!isWithinSizeLimits() || !eventSource.hasConfigChangeEvent()) {
+      return;
+    }
+    try {
+      requestBody.beginConfiguration();
+      //      while (eventSource.hasConfigChangeEvent() && isWithinSizeLimits()) {
+      //        ConfigSetting event = eventSource.nextConfigChangeEvent();
+      //        requestBody.writeConfiguration(event);
+      //        eventSink.addConfigChangeEvent(event);
+      //      }
+      ArrayList<ConfigSetting> configSettings = eventSource.allConfigSettingEvent();
+      for (ConfigSetting event : configSettings) {
+        if (event.normalizedKey().equals(name)) {
+          requestBody.writeConfiguration(event);
+          eventSink.addConfigChangeEvent(event);
+        }
       }
       requestBody.endConfiguration();
     } catch (IOException e) {
@@ -129,8 +159,13 @@ public class TelemetryRequest {
     }
     try {
       requestBody.beginIntegrations();
-      while (eventSource.hasIntegrationEvent() && isWithinSizeLimits()) {
-        Integration event = eventSource.nextIntegrationEvent();
+      // while (eventSource.hasIntegrationEvent() && isWithinSizeLimits()) {
+      // Integration event = eventSource.nextIntegrationEvent();
+      // requestBody.writeIntegration(event);
+      // eventSink.addIntegrationEvent(event);
+      // }
+      ArrayList<Integration> integrations = eventSource.allIntegrationEvent();
+      for (Integration event : integrations) {
         requestBody.writeIntegration(event);
         eventSink.addIntegrationEvent(event);
       }
@@ -146,11 +181,17 @@ public class TelemetryRequest {
     }
     try {
       requestBody.beginDependencies();
-      while (eventSource.hasDependencyEvent() && isWithinSizeLimits()) {
-        Dependency event = eventSource.nextDependencyEvent();
+      // while (eventSource.hasDependencyEvent() && isWithinSizeLimits()) {
+      //  Dependency event = eventSource.nextDependencyEvent();
+      //  requestBody.writeDependency(event);
+      //   eventSink.addDependencyEvent(event);
+      // }
+      ArrayList<Dependency> dependencies = eventSource.allDependencyEvent();
+      for (Dependency event : dependencies) {
         requestBody.writeDependency(event);
         eventSink.addDependencyEvent(event);
       }
+      // eventSource.nextDependencyEvent()
       requestBody.endDependencies();
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("dependencies-message", e);

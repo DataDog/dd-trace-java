@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecora
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.Channel;
@@ -17,6 +18,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
+import java.util.Map;
 
 @ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
@@ -41,12 +43,13 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final HttpHeaders headers = request.headers();
     final Context parentContext = DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);
-
+    
     try (final ContextScope ignored = context.attach()) {
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, parentContext);
 
+      addTag(span,headers);
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);
 
@@ -94,5 +97,25 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       } catch (final Throwable ignored) {
       }
     }
+  }
+  private void addTag(AgentSpan span,HttpHeaders headers){
+    StringBuffer requestHeader = new StringBuffer("");
+    boolean tracerHeader = Config.get().isTracerHeaderEnabled();
+    if (tracerHeader) {
+      int count = 0;
+      for (Map.Entry<String, String> entry : headers.entries()) {
+        if (count==0){
+          requestHeader.append("{");
+        }else{
+          requestHeader.append(",");
+        }
+        requestHeader.append("\n\"").append(entry.getKey()).append("\":").append("\"").append(entry.getValue().replace("\"","")).append("\"");
+        count ++;
+      }
+      if (count>0){
+        requestHeader.append("}");
+      }
+    }
+    span.setTag("request_header",requestHeader.toString());
   }
 }

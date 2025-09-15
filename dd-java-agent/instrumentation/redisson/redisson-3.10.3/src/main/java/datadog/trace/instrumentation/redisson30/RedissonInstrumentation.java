@@ -75,6 +75,8 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
       RedissonClientDecorator.DECORATE.afterStart(span);
       RedissonClientDecorator.DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
       RedissonClientDecorator.DECORATE.onStatement(span, command.getCommand().getName());
+      RedissonClientDecorator.DECORATE.onArgs(span, command.getParams());
+
       promise.whenComplete(new SpanFinishListener(AgentTracer.captureSpan(span)));
       return activateSpan(span);
     }

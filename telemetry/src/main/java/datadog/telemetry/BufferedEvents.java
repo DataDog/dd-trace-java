@@ -107,6 +107,11 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
+  public ArrayList<ConfigSetting> allConfigSettingEvent() {
+    return configChangeEvents;
+  }
+
+  @Override
   public boolean hasIntegrationEvent() {
     return integrationEvents != null && integrationIndex < integrationEvents.size();
   }
@@ -117,6 +122,11 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
+  public ArrayList<Integration> allIntegrationEvent() {
+    return integrationEvents;
+  }
+
+  @Override
   public boolean hasDependencyEvent() {
     return dependencyEvents != null && dependencyIndex < dependencyEvents.size();
   }
@@ -124,6 +134,11 @@ public final class BufferedEvents implements EventSource, EventSink {
   @Override
   public Dependency nextDependencyEvent() {
     return dependencyEvents.get(dependencyIndex++);
+  }
+
+  @Override
+  public ArrayList<Dependency> allDependencyEvent() {
+    return dependencyEvents;
   }
 
   @Override

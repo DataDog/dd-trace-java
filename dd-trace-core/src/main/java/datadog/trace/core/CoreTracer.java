@@ -1442,6 +1442,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           span.setEndpointTracker(tracker);
         }
       }
+      span.setTag("trace_128_bit_id", span.getTraceId().toString());
+
+      if (!Objects.equals(DDTraceCoreInfo.VERSION, "")) {
+        span.setTag("dd_guance_version", DDTraceCoreInfo.VERSION);
+      }
       return span;
     }
 

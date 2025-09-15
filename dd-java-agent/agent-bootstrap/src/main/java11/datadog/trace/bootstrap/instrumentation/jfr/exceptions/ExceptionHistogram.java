@@ -70,7 +70,16 @@ public class ExceptionHistogram {
       typeName = CLIPPED_ENTRY_TYPE_NAME;
     }
 
-    long count = histogram.computeIfAbsent(typeName, k -> new AtomicLong()).getAndIncrement();
+//    long count = histogram.computeIfAbsent(typeName, k -> new AtomicLong()).getAndIncrement();
+
+
+    AtomicLong atomicLong = histogram.get(typeName);
+    if (atomicLong==null){
+      atomicLong = new AtomicLong();
+
+    }
+    long count = atomicLong.getAndIncrement();
+    histogram.put(typeName,atomicLong);
 
     /*
      * This is supposed to signal that a particular exception type was seen the first time in a particular time span.

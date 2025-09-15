@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.mongo;
 
 import java.util.Map;
+
+import datadog.trace.api.Config;
 import org.bson.BsonArray;
 import org.bson.BsonBinary;
 import org.bson.BsonDbPointer;
@@ -28,6 +30,8 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
   private final Context context = CONTEXT.get();
   private boolean obfuscate = true;
 
+  public boolean mongoObfuscation = Config.get().getMongoObfuscation();
+
   @Override
   public void close() {
     context.clear();
@@ -38,6 +42,10 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
   }
 
   private void applyObfuscationPolicy(String name) {
+    if (mongoObfuscation){
+      obfuscate = false;
+      return;
+    }
     if (null != name && !context.ignoreSubTree()) {
       switch (name) {
         case "documents":
@@ -108,7 +116,11 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   @Override
   public void writeDateTime(long value) {
-    writeObfuscated();
+    if (mongoObfuscation){
+      context.write(value);
+    }else {
+      writeObfuscated();
+    }
   }
 
   @Override
@@ -130,7 +142,11 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   @Override
   public void writeDouble(double value) {
-    writeObfuscated();
+    if (mongoObfuscation){
+      context.write(""+value);
+    }else {
+      writeObfuscated();
+    }
   }
 
   @Override
@@ -153,7 +169,9 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   @Override
   public void writeInt32(int value) {
-    if (obfuscate) {
+    if (mongoObfuscation){
+      context.write(value);
+    } else if (obfuscate) {
       writeObfuscated();
     } else {
       context.write(value);
@@ -168,7 +186,13 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   @Override
   public void writeInt64(long value) {
-    writeObfuscated();
+    if (mongoObfuscation){
+      context.write(value);
+    }else if (obfuscate) {
+      writeObfuscated();
+    }else {
+      context.write(value);
+    }
   }
 
   @Override
@@ -332,7 +356,11 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   @Override
   public void writeTimestamp(BsonTimestamp value) {
-    writeObfuscated();
+    if (mongoObfuscation){
+      context.write(value.toString());
+    }else {
+      writeObfuscated();
+    }
   }
 
   @Override

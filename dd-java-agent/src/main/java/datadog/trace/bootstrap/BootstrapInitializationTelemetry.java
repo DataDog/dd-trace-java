@@ -334,6 +334,7 @@ public abstract class BootstrapInitializationTelemetry {
     @SuppressForbidden
     private Closeable muteTracing() {
       try {
+       // process.waitFor();
         Class<?> agentTracerClass =
             Class.forName("datadog.trace.bootstrap.instrumentation.api.AgentTracer");
         Object tracerAPI = agentTracerClass.getMethod("get").invoke(null);

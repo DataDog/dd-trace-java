@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.logback;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -16,6 +17,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -95,6 +97,14 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
         correlationValues.put(
             CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+      }else{
+        AgentSpan span = activeSpan();
+        if (span!=null){
+          correlationValues.put(
+              CorrelationIdentifier.getTraceIdKey(), span.getTraceId().toString());
+          correlationValues.put(
+              CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(span.getSpanId()));
+        }
       }
 
       String serviceName = Config.get().getServiceName();

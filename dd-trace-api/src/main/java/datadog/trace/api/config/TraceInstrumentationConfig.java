@@ -24,6 +24,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
+  public static final String TRACE_METHODS_FILE = "trace.method.file";
+  public static final String TRACE_METHOD_PACKAGES = "trace.method.packages";
   /*
   format for measure.methods is the same as for trace.methods:
   https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/java/
@@ -71,6 +73,9 @@ public final class TraceInstrumentationConfig {
   public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+  public static final String JDBC_SQL_OBFUSCATION = "jdbc.sql.obfuscation";
+  public static final String MONGO_OBFUSCATION = "mongo.obfuscation";
+  public static final String REDIS_COMMAND_ARGS = "redis.command.args";
 
   public static final String AKKA_FORK_JOIN_TASK_NAME = "trace.akka.fork.join.task.name";
   public static final String AKKA_FORK_JOIN_EXECUTOR_TASK_NAME =
@@ -93,6 +98,9 @@ public final class TraceInstrumentationConfig {
   public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
   public static final String LOGS_INJECTION = "logs.injection";
 
+  public static final String LOGS_PATTERN = "logs.pattern";
+  public static final String LOGS_PATTERN_REPLACE = "logs.pattern.replace";
+  public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
   public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
       "trace.128.bit.traceid.logging.enabled";
 
@@ -182,6 +190,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
   public static final String ADD_SPAN_POINTERS = "add.span.pointers";
+  public static final String EXPERIMENTAL_KAFKA_ENABLED = "trace.experimental.kafka.enabled";
 
   private TraceInstrumentationConfig() {}
 }

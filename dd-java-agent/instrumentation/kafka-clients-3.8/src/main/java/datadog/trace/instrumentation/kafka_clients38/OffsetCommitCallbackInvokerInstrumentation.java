@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import net.bytebuddy.matcher.ElementMatcher;
 
 // new - this instrumentation is completely new.
@@ -19,6 +20,11 @@ public class OffsetCommitCallbackInvokerInstrumentation extends InstrumenterModu
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
   }
 
   @Override

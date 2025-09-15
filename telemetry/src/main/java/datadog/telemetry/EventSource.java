@@ -8,6 +8,7 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
+import java.util.ArrayList;
 import java.util.Queue;
 
 /**
@@ -19,14 +20,18 @@ interface EventSource {
   boolean hasConfigChangeEvent();
 
   ConfigSetting nextConfigChangeEvent();
+  ArrayList<ConfigSetting> allConfigSettingEvent();
 
   boolean hasIntegrationEvent();
 
   Integration nextIntegrationEvent();
+  ArrayList<Integration> allIntegrationEvent();
 
   boolean hasDependencyEvent();
 
   Dependency nextDependencyEvent();
+
+  ArrayList<Dependency> allDependencyEvent();
 
   boolean hasMetricEvent();
 
@@ -60,9 +65,9 @@ interface EventSource {
   }
 
   final class Queued implements EventSource {
-    private final Queue<ConfigSetting> configChangeQueue;
-    private final Queue<Integration> integrationQueue;
-    private final Queue<Dependency> dependencyQueue;
+    private final ArrayList<ConfigSetting> configChangeQueue;
+    private final ArrayList<Integration> integrationQueue;
+    private final ArrayList<Dependency> dependencyQueue;
     private final Queue<Metric> metricQueue;
     private final Queue<DistributionSeries> distributionSeriesQueue;
     private final Queue<LogMessage> logMessageQueue;
@@ -70,9 +75,9 @@ interface EventSource {
     private final Queue<Endpoint> endpoints;
 
     Queued(
-        Queue<ConfigSetting> configChangeQueue,
-        Queue<Integration> integrationQueue,
-        Queue<Dependency> dependencyQueue,
+        ArrayList<ConfigSetting> configChangeQueue,
+        ArrayList<Integration> integrationQueue,
+        ArrayList<Dependency> dependencyQueue,
         Queue<Metric> metricQueue,
         Queue<DistributionSeries> distributionSeriesQueue,
         Queue<LogMessage> logMessageQueue,
@@ -95,7 +100,12 @@ interface EventSource {
 
     @Override
     public ConfigSetting nextConfigChangeEvent() {
-      return configChangeQueue.poll();
+      return null;
+    }
+
+    @Override
+    public ArrayList<ConfigSetting> allConfigSettingEvent() {
+      return configChangeQueue;
     }
 
     @Override
@@ -105,7 +115,12 @@ interface EventSource {
 
     @Override
     public Integration nextIntegrationEvent() {
-      return integrationQueue.poll();
+      return null;
+    }
+
+    @Override
+    public ArrayList<Integration> allIntegrationEvent() {
+      return integrationQueue;
     }
 
     @Override
@@ -115,7 +130,12 @@ interface EventSource {
 
     @Override
     public Dependency nextDependencyEvent() {
-      return dependencyQueue.poll();
+      return null;
+    }
+
+    @Override
+    public ArrayList<Dependency> allDependencyEvent() {
+      return dependencyQueue;
     }
 
     @Override

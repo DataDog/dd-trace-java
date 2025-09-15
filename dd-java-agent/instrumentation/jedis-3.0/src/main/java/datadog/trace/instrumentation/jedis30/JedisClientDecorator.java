@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jedis30;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -54,5 +56,12 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   @Override
   protected String dbHostname(final Connection connection) {
     return connection.getHost();
+  }
+
+  public AgentSpan setRaw(AgentSpan span, String raw) {
+    if (Config.get().getRedisCommandArgs()){
+      span.setTag("redis.command.args",raw);
+    }
+    return span;
   }
 }

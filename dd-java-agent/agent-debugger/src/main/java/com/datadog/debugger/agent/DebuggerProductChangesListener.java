@@ -156,6 +156,7 @@ public class DebuggerProductChangesListener implements ProductListener {
     for (Consumer<DefinitionBuilder> chunk : configChunks.values()) {
       chunk.accept(builder);
     }
+    // reload class
     configurationAcceptor.accept(REMOTE_CONFIG, builder.build());
   }
 

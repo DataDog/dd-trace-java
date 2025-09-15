@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import datadog.trace.bootstrap.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;

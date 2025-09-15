@@ -56,6 +56,8 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -1409,7 +1411,9 @@ public class Agent {
     return false;
   }
 
-  /** @return {@code true} if the agent feature is enabled */
+  /**
+   * @return {@code true} if the agent feature is enabled
+   */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
@@ -1439,7 +1443,9 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
+  /**
+   * @see datadog.trace.api.ProductActivation#fromString(String)
+   */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
@@ -1477,7 +1483,9 @@ public class Agent {
     return value;
   }
 
-  /** @return configured JMX start delay in seconds */
+  /**
+   * @return configured JMX start delay in seconds
+   */
   private static int getJmxStartDelay() {
     String startDelay = ddGetProperty("dd.dogstatsd.start-delay");
     if (startDelay == null) {

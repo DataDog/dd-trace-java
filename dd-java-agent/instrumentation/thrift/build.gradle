@@ -1,0 +1,26 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = "org.apache.thrift"
+    module = "libthrift"
+    versions = "[0.9.3,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest','test')
+
+dependencies {
+  compileOnly(group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3')
+  main_java8CompileOnly(group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3')
+//  testImplementation group: 'org.apache.thrift', name: 'libthrift', version: '0.11.0'
+}
+
+test {
+    useJUnitPlatform()
+}

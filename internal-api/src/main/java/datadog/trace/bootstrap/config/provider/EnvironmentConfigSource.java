@@ -9,7 +9,12 @@ import datadog.trace.api.ConfigOrigin;
 final class EnvironmentConfigSource extends ConfigProvider.Source {
   @Override
   protected String get(String key) {
-    return EnvironmentVariables.get(propertyNameToEnvironmentVariableName(key));
+
+    try {
+      return EnvironmentVariables.get(propertyNameToEnvironmentVariableName(key));
+    } catch (SecurityException e) {
+      return null;
+    }
   }
 
   @Override

@@ -27,8 +27,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +89,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"jdbc"};
+    return new String[]{"jdbc"};
   }
 
   @Override
@@ -238,6 +237,19 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (null != info) {
       span.setResourceName(info.getSql());
       span.setTag(DB_OPERATION, info.getOperation());
+      String originSlq = info.getOriginSql().toString();
+      if (!originSlq.equals("")) {
+        Map<Integer, String> map = info.getVals();
+        StringBuilder sb = new StringBuilder();
+        int index = 0;
+        for (int key : map.keySet()) {
+          index++;
+          sb.append(key+"="+map.get(key)+", ");
+          if (index>=256){break;}
+        }
+        span.setTag("sql.params" ,sb.toString());
+        span.setTag("db.sql.origin", originSlq);
+      }
     } else {
       span.setResourceName(DB_QUERY);
     }

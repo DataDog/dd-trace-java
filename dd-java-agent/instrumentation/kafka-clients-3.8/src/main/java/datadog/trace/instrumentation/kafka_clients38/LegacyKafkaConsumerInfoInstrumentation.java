@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
@@ -34,6 +35,11 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isExperimentalKafkaEnabled();
   }
 
   @Override
