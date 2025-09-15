@@ -284,6 +284,11 @@ public class TestImpl implements DDTest {
       }
     }
 
+    boolean debugInfoCaptured = span.getTag(Tags.ERROR_DEBUG_INFO_CAPTURED) != null;
+    if (debugInfoCaptured) {
+      executionResults.setHasFailedTestReplayTests();
+    }
+
     AgentTracer.closeActive();
 
     onSpanFinish.accept(span);
@@ -310,9 +315,7 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
         retryReason instanceof TagValue ? (TagValue) retryReason : null,
-        span.getTag(Tags.ERROR_DEBUG_INFO_CAPTURED) != null
-            ? FailedTestReplayEnabled.TestMetric.TRUE
-            : null,
+        debugInfoCaptured ? FailedTestReplayEnabled.TestMetric.TRUE : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM

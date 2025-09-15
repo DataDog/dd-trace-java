@@ -4,6 +4,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "_dd.test.has_failed_test_replay" : "true",
       "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
@@ -54,6 +55,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "_dd.test.has_failed_test_replay" : "true",
       "_dd.test.is_user_provided_service" : "true",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",

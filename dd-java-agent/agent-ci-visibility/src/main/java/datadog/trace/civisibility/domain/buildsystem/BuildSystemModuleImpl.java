@@ -290,6 +290,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
     }
 
+    if (result.hasFailedTestReplayTests()) {
+      setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
+    }
+
     testsSkipped.add(result.getTestsSkippedTotal());
 
     tagsPropagator.mergeTestFrameworks(result.getTestFrameworks());
