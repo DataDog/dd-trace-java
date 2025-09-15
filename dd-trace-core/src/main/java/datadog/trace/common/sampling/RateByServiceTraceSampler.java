@@ -6,7 +6,10 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -25,6 +28,12 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   public static final String KNUTH_SAMPLING_RATE = "_dd.p.ksr";
 
   private static final double DEFAULT_RATE = 1.0;
+  private static final DecimalFormat DECIMAL_FORMAT;
+  
+  static {
+    DECIMAL_FORMAT = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    DECIMAL_FORMAT.setMaximumFractionDigits(6);
+  }
 
   private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
 
@@ -69,7 +78,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private String formatKnuthSamplingRate(double rate) {
     // Format to up to 6 decimal places, removing trailing zeros
-    return String.format("%.6f", rate).replaceAll("0*$", "").replaceAll("\\.$", "");
+    return DECIMAL_FORMAT.format(rate);
   }
 
   @Override

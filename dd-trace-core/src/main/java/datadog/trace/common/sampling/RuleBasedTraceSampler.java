@@ -5,8 +5,11 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.slf4j.Logger;
@@ -15,6 +18,13 @@ import org.slf4j.LoggerFactory;
 public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, PrioritySampler {
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedTraceSampler.class);
+  private static final DecimalFormat DECIMAL_FORMAT;
+  
+  static {
+    DECIMAL_FORMAT = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    DECIMAL_FORMAT.setMaximumFractionDigits(6);
+  }
+  
   private final List<RateSamplingRule> samplingRules;
   private final PrioritySampler fallbackSampler;
   private final SimpleRateLimiter rateLimiter;
@@ -178,6 +188,6 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
 
   private String formatKnuthSamplingRate(double rate) {
     // Format to up to 6 decimal places, removing trailing zeros
-    return String.format("%.6f", rate).replaceAll("0*$", "").replaceAll("\\.$", "");
+    return DECIMAL_FORMAT.format(rate);
   }
 }
