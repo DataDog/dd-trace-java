@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class Strings {
 
@@ -195,6 +196,17 @@ public final class Strings {
   }
 
   /**
+   * Checks that a string is blank, i.e. doest not contain characters or is null
+   *
+   * @param s The string to be checked
+   * @return {@code true} if string is blank (string is {@code null}, empty, or contains only
+   *     whitespace characters), {@code false} otherwise
+   */
+  public static boolean isBlank(String s) {
+    return !isNotBlank(s);
+  }
+
+  /**
    * Generates a random string of the given length from lowercase characters a-z
    *
    * @param length length of the string
@@ -228,5 +240,17 @@ public final class Strings {
     System.arraycopy(arr, 0, result, 0, arr.length);
     System.arraycopy(extra, 0, result, arr.length, extra.length);
     return result;
+  }
+
+  /** @return first non-blank string out of the two, {@code null} if both are blank */
+  @Nullable
+  public static String coalesce(@Nullable final String first, @Nullable final String second) {
+    if (isNotBlank(first)) {
+      return first;
+    } else if (isNotBlank(second)) {
+      return second;
+    } else {
+      return null;
+    }
   }
 }

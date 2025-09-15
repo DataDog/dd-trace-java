@@ -1,11 +1,11 @@
-package datadog.trace.instrumentation.azurefunctions;
+package datadog.trace.instrumentation.azure.functions;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-import static datadog.trace.instrumentation.azurefunctions.AzureFunctionsDecorator.DECORATE;
+import static datadog.trace.instrumentation.azure.functions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -65,15 +65,16 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
   public static class AzureFunctionsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope methodEnter(
-        @Advice.Argument(0) final HttpRequestMessage request,
-        @Advice.Argument(1) final ExecutionContext context) {
-      final Context extractedContext = DECORATE.extractContext(request);
-      final AgentSpan span = DECORATE.startSpan(request, extractedContext);
-      DECORATE.afterStart(span, context.getFunctionName());
-      DECORATE.onRequest(span, request, request, extractedContext);
+        @Advice.Argument(0) final HttpRequestMessage<?> request,
+        @Advice.Argument(1) final ExecutionContext executionContext) {
+      final Context parentContext = DECORATE.extract(request);
+      final Context context = DECORATE.startSpan(request, parentContext);
+      final AgentSpan span = fromContext(context);
+      DECORATE.afterStart(span, executionContext.getFunctionName());
+      DECORATE.onRequest(span, request, request, parentContext);
       HTTP_RESOURCE_DECORATOR.withRoute(
           span, request.getHttpMethod().name(), request.getUri().getPath());
-      return extractedContext.with(span).attach();
+      return context.attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -81,7 +82,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final ContextScope scope,
         @Advice.Return final HttpResponseMessage response,
         @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = spanFromContext(scope.context());
+      final AgentSpan span = fromContext(scope.context());
       DECORATE.onError(span, throwable);
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);

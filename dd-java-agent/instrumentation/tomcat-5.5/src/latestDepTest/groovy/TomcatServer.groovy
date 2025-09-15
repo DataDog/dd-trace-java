@@ -65,6 +65,7 @@ class TomcatServer implements WebsocketServer {
     port = server.service.findConnectors()[0].localPort
     assert port > 0
     if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
+      server.getEngine().setName("tomcat")
       def serverName = TraceUtils.normalizeTag(server.getEngine().getName())
       assert ProcessTags.getTagsAsStringList().containsAll(["server.type:tomcat", "server.name:" + serverName])
     } else {
@@ -136,7 +137,7 @@ class TomcatServer implements WebsocketServer {
         while (WsEndpoint.activeSession == null) {
           WsEndpoint.wait()
         }
-      } catch (InterruptedException ie) {
+      } catch (InterruptedException _) {
         Thread.currentThread().interrupt()
       }
     }
@@ -163,7 +164,7 @@ class TomcatServer implements WebsocketServer {
 
     @Override
     void contextInitialized(ServletContextEvent sce) {
-      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.class.getName()))
+      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.name))
     }
 
     @Override

@@ -25,6 +25,7 @@ import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.ExceptionHelper;
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -89,7 +90,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
-  public static Path DUMP_PATH = Paths.get(System.getProperty(JAVA_IO_TMPDIR), "debugger");
+  public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -180,7 +181,15 @@ public class DebuggerTransformer implements ClassFileTransformer {
                 config,
                 "",
                 new BatchUploader(
-                    config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
+                    "Snapshots",
+                    config,
+                    config.getFinalDebuggerSnapshotUrl(),
+                    SnapshotSink.RETRY_POLICY),
+                new BatchUploader(
+                    "Logs",
+                    config,
+                    config.getFinalDebuggerSnapshotUrl(),
+                    SnapshotSink.RETRY_POLICY)),
             new SymbolSink(config)));
   }
 
@@ -534,10 +543,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
     for (MethodNode methodNode : classNode.methods) {
       List<ProbeDefinition> matchingDefs = new ArrayList<>();
       for (ProbeDefinition definition : definitions) {
-        if (definition.getWhere().isMethodMatching(methodNode, classFileLines)
-            && remainingDefinitions.contains(definition)) {
-          matchingDefs.add(definition);
-          remainingDefinitions.remove(definition);
+        Where.MethodMatching methodMatching =
+            definition.getWhere().isMethodMatching(methodNode, classFileLines);
+        if (remainingDefinitions.contains(definition)) {
+          if (methodMatching == Where.MethodMatching.MATCH) {
+            // method matches, add into collection of definitions to instrument
+            matchingDefs.add(definition);
+          }
+          if (methodMatching == Where.MethodMatching.MATCH
+              || methodMatching == Where.MethodMatching.SKIP)
+            // match or need to skip instrumentation (because bridge) remove from remaining
+            // definitions to avoid reporting error
+            remainingDefinitions.remove(definition);
         }
       }
       if (matchingDefs.isEmpty()) {
@@ -849,7 +866,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     List<MethodNode> result = new ArrayList<>();
     try {
       for (MethodNode methodNode : classNode.methods) {
-        if (where.isMethodMatching(methodNode, classFileLines)) {
+        if (where.isMethodMatching(methodNode, classFileLines) == Where.MethodMatching.MATCH) {
           result.add(methodNode);
         }
       }

@@ -1,8 +1,9 @@
 package datadog.telemetry
 
-import datadog.trace.api.Platform
-import org.junit.Assume
+import datadog.environment.OperatingSystem
 import spock.lang.Specification
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class HostInfoTest extends Specification {
   void 'getHostname'() {
@@ -32,13 +33,13 @@ class HostInfoTest extends Specification {
   }
 
   void 'compare to uname'() {
-    Assume.assumeTrue('uname -a'.execute().waitFor() == 0)
+    assumeTrue('uname -a'.execute().waitFor() == 0)
 
     expect:
     HostInfo.getHostname() == 'uname -n'.execute().text.trim()
     HostInfo.getOsName() == 'uname -s'.execute().text.trim()
     HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
-    if (Platform.isMac()) {
+    if (OperatingSystem.isMacOs()) {
       // uname -r will return X.Y.Z version, while JVM will report just X.Y
       'uname -r'.execute().text.trim().startsWith(HostInfo.getKernelRelease())
 

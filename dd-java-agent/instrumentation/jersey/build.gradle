@@ -44,11 +44,11 @@ dependencies {
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jersey3Version
 
-  jersey2JettyTestImplementation project(':dd-java-agent:testing'), {
+  jersey2JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  jersey2JettyTestImplementation testFixtures(project(':dd-java-agent:appsec'))
-  jersey2JettyTestImplementation testFixtures(project(':dd-java-agent:agent-iast'))
+  jersey2JettyTestImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  jersey2JettyTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   jersey2JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey2Version
   jersey2JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: jersey2Version
   jersey2JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: jersey2Version
@@ -56,12 +56,13 @@ dependencies {
   jersey2JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
 
-  jersey3JettyTestImplementation project(':dd-java-agent:testing'), {
+  jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  jersey3JettyTestImplementation testFixtures(project(':dd-java-agent:appsec'))
-  jersey3JettyTestImplementation testFixtures(project(':dd-java-agent:agent-iast'))
+  jersey3JettyTestImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  jersey3JettyTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey3Version
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: jersey3Version
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: jersey3Version
@@ -72,6 +73,7 @@ dependencies {
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-11')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-3-appsec')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jakarta-rs-annotations-3')
 }
 
 configurations.getByName('jersey3JettyTestRuntimeClasspath').resolutionStrategy {

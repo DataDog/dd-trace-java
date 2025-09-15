@@ -14,12 +14,23 @@ gradlePlugin {
 
 repositories {
     mavenLocal()
+
+    def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (proxyUrl) {
+      println "Using proxy repository: $proxyUrl"
+      maven {
+        url = proxyUrl
+        allowInsecureProtocol = true
+      }
+    }
+
     mavenCentral()
 }
 
 dependencies {
     testImplementation gradleTestKit()
 
+    testImplementation 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
 }
 

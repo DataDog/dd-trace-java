@@ -1,6 +1,6 @@
 package datadog.trace.util.stacktrace;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.test.util.AnyStackRunner;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -21,7 +21,7 @@ public class StackWalkerTestUtil {
   public static boolean isRunningJDK8WithHotSpot() {
     try {
       JavaLangAccess access = SharedSecrets.getJavaLangAccess();
-      return Platform.isJavaVersion(8) && access != null;
+      return JavaVirtualMachine.isJavaVersion(8) && access != null;
     } catch (Throwable throwable) {
       return false;
     }

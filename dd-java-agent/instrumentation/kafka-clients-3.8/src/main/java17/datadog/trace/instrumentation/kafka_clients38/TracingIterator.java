@@ -1,17 +1,14 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -20,6 +17,7 @@ import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -27,7 +25,6 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import datadog.trace.instrumentation.kafka_common.Utils;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,21 +97,13 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put(GROUP_TAG, group);
-          if (clusterId != null) {
-            sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
-          }
-          sortedTags.put(TOPIC_TAG, val.topic());
-          sortedTags.put(TYPE_TAG, "kafka");
-
+          DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
           final long payloadSize =
-              span.traceConfig().isDataStreamsEnabled() ? Utils.computePayloadSizeBytes(val) : 0;
+              traceConfig().isDataStreamsEnabled() ? Utils.computePayloadSizeBytes(val) : 0;
           if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(sortedTags, val.timestamp(), payloadSize));
+                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (StreamingContext.STREAMING_CONTEXT.isSourceTopic(val.topic())) {
@@ -123,7 +112,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // some other instance of the application, breaking the context propagation
               // for DSM users
               Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-              DataStreamsContext dsmContext = create(sortedTags, val.timestamp(), payloadSize);
+              DataStreamsContext dsmContext = create(tags, val.timestamp(), payloadSize);
               dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
             }
           }

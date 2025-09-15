@@ -25,7 +25,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
 
   // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 

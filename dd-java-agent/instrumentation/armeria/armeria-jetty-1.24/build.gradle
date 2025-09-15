@@ -1,0 +1,91 @@
+ext {
+  jetty11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+muzzle {
+  pass {
+    group = "com.linecorp.armeria"
+    module = "armeria-jetty11"
+    versions = "[1.24.0,)"
+  }
+  pass {
+    group = "com.linecorp.armeria"
+    module = "armeria-jetty9"
+    versions = "[1.24.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+addTestSuiteForDir("jetty9Test", "test/jetty9")
+addTestSuiteForDir("jetty11Test", "test/jetty11")
+addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
+addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
+
+[compileJetty11TestGroovy, jetty11Test, compileJetty11LatestDepTestGroovy, jetty11LatestDepTest].each {
+  it.configure {
+    javaLauncher = getJavaLauncherFor(11)
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.linecorp.armeria', name: 'armeria-jetty9', version: '1.24.0'
+  jetty11TestImplementation group: 'com.linecorp.armeria', name: 'armeria-jetty11', version: '1.24.0',   {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty11TestImplementation "org.eclipse.jetty:jetty-server:11.0.0",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty11TestImplementation "org.eclipse.jetty:jetty-servlet:11.0.0",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+
+  jetty11LatestDepTestImplementation group: 'com.linecorp.armeria', name: 'armeria-jetty11', version: '+',   {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty11LatestDepTestImplementation "org.eclipse.jetty:jetty-server:11.+",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty11LatestDepTestImplementation "org.eclipse.jetty:jetty-servlet:11.+",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+
+  jetty9TestImplementation group: 'com.linecorp.armeria', name: 'armeria-jetty9', version: '1.24.0',   {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty9TestImplementation "org.eclipse.jetty:jetty-server:9.4.48.v20220622",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty9TestImplementation "org.eclipse.jetty:jetty-servlet:9.4.48.v20220622",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty9LatestDepTestImplementation group: 'com.linecorp.armeria', name: 'armeria-jetty9', version: '+',   {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty9LatestDepTestImplementation "org.eclipse.jetty:jetty-server:9.+",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  jetty9LatestDepTestImplementation "org.eclipse.jetty:jetty-servlet:9.+",  {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-9'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-11'))
+
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+  // always mix everything up
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-11')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-util'))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-appsec-9.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
+
+
+}

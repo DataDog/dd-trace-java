@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.communication.ddagent.TracerVersion;
 import datadog.context.propagation.CarrierSetter;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
@@ -19,7 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
-import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
+import datadog.trace.civisibility.coverage.report.CoverageProcessor;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.BuildSystemModule;
@@ -30,7 +31,6 @@ import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
@@ -38,7 +38,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -46,7 +45,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
 
-  private final CoverageCalculator coverageCalculator;
+  private final CoverageProcessor coverageProcessor;
   private final ModuleSignalRouter moduleSignalRouter;
   private final BuildModuleSettings settings;
 
@@ -54,7 +53,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   private volatile boolean testSkippingEnabled;
 
-  public <T extends CoverageCalculator> BuildSystemModuleImpl(
+  public <T extends CoverageProcessor> BuildSystemModuleImpl(
       AgentSpanContext sessionSpanContext,
       String moduleName,
       String startCommand,
@@ -70,7 +69,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       Codeowners codeowners,
       LinesResolver linesResolver,
       ModuleSignalRouter moduleSignalRouter,
-      CoverageCalculator.Factory<T> coverageCalculatorFactory,
+      CoverageProcessor.Factory<T> coverageProcessorFactory,
       T sessionCoverageCalculator,
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings,
@@ -87,8 +86,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         codeowners,
         linesResolver,
         onSpanFinish);
-    this.coverageCalculator =
-        coverageCalculatorFactory.moduleCoverage(
+    this.coverageProcessor =
+        coverageProcessorFactory.moduleCoverage(
             span.getSpanId(), moduleLayout, executionSettings, sessionCoverageCalculator);
     this.moduleSignalRouter = moduleSignalRouter;
 
@@ -138,14 +137,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
-    Properties systemProperties = System.getProperties();
-    for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-      String propertyName = (String) e.getKey();
-      Object propertyValue = e.getValue();
+    for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
+      String propertyName = p.getKey();
+      String propertyValue = p.getValue();
       if ((propertyName.startsWith(Config.PREFIX)
               || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
           && propertyValue != null) {
-        propagatedSystemProperties.put(propertyName, propertyValue.toString());
+        propagatedSystemProperties.put(propertyName, propertyValue);
       }
     }
 
@@ -181,6 +179,11 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED),
         Boolean.toString(executionSettings.getTestManagementSettings().isEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED),
+        Boolean.toString(executionSettings.isFailedTestReplayEnabled()));
 
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
@@ -287,9 +290,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
     }
 
+    if (result.hasFailedTestReplayTests()) {
+      setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
+    }
+
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+    tagsPropagator.mergeTestFrameworks(result.getTestFrameworks());
 
     return AckResponse.INSTANCE;
   }
@@ -307,7 +314,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       }
     }
 
-    Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
+    Long coveragePercentage = coverageProcessor.processCoverageData();
     if (coveragePercentage != null) {
       setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
 

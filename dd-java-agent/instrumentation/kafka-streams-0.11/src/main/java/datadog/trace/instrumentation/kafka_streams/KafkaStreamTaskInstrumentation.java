@@ -2,15 +2,13 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.createWithGroup;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
@@ -37,13 +35,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -249,28 +247,23 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+
+        String applicationId = null;
         if (streamTaskContext != null) {
-          String applicationId = streamTaskContext.getApplicationId();
-          if (applicationId != null) {
-            // Kafka Streams uses the application ID as the consumer group.id.
-            sortedTags.put(GROUP_TAG, applicationId);
-          }
+          applicationId = streamTaskContext.getApplicationId();
         }
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
+        DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
 
         final long payloadSize =
-            span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
+            traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(sortedTags, record.timestamp, payloadSize));
+              .setCheckpoint(span, create(tags, record.timestamp, payloadSize));
         } else {
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-            DataStreamsContext dsmContext = create(sortedTags, record.timestamp, payloadSize);
+            DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
             dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
           }
         }
@@ -326,17 +319,11 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
 
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+        String applicationId = null;
         if (streamTaskContext != null) {
-          String applicationId = streamTaskContext.getApplicationId();
-          if (applicationId != null) {
-            // Kafka Streams uses the application ID as the consumer group.id.
-            sortedTags.put(GROUP_TAG, applicationId);
-          }
+          applicationId = streamTaskContext.getApplicationId();
         }
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
+        DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
 
         long payloadSize = 0;
         // we have to go through Object to get the RecordMetadata here because the class of `record`
@@ -349,11 +336,11 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(sortedTags, record.timestamp(), payloadSize));
+              .setCheckpoint(span, create(tags, record.timestamp(), payloadSize));
         } else {
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-            DataStreamsContext dsmContext = create(sortedTags, record.timestamp(), payloadSize);
+            DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
             dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
           }
         }

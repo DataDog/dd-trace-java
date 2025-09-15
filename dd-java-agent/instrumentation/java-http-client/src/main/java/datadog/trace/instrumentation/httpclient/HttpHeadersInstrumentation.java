@@ -7,9 +7,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Platform;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -30,7 +30,7 @@ public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(11) && super.isEnabled();
+    return JavaVirtualMachine.isJavaVersionAtLeast(11) && super.isEnabled();
   }
 
   @Override
@@ -47,7 +47,9 @@ public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".HttpHeadersInjectAdapter"};
+    return new String[] {
+      packageName + ".HttpHeadersInjectAdapter", packageName + ".JavaNetClientDecorator",
+    };
   }
 
   @Override

@@ -1,11 +1,8 @@
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
-
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
@@ -21,14 +18,18 @@ import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
+import org.springframework.kafka.test.EmbeddedKafkaBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import org.springframework.kafka.test.rule.EmbeddedKafkaRule
-import org.springframework.kafka.test.EmbeddedKafkaBroker
 import spock.lang.Shared
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
@@ -233,37 +234,31 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        tags.hasAllTags("direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == [
+        tags.hasAllTags(
           "direction:in",
           "group:sender",
           "kafka_cluster_id:$clusterId",
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
-        ]
-        edgeTags.size() == 5
+          )
       }
-      List<String> produce = [
-        "kafka_cluster_id:$clusterId",
-        "partition:" + received.partition(),
-        "topic:" + SHARED_TOPIC,
-        "type:kafka_produce"
-      ]
-      List<String> commit = [
-        "consumer_group:sender",
-        "kafka_cluster_id:$clusterId",
-        "partition:" + received.partition(),
-        "topic:" + SHARED_TOPIC,
-        "type:kafka_commit"
-      ]
-      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
+      def sorted = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort({it.type+it.partition})
+      verifyAll(sorted) {
+        size() == 2
+        get(0).hasAllTags("consumer_group:sender",
+          "kafka_cluster_id:$clusterId",
+          "partition:" + received.partition(),
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_commit")
+        get(1).hasAllTags("kafka_cluster_id:$clusterId",
+          "partition:" + received.partition(),
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_produce")
       }
     }
 

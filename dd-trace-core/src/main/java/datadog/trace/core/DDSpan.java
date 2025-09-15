@@ -13,7 +13,9 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.metrics.SpanMetricRegistry;
@@ -364,7 +366,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   private boolean isExceptionReplayEnabled() {
-    if (!DebuggerContext.isExceptionReplayEnabled()) {
+    if (!DebuggerConfigBridge.isExceptionReplayEnabled()) {
       return false;
     }
     boolean captureOnlyRootSpan =
@@ -692,14 +694,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public Map<String, Object> getTags() {
-    // This is an imutable copy of the tags
+  public TagMap getTags() {
+    // This is an immutable copy of the tags
     return context.getTags();
   }
 
   @Override
   public CharSequence getType() {
     return context.getSpanType();
+  }
+
+  @Override
+  public void processServiceTags() {
+    context.earlyProcessTags(links);
   }
 
   @Override
@@ -861,5 +868,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       context.setOrigin(sourceSpanContext.getOrigin());
       sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
     }
+  }
+
+  @Override
+  public int getLongRunningVersion() {
+    return longRunningVersion;
   }
 }

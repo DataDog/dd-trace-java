@@ -1,6 +1,9 @@
 package datadog.smoketest;
 
-import datadog.trace.api.Platform;
+import static datadog.environment.JavaVirtualMachine.isJ9;
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -14,9 +17,9 @@ public final class DisableOnJ9Condition implements ExecutionCondition {
   }
 
   private static boolean isDdprofSupported() {
-    return !Platform.isJ9()
-        || (Platform.isJavaVersion(8) && Platform.isJavaVersion(8, 0, 361))
-        || Platform.isJavaVersionAtLeast(11, 0, 18)
-        || Platform.isJavaVersionAtLeast(17, 0, 6);
+    return !isJ9()
+        || (isJavaVersion(8) && isJavaVersion(8, 0, 361))
+        || isJavaVersionAtLeast(11, 0, 18)
+        || isJavaVersionAtLeast(17, 0, 6);
   }
 }

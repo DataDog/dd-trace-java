@@ -29,7 +29,9 @@ addTestSuiteForDir('ee9Test', 'test/ee9')
 addTestSuiteExtendingForDir('ee9LatestDepTest', 'latestDepTest', 'test/ee9')
 // ee10
 addTestSuiteForDir('ee10Test', 'test/ee10')
+addTestSuiteExtendingForDir('ee10ForkedTest', 'ee10Test', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
+addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'test/ee10')
 
 [compileMain_java17Java, compileTestJava].each {
   it.configure {
@@ -61,7 +63,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:jetty-common')
 
   // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testImplementation ("org.eclipse.jetty:jetty-server:12.0.0") {
@@ -76,7 +78,7 @@ dependencies {
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12")
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
   testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-11'))

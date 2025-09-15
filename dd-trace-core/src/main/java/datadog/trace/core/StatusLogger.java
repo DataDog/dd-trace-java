@@ -27,7 +27,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     implements AgentTaskScheduler.Task<Config>, JsonAdapter.Factory {
 
   public static void logStatus(Config config) {
-    AgentTaskScheduler.INSTANCE.schedule(new StatusLogger(), config, 500, MILLISECONDS);
+    AgentTaskScheduler.get().schedule(new StatusLogger(), config, 500, MILLISECONDS);
   }
 
   @Override

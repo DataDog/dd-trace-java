@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty40.server;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
@@ -39,12 +40,13 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
-    final Context extractedContext = DECORATE.extractContext(headers);
-    final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
+    final Context parentContext = DECORATE.extract(headers);
+    final Context context = DECORATE.startSpan(headers, parentContext);
 
-    try (final ContextScope scope = extractedContext.with(span).attach()) {
+    try (final ContextScope ignored = context.attach()) {
+      final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, channel, request, extractedContext);
+      DECORATE.onRequest(span, channel, request, parentContext);
 
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);

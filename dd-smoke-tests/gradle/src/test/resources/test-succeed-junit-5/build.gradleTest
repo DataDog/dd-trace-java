@@ -3,13 +3,23 @@ apply plugin: 'jvm-test-suite'
 
 repositories {
   mavenLocal()
+
+  def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+  if (proxyUrl) {
+    println "Using proxy repository: $proxyUrl"
+    maven {
+      url = proxyUrl
+      allowInsecureProtocol = true
+    }
+  }
+
   mavenCentral()
 }
 
 testing {
     suites {
         test {
-            useJUnitJupiter()
+            useJUnitJupiter('5.9.3')
 
             dependencies {
               implementation 'org.junit.platform:junit-platform-launcher:1.9.3'

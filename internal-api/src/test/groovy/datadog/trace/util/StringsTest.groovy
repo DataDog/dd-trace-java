@@ -117,12 +117,14 @@ class StringsTest extends DDSpecification {
     "hélló wórld" | 5     | "hélló"
   }
 
-  def "test isNotBlank: #input"() {
+  def "test isNotBlank and isBlank: #input"() {
     when:
     def notBlank = Strings.isNotBlank(input)
+    def isBlank = Strings.isBlank(input)
 
     then:
     notBlank == expected
+    isBlank == !notBlank
 
     where:
     input        | expected
@@ -155,5 +157,22 @@ class StringsTest extends DDSpecification {
     null                    | null
     ''                      | ''
     'zouzou@sansgluten.com' | '7A6F757A6F754073616E73676C7574656E2E636F6D'
+  }
+
+  void 'test coalesce: #first - #second'() {
+    when:
+    def combined = Strings.coalesce(first, second)
+
+    then:
+    expected == combined
+
+    where:
+    first | second | expected
+    "a"   | "b"    | "a"
+    "a"   | null   | "a"
+    null  | "b"    | "b"
+    ""    | "b"    | "b"
+    null  | null   | null
+    ""    | ""     | null
   }
 }

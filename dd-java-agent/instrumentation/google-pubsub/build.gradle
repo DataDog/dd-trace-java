@@ -3,7 +3,7 @@ muzzle {
     group = "com.google.cloud"
     module = "google-cloud-pubsub"
     versions = "[1.116.0,)"
-    excludeDependency "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
+    excludeDependency 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
   }
 }
 apply from: "$rootDir/gradle/java.gradle"

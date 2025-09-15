@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.CommandInjectionModule
 import foo.bar.TestRuntimeSuite
-import groovy.transform.CompileDynamic
 
-@CompileDynamic
-class RuntimeCallSiteTest extends AgentTestRunner {
+import static org.mockito.Mockito.mock
+
+class RuntimeCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {
@@ -16,7 +16,7 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
   def 'test exec with command string'() {
     setup:
-    final runtime = Mock(Runtime)
+    final runtime = mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = 'ls'
     InstrumentationBridge.registerIastModule(iastModule)
@@ -26,13 +26,12 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onRuntimeExec(command)
-    1 * runtime.exec(command)
     0 * _
   }
 
   def 'test exec with command string and env array'() {
     setup:
-    final runtime = Mock(Runtime)
+    final runtime = mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = 'ls'
     final env = ['DD_TRACE_DEBUG=true'] as String[]
@@ -43,13 +42,12 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onRuntimeExec(env, command)
-    1 * runtime.exec(command, env)
     0 * _
   }
 
   def 'test exec with command string array'() {
     setup:
-    final runtime = Mock(Runtime)
+    final runtime = mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = ['ls', '-lah'] as String[]
     InstrumentationBridge.registerIastModule(iastModule)
@@ -59,13 +57,12 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onRuntimeExec(command)
-    1 * runtime.exec(command)
     0 * _
   }
 
   def 'test exec with command string array and env array'() {
     setup:
-    final runtime = Mock(Runtime)
+    final runtime = mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = ['ls', '-lah'] as String[]
     final env = ['DD_TRACE_DEBUG=true'] as String[]
@@ -76,13 +73,12 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onRuntimeExec(env, command)
-    1 * runtime.exec(command, env)
     0 * _
   }
 
   def 'test exec with command string and env array and dir'() {
     setup:
-    final runtime = Mock(Runtime)
+    final runtime = mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = 'ls'
     final env = ['DD_TRACE_DEBUG=true'] as String[]
@@ -94,13 +90,12 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onRuntimeExec(env, command)
-    1 * runtime.exec(command, env, file)
     0 * _
   }
 
   def 'test exec with command string array and env array and dir'() {
     setup:
-    final runtime = Mock(Runtime)
+    final runtime = mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = ['ls', '-lah'] as String[]
     final env = ['DD_TRACE_DEBUG=true'] as String[]
@@ -112,7 +107,6 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onRuntimeExec(env, command)
-    1 * runtime.exec(command, env, file)
     0 * _
   }
 }

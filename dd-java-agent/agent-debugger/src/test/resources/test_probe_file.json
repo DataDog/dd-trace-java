@@ -1,0 +1,91 @@
+[
+  {
+    "id": "123356536",
+    "version": 0,
+    "language": "java",
+    "type": "LOG_PROBE",
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()"
+    }
+  },
+  {
+    "id": "100c9a5c-45ad-49dc-818b-c570d31e11d1",
+    "version": 0,
+    "type": "LOG_PROBE",
+    "where": {
+      "sourceFile": "index.js",
+      "lines": ["25"]
+    },
+    "template": "Hello World",
+    "segments": [{
+      "str": "Hello World"
+    }],
+    "captureSnapshot": true,
+    "capture": { "maxReferenceDepth": 3 },
+    "sampling": { "snapshotsPerSecond": 100 }
+  },
+  {
+    "id": "123356537",
+    "language": "java",
+    "type": "METRIC_PROBE",
+    "where": {
+      "typeName": "VetController",
+      "methodName": "showVetList"
+    },
+    "tags": ["version:v123", "env:staging"],
+    "kind": "COUNT",
+    "metricName": "datadog.debugger.showVetList.calls",
+    "value": {
+      "dsl": "42",
+      "json": 42
+    }
+  },
+  {
+    "id": "ad4cba6f-d476-4554-b5ed-80dd941a40d8",
+    "version": 0,
+    "type": "SPAN_DECORATION_PROBE",
+    "language": "java",
+    "where": {
+      "typeName": "com.datadog.debugger.demomonitor.DemoRequestScheduledJob",
+      "methodName": "fireRequests",
+      "signature": "()"
+    },
+    "tags": [],
+    "evaluateAt": "EXIT",
+    "targetSpan": "ROOT",
+    "decorations": [
+      {
+        "tags": [
+          {
+            "name": "client",
+            "value": {
+              "segments": [
+                {
+                  "dsl": "client",
+                  "json": {
+                    "ref": "client"
+                  }
+                }
+              ],
+              "template": "{client}"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "70b55d06-f9fa-403b-a329-4f2f960aed01",
+    "version": 0,
+    "type": "SPAN_PROBE",
+    "language": "java",
+    "where": {
+      "typeName": "MetadataClientUtils",
+      "methodName": "listTableWithContinuation"
+    },
+    "tags": [],
+    "evaluateAt": "EXIT"
+  }
+]

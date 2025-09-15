@@ -2,8 +2,9 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -24,6 +25,8 @@ import org.slf4j.LoggerFactory;
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
   private static final Logger logger = LoggerFactory.getLogger(ProfilerSettingsSupport.class);
+  private static final String STACKDEPTH_KEY = "stackdepth=";
+  private static final int DEFAULT_JFR_STACKDEPTH = 64;
 
   protected static final class ProfilerActivationSetting {
     public enum Ssi {
@@ -63,6 +66,7 @@ public abstract class ProfilerSettingsSupport {
     }
   }
 
+  protected static final String VERSION_KEY = "Java Agent Version";
   protected static final String JFR_IMPLEMENTATION_KEY = "JFR Implementation";
   protected static final String UPLOAD_PERIOD_KEY = "Upload Period";
   protected static final String UPLOAD_TIMEOUT_KEY = "Upload Timeout";
@@ -108,7 +112,8 @@ public abstract class ProfilerSettingsSupport {
 
   protected final ProfilerActivationSetting profilerActivationSetting;
 
-  protected final int stackDepth;
+  protected final int jfrStackDepth;
+  protected final int requestedStackDepth;
   protected final boolean hasJfrStackDepthApplied;
 
   protected ProfilerSettingsSupport(
@@ -170,11 +175,10 @@ public abstract class ProfilerSettingsSupport {
                     configProvider.getString(
                         "profiling.async.cstack",
                         ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
-    stackDepth =
+    requestedStackDepth =
         configProvider.getInteger(
-            ProfilingConfig.PROFILING_STACKDEPTH,
-            ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT,
-            ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH);
+            ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
+    jfrStackDepth = getStackDepth();
 
     seLinuxStatus = getSELinuxStatus();
     this.ddprofUnavailableReason = ddprofUnavailableReason;
@@ -189,6 +193,31 @@ public abstract class ProfilerSettingsSupport {
     logger.debug(
         SEND_TELEMETRY,
         "Profiler settings: " + this); // telemetry receiver does not recognize formatting
+  }
+
+  private static int getStackDepth() {
+    String value =
+        JavaVirtualMachine.getVmOptions().stream()
+            .filter(o -> o.startsWith("-XX:FlightRecorderOptions"))
+            .findFirst()
+            .orElse(null);
+    if (value != null) {
+      int start = value.indexOf(STACKDEPTH_KEY);
+      if (start != -1) {
+        start += STACKDEPTH_KEY.length();
+        int end = value.indexOf(',', start);
+        if (end == -1) {
+          end = value.length();
+        }
+        try {
+          return Integer.parseInt(value.substring(start, end));
+        } catch (NumberFormatException e) {
+          logger.debug(
+              SEND_TELEMETRY, "Failed to parse stack depth from JFR options: {}", value, e);
+        }
+      }
+    }
+    return DEFAULT_JFR_STACKDEPTH; // default stack depth if not set in JFR options
   }
 
   private static String getServiceInjection(ConfigProvider configProvider) {
@@ -206,7 +235,7 @@ public abstract class ProfilerSettingsSupport {
 
   private String getSELinuxStatus() {
     String value = "Not present";
-    if (Platform.isLinux()) {
+    if (OperatingSystem.isLinux()) {
       try (final TraceScope scope = AgentTracer.get().muteTracing()) {
         ProcessBuilder pb = new ProcessBuilder("getenforce");
         Process process = pb.start();
@@ -247,7 +276,7 @@ public abstract class ProfilerSettingsSupport {
 
   private static String readPerfEventsParanoidSetting() {
     String value = "unknown";
-    if (Platform.isLinux()) {
+    if (OperatingSystem.isLinux()) {
       Path perfEventsParanoid = Paths.get("/proc/sys/kernel/perf_event_paranoid");
       try {
         if (Files.exists(perfEventsParanoid)) {
@@ -284,7 +313,8 @@ public abstract class ProfilerSettingsSupport {
         + ", serviceInjection='" + serviceInjection + '\''
         + ", ddprofUnavailableReason='" + ddprofUnavailableReason + '\''
         + ", profilerActivationSetting=" + profilerActivationSetting
-        + ", stackDepth=" + stackDepth
+        + ", jfrStackDepth=" + jfrStackDepth
+        + ", requestedStackDepth=" + requestedStackDepth
         + ", hasJfrStackDepthApplied=" + hasJfrStackDepthApplied
         + '}';
     // spotless:on

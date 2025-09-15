@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
@@ -82,11 +83,12 @@ public class AgentInstaller {
       }
       int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
       if (poolCleaningInterval > 0) {
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            SharedTypePools::clear,
-            poolCleaningInterval,
-            Math.max(poolCleaningInterval, 10),
-            TimeUnit.SECONDS);
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                SharedTypePools::clear,
+                poolCleaningInterval,
+                Math.max(poolCleaningInterval, 10),
+                TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
       log.debug("No target systems enabled, skipping instrumentation.");
@@ -318,18 +320,17 @@ public class AgentInstaller {
   }
 
   private static void addByteBuddyRawSetting() {
-    final String savedPropertyValue = System.getProperty(TypeDefinition.RAW_TYPES_PROPERTY);
-    try {
-      System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, "true");
-      final boolean rawTypes = TypeDescription.AbstractBase.RAW_TYPES;
-      if (!rawTypes && DEBUG) {
-        log.debug("Too late to enable {}", TypeDefinition.RAW_TYPES_PROPERTY);
-      }
-    } finally {
+    final String savedPropertyValue = SystemProperties.get(TypeDefinition.RAW_TYPES_PROPERTY);
+    final boolean overridden = SystemProperties.set(TypeDefinition.RAW_TYPES_PROPERTY, "true");
+    final boolean rawTypes = TypeDescription.AbstractBase.RAW_TYPES;
+    if (!rawTypes && DEBUG) {
+      log.debug("Too late to enable {}", TypeDefinition.RAW_TYPES_PROPERTY);
+    }
+    if (overridden) {
       if (savedPropertyValue == null) {
-        System.clearProperty(TypeDefinition.RAW_TYPES_PROPERTY);
+        SystemProperties.clear(TypeDefinition.RAW_TYPES_PROPERTY);
       } else {
-        System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
+        SystemProperties.set(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
       }
     }
   }

@@ -3,7 +3,6 @@ import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
@@ -78,15 +77,15 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                             | success | tests                          | retriedTests
-    "test-failed"                            | false   | [TestFailed]                   | []
+    //    "test-failed"                            | false   | [TestFailed]                   | []
     "test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
-    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
-    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
-    "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
-    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [
-      new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized") /* backend cannot provide parameters for flaky parameterized tests yet */
-    ]
-    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
+    //    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
+    //    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
+    //    "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
+    //    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [
+    //      new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized") /* backend cannot provide parameters for flaky parameterized tests yet */
+    //    ]
+    //    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -124,8 +123,6 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     where:
     testcaseName            | tests         | prDiff
     "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
     "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
     "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }

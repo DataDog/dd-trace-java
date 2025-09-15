@@ -1,6 +1,8 @@
 package datadog.trace.agent.tooling.profiler;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
@@ -19,17 +21,17 @@ import java.util.jar.JarFile;
 public final class EnvironmentChecker {
   @SuppressForbidden
   public static boolean checkEnvironment(String temp) {
-    if (!Platform.isJavaVersionAtLeast(8)) {
+    if (!JavaVirtualMachine.isJavaVersionAtLeast(8)) {
       System.out.println("Profiler requires Java 8 or newer");
       return false;
     }
     System.out.println(
         "Using Java version: "
-            + Platform.getRuntimeVersion()
+            + JavaVirtualMachine.getRuntimeVersion()
             + " ("
-            + System.getProperty("java.home")
+            + SystemProperties.getOrDefault("java.home", "unknown")
             + ")");
-    System.out.println("Running as user: " + System.getProperty("user.name"));
+    System.out.println("Running as user: " + SystemProperties.getOrDefault("user.name", "unknown"));
     boolean result = false;
     result |= checkJFR();
     result |= checkDdprof();
@@ -45,7 +47,7 @@ public final class EnvironmentChecker {
           "Profiler will not work properly due to issues with temp directory location.");
       return false;
     } else {
-      if (!temp.equals(System.getProperty("java.io.tmpdir"))) {
+      if (!temp.equals(SystemProperties.get("java.io.tmpdir"))) {
         System.out.println(
             "! Make sure to add '-Ddd.profiling.tempdir=" + temp + "' to your JVM command line !");
       }
@@ -56,26 +58,27 @@ public final class EnvironmentChecker {
 
   @SuppressForbidden
   private static boolean checkJFR() {
-    if (Platform.isOracleJDK8()) {
+    if (JavaVirtualMachine.isOracleJDK8()) {
       System.out.println(
           "JFR is commercial feature in Oracle JDK 8. Make sure you have the right license.");
       return true;
-    } else if (Platform.isJ9()) {
+    } else if (JavaVirtualMachine.isJ9()) {
       System.out.println("JFR is not supported on J9 JVM.");
       return false;
     } else {
-      System.out.println("JFR is supported on " + Platform.getRuntimeVersion());
+      System.out.println("JFR is supported on " + JavaVirtualMachine.getRuntimeVersion());
       return true;
     }
   }
 
   @SuppressForbidden
   private static boolean checkDdprof() {
-    if (!Platform.isLinux()) {
+    if (!OperatingSystem.isLinux()) {
       System.out.println("Datadog profiler is only supported on Linux.");
       return false;
     } else {
-      System.out.println("Datadog profiler is supported on " + Platform.getRuntimeVersion());
+      System.out.println(
+          "Datadog profiler is supported on " + JavaVirtualMachine.getRuntimeVersion());
       return true;
     }
   }
@@ -184,7 +187,7 @@ public final class EnvironmentChecker {
 
   @SuppressForbidden
   private static boolean checkLoadLibrary(Path target) {
-    if (!Platform.isLinux()) {
+    if (!OperatingSystem.isLinux()) {
       // we are loading the native library only on linux
       System.out.println("Skipping native library check on non-linux platform");
       return true;
@@ -214,8 +217,9 @@ public final class EnvironmentChecker {
           .filter(e -> e.getName().contains("libjavaProfiler.so"))
           .filter(
               e ->
-                  e.getName().contains(Platform.isAarch64() ? "/linux-arm64/" : "/linux-x64/")
-                      && (!Platform.isMusl() || e.getName().contains("-musl")))
+                  e.getName()
+                          .contains(OperatingSystem.isAarch64() ? "/linux-arm64/" : "/linux-x64/")
+                      && (!OperatingSystem.isMusl() || e.getName().contains("-musl")))
           .findFirst()
           .map(
               e -> {

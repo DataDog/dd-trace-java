@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -13,12 +13,12 @@ import org.apache.kafka.common.utils.Time
 import org.apache.kafka.connect.connector.policy.AllConnectorClientConfigOverridePolicy
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy
 import org.apache.kafka.connect.runtime.Herder
-import org.apache.kafka.connect.runtime.rest.entities.ConnectorInfo
-import org.apache.kafka.connect.runtime.standalone.StandaloneConfig
-import org.apache.kafka.connect.runtime.standalone.StandaloneHerder
 import org.apache.kafka.connect.runtime.Worker
 import org.apache.kafka.connect.runtime.WorkerConfig
 import org.apache.kafka.connect.runtime.isolation.Plugins
+import org.apache.kafka.connect.runtime.rest.entities.ConnectorInfo
+import org.apache.kafka.connect.runtime.standalone.StandaloneConfig
+import org.apache.kafka.connect.runtime.standalone.StandaloneHerder
 import org.apache.kafka.connect.storage.FileOffsetBackingStore
 import org.apache.kafka.connect.util.Callback
 import org.springframework.kafka.test.EmbeddedKafkaBroker
@@ -28,7 +28,7 @@ import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-class ConnectWorkerInstrumentationTest extends AgentTestRunner {
+class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
   @Shared
   EmbeddedKafkaBroker embeddedKafka = new EmbeddedKafkaBroker(1, false, 1, 'test-topic')
 
@@ -40,11 +40,6 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     embeddedKafka.destroy()
   }
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   def "test kafka-connect instrumentation"() {
     // Kafka bootstrap servers from the embedded broker
     String bootstrapServers = embeddedKafka.getBrokersAsString()
@@ -53,7 +48,7 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     // Create an AdminClient to interact with the Kafka cluster
     Properties adminProps = new Properties()
     adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
-    String clusterId = null
+    String clusterId
     try (AdminClient adminClient = AdminClient.create(adminProps)) {
       DescribeClusterResult describeClusterResult = adminClient.describeCluster()
       clusterId = describeClusterResult.clusterId().get() // Retrieve the cluster ID
@@ -153,21 +148,16 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      assert [
-        "direction:out",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags.hasAllTags(
+      "direction:out",
+      "topic:test-topic",
+      "type:kafka"
+      )
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
-      assert [
-        "direction:in",
-        "group:test-consumer-group",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags.hasAllTags("direction:in", "group:test-consumer-group", "topic:test-topic", "type:kafka")
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-source-connector')
 
@@ -184,7 +174,7 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     Properties adminProps = new Properties()
     adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
-    String clusterId = null
+    String clusterId
     try (AdminClient adminClient = AdminClient.create(adminProps)) {
       DescribeClusterResult describeClusterResult = adminClient.describeCluster()
       clusterId = describeClusterResult.clusterId().get()
@@ -285,21 +275,12 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      assert [
-        "direction:out",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags.hasAllTags("direction:out", "topic:test-topic", "type:kafka")
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
-      assert [
-        "direction:in",
-        "group:connect-file-sink-connector",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka")
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-sink-connector')
 

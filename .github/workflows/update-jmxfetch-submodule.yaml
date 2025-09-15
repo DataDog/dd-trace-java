@@ -1,0 +1,67 @@
+name: Update jmxfetch integrations submodule
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create and push branch
+      id-token: write # Required for OIDC token federation
+    steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.update-jmxfetch-submodule.create-pr
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+
+      - name: Update Submodule
+        run: |
+          git submodule update --remote -- dd-java-agent/agent-jmxfetch/integrations-core
+      - name: Check if changes should be committed
+        id: check-changes
+        run: |
+          if [[ -z "$(git status -s)" ]]; then
+            echo "No changes to commit, exiting."
+            echo "commit_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            echo "commit_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Pick a branch name
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        id: define-branch
+        run: echo "branch=ci/update-jmxfetch-submodule-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+      - name: Create branch
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        run: |
+          git checkout -b ${{ steps.define-branch.outputs.branch }}
+          git push -u origin ${{ steps.define-branch.outputs.branch }} --force
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dd-java-agent/agent-jmxfetch/integrations-core
+          git commit -m "Update agent-jmxfetch submodule"
+          git push origin ${{ steps.define-branch.outputs.branch }}
+      - name: Create pull request
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        env:
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        run: |
+          gh pr create --title "Update agent-jmxfetch submodule" \
+            --base master \
+            --head ${{ steps.define-branch.outputs.branch }} \
+            --label "comp: tooling" \
+            --label "type: enhancement" \
+            --label "tag: no release notes" \
+            --body "This PR updates the agent-jmxfetch submodule."

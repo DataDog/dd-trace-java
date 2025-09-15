@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -78,7 +79,7 @@ public final class ConfigProvider {
       String value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
         }
         return value;
       }
@@ -192,17 +193,28 @@ public final class ConfigProvider {
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     for (ConfigProvider.Source source : sources) {
+      String sourceValue = source.get(key, aliases);
       try {
-        String sourceValue = source.get(key, aliases);
         T value = ConfigConverter.valueOf(sourceValue, type);
         if (value != null) {
           if (collectConfig) {
-            ConfigCollector.get().put(key, sourceValue, source.origin());
+            ConfigCollector.get()
+                .put(key, sourceValue, source.origin(), getConfigIdFromSource(source));
           }
           return value;
         }
-      } catch (NumberFormatException ex) {
-        // continue
+      } catch (ConfigConverter.InvalidBooleanValueException ex) {
+        // For backward compatibility: invalid boolean values should return false, not default
+        // Store the invalid sourceValue for telemetry, but return false for the application
+        if (Boolean.class.equals(type)) {
+          if (collectConfig) {
+            ConfigCollector.get().put(key, sourceValue, source.origin());
+          }
+          return (T) Boolean.FALSE;
+        }
+        // For non-boolean types, continue to next source
+      } catch (IllegalArgumentException ex) {
+        // continue - covers both NumberFormatException and other IllegalArgumentException
       }
     }
     if (collectConfig) {
@@ -246,6 +258,7 @@ public final class ConfigProvider {
   public Map<String, String> getMergedMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -254,12 +267,18 @@ public final class ConfigProvider {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
+        if (origin != ConfigOrigin.DEFAULT) {
+          // if we already have a non-default origin, the value is calculated from multiple sources
+          origin = ConfigOrigin.CALCULATED;
+        } else {
+          origin = sources[i].origin();
+        }
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -267,6 +286,7 @@ public final class ConfigProvider {
   public Map<String, String> getMergedTagsMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -276,12 +296,18 @@ public final class ConfigProvider {
       Map<String, String> parsedMap =
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
+        if (origin != ConfigOrigin.DEFAULT) {
+          // if we already have a non-default origin, the value is calculated from multiple sources
+          origin = ConfigOrigin.CALCULATED;
+        } else {
+          origin = sources[i].origin();
+        }
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -289,6 +315,7 @@ public final class ConfigProvider {
   public Map<String, String> getOrderedMap(String key) {
     LinkedHashMap<String, String> merged = new LinkedHashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -297,12 +324,18 @@ public final class ConfigProvider {
       String value = sources[i].get(key);
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
-        origin = sources[i].origin();
+        configId = getConfigIdFromSource(sources[i]);
+        if (origin != ConfigOrigin.DEFAULT) {
+          // if we already have a non-default origin, the value is calculated from multiple sources
+          origin = ConfigOrigin.CALCULATED;
+        } else {
+          origin = sources[i].origin();
+        }
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      ConfigCollector.get().put(key, merged, origin, configId);
     }
     return merged;
   }
@@ -311,6 +344,7 @@ public final class ConfigProvider {
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    String configId = null;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -321,12 +355,19 @@ public final class ConfigProvider {
         Map<String, String> parsedMap =
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
-          origin = sources[i].origin();
+          configId = getConfigIdFromSource(sources[i]);
+          if (origin != ConfigOrigin.DEFAULT) {
+            // if we already have a non-default origin, the value is calculated from multiple
+            // sources
+            origin = ConfigOrigin.CALCULATED;
+          } else {
+            origin = sources[i].origin();
+          }
         }
         merged.putAll(parsedMap);
       }
       if (collectConfig) {
-        ConfigCollector.get().put(key, merged, origin);
+        ConfigCollector.get().put(key, merged, origin, configId);
       }
     }
     return merged;
@@ -471,8 +512,11 @@ public final class ConfigProvider {
     }
 
     // Normalizing tilde (~) paths for unix systems
-    configurationFilePath =
-        configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
+    String home;
+    if (configurationFilePath.charAt(0) == '~'
+        && (home = SystemProperties.get("user.home")) != null) {
+      configurationFilePath = home + configurationFilePath.substring(1);
+    }
 
     // Configuration properties file is optional
     final File configurationFile = new File(configurationFilePath);
@@ -493,6 +537,13 @@ public final class ConfigProvider {
     properties.setProperty(PropertiesConfigSource.CONFIG_FILE_STATUS, configurationFilePath);
 
     return properties;
+  }
+
+  private static String getConfigIdFromSource(Source source) {
+    if (source instanceof StableConfigSource) {
+      return ((StableConfigSource) source).getConfigId();
+    }
+    return null;
   }
 
   public abstract static class Source {

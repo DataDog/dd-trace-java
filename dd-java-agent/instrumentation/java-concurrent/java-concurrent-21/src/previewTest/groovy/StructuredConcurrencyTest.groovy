@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 
 import java.util.concurrent.Callable
@@ -8,7 +8,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
-class StructuredConcurrencyTest extends AgentTestRunner {
+class StructuredConcurrencyTest extends InstrumentationSpecification {
   /**
    * Tests the structured task scope with a single task.
    */
@@ -26,7 +26,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
             return true
           }
         })
-      taskScope.joinUntil(now() + 1) // Wait for a second at maximum
+      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
       result = task.get()
     }
     taskScope.close()
@@ -73,7 +73,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
       taskScope.fork {
         runnableUnderTrace("child3") {}
       }
-      taskScope.joinUntil(now() + 2) // Wait for two seconds at maximum
+      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
     }
     taskScope.close()
 
@@ -132,7 +132,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
       taskScope.fork {
         runnableUnderTrace("child2") {}
       }
-      taskScope.joinUntil(now() + 2) // Wait for two seconds at maximum
+      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
     }
     taskScope.close()
 

@@ -2,14 +2,15 @@ package datadog.smoketest
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.civisibility.CiVisibilityTestUtils
 import datadog.trace.test.util.MultipartRequestParser
+import org.apache.commons.fileupload.FileItem
 import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.stream.Collectors
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
@@ -29,11 +30,12 @@ class MockBackend implements AutoCloseable {
   private final Queue<Map<String, Object>> receivedTelemetryDistributions = new ConcurrentLinkedQueue<>()
   private final Queue<Map<String, Object>> receivedLogs = new ConcurrentLinkedQueue<>()
 
+  private final Queue<Map<String, List<FileItem>>> receivedCoverageReports = new ConcurrentLinkedQueue<>()
+
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> knownTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> testManagement = new CopyOnWriteArrayList<>()
-  private final Collection<String> changedFiles = new CopyOnWriteArrayList<>()
 
   private boolean itrEnabled = true
   private boolean codeCoverageEnabled = true
@@ -42,7 +44,9 @@ class MockBackend implements AutoCloseable {
   private boolean impactedTestsDetectionEnabled = false
   private boolean knownTestsEnabled = false
   private boolean testManagementEnabled = false
+  private boolean codeCoverageReportUploadEnabled = false
   private int attemptToFixRetries = 0
+  private boolean failedTestReplayEnabled = false
 
   void reset() {
     receivedTraces.clear()
@@ -50,12 +54,23 @@ class MockBackend implements AutoCloseable {
     receivedTelemetryMetrics.clear()
     receivedTelemetryDistributions.clear()
     receivedLogs.clear()
+    receivedCoverageReports.clear()
 
     skippableTests.clear()
     flakyTests.clear()
     knownTests.clear()
     testManagement.clear()
-    changedFiles.clear()
+
+    itrEnabled = true
+    codeCoverageEnabled = true
+    testsSkippingEnabled = true
+    flakyRetriesEnabled = false
+    impactedTestsDetectionEnabled = false
+    knownTestsEnabled = false
+    testManagementEnabled = false
+    codeCoverageReportUploadEnabled = false
+    attemptToFixRetries = 0
+    failedTestReplayEnabled = false
   }
 
   @Override
@@ -76,15 +91,11 @@ class MockBackend implements AutoCloseable {
   }
 
   void givenSkippableTest(String module, String suite, String name, Map<String, BitSet> coverage = null) {
-    skippableTests.add(["module": module, "suite": suite, "name": name, "coverage": coverage ])
+    skippableTests.add(["module": module, "suite": suite, "name": name, "coverage": coverage])
   }
 
   void givenImpactedTestsDetection(boolean impactedTestsDetectionEnabled) {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
-  }
-
-  void givenChangedFile(String relativePath) {
-    changedFiles.add(relativePath)
   }
 
   void givenKnownTests(boolean knownTests) {
@@ -99,35 +110,43 @@ class MockBackend implements AutoCloseable {
     this.testManagementEnabled = testManagementEnabled
   }
 
+  void givenCodeCoverageReportUpload(boolean codeCoverageReportUploadEnabled) {
+    this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled
+  }
+
   void givenAttemptToFixRetries(int attemptToFixRetries) {
     this.attemptToFixRetries = attemptToFixRetries
   }
 
   void givenQuarantinedTests(String module, String suite, String name) {
     testManagement.add([
-      "module": module,
-      "suite": suite,
-      "name": name,
+      "module"    : module,
+      "suite"     : suite,
+      "name"      : name,
       "properties": ["quarantined": true]
     ])
   }
 
   void givenDisabledTests(String module, String suite, String name) {
     testManagement.add([
-      "module": module,
-      "suite": suite,
-      "name": name,
+      "module"    : module,
+      "suite"     : suite,
+      "name"      : name,
       "properties": ["disabled": true]
     ])
   }
 
   void givenAttemptToFixTests(String module, String suite, String name) {
     testManagement.add([
-      "module": module,
-      "suite": suite,
-      "name": name,
+      "module"    : module,
+      "suite"     : suite,
+      "name"      : name,
       "properties": ["attempt_to_fix": true]
     ])
+  }
+
+  void givenFailedTestReplay(boolean failedTestReplayEnabled) {
+    this.failedTestReplayEnabled = failedTestReplayEnabled
   }
 
   String getIntakeUrl() {
@@ -176,6 +195,8 @@ class MockBackend implements AutoCloseable {
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
               "impacted_tests_enabled": $impactedTestsDetectionEnabled,
               "known_tests_enabled": $knownTestsEnabled,
+              "coverage_report_upload_enabled": $codeCoverageReportUploadEnabled,
+              "di_enabled": $failedTestReplayEnabled,
               "test_management": {
                 "enabled": $testManagementEnabled,
                 "attempt_to_fix_retries": $attemptToFixRetries
@@ -279,7 +300,7 @@ class MockBackend implements AutoCloseable {
 
       prefix("/api/v2/ci/libraries/tests") {
         Map<String, Map> modules = [:]
-        for (Map<String, Object> test :  knownTests) {
+        for (Map<String, Object> test : knownTests) {
           Map<String, Map> suites = modules.computeIfAbsent("${test.module}", k -> [:])
           List tests = suites.computeIfAbsent("${test.suite}", k -> [])
           tests.add(test.name)
@@ -307,7 +328,7 @@ class MockBackend implements AutoCloseable {
       }
 
       prefix("/api/v2/apmtelemetry") {
-        def telemetryRequest = JSON_MAPPER.readerFor(Map.class).readValue(request.body)
+        def telemetryRequest = JSON_MAPPER.readerFor(Map).readValue(request.body)
         def requestType = telemetryRequest["request_type"]
         if (requestType == "message-batch") {
           for (def message : telemetryRequest["payload"]) {
@@ -332,21 +353,10 @@ class MockBackend implements AutoCloseable {
         response.status(200).send()
       }
 
-      prefix("/api/v2/ci/tests/diffs") {
-        response.status(200)
-        .addHeader("Content-Encoding", "gzip")
-        .send(MockBackend.compress(("""
-          {
-            "data": {
-              "type": "ci_app_tests_diffs_response",
-              "id": "<some-hash>",
-              "attributes": {
-                "base_sha": "ef733331f7cee9b1c89d82df87942d8606edf3f7",
-                "files": [ ${changedFiles.stream().map(f -> '"' + f + '"').collect(Collectors.joining(","))} ]
-              }
-            }
-          }
-          """).bytes))
+      prefix('/api/v2/cicovreprt') {
+        def parsed = MultipartRequestParser.parseRequest(request.body, request.headers.get("Content-Type"))
+        receivedCoverageReports.add(parsed)
+        response.status(200).send()
       }
     }
   }
@@ -433,6 +443,22 @@ class MockBackend implements AutoCloseable {
       logs.add(receivedLogs.poll())
     }
     return logs
+  }
+
+  List<CiVisibilityTestUtils.CoverageReport> waitForCoverageReports(int expectedCount) {
+    def receiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
+    receiveConditions.eventually {
+      assert receivedCoverageReports.size() == expectedCount
+    }
+
+    List<CiVisibilityTestUtils.CoverageReport> reports = new ArrayList<>()
+    while (!receivedCoverageReports.isEmpty()) {
+      def multipartRequest = receivedCoverageReports.poll()
+      Map<String, Object> event = JSON_MAPPER.readValue(multipartRequest["event"].get(0).get(), Map)
+      String report = new String(decompress(multipartRequest["coverage"].get(0).get()))
+      reports.add(new CiVisibilityTestUtils.CoverageReport(event, report))
+    }
+    return reports
   }
 
   List<Map<String, Object>> getAllReceivedTelemetryMetrics() {

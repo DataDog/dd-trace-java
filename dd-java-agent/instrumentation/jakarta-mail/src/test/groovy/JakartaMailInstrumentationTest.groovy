@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.EmailInjectionModule
 import jakarta.mail.Provider
@@ -11,7 +11,7 @@ import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMultipart
 
 
-class JakartaMailInstrumentationTest extends AgentTestRunner {
+class JakartaMailInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

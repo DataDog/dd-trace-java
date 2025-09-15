@@ -97,6 +97,11 @@ class PlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testResponseBodyJson() {
+    true
+  }
+
+  @Override
   String testPathParam() {
     '/path/?/param'
   }
@@ -129,7 +134,7 @@ class PlayServerTest extends HttpServerTest<Server> {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" '127.0.0.1'
-        "$Tags.HTTP_CLIENT_IP" { it == (endpoint == FORWARDED ? endpoint.body : '127.0.0.1') }
+        "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_METHOD" String

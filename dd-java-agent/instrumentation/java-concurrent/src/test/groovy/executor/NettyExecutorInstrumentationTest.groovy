@@ -1,6 +1,6 @@
 package executor
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
@@ -17,9 +17,9 @@ import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 
-import static org.junit.Assume.assumeTrue
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
-class NettyExecutorInstrumentationTest extends AgentTestRunner {
+class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux")
@@ -222,7 +222,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
                 throw e.getCause()
               }
             }
-          } catch (RejectedExecutionException e) {
+          } catch (RejectedExecutionException ignored) {
           }
 
           for (Future f : jobFutures) {

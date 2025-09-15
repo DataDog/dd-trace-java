@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.tomcat;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -20,7 +20,7 @@ public class TomcatDecorator
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");
 
   public static final TomcatDecorator DECORATE = new TomcatDecorator();
-  public static final String DD_EXTRACTED_CONTEXT_ATTRIBUTE = "datadog.extracted-context";
+  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
   public static final String DD_REAL_STATUS_CODE = "datadog.servlet.real_status_code";
@@ -94,7 +94,7 @@ public class TomcatDecorator
       final AgentSpan span,
       final Request connection,
       final Request request,
-      AgentSpanContext.Extracted context) {
+      final Context parentContext) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -112,7 +112,7 @@ public class TomcatDecorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request, context);
+    return super.onRequest(span, connection, request, parentContext);
   }
 
   @Override

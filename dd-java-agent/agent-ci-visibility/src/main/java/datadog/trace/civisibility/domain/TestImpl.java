@@ -20,6 +20,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
 import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
@@ -46,7 +47,6 @@ import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -105,8 +105,7 @@ public class TestImpl implements DDTest {
 
     this.context = new TestContextImpl(coverageStore);
 
-    AgentSpanContext traceContext =
-        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
+    AgentSpanContext traceContext = new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
@@ -245,6 +244,10 @@ public class TestImpl implements DDTest {
     return TimeUnit.MICROSECONDS.toMillis(endMicros - startMicros);
   }
 
+  public TestContext getContext() {
+    return context;
+  }
+
   @Override
   public void end(@Nullable Long endTime) {
     closeOutstandingSpans();
@@ -281,6 +284,11 @@ public class TestImpl implements DDTest {
       }
     }
 
+    boolean debugInfoCaptured = span.getTag(Tags.ERROR_DEBUG_INFO_CAPTURED) != null;
+    if (debugInfoCaptured) {
+      executionResults.setHasFailedTestReplayTests();
+    }
+
     AgentTracer.closeActive();
 
     onSpanFinish.accept(span);
@@ -307,6 +315,7 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
         retryReason instanceof TagValue ? (TagValue) retryReason : null,
+        debugInfoCaptured ? FailedTestReplayEnabled.TestMetric.TRUE : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM

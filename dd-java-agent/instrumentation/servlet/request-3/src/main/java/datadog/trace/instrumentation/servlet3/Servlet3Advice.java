@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
@@ -13,9 +14,10 @@ import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,10 +32,11 @@ public class Servlet3Advice {
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
-      @Advice.Argument(value = 1) ServletResponse response,
+      @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
-      @Advice.Local("contextScope") ContextScope scope) {
+      @Advice.Local("contextScope") ContextScope scope,
+      @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
     final boolean invalidRequest =
         !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
     if (invalidRequest) {
@@ -41,7 +44,22 @@ public class Servlet3Advice {
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
-    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+    HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+
+    if (RumInjector.get().isEnabled()) {
+      final Object maybeRumWrapper = httpServletRequest.getAttribute(DD_RUM_INJECTED);
+      if (maybeRumWrapper instanceof RumControllableResponse) {
+        rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
+      } else {
+        rumServletWrapper =
+            new RumHttpServletResponseWrapper(httpServletRequest, (HttpServletResponse) response);
+        httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
+        response = (ServletResponse) rumServletWrapper;
+        request =
+            new RumHttpServletRequestWrapper(
+                httpServletRequest, (HttpServletResponse) rumServletWrapper);
+      }
+    }
 
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
@@ -69,18 +87,19 @@ public class Servlet3Advice {
       return false;
     }
 
-    final Context extractedContext = DECORATE.extractContext(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    scope = extractedContext.with(span).attach();
+    final Context parentContext = DECORATE.extract(httpServletRequest);
+    final Context context = DECORATE.startSpan(httpServletRequest, parentContext);
+    scope = context.attach();
 
+    final AgentSpan span = spanFromContext(context);
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, parentContext);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+        CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+        CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
@@ -100,7 +119,11 @@ public class Servlet3Advice {
       @Advice.Local("contextScope") final ContextScope scope,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
+      @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper,
       @Advice.Thrown final Throwable throwable) {
+    if (rumServletWrapper != null) {
+      rumServletWrapper.commit();
+    }
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
     if (Config.get().isServletPrincipalEnabled()

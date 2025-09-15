@@ -16,8 +16,7 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
-import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
@@ -31,16 +30,17 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
-import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
 import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
+import datadog.trace.util.TempLocationManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -62,7 +62,9 @@ public final class OpenJdkController implements Controller {
   private static final String EXPLICITLY_DISABLED = "explicitly disabled by user";
   private static final String EXPLICITLY_ENABLED = "explicitly enabled by user";
   private static final String EXPENSIVE_ON_CURRENT_JVM =
-      "expensive on this version of the JVM (" + Platform.getRuntimeVersion() + ")";
+      "expensive on this version of the JVM (" + JavaVirtualMachine.getRuntimeVersion() + ")";
+  private static final String CPUTIME_SAMPLE_JDK25 = "Switching to CPUTimeSample on JDK 25+";
+
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
   private final ConfigProvider configProvider;
@@ -165,6 +167,13 @@ public final class OpenJdkController implements Controller {
       throw new ConfigurationException(e);
     }
 
+    // switch to CPUTimeSample event on JDK 25 and Linux
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25) && OperatingSystem.isLinux()) {
+      disableEvent(recordingSettings, "jdk.ExecutionSample", CPUTIME_SAMPLE_JDK25);
+      enableEvent(recordingSettings, "jdk.CPUTimeSample", CPUTIME_SAMPLE_JDK25);
+      enableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", CPUTIME_SAMPLE_JDK25);
+    }
+
     // Toggle settings from override args
 
     String disabledEventsArgs = configProvider.getString(ProfilingConfig.PROFILING_DISABLED_EVENTS);
@@ -206,17 +215,27 @@ public final class OpenJdkController implements Controller {
       }
     }
 
-    if (!configProvider.getBoolean(
+    if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED,
         ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "datadog.SmapEntry", "User disabled smaps collection");
-    } else if (!configProvider.getBoolean(
+      enableEvent(
+          recordingSettings, "datadog.SmapEntry", "Smaps collection is enabled in the config");
+    } else {
+      disableEvent(
+          recordingSettings, "datadog.SmapEntry", "Smaps collection is disabled in the config");
+    }
+    if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED,
         ProfilingConfig.PROFILING_SMAP_AGGREGATION_ENABLED_DEFAULT)) {
+      enableEvent(
+          recordingSettings,
+          "datadog.AggregatedSmapEntry",
+          "Aggregated smaps collection is enabled in the config");
+    } else {
       disableEvent(
           recordingSettings,
           "datadog.AggregatedSmapEntry",
-          "User disabled aggregated smaps collection");
+          "Aggregated smaps collection is disabled in the config");
     }
 
     // Warn users for expensive events

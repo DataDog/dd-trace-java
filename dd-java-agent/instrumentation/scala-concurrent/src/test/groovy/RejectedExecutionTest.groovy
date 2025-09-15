@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import scala.concurrent.forkjoin.ForkJoinPool
 
 import java.util.concurrent.RejectedExecutionException
@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class RejectedExecutionTest extends AgentTestRunner {
+class RejectedExecutionTest extends InstrumentationSpecification {
 
   def "trace reported when FJP shutdown"() {
     // tests the shutdown state because it's easy to provoke without

@@ -20,7 +20,7 @@ public class PayloadSizeAdvice {
       // create new stats including the payload size
       StatsPoint updated =
           new StatsPoint(
-              saved.getEdgeTags(),
+              saved.getTags(),
               saved.getHash(),
               saved.getParentHash(),
               saved.getAggregationHash(),

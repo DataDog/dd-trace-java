@@ -22,7 +22,7 @@ class PlayJavaWSClientTest extends PlayWSClientTestBase {
     headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).execute()
       .whenComplete({ response, throwable ->
-        callback?.call()
+        runInAdHocThread(callback)
       }).toCompletableFuture().get(5, TimeUnit.SECONDS)
 
     return wsResponse.getStatus()
@@ -48,7 +48,7 @@ class PlayJavaStreamedWSClientTest extends PlayWSClientTestBase {
     headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
     StandaloneWSResponse wsResponse = wsRequest.setMethod(method).stream()
       .whenComplete({ response, throwable ->
-        callback?.call()
+        runInAdHocThread(callback)
       }).toCompletableFuture().get(5, TimeUnit.SECONDS)
 
     // The status can be ready before the body so explicity call wait for body to be ready
@@ -78,7 +78,7 @@ class PlayScalaWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .execute()
       .transform({ theTry ->
-        callback?.call()
+        runInAdHocThread(callback)
         theTry
       }, ExecutionContext.global())
 
@@ -108,7 +108,7 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .stream()
       .transform({ theTry ->
-        callback?.call()
+        runInAdHocThread(callback)
         theTry
       }, ExecutionContext.global())
 

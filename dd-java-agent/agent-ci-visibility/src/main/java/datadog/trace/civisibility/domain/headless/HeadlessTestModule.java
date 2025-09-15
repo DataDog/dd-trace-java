@@ -27,7 +27,6 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -154,6 +153,10 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
     }
 
+    if (executionResults.hasFailedTestReplayTests()) {
+      setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
+    }
+
     super.end(endTime);
   }
 
@@ -183,6 +186,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         coverageStoreFactory,
         executionResults,
         capabilities,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        tagsPropagator::propagateCiVisibilityTags);
   }
 }

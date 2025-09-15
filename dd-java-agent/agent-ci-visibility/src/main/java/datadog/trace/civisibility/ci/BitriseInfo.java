@@ -33,6 +33,7 @@ class BitriseInfo implements CIProviderInfo {
   public static final String BITRISE_GIT_COMMITER_NAME = "GIT_CLONE_COMMIT_COMMITER_NAME";
   public static final String BITRISE_GIT_COMMITER_EMAIL = "GIT_CLONE_COMMIT_COMMITER_EMAIL";
   public static final String BITRISE_GIT_BRANCH_DEST = "BITRISEIO_GIT_BRANCH_DEST";
+  public static final String BITRISE_PR_NUMBER = "BITRISE_PULL_REQUEST";
 
   private final CiEnvironment environment;
 
@@ -73,7 +74,11 @@ class BitriseInfo implements CIProviderInfo {
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return new PullRequestInfo(
-        normalizeBranch(environment.get(BITRISE_GIT_BRANCH_DEST)), null, null);
+        normalizeBranch(environment.get(BITRISE_GIT_BRANCH_DEST)),
+        null,
+        null,
+        CommitInfo.NOOP,
+        environment.get(BITRISE_PR_NUMBER));
   }
 
   private String buildGitCommit() {

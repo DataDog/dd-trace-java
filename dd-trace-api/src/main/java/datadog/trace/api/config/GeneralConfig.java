@@ -54,12 +54,15 @@ public final class GeneralConfig {
 
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
   public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
+  public static final String RUNTIME_METRICS_RUNTIME_ID_ENABLED =
+      "runtime.metrics.runtime-id.enabled";
 
   public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
   public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
   public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
   public static final String PERF_METRICS_ENABLED = "trace.perf.metrics.enabled";
 
+  public static final String TRACE_STATS_COMPUTATION_ENABLED = "trace.stats.computation.enabled";
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";
   public static final String TRACER_METRICS_BUFFERING_ENABLED =
       "trace.tracer.metrics.buffering.enabled";
@@ -101,7 +104,14 @@ public final class GeneralConfig {
   public static final String APM_TRACING_ENABLED = "apm.tracing.enabled";
   public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
+  public static final String OPTIMIZED_MAP_ENABLED = "optimized.map.enabled";
+  public static final String TAG_NAME_UTF8_CACHE_SIZE = "tag.name.utf8.cache.size";
+  public static final String TAG_VALUE_UTF8_CACHE_SIZE = "tag.value.utf8.cache.size";
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
+
+  public static final String SSI_INJECTION_ENABLED = "injection.enabled";
+  public static final String SSI_INJECTION_FORCE = "inject.force";
+  public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
 
   private GeneralConfig() {}
 }

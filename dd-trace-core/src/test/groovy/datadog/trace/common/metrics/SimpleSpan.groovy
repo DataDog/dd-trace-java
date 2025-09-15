@@ -13,13 +13,18 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final String type
   private final boolean measured
   private final boolean topLevel
+  private final boolean traceRoot
   private final boolean error
   private final short statusCode
 
   private final long duration
   private final long startTime
+  private final long longRunningVersion
 
-  SimpleSpan(String serviceName,
+  private final Map<Object, Object> tags = [:]
+
+  SimpleSpan(
+  String serviceName,
   String operationName,
   CharSequence resourceName,
   String type,
@@ -28,17 +33,22 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   boolean error,
   long startTime,
   long duration,
-  int statusCode) {
+  int statusCode,
+  boolean traceRoot = false,
+  int longRunningVersion = 0
+  ) {
     this.serviceName = serviceName
     this.operationName = operationName
     this.resourceName = resourceName
     this.type = type
     this.measured = measured
     this.topLevel = topLevel
+    this.traceRoot = traceRoot
     this.error = error
     this.startTime = startTime
     this.duration = duration
-    this.statusCode = (short)statusCode
+    this.statusCode = (short) statusCode
+    this.longRunningVersion = longRunningVersion
   }
 
   @Override
@@ -73,7 +83,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   long getParentId() {
-    return DDSpanId.ZERO
+    return traceRoot ? DDSpanId.ZERO : 1L
   }
 
   @Override
@@ -118,57 +128,60 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   SimpleSpan setTag(String tag, String value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, boolean value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, int value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, long value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, double value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, Number value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, CharSequence value) {
-    return this
+    return setTag(tag, (Object) value)
   }
 
   @Override
   SimpleSpan setTag(String tag, Object value) {
+    tags.put(tag, value)
     return this
   }
 
   @Override
   SimpleSpan removeTag(String tag) {
+    tags.remove(tag)
     return this
   }
 
   @Override
   <U> U getTag(CharSequence name, U defaultValue) {
-    return defaultValue
+    def tagValue = tags.get(String.valueOf(name)) ?: defaultValue
+    return tagValue != null ? (U) tagValue : defaultValue
   }
 
   @Override
   <U> U getTag(CharSequence name) {
-    return null
+    return getTag(name, null)
   }
 
   @Override
@@ -197,8 +210,10 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
-  void processTagsAndBaggage(MetadataConsumer consumer) {
-  }
+  void processServiceTags() {}
+
+  @Override
+  void processTagsAndBaggage(MetadataConsumer consumer) {}
 
   @Override
   SimpleSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {
@@ -253,5 +268,10 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   SimpleSpan setMetaStruct(String field, Object value) {
     return this
+  }
+
+  @Override
+  int getLongRunningVersion() {
+    return longRunningVersion
   }
 }

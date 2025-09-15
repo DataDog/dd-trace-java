@@ -28,6 +28,7 @@ class BuddyInfo implements CIProviderInfo {
   public static final String BUDDY_GIT_COMMIT_AUTHOR = "BUDDY_EXECUTION_REVISION_COMMITTER_NAME";
   public static final String BUDDY_GIT_COMMIT_EMAIL = "BUDDY_EXECUTION_REVISION_COMMITTER_EMAIL";
   public static final String BUDDY_RUN_PR_BASE_BRANCH = "BUDDY_RUN_PR_BASE_BRANCH";
+  public static final String BUDDY_RUN_PR_NUMBER = "BUDDY_RUN_PR_NO";
 
   private final CiEnvironment environment;
 
@@ -64,7 +65,11 @@ class BuddyInfo implements CIProviderInfo {
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return new PullRequestInfo(
-        normalizeBranch(environment.get(BUDDY_RUN_PR_BASE_BRANCH)), null, null);
+        normalizeBranch(environment.get(BUDDY_RUN_PR_BASE_BRANCH)),
+        null,
+        null,
+        CommitInfo.NOOP,
+        environment.get(BUDDY_RUN_PR_NUMBER));
   }
 
   private String getPipelineId(String pipelineNumber) {

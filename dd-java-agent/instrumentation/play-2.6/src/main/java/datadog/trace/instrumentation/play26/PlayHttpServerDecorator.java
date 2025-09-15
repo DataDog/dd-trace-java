@@ -1,14 +1,20 @@
 package datadog.trace.instrumentation.play26;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.invoke.MethodHandle;
@@ -17,6 +23,9 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
+import java.util.function.BiConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
@@ -27,7 +36,8 @@ import play.routing.Router;
 import scala.Option;
 
 public class PlayHttpServerDecorator
-    extends HttpServerDecorator<Request, Request, Result, Headers> {
+    extends HttpServerDecorator<Request<?>, Request<?>, Result, Headers> {
+  private static final Logger LOG = LoggerFactory.getLogger(PlayHttpServerDecorator.class);
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
@@ -86,17 +96,17 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  protected String method(final Request httpRequest) {
+  protected String method(final Request<?> httpRequest) {
     return httpRequest.method();
   }
 
   @Override
-  protected URIDataAdapter url(final Request request) {
+  protected URIDataAdapter url(final Request<?> request) {
     return new RequestURIDataAdapter(request);
   }
 
   @Override
-  protected String peerHostIP(final Request request) {
+  protected String peerHostIP(final Request<?> request) {
     RemoteConnection connection = request.connection();
     if (connection instanceof RemoteConnectionWithRawAddress) {
       return ((RemoteConnectionWithRawAddress) connection).rawRemoteAddressString();
@@ -106,7 +116,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  protected int peerPort(final Request request) {
+  protected int peerPort(final Request<?> request) {
     return 0;
   }
 
@@ -118,10 +128,10 @@ public class PlayHttpServerDecorator
   @Override
   public AgentSpan onRequest(
       final AgentSpan span,
-      final Request connection,
-      final Request request,
-      AgentSpanContext.Extracted context) {
-    super.onRequest(span, connection, request, context);
+      final Request<?> connection,
+      final Request<?> request,
+      final Context parentContext) {
+    super.onRequest(span, connection, request, parentContext);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
@@ -142,9 +152,41 @@ public class PlayHttpServerDecorator
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
+        dispatchRoute(span, path);
       }
     }
     return span;
+  }
+
+  /**
+   * Play does not set the http.route in the local root span so we need to store it in the context
+   * for API security
+   */
+  private void dispatchRoute(final AgentSpan span, final CharSequence route) {
+    try {
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+      // Send event to IAST provider
+      final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+      if (cbpIast != null) {
+        final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, URIUtils.decode(route.toString()));
+        }
+      }
+      // Send event to AppSec provider
+      final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+      if (cbp != null) {
+        final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, URIUtils.decode(route.toString()));
+        }
+      }
+    } catch (final Throwable t) {
+      LOG.debug("Failed to dispatch route", t);
+    }
   }
 
   /*
@@ -185,5 +227,11 @@ public class PlayHttpServerDecorator
       throwable = throwable.getCause();
     }
     return super.onError(span, throwable);
+  }
+
+  public void updateOn404Only(final AgentSpan span, final Result result) {
+    if (SHOULD_SET_404_RESOURCE_NAME && status(result) == 404) {
+      span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+    }
   }
 }

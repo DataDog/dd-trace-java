@@ -4,15 +4,12 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
@@ -31,13 +28,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -145,13 +142,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         setter = TextMapInjectAdapter.SETTER;
       }
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      if (clusterId != null) {
-        sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
-      }
-      sortedTags.put(TOPIC_TAG, record.topic());
-      sortedTags.put(TYPE_TAG, "kafka");
+      DataStreamsTags tags = createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId);
       try {
         defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
@@ -160,7 +151,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           // message size.
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+          DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
@@ -179,7 +170,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+          DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
@@ -213,7 +204,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         // create new stats including the payload size
         StatsPoint updated =
             new StatsPoint(
-                saved.getEdgeTags(),
+                saved.getTags(),
                 saved.getHash(),
                 saved.getParentHash(),
                 saved.getAggregationHash(),

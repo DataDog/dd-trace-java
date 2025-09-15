@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.jetty10;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
@@ -24,15 +24,16 @@ public class HandleAdvice {
       return ((AgentSpan) existingSpan).attach();
     }
 
-    final Context extractedContext = DECORATE.extractContext(req);
-    span = DECORATE.startSpan(req, extractedContext);
+    final Context parentContext = DECORATE.extract(req);
+    final Context context = DECORATE.startSpan(req, parentContext);
+    span = spanFromContext(context);
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, req, req, extractedContext);
+    DECORATE.onRequest(span, req, req, parentContext);
 
-    final ContextScope scope = extractedContext.with(span).attach();
+    final ContextScope scope = context.attach();
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
-    req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
-    req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+    req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+    req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
     return scope;
   }
 

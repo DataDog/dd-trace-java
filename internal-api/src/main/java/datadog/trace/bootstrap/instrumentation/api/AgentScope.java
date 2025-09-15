@@ -25,5 +25,10 @@ public interface AgentScope extends ContextScope, TraceScope, Closeable {
 
     /** Provide access to the captured span */
     AgentSpan span();
+
+    /** Provide access to the captured context */
+    default Context context() {
+      return span();
+    }
   }
 }

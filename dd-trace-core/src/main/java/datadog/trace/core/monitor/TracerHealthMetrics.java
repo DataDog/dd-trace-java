@@ -132,6 +132,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final FixedSizeStripedLongCounter longRunningTracesExpired =
       CountersFactory.createFixedSizeStripedCounter(8);
 
+  private final FixedSizeStripedLongCounter clientStatsProcessedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsProcessedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsP0DroppedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsP0DroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsRequests =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsErrors =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter clientStatsDowngrades =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
   private final StatsDClient statsd;
   private final long interval;
   private final TimeUnit units;
@@ -140,8 +155,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void start() {
     if (started.compareAndSet(false, true)) {
       cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new Flush(), this, interval, interval, units);
+          AgentTaskScheduler.get()
+              .scheduleAtFixedRate(new Flush(), this, interval, interval, units);
     }
   }
 
@@ -361,6 +376,31 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onClientStatTraceComputed(int countedSpans, int totalSpans, boolean dropped) {
+    clientStatsProcessedTraces.inc();
+    clientStatsProcessedSpans.inc(countedSpans);
+    if (dropped) {
+      clientStatsP0DroppedTraces.inc();
+      clientStatsP0DroppedSpans.inc(totalSpans);
+    }
+  }
+
+  @Override
+  public void onClientStatPayloadSent() {
+    clientStatsRequests.inc();
+  }
+
+  @Override
+  public void onClientStatDowngraded() {
+    clientStatsDowngrades.inc();
+  }
+
+  @Override
+  public void onClientStatErrorReceived() {
+    clientStatsErrors.inc();
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -377,7 +417,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
-    private final long[] previousCounts = new long[43];
+    private final long[] previousCounts = new long[50];
     private int countIndex;
 
     @Override
@@ -487,6 +527,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
         reportIfChanged(
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
+
+        reportIfChanged(
+            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.dropped_p0_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.dropped_p0_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_payloads", target.clientStatsRequests, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
@@ -606,6 +658,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nlongRunningTracesDropped="
         + longRunningTracesDropped.get()
         + "\nlongRunningTracesExpired="
-        + longRunningTracesExpired.get();
+        + longRunningTracesExpired.get()
+        + "\n"
+        + "\nclientStatsRequests="
+        + clientStatsRequests.get()
+        + "\nclientStatsErrors="
+        + clientStatsErrors.get()
+        + "\nclientStatsDowngrades="
+        + clientStatsDowngrades.get()
+        + "\nclientStatsP0DroppedSpans="
+        + clientStatsP0DroppedSpans.get()
+        + "\nclientStatsP0DroppedTraces="
+        + clientStatsP0DroppedTraces.get()
+        + "\nclientStatsProcessedSpans="
+        + clientStatsProcessedSpans.get()
+        + "\nclientStatsProcessedTraces="
+        + clientStatsProcessedTraces.get();
   }
 }

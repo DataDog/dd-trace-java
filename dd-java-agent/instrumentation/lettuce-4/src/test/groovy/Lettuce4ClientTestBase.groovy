@@ -52,7 +52,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     dbUriNonExistent = "redis://" + dbAddrNonExistent
     embeddedDbUri = "redis://" + dbAddr
 
-    redisServer = RedisServer.builder()
+    redisServer = RedisServer.newRedisServer()
       // bind to localhost to avoid firewall popup
       .setting("bind " + HOST)
       // set max memory to avoid problems in CI
@@ -80,7 +80,13 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
   def cleanup() {
     connection.close()
-    redisClient.shutdown()
+
+    try {
+      redisClient.shutdown(5, 10, TimeUnit.SECONDS)
+    } catch (Throwable ignored) {
+      // No-op.
+    }
+
     redisServer.stop()
   }
 }

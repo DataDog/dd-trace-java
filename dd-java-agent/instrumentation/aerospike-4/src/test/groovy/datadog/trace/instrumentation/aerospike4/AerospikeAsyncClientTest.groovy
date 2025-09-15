@@ -11,7 +11,7 @@ import com.aerospike.client.policy.ClientPolicy
 import datadog.trace.api.Config
 import spock.lang.Shared
 
-import static org.junit.Assert.fail
+import static org.junit.jupiter.api.Assertions.fail
 
 abstract class AerospikeAsyncClientTest extends AerospikeBaseTest {
 

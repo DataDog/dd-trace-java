@@ -1,9 +1,10 @@
-import datadog.trace.api.ProcessTags
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
-
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.api.ProcessTags
+import datadog.trace.instrumentation.servlet5.HtmlAsyncRumServlet
+import datadog.trace.instrumentation.servlet5.HtmlRumServlet
 import datadog.trace.instrumentation.servlet5.TestServlet5
+import datadog.trace.instrumentation.servlet5.XmlAsyncRumServlet
+import datadog.trace.instrumentation.servlet5.XmlRumServlet
 import jakarta.servlet.Filter
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
@@ -18,17 +19,16 @@ import org.apache.catalina.valves.ErrorReportValve
 import org.apache.tomcat.util.descriptor.web.ContextEnvironment
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
+import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
-import static org.junit.Assume.assumeTrue
 
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
-
-
   @Override
   boolean hasExtraErrorInformation() {
     true
@@ -163,9 +163,9 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
       WEBSOCKET.path).build())
   }
 
+  @IgnoreIf({ !instance.testException() })
   def "test exception with custom status"() {
     setup:
-    assumeTrue(testException())
     def request = request(CUSTOM_EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 
@@ -290,6 +290,29 @@ class TomcatServletEnvEntriesTagTest extends TomcatServletTest {
   @Override
   boolean testProcessTags() {
     true
+  }
+}
+
+class TomcatRumInjectionForkedTest extends TomcatServletTest {
+  @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    addServlet(context, "/gimme-html", HtmlRumServlet)
+    addServlet(context, "/gimme-xml", XmlRumServlet)
+  }
+}
+
+class TomcatAsyncRumInjectionForkedTest extends TomcatRumInjectionForkedTest {
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    addServlet(context, "/gimme-html", HtmlAsyncRumServlet)
+    addServlet(context, "/gimme-xml", XmlAsyncRumServlet)
   }
 }
 

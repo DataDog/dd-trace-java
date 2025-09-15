@@ -10,7 +10,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
     plugins {
       id 'java'
       id 'call-site-instrumentation'
-      id("com.diffplug.spotless") version "6.13.0"
+      id 'com.diffplug.spotless' version '6.13.0'
     }
     
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -28,7 +28,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
     
     dependencies {
       implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.17.5'
-      implementation group: 'com.google.auto.service', name: 'auto-service-annotations', version: '1.0-rc7'
+      implementation group: 'com.google.auto.service', name: 'auto-service-annotations', version: '1.1.1'
     }
   '''
 

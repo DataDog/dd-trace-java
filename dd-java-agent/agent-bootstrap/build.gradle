@@ -1,6 +1,6 @@
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
 }
 
@@ -22,6 +22,7 @@ dependencies {
   api project(':internal-api:internal-api-9')
   api project(':dd-java-agent:agent-logging')
   api project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  api project(':components:environment')
   api project(':components:json')
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
@@ -62,7 +63,7 @@ idea {
 }
 
 jmh {
-  jmhVersion = '1.32'
+  jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 

@@ -1,19 +1,24 @@
 package com.datadog.iast.overhead;
 
+import static com.datadog.iast.overhead.OverheadContext.globalMap;
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
+import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.NonBlockingSemaphore;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -27,9 +32,12 @@ public interface OverheadController {
 
   int releaseRequest();
 
-  boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
+  boolean hasQuota(Operation operation, @Nullable AgentSpan span);
 
-  boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span);
+  boolean consumeQuota(Operation operation, @Nullable AgentSpan span);
+
+  boolean consumeQuota(
+      Operation operation, @Nullable AgentSpan span, @Nullable VulnerabilityType type);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
     return build(
@@ -100,14 +108,23 @@ public interface OverheadController {
 
     @Override
     public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
-      final boolean result = delegate.consumeQuota(operation, span);
+      return consumeQuota(operation, span, null);
+    }
+
+    @Override
+    public boolean consumeQuota(
+        final Operation operation,
+        @Nullable final AgentSpan span,
+        @Nullable final VulnerabilityType type) {
+      final boolean result = delegate.consumeQuota(operation, span, type);
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
-            "consumeQuota: operation={}, result={}, availableQuota={}, span={}",
+            "consumeQuota: operation={}, result={}, availableQuota={}, span={}, type={}",
             operation,
             result,
             getAvailableQuote(span),
-            span);
+            span,
+            type);
       }
       return result;
     }
@@ -147,7 +164,7 @@ public interface OverheadController {
     private volatile long lastAcquiredTimestamp = Long.MAX_VALUE;
 
     final OverheadContext globalContext =
-        new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest());
+        new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest(), true);
 
     public OverheadControllerImpl(
         final float requestSampling,
@@ -192,7 +209,96 @@ public interface OverheadController {
 
     @Override
     public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
-      return operation.consumeQuota(getContext(span));
+      return consumeQuota(operation, span, null);
+    }
+
+    @Override
+    public boolean consumeQuota(
+        final Operation operation,
+        @Nullable final AgentSpan span,
+        @Nullable final VulnerabilityType type) {
+
+      OverheadContext ctx = getContext(span);
+      if (ctx == null) {
+        return false;
+      }
+      if (ctx.isGlobal()) {
+        return operation.consumeQuota(ctx);
+      }
+      if (operation.hasQuota(ctx)) {
+        String method = null;
+        String path = null;
+        if (span != null) {
+          AgentSpan rootSpan = span.getLocalRootSpan();
+          Object methodTag = rootSpan.getTag(Tags.HTTP_METHOD);
+          method = (methodTag == null) ? "" : methodTag.toString();
+          Object routeTag = rootSpan.getTag(Tags.HTTP_ROUTE);
+          path = (routeTag == null) ? getHttpRouteFromRequestContext(span) : routeTag.toString();
+        }
+        if (!maybeSkipVulnerability(ctx, type, method, path)) {
+          return operation.consumeQuota(ctx);
+        }
+      }
+      return false;
+    }
+
+    /**
+     * Method to be called when a vulnerability of a certain type is detected. Implements the
+     * RFC-1029 algorithm.
+     *
+     * @param ctx the overhead context for the current request
+     * @param type the type of vulnerability detected
+     * @param httpMethod the HTTP method of the request (e.g., GET, POST)
+     * @param httpPath the HTTP path of the request
+     * @return true if the vulnerability should be skipped, false otherwise
+     */
+    private boolean maybeSkipVulnerability(
+        @Nullable final OverheadContext ctx,
+        @Nullable final VulnerabilityType type,
+        @Nullable final String httpMethod,
+        @Nullable final String httpPath) {
+
+      if (ctx == null || type == null || ctx.getRequestMap() == null || ctx.getCopyMap() == null) {
+        return false;
+      }
+
+      int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
+
+      String currentEndpoint = httpMethod + " " + httpPath;
+
+      AtomicIntegerArray requestArray = ctx.getRequestMap().get(currentEndpoint);
+      int[] copyArray;
+
+      if (requestArray == null) {
+        AtomicIntegerArray globalArray =
+            globalMap.computeIfAbsent(
+                currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+        copyArray = toIntArray(globalArray);
+        ctx.getCopyMap().put(currentEndpoint, copyArray);
+        requestArray =
+            ctx.getRequestMap()
+                .computeIfAbsent(
+                    currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+      } else {
+        copyArray = ctx.getCopyMap().get(currentEndpoint);
+      }
+
+      int counter = requestArray.getAndIncrement(type.type());
+      int storedCounter = 0;
+      if (copyArray != null) {
+        storedCounter = copyArray[type.type()];
+      }
+
+      return counter < storedCounter;
+    }
+
+    private static int[] toIntArray(AtomicIntegerArray atomic) {
+      int length = atomic.length();
+      int[] result = new int[length];
+      for (int i = 0; i < length; i++) {
+        result[i] = atomic.get(i);
+      }
+      return result;
     }
 
     @Nullable
@@ -208,6 +314,19 @@ public interface OverheadController {
         }
       }
       return globalContext;
+    }
+
+    @Nullable
+    public String getHttpRouteFromRequestContext(@Nullable final AgentSpan span) {
+      String httpRoute = null;
+      final RequestContext requestContext = span != null ? span.getRequestContext() : null;
+      if (requestContext != null) {
+        IastRequestContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
+        if (iastRequestContext != null) {
+          httpRoute = iastRequestContext.getRoute();
+        }
+      }
+      return httpRoute == null ? "" : httpRoute;
     }
 
     static int computeSamplingParameter(final float pct) {

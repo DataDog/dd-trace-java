@@ -13,13 +13,17 @@ import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Pair;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
+import io.airlift.compress.zstd.ZstdInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +52,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.item.Aggregators;
 import org.openjdk.jmc.common.item.IAttribute;
@@ -65,7 +71,6 @@ import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 import org.openjdk.jmc.flightrecorder.jdk.JdkTypeIDs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spock.util.environment.OperatingSystem;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
 class JFRBasedProfilingIntegrationTest {
@@ -149,47 +154,57 @@ class JFRBasedProfilingIntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("Test continuous recording - no jmx delay, no jmethodid cache")
-  public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () ->
-            testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
-        testInfo,
-        5);
-  }
-
-  @Test
-  @DisplayName("Test continuous recording - no jmx delay, jmethodid cache")
-  public void testContinuousRecording_no_jmx_delay_jmethodid_cache(final TestInfo testInfo)
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
+  @DisplayName("Test continuous recording - no jmx delay, default compression")
+  public void testContinuousRecording_no_jmx_delay(String profiler, final TestInfo testInfo)
       throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
     testWithRetry(
         () ->
             testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
+                0, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), false),
         testInfo,
         5);
   }
 
-  @Test
-  @DisplayName("Test continuous recording - 1 sec jmx delay, no jmethodid cache")
-  public void testContinuousRecording(final TestInfo testInfo) throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
+  @DisplayName("Test continuous recording - no jmx delay, zstd compression")
+  public void testContinuousRecording_no_jmx_delay_zstd(String profiler, final TestInfo testInfo)
+      throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
     testWithRetry(
         () ->
             testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
+                0, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), true),
         testInfo,
         5);
   }
 
-  @Test
-  @DisplayName("Test continuous recording - 1 sec jmx delay, jmethodid cache")
-  public void testContinuousRecording_jmethodid_cache(final TestInfo testInfo) throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
+  @DisplayName("Test continuous recording - 1 sec jmx delay, default compression")
+  public void testContinuousRecording(String profiler, final TestInfo testInfo) throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
     testWithRetry(
         () ->
             testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
+                1, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), false),
+        testInfo,
+        5);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
+  @DisplayName("Test continuous recording - 1 sec jmx delay, zstd compression")
+  public void testContinuousRecording_zstd(String profiler, final TestInfo testInfo)
+      throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                1, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), true),
         testInfo,
         5);
   }
@@ -198,7 +213,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled)
+      final boolean withZstd)
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
@@ -207,11 +222,11 @@ class JFRBasedProfilingIntegrationTest {
                   jmxFetchDelay,
                   endpointCollectionEnabled,
                   asyncProfilerEnabled,
-                  jmethodIdCacheEnabled,
+                  withZstd,
                   logFilePath)
               .start();
 
-      Assumptions.assumeFalse(Platform.isJ9());
+      Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
       final RecordedRequest firstRequest = retrieveRequest();
 
@@ -261,7 +276,11 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals(InetAddress.getLocalHost().getHostName(), requestTags.get("host"));
 
       assertFalse(logHasErrors(logFilePath));
-      IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
+      InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+      if (withZstd) {
+        eventStream = new ZstdInputStream(eventStream);
+      }
+      IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
       // This nano-second compensates for the added nano second in
@@ -308,7 +327,11 @@ class JFRBasedProfilingIntegrationTest {
           period > 0 && period <= upperLimit,
           () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
 
-      events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
+      eventStream = new ByteArrayInputStream(rawJfr.get());
+      if (withZstd) {
+        eventStream = new ZstdInputStream(eventStream);
+      }
+      events = JfrLoaderToolkit.loadEvents(eventStream);
       assertTrue(events.hasItems());
       verifyDatadogEventsNotCorrupt(events);
       rangeStartAndEnd = getRangeStartAndEnd(events);
@@ -352,6 +375,15 @@ class JFRBasedProfilingIntegrationTest {
   private static void verifyJdkEventsDisabled(IItemCollection events) {
     assertFalse(events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems());
     assertFalse(events.apply(ItemFilters.type("jdk.ThreadPark")).hasItems());
+  }
+
+  private static void verifyJdkEvents(IItemCollection events) {
+    String cpuSampleType = "jdk.ExecutionSample";
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25) && OperatingSystem.isLinux()) {
+      // for Java 25+ we are defaulting to 'jdk.CPUTimeSample' on Linux
+      cpuSampleType = "jdk.CPUTimeSample";
+    }
+    assertTrue(events.apply(ItemFilters.type(cpuSampleType)).hasItems());
   }
 
   private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
@@ -447,7 +479,7 @@ class JFRBasedProfilingIntegrationTest {
             */
             final long ts = System.nanoTime();
             while (!checkLogLines(
-                logFilePath, line -> line.contains("Initializing profiler tracer integrations"))) {
+                logFilePath, line -> line.contains("Initializing profiler context integration"))) {
               Thread.sleep(500);
               // Wait at most 30 seconds
               if (System.nanoTime() - ts > 30_000_000_000L) {
@@ -570,15 +602,6 @@ class JFRBasedProfilingIntegrationTest {
         events.apply(ItemFilters.type("jdk.SystemProcess")).hasItems(),
         "jdk.SystemProcess events should not be collected");
 
-    assertTrue(
-        events
-            .apply(
-                ItemFilters.and(
-                    ItemFilters.type("datadog.ProfilerSetting"),
-                    ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Stack Depth"),
-                    ItemFilters.equals(
-                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
-            .hasItems());
     if (expectEndpointEvents) {
       // Check endpoint events
       final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
@@ -605,15 +628,18 @@ class JFRBasedProfilingIntegrationTest {
         }
       }
     }
+    assertEquals(asyncProfilerEnabled, hasAuxiliaryDdprof(events));
+    verifyStackDepthSetting(events, asyncProfilerEnabled);
     if (asyncProfilerEnabled) {
       verifyJdkEventsDisabled(events);
       verifyDatadogEventsNotCorrupt(events);
       assertEquals(
-          Platform.isJavaVersionAtLeast(11),
+          JavaVirtualMachine.isJavaVersionAtLeast(11),
           events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
       // native frames
     } else {
+      verifyJdkEvents(events);
       // make sure the stack depth limit is respected
       for (IItemIterable lane : events.apply(ItemFilters.type(JdkTypeIDs.EXECUTION_SAMPLE))) {
         IMemberAccessor<IMCStackTrace, IItem> stackTraceAccessor =
@@ -648,8 +674,45 @@ class JFRBasedProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
-    // FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
-    // assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+    //     FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
+    //    assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+  }
+
+  private static void verifyStackDepthSetting(
+      IItemCollection events, boolean asyncProfilerEnabled) {
+    assertTrue(
+        events
+            .apply(
+                ItemFilters.and(
+                    ItemFilters.type("datadog.ProfilerSetting"),
+                    ItemFilters.equals(
+                        JdkAttributes.REC_SETTING_NAME,
+                        (asyncProfilerEnabled ? "ddprof" : "JFR") + " Stack Depth"),
+                    ItemFilters.equals(
+                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
+            .hasItems());
+  }
+
+  private static boolean hasAuxiliaryDdprof(IItemCollection events) {
+    events =
+        events.apply(
+            ItemFilters.and(
+                ItemFilters.type("datadog.ProfilerSetting"),
+                ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Auxiliary Profiler")));
+    if (!events.hasItems()) {
+      return false;
+    }
+    for (IItemIterable event : events) {
+      IMemberAccessor<String, IItem> valueAccessor =
+          JdkAttributes.REC_SETTING_VALUE.getAccessor(event.getType());
+      for (IItem item : event) {
+        String value = valueAccessor.getMember(item);
+        if ("ddprof".equals(value)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private static void processExecutionSamples(
@@ -689,7 +752,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled,
+      final boolean withZstd,
       final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
@@ -698,7 +761,7 @@ class JFRBasedProfilingIntegrationTest {
         PROFILING_UPLOAD_PERIOD_SECONDS,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
-        jmethodIdCacheEnabled,
+        withZstd,
         0,
         logFilePath);
   }
@@ -710,7 +773,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled,
+      final boolean withZstd,
       final int exitDelay,
       final Path logFilePath) {
     return createProcessBuilder(
@@ -722,7 +785,7 @@ class JFRBasedProfilingIntegrationTest {
         profilingUploadPeriodSecs,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
-        jmethodIdCacheEnabled,
+        withZstd,
         exitDelay,
         logFilePath);
   }
@@ -736,7 +799,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled,
+      final boolean withZstd,
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
@@ -770,7 +833,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddd.profiling.queueing.time.enabled=true",
             "-Ddd.profiling.queueing.time.threshold.millis=0",
-            "-Ddd.profiling.experimental.jmethodid_cache.enabled=" + jmethodIdCacheEnabled,
+            "-Ddd.profiling.debug.upload.compression=" + (withZstd ? "zstd" : "on"),
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
@@ -794,8 +857,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private static String javaPath() {
-    final String separator = System.getProperty("file.separator");
-    return System.getProperty("java.home") + separator + "bin" + separator + "java";
+    return Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java").toString();
   }
 
   private static String buildDirectory() {
@@ -830,5 +892,9 @@ class JFRBasedProfilingIntegrationTest {
           "Test application log is containing errors. See full run logs in " + logFilePath);
     }
     return logHasErrors[0];
+  }
+
+  public static boolean isJavaVersionAtLeast24() {
+    return JavaVirtualMachine.isJavaVersionAtLeast(24);
   }
 }

@@ -1,13 +1,9 @@
 package datadog.smoketest
 
-import datadog.trace.api.Config
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.util.Strings
-import java.nio.file.Files
-import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -22,14 +18,14 @@ import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
-  private static final String TEST_ENVIRONMENT_NAME = "integration-test"
 
   private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000 // Gradle's default timeout is 10s
-
-  private static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
   // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes
   //  so by the time tests finish, at least some of the daemons are still alive.
@@ -43,7 +39,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
-    Platform.isJ9()
+    JavaVirtualMachine.isJ9()
   })
   def "test legacy #projectName, v#gradleVersion"() {
     runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
@@ -98,7 +94,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
-    "5.1"                 | "test-succeed-junit-4-class-ordering" | [
+    "7.6.4"               | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
@@ -155,40 +151,28 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private void givenGradleProperties() {
-    String agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
-    assert new File(agentShadowJar).isFile()
+    assert new File(AGENT_JAR).isFile()
 
     def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
-    def gradleProperties =
-      "org.gradle.jvmargs=" +
-      // for convenience when debugging locally
-      (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null ? "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 " : "") +
-      "-javaagent:${agentShadowJar}=" +
-      // for convenience when debugging locally
-      (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
-      "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
+    def additionalArgs = [
+      (GeneralConfig.API_KEY_FILE): ddApiKeyPath.toAbsolutePath().toString(),
+      (CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION): JACOCO_PLUGIN_VERSION,
       /*
-     * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
-     * Gradle Test Kit needs to do a "chmod" when starting a Gradle Daemon.
-     * This "chmod" operation is traced by datadog.trace.instrumentation.java.lang.ProcessImplInstrumentation and is reported as a span.
-     * The problem is that the "chmod" only happens when running in CI (could be due to differences in OS or FS permissions),
-     * so when running the tests locally, the "chmod" span is not there.
-     * This causes the tests to fail because the number of reported traces is different.
-     * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
-     */
-      "${Strings.propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED)}=false," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
+       * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
+       * Gradle Test Kit needs to do a "chmod" when starting a Gradle Daemon.
+       * This "chmod" operation is traced by datadog.trace.instrumentation.java.lang.ProcessImplInstrumentation and is reported as a span.
+       * The problem is that the "chmod" only happens when running in CI (could be due to differences in OS or FS permissions),
+       * so when running the tests locally, the "chmod" span is not there.
+       * This causes the tests to fail because the number of reported traces is different.
+       * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
+       */
+      (TraceInstrumentationConfig.TRACE_ENABLED): "false"
+    ]
+    def arguments = buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalArgs)
 
+    def gradleProperties = "org.gradle.jvmargs=${arguments.join(" ")}".toString()
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
 
@@ -239,18 +223,36 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
+    def buildEnv = ["GRADLE_VERSION": gradleVersion]
+
+    def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (mavenRepositoryProxy != null) {
+      buildEnv += ["MAVEN_REPOSITORY_PROXY": System.getenv("MAVEN_REPOSITORY_PROXY")]
+    }
+
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
-      .withEnvironment(["GRADLE_VERSION": gradleVersion])
+      .withEnvironment(buildEnv)
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
-    def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
-    buildResult
+    try {
+      def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
+      return buildResult
+
+    } catch (Exception e) {
+      def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
+      if (daemonLog != null) {
+        println "=============================================================="
+        println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
+        println "=============================================================="
+      }
+      throw e
+    }
   }
 
   private void assertBuildSuccessful(buildResult) {

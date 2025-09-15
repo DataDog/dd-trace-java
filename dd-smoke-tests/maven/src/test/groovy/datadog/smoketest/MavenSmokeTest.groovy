@@ -1,26 +1,14 @@
 package datadog.smoketest
 
-import datadog.trace.api.Config
+
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
-import datadog.trace.util.Strings
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import javax.xml.parsers.DocumentBuilder
-import javax.xml.parsers.DocumentBuilderFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.apache.maven.wrapper.MavenWrapperMain
-import org.junit.jupiter.api.Assumptions
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
@@ -30,19 +18,25 @@ import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
 
+import javax.xml.parsers.DocumentBuilder
+import javax.xml.parsers.DocumentBuilderFactory
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
+
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest)
 
   private static final String LATEST_MAVEN_VERSION = getLatestMavenVersion()
 
   private static final String TEST_SERVICE_NAME = "test-maven-service"
-  private static final String TEST_ENVIRONMENT_NAME = "integration-test"
-  private static final String JAVAC_PLUGIN_VERSION = Config.get().ciVisibilityCompilerPluginVersion
-  private static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
+  private static final int DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS = 120
   private static final int PROCESS_TIMEOUT_SECS = 60
-
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
 
   @TempDir
@@ -57,7 +51,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   def "test #projectName, v#mavenVersion"() {
-    Assumptions.assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
+    println "Starting: ${projectName} ${mavenVersion}"
+    assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
       "Current JVM " + Jvm.current.javaVersion + " is not compatible with minimum required version " + minSupportedJavaVersion)
 
     givenWrapperPropertiesFile(mavenVersion)
@@ -72,9 +67,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenImpactedTestsDetection(true)
 
-    def agentArgs = jacocoCoverage ? [
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}" as String
-    ] : []
+    def coverageReportExpected = jacocoCoverage && CiVisibilitySmokeTest.classLoader.getResource(projectName + "/coverage_report_event.ftl") != null
+    if (coverageReportExpected) {
+      mockBackend.givenCodeCoverageReportUpload(true)
+    }
+
+    def agentArgs = jacocoCoverage ? [(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION): JACOCO_PLUGIN_VERSION] : [:]
     def exitCode = whenRunningMavenBuild(agentArgs, commandLineParams, [:])
 
     if (expectSuccess) {
@@ -85,6 +83,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(expectedEvents), mockBackend.waitForCoverages(expectedCoverages))
     verifyTelemetryMetrics(mockBackend.getAllReceivedTelemetryMetrics(), mockBackend.getAllReceivedTelemetryDistributions(), expectedEvents)
+
+    if (coverageReportExpected) {
+      def reports = mockBackend.waitForCoverageReports(1)
+      def realProjectHome = projectHome.toRealPath().toString()
+      verifyCoverageReports(projectName, reports, ["ci_workspace_path": realProjectHome])
+    }
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                              | minSupportedJavaVersion
@@ -107,27 +111,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
   }
 
-  def "test impacted tests detection"() {
-    givenWrapperPropertiesFile(mavenVersion)
-    givenMavenProjectFiles(projectName)
-    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
-
-    mockBackend.givenImpactedTestsDetection(true)
-    mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
-
-    def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
-    ], [], [:])
-    assert exitCode == 0
-
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
-
-    where:
-    projectName                                | mavenVersion
-    "test_successful_maven_run_impacted_tests" | "3.9.9"
-  }
-
   def "test test management"() {
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
@@ -143,7 +126,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
 
-    def exitCode = whenRunningMavenBuild([], [], [:])
+    def exitCode = whenRunningMavenBuild([:], [], [:])
     assert exitCode == 0
 
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(15), mockBackend.waitForCoverages(6))
@@ -169,63 +152,61 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       mockBackend.givenKnownTest("Maven Smoke Tests Project maven-surefire-plugin default-test", knownTest.getSuite(), knownTest.getName())
     }
 
-    def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER)}=${CIConstants.FAIL_FAST_TEST_ORDER}" as String
-    ], [], additionalEnvVars)
+    def exitCode = whenRunningMavenBuild([(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER): CIConstants.FAIL_FAST_TEST_ORDER], [], additionalEnvVars)
     assert exitCode == 0
 
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder)
 
     where:
-    testcaseName                      | projectName                                                | mavenVersion | surefireVersion | flakyTests | knownTests                                                                                               | expectedOrder                                                                                                                                                | eventsNumber
-    "junit4-provider"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | "3.0.0"         | [
+    testcaseName                       | projectName                                                | mavenVersion | surefireVersion                 | flakyTests                                           | knownTests | expectedOrder | eventsNumber
+    "junit4-provider"                  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | "3.0.0"                         | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                        | [
+    ]                                                                                                                                                                                                       | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                                                                                                                                   | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                                                                                                                                                                                                                                                                                          | 15
-    "junit47-provider" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | "3.0.0"         | [test("datadog.smoke.TestSucceedC", "test_succeed")]                                                                                        | [
+    ]                                                                                                                                                                                                                                    | 15
+    "junit47-provider"                 | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | "3.0.0"                         | [test("datadog.smoke.TestSucceedC", "test_succeed")] | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | 12
-    "junit4-provider-latest-surefire"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | getLatestMavenSurefireVersion()         | [
+    ]                                                                                                                                                                                                                                    | 12
+    "junit4-provider-latest-surefire"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | getLatestMavenSurefireVersion() | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                        | [
+    ]                                                                                                                                                                                                       | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                                                                                                                                   | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                                                                                                                                                                                                                                                                                          | 15
-    "junit47-provider-latest-surefire" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | getLatestMavenSurefireVersion()         | [test("datadog.smoke.TestSucceedC", "test_succeed")]                                                                                        | [
+    ]                                                                                                                                                                                                                                    | 15
+    "junit47-provider-latest-surefire" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | getLatestMavenSurefireVersion() | [test("datadog.smoke.TestSucceedC", "test_succeed")] | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | [
+    ]                                                                                                                                                                                                                    | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ] | 12
+    ]                                                                                                                                                                                                                                    | 12
   }
 
   def "test service name is propagated to child processes"() {
@@ -233,15 +214,41 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     givenMavenProjectFiles(projectName)
     givenMavenDependenciesAreLoaded(projectName, mavenVersion)
 
-    def exitCode = whenRunningMavenBuild([], [], [:], false)
+    def exitCode = whenRunningMavenBuild([:], [], [:], false)
     assert exitCode == 0
 
     def additionalDynamicPaths = ["content.service"]
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1), additionalDynamicPaths)
 
     where:
-    projectName                                | mavenVersion
+    projectName                                           | mavenVersion
     "test_successful_maven_run_child_service_propagation" | "3.9.9"
+  }
+
+  def "test failed test replay"() {
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles(projectName)
+    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+
+    mockBackend.givenFlakyRetries(true)
+    mockBackend.givenFlakyTest("Maven Smoke Tests Project maven-surefire-plugin default-test", "com.example.TestFailed", "test_failed")
+    mockBackend.givenFailedTestReplay(true)
+
+    def exitCode = whenRunningMavenBuild([
+      (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT): "3",
+      (GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL): mockBackend.intakeUrl
+    ],
+    [],
+    [:])
+    assert exitCode == 1
+
+    def additionalDynamicTags = ["content.meta.['_dd.debug.error.3.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(7), mockBackend.waitForCoverages(0), additionalDynamicTags)
+    verifySnapshotLogs(mockBackend.waitForLogs(5), 1, 2)
+
+    where:
+    projectName                            | mavenVersion
+    "test_failed_maven_failed_test_replay" | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -261,6 +268,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)
     copyFolder(projectResourcesPath, projectHome)
+
+    def sharedSettingsPath = Paths.get(this.getClass().getClassLoader().getResource("settings.mirror.xml").toURI())
+    Files.copy(sharedSettingsPath, projectHome.resolve("settings.mirror.xml"))
   }
 
   private void copyFolder(Path src, Path dest) throws IOException {
@@ -307,17 +317,21 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final Collection<String> LOADED_DEPENDENCIES = new HashSet<>()
 
   private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand, Map<String, String> additionalEnvVars = [:]) {
-    def processBuilder = createProcessBuilder(mvnCommand, false, false, [], additionalEnvVars)
+    def processBuilder = createProcessBuilder(mvnCommand, false, false, [:], additionalEnvVars)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
-      def exitCode = runProcess(processBuilder.start())
-      if (exitCode == 0) {
-        return
+      try {
+        def exitCode = runProcess(processBuilder.start(), DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS)
+        if (exitCode == 0) {
+          return
+        }
+      } catch (TimeoutException e) {
+        LOGGER.warn("Failed dependency resolution with exception: ", e)
       }
     }
     throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
   }
 
-  private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars, boolean setServiceName = true) {
+  private int whenRunningMavenBuild(Map<String,String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars, boolean setServiceName = true) {
     def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
@@ -325,21 +339,21 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return runProcess(processBuilder.start())
   }
 
-  private static runProcess(Process p) {
+  private static runProcess(Process p, int timeoutSecs = PROCESS_TIMEOUT_SECS) {
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
     outputGobbler.start()
     errorGobbler.start()
 
-    if (!p.waitFor(PROCESS_TIMEOUT_SECS, TimeUnit.SECONDS)) {
+    if (!p.waitFor(timeoutSecs, TimeUnit.SECONDS)) {
       p.destroyForcibly()
-      throw new TimeoutException("Instrumented process failed to exit")
+      throw new TimeoutException("Instrumented process failed to exit within $timeoutSecs seconds")
     }
 
     return p.exitValue()
   }
 
-  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent, boolean setServiceName, List<String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
+  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent, boolean setServiceName, Map<String, String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path")
     assert new File(mavenRunnerShadowJar).isFile()
 
@@ -348,6 +362,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     command.addAll(jvmArguments(runWithAgent, setServiceName, additionalAgentArgs))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
+
+    if (System.getenv().get("MAVEN_REPOSITORY_PROXY") != null) {
+      command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.mirror.xml".toString()])
+    }
     command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -358,47 +376,24 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       processBuilder.environment().put(envVar.key, envVar.value)
     }
 
+    def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (mavenRepositoryProxy != null) {
+      processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy)
+    }
+
     return processBuilder
   }
 
-  String javaPath() {
-    final String separator = System.getProperty("file.separator")
-    return System.getProperty("java.home") + separator + "bin" + separator + "java"
-  }
-
-  List<String> jvmArguments(boolean runWithAgent, boolean setServiceName, List<String> additionalAgentArgs) {
+  List<String> jvmArguments(boolean runWithAgent, boolean setServiceName, Map<String, String> additionalAgentArgs) {
     def arguments = [
       "-D${MavenWrapperMain.MVNW_VERBOSE}=true".toString(),
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
+      "-Dmaven.mainClass=org.apache.maven.cli.MavenCli".toString(),
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
+      "-Dmaven.artifact.threads=10",
     ]
     if (runWithAgent) {
-      if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
-        // for convenience when debugging locally
-        arguments += "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
-      }
-
-      def agentShadowJar = System.getProperty("datadog.smoketest.agent.shadowJar.path")
-      def agentArgument = "-javaagent:${agentShadowJar}=" +
-        // for convenience when debugging locally
-        (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
-        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
-
-      if (setServiceName) {
-        agentArgument += "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME},"
-      }
-
-      agentArgument += additionalAgentArgs.join(",")
-
-      arguments += agentArgument.toString()
+      arguments += buildJvmArguments(mockBackend.intakeUrl, setServiceName ? TEST_SERVICE_NAME : null, additionalAgentArgs)
     }
     return arguments
   }

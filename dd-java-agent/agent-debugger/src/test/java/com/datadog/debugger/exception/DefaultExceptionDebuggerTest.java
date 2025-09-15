@@ -27,6 +27,7 @@ import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -41,7 +42,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +57,7 @@ public class DefaultExceptionDebuggerTest {
   private ConfigurationUpdater configurationUpdater;
   private DefaultExceptionDebugger exceptionDebugger;
   private TestSnapshotListener listener;
-  private Map<String, Object> spanTags = new HashMap<>();
+  private TagMap spanTags = TagMap.create();
 
   @BeforeEach
   public void setUp() {
@@ -65,9 +65,9 @@ public class DefaultExceptionDebuggerTest {
     classNameFiltering =
         new ClassNameFiltering(
             new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
+    Config config = createConfig();
     exceptionDebugger =
-        new DefaultExceptionDebugger(
-            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100, 3);
+        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, config);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -274,8 +274,6 @@ public class DefaultExceptionDebuggerTest {
   @Test
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
-    exceptionDebugger =
-        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100, 3);
     exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }
@@ -414,6 +412,9 @@ public class DefaultExceptionDebuggerTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getDebuggerExceptionCaptureInterval()).thenReturn(3600);
+    when(config.getDebuggerMaxExceptionPerSecond()).thenReturn(100);
+    when(config.getDebuggerExceptionMaxCapturedFrames()).thenReturn(3);
     return config;
   }
 }

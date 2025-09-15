@@ -2,6 +2,7 @@ package datadog.telemetry;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.communication.ddagent.TracerVersion;
+import datadog.environment.JavaVirtualMachine;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -11,7 +12,6 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Platform;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
@@ -44,10 +44,10 @@ public class TelemetryRequestBody extends RequestBody {
   private static class CommonData {
     final Config config = Config.get();
     final String env = config.getEnv();
-    final String langVersion = Platform.getLangVersion();
-    final String runtimeName = Platform.getRuntimeVendor();
-    final String runtimePatches = Platform.getRuntimePatches();
-    final String runtimeVersion = Platform.getRuntimeVersion();
+    final String langVersion = JavaVirtualMachine.getLangVersion();
+    final String runtimeName = JavaVirtualMachine.getRuntimeVendor();
+    final String runtimePatches = JavaVirtualMachine.getRuntimePatches();
+    final String runtimeVersion = JavaVirtualMachine.getRuntimeVersion();
     final String serviceName = config.getServiceName();
     final String serviceVersion = config.getVersion();
     final String runtimeId = config.getRuntimeId();
@@ -230,6 +230,9 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("value").value(configSetting.stringValue());
     bodyWriter.setSerializeNulls(false);
     bodyWriter.name("origin").value(configSetting.origin.value);
+    if (configSetting.configId != null) {
+      bodyWriter.name("config_id").value(configSetting.configId);
+    }
     bodyWriter.endObject();
   }
 
@@ -317,18 +320,25 @@ public class TelemetryRequestBody extends RequestBody {
 
   public void writeEndpoint(final Endpoint endpoint) throws IOException {
     bodyWriter.beginObject();
-    bodyWriter.name("type").value(endpoint.getType());
-    bodyWriter.name("method").value(endpoint.getMethod());
-    bodyWriter.name("path").value(endpoint.getPath());
-    bodyWriter.name("operation-name").value(endpoint.getOperation());
+    if (endpoint.getType() != null) {
+      bodyWriter.name("type").value(endpoint.getType());
+    }
+    if (endpoint.getMethod() != null) {
+      bodyWriter.name("method").value(endpoint.getMethod());
+    }
+    if (endpoint.getPath() != null) {
+      bodyWriter.name("path").value(endpoint.getPath());
+    }
+    bodyWriter.name("operation_name").value(endpoint.getOperation());
+    bodyWriter.name("resource_name").value(endpoint.getResource());
     if (endpoint.getRequestBodyType() != null) {
-      bodyWriter.name("request-body-type").jsonValue(endpoint.getRequestBodyType());
+      bodyWriter.name("request_body_type").jsonValue(endpoint.getRequestBodyType());
     }
     if (endpoint.getResponseBodyType() != null) {
-      bodyWriter.name("response-body-type").jsonValue(endpoint.getResponseBodyType());
+      bodyWriter.name("response_body_type").jsonValue(endpoint.getResponseBodyType());
     }
     if (endpoint.getResponseCode() != null) {
-      bodyWriter.name("response-code").jsonValue(endpoint.getResponseCode());
+      bodyWriter.name("response_code").jsonValue(endpoint.getResponseCode());
     }
     if (endpoint.getAuthentication() != null) {
       bodyWriter.name("authentication").jsonValue(endpoint.getAuthentication());

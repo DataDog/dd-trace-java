@@ -40,6 +40,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PR
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
@@ -58,6 +59,9 @@ import static datadog.trace.api.config.GeneralConfig.SITE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
+import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -161,6 +165,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_JMXFETCH_METRICS_CONFIGS_ENV = "DD_JMXFETCH_METRICS_CONFIGS"
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
+  private static final DD_TRACE_HEADER_TAGS = "DD_TRACE_HEADER_TAGS"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
   private static final DD_RUNTIME_METRICS_ENABLED_ENV = "DD_RUNTIME_METRICS_ENABLED"
   private static final DD_TRACE_LONG_RUNNING_ENABLED = "DD_TRACE_EXPERIMENTAL_LONG_RUNNING_ENABLED"
@@ -253,7 +258,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_ENABLED, "true")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
-    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS, "0.234")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
@@ -349,7 +354,7 @@ class ConfigTest extends DDSpecification {
     config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
     config.dynamicInstrumentationProbeFile == "file location"
     config.dynamicInstrumentationUploadTimeout == 10
-    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadFlushInterval == 234
     config.dynamicInstrumentationUploadBatchSize == 200
     config.dynamicInstrumentationMetricsEnabled == false
     config.dynamicInstrumentationClassFileDumpEnabled == true
@@ -564,6 +569,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "42")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "true")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL, "81")
+    environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
 
     when:
     def config = new Config()
@@ -583,6 +589,8 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 42
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 81
+    config.requestHeaderTags == ["*":"http.request.headers."]
+    config.responseHeaderTags == ["*":"http.response.headers."]
   }
 
   def "sys props override env vars"() {
@@ -1644,6 +1652,32 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == "https://some.new.url/goes/here"
   }
 
+  def "ipv6 profiling url"() {
+    setup:
+    def configuredUrl = "http://[2600:1f14:1cfc:5f07::38d4]:8126"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == configuredUrl + "/profiling/v1/input"
+  }
+
+  def "uds profiling url"() {
+    setup:
+    def configuredUrl = "unix:///path/to/socket"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
+  }
+
   def "fallback to DD_TAGS"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
@@ -2021,17 +2055,12 @@ class ConfigTest extends DDSpecification {
     where:
     // spotless:off
     value       | tClass  | expected
-    "42.42"     | Boolean | false
-    "42.42"     | Boolean | false
     "true"      | Boolean | true
     "trUe"      | Boolean | true
-    "trUe"      | Boolean | true
-    "tru"       | Boolean | false
-    "truee"     | Boolean | false
-    "true "     | Boolean | false
-    " true"     | Boolean | false
-    " true "    | Boolean | false
-    "   true  " | Boolean | false
+    "false"     | Boolean | false
+    "False"     | Boolean | false
+    "1"         | Boolean | true
+    "0"         | Boolean | false
     "42.42"     | Float   | 42.42f
     "42.42"     | Double  | 42.42
     "44"        | Integer | 44
@@ -2055,6 +2084,20 @@ class ConfigTest extends DDSpecification {
     ""       | "43"
     "      " | "44"
     "1"      | "45"
+    // spotless:on
+  }
+
+  def "valueOf negative test for invalid boolean values"() {
+    when:
+    ConfigConverter.valueOf(value, Boolean)
+
+    then:
+    def exception = thrown(IllegalArgumentException)
+    exception.message.contains("Invalid boolean value")
+
+    where:
+    // spotless:off
+    value << ["42.42", "tru", "truee", "true ", " true", " true ", "   true  ", "notABool", "invalid", "yes", "no", "42"]
     // spotless:on
   }
 
@@ -2289,27 +2332,64 @@ class ConfigTest extends DDSpecification {
     !hostname.trim().isEmpty()
   }
 
-  def "config instantiation should fail if llm obs is enabled via sys prop and ml app is not set"() {
+  def "config instantiation should NOT fail if llm obs is enabled via sys prop and ml app is not set"() {
     setup:
     Properties properties = new Properties()
     properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(SERVICE, "test-service")
 
     when:
-    new Config(ConfigProvider.withPropertiesOverride(properties))
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    thrown IllegalArgumentException
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
   }
 
-  def "config instantiation should fail if llm obs is enabled via env var and ml app is not set"() {
+  def "config instantiation should NOT fail if llm obs is enabled via sys prop and ml app is empty"() {
     setup:
-    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(SERVICE, "test-service")
+    properties.setProperty(LLMOBS_ML_APP, "")
 
     when:
-    new Config()
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    thrown IllegalArgumentException
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled via env var and ml app is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "test-service")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled via env var and ml app is empty"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "test-service")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
   }
 
 
@@ -2595,6 +2675,36 @@ class ConfigTest extends DDSpecification {
     "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
     "10"          | 10
     "450"         | 450
+  }
+
+  def "ssi injection enabled"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(SSI_INJECTION_ENABLED, "tracer")
+    Config config = Config.get(prop)
+
+    then:
+    config.ssiInjectionEnabled == "tracer"
+  }
+
+  def "ssi inject force"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(SSI_INJECTION_FORCE, "true")
+    Config config = Config.get(prop)
+
+    then:
+    config.ssiInjectionForce == true
+  }
+
+  def "instrumentation source"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(INSTRUMENTATION_SOURCE, "ssi")
+    Config config = Config.get(prop)
+
+    then:
+    config.instrumentationSource == "ssi"
   }
 
   def "long running trace invalid flush_interval set to default: #configuredFlushInterval"() {

@@ -8,7 +8,6 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -28,51 +27,53 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testAddRemoveProbes")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testAddRemoveProbes() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
     setCurrentConfiguration(createConfig(Collections.emptyList())); // remove probes
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
   @DisplayName("testDisableEnableProbes")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testDisableEnableProbes() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
     setCurrentConfiguration(createConfig(Collections.emptyList())); // no probe
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
   @DisplayName("testDisableEnableProbesUsingDenyList")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   @Disabled("Not supported for config coming from RemoteConfig")
   void testDisableEnableProbesUsingDenyList() throws Exception {
     LogProbe logProbe =
@@ -80,9 +81,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
 
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
     Configuration.FilterList denyList =
@@ -97,14 +97,15 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.INSTALLED);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
   @DisplayName("testDisableEnableProbesUsingAllowList")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   @Disabled("Not supported for config coming from RemoteConfig")
   void testDisableEnableProbesUsingAllowList() throws Exception {
     LogProbe logProbe =
@@ -112,9 +113,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
 
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
     Configuration.FilterList allowList =
@@ -129,14 +129,15 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.INSTALLED);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
   @DisplayName("testProbeStatusError")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void testProbeStatusError() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()

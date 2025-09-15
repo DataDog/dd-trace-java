@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jetty9;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
@@ -21,7 +22,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -170,15 +170,16 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         return ((AgentSpan) existingSpan).attach();
       }
 
-      final Context extractedContext = DECORATE.extractContext(req);
-      span = DECORATE.startSpan(req, extractedContext);
-      final ContextScope scope = extractedContext.with(span).attach();
+      final Context parentContext = DECORATE.extract(req);
+      final Context context = DECORATE.startSpan(req, parentContext);
+      final ContextScope scope = context.attach();
+      span = spanFromContext(context);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, extractedContext);
+      DECORATE.onRequest(span, req, req, parentContext);
 
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
-      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
-      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       return scope;
     }
 

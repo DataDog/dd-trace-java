@@ -83,11 +83,8 @@ public class DebuggerAgentTest {
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runDisabled() {
     setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", false);
-    URL probeDefinitionUrl = DebuggerAgentTest.class.getResource("/test_probe.json");
-    System.setProperty("dd.dynamic.instrumentation.config-file", probeDefinitionUrl.getFile());
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
     verify(inst, never()).addTransformer(any(), eq(true));
-    System.clearProperty("dd.dynamic.instrumentation.config-file");
   }
 
   @Test
@@ -148,7 +145,7 @@ public class DebuggerAgentTest {
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void readFromFile() throws URISyntaxException {
-    URL res = getClass().getClassLoader().getResource("test_probe2.json");
+    URL res = getClass().getClassLoader().getResource("test_probe_file.json");
     String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
     setFieldInConfig(Config.get(), "serviceName", "petclinic");
     setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);

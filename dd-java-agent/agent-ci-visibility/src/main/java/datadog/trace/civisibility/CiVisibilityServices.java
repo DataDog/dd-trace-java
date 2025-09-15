@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl;
@@ -66,6 +67,7 @@ public class CiVisibilityServices {
   final Config config;
   final CiVisibilityMetricCollector metricCollector;
   final BackendApi backendApi;
+  final BackendApi ciIntake;
   final JvmInfoFactory jvmInfoFactory;
   final CiEnvironment environment;
   final CIProviderInfoFactory ciProviderInfoFactory;
@@ -83,8 +85,8 @@ public class CiVisibilityServices {
     this.processHierarchy = new ProcessHierarchy();
     this.config = config;
     this.metricCollector = metricCollector;
-    this.backendApi =
-        new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.API);
+    this.backendApi = new BackendApiFactory(config, sco).createBackendApi(Intake.API);
+    this.ciIntake = new BackendApiFactory(config, sco).createBackendApi(Intake.CI_INTAKE);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 
@@ -144,6 +146,7 @@ public class CiVisibilityServices {
 
   @Nonnull
   private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
+    CiEnvironment localEnvironment = CiEnvironmentImpl.local();
     String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
     if (remoteEnvVarsProviderUrl != null) {
       String remoteEnvVarsProviderKey = config.getCiVisibilityRemoteEnvVarsProviderKey();
@@ -151,10 +154,9 @@ public class CiVisibilityServices {
           new CiEnvironmentImpl(
               getRemoteEnvironment(
                   remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
-      CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
       return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
     } else {
-      return new CiEnvironmentImpl(System.getenv());
+      return localEnvironment;
     }
   }
 

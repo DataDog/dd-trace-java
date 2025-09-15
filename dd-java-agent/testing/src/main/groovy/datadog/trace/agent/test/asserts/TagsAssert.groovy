@@ -209,7 +209,7 @@ class TagsAssert {
       if (paramString != null && !paramString.isEmpty()) {
         String[] pairs = paramString.split("&")
         for (String pair : pairs) {
-          int idx = pair.indexOf("=")
+          int idx = pair.indexOf('=')
           if (idx > 0) {
             spanQueryParams.add(pair.substring(0, idx))
           } else {

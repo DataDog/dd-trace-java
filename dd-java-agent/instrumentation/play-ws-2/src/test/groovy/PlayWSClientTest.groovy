@@ -79,7 +79,7 @@ class PlayScalaWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .execute()
       .transform({ theTry ->
-        callback?.call()
+        runInAdHocThread(callback)
         theTry
       }, ExecutionContext.global())
 
@@ -109,7 +109,7 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
       .withHttpHeaders(JavaConverters.mapAsScalaMap(headers).toSeq())
       .stream()
       .transform({ theTry ->
-        callback?.call()
+        runInAdHocThread(callback)
         theTry
       }, ExecutionContext.global())
 

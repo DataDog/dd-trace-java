@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -29,7 +30,7 @@ public abstract class ProcessUtils {
   @Nullable
   @SuppressForbidden
   public static String getCurrentJvmPath() {
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         Supplier<String> jdk9Supplier =
             (Supplier<String>)
@@ -43,7 +44,7 @@ public abstract class ProcessUtils {
     }
 
     // JDK/JRE home, does not include "bin/java" portion
-    return System.getProperty("java.home");
+    return SystemProperties.get("java.home");
   }
 
   private ProcessUtils() {}

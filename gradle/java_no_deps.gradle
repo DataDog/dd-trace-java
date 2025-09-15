@@ -1,4 +1,8 @@
+import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
+
+import java.nio.file.Files
+import java.nio.file.Paths
 
 apply plugin: 'java-library'
 
@@ -150,21 +154,38 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+  // "stable" is calculated as the largest X found in JAVA_X_HOME
+  if (testJvm == "stable") {
+    def javaVersions = System.getenv()
+      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+
+    if (javaVersions.isEmpty()) {
+      throw new GradleException("No valid JAVA_X_HOME environment variables found.")
+    }
+
+    testJvm = javaVersions.max().toString()
+  }
   if (testJvm) {
-    def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
-    if (!matcher.matches()) {
-      throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+    def testJvmHomePath
+    if (Files.exists(Paths.get(testJvm))) {
+      testJvmHomePath = getJavaHomePath(testJvm)
+    } else {
+      def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
+      if (!matcher.matches()) {
+        throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+      }
+      def testJvmLanguageVersion = matcher.group(2) as Integer
+      def testJvmEnv = "JAVA_${testJvm}_HOME"
+      def testJvmHome = System.getenv(testJvmEnv)
+      if (!testJvmHome) {
+        throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
+      }
+      testJvmHomePath = getJavaHomePath(testJvmHome)
     }
-    def testJvmLanguageVersion = matcher.group(2) as Integer
-    def testJvmEnv = "JAVA_${testJvm}_HOME"
-    def testJvmHome = System.getenv(testJvmEnv)
-    if (!testJvmHome) {
-      throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
-    }
-    def testJvmHomePath = getJavaHomePath(testJvmHome)
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
-      def jvmSpec = new SpecificInstallationToolchainSpec(project.getObjects(), file(testJvmHomePath))
+      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))
       // The provider always says that a value is present so we need to wrap it for proper error messages
       Provider<JavaLauncher> launcher = providers.provider {
         try {
@@ -307,16 +328,20 @@ def isJavaVersionAllowedForProperty(JavaVersion version, String propertyPrefix =
   def definedMin = project.hasProperty(minProp)
   def definedMax = project.hasProperty(maxProp)
   if (definedMin && project.getProperty(minProp).compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minProp=${minProp} is defined and greater than version=${version}")
     return false
   }
   //default to the general min if defined and specific one is was not defined
   if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests').compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minJavaVersionForTests=${project.getProperty('minJavaVersionForTests')} is defined and greater than version=${version}")
     return false
   }
   if (definedMax && project.getProperty(maxProp).compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxProp=${project.getProperty(maxProp)} is defined and lower than version=${version}")
     return false
   }
   if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.getProperty('maxJavaVersionForTests').compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxJavaVersionForTests=${project.getProperty('maxJavaVersionForTests')} is defined and lower than version=${version}")
     return false
   }
   return true

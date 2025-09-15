@@ -8,6 +8,7 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
 
 def playVer = "2.5.19"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")
@@ -65,6 +66,8 @@ dependencies {
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:appsec')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 configurations.testImplementation {

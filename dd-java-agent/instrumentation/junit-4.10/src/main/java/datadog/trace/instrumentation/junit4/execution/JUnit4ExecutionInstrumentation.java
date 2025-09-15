@@ -124,7 +124,7 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
           runTest.invoke(runner, statement, description, failureSuppressingNotifier);
         } catch (Throwable ignored) {
         }
-      } while (!executionPolicy.wasLastExecution());
+      } while (executionPolicy.applicable());
 
       // skip original method
       return Boolean.TRUE;

@@ -1,5 +1,7 @@
 package com.datadog.profiling.agent;
 
+import static datadog.environment.OperatingSystem.isLinux;
+import static datadog.environment.OperatingSystem.isMacOs;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.profiling.controller.Controller;
@@ -11,6 +13,8 @@ import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import com.datadog.profiling.controller.oracle.OracleJdkController;
 import com.datadog.profiling.ddprof.Arch;
 import com.datadog.profiling.ddprof.OperatingSystem;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -140,7 +144,7 @@ public class CompositeController implements Controller {
   public static Controller build(ConfigProvider provider, ControllerContext context)
       throws UnsupportedEnvironmentException {
     List<Controller> controllers = new ArrayList<>();
-    boolean isOracleJDK8 = Platform.isOracleJDK8();
+    boolean isOracleJDK8 = JavaVirtualMachine.isOracleJDK8();
     boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
     boolean isJfrEnabled =
         !provider.getBoolean(ProfilingConfig.PROFILING_DEBUG_JFR_DISABLED, false);
@@ -174,7 +178,7 @@ public class CompositeController implements Controller {
     }
     // Datadog profiler is not supported in native-image mode or on Windows, so don't try to
     // instantiate it
-    if ((Platform.isLinux() || Platform.isMac())
+    if ((isLinux() || isMacOs())
         && isDatadogProfilerEnabled
         && !(Platform.isNativeImageBuilder() || Platform.isNativeImage())) {
       try {
@@ -201,7 +205,7 @@ public class CompositeController implements Controller {
         }
       }
     } else {
-      if (!(Platform.isLinux() || Platform.isMac())) {
+      if (!(isLinux() || isMacOs())) {
         context.setDatadogProfilerUnavailableReason("unavailable on OS");
       } else if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
         context.setDatadogProfilerUnavailableReason("unavailable on GraalVM");
@@ -227,9 +231,9 @@ public class CompositeController implements Controller {
     if (!datadogProfilerEnabled && !jfrEnabled) {
       return "Profiling is disabled by configuration. Please, make sure that your configuration is correct.";
     }
-    final String javaVendor = System.getProperty("java.vendor");
-    final String javaVersion = System.getProperty("java.version");
-    final String javaRuntimeName = System.getProperty("java.runtime.name");
+    final String javaVendor = SystemProperties.getOrDefault("java.vendor", "unknown");
+    final String javaVersion = SystemProperties.getOrDefault("java.version", "unknown");
+    final String javaRuntimeName = SystemProperties.getOrDefault("java.runtime.name", "unknown");
     final String message =
         "Not enabling profiling for vendor="
             + javaVendor

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.owasp.esapi
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -8,7 +8,7 @@ import foo.bar.TestEncoderSuite
 import org.owasp.esapi.Encoder
 import org.owasp.esapi.codecs.Codec
 
-class EncoderCallSiteTest extends AgentTestRunner {
+class EncoderCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

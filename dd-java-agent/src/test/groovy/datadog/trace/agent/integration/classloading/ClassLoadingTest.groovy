@@ -121,8 +121,8 @@ class ClassLoadingTest extends Specification {
   def "classloader instrumentation works with isolated classloaders"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(IsolatedClassloading.getName()
-      , ["-Ddd.trace.debug=false", "-Ddd.jmxfetch.enabled=false"] as String[]
-      , "" as String[]
+      , ["-Ddd.trace.debug=false", "-Ddd.jmxfetch.enabled=false"]
+      , []
       , [:]
       , true) == 0
   }

@@ -17,18 +17,6 @@
         "VARIANT": "iast",
         "JAVA_OPTS": "-Ddd.iast.enabled=true"
       }
-    },
-    "iast_TELEMETRY_OFF": {
-      "env": {
-        "VARIANT": "iast_TELEMETRY_OFF",
-        "JAVA_OPTS": "-Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF"
-      }
-    },
-    "iast_HARDCODED_SECRET_DISABLED": {
-      "env": {
-        "VARIANT": "iast_HARDCODED_SECRET_DISABLED",
-        "JAVA_OPTS": "-Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false"
-      }
     }
   }
 }

@@ -1,6 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.environment.JavaVirtualMachine
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.TestProfilingContextIntegration
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 
 import java.util.concurrent.Executors
@@ -9,7 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class QueueTimingForkedTest extends AgentTestRunner {
+class QueueTimingForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {
@@ -31,7 +31,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
     })
 
     then:
-    verify(LinkedBlockingQueue.name)
+    verify(LinkedBlockingQueue.name, 'TestRunnable')
 
     when:
     runUnderTrace("parent", {
@@ -39,9 +39,12 @@ class QueueTimingForkedTest extends AgentTestRunner {
     })
 
     then:
+    // Starting from Java 24, ForkJoinPool will wrap a Runnable with the {@code java.util.concurrent.ForkJoinTask$AdaptedInterruptibleRunnable} class
+    String expectedTaskClassName = JavaVirtualMachine.isJavaVersionAtLeast(24) ? 'AdaptedInterruptibleRunnable' : 'TestRunnable'
+
     // flaky before JDK21
-    if (Platform.isJavaVersionAtLeast(21)) {
-      verify("java.util.concurrent.ForkJoinPool\$WorkQueue")
+    if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
+      verify("java.util.concurrent.ForkJoinPool\$WorkQueue", expectedTaskClassName)
     }
 
     cleanup:
@@ -50,7 +53,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
     TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.clear()
   }
 
-  void verify(expectedQueueType) {
+  void verify(expectedQueueType, expectedTaskClassName) {
     assert TEST_PROFILING_CONTEXT_INTEGRATION.isBalanced()
     assert !TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.isEmpty()
     int numAsserts = 0
@@ -58,7 +61,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
       def timing = TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.takeFirst() as TestProfilingContextIntegration.TestQueueTiming
       if (!(timing.task as Class).simpleName.isEmpty()) {
         assert timing != null
-        assert timing.task == TestRunnable
+        assert timing.task.simpleName == expectedTaskClassName
         assert timing.scheduler != null
         assert timing.origin == Thread.currentThread()
         assert timing.queueLength >= 0

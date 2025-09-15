@@ -7,12 +7,18 @@ import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ConfigKey
+import datadog.remoteconfig.state.ParsedConfigKey
+import datadog.remoteconfig.state.ProductListener
+import datadog.trace.api.Config
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.UserIdCollectionMode
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
@@ -24,45 +30,54 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_CMDI
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES
 import static datadog.remoteconfig.PollingHinterNoop.NOOP
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
 import static datadog.trace.api.UserIdCollectionMode.DISABLED
 import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION
 
 class AppSecConfigServiceImplSpecification extends DDSpecification {
-
   ConfigurationPoller poller = Mock()
-  def config = Mock(Class.forName('datadog.trace.api.Config'))
+  Config config = Mock(Class.forName('datadog.trace.api.Config')) as Config
   AppSecModuleConfigurer.Reconfiguration reconf = Stub()
-  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
+  AppSecConfigServiceImpl appSecConfigService
+  SavedListeners listeners
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
 
   void cleanup() {
     appSecConfigService?.close()
   }
 
+  void setup() {
+    appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
+    listeners = new SavedListeners()
+  }
+
   void 'maybeStartConfigPolling subscribes to the configuration poller'() {
     setup:
     appSecConfigService.init()
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
 
     when:
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
-    1 * poller.addListener(Product.ASM_DD, _, _)
+    0 * poller.addListener(Product.ASM_DD, _)
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
-    1 * poller.addListener(Product.ASM, _, _)
-    1 * poller.addListener(Product.ASM_DATA, _, _)
+    0 * poller.addListener(Product.ASM, _)
+    0 * poller.addListener(Product.ASM_DATA, _)
     1 * poller.addConfigurationEndListener(_)
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
   }
@@ -70,16 +85,17 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'no subscription to ASM_FEATURES if appsec is fully enabled'() {
     setup:
     appSecConfigService.init()
+    AppSecSystem.active = true
+    config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
 
     when:
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
-    1 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
-    1 * poller.addListener(Product.ASM_DD, _, _)
+    1 * poller.addListener(Product.ASM_DD, _)
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
-    1 * poller.addListener(Product.ASM, _, _)
-    1 * poller.addListener(Product.ASM_DATA, _, _)
+    1 * poller.addListener(Product.ASM, _)
+    1 * poller.addListener(Product.ASM_DATA, _)
     1 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
     0 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
@@ -88,25 +104,22 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'no subscription to ASM_FEATURES if appsec is fully disabled'() {
     setup:
     appSecConfigService.init()
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.FULLY_DISABLED
 
     when:
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
-    1 * config.getAppSecActivation() >> ProductActivation.FULLY_DISABLED
-    1 * poller.addListener(Product.ASM_DD, _, _)
-    1 * poller.addListener(Product.ASM_FEATURES, _, _)
-    1 * poller.addListener(Product.ASM, _, _)
-    1 * poller.addListener(Product.ASM_DATA, _, _)
-    1 * poller.addConfigurationEndListener(_)
+    0 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
-    0 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
+    0 * poller.addCapabilities(*_)
   }
 
   void 'no subscription to ASM ASM_DD ASM_DATA if custom rules are provided'() {
     setup:
-    Path p = Files.createTempFile('appsec', '.json')
-    p.toFile() << '{"version":"2.0", "rules": []}'
+    Path p = Paths.get(getClass().classLoader.getResource('test_multi_config_no_action.json').getPath())
+    AppSecSystem.active = false
 
     when:
     appSecConfigService.init()
@@ -125,18 +138,16 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'can load from a different location'() {
     setup:
-    Path p = Files.createTempFile('appsec', '.json')
-    p.toFile() << '{"version":"2.0", "rules": []}'
-    AppSecModuleConfigurer.SubconfigListener listener = Stub()
+    Path p = Paths.get(getClass().classLoader.getResource('test_multi_config_no_action.json').getPath())
+    String capturedPath = null
 
     when:
     appSecConfigService.init()
 
     then:
-    1 * config.getAppSecRulesFile() >> (p as String)
-    def expected = AppSecConfig.valueOf([version: '2.0', rules: []])
-    CurrentAppSecConfig actual = appSecConfigService.createAppSecModuleConfigurer().addSubConfigListener('waf', listener).get()
-    actual.ddConfig == expected
+    1 * config.getAppSecRulesFile() >> { capturedPath = p.toString(); return p.toString() }
+    capturedPath == p.toString()
+    noExceptionThrown()
   }
 
   void 'aborts if alt config location does not exist'() {
@@ -170,17 +181,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     expect:
     AppSecConfigService.TransactionalAppSecModuleConfigurer configurer = appSecConfigService.createAppSecModuleConfigurer()
-    configurer.addSubConfigListener("waf", listener).get() instanceof CurrentAppSecConfig
-    configurer.addSubConfigListener("waf2", listener) == Optional.empty()
+    configurer.addSubConfigListener("waf", listener)
   }
 
   static class SavedListeners {
-    ConfigurationDeserializer<AppSecConfig> savedConfDeserializer
-    ConfigurationChangesTypedListener<AppSecConfig> savedConfChangesListener
-    ConfigurationDeserializer<List<Map<String, Object>>> savedWafDataDeserializer
-    ConfigurationChangesTypedListener<List<Map<String, Object>>> savedWafDataChangesListener
-    ConfigurationDeserializer<Map<String, Boolean>> savedWafRulesOverrideDeserializer
-    ConfigurationChangesTypedListener<Map<String, Boolean>> savedWafRulesOverrideListener
+    ProductListener savedWafDataChangesListener
     ConfigurationDeserializer<AppSecFeatures> savedFeaturesDeserializer
     ConfigurationChangesTypedListener<AppSecFeatures> savedFeaturesListener
     ConfigurationEndListener savedConfEndListener
@@ -188,10 +193,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'activation without custom config provides valid configuration'() {
     AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
-    SavedListeners listeners = new SavedListeners()
 
     when:
     AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     appSecConfigService.init()
     appSecConfigService.maybeSubscribeConfigPolling()
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
@@ -199,16 +204,16 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     configurer.commit()
 
     then:
-    1 * config.isAppSecRaspEnabled() >> true
-    1 * config.getAppSecRulesFile() >> null
-    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    _ * poller._
-    0 * _._
+    1 * poller.addConfigurationEndListener(_) >> {
+      listeners.savedConfEndListener = it[0]
+    }
+    1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    0 * poller._
 
     when:
     listeners.savedFeaturesListener.accept(
@@ -218,75 +223,38 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    1 * subconfigListener.onNewSubconfig({ CurrentAppSecConfig casc -> casc.ddConfig != null }, _)
-    AppSecSystem.active == true
+    1 * subconfigListener.onNewSubconfig(_, _)
+    AppSecSystem.active
+    1 * poller.addListener(Product.ASM_DD, _)
+    1 * poller.addListener(Product.ASM, _)
+    1 * poller.addListener(Product.ASM_DATA, _)
+    1 * poller.addCapabilities(_)
   }
 
   void 'provides updated configuration to waf subscription'() {
     AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
-    SavedListeners listeners = new SavedListeners()
-    Optional<CurrentAppSecConfig> initialWafConfig
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    config.isAppSecRaspEnabled() >> true
+    appSecConfigService.init()
 
     when:
-    AppSecSystem.active = false
-    appSecConfigService.init()
     appSecConfigService.maybeSubscribeConfigPolling()
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
-    initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
+    configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
 
     then:
-    1 * config.isAppSecRaspEnabled() >> true
-    1 * config.getAppSecRulesFile() >> null
-    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
-    1 * poller.addListener(Product.ASM_DD, _, _) >> {
-      listeners.savedConfDeserializer = it[1]
-      listeners.savedConfChangesListener = it[2]
-    }
-    1 * poller.addListener(Product.ASM_DATA, _, _) >> {
-      listeners.savedWafDataDeserializer = it[1]
-      listeners.savedWafDataChangesListener = it[2]
-    }
-    1 * poller.addListener(Product.ASM, _, _) >> {
-      listeners.savedWafRulesOverrideDeserializer = it[1]
-      listeners.savedWafRulesOverrideListener = it[2]
-    }
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
+    1 * poller.addConfigurationEndListener(_) >> {
+      listeners.savedConfEndListener = it[0]
+    }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
-    1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
-      | CAPABILITY_ASM_IP_BLOCKING
-      | CAPABILITY_ASM_EXCLUSIONS
-      | CAPABILITY_ASM_EXCLUSION_DATA
-      | CAPABILITY_ASM_REQUEST_BLOCKING
-      | CAPABILITY_ASM_USER_BLOCKING
-      | CAPABILITY_ASM_CUSTOM_RULES
-      | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-      | CAPABILITY_ASM_TRUSTED_IPS
-      | CAPABILITY_ASM_RASP_SQLI
-      | CAPABILITY_ASM_RASP_SSRF
-      | CAPABILITY_ASM_RASP_CMDI
-      | CAPABILITY_ASM_RASP_SHI
-      | CAPABILITY_ENDPOINT_FINGERPRINT
-      | CAPABILITY_ASM_SESSION_FINGERPRINT
-      | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
-    0 * _._
-    initialWafConfig.get() != null
-
-    when:
-    // AppSec is INACTIVE - rules should not trigger subscriptions
-    listeners.savedConfChangesListener.accept(
-      'ignored config key',
-      listeners.savedConfDeserializer.deserialize(
-      '{"version": "1.0"}'.bytes), null)
-
-    then:
-    0 * _._
+    0 * poller._
 
     when:
     listeners.savedFeaturesListener.accept(
@@ -296,121 +264,15 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    1 * subconfigListener.onNewSubconfig(_ as CurrentAppSecConfig, _)
-    AppSecSystem.active == true
-
-    when:
-    // AppSec is ACTIVE - rules trigger subscriptions
-    listeners.savedConfChangesListener.accept(
-      'ignored config key',
-      listeners.savedConfDeserializer.deserialize(
-      '{"version": "2.0"}'.bytes), null)
-    listeners.savedWafDataChangesListener.accept(
-      'ignored config key',
-      listeners.savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null)
-    listeners.savedWafRulesOverrideListener.accept(
-      'ignored config key',
-      listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then:
-    1 * subconfigListener.onNewSubconfig({ CurrentAppSecConfig casc ->
-      casc.ddConfig == AppSecConfig.valueOf([version: '2.0'])
-      casc.mergedUpdateConfig.rawConfig['rules_override'] == [
-        [
-          rules_target: [[rule_id: 'foo']],
-          enabled     : false
-        ]
-      ]
-      casc.mergedAsmData.mergedData.rules == [[data: [], id: 'foo', type: '']]
-    }, _)
-
-    when:
-    listeners.savedFeaturesListener.accept('asm_features_activation',
-      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": false}}'.bytes),
-      NOOP)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then:
-    AppSecSystem.active == false
-
-    when: 'switch back to enabled'
-    listeners.savedFeaturesListener.accept('asm_features_activation',
-      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      NOOP)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then: 'it is enabled again'
-    AppSecSystem.active == true
-
-    when: 'asm are not set'
-    listeners.savedFeaturesListener.accept('asm_features_activation',
-      null,
-      NOOP)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then: 'it is disabled (<not set> == false)'
-    AppSecSystem.active == false
-
-    when: 'switch back to enabled'
-    listeners.savedFeaturesListener.accept('asm_features_activation',
-      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      NOOP)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then: 'it is enabled again'
-    AppSecSystem.active == true
-
-    when: 'asm features are not set'
-    listeners.savedFeaturesListener.accept('asm_features_activation',
-      null,
-      NOOP)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then: 'it is disabled (<not set> == false)'
-    AppSecSystem.active == false
-
-    cleanup:
-    AppSecSystem.active = true
-  }
-
-  void 'configuration pull out'() {
-    AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
-    SavedListeners listeners = new SavedListeners()
-    MergedAsmData mergedAsmData
-    AppSecConfig mergedUpdateConfig
-
-    when:
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
-    def configurer = appSecConfigService.createAppSecModuleConfigurer()
-    configurer.addSubConfigListener("waf", subconfigListener)
-    configurer.commit()
-
-    then:
-    1 * config.isAppSecRaspEnabled() >> true
-    1 * config.getAppSecRulesFile() >> null
-    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
-    1 * poller.addListener(Product.ASM_DD, _, _) >> {
-      listeners.savedConfDeserializer = it[1]
-      listeners.savedConfChangesListener = it[2]
+    1 * subconfigListener.onNewSubconfig(_ as String, _)
+    AppSecSystem.active
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
     }
-    1 * poller.addListener(Product.ASM_DATA, _, _) >> {
-      listeners.savedWafDataDeserializer = it[1]
-      listeners.savedWafDataChangesListener = it[2]
-    }
-    1 * poller.addListener(Product.ASM, _, _) >> {
-      listeners.savedWafRulesOverrideDeserializer = it[1]
-      listeners.savedWafRulesOverrideListener = it[2]
-    }
-    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
-      listeners.savedFeaturesDeserializer = it[1]
-      listeners.savedFeaturesListener = it[2]
-    }
-    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
-    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addListener(Product.ASM_DATA, _)
+    1 * poller.addListener(Product.ASM, _)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_DD_MULTICONFIG
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
       | CAPABILITY_ASM_EXCLUSION_DATA
@@ -426,51 +288,226 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
-    0 * _._
+      | CAPABILITY_ASM_HEADER_FINGERPRINT
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES)
+    0 * poller._
 
     when:
-    listeners.savedConfChangesListener.accept(
-      'asm_dd config',
-      listeners.savedConfDeserializer.deserialize(
-      '{"version": "2.0"}'.bytes), null)
+    listeners.savedFeaturesListener.accept(
+      'asm_features_activation',
+      listeners.savedFeaturesDeserializer.deserialize(
+      '{"asm":{"enabled": true}}'.bytes), null)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    1 * subconfigListener.onNewSubconfig(_ as String, _)
+    AppSecSystem.active
+
+    when:
+    // AppSec is ACTIVE - rules trigger subscriptions
     listeners.savedWafDataChangesListener.accept(
-      'asm_data config',
-      listeners.savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null)
-    listeners.savedWafRulesOverrideListener.accept(
-      'asm conf',
-      listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
+      'ignored config key' as ConfigKey,
+      '''{
+        "rules": [
+          {
+            "id": "foo",
+            "name": "foo",
+            "tags": {
+              "type": "php_code_injection",
+              "crs_id": "933140",
+              "category": "attack_attempt",
+              "cwe": "94",
+              "capec": "1000/225/122/17/650",
+              "confidence": "1",
+              "module": "waf"
+            },
+            "conditions": [
+              {
+                "operator": "ip_match",
+                "parameters": {
+                  "data": "suspicious_ips_data_id",
+                  "inputs": [
+                    {
+                      "address": "http.client_ip"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "",
+            "data": []
+          }
+        ]
+      }'''.getBytes(), null)
+    listeners.savedWafDataChangesListener.accept(
+      'ignored config key' as ConfigKey,
+      '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), null)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    1 * subconfigListener.onNewSubconfig(_, _)
+
+    when:
+    listeners.savedFeaturesListener.accept('asm_features_activation',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": false}}'.bytes),
+      NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    !AppSecSystem.active
+
+    when: 'switch back to enabled'
+    listeners.savedFeaturesListener.accept('asm_features_activation',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then: 'it is enabled again'
+    AppSecSystem.active
+
+    when: 'asm are not set'
+    listeners.savedFeaturesListener.accept('asm_features_activation',
+      null,
+      NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then: 'it is disabled (<not set> == false)'
+    !AppSecSystem.active
+
+    when: 'switch back to enabled'
+    listeners.savedFeaturesListener.accept('asm_features_activation',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then: 'it is enabled again'
+    AppSecSystem.active
+
+    when: 'asm features are not set'
+    listeners.savedFeaturesListener.accept('asm_features_activation',
+      null,
+      NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then: 'it is disabled (<not set> == false)'
+    !AppSecSystem.active
+  }
+
+  void 'configuration pull out'() {
+    AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
+
+    when:
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    appSecConfigService.init()
+    appSecConfigService.maybeSubscribeConfigPolling()
+    def configurer = appSecConfigService.createAppSecModuleConfigurer()
+    configurer.addSubConfigListener("waf", subconfigListener)
+    configurer.commit()
+
+    then:
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+    1 * poller.addConfigurationEndListener(_) >> {
+      listeners.savedConfEndListener = it[0]
+    }
+    1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    0 * poller._
+
+    when:
     listeners.savedFeaturesListener.accept('asm_features conf',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
       NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    1 * subconfigListener.onNewSubconfig(_, _) >> {
-      CurrentAppSecConfig casc = it[0]
-      mergedAsmData = casc.mergedAsmData
-      mergedUpdateConfig = casc.mergedUpdateConfig
+    AppSecSystem.active
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
     }
-    mergedUpdateConfig.numberOfRules == 0
-    mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == false
-    mergedAsmData.mergedData.rules.isEmpty() == false
+    1 * poller.addListener(Product.ASM_DATA, _)
+    1 * poller.addListener(Product.ASM, _)
+    1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_DD_MULTICONFIG
+      | CAPABILITY_ASM_IP_BLOCKING
+      | CAPABILITY_ASM_EXCLUSIONS
+      | CAPABILITY_ASM_EXCLUSION_DATA
+      | CAPABILITY_ASM_REQUEST_BLOCKING
+      | CAPABILITY_ASM_USER_BLOCKING
+      | CAPABILITY_ASM_CUSTOM_RULES
+      | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+      | CAPABILITY_ASM_TRUSTED_IPS
+      | CAPABILITY_ENDPOINT_FINGERPRINT
+      | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_NETWORK_FINGERPRINT
+      | CAPABILITY_ASM_HEADER_FINGERPRINT
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES)
+    0 * poller._
 
     when:
-    listeners.savedConfChangesListener.accept('asm_dd config', null, null)
-    listeners.savedWafDataChangesListener.accept('asm_data config', null, null)
-    listeners.savedWafRulesOverrideListener.accept('asm conf', null, null)
+    listeners.savedWafDataChangesListener.accept(
+      new ParsedConfigKey('asm_dd config', 'null', 1, 'null', 'null'),
+      '''{
+        "rules": [
+          {
+            "id": "foo",
+            "name": "foo",
+            "tags": {
+              "type": "php_code_injection",
+              "crs_id": "933140",
+              "category": "attack_attempt",
+              "cwe": "94",
+              "capec": "1000/225/122/17/650",
+              "confidence": "1",
+              "module": "waf"
+            },
+            "conditions": [
+              {
+                "operator": "ip_match",
+                "parameters": {
+                  "data": "suspicious_ips_data_id",
+                  "inputs": [
+                    {
+                      "address": "http.client_ip"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": "",
+            "data": []
+          }
+        ]
+      }'''.getBytes(), null)
+    listeners.savedWafDataChangesListener.accept(
+      new ParsedConfigKey('asm conf', 'null', 1, 'null', 'null'),
+      '''{
+        "rules_override": [
+          {
+            "rules_target": [
+              { "rule_id": "foo" }
+            ],
+            "enabled": false
+          }
+        ]
+      }'''.getBytes(), null)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    1 * subconfigListener.onNewSubconfig(_, _) >> {
-      CurrentAppSecConfig casc = it[0]
-      mergedAsmData = casc.mergedAsmData
-      mergedUpdateConfig = casc.mergedUpdateConfig
-    }
+    1 * subconfigListener.onNewSubconfig(_, _)
 
-    mergedUpdateConfig.numberOfRules > 0
-    mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == true
-    mergedAsmData.mergedData.rules.isEmpty() == true
+    when:
+    listeners.savedWafDataChangesListener.accept(
+      new ParsedConfigKey('asm_dd config', 'null', 1, 'null', 'null'), null, null)
+    listeners.savedWafDataChangesListener.accept(
+      new ParsedConfigKey('asm conf', 'null', 1, 'null', 'null'), null, null)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    noExceptionThrown()
   }
 
   void 'stopping appsec unsubscribes from the poller'() {
@@ -484,6 +521,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * poller.removeCapabilities(CAPABILITY_ASM_ACTIVATION
       | CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_DD_MULTICONFIG
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
       | CAPABILITY_ASM_EXCLUSION_DATA
@@ -501,28 +539,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
+      | CAPABILITY_ASM_HEADER_FINGERPRINT
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES)
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()
-  }
-
-  void 'config should not be created'() {
-    def conf
-
-    when:
-    conf = AppSecConfig.valueOf(null)
-
-    then:
-    conf == null
-  }
-
-  void 'unsupported config version'() {
-    when:
-    AppSecConfig.valueOf([version: '99.0'])
-
-    then:
-    thrown IOException
   }
 
   void 'update auto user instrum mode via remote-config'() {
@@ -539,7 +560,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesListener = it[2]
     }
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
-    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
+    1 * poller.addConfigurationEndListener(_) >> {
+      listeners.savedConfEndListener = it[0]
+    }
 
     when:
     listeners.savedFeaturesListener.accept('asm_auto_user_instrum', mode, null)
@@ -558,65 +581,189 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     autoUserInstrum('yolo')           | DISABLED
   }
 
-  void 'RASP capabilities for LFI  is not sent when RASP is not fully enabled '() {
+  void 'RASP capabilities are not sent when RASP is not fully enabled '() {
+    setup:
     AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
-    SavedListeners listeners = new SavedListeners()
-    Optional<CurrentAppSecConfig> initialWafConfig
+    def raspCapabilities = [CAPABILITY_ASM_RASP_SQLI: CAPABILITY_ASM_RASP_SQLI,
+      CAPABILITY_ASM_RASP_SSRF: CAPABILITY_ASM_RASP_SSRF,
+      CAPABILITY_ASM_RASP_CMDI: CAPABILITY_ASM_RASP_CMDI,
+      CAPABILITY_ASM_RASP_SHI : CAPABILITY_ASM_RASP_SHI,
+      CAPABILITY_ASM_RASP_LFI : CAPABILITY_ASM_RASP_LFI]
 
     when:
-    AppSecSystem.active = false
+    AppSecSystem.active = true
+    config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    config.isAppSecRaspEnabled() >> false
     appSecConfigService.init()
     appSecConfigService.maybeSubscribeConfigPolling()
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
-    initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
+    configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
 
     then:
-    1 * config.isAppSecRaspEnabled() >> true
-    1 * config.getAppSecRulesFile() >> null
-    2 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
-    1 * poller.addListener(Product.ASM_DD, _, _) >> {
-      listeners.savedConfDeserializer = it[1]
-      listeners.savedConfChangesListener = it[2]
+    poller.addCapabilities(_) >> {
+      final caps = it[0] as long
+      final found = raspCapabilities.findAll { (it.value & caps) > 0 }.collect { it.key }
+      assert found.isEmpty()
     }
-    1 * poller.addListener(Product.ASM_DATA, _, _) >> {
-      listeners.savedWafDataDeserializer = it[1]
-      listeners.savedWafDataChangesListener = it[2]
+  }
+
+  def 'test AppSecConfigChangesListener listener'() {
+    ProductListener listener = new AppSecConfigServiceImpl.AppSecConfigChangesListener()
+    when:
+    listener.remove('my_config' as ConfigKey, null) // unexisting config
+
+    then:
+    thrown RuntimeException
+
+    when:
+    def waf = [waf: null] as Map<String, Object> // wrong input
+    listener.accept('my_config' as ConfigKey, waf, null)
+
+    then:
+    thrown RuntimeException
+  }
+
+  void 'InvalidRuleSetException is thrown when rules are not configured correctly' () {
+    setup:
+    // Mock WafMetricCollector
+    WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+    WafMetricCollector.INSTANCE = wafMetricCollector
+
+    // Create a temporary file with invalid WAF configuration
+    Path p = Files.createTempFile('appsec', '.json')
+    p.toFile() << '''{
+      "version": "2.2",
+      "rules": [
+        {
+          "id": "invalid-rule",
+          "name": "Invalid Rule",
+          "tags": {
+            "type": "invalid_type",
+            "category": "invalid_category"
+          },
+          "conditions": [
+            {
+              "operator": "invalid_operator",
+              "parameters": {
+                "invalid_param": "invalid_value"
+              }
+            }
+          ],
+          "type": "invalid_type",
+          "data": []
+        }
+      ]
+    }'''
+
+    when:
+    appSecConfigService.init()
+
+    then:
+    1 * config.getAppSecRulesFile() >> (p as String)
+    1 * wafMetricCollector.addWafConfigError(_ as Integer)
+    thrown RuntimeException
+
+    cleanup:
+    WafMetricCollector.INSTANCE = ORIGINAL_METRIC_COLLECTOR
+    p.toFile().delete()
+  }
+
+  // https://github.com/DataDog/dd-trace-java/issues/9159
+  void 'test initialization issues while applying remote config'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
     }
-    1 * poller.addListener(Product.ASM, _, _) >> {
-      listeners.savedWafRulesOverrideDeserializer = it[1]
-      listeners.savedWafRulesOverrideListener = it[2]
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+
+    then:
+    noExceptionThrown()
+  }
+
+  void 'config keys are added and removed to the set when receiving ASM_DD payloads'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
     }
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
-    1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
-      | CAPABILITY_ASM_IP_BLOCKING
-      | CAPABILITY_ASM_EXCLUSIONS
-      | CAPABILITY_ASM_EXCLUSION_DATA
-      | CAPABILITY_ASM_REQUEST_BLOCKING
-      | CAPABILITY_ASM_USER_BLOCKING
-      | CAPABILITY_ASM_CUSTOM_RULES
-      | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-      | CAPABILITY_ASM_TRUSTED_IPS
-      | CAPABILITY_ASM_RASP_SQLI
-      | CAPABILITY_ASM_RASP_SSRF
-      | CAPABILITY_ASM_RASP_CMDI
-      | CAPABILITY_ASM_RASP_SHI
-      | CAPABILITY_ASM_RASP_LFI
-      | CAPABILITY_ENDPOINT_FINGERPRINT
-      | CAPABILITY_ASM_SESSION_FINGERPRINT
-      | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
-    0 * _._
-    initialWafConfig.get() != null
 
-    cleanup:
-    AppSecSystem.active = true
+    when:
+    listeners.savedFeaturesListener.accept('asm_features conf',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.toList() == [key.toString()]
+
+    when:
+    listeners.savedWafDataChangesListener.remove(key, NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
   }
+
+  void 'test that empty configurations are acknowledged'() {
+    given:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+
+    when:
+    AppSecSystem.active = true
+    config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    service.init()
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DATA, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addConfigurationEndListener(_) >> {
+      listeners.savedConfEndListener = it[0]
+    }
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '{}'.bytes, NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    noExceptionThrown()
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, null, NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    noExceptionThrown()
+  }
+
 
   private static AppSecFeatures autoUserInstrum(String mode) {
     return new AppSecFeatures().tap { features ->

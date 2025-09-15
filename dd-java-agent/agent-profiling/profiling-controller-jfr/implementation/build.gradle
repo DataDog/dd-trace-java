@@ -26,6 +26,7 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
   main_java11CompileOnly project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
 
+  implementation project(':components:environment')
   implementation libs.slf4j
 
   testImplementation libs.bundles.mockito
@@ -50,5 +51,15 @@ forbiddenApisMain {
 idea {
   module {
     jdkName = '11'
+  }
+}
+
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    if (javaLauncher.get().metadata.languageVersion.asInt() >= 9) {
+      jvmArgs += [
+        '--add-opens',
+        'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
+    }
   }
 }

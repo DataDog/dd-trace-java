@@ -11,15 +11,16 @@ import javax.servlet.ServletOutputStream
 import static datadog.appsec.api.blocking.BlockingContentType.AUTO
 
 class JettyBlockingHelperSpecification extends DDSpecification {
-  void 'block completes successfully'() {
+  def 'block completes successfully'() {
     setup:
     Request req = Mock()
     Response resp = Mock()
     ServletOutputStream os = Mock()
     TraceSegment seg = Mock()
+    def rba = new Flow.Action.RequestBlockingAction(402, AUTO)
 
     when:
-    JettyBlockingHelper.block(seg, req, resp, new Flow.Action.RequestBlockingAction(402, AUTO))
+    JettyBlockingHelper.block(seg, req, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders())
 
     then:
     1 * resp.isCommitted() >> false

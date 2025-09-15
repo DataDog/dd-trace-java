@@ -113,7 +113,15 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     buildProto3Message() | _
   }
 
-  private static def buildProto2Message() {
+  void 'visitProtobufArtifact handles classes without superclass'() {
+    when:
+    boolean result = GrpcRequestMessageHandler.visitProtobufArtifact(Object)
+
+    then:
+    !result
+  }
+
+  private static buildProto2Message() {
     final child = Test2.Proto2Child.newBuilder()
     .setOptional("optional")
     .setRequired("required")
@@ -123,7 +131,7 @@ class GrpcRequestMessageHandlerTest extends IastModuleImplTestBase {
     return Test2.Proto2Parent.newBuilder().setChild(child).build()
   }
 
-  private static def buildProto3Message() {
+  private static buildProto3Message() {
     final child = Test3.Proto3Child.newBuilder()
     .setOptional("optional")
     .setRequired("required")
