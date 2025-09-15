@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
@@ -11,7 +11,7 @@ import reactor.core.scheduler.Schedulers
 
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-class StackedOperatorsTest extends AgentTestRunner {
+class StackedOperatorsTest extends InstrumentationSpecification {
 
   def "test stacked operators retry(circuitbreaker(retry(circuitbreaker)))"() {
     setup:

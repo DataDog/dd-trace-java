@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.bulkhead.Bulkhead
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
@@ -12,7 +12,7 @@ import java.util.function.Function
 import java.util.function.Supplier
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class StackedDecoratorsTest extends AgentTestRunner {
+class StackedDecoratorsTest extends InstrumentationSpecification {
 
   def "happy path sync test"() {
     when:

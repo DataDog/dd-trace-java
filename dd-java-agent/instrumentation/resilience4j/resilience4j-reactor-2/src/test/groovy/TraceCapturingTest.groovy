@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import reactor.core.publisher.ConnectableFlux
@@ -7,7 +7,7 @@ import reactor.core.publisher.Flux
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-class TraceCapturingTest extends AgentTestRunner {
+class TraceCapturingTest extends InstrumentationSpecification {
   // TODO test Mono
 
   def "cold publisher"() {

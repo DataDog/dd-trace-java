@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.core.functions.CheckedFunction
@@ -16,7 +16,7 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class RetryTest extends AgentTestRunner {
+class RetryTest extends InstrumentationSpecification {
   static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
   def "decorate span with retry"() {

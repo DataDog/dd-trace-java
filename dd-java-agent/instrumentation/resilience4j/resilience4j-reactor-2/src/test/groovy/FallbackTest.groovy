@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator
 import io.github.resilience4j.reactor.retry.RetryOperator
@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-class FallbackTest extends AgentTestRunner {
+class FallbackTest extends InstrumentationSpecification {
 
   def "Flux Retry Fallback"() {
     setup:

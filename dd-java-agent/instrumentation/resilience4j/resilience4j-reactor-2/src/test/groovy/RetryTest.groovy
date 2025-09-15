@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.reactor.retry.RetryOperator
@@ -9,7 +9,7 @@ import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-class RetryTest extends AgentTestRunner {
+class RetryTest extends InstrumentationSpecification {
 
   def "decorate span with retry"() {
     def ms = Mock(Retry.Metrics)

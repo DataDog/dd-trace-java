@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.core.functions.CheckedBiFunction
 import io.github.resilience4j.core.functions.CheckedFunction
@@ -18,7 +18,7 @@ import java.util.function.UnaryOperator
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class FallbackTest extends AgentTestRunner {
+class FallbackTest extends InstrumentationSpecification {
   static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
   def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
