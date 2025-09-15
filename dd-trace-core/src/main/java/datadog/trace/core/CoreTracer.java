@@ -1458,6 +1458,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public static final class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CoreTracer tracer;
 
+    // Used to track whether the CoreSpanBuilder is actively being used
+    // CoreSpanBuilder becomes "inUse" after a succesful reset and remains "inUse" until "build" is
+    // called
     private boolean inUse = false;
 
     private String instrumentationName;
