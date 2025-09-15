@@ -28,19 +28,21 @@
 /internal-api/src/test/groovy/datadog/trace/api/sampling        @DataDog/apm-sdk-api-java
 
 # @DataDog/apm-serverless
-/dd-trace-core/src/main/java/datadog/trace/lambda/ @DataDog/apm-serverless
+/dd-trace-core/src/main/java/datadog/trace/lambda/   @DataDog/apm-serverless
 /dd-trace-core/src/test/groovy/datadog/trace/lambda/ @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
-/.circleci/                            @DataDog/apm-lang-platform-java
-/.github/                              @DataDog/apm-lang-platform-java
-/benchmark/                            @DataDog/apm-lang-platform-java
-/components/                           @DataDog/apm-lang-platform-java
-/dd-java-agent/instrumentation/java-*  @DataDog/apm-lang-platform-java
-/metadata/                             @DataDog/apm-lang-platform-java
-/remote-config/                        @DataDog/apm-lang-platform-java
-/telemetry/                            @DataDog/apm-lang-platform-java
-/test-published-dependencies/          @DataDog/apm-lang-platform-java
+/.circleci/                                            @DataDog/apm-lang-platform-java
+/.github/                                              @DataDog/apm-lang-platform-java
+/benchmark/                                            @DataDog/apm-lang-platform-java
+/components/                                           @DataDog/apm-lang-platform-java
+/dd-java-agent/instrumentation/java-*                  @DataDog/apm-lang-platform-java
+/internal-api/src/main/java/datadog/trace/api/rum/     @DataDog/apm-lang-platform-java
+/internal-api/src/test/groovy/datadog/trace/api/rum/   @DataDog/apm-lang-platform-java
+/metadata/                                             @DataDog/apm-lang-platform-java
+/remote-config/                                        @DataDog/apm-lang-platform-java
+/telemetry/                                            @DataDog/apm-lang-platform-java
+/test-published-dependencies/                          @DataDog/apm-lang-platform-java
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java
