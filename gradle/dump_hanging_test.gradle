@@ -2,41 +2,41 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 // Schedule thread and heap dumps collection near test timeout.
-tasks.withType(Test).configureEach {
+tasks.withType(Test).configureEach { testTask ->
   doFirst {
-    def isCI = System.getenv('CI') != null
-
-    // Use Gradle's build dir and adjust for CI artifacts collection if needed.
-    String buildDir = layout.buildDirectory.asFile.get().absolutePath
-    if (isCI) {
-      // Move reports into the folder collected by the collect_reports.sh script.
-      buildDir = buildDir.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent')
-    }
-
     def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
       Thread t = new Thread(r, 'dump-scheduler')
       t.daemon = true
       t
     })
 
-    // Calculate delay for taking dumps as test timeout minus 2 minutes, but no less than 5 minutes.
-    def delay = timeout.get().minusMinutes(2)
-    long delayMinutes = Math.max(5L, delay.toMinutes())
+    // Calculate delay for taking dumps as test timeout minus 2 minutes, but no less than 1 minute.
+    def delayMinutes = Math.max(1L, timeout.get().minusMinutes(2).toMinutes())
 
-    // Schedule the dump job.
     def future = scheduler.schedule({
       try {
-        def dumpDir = new File(buildDir, 'dumps')
+        // Use Gradle's build dir and adjust for CI artifacts collection if needed.
+        def dumpDir = layout.buildDirectory.dir('dumps').map {
+          if (providers.environmentVariable("CI").isPresent()) {
+            // Move reports into the folder collected by the collect_reports.sh script.
+            new File(it.getAsFile().absolutePath.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent'))
+          } else {
+            it.asFile
+          }
+        }.get()
+
         dumpDir.mkdirs()
 
         // Collect PIDs of all Java processes.
         def jvmProcesses = 'jcmd -l'.execute().text.readLines()
 
-        jvmProcesses.each { line ->
-          // Only process 'Gradle test executors'.
-          if (!line.contains('Gradle Test Executor')) return
+        // Collect pids for 'Gradle test executors'.
+        def pids = jvmProcesses
+          .findAll({ it.contains('Gradle Test Executor') })
+          .collect({ it.substring(0, it.indexOf(' ')) })
 
-            def pid = line.substring(0, line.indexOf(' '))
+        pids.each { pid ->
+          logger.warn("Taking dumps for: ${testTask.getPath()}")
 
           // Collect thread dump.
           def threadDumpFile = new File(dumpDir, "${pid}-thread-dump-${System.currentTimeMillis()}.log")
@@ -47,7 +47,7 @@ tasks.withType(Test).configureEach {
             .waitFor()
 
           // Collect heap dump.
-          def heapDumpFile = "${dumpDir.absolutePath}/${pid}-heap-dump-${System.currentTimeMillis()}.hprof"
+          def heapDumpFile = new File(dumpDir, "${pid}-heap-dump-${System.currentTimeMillis()}.hprof").absolutePath
           def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
           cmd.execute().waitFor()
         }
