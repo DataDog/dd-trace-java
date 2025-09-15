@@ -1,26 +1,23 @@
-package datadog.gradle.plugin.muzzle
+package datadog.gradle.plugin.muzzle.tasks
 
+import datadog.gradle.plugin.muzzle.MuzzleAction
+import datadog.gradle.plugin.muzzle.MuzzleDirective
+import datadog.gradle.plugin.muzzle.allMainSourceSet
+import datadog.gradle.plugin.muzzle.mainSourceSet
 import org.gradle.api.DefaultTask
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileCollection
 import org.gradle.api.invocation.BuildInvocationDetails
-import org.gradle.api.tasks.SourceSet
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
-import org.gradle.kotlin.dsl.getByType
 import org.gradle.workers.WorkerExecutor
 import java.lang.reflect.Method
 import java.net.URLClassLoader
 import javax.inject.Inject
 
-abstract class MuzzleTask : DefaultTask() {
-  init {
-    group = "Muzzle"
-  }
-
+abstract class MuzzleTask : AbstractMuzzleTask() {
   @get:Inject
   abstract val javaToolchainService: JavaToolchainService
 
@@ -61,17 +58,6 @@ abstract class MuzzleTask : DefaultTask() {
         assertPass.set(true)
       }
     }
-  }
-
-  fun printMuzzle(instrumentationProject: Project) {
-    val cp = instrumentationProject.mainSourceSet.runtimeClasspath
-    val cl = URLClassLoader(cp.map { it.toURI().toURL() }.toTypedArray(), null)
-    val printMethod: Method = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
-      .getMethod(
-        "printMuzzleReferences",
-        ClassLoader::class.java
-      )
-    printMethod.invoke(null, cl)
   }
 
   private fun createAgentClassPath(project: Project): FileCollection {

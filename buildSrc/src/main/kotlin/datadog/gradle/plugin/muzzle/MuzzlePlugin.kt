@@ -5,6 +5,8 @@ import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifa
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
 import datadog.gradle.plugin.muzzle.MuzzleReportUtils.dumpVersionRanges
 import datadog.gradle.plugin.muzzle.MuzzleReportUtils.mergeReports
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzlePrintReferencesTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
@@ -89,11 +91,7 @@ class MuzzlePlugin : Plugin<Project> {
       dependsOn(compileMuzzle)
     }
 
-    project.tasks.register<MuzzleTask>("printReferences") {
-      description = "Print references created by instrumentation muzzle"
-      doLast {
-        printMuzzle(project)
-      }
+    project.tasks.register<MuzzlePrintReferencesTask>("printReferences") {
       dependsOn(compileMuzzle)
     }
 
