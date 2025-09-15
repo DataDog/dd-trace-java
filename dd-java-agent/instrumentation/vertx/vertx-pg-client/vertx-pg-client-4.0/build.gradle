@@ -31,11 +31,11 @@ dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
 
   testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-sql-client-3.9')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-pg-client-4.4.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-sql-client-3.9')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-pg-client:vertx-pg-client-4.4.2')
   // to test possible interferences
-  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-mysql-client-4.4.2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-mysql-client-4.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-4.4.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-4.0')
 
 
   // This is needed for the test container to start

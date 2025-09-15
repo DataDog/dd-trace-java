@@ -24,7 +24,7 @@ dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
 
   testImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-sql-client-3.9')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-sql-client-3.9')
 
   // This is needed for the test container to start
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
