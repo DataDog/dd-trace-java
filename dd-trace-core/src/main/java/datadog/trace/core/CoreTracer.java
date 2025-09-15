@@ -243,14 +243,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
-  // Cache used by buildSpan
+  // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
+  // the other branch in buildSpan
+  private static final boolean SPAN_BUILDER_REUSE_ENABLED =
+      Config.get().isSpanBuilderReuseEnabled();
+
+  // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ThreadLocal<CoreSpanBuilder> tlSpanBuilder =
-      new ThreadLocal<CoreSpanBuilder>() {
-        @Override
-        protected CoreSpanBuilder initialValue() {
-          return new CoreSpanBuilder(CoreTracer.this);
-        }
-      };
+      SPAN_BUILDER_REUSE_ENABLED
+          ? new ThreadLocal<CoreSpanBuilder>() {
+            @Override
+            protected CoreSpanBuilder initialValue() {
+              return new CoreSpanBuilder(CoreTracer.this);
+            }
+          }
+          : null;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -976,6 +983,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public CoreSpanBuilder buildSpan(
+      final String instrumentationName, final CharSequence operationName) {
+    return SPAN_BUILDER_REUSE_ENABLED
+        ? this.reuseSpanBuilder(instrumentationName, operationName)
+        : this.createSpanBuilder(instrumentationName, operationName);
+  }
+
+  private CoreSpanBuilder createSpanBuilder(
+      final String instrumentationName, final CharSequence operationName) {
+    CoreSpanBuilder newBuilder = new CoreSpanBuilder(this);
+    newBuilder.reset(instrumentationName, operationName);
+    return newBuilder;
+  }
+
+  private CoreSpanBuilder reuseSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
     // retrieve the thread's typical SpanBuilder and check if it is currently in use
     CoreSpanBuilder tlSpanBuilder = this.tlSpanBuilder.get();
