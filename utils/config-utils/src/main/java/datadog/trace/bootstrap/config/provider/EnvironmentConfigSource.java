@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.ConfigOrigin.ENV;
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
+import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.ConfigOrigin;

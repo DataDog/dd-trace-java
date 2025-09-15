@@ -14,14 +14,14 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
-import static datadog.trace.util.Strings.toEnvVar;
+import static datadog.trace.util.ConfigStrings.toEnvVar;
+import static datadog.trace.util.ConfigStrings.toEnvVarLowerCase;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.api.telemetry.OtelEnvMetricCollector;
-import datadog.trace.util.Strings;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,8 +47,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private final Properties otelConfigFile = loadOtelConfigFile();
 
   private final Properties datadogConfigFile;
-  private static final OtelEnvMetricCollector otelEnvMetricCollector =
-      OtelEnvMetricCollector.getInstance();
 
   @Override
   protected String get(String key) {
@@ -146,8 +144,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (null != ddValue) {
       String otelEnvVar = toEnvVar(otelSysProp);
       log.warn("Both {} and {} are set, ignoring {}", toEnvVar(ddSysProp), otelEnvVar, otelEnvVar);
-      otelEnvMetricCollector.setHidingOtelEnvVarMetric(
-          Strings.toEnvVarLowerCase(otelSysProp), Strings.toEnvVarLowerCase(ddSysProp));
+      OtelEnvMetricCollectorProvider.get()
+          .setHidingOtelEnvVarMetric(toEnvVarLowerCase(otelSysProp), toEnvVarLowerCase(ddSysProp));
       return null;
     }
     return otelValue;
@@ -291,8 +289,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
           buf.append(TracePropagationStyle.valueOfDisplayName(style)).append(',');
         } catch (IllegalArgumentException e) {
           log.warn("OTEL_PROPAGATORS={} is not supported", style);
-          otelEnvMetricCollector.setInvalidOtelEnvVarMetric(
-              "otel_propagators", "dd_trace_propagation_style");
+          OtelEnvMetricCollectorProvider.get()
+              .setInvalidOtelEnvVarMetric("otel_propagators", "dd_trace_propagation_style");
         }
       }
     }
@@ -326,8 +324,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_TRACES_SAMPLER={} is not supported", tracesSampler);
-    otelEnvMetricCollector.setInvalidOtelEnvVarMetric(
-        "otel_traces_sampler", "dd_trace_sample_rate");
+    OtelEnvMetricCollectorProvider.get()
+        .setInvalidOtelEnvVarMetric("otel_traces_sampler", "dd_trace_sample_rate");
     return null;
   }
 
@@ -343,7 +341,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", type, exporter.toUpperCase(Locale.ROOT));
-    otelEnvMetricCollector.setUnsupportedOtelEnvVarMetric("otel_" + type + "_exporter");
+    OtelEnvMetricCollectorProvider.get()
+        .setUnsupportedOtelEnvVarMetric("otel_" + type + "_exporter");
 
     return null;
   }
