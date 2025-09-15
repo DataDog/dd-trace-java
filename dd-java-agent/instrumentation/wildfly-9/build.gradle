@@ -6,7 +6,7 @@ ext {
 
 repositories {
   maven {
-    url 'https://maven.repository.redhat.com/ga/'
+    url = 'https://maven.repository.redhat.com/ga/'
   }
 }
 

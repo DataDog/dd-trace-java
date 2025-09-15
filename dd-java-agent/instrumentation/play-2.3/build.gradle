@@ -29,8 +29,8 @@ apply from: "$rootDir/gradle/java.gradle"
 repositories {
   maven {
     // only place that has 'com.typesafe.netty:netty-http-pipelining:1.1.2' publicly accessible
-    name 'typesafe'
-    url 'https://repo.typesafe.com/typesafe/maven-releases/'
+    name = 'typesafe'
+    url = 'https://repo.typesafe.com/typesafe/maven-releases/'
   }
 }
 
