@@ -18,7 +18,9 @@ import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -70,8 +72,9 @@ public class TelemetrySystem {
       actions.add(new LogPeriodicAction());
       log.debug("Telemetry log collection enabled");
     }
-    if (datadog.trace.api.InstrumenterConfig.get().isRumEnabled()) {
-      actions.add(new RumPeriodicAction());
+    if (InstrumenterConfig.get().isRumEnabled()) {
+      RumInjector.enableTelemetry();
+      actions.add(new RumPeriodicAction(RumInjector.getTelemetryCollector()));
     }
     actions.add(new ProductChangeAction());
     if (Config.get().isApiSecurityEndpointCollectionEnabled()) {

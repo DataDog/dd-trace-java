@@ -1,5 +1,9 @@
 package datadog.trace.api.rum;
 
+import datadog.trace.api.telemetry.MetricCollector;
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  * Collect RUM injection telemetry from the RumInjector This is implemented by the
  * RumInjectorMetrics class
@@ -31,6 +35,16 @@ public interface RumTelemetryCollector {
 
         @Override
         public void close() {}
+
+        @Override
+        public Collection<MetricCollector.Metric> drain() {
+          return Collections.emptyList();
+        }
+
+        @Override
+        public Collection<MetricCollector.DistributionSeriesPoint> drainDistributionSeries() {
+          return Collections.emptyList();
+        }
       };
 
   /**
@@ -83,4 +97,18 @@ public interface RumTelemetryCollector {
 
   /** Closes the telemetry collector. */
   default void close() {}
+
+  /**
+   * Drains all count metrics to be sent via telemetry.
+   *
+   * @return Collection of count metrics to be sent via telemetry.
+   */
+  Collection<MetricCollector.Metric> drain();
+
+  /**
+   * Drains all distribution metrics to be sent via telemetry.
+   *
+   * @return Collection of distribution points to be sent via telemetry.
+   */
+  Collection<MetricCollector.DistributionSeriesPoint> drainDistributionSeries();
 }

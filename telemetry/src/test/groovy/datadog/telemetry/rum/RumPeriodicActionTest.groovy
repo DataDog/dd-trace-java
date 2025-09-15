@@ -3,12 +3,11 @@ package datadog.telemetry.rum
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.Metric
-import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.rum.RumInjectorMetrics
+import datadog.trace.api.rum.RumTelemetryCollector
 import spock.lang.Specification
 
 class RumPeriodicActionTest extends Specification {
-  RumPeriodicAction periodicAction = new RumPeriodicAction()
   TelemetryService telemetryService = Mock()
 
   void 'push RUM metrics into the telemetry service'() {
@@ -18,7 +17,7 @@ class RumPeriodicActionTest extends Specification {
     metricsCollector.onInjectionFailed("5", "gzip")
     metricsCollector.onInjectionResponseSize("3", 1024)
 
-    RumInjector.setTelemetryCollector(metricsCollector)
+    def periodicAction = new RumPeriodicAction(metricsCollector)
 
     when:
     periodicAction.doIteration(telemetryService)
@@ -42,14 +41,11 @@ class RumPeriodicActionTest extends Specification {
     })
 
     0 * _
-
-    cleanup:
-    RumInjector.shutdownTelemetry()
   }
 
   void 'push nothing when no metrics collector is set'() {
     setup:
-    RumInjector.shutdownTelemetry()
+    def periodicAction = new RumPeriodicAction(RumTelemetryCollector.NO_OP)
 
     when:
     periodicAction.doIteration(telemetryService)

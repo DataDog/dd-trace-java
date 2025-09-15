@@ -128,8 +128,7 @@ public final class RumInjector {
   /** Starts telemetry collection if RUM injection is enabled. */
   public static void enableTelemetry() {
     if (INSTANCE.isEnabled()) {
-      RumInjectorMetrics metrics = new RumInjectorMetrics();
-      telemetryCollector = metrics;
+      telemetryCollector = new RumInjectorMetrics();
       telemetryCollector.onInitializationSucceed();
     } else {
       telemetryCollector = RumTelemetryCollector.NO_OP;
@@ -158,18 +157,5 @@ public final class RumInjector {
    */
   public static RumTelemetryCollector getTelemetryCollector() {
     return telemetryCollector;
-  }
-
-  /**
-   * Gets the concrete RumInjectorMetrics instance.
-   *
-   * @return The RumInjectorMetrics instance or null if telemetry is NO_OP.
-   */
-  public static RumInjectorMetrics getMetricsInstance() {
-    RumTelemetryCollector collector = telemetryCollector;
-    if (collector instanceof RumInjectorMetrics) {
-      return (RumInjectorMetrics) collector;
-    }
-    return null;
   }
 }

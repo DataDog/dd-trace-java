@@ -4,8 +4,7 @@ import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Metric;
-import datadog.trace.api.rum.RumInjector;
-import datadog.trace.api.rum.RumInjectorMetrics;
+import datadog.trace.api.rum.RumTelemetryCollector;
 import datadog.trace.api.telemetry.MetricCollector;
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,21 +12,22 @@ import java.util.Collection;
 /** RUM version of IntegrationPeriodicAction that sends RUM telemetry metrics. */
 public class RumPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
 
+  private final RumTelemetryCollector telemetryCollector;
+
+  public RumPeriodicAction(RumTelemetryCollector telemetryCollector) {
+    this.telemetryCollector = telemetryCollector;
+  }
+
   @Override
   public void doIteration(TelemetryService service) {
-    RumInjectorMetrics metrics = RumInjector.getMetricsInstance();
-    if (metrics == null) {
-      return;
-    }
-
-    Collection<MetricCollector.Metric> counts = metrics.drain();
+    Collection<MetricCollector.Metric> counts = telemetryCollector.drain();
     for (MetricCollector.Metric metric : counts) {
       Metric telemetryMetric = convertToTelemetryMetric(metric);
       service.addMetric(telemetryMetric);
     }
 
     Collection<MetricCollector.DistributionSeriesPoint> distributions =
-        metrics.drainDistributionSeries();
+        telemetryCollector.drainDistributionSeries();
     for (MetricCollector.DistributionSeriesPoint distribution : distributions) {
       DistributionSeries telemetryDistribution = convertToDistributionSeries(distribution);
       service.addDistributionSeries(telemetryDistribution);

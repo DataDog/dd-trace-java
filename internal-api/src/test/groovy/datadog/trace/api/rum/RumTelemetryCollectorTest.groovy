@@ -63,6 +63,16 @@ class RumTelemetryCollectorTest extends Specification {
         @Override
         void onInjectionTime(String integrationVersion, long milliseconds) {
         }
+
+        @Override
+        java.util.Collection drain() {
+          return []
+        }
+
+        @Override
+        java.util.Collection drainDistributionSeries() {
+          return []
+        }
       }
 
     when:
