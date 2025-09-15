@@ -3,8 +3,6 @@ package datadog.gradle.plugin.muzzle.tasks
 import datadog.gradle.plugin.muzzle.MuzzleAction
 import datadog.gradle.plugin.muzzle.MuzzleDirective
 import datadog.gradle.plugin.muzzle.allMainSourceSet
-import datadog.gradle.plugin.muzzle.mainSourceSet
-import org.gradle.api.DefaultTask
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -13,8 +11,6 @@ import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.workers.WorkerExecutor
-import java.lang.reflect.Method
-import java.net.URLClassLoader
 import javax.inject.Inject
 
 abstract class MuzzleTask : AbstractMuzzleTask() {

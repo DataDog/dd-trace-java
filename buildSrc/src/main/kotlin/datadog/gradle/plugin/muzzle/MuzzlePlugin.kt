@@ -3,18 +3,16 @@ package datadog.gradle.plugin.muzzle
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.inverseOf
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
-import datadog.gradle.plugin.muzzle.MuzzleReportUtils.dumpVersionRanges
-import datadog.gradle.plugin.muzzle.MuzzleReportUtils.mergeReports
-import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzlePrintReferencesTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.plugins.JavaBasePlugin
-import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.exclude
@@ -95,20 +93,11 @@ class MuzzlePlugin : Plugin<Project> {
       dependsOn(compileMuzzle)
     }
 
-    project.tasks.register<MuzzleTask>("generateMuzzleReport") {
-      description = "Print instrumentation version report"
-      doLast {
-        dumpVersionRanges(project)
-      }
+    project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
       dependsOn(compileMuzzle)
     }
 
-    project.tasks.register<MuzzleTask>("mergeMuzzleReports") {
-      description = "Merge generated version reports in one unique csv"
-      doLast {
-        mergeReports(project)
-      }
-    }
+    project.tasks.register<MuzzleMergeReportsTask>("mergeMuzzleReports")
 
     val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       // removing leading ':' if present
