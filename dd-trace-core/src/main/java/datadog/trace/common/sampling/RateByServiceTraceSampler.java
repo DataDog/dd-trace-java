@@ -29,7 +29,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private static final double DEFAULT_RATE = 1.0;
   private static final DecimalFormat DECIMAL_FORMAT;
-  
+
   static {
     DECIMAL_FORMAT = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
     DECIMAL_FORMAT.setMaximumFractionDigits(6);

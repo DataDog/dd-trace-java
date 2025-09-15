@@ -19,12 +19,12 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedTraceSampler.class);
   private static final DecimalFormat DECIMAL_FORMAT;
-  
+
   static {
     DECIMAL_FORMAT = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
     DECIMAL_FORMAT.setMaximumFractionDigits(6);
   }
-  
+
   private final List<RateSamplingRule> samplingRules;
   private final PrioritySampler fallbackSampler;
   private final SimpleRateLimiter rateLimiter;
