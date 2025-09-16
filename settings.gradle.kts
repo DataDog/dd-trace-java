@@ -575,7 +575,7 @@ include(
   ":dd-java-agent:instrumentation:undertow:undertow-2.0",
   ":dd-java-agent:instrumentation:undertow:undertow-2.2",
   ":dd-java-agent:instrumentation:valkey-java-5.3",
-  ":dd-java-agent:instrumentation:velocity",
+  ":dd-java-agent:instrumentation:velocity-1.5",
   ":dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-3.9",
   ":dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-4.0",
   ":dd-java-agent:instrumentation:vertx:vertx-mysql-client:vertx-mysql-client-4.4.2",
