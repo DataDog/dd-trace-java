@@ -37,8 +37,8 @@ tasks.withType(GroovyCompile) {
 dependencies {
   //  compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
   main_java17CompileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
-  implementation project(':dd-java-agent:instrumentation:kafka-common')
-  main_java17Implementation project(':dd-java-agent:instrumentation:kafka-common')
+  implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
+  main_java17Implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
   implementation project(':dd-java-agent:instrumentation:span-origin')
 

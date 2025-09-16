@@ -14,8 +14,8 @@ addTestSuite('latestDepTest')
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:kafka-common')
-  implementation project(':dd-java-agent:instrumentation:kafka-clients-0.11')
+  implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
+  implementation project(':dd-java-agent:instrumentation:kafka:kafka-clients-0.11')
 
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   testImplementation group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.0'
