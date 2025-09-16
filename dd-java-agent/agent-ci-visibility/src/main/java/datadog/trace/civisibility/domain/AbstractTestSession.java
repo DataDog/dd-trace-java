@@ -4,6 +4,7 @@ import static datadog.trace.api.TracePropagationStyle.NONE;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.civisibility.CIConstants;
@@ -13,8 +14,10 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.AgentlessLogSubmissionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
@@ -26,13 +29,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestSession {
@@ -188,6 +193,13 @@ public abstract class AbstractTestSession {
   }
 
   protected Collection<TagValue> additionalTelemetryTags() {
-    return Collections.emptyList();
+    Set<TagValue> tags = new HashSet<>();
+    if (Constants.EFD_ABORT_REASON_FAULTY.equals(span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
+      tags.add(EarlyFlakeDetectionAbortReason.FAULTY);
+    }
+    if (span.getTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY) != null) {
+      tags.add(FailedTestReplayEnabled.SessionMetric.TRUE);
+    }
+    return tags;
   }
 }

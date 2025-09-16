@@ -1,5 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-  compileOnly project(':dd-java-agent:instrumentation:tibco-businessworks:tibcobw-stubs')
-}
