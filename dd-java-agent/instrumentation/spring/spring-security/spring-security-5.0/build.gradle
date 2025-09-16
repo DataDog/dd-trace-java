@@ -24,6 +24,6 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.+'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
 }

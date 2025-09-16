@@ -49,9 +49,9 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jetty-7.0') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty-7.6') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty-9') // See if there's any conflicts.
-  testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5') // See if there's any conflicts.
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
+  testImplementation project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5') // See if there's any conflicts.
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet')
   testImplementation project(':dd-java-agent:instrumentation:jetty-util')
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.2.0.v20160908'

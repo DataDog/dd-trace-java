@@ -1,4 +1,4 @@
-evaluationDependsOn ':dd-java-agent:instrumentation:tomcat-5.5'
+evaluationDependsOn ':dd-java-agent:instrumentation:tomcat:tomcat-5.5'
 
 muzzle {
   pass {

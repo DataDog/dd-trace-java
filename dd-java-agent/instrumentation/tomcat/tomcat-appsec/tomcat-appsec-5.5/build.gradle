@@ -1,4 +1,4 @@
-evaluationDependsOn ':dd-java-agent:instrumentation:tomcat-5.5'
+evaluationDependsOn ':dd-java-agent:instrumentation:tomcat:tomcat-5.5'
 
 muzzle {
   // despite the name of module, this also applies to tomcat < 6.0.35 or 7.0-7.0.22
@@ -52,7 +52,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'tomcat', name: 'tomcat-util', version: '5.5.23'
   compileOnly group: 'tomcat', name: 'tomcat-coyote', version: '5.5.23'
-  implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
+  implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 }
 
 configurations.all {
