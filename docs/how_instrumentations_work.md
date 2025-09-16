@@ -694,7 +694,7 @@ and [rerun all tasks](https://docs.gradle.org/current/userguide/command_line_int
 Running tests that require JDK-21 will require the `JAVA_21_HOME` env var set and can be done like this:
 
 ```shell
-./gradlew  :dd-java-agent:instrumentation:aerospike-4:allLatestDepTests -PtestJvm=21
+./gradlew  :dd-java-agent:instrumentation:aerospike-4.0:allLatestDepTests -PtestJvm=21
 ```
 
 ### Latest Dependency Tests
