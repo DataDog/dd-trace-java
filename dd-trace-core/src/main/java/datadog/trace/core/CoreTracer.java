@@ -30,7 +30,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -713,11 +712,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 ? new TracerHealthMetrics(this.statsDClient)
                 : HealthMetrics.NO_OP);
     this.healthMetrics.start();
-
-    // Start RUM injector telemetry
-    if (InstrumenterConfig.get().isRumEnabled()) {
-      RumInjector.enableTelemetry(this.statsDClient);
-    }
 
     performanceMonitoring =
         config.isPerfMetricsEnabled()
