@@ -30,7 +30,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -714,11 +713,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 : HealthMetrics.NO_OP);
     this.healthMetrics.start();
 
-    // Start RUM injector telemetry
-    if (InstrumenterConfig.get().isRumEnabled()) {
-      RumInjector.enableTelemetry(this.statsDClient);
-    }
-
     performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
@@ -793,8 +787,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.
-    AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-        MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+    AgentTaskScheduler.get()
+        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
@@ -1109,6 +1103,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (writtenTrace.isEmpty()) {
       return;
     }
+
+    // run early tag postprocessors before publishing to the metrics writer since peer / base
+    // service are needed
+    for (DDSpan span : writtenTrace) {
+      span.processServiceTags();
+    }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
     TraceCollector traceCollector = writtenTrace.get(0).context().getTraceCollector();
@@ -1271,6 +1271,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     tracerFlarePoller.stop();
+    healthMetrics.close();
   }
 
   @Override

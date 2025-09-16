@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
 import foo.bar.smoketest.DummyHttpServlet
@@ -8,7 +8,7 @@ import jakarta.servlet.Servlet
 import jakarta.servlet.ServletRequest
 import jakarta.servlet.ServletResponse
 
-class IastJakartaServletInstrumentationTest extends AgentTestRunner{
+class IastJakartaServletInstrumentationTest extends InstrumentationSpecification{
 
   @Override
   protected void configurePreAgent() {

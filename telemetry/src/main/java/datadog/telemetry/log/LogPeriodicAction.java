@@ -63,16 +63,6 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
       } else {
         result.append(name);
       }
-
-      if (isDataDogCode(t)) {
-        String msg = t.getMessage();
-        result.append(": ");
-        if (msg == null || msg.isEmpty()) {
-          result.append(UNKNOWN);
-        } else {
-          result.append(msg);
-        }
-      }
       result.append('\n');
 
       final StackTraceElement[] stacktrace = t.getStackTrace();
@@ -125,18 +115,6 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
       currentIndex--;
     }
     return count;
-  }
-
-  private static boolean isDataDogCode(Throwable t) {
-    StackTraceElement[] stackTrace = t.getStackTrace();
-    if (stackTrace == null || stackTrace.length == 0) {
-      return false;
-    }
-    String cn = stackTrace[0].getClassName();
-    if (cn.isEmpty()) {
-      return false;
-    }
-    return cn.startsWith("datadog.") || cn.startsWith("com.datadog.");
   }
 
   private static boolean shouldRedactClass(final String className) {

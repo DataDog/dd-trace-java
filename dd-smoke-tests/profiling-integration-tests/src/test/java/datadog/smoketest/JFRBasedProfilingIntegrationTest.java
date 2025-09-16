@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Pair;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
@@ -49,8 +51,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.item.Aggregators;
 import org.openjdk.jmc.common.item.IAttribute;
@@ -68,12 +71,8 @@ import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 import org.openjdk.jmc.flightrecorder.jdk.JdkTypeIDs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spock.util.environment.OperatingSystem;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
-@DisabledIf(
-    value = "isJavaVersionAtLeast24",
-    disabledReason = "Failing on Java 24. Skip until we have a fix.")
 class JFRBasedProfilingIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(JFRBasedProfilingIntegrationTest.class);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
@@ -155,47 +154,57 @@ class JFRBasedProfilingIntegrationTest {
     }
   }
 
-  @Test
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
   @DisplayName("Test continuous recording - no jmx delay, default compression")
-  public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () ->
-            testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
-        testInfo,
-        5);
-  }
-
-  @Test
-  @DisplayName("Test continuous recording - no jmx delay, zstd compression")
-  public void testContinuousRecording_no_jmx_delay_jmethodid_cache(final TestInfo testInfo)
+  public void testContinuousRecording_no_jmx_delay(String profiler, final TestInfo testInfo)
       throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
     testWithRetry(
         () ->
             testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
+                0, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), false),
         testInfo,
         5);
   }
 
-  @Test
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
+  @DisplayName("Test continuous recording - no jmx delay, zstd compression")
+  public void testContinuousRecording_no_jmx_delay_zstd(String profiler, final TestInfo testInfo)
+      throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
+    testWithRetry(
+        () ->
+            testContinuousRecording(
+                0, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), true),
+        testInfo,
+        5);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
   @DisplayName("Test continuous recording - 1 sec jmx delay, default compression")
-  public void testContinuousRecording(final TestInfo testInfo) throws Exception {
+  public void testContinuousRecording(String profiler, final TestInfo testInfo) throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
     testWithRetry(
         () ->
             testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), false),
+                1, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), false),
         testInfo,
         5);
   }
 
-  @Test
+  @ParameterizedTest
+  @ValueSource(strings = {"jfr", "ddprof"})
   @DisplayName("Test continuous recording - 1 sec jmx delay, zstd compression")
-  public void testContinuousRecording_zstd(final TestInfo testInfo) throws Exception {
+  public void testContinuousRecording_zstd(String profiler, final TestInfo testInfo)
+      throws Exception {
+    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
     testWithRetry(
         () ->
             testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, OperatingSystem.getCurrent().isLinux(), true),
+                1, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), true),
         testInfo,
         5);
   }
@@ -366,6 +375,15 @@ class JFRBasedProfilingIntegrationTest {
   private static void verifyJdkEventsDisabled(IItemCollection events) {
     assertFalse(events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems());
     assertFalse(events.apply(ItemFilters.type("jdk.ThreadPark")).hasItems());
+  }
+
+  private static void verifyJdkEvents(IItemCollection events) {
+    String cpuSampleType = "jdk.ExecutionSample";
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25) && OperatingSystem.isLinux()) {
+      // for Java 25+ we are defaulting to 'jdk.CPUTimeSample' on Linux
+      cpuSampleType = "jdk.CPUTimeSample";
+    }
+    assertTrue(events.apply(ItemFilters.type(cpuSampleType)).hasItems());
   }
 
   private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
@@ -621,6 +639,7 @@ class JFRBasedProfilingIntegrationTest {
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
       // native frames
     } else {
+      verifyJdkEvents(events);
       // make sure the stack depth limit is respected
       for (IItemIterable lane : events.apply(ItemFilters.type(JdkTypeIDs.EXECUTION_SAMPLE))) {
         IMemberAccessor<IMCStackTrace, IItem> stackTraceAccessor =
@@ -838,8 +857,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private static String javaPath() {
-    final String separator = System.getProperty("file.separator");
-    return System.getProperty("java.home") + separator + "bin" + separator + "java";
+    return Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java").toString();
   }
 
   private static String buildDirectory() {

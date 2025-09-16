@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
@@ -11,7 +11,7 @@ import org.apache.cxf.transport.http_jetty.JettyHTTPDestination
 import org.apache.cxf.transport.http_jetty.JettyHTTPServerEngine
 import spock.lang.Shared
 
-class CxfContextPropagationTest extends AgentTestRunner {
+class CxfContextPropagationTest extends InstrumentationSpecification {
 
   @Shared
   Server server

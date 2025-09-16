@@ -1,0 +1,75 @@
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+// Schedule thread and heap dumps collection near test timeout.
+tasks.withType(Test).configureEach { testTask ->
+  doFirst {
+    def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
+      Thread t = new Thread(r, 'dump-scheduler')
+      t.daemon = true
+      t
+    })
+
+    // Calculate delay for taking dumps as test timeout minus 2 minutes, but no less than 1 minute.
+    def delayMinutes = Math.max(1L, timeout.get().minusMinutes(2).toMinutes())
+
+    def future = scheduler.schedule({
+      try {
+        // Use Gradle's build dir and adjust for CI artifacts collection if needed.
+        def dumpDir = layout.buildDirectory.dir('dumps').map {
+          if (providers.environmentVariable("CI").isPresent()) {
+            // Move reports into the folder collected by the collect_reports.sh script.
+            new File(it.getAsFile().absolutePath.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent'))
+          } else {
+            it.asFile
+          }
+        }.get()
+
+        dumpDir.mkdirs()
+
+        // Collect PIDs of all Java processes.
+        def jvmProcesses = 'jcmd -l'.execute().text.readLines()
+
+        // Collect pids for 'Gradle test executors'.
+        def pids = jvmProcesses
+          .findAll({ it.contains('Gradle Test Executor') })
+          .collect({ it.substring(0, it.indexOf(' ')) })
+
+        pids.each { pid ->
+          logger.warn("Taking dumps for: ${testTask.getPath()}")
+
+          // Collect thread dump.
+          def threadDumpFile = new File(dumpDir, "${pid}-thread-dump-${System.currentTimeMillis()}.log")
+          new ProcessBuilder('jcmd', pid, 'Thread.print', '-l')
+            .redirectErrorStream(true)
+            .redirectOutput(threadDumpFile)
+            .start()
+            .waitFor()
+
+          // Collect heap dump.
+          def heapDumpFile = new File(dumpDir, "${pid}-heap-dump-${System.currentTimeMillis()}.hprof").absolutePath
+          def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
+          cmd.execute().waitFor()
+        }
+      } catch (Throwable e) {
+        logger.warn("Dumping failed: ${e.message}")
+      }
+      finally {
+        scheduler.shutdown()
+      }
+    }, delayMinutes, TimeUnit.MINUTES)
+
+    // Store handles for cancellation in doLast.
+    ext.dumpFuture = future
+    ext.dumpScheduler = scheduler
+  }
+
+  doLast {
+    // Cancel if the task finished before the scheduled dump.
+    try {
+      ext.dumpFuture?.cancel(false)
+    } finally {
+      ext.dumpScheduler?.shutdownNow()
+    }
+  }
+}

@@ -115,7 +115,7 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
           result = (Future<?>) runTest.invoke(runner, failureSuppressingNotifier, test);
         } catch (Throwable ignored) {
         }
-      } while (!executionPolicy.wasLastExecution());
+      } while (executionPolicy.applicable());
 
       // skip original method
       return result;

@@ -30,11 +30,11 @@ muzzle {
 repositories {
   if (project.rootProject.hasProperty("akkaRepositoryToken")) {
     maven {
-      url "https://repo.akka.io/${project.rootProject.property("akkaRepositoryToken")}/secure"
+      url = "https://repo.akka.io/${project.rootProject.property("akkaRepositoryToken")}/secure"
     }
   } else {
     maven {
-      url "https://repo.akka.io/maven"
+      url = "https://repo.akka.io/maven"
     }
   }
 }

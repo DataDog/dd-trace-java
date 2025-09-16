@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 import org.eclipse.jetty.util.Callback
 import org.eclipse.jetty.websocket.core.CloseStatus
@@ -20,7 +20,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL
 
-class WebsocketTest extends AgentTestRunner {
+class WebsocketTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

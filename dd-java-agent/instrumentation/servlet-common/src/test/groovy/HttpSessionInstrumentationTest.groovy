@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.TrustBoundaryViolationModule
 import foo.bar.DummyHttpSession
 
-class HttpSessionInstrumentationTest  extends AgentTestRunner {
+class HttpSessionInstrumentationTest  extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')

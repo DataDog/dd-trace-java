@@ -169,5 +169,23 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name" : "datadog.jctools.queues.SpmcArrayQueueProducerIndexField",
+    "fields": [
+      {"name": "producerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "datadog.jctools.queues.SpmcArrayQueueConsumerIndexField",
+    "fields": [
+      {"name": "consumerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name" : "datadog.jctools.maps.NonBlockingHashMap",
+    "fields": [
+      {"name": "_kvs", "allowUnsafeAccess": true}
+    ]
   }
 ]

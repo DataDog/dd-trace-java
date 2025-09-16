@@ -11,7 +11,7 @@ import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
@@ -20,7 +20,7 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "non-default config settings get collected"() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(configKey), configValue)
+    injectEnvConfig(ConfigStrings.toEnvVar(configKey), configValue)
     def origin = ConfigOrigin.ENV
 
     expect:
@@ -67,7 +67,7 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "should collect merged data from multiple sources"() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(configKey), envConfigValue)
+    injectEnvConfig(ConfigStrings.toEnvVar(configKey), envConfigValue)
     if (jvmConfigValue != null) {
       injectSysConfig(configKey, jvmConfigValue)
     }

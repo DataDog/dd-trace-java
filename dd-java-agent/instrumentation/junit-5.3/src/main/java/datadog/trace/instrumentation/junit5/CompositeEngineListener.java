@@ -30,12 +30,18 @@ public class CompositeEngineListener implements EngineExecutionListener {
 
   @Override
   public void executionStarted(TestDescriptor testDescriptor) {
+    if (!TestDataFactory.shouldBeTraced(testDescriptor)) {
+      return;
+    }
     tracingListener.executionStarted(testDescriptor);
     delegate.executionStarted(testDescriptor);
   }
 
   @Override
   public void executionSkipped(TestDescriptor testDescriptor, String reason) {
+    if (!TestDataFactory.shouldBeTraced(testDescriptor)) {
+      return;
+    }
     tracingListener.executionSkipped(testDescriptor, reason);
     delegate.executionSkipped(testDescriptor, reason);
   }
@@ -43,6 +49,9 @@ public class CompositeEngineListener implements EngineExecutionListener {
   @Override
   public void executionFinished(
       TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
+    if (!TestDataFactory.shouldBeTraced(testDescriptor)) {
+      return;
+    }
     tracingListener.executionFinished(testDescriptor, testExecutionResult);
     delegate.executionFinished(testDescriptor, testExecutionResult);
   }

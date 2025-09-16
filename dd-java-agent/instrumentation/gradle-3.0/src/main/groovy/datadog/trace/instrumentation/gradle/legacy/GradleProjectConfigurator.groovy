@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.domain.BuildSessionSettings
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.DatadogClassLoader
+import datadog.trace.util.ConfigStrings
 import datadog.trace.util.Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -73,7 +74,7 @@ class GradleProjectConfigurator {
     }
 
     String taskPath = task.getPath()
-    jvmArgs.add("-D" + Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME) + '=' + taskPath)
+    jvmArgs.add("-D" + ConfigStrings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME) + '=' + taskPath)
 
     jvmArgs.add("-javaagent:" + config.ciVisibilityAgentJarFile.toPath())
 
@@ -186,7 +187,12 @@ class GradleProjectConfigurator {
 
   private void configureJacoco(Project project, BuildSessionSettings sessionSettings) {
     def config = Config.get()
-    if (!config.isCiVisibilityJacocoPluginVersionProvided() || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
+    if (project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
+      // Jacoco is already configured for this project
+      return
+    }
+
+    if (!config.isCiVisibilityJacocoPluginVersionProvided() && !sessionSettings.isCoverageReportUploadEnabled()) {
       return
     }
 

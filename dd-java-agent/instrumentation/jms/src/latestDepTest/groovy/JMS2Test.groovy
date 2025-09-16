@@ -1,5 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -27,7 +27,7 @@ import javax.jms.TextMessage
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
-class JMS2Test extends AgentTestRunner {
+class JMS2Test extends InstrumentationSpecification {
   @Shared
   HornetQServer server
   @Shared

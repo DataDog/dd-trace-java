@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
@@ -9,7 +9,7 @@ import groovy.transform.CompileDynamic
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 
 @CompileDynamic
-class StringCallSiteTest extends AgentTestRunner {
+class StringCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

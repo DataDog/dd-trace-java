@@ -2,6 +2,6 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Mock Datadog backend used by smoke tests.'
 
 dependencies {
-  api project(':dd-smoke-tests')
-  api testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  implementation project(':dd-smoke-tests')
+  api project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 }

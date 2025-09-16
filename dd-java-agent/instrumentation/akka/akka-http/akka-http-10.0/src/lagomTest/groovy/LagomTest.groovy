@@ -2,7 +2,7 @@ import akka.NotUsed
 import akka.stream.javadsl.Source
 import akka.stream.testkit.TestSubscriber.Probe
 import akka.stream.testkit.javadsl.TestSink
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import play.inject.guice.GuiceApplicationBuilder
@@ -14,7 +14,7 @@ import static com.lightbend.lagom.javadsl.testkit.ServiceTest.TestServer
 import static com.lightbend.lagom.javadsl.testkit.ServiceTest.defaultSetup
 import static com.lightbend.lagom.javadsl.testkit.ServiceTest.startServer
 
-class LagomTest extends AgentTestRunner {
+class LagomTest extends InstrumentationSpecification {
 
   @Shared
   private TestServer server

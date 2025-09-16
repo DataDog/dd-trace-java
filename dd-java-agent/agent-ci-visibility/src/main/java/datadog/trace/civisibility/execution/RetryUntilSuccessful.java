@@ -4,7 +4,6 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
 public class RetryUntilSuccessful implements TestExecutionPolicy {
@@ -26,54 +25,43 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   }
 
   @Override
-  public void registerExecution(TestStatus status, long durationMillis) {
+  public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
     ++executions;
     successfulExecutionSeen |= (status != TestStatus.fail);
     if (executions > 1) {
       totalRetryCount.incrementAndGet();
     }
+
+    boolean lastExecution = !retriesLeft();
+    boolean retry = executions > 1; // first execution is not a retry
+    return new ExecutionOutcomeImpl(
+        status == TestStatus.fail && (!lastExecution || suppressFailures),
+        lastExecution,
+        lastExecution && !successfulExecutionSeen,
+        false,
+        retry ? RetryReason.atr : null);
   }
 
-  @Override
-  public boolean wasLastExecution() {
-    return successfulExecutionSeen || executions == maxExecutions;
-  }
-
-  private boolean currentExecutionIsLast() {
-    return executions == maxExecutions - 1;
+  private boolean retriesLeft() {
+    return !successfulExecutionSeen && executions < maxExecutions;
   }
 
   @Override
   public boolean applicable() {
     // executions must always be registered, therefore consider it applicable as long as there are
     // retries left
-    return !wasLastExecution();
+    return retriesLeft();
   }
 
   @Override
   public boolean suppressFailures() {
-    // do not suppress failures for last execution
-    // (unless flag to suppress all failures is set)
-    return !currentExecutionIsLast() || suppressFailures;
-  }
-
-  @Nullable
-  @Override
-  public RetryReason currentExecutionRetryReason() {
-    return currentExecutionIsRetry() ? RetryReason.atr : null;
-  }
-
-  private boolean currentExecutionIsRetry() {
-    return executions > 0;
+    // do not suppress failures for last execution (unless flag to suppress all failures is set);
+    // the +1 is because this method is called _before_ subsequent execution is registered
+    return executions + 1 < maxExecutions || suppressFailures;
   }
 
   @Override
-  public boolean hasFailedAllRetries() {
-    return wasLastExecution() && !successfulExecutionSeen;
-  }
-
-  @Override
-  public boolean hasSucceededAllRetries() {
-    return false;
+  public boolean failedTestReplayApplicable() {
+    return true;
   }
 }
