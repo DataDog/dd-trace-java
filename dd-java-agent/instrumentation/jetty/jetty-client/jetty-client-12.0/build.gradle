@@ -28,14 +28,14 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('late
 dependencies {
   main_java17CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'
   // to test conflicts
-  testImplementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-9.1'))
-  testImplementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-10.0'))
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1'))
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0'))
 
   testImplementation(project(path:':dd-java-agent:testing', 'configuration': 'shadow')) {
     // explicitly declared below.
     exclude group: 'org.eclipse.jetty'
   }
-  testImplementation project(':dd-java-agent:instrumentation:jetty-util')
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.+'
 }
