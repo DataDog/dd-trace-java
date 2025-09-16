@@ -99,7 +99,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
   private final SharedCommunicationObjects sharedCommunicationObjects;
-  private DDAgentFeaturesDiscovery features;
+  private volatile DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
