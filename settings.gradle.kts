@@ -463,7 +463,7 @@ include(
   ":dd-java-agent:instrumentation:mongo:driver-4.0",
   ":dd-java-agent:instrumentation:mongo:driver-3.3-async-test",
   ":dd-java-agent:instrumentation:mongo:driver-3.10-sync-test",
-  ":dd-java-agent:instrumentation:mule-4",
+  ":dd-java-agent:instrumentation:mule-4.5",
   ":dd-java-agent:instrumentation:netty-3.8",
   ":dd-java-agent:instrumentation:netty-4.0",
   ":dd-java-agent:instrumentation:netty-4.1-shared",
