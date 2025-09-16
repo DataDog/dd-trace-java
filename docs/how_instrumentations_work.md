@@ -87,7 +87,7 @@ When the agent is built, the muzzle plugin will download versions of the framewo
 To run muzzle on your instrumentation, run:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:rediscala-1.8.0:muzzle
+./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle
 ```
 
 * ⚠️ Muzzle does _not_ run tests.

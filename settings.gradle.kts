@@ -502,7 +502,7 @@ include(
   ":dd-java-agent:instrumentation:reactive-streams",
   ":dd-java-agent:instrumentation:reactor-core-3.1",
   ":dd-java-agent:instrumentation:reactor-netty-1",
-  ":dd-java-agent:instrumentation:rediscala-1.8.0",
+  ":dd-java-agent:instrumentation:rediscala-1.8",
   ":dd-java-agent:instrumentation:renaissance",
   ":dd-java-agent:instrumentation:resteasy-appsec",
   ":dd-java-agent:instrumentation:restlet-2.2",
