@@ -557,7 +557,7 @@ include(
   ":dd-java-agent:instrumentation:testng:testng-6",
   ":dd-java-agent:instrumentation:testng:testng-7",
   ":dd-java-agent:instrumentation:thymeleaf",
-  ":dd-java-agent:instrumentation:tinylog-2",
+  ":dd-java-agent:instrumentation:tinylog-2.0",
   ":dd-java-agent:instrumentation:tibco-businessworks",
   ":dd-java-agent:instrumentation:tibco-businessworks:tibcobw-stubs",
   ":dd-java-agent:instrumentation:tibco-businessworks:tibcobw-5",
