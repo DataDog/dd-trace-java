@@ -62,13 +62,14 @@ public final class ConfigProvider {
   }
 
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
-    String value = getString(key);
-    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // Always report defaults to telemetry before getString to ensure the first item we put at
+    // DEFAULT
     // is the most accurate one
     if (collectConfig) {
       String defaultValueString = defaultValue == null ? null : defaultValue.name();
       reportDefault(key, defaultValueString);
     }
+    String value = getString(key);
     if (null != value) {
       try {
         return Enum.valueOf(enumType, value);
@@ -247,12 +248,13 @@ public final class ConfigProvider {
   }
 
   public List<String> getList(String key, List<String> defaultValue) {
-    String list = getString(key);
-    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // Always report defaults to telemetry before getString to ensure the first item we put at
+    // DEFAULT
     // is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
+    String list = getString(key);
     if (null == list) {
       return defaultValue;
     } else {
@@ -261,12 +263,13 @@ public final class ConfigProvider {
   }
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
-    String list = getString(key);
-    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // Always report defaults to telemetry before getString to ensure the first item we put at
+    // DEFAULT
     // is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
+    String list = getString(key);
     if (null == list) {
       return defaultValue;
     } else {
@@ -405,12 +408,13 @@ public final class ConfigProvider {
   }
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
-    final String value = getString(key, null, aliases);
-    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
+    // Always report defaults to telemetry before getString to ensure the first item we put at
+    // DEFAULT
     // is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
+    final String value = getString(key, null, aliases);
     try {
       if (value != null) {
         return ConfigConverter.parseIntegerRangeSet(value, key);

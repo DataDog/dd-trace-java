@@ -67,7 +67,7 @@ public class ConfigCollector {
     ConfigSetting setting = ConfigSetting.of(key, value, DEFAULT, DEFAULT_SEQ_ID);
     Map<String, ConfigSetting> configMap =
         collected.computeIfAbsent(DEFAULT, k -> new ConcurrentHashMap<>());
-    if (!configMap.containsKey(key) || configMap.get(key).value == null) {
+    if (!configMap.containsKey(key)) {
       configMap.put(key, setting);
     }
   }

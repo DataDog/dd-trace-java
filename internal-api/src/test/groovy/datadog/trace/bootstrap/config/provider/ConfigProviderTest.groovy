@@ -476,6 +476,49 @@ class ConfigProviderTest extends DDSpecification {
     calculatedSetting.seqId == maxSeqId
   }
 
+  def "ConfigProvider methods that call getString internally report their own defaults before getString's null default"() {
+    setup:
+    ConfigCollector.get().collect() // clear previous state
+    // No environment or system property values set, so methods should fall back to their defaults
+    def provider = ConfigProvider.createDefault()
+
+    when:
+    def enumResult = provider.getEnum("test.enum", ConfigOrigin, ConfigOrigin.CODE)
+    def listResult = provider.getList("test.list", ["default", "list"])
+    def setResult = provider.getSet("test.set", ["default", "set"] as Set)
+    def rangeResult = provider.getIntegerRange("test.range", new BitSet())
+    def collected = ConfigCollector.get().collect()
+
+    then:
+    // Each method should have reported its own default, not getString's null default
+
+    def enumDefault = collected.get(ConfigOrigin.DEFAULT).get("test.enum")
+    enumDefault.stringValue() == "CODE" // ConfigOrigin.CODE.name()
+    enumDefault.origin == ConfigOrigin.DEFAULT
+    enumDefault.seqId == ConfigSetting.DEFAULT_SEQ_ID
+
+    def listDefault = collected.get(ConfigOrigin.DEFAULT).get("test.list")
+    listDefault.value == ["default", "list"]
+    listDefault.origin == ConfigOrigin.DEFAULT
+    listDefault.seqId == ConfigSetting.DEFAULT_SEQ_ID
+
+    def setDefault = collected.get(ConfigOrigin.DEFAULT).get("test.set")
+    setDefault.value == ["default", "set"] as Set
+    setDefault.origin == ConfigOrigin.DEFAULT
+    setDefault.seqId == ConfigSetting.DEFAULT_SEQ_ID
+
+    def rangeDefault = collected.get(ConfigOrigin.DEFAULT).get("test.range")
+    rangeDefault.value == new BitSet()
+    rangeDefault.origin == ConfigOrigin.DEFAULT
+    rangeDefault.seqId == ConfigSetting.DEFAULT_SEQ_ID
+
+    // Verify the methods returned their default values (not null)
+    enumResult == ConfigOrigin.CODE
+    listResult == ["default", "list"]
+    setResult == ["default", "set"] as Set
+    rangeResult == new BitSet()
+  }
+
   // NOTE: This is a case that SHOULD never occur. #reReportToCollector(String, int) should only be called with valid origins
   def "ConfigValueResolver reReportToCollector handles null origin gracefully"() {
     setup:
