@@ -2751,7 +2751,7 @@ public class Config {
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
     this.spanBuilderReuseEnabled =
-        configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, false);
+        configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
