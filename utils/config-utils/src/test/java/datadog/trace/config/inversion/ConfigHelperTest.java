@@ -12,8 +12,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -43,7 +41,8 @@ public class ConfigHelperTest {
   @BeforeAll
   static void setUp() {
     // Set up test configurations using SupportedConfigurationSource
-//    ConfigInversionMetricCollectorProvider.register(ConfigInversionMetricCollectorImpl.getInstance());
+    //
+    // ConfigInversionMetricCollectorProvider.register(ConfigInversionMetricCollectorImpl.getInstance());
     Set<String> testSupported =
         new HashSet<>(Arrays.asList(TEST_DD_VAR, TEST_OTEL_VAR, TEST_REGULAR_VAR));
 
