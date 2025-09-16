@@ -108,7 +108,7 @@ project.afterEvaluate {
         if (project.rootProject.hasProperty("skipFlakyTests")) {
           excludeTags("flaky")
         } else if (project.rootProject.hasProperty("runFlakyTests")) {
-          includeTags = "flaky"
+          includeTags("flaky")
         }
       }
     }
