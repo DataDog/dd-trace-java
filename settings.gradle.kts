@@ -291,7 +291,7 @@ include(
   ":dd-java-agent:instrumentation:classloading:jsr14-testing",
   ":dd-java-agent:instrumentation:classloading:osgi-testing",
   ":dd-java-agent:instrumentation:classloading:tomcat-testing",
-  ":dd-java-agent:instrumentation:commons-codec-1",
+  ":dd-java-agent:instrumentation:commons-codec-1.1",
   ":dd-java-agent:instrumentation:commons-fileupload",
   ":dd-java-agent:instrumentation:commons-httpclient-2",
   ":dd-java-agent:instrumentation:commons-lang-2",
