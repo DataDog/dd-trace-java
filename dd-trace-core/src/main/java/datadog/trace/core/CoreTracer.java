@@ -971,9 +971,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
+    return createSpanBuilder(instrumentationName, operationName);
+  }
+
+  @Override
+  public CoreSpanBuilder singleSpanBuilder(
+      final String instrumentationName, final CharSequence operationName) {
     return SPAN_BUILDER_REUSE_ENABLED
-        ? this.reuseSpanBuilder(instrumentationName, operationName)
-        : this.createSpanBuilder(instrumentationName, operationName);
+        ? reuseSpanBuilder(instrumentationName, operationName)
+        : createSpanBuilder(instrumentationName, operationName);
   }
 
   CoreSpanBuilder createSpanBuilder(
@@ -985,8 +991,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   CoreSpanBuilder reuseSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
-    return reuseSpanBuilder(
-        this, this.spanBuilderThreadLocalCache, instrumentationName, operationName);
+    return reuseSpanBuilder(this, spanBuilderThreadLocalCache, instrumentationName, operationName);
   }
 
   static final CoreSpanBuilder reuseSpanBuilder(
@@ -1021,19 +1026,24 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-    return buildSpan(instrumentationName, spanName).start();
+    return singleSpanBuilder(instrumentationName, spanName).start();
   }
 
   @Override
   public AgentSpan startSpan(
       final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-    return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
+    return singleSpanBuilder(instrumentationName, spanName)
+        .withStartTimestamp(startTimeMicros)
+        .start();
   }
 
   @Override
   public AgentSpan startSpan(
       String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
-    return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
+    return singleSpanBuilder(instrumentationName, spanName)
+        .ignoreActiveSpan()
+        .asChildOf(parent)
+        .start();
   }
 
   @Override
