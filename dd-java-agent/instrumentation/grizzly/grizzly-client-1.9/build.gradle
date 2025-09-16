@@ -15,7 +15,7 @@ muzzle {
 }
 repositories {
   maven {
-    url("https://repository.mulesoft.org/releases/")
+    url = "https://repository.mulesoft.org/releases/"
   }
 }
 apply from: "$rootDir/gradle/java.gradle"

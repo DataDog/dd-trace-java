@@ -34,4 +34,7 @@ tasks.withType(Test).configureEach {
 task testRuntimeActivation(type: Test) {
   jvmArgs "-Ddatadog.smoketest.datastreams.kafkaschemaregistry.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+
+tasks.named('check') {
+  dependsOn(testRuntimeActivation)
+}

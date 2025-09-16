@@ -36,7 +36,8 @@ public class SymbolSink {
       "{%n"
           + "\"ddsource\": \"dd_debugger\",%n"
           + "\"service\": \"%s\",%n"
-          + "\"runtimeId\": \"%s\"%n"
+          + "\"runtimeId\": \"%s\",%n"
+          + "\"type\": \"symdb\"%n"
           + "}";
   static final int MAX_SYMDB_UPLOAD_SIZE = 50 * 1024 * 1024;
 

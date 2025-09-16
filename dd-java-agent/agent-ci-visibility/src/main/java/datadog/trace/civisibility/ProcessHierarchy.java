@@ -3,7 +3,7 @@ package datadog.trace.civisibility;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 
 import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;

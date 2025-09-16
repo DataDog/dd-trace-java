@@ -122,7 +122,7 @@ tasks.register('filterLogbackClassic', Sync) {
 
 shadowJar {
   configurations = [project.configurations.shadow]
-  zip64 true
+  zip64 = true
 
   archiveFileName = 'openliberty-shadow.jar'
 
