@@ -6,7 +6,7 @@ import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
-import datadog.gradle.plugin.muzzle.tasks.MuzzlePrintReferencesTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
@@ -85,8 +85,15 @@ class MuzzlePlugin : Plugin<Project> {
       dependsOn(compileMuzzle)
     }
 
-    project.tasks.register<MuzzlePrintReferencesTask>("printReferences") {
+    project.tasks.register<MuzzleGetReferencesTask>("printReferences") {
       dependsOn(compileMuzzle)
+    }.also {
+      val printReferencesTask = project.tasks.register("actuallyPrintReferences") {
+        doLast {
+          println(it.get().outputFile.get().asFile.readText())
+        }
+      }
+      it.configure { finalizedBy(printReferencesTask) }
     }
 
     project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
