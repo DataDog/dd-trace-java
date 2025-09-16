@@ -144,9 +144,7 @@ public class MuzzleVersionScanPlugin {
 
   @SuppressForbidden
   public static void printMuzzleReferences(
-      final ClassLoader instrumentationLoader,
-      final PrintWriter out
-      ) {
+      final ClassLoader instrumentationLoader, final PrintWriter out) {
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {
       final ReferenceMatcher muzzle = module.getInstrumentationMuzzle();
