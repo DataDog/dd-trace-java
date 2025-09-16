@@ -406,8 +406,7 @@ public final class ConfigProvider {
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
     final String value = getString(key, null, aliases);
-    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
-    // is the most accurate one
+     // Ensure the last item at DEFAULT is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
