@@ -133,7 +133,7 @@ dd-trace-core/src/main/java/datadog/trace/llmobs/    @DataDog/ml-observability
 dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
 
 # @DataDog/rum
-/internal-api/src/main/java/datadog/trace/api/rum/   @DataDog/rum
-/internal-api/src/test/groovy/datadog/trace/api/rum/ @DataDog/rum
-/telemetry/src/main/java/datadog/telemetry/rum/      @DataDog/rum
-/telemetry/src/test/groovy/datadog/telemetry/rum/    @DataDog/rum
+/internal-api/src/main/java/datadog/trace/api/rum/   @DataDog/RUM
+/internal-api/src/test/groovy/datadog/trace/api/rum/ @DataDog/RUM
+/telemetry/src/main/java/datadog/telemetry/rum/      @DataDog/RUM
+/telemetry/src/test/groovy/datadog/telemetry/rum/    @DataDog/RUM
