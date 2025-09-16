@@ -31,8 +31,10 @@ public class ConfigCollector {
     return INSTANCE;
   }
 
-  // There are no non-test usages of this function
-  public void put(String key, Object value, ConfigOrigin origin) {
+  // Sequence ID is critical when a telemetry payload contains multiple entries for the same key and
+  // origin. Use this constructor only when you are certain that there will be one entry for the
+  // given key and origin.
+  void put(String key, Object value, ConfigOrigin origin) {
     put(key, value, origin, ABSENT_SEQ_ID, null);
   }
 

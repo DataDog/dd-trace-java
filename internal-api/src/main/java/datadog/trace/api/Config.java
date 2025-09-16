@@ -5220,8 +5220,8 @@ public class Config {
   private static String getEnv(String name) {
     String value = EnvironmentVariables.get(name);
     if (value != null) {
-      // Reporting default sequence id to be consistent with ConfigProvider
-      ConfigCollector.get().put(name, value, ConfigOrigin.ENV, DEFAULT_SEQ_ID);
+      // Report non-default sequence id for consistency
+      ConfigCollector.get().put(name, value, ConfigOrigin.ENV, DEFAULT_SEQ_ID + 1);
     }
     return value;
   }
@@ -5244,8 +5244,8 @@ public class Config {
   private static String getProp(String name, String def) {
     String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
-      // Reporting default sequence id to be consistent with ConfigProvider
-      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP, DEFAULT_SEQ_ID);
+      // Report non-default sequence id for consistency
+      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP, DEFAULT_SEQ_ID + 1);
     }
     return value;
   }
