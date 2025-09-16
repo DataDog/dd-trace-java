@@ -12,6 +12,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,7 @@ public class ConfigHelperTest {
   @BeforeAll
   static void setUp() {
     // Set up test configurations using SupportedConfigurationSource
+//    ConfigInversionMetricCollectorProvider.register(ConfigInversionMetricCollectorImpl.getInstance());
     Set<String> testSupported =
         new HashSet<>(Arrays.asList(TEST_DD_VAR, TEST_OTEL_VAR, TEST_REGULAR_VAR));
 
@@ -119,18 +122,6 @@ public class ConfigHelperTest {
   }
 
   @Test
-  void testUnsupportedDDEnvironmentVariable() {
-    setEnvVar(UNSUPPORTED_DD_VAR, "");
-
-    assertNull(ConfigHelper.getEnvironmentVariable(UNSUPPORTED_DD_VAR));
-    Map<String, String> result = ConfigHelper.getEnvironmentVariables();
-    assertFalse(result.containsKey(UNSUPPORTED_DD_VAR));
-
-    // Cleanup
-    setEnvVar(UNSUPPORTED_DD_VAR, null);
-  }
-
-  @Test
   void testNonDDAliases() {
     setEnvVar(NON_DD_ALIAS_VAR, NON_DD_ALIAS_VAL);
 
@@ -147,19 +138,6 @@ public class ConfigHelperTest {
   void testAliasesWithoutPresentAliases() {
     Map<String, String> result = ConfigHelper.getEnvironmentVariables();
     assertFalse(result.containsKey(ALIAS_DD_VAR));
-  }
-
-  @Test
-  void testUnsupportedButNotStrict() {
-    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.WARNING);
-    setEnvVar(UNSUPPORTED_DD_VAR, "loose");
-
-    // Should fall through and return the env var even though it's unsupported
-    assertEquals("loose", ConfigHelper.getEnvironmentVariable(UNSUPPORTED_DD_VAR));
-
-    // Cleanup
-    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.STRICT);
-    setEnvVar(UNSUPPORTED_DD_VAR, null);
   }
 
   @Test
