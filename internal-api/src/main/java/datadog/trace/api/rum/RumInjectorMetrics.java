@@ -22,11 +22,9 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class RumInjectorMetrics implements RumTelemetryCollector {
 
-  private static final int MAX_METRICS = 1024;
-  private static final int MAX_DISTRIBUTIONS = 1024;
-  private final Queue<MetricCollector.Metric> metrics = new LinkedBlockingQueue<>(MAX_METRICS);
+  private final Queue<MetricCollector.Metric> metrics = new LinkedBlockingQueue<>(1024);
   private final Queue<MetricCollector.DistributionSeriesPoint> distributions =
-      new LinkedBlockingQueue<>(MAX_DISTRIBUTIONS);
+      new LinkedBlockingQueue<>(1024);
 
   private final DDCache<String, List<String>> succeedTagsCache = DDCaches.newFixedSizeCache(8);
   private final DDCache<String, List<String>> skippedTagsCache = DDCaches.newFixedSizeCache(8);
