@@ -134,7 +134,7 @@ tasks.withType(Test).configureEach {
   // https://docs.gradle.com/develocity/flaky-test-detection/
   // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
   develocity.testRetry {
-    if (System.getenv().containsKey("CI")) {
+    if (providers.environmentVariable("CI").isPresent()) {
       maxRetries = 3
     }
   }
