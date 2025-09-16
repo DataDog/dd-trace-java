@@ -24,17 +24,25 @@ final class ScopeStack {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
-  ScopeStack copy() {
-    ScopeStack copy = new ScopeStack(profilingContextIntegration);
-    copy.stack.addAll(stack);
-    copy.top = top;
-    copy.overdueRootScope = overdueRootScope;
-    return copy;
+  /** Restore a shallow stack for async propagation purposes. */
+  ScopeStack(
+      ProfilingContextIntegration profilingContextIntegration,
+      ContinuableScope parent,
+      ContinuableScope active) {
+    this(profilingContextIntegration);
+    if (parent != null) {
+      stack.push(parent);
+    }
+    top = active;
   }
 
   ContinuableScope active() {
     // avoid attaching further spans to the root scope when it's been marked as overdue
     return top != overdueRootScope ? top : null;
+  }
+
+  ContinuableScope parent() {
+    return stack.peek();
   }
 
   /** Removes and closes all scopes up to the nearest live scope */

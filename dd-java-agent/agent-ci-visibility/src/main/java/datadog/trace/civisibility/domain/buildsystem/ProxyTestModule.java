@@ -166,6 +166,7 @@ public class ProxyTestModule implements TestFrameworkModule {
           earlyFlakeDetectionEnabled && executionStrategy.isEFDLimitReached();
       TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
       boolean testManagementEnabled = testManagementSettings.isEnabled();
+      boolean hasFailedTestReplayTests = executionResults.hasFailedTestReplayTests();
       long testsSkippedTotal = executionResults.getTestsSkippedByItr();
 
       signalClient.send(
@@ -177,6 +178,7 @@ public class ProxyTestModule implements TestFrameworkModule {
               earlyFlakeDetectionEnabled,
               earlyFlakeDetectionFaulty,
               testManagementEnabled,
+              hasFailedTestReplayTests,
               testsSkippedTotal,
               new TreeSet<>(testFrameworks)));
 

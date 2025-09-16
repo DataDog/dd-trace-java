@@ -7,12 +7,9 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
-import datadog.trace.api.civisibility.telemetry.TagValue;
-import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
@@ -22,7 +19,6 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
-import java.util.Collections;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -97,15 +93,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED),
         TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
         TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED),
-        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED));
-  }
-
-  @Override
-  protected Collection<TagValue> additionalTelemetryTags() {
-    if (Constants.EFD_ABORT_REASON_FAULTY.equals(span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
-      return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
-    }
-    return Collections.emptySet();
+        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED),
+        TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY));
   }
 
   @Override

@@ -1,17 +1,16 @@
 package datadog.smoketest;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForSpecificLine;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.probe.LogProbe;
-import com.datadog.debugger.sink.Snapshot;
-import com.squareup.moshi.JsonAdapter;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.RecordedRequest;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -31,14 +30,13 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         ProcessBuilderHelper.createProcessBuilder(
                 classpath, commandParams, logFilePath, "App", EXPECTED_UPLOADS)
             .start();
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
+    AtomicBoolean snapshotReceived = new AtomicBoolean(false);
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotReceived.set(true);
+        });
+    processRequests(snapshotReceived::get);
     assertFalse(logHasErrors(logFilePath, it -> false));
-    String bodyStr = request.getBody().readUtf8();
-    LOG.info("got snapshot: {}", bodyStr);
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
-    assertNotNull(snapshot);
   }
 
   @Test
@@ -50,12 +48,13 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         LogProbe.builder().probeId(PROBE_ID).where(MAIN_CLASS_NAME, METHOD_NAME).build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-
-    RecordedRequest request = retrieveSnapshotRequest();
+    AtomicBoolean snapshotReceived = new AtomicBoolean(false);
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotReceived.set(true);
+        });
+    processRequests(snapshotReceived::get);
     assertFalse(logHasErrors(logFilePath, it -> false));
-    assertNotNull(request);
-    assertTrue(request.getBodySize() > 0);
-
     // Wait for the app exit with some extra time.
     // The expectation is that agent doesn't prevent app from exiting.
     assertTrue(targetProcess.waitFor(REQUEST_WAIT_TIMEOUT + 10, TimeUnit.SECONDS));
@@ -73,16 +72,49 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         new MockResponse()
             .setHeadersDelay(REQUEST_WAIT_TIMEOUT * 2, TimeUnit.SECONDS)
             .setResponseCode(200));
-    // wait for 3 snapshots (2 status + 1 snapshot)
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-
-    RecordedRequest request = retrieveSnapshotRequest();
-    assertNotNull(request);
-    assertTrue(request.getBodySize() > 0);
-    retrieveSnapshotRequest();
+    AtomicBoolean snapshotReceived = new AtomicBoolean(false);
+    registerSnapshotListener(
+        snapshot -> {
+          snapshotReceived.set(true);
+        });
+    processRequests(snapshotReceived::get);
     targetProcess.destroy();
     // Wait for the app exit with some extra time.
     // The expectation is that agent doesn't prevent app from exiting.
     assertTrue(targetProcess.waitFor(REQUEST_WAIT_TIMEOUT + 10, TimeUnit.SECONDS));
+  }
+
+  @Test
+  @DisplayName("testEndpoints")
+  void testEndpoints() throws Exception {
+    setCurrentConfiguration(createConfig(Collections.emptyList()));
+    targetProcess = createProcessBuilder(logFilePath, "", "").start();
+    waitForSpecificLine(
+        logFilePath.toString(),
+        "INFO com.datadog.debugger.agent.DebuggerAgent - Started Dynamic Instrumentation",
+        null);
+    Assertions.assertFalse(
+        logHasErrors(
+            logFilePath,
+            line -> {
+              if (line.contains("Started BatchUploader[Diagnostics]")) {
+                return !line.matches(
+                    ".* Started BatchUploader\\[Diagnostics] with target url http://localhost:\\d+/debugger/v1/diagnostics");
+              }
+              if (line.contains("Started BatchUploader[Snapshots]")) {
+                return !line.matches(
+                    ".* Started BatchUploader\\[Snapshots] with target url http://localhost:\\d+/debugger/v1/diagnostics");
+              }
+              if (line.contains("Started BatchUploader[Logs]")) {
+                return !line.matches(
+                    ".* Started BatchUploader\\[Logs] with target url http://localhost:\\d+/debugger/v1/input");
+              }
+              if (line.contains("Started BatchUploader[SymDB]")) {
+                return !line.matches(
+                    ".* Started BatchUploader\\[SymDB] with target url http://localhost:\\d+/symdb/v1/input");
+              }
+              return false;
+            }));
   }
 }

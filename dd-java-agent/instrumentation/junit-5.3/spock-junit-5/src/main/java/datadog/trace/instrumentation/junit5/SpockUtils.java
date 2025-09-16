@@ -17,6 +17,8 @@ import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spockframework.runtime.IterationNode;
+import org.spockframework.runtime.ParameterizedFeatureNode;
 import org.spockframework.runtime.SpockNode;
 import org.spockframework.runtime.model.FeatureInfo;
 import org.spockframework.runtime.model.FeatureMetadata;
@@ -39,7 +41,8 @@ public class SpockUtils {
     TestDataFactory.register(
         JUnitPlatformUtils.ENGINE_ID_SPOCK,
         SpockUtils::toTestIdentifier,
-        SpockUtils::toTestSourceData);
+        SpockUtils::toTestSourceData,
+        SpockUtils::shouldBeTraced);
   }
 
   /*
@@ -105,6 +108,14 @@ public class SpockUtils {
     } else {
       return TestSourceData.UNKNOWN;
     }
+  }
+
+  public static boolean shouldBeTraced(TestDescriptor testDescriptor) {
+    // Spock 2.4 quirks: both FeatureNode and IterationNode are reported as tests.
+    // We want to filter out iteration nodes to avoid reporting the same test twice,
+    // but keep them for parameterized tests to report each set of parameters as a separate test.
+    return !(testDescriptor instanceof IterationNode)
+        || testDescriptor.getParent().map(c -> c instanceof ParameterizedFeatureNode).orElse(false);
   }
 
   private static Method getTestMethod(MethodSource methodSource) {

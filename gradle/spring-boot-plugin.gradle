@@ -1,0 +1,5 @@
+// Spring Boot Gradle plugin pulls in JUnit Jupiter and JUnit Platform dependencies.
+// Depending on the version of the plugin these dependencies may not be compatible with the Spock version that is used in the tracer.
+// To ensure compatibility the versions are set explicitly here.
+ext['junit-jupiter.version'] = libs.versions.junit5.get()
+ext['junit-platform.version'] = libs.versions.junit.platform.get()

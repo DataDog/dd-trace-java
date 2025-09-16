@@ -31,12 +31,13 @@ public class DependencyService implements Runnable {
 
   public void schedulePeriodicResolution() {
     scheduledTask =
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            AgentTaskScheduler.RunnableTask.INSTANCE,
-            this,
-            0,
-            Config.get().getDependecyResolutionPeriodMillis(),
-            TimeUnit.MILLISECONDS);
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                AgentTaskScheduler.RunnableTask.INSTANCE,
+                this,
+                0,
+                Config.get().getDependecyResolutionPeriodMillis(),
+                TimeUnit.MILLISECONDS);
   }
 
   public void resolveOneDependency() {

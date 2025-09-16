@@ -1,7 +1,7 @@
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
@@ -11,7 +11,7 @@ import javax.sql.DataSource
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
+class ScalikeJDBCInstrumentationTest extends InstrumentationSpecification {
   @Shared
   def dbName = "scalikejdbcUnitTest"
 

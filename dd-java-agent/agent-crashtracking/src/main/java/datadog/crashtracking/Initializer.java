@@ -216,8 +216,7 @@ public final class Initializer {
     if (arg == null || arg.isEmpty()) {
       return null;
     }
-    arg = arg.toLowerCase();
-    int idx = arg.indexOf(scriptNamePrefix);
+    int idx = arg.toLowerCase().indexOf(scriptNamePrefix);
     if (idx < 0) {
       // the script name is not present in the value, so we cannot extract the path
       return null;

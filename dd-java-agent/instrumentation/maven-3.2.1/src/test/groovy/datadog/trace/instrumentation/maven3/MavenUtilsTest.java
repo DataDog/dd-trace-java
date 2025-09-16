@@ -257,7 +257,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
     Map<String, String> replacements =
         Collections.singletonMap("my_jdk_home_path", toolchainJdkHome.getAbsolutePath());
 
-    File toolchainsFile = new File(WORKING_DIRECTORY.getRoot(), "toolchains.xml");
+    File toolchainsFile = WORKING_DIRECTORY.getRoot().resolve("toolchains.xml").toFile();
     try (FileWriter toolchainsFileWriter = new FileWriter(toolchainsFile)) {
       Template coveragesTemplate = FREEMARKER.getTemplate("sampleToolchains.ftl");
       coveragesTemplate.process(replacements, toolchainsFileWriter);

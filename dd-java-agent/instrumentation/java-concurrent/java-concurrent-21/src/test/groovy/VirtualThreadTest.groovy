@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import spock.lang.Shared
@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class VirtualThreadTest extends AgentTestRunner {
+class VirtualThreadTest extends InstrumentationSpecification {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared

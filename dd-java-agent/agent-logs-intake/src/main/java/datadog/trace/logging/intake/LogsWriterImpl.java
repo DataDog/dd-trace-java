@@ -4,8 +4,8 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
-import datadog.communication.BackendApiFactory.Intake;
 import datadog.trace.api.Config;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.logging.intake.LogsWriter;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.ArrayList;
