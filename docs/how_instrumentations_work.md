@@ -681,7 +681,7 @@ When writing an instrumentation it is much faster to test just the instrumentati
 for example:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:test
+./gradlew :dd-java-agent:instrumentation:play-ws:play-ws-2.1:test
 ```
 
 Sometimes it is necessary to force Gradle to discard cached test results
@@ -715,7 +715,7 @@ latestDepTestCompile(group: 'com.typesafe.play', name: 'play-test_2.11', version
 Dependency tests can be run like:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:latestDepTest
+./gradlew :dd-java-agent:instrumentation:play-ws:play-ws-2.1:latestDepTest
 ```
 
 ### Additional Test Suites
