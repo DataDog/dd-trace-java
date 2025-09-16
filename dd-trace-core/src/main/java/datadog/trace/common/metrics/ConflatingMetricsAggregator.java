@@ -199,9 +199,20 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.reportingIntervalTimeUnit = timeUnit;
   }
 
+  private DDAgentFeaturesDiscovery getFeatures() {
+    DDAgentFeaturesDiscovery ret = features;
+    if (ret == null) {
+      return ret;
+    }
+    ret = sharedCommunicationObjects.featuresDiscovery(Config.get());
+    features = ret;
+    return ret;
+  }
+
   @Override
   public void start() {
-    features = sharedCommunicationObjects.featuresDiscovery(Config.get());
+    AgentTaskScheduler.get()
+        .execute(() -> features = sharedCommunicationObjects.featuresDiscovery(Config.get()));
     sink.register(this);
     thread.start();
     cancellation =
@@ -216,13 +227,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean isMetricsEnabled() {
-    if (features != null) {
-      if (features.getMetricsEndpoint() == null) {
-        features.discoverIfOutdated();
-      }
-      return features.supportsMetrics();
-    }
-    return false;
+    return getFeatures().supportsMetrics();
   }
 
   @Override
@@ -278,6 +283,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
+    final DDAgentFeaturesDiscovery features = getFeatures();
     if (features != null && features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
@@ -288,7 +294,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel);
+          forceKeep |= publish(span, isTopLevel, features);
         }
       }
       healthMetrics.onClientStatTraceComputed(
@@ -310,7 +316,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return spanKind != null && ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel, DDAgentFeaturesDiscovery features) {
     final CharSequence spanKind = span.getTag(SPAN_KIND, "");
     MetricKey newKey =
         new MetricKey(
@@ -323,7 +329,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()));
+            getPeerTags(span, spanKind.toString(), features));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
@@ -358,7 +364,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return isNewKey || span.getError() > 0;
   }
 
-  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
+  private List<UTF8BytesString> getPeerTags(
+      CoreSpan<?> span, String spanKind, DDAgentFeaturesDiscovery features) {
     if (features != null) {
       if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
         List<UTF8BytesString> peerTags = new ArrayList<>();
@@ -425,8 +432,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     switch (eventType) {
       case DOWNGRADED:
         log.debug("Agent downgrade was detected");
-        disable();
-        healthMetrics.onClientStatDowngraded();
+        AgentTaskScheduler.get().execute(this::disable);
         break;
       case BAD_PAYLOAD:
         log.debug("bad metrics payload sent to trace agent: {}", message);
@@ -442,10 +448,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private void disable() {
-    // note: disable is called only if started so we're not nullchecking before accessing features
+    final DDAgentFeaturesDiscovery features = getFeatures();
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
+      healthMetrics.onClientStatDowngraded();
       this.pending.clear();
       this.batchPool.clear();
       this.inbox.clear();
