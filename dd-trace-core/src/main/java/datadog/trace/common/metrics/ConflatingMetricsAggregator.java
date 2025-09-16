@@ -98,7 +98,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final Aggregator aggregator;
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
-  private final DDAgentFeaturesDiscovery features;
+  private final SharedCommunicationObjects sharedCommunicationObjects;
+  private DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
@@ -110,7 +111,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
-        sharedCommunicationObjects.featuresDiscovery(config),
+        sharedCommunicationObjects,
         healthMetrics,
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
@@ -126,7 +127,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      DDAgentFeaturesDiscovery features,
+      SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
@@ -134,7 +135,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         wellKnownTags,
         ignoredResources,
-        features,
+        sharedCommunicationObjects,
         healthMetric,
         sink,
         maxAggregates,
@@ -146,7 +147,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      DDAgentFeaturesDiscovery features,
+      SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
@@ -155,7 +156,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit) {
     this(
         ignoredResources,
-        features,
+        sharedCommunicationObjects,
         healthMetric,
         sink,
         new SerializingMetricWriter(wellKnownTags, sink),
@@ -167,7 +168,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
-      DDAgentFeaturesDiscovery features,
+      SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetric,
       Sink sink,
       MetricWriter metricWriter,
@@ -180,7 +181,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
     this.keys = new NonBlockingHashMap<>();
-    this.features = features;
+    this.sharedCommunicationObjects = sharedCommunicationObjects;
     this.healthMetrics = healthMetric;
     this.sink = sink;
     this.aggregator =
@@ -200,6 +201,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
+    features = sharedCommunicationObjects.featuresDiscovery(Config.get());
     sink.register(this);
     thread.start();
     cancellation =
@@ -214,10 +216,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean isMetricsEnabled() {
-    if (features.getMetricsEndpoint() == null) {
-      features.discoverIfOutdated();
+    if (features != null) {
+      if (features.getMetricsEndpoint() == null) {
+        features.discoverIfOutdated();
+      }
+      return features.supportsMetrics();
     }
-    return features.supportsMetrics();
+    return false;
   }
 
   @Override
@@ -237,7 +242,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   @Override
   public Future<Boolean> forceReport() {
     // Ensure the feature is enabled
-    if (!isMetricsEnabled()) {
+    if (features != null && !isMetricsEnabled()) {
       return CompletableFuture.completedFuture(false);
     }
     // Wait for the thread to start
@@ -273,7 +278,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    if (features.supportsMetrics()) {
+    if (features != null && features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span)) {
@@ -354,30 +359,33 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
-    if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
-      List<UTF8BytesString> peerTags = new ArrayList<>();
-      for (String peerTag : features.peerTags()) {
-        Object value = span.getTag(peerTag);
-        if (value != null) {
+    if (features != null) {
+      if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
+        List<UTF8BytesString> peerTags = new ArrayList<>();
+        for (String peerTag : features.peerTags()) {
+          Object value = span.getTag(peerTag);
+          if (value != null) {
+            final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+                cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
+            peerTags.add(
+                cacheAndCreator
+                    .getLeft()
+                    .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
+          }
+        }
+        return peerTags;
+      } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
+        // in this case only the base service should be aggregated if present
+        final Object baseService = span.getTag(BASE_SERVICE);
+        if (baseService != null) {
           final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-              cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
-          peerTags.add(
+              cacheAndCreator =
+                  PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
+          return Collections.singletonList(
               cacheAndCreator
                   .getLeft()
-                  .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
+                  .computeIfAbsent(baseService.toString(), cacheAndCreator.getRight()));
         }
-      }
-      return peerTags;
-    } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
-      // in this case only the base service should be aggregated if present
-      final Object baseService = span.getTag(BASE_SERVICE);
-      if (baseService != null) {
-        final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-            cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
-        return Collections.singletonList(
-            cacheAndCreator
-                .getLeft()
-                .computeIfAbsent(baseService.toString(), cacheAndCreator.getRight()));
       }
     }
     return Collections.emptyList();
@@ -434,6 +442,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private void disable() {
+    // note: disable is called only if started so we're not nullchecking before accessing features
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
