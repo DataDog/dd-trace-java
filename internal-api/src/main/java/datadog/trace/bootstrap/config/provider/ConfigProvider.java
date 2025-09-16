@@ -262,8 +262,7 @@ public final class ConfigProvider {
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
-    // Always report defaults to telemetry after getString to ensure the last item we put at DEFAULT
-    // is the most accurate one
+     // Ensure the last item at DEFAULT is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
