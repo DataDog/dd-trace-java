@@ -256,7 +256,7 @@ include(
 
 // instrumentation:
 include(
-  ":dd-java-agent:instrumentation:aerospike-4.0,
+  ":dd-java-agent:instrumentation:aerospike-4.0",
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
