@@ -248,9 +248,7 @@ public final class ConfigProvider {
   }
 
   public List<String> getList(String key, List<String> defaultValue) {
-    // Always report defaults to telemetry before getString to ensure the first item we put at
-    // DEFAULT
-    // is the most accurate one
+    // Ensure the first item at DEFAULT is the accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
@@ -263,9 +261,7 @@ public final class ConfigProvider {
   }
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
-    // Always report defaults to telemetry before getString to ensure the first item we put at
-    // DEFAULT
-    // is the most accurate one
+    // Ensure the first item at DEFAULT is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
@@ -408,9 +404,7 @@ public final class ConfigProvider {
   }
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
-    // Always report defaults to telemetry before getString to ensure the first item we put at
-    // DEFAULT
-    // is the most accurate one
+    // Ensure the first item at DEFAULT is the most accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
