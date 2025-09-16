@@ -1,4 +1,4 @@
-evaluationDependsOn ':dd-java-agent:instrumentation:tomcat-5.5'
+evaluationDependsOn ':dd-java-agent:instrumentation:tomcat:tomcat-5.5'
 
 muzzle {
   pass {
@@ -22,7 +22,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.4'
-  implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
+  implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.4'

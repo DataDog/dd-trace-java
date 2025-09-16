@@ -92,7 +92,7 @@ dependencies {
   // https://tomcat.apache.org/whichversion.html
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
-  implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
+  implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
   testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -109,8 +109,8 @@ dependencies {
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-5.5')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
@@ -128,18 +128,18 @@ dependencies {
   latest10TestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
   latest10TestImplementation project(":dd-java-agent:appsec:appsec-test-fixtures")
 
-  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
-  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
-  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
+  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0'))
+  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0'))
+  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
 
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '11.+'
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '11.+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
   latestDepTestImplementation project(":dd-java-agent:appsec:appsec-test-fixtures")
 
-  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
-  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
-  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0'))
+  latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
 }
 
 project.afterEvaluate {
