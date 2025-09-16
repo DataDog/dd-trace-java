@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -53,7 +54,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.item.Aggregators;
 import org.openjdk.jmc.common.item.IAttribute;
@@ -154,57 +156,29 @@ class JFRBasedProfilingIntegrationTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"jfr", "ddprof"})
-  @DisplayName("Test continuous recording - no jmx delay, default compression")
-  public void testContinuousRecording_no_jmx_delay(String profiler, final TestInfo testInfo)
-      throws Exception {
-    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
-    testWithRetry(
-        () ->
-            testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), false),
-        testInfo,
-        5);
+  private static Stream<Arguments> testArguments() {
+    return Stream.of(
+        Arguments.of(0, "on", "jfr"),
+        Arguments.of(0, "on", "ddprof"),
+        Arguments.of(0, "lz4", "jfr"),
+        Arguments.of(0, "lz4", "ddprof"),
+        Arguments.of(1, "on", "jfr"),
+        Arguments.of(1, "on", "ddprof"),
+        Arguments.of(1, "lz4", "jfr"),
+        Arguments.of(1, "lz4", "ddprof"));
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"jfr", "ddprof"})
-  @DisplayName("Test continuous recording - no jmx delay, zstd compression")
-  public void testContinuousRecording_no_jmx_delay_zstd(String profiler, final TestInfo testInfo)
-      throws Exception {
-    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
+  @ParameterizedTest(name = "Continuous recording [jmx delay: {0}, compression: {1}, mode: {2}]")
+  @MethodSource("testArguments")
+  public void testContinuousRecording_with_params(
+      int jmxDelay, String compression, String mode, final TestInfo testInfo) throws Exception {
+    Assumptions.assumeTrue("jfr".equals(mode) || OperatingSystem.isLinux());
+    // Do not test compressions for Oracle JDK 8 - it will always be GZIP
+    Assumptions.assumeTrue(!JavaVirtualMachine.isOracleJDK8() || "on".equals(mode));
     testWithRetry(
         () ->
             testContinuousRecording(
-                0, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), true),
-        testInfo,
-        5);
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"jfr", "ddprof"})
-  @DisplayName("Test continuous recording - 1 sec jmx delay, default compression")
-  public void testContinuousRecording(String profiler, final TestInfo testInfo) throws Exception {
-    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
-    testWithRetry(
-        () ->
-            testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), false),
-        testInfo,
-        5);
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"jfr", "ddprof"})
-  @DisplayName("Test continuous recording - 1 sec jmx delay, zstd compression")
-  public void testContinuousRecording_zstd(String profiler, final TestInfo testInfo)
-      throws Exception {
-    Assumptions.assumeTrue("jfr".equals(profiler) || OperatingSystem.isLinux());
-    testWithRetry(
-        () ->
-            testContinuousRecording(
-                1, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(profiler), true),
+                jmxDelay, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(mode), compression),
         testInfo,
         5);
   }
@@ -213,7 +187,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean withZstd)
+      final String withCompression)
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
@@ -222,7 +196,7 @@ class JFRBasedProfilingIntegrationTest {
                   jmxFetchDelay,
                   endpointCollectionEnabled,
                   asyncProfilerEnabled,
-                  withZstd,
+                  withCompression,
                   logFilePath)
               .start();
 
@@ -277,9 +251,7 @@ class JFRBasedProfilingIntegrationTest {
 
       assertFalse(logHasErrors(logFilePath));
       InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
-      if (withZstd) {
-        eventStream = new ZstdInputStream(eventStream);
-      }
+      eventStream = decompressStream(withCompression, eventStream);
       IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
@@ -328,9 +300,7 @@ class JFRBasedProfilingIntegrationTest {
           () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
 
       eventStream = new ByteArrayInputStream(rawJfr.get());
-      if (withZstd) {
-        eventStream = new ZstdInputStream(eventStream);
-      }
+      eventStream = decompressStream(withCompression, eventStream);
       events = JfrLoaderToolkit.loadEvents(eventStream);
       assertTrue(events.hasItems());
       verifyDatadogEventsNotCorrupt(events);
@@ -370,6 +340,20 @@ class JFRBasedProfilingIntegrationTest {
       }
       targetProcess = null;
     }
+  }
+
+  private static InputStream decompressStream(String withCompression, InputStream eventStream) {
+    if (!JavaVirtualMachine.isOracleJDK8()) {
+      if ("zstd".equals(withCompression) || "on".equals(withCompression)) {
+        eventStream = new ZstdInputStream(eventStream);
+      } else {
+        // nothing; jmc already handles lz4 and gzip
+      }
+    } else {
+      // Oracle JDK 8 JFR writes files in GZIP format; jmc already can handle that
+    }
+
+    return eventStream;
   }
 
   private static void verifyJdkEventsDisabled(IItemCollection events) {
@@ -466,7 +450,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         ENDPOINT_COLLECTION_ENABLED,
                         true,
-                        false,
+                        "off",
                         exitDelay,
                         logFilePath)
                     .start();
@@ -524,7 +508,7 @@ class JFRBasedProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         ENDPOINT_COLLECTION_ENABLED,
                         true,
-                        false,
+                        "off",
                         duration,
                         logFilePath)
                     .start();
@@ -752,7 +736,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean withZstd,
+      final String withCompression,
       final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
@@ -761,7 +745,7 @@ class JFRBasedProfilingIntegrationTest {
         PROFILING_UPLOAD_PERIOD_SECONDS,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
-        withZstd,
+        withCompression,
         0,
         logFilePath);
   }
@@ -773,7 +757,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean withZstd,
+      final String withCompression,
       final int exitDelay,
       final Path logFilePath) {
     return createProcessBuilder(
@@ -785,7 +769,7 @@ class JFRBasedProfilingIntegrationTest {
         profilingUploadPeriodSecs,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
-        withZstd,
+        withCompression,
         exitDelay,
         logFilePath);
   }
@@ -799,7 +783,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean withZstd,
+      final String withCompression,
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
@@ -833,7 +817,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddd.profiling.queueing.time.enabled=true",
             "-Ddd.profiling.queueing.time.threshold.millis=0",
-            "-Ddd.profiling.debug.upload.compression=" + (withZstd ? "zstd" : "on"),
+            "-Ddd.profiling.debug.upload.compression=" + withCompression,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
