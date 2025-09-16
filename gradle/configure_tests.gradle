@@ -104,7 +104,7 @@ project.afterEvaluate {
     testFramework {
       if (it instanceof JUnitPlatformOptions) {
         if (project.rootProject.hasProperty("skipFlakyTests")) {
-          excludeTags = "flaky"
+          excludeTags("flaky")
         } else if (project.rootProject.hasProperty("runFlakyTests")) {
           includeTags = "flaky"
         }
