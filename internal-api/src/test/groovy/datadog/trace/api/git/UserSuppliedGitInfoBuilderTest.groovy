@@ -3,7 +3,7 @@ package datadog.trace.api.git
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 
 class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
@@ -22,7 +22,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "user supplied git info: env var #envVariable"() {
     setup:
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(envVariable), value)
+    environmentVariables.set(ConfigStrings.propertyNameToEnvironmentVariableName(envVariable), value)
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -48,7 +48,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "user supplied git info: system property #systemProperty"() {
     setup:
-    System.setProperty(Strings.propertyNameToSystemPropertyName(systemProperty), value)
+    System.setProperty(ConfigStrings.propertyNameToSystemPropertyName(systemProperty), value)
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -74,7 +74,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "branch name is normalized"() {
     setup:
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "origin/myBranch")
+    environmentVariables.set(ConfigStrings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "origin/myBranch")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -86,7 +86,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "tag can be supplied in branch var"() {
     setup:
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "refs/tags/myTag")
+    environmentVariables.set(ConfigStrings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "refs/tags/myTag")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -99,8 +99,8 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "dedicated tag var has preference over tag supplied inside branch var"() {
     setup:
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_TAG), "myProvidedTag")
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "refs/tags/myTag")
+    environmentVariables.set(ConfigStrings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_TAG), "myProvidedTag")
+    environmentVariables.set(ConfigStrings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "refs/tags/myTag")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -113,7 +113,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "git info is extracted from global tags"() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
+    injectEnvConfig(ConfigStrings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -126,9 +126,9 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "global tags have lower priority than dedicated environment variables"() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
-    injectEnvConfig(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL), "overridden_repo_url")
-    injectEnvConfig(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA), "overridden_commit_sha")
+    injectEnvConfig(ConfigStrings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
+    injectEnvConfig(ConfigStrings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL), "overridden_repo_url")
+    injectEnvConfig(ConfigStrings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA), "overridden_commit_sha")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
