@@ -984,19 +984,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   CoreSpanBuilder reuseSpanBuilder(
-      final String instrumentationName, final CharSequence operationName)
-  {
-	return reuseSpanBuilder(this, this.spanBuilderThreadLocalCache, instrumentationName, operationName);
+      final String instrumentationName, final CharSequence operationName) {
+    return reuseSpanBuilder(
+        this, this.spanBuilderThreadLocalCache, instrumentationName, operationName);
   }
-  
+
   static final CoreSpanBuilder reuseSpanBuilder(
-    final CoreTracer tracer,
-	final CoreSpanBuilderThreadLocalCache tlCache,
-	final String instrumentationName,
-	final CharSequence operationName)
-  {
+      final CoreTracer tracer,
+      final CoreSpanBuilderThreadLocalCache tlCache,
+      final String instrumentationName,
+      final CharSequence operationName) {
     // retrieve the thread's typical SpanBuilder and try to reset it
-	// reset will fail if the CoreSpanBuilder is still "in-use"
+    // reset will fail if the CoreSpanBuilder is still "in-use"
     CoreSpanBuilder tlSpanBuilder = tlCache.get();
     boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
     if (wasReset) return tlSpanBuilder;
@@ -1446,19 +1445,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       inverted.put(entry.getValue(), entry.getKey());
     }
     return Collections.unmodifiableMap(inverted);
-  }  
-  
+  }
+
   static final class CoreSpanBuilderThreadLocalCache extends ThreadLocal<CoreSpanBuilder> {
-	private final CoreTracer tracer;
-	
-	public CoreSpanBuilderThreadLocalCache(CoreTracer tracer) {
-	  this.tracer = tracer;
-	}
-	
-	@Override
-	protected CoreSpanBuilder initialValue() {
-	  return new CoreSpanBuilder(this.tracer);
-	}
+    private final CoreTracer tracer;
+
+    public CoreSpanBuilderThreadLocalCache(CoreTracer tracer) {
+      this.tracer = tracer;
+    }
+
+    @Override
+    protected CoreSpanBuilder initialValue() {
+      return new CoreSpanBuilder(this.tracer);
+    }
   }
 
   /** Spans are built using this builder */
