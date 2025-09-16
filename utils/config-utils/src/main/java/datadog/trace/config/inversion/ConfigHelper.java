@@ -55,15 +55,17 @@ public class ConfigHelper {
             }
           }
         }
-
         // TODO: Follow-up - Add deprecation handling
-        //        if (configSource.getDeprecatedConfigurations().containsKey(key)) {
-        //          String warning = "Environment variable " + key + " is deprecated. " +
-        //              (configSource.getAliasMapping().containsKey(key)
-        //                  ? "Please use " + configSource.getAliasMapping().get(key) + " instead."
-        //                  : configSource.getDeprecatedConfigurations().get(key));
-        //          System.err.println(warning);
-        //        }
+        if (configSource.getDeprecatedConfigurations().containsKey(key)) {
+          String warning =
+              "Environment variable "
+                  + key
+                  + " is deprecated. "
+                  + (configSource.getAliasMapping().containsKey(key)
+                      ? "Please use " + configSource.getAliasMapping().get(key) + " instead."
+                      : configSource.getDeprecatedConfigurations().get(key));
+          System.err.println(warning);
+        }
       } else {
         configs.put(key, value);
       }
