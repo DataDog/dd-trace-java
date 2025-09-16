@@ -50,11 +50,11 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
     ConfigProvider configProvider = ConfigProvider.getInstance();
     Config config = Config.get();
 
-    sb.append("=== Profiler Initalization Status ===\n");
+    sb.append("=== Profiler Initialization Status ===\n");
     if (profilerInitializationException == null) {
       sb.append("Profiler initialized successfully.\n");
     } else {
-      sb.append("Profiler initializtion failed due to: \n");
+      sb.append("Profiler initialization failed due to: \n");
       sb.append(profilerInitializationException.getMessage());
       sb.append("\n");
     }
