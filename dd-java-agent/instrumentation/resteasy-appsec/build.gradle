@@ -42,7 +42,7 @@ dependencies {
 
   nettyTestImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final' // upgrade netty to a version we support
   nettyTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-netty', version :'3.0.0.Final'
-  nettyTestImplementation project(':dd-java-agent:instrumentation:netty-3.8')
+  nettyTestImplementation project(':dd-java-agent:instrumentation:netty:netty-3.8')
 
   def jettyVersion = '8.2.0.v20160908'
   jettyAsyncTestImplementation group: 'org.jboss.resteasy', name: 'async-http-servlet-3.0', version :'3.0.0.Final'
