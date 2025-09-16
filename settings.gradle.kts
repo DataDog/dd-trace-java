@@ -569,7 +569,7 @@ include(
   ":dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0",
   ":dd-java-agent:instrumentation:tomcat:tomcat-9.0",
   ":dd-java-agent:instrumentation:trace-annotation",
-  ":dd-java-agent:instrumentation:twilio",
+  ":dd-java-agent:instrumentation:twilio-0.0.1",
   ":dd-java-agent:instrumentation:unbescape-1.1",
   ":dd-java-agent:instrumentation:undertow",
   ":dd-java-agent:instrumentation:undertow:undertow-2.0",
