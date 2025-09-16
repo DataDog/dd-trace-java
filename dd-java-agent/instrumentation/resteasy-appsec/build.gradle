@@ -49,5 +49,5 @@ dependencies {
   jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
   jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
   jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: jettyVersion
-  jettyAsyncTestImplementation project(':dd-java-agent:instrumentation:jetty-7.6')
+  jettyAsyncTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
 }

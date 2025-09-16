@@ -33,8 +33,8 @@ dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
-  main_java11Implementation project(':dd-java-agent:instrumentation:jetty-common')
-  implementation project(':dd-java-agent:instrumentation:jetty-common')
+  main_java11Implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
+  implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
 
   testFixturesCompileOnly "org.eclipse.jetty:jetty-server:11.0.0"
   testFixturesCompileOnly "org.eclipse.jetty:jetty-servlet:11.0.0"
@@ -59,10 +59,10 @@ dependencies {
   testImplementation ("org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
-  testImplementation(project(':dd-java-agent:instrumentation:jetty-appsec-9.3'))
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
@@ -81,7 +81,7 @@ dependencies {
 
   // just to mix things up, see if there's no conflict
   latestDepTestRuntimeOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
-  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
+  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
 }
 
 idea {
