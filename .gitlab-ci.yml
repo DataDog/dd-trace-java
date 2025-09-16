@@ -269,7 +269,6 @@ build_tests:
 test_couchbase_only:
   extends: .test_job
   variables:
-    GRADLE_TARGET: ":dd-java-agent:instrumentation:couchbase:couchbase-3.1:test"
     CACHE_TYPE: "inst"
   needs: [ build_tests ]
   parallel:
@@ -278,4 +277,4 @@ test_couchbase_only:
     - *gitlab_base_ref_params
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm --tests="*CouchbaseClient31V0Test" --tests="*CouchbaseClient31V1ForkedTest" $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew :dd-java-agent:instrumentation:couchbase:couchbase-3.1:test :dd-java-agent:instrumentation:couchbase:couchbase-3.1:forkedTest $GRADLE_PARAMS -PtestJvm=$testJvm --tests="*CouchbaseClient31V0Test" --tests="*CouchbaseClient31V1ForkedTest" $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
