@@ -1307,14 +1307,17 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (Config.get().isServiceNameSetByUser()
         && !"spark".equals(serviceName)
         && !"hadoop".equals(serviceName)) {
-      log.debug("Service '{}' explicitly set by user, not using the application name", serviceName);
+      log.debug(
+          "Service explicitly set by user, not using the application name. Service name: {}",
+          serviceName);
       return serviceName;
     }
 
     String sparkAppName = conf.get("spark.app.name", null);
     if (sparkAppName != null) {
       log.debug(
-          "Using Spark application name '{}' as the Datadog service for OpenLineage", sparkAppName);
+          "Using Spark application name as the Datadog service for OpenLineage. Spark application name: {}",
+          sparkAppName);
     }
 
     return sparkAppName;

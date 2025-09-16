@@ -522,11 +522,11 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     }
   }
 
-  def "test setupOpenLineage gets service name"(String serviceNameSetByUser, String serviceName, String sparkAppName) {
+  def "test setupOpenLineage gets service name"(boolean serviceNameSetByUser, String serviceName, String sparkAppName) {
     setup:
     SparkConf sparkConf = new SparkConf()
-    injectSysConfig("dd.service.name.set.by.user", serviceNameSetByUser)
-    if (Boolean.parseBoolean(serviceNameSetByUser)) {
+    injectSysConfig("dd.service.name.set.by.user", Boolean.toString(serviceNameSetByUser))
+    if (serviceNameSetByUser) {
       injectSysConfig("dd.service.name", serviceName)
     }
     if (sparkAppName != null) {
