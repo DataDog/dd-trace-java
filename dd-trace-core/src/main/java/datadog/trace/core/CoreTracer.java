@@ -135,7 +135,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
 
-  public static CoreTracerBuilder builder() {
+  public static final CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
   }
 
@@ -249,15 +249,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       Config.get().isSpanBuilderReuseEnabled();
 
   // Cache used by buildSpan - instance so it can capture the CoreTracer
-  private final ThreadLocal<CoreSpanBuilder> tlSpanBuilder =
-      SPAN_BUILDER_REUSE_ENABLED
-          ? new ThreadLocal<CoreSpanBuilder>() {
-            @Override
-            protected CoreSpanBuilder initialValue() {
-              return new CoreSpanBuilder(CoreTracer.this);
-            }
-          }
-          : null;
+  private final CoreSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
+      SPAN_BUILDER_REUSE_ENABLED ? new CoreSpanBuilderThreadLocalCache(this) : null;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -989,22 +982,33 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         : this.createSpanBuilder(instrumentationName, operationName);
   }
 
-  private CoreSpanBuilder createSpanBuilder(
+  CoreSpanBuilder createSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
     CoreSpanBuilder newBuilder = new CoreSpanBuilder(this);
     newBuilder.reset(instrumentationName, operationName);
     return newBuilder;
   }
 
-  private CoreSpanBuilder reuseSpanBuilder(
-      final String instrumentationName, final CharSequence operationName) {
-    // retrieve the thread's typical SpanBuilder and check if it is currently in use
-    CoreSpanBuilder tlSpanBuilder = this.tlSpanBuilder.get();
+  CoreSpanBuilder reuseSpanBuilder(
+      final String instrumentationName, final CharSequence operationName)
+  {
+	return reuseSpanBuilder(this, this.spanBuilderThreadLocalCache, instrumentationName, operationName);
+  }
+  
+  static final CoreSpanBuilder reuseSpanBuilder(
+    final CoreTracer tracer,
+	final CoreSpanBuilderThreadLocalCache tlCache,
+	final String instrumentationName,
+	final CharSequence operationName)
+  {
+    // retrieve the thread's typical SpanBuilder and try to reset it
+	// reset will fail if the CoreSpanBuilder is still "in-use"
+    CoreSpanBuilder tlSpanBuilder = tlCache.get();
     boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
     if (wasReset) return tlSpanBuilder;
 
     // TODO: counter for how often the fallback is used?
-    CoreSpanBuilder newSpanBuilder = new CoreSpanBuilder(this);
+    CoreSpanBuilder newSpanBuilder = new CoreSpanBuilder(tracer);
     newSpanBuilder.reset(instrumentationName, operationName);
 
     // DQH - Debated how best to handle the case of someone requesting a CoreSpanBuilder
@@ -1017,7 +1021,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     // Instead of making the release process more complicating, I'm chosing to just
     // override here when we know we're already in an uncommon path.
-    this.tlSpanBuilder.set(newSpanBuilder);
+    tlCache.set(newSpanBuilder);
 
     return newSpanBuilder;
   }
@@ -1448,6 +1452,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       inverted.put(entry.getValue(), entry.getKey());
     }
     return Collections.unmodifiableMap(inverted);
+  }  
+  
+  static final class CoreSpanBuilderThreadLocalCache extends ThreadLocal<CoreSpanBuilder> {
+	private final CoreTracer tracer;
+	
+	public CoreSpanBuilderThreadLocalCache(CoreTracer tracer) {
+	  this.tracer = tracer;
+	}
+	
+	@Override
+	protected CoreSpanBuilder initialValue() {
+	  return new CoreSpanBuilder(this.tracer);
+	}
   }
 
   /** Spans are built using this builder */
@@ -1461,7 +1478,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Used to track whether the CoreSpanBuilder is actively being used
     // CoreSpanBuilder becomes "inUse" after a succesful reset and remains "inUse" until "build" is
     // called
-    private boolean inUse = false;
+    boolean inUse = false;
 
     private String instrumentationName;
     private CharSequence operationName;
