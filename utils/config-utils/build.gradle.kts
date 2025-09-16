@@ -29,6 +29,7 @@ val excludedClassesCoverage by extra(
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.StableConfigParser",
     "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+    "datadog.trace.config.inversion.ConfigInversionStrictStyle",
   )
 )
 
@@ -42,7 +43,8 @@ val excludedClassesBranchCoverage by extra(
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.config.inversion.GeneratedSupportedConfigurations"
+    "datadog.trace.config.inversion.GeneratedSupportedConfigurations",
+    "datadog.trace.config.inversion.SupportedConfigurationSource"
   )
 )
 
