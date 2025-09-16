@@ -41,8 +41,8 @@ repositories {
   maven {
     // for muzzle because of play-2.3
     // only place that has 'com.typesafe.netty:netty-http-pipelining:1.1.2' publicly accessible
-    name 'typesafe'
-    url 'https://repo.typesafe.com/typesafe/maven-releases/'
+    name = 'typesafe'
+    url = 'https://repo.typesafe.com/typesafe/maven-releases/'
   }
 }
 

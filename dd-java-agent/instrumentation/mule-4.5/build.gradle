@@ -50,15 +50,15 @@ addTestSuiteForDir('latestDepForkedTest', 'test')
 
 repositories {
   maven {
-    name "mulesoft-releases"
-    url "https://repository.mulesoft.org/releases"
+    name = "mulesoft-releases"
+    url = "https://repository.mulesoft.org/releases"
     mavenContent {
       releasesOnly()
     }
   }
   maven {
-    name "mulesoft-public"
-    url "https://repository.mulesoft.org/nexus/content/repositories/public"
+    name = "mulesoft-public"
+    url = "https://repository.mulesoft.org/nexus/content/repositories/public"
     mavenContent {
       releasesOnly()
     }

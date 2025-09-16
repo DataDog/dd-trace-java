@@ -4,13 +4,13 @@ pluginManagement {
     if (settings.hasProperty("gradlePluginProxy")) {
       maven {
         url settings["gradlePluginProxy"]
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     if (settings.hasProperty("mavenRepositoryProxy")) {
       maven {
         url settings["mavenRepositoryProxy"]
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
