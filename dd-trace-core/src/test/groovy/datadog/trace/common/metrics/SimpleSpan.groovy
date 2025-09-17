@@ -19,6 +19,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   private final long duration
   private final long startTime
+  private final long longRunningVersion
 
   private final Map<Object, Object> tags = [:]
 
@@ -33,7 +34,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   long startTime,
   long duration,
   int statusCode,
-  boolean traceRoot = false
+  boolean traceRoot = false,
+  int longRunningVersion = 0
   ) {
     this.serviceName = serviceName
     this.operationName = operationName
@@ -46,6 +48,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
     this.startTime = startTime
     this.duration = duration
     this.statusCode = (short) statusCode
+    this.longRunningVersion = longRunningVersion
   }
 
   @Override
@@ -265,5 +268,10 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   SimpleSpan setMetaStruct(String field, Object value) {
     return this
+  }
+
+  @Override
+  int getLongRunningVersion() {
+    return longRunningVersion
   }
 }

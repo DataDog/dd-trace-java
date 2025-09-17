@@ -1,7 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import test.jsr14.Jsr14ClassLoader
 
-class Jsr14ClassloadingTest extends AgentTestRunner {
+class Jsr14ClassloadingTest extends InstrumentationSpecification {
   def "OSGI delegates to bootstrap class loader for agent classes using #args args"() {
     when:
     def clazz

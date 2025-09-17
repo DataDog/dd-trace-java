@@ -36,7 +36,8 @@ public class SymbolSink {
       "{%n"
           + "\"ddsource\": \"dd_debugger\",%n"
           + "\"service\": \"%s\",%n"
-          + "\"runtimeId\": \"%s\"%n"
+          + "\"runtimeId\": \"%s\",%n"
+          + "\"type\": \"symdb\"%n"
           + "}";
   static final int MAX_SYMDB_UPLOAD_SIZE = 50 * 1024 * 1024;
 
@@ -53,7 +54,7 @@ public class SymbolSink {
   public SymbolSink(Config config) {
     this(
         config,
-        new BatchUploader(config, config.getFinalDebuggerSymDBUrl(), RETRY_POLICY),
+        new BatchUploader("SymDB", config, config.getFinalDebuggerSymDBUrl(), RETRY_POLICY),
         MAX_SYMDB_UPLOAD_SIZE);
   }
 

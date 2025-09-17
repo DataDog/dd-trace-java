@@ -133,6 +133,10 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return null;
       }
 
+      if (!TestDataFactory.shouldBeTraced(testDescriptor)) {
+        return null;
+      }
+
       String engineId = JUnitPlatformUtils.getEngineId(testDescriptor);
       TestFrameworkInstrumentation framework = JUnitPlatformUtils.engineIdToFramework(engineId);
 
@@ -169,7 +173,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
         factory.setSuppressFailures(false); // restore default behavior
 
-        if (executionPolicy.wasLastExecution()) {
+        if (!executionPolicy.applicable()) {
           break;
         }
 

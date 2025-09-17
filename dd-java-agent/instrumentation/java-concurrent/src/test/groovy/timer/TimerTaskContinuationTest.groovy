@@ -5,7 +5,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import spock.lang.Shared
@@ -13,7 +13,7 @@ import spock.lang.Shared
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 
-class TimerTaskContinuationTest extends AgentTestRunner {
+class TimerTaskContinuationTest extends InstrumentationSpecification {
   @Shared
   Timer timer = new Timer()
 

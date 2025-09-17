@@ -25,23 +25,25 @@ public class EvpProxyApi implements BackendApi {
   private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
   private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
-  private static final String API_SUBDOMAIN = "api";
   private static final String GZIP_ENCODING = "gzip";
 
   private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
   private final HttpUrl evpProxyUrl;
+  private final String subdomain;
   private final OkHttpClient httpClient;
   private final boolean responseCompression;
 
   public EvpProxyApi(
       String traceId,
       HttpUrl evpProxyUrl,
+      String subdomain,
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
       boolean responseCompression) {
     this.traceId = traceId;
     this.evpProxyUrl = evpProxyUrl.resolve(String.format("api/%s/", API_VERSION));
+    this.subdomain = subdomain;
     this.retryPolicyFactory = retryPolicyFactory;
     this.httpClient = httpClient;
     this.responseCompression = responseCompression;
@@ -60,7 +62,7 @@ public class EvpProxyApi implements BackendApi {
     Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
-            .addHeader(X_DATADOG_EVP_SUBDOMAIN_HEADER, API_SUBDOMAIN)
+            .addHeader(X_DATADOG_EVP_SUBDOMAIN_HEADER, subdomain)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 

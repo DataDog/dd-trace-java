@@ -71,6 +71,31 @@ class StableConfigSourceTest extends DDSpecification {
     "12345"  | "this is not yaml format!"
   }
 
+  def "test null values in YAML"() {
+    when:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
+    // Test the scenario where YAML contains null values for apm_configuration_default and apm_configuration_rules
+    String yaml = """
+config_id: "12345"
+apm_configuration_default:
+apm_configuration_rules:
+"""
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
+
+    then:
+    // Should not throw NullPointerException and should handle null values gracefully
+    stableCfg.getConfigId() == "12345"
+    stableCfg.getKeys().size() == 0
+    Files.delete(filePath)
+  }
+
   def "test file valid format"() {
     given:
     Path filePath = Files.createTempFile("testFile_", ".yaml")

@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.test.util.DDSpecification
 
@@ -88,19 +89,20 @@ class ProcessTagsForkedTest extends DDSpecification {
     null     | "server1"  | "^((?!cluster.name|server.name|server.type).)*\$"
   }
 
-  def 'should not calculate process tags by default'() {
+  def 'should not calculate process tags by default except for java 21'() {
+    final boolean shouldBeEnabled = JavaVirtualMachine.isJavaVersion(21)
     when:
     ProcessTags.reset()
     def processTags = ProcessTags.tagsForSerialization
     then:
-    assert !ProcessTags.enabled
-    assert processTags == null
+    assert ProcessTags.enabled == shouldBeEnabled
+    assert (processTags != null) == shouldBeEnabled
     when:
     ProcessTags.addTag("test", "value")
     then:
-    assert ProcessTags.tagsForSerialization == null
-    assert ProcessTags.tagsAsStringList == null
-    assert ProcessTags.tagsAsUTF8ByteStringList == null
+    assert (ProcessTags.tagsForSerialization != null) == shouldBeEnabled
+    assert (ProcessTags.tagsAsStringList != null) == shouldBeEnabled
+    assert (ProcessTags.tagsAsUTF8ByteStringList != null) == shouldBeEnabled
   }
 
   def 'should lazily recalculate when a tag is added'() {

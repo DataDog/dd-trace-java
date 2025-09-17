@@ -7,7 +7,7 @@ import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
@@ -18,7 +18,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-class TimeInQueueForkedTest extends AgentTestRunner {
+class TimeInQueueForkedTest extends InstrumentationSpecification {
 
   def setup() {
     System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")

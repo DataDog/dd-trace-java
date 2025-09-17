@@ -1,6 +1,6 @@
 package opentelemetry14.context.propagation
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import io.opentelemetry.api.GlobalOpenTelemetry
@@ -11,7 +11,7 @@ import spock.lang.Subject
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 
-abstract class AbstractPropagatorTest extends AgentTestRunner {
+abstract class AbstractPropagatorTest extends InstrumentationSpecification {
   static int testInstance
 
   @Subject

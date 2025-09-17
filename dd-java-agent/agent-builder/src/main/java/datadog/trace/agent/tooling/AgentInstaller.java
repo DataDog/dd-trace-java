@@ -83,11 +83,12 @@ public class AgentInstaller {
       }
       int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
       if (poolCleaningInterval > 0) {
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            SharedTypePools::clear,
-            poolCleaningInterval,
-            Math.max(poolCleaningInterval, 10),
-            TimeUnit.SECONDS);
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                SharedTypePools::clear,
+                poolCleaningInterval,
+                Math.max(poolCleaningInterval, 10),
+                TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
       log.debug("No target systems enabled, skipping instrumentation.");

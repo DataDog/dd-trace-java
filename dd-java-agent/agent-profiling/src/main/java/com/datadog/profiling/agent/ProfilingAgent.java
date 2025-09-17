@@ -95,7 +95,8 @@ public class ProfilingAgent {
 
       // Register the profiler flare before we start the profiling system, but early during the
       // profiler lifecycle
-      ProfilerFlare.register();
+      ProfilerFlareReporter.register();
+      ProcessContext.register(configProvider);
 
       boolean startForceFirst =
           Platform.isNativeImage()
@@ -176,11 +177,11 @@ public class ProfilingAgent {
         //   a detailed telemetry message has been sent from the attempts to enable the controllers
         // -----------------------------------------------------------------------------------------
         // but we do want to report this within the profiler flare
-        ProfilerFlare.reportInitializationException(e);
+        ProfilerFlareReporter.reportInitializationException(e);
       } catch (final ConfigurationException e) {
         log.warn("Failed to initialize profiling agent! {}", e.getMessage());
         log.debug(SEND_TELEMETRY, "Failed to initialize profiling agent!", e);
-        ProfilerFlare.reportInitializationException(e);
+        ProfilerFlareReporter.reportInitializationException(e);
       }
     }
     return false;

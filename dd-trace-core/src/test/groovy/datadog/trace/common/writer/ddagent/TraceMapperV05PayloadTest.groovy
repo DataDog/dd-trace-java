@@ -36,6 +36,10 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   def "body overflow causes a flush"() {
     setup:
+    // disable process tags since they are only on the first span of the chunk otherwise the calculation woes
+    def hadProcessTags = Config.get().isExperimentalPropagateProcessTagsEnabled()
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
     // 4x 36 ASCII characters and 2 bytes of msgpack string prefix
     int dictionarySpacePerTrace = 4 * (36 + 2)
     // enough space for two traces with distinct string values, plus the header
@@ -78,6 +82,9 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     }
     then:
     verifier.verifyTracesConsumed()
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, Boolean.toString(hadProcessTags))
+    ProcessTags.reset()
   }
 
   def "test dictionary compressed traces written correctly"() {

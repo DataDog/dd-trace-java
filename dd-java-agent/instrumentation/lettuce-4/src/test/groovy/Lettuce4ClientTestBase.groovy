@@ -80,13 +80,13 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
   def cleanup() {
     connection.close()
-    redisClient.shutdown()
-    redisServer.stop()
-  }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO: Monitor in CI to validate fix effectiveness against freezes.
-    return false
+    try {
+      redisClient.shutdown(5, 10, TimeUnit.SECONDS)
+    } catch (Throwable ignored) {
+      // No-op.
+    }
+
+    redisServer.stop()
   }
 }

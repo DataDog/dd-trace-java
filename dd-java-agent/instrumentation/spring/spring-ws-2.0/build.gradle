@@ -1,0 +1,29 @@
+def minVersion = '2.0.0.RELEASE'
+
+muzzle {
+  pass {
+    group = 'org.springframework.ws'
+    module = 'spring-ws'
+    versions = "[${minVersion},)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
+  compileOnly group: 'org.springframework.ws', name: 'spring-ws', version: minVersion
+
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web-services', version: '2.7.5'
+  testImplementation group: 'org.jdom', name: 'jdom', version: '2.0.1'
+  testImplementation group: 'org.apache.ws.xmlschema', name: 'xmlschema-core', version: '2.1.0'
+  testImplementation group: 'wsdl4j', name: 'wsdl4j', version: '1.6.1'
+  // Required for "servlet.request" span
+  testImplementation project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
+  // Required for "spring.handler" span
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1')
+
+  latestDepTestImplementation group: 'org.springframework.ws', name: 'spring-ws', version: '2+'
+}

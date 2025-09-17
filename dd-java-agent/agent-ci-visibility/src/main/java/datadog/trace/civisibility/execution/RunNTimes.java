@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.civisibility.config.ExecutionsByDuration;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /** Runs a test case N times (N depends on test duration) regardless of success or failure. */
 public class RunNTimes implements TestExecutionPolicy {
@@ -31,7 +30,7 @@ public class RunNTimes implements TestExecutionPolicy {
   }
 
   @Override
-  public void registerExecution(TestStatus status, long durationMillis) {
+  public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
     lastStatus = status;
     ++executions;
     if (status != TestStatus.fail) {
@@ -39,19 +38,27 @@ public class RunNTimes implements TestExecutionPolicy {
     }
     int maxExecutionsForGivenDuration = getExecutions(durationMillis);
     maxExecutions = Math.min(maxExecutions, maxExecutionsForGivenDuration);
+
+    boolean lastExecution = !retriesLeft();
+    boolean retry = executions > 1; // first execution is not a retry
+    return new ExecutionOutcomeImpl(
+        status == TestStatus.fail && suppressFailures(),
+        lastExecution,
+        lastExecution && successfulExecutionsSeen == 0,
+        lastExecution && successfulExecutionsSeen == executions,
+        retry ? retryReason : null);
   }
 
-  @Override
-  public boolean wasLastExecution() {
+  private boolean retriesLeft() {
     // skipped tests (either by the framework or DD) should not be retried
-    return lastStatus == TestStatus.skip || executions >= maxExecutions;
+    return lastStatus != TestStatus.skip && executions < maxExecutions;
   }
 
   @Override
   public boolean applicable() {
     // executions must always be registered, therefore consider it applicable as long as there are
     // retries left
-    return !wasLastExecution();
+    return retriesLeft();
   }
 
   @Override
@@ -68,23 +75,8 @@ public class RunNTimes implements TestExecutionPolicy {
     return 0;
   }
 
-  @Nullable
   @Override
-  public RetryReason currentExecutionRetryReason() {
-    return currentExecutionIsRetry() ? retryReason : null;
-  }
-
-  private boolean currentExecutionIsRetry() {
-    return executions > 0;
-  }
-
-  @Override
-  public boolean hasFailedAllRetries() {
-    return wasLastExecution() && successfulExecutionsSeen == 0;
-  }
-
-  @Override
-  public boolean hasSucceededAllRetries() {
-    return wasLastExecution() && successfulExecutionsSeen == executions;
+  public boolean failedTestReplayApplicable() {
+    return false;
   }
 }

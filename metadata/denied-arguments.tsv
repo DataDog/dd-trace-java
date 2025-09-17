@@ -43,6 +43,13 @@ apache_solr8_tools              org.apache.solr.util.SolrCLI                    
 # DataDog JMXFetch
 datadog_jmxfetch                org.datadog.jmxfetch.App                            Skip DataDog JMXFetch
 
+# Open Liberty
+open_liberty_utility_main       com.ibm.ws.kernel.boot.cmdline.UtilityMain          Skip UtilityMain that expected single jar in classpath
+
+# IBM SDK, Java Technology Edition
+ibm_ikeycmd                     com.ibm.gsk.ikeyman.ikeycmd                         Skip IBM ikeycmd utility
+ibm_ikeyman                     com.ibm.gsk.ikeyman.Ikeyman                         Skip IBM Ikeyman utility
+
 # Elastic Search 7+
 elasticsearch7                  -Des.path.home=*                                    Skip Elastic Search 7+ commands
 

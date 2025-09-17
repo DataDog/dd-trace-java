@@ -1,6 +1,3 @@
-import org.gradle.api.publish.maven.MavenPom
-import org.gradle.api.publish.maven.tasks.GenerateMavenPom
-
 /** Applies the common elements to our generated POM files */
 tasks.withType(GenerateMavenPom).configureEach {
   doFirst {

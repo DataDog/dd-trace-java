@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper
 import io.grpc.Context
 
-class UnwrapGrpcContextForkedTest extends AgentTestRunner {
+class UnwrapGrpcContextForkedTest extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()

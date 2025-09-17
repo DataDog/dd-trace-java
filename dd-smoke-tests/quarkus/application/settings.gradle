@@ -4,13 +4,13 @@ pluginManagement {
     if (settings.hasProperty("gradlePluginProxy")) {
       maven {
         url settings["gradlePluginProxy"]
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     if (settings.hasProperty("mavenRepositoryProxy")) {
       maven {
         url settings["mavenRepositoryProxy"]
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
@@ -21,7 +21,7 @@ pluginManagement {
   }
 }
 
-def isCI = System.getenv("CI") != null
+def isCI = providers.environmentVariable("CI").isPresent()
 
 // Don't pollute the dependency cache with the build cache
 if (isCI) {
