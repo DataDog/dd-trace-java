@@ -568,6 +568,36 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     .contains("_dd.ol_intake.process_tags:" + ProcessTags.getTagsForSerialization())
   }
 
+  def "test setupOpenLineage fills circuit breaker config"(
+    Boolean configEnabled,
+    String sparkConfCircuitBreakerType,
+    String expectedCircuitBreakerType
+  ) {
+    setup:
+    injectSysConfig("data.jobs.openlineage.timeout.enabled", configEnabled.toString())
+    def listener = getTestDatadogSparkListener()
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    if (sparkConfCircuitBreakerType != null) {
+      listener.openLineageSparkConf.set("spark.openlineage.circuitBreaker.type", sparkConfCircuitBreakerType)
+    }
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .getOption("spark.openlineage.circuitBreaker.type") == Option.apply(expectedCircuitBreakerType)
+    assert listener
+    .openLineageSparkConf
+    .getOption("spark.openlineage.circuitBreaker.timeoutInSeconds") == ((expectedCircuitBreakerType == "timeout") ? Option.apply("60") : Option.apply(null))
+
+    where:
+    configEnabled | sparkConfCircuitBreakerType  | expectedCircuitBreakerType
+    true          | null                         | "timeout"
+    true          | "other"                      | "other"
+    false         | null                         | null
+  }
+
   protected validateRelativeError(double value, double expected, double relativeAccuracy) {
     double relativeError = Math.abs(value - expected) / expected
     assert relativeError < relativeAccuracy

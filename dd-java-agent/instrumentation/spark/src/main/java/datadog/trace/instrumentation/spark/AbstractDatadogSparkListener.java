@@ -76,6 +76,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
+  private static final int OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS = 60;
 
   public volatile SparkListenerInterface openLineageSparkListener = null;
   public volatile SparkConf openLineageSparkConf = null;
@@ -186,6 +187,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               + ProcessTags.getTagsForSerialization()
               + ";_dd.ol_app_id:"
               + appId);
+      setupOpenLineageCircuitBreaker();
       return;
     }
     log.debug(
@@ -1321,6 +1323,29 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     return sparkAppName;
+  }
+
+  private void setupOpenLineageCircuitBreaker() {
+    if (!Config.get().isDataJobsOpenLineageTimeoutEnabled()) {
+      log.debug("OpenLineage timeout circuit breaker is not enabled");
+      return;
+    }
+    if (classIsLoadable("io.openlineage.client.circuitBreaker.TimeoutCircuitBreaker")) {
+      log.debug(
+          "OpenLineage version without timeout circuit breaker. Probably OL version < 1.35.0");
+      return;
+    }
+    if (openLineageSparkConf.contains("spark.openlineage.circuitBreaker.type")) {
+      log.debug(
+          "Other OpenLineage circuit breaker already configured: {}",
+          openLineageSparkConf.get("spark.openlineage.circuitBreaker.type"));
+      return;
+    }
+
+    openLineageSparkConf.set("spark.openlineage.circuitBreaker.type", "timeout");
+    openLineageSparkConf.set(
+        "spark.openlineage.circuitBreaker.timeoutInSeconds",
+        String.valueOf(OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS));
   }
 
   private static void reportKafkaOffsets(
