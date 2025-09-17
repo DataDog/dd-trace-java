@@ -56,7 +56,7 @@ public final class ConfigProvider {
     }
     return "no config file present";
   }
-  
+
   public String getString(String key) {
     return getString(key, null);
   }
@@ -78,31 +78,6 @@ public final class ConfigProvider {
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
-    return getStringInternal(key, defaultValue, true, null, aliases);
-  }
-
-  /**
-   * Like {@link #getString(String, String, String...)} but falls back to next source if a value is
-   * an empty or blank string.
-   */
-  public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
-    return getStringInternal(key, defaultValue, false, null, aliases);
-  }
-
-  public String getStringExcludingSource(
-      String key,
-      String defaultValue,
-      Class<? extends ConfigProvider.Source> excludedSource,
-      String... aliases) {
-    return getStringInternal(key, defaultValue, true, excludedSource, aliases);
-  }
-
-  private String getStringInternal(
-      String key,
-      String defaultValue,
-      boolean allowEmpty,
-      Class<? extends ConfigProvider.Source> excludedSource,
-      String... aliases) {
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
@@ -113,28 +88,91 @@ public final class ConfigProvider {
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       String candidate = source.get(key, aliases);
-
-      if (excludedSource != null) {
-        // Skip excluded source types
-        if (excludedSource.isAssignableFrom(source.getClass())) {
-          seqId++;
-          continue;
-        }
-      }
-
-      // Create resolver if we have a valid candidate from non-excluded source
+      // Create resolver if we have a valid candidate
       if (candidate != null) {
+        resolver = ConfigValueResolver.of(candidate);
+        // And report to telemetry
         if (collectConfig) {
           ConfigCollector.get()
               .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
         }
-        if (allowEmpty || !candidate.trim().isEmpty()) {
-          resolver = ConfigValueResolver.of(candidate);
+      }
+
+      seqId++;
+    }
+
+    return resolver != null ? resolver.value : defaultValue;
+  }
+
+  /**
+   * Like {@link #getString(String, String, String...)} but falls back to next source if a value is
+   * an empty or blank string.
+   */
+  public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+
+    ConfigValueResolver<String> resolver = null;
+    int seqId = DEFAULT_SEQ_ID + 1;
+
+    for (int i = sources.length - 1; i >= 0; i--) {
+      ConfigProvider.Source source = sources[i];
+      String candidateValue = source.get(key, aliases);
+
+      // Report any non-null values to telemetry
+      if (candidateValue != null) {
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+        }
+        // Create resolver only if candidate is not empty or blank
+        if (!candidateValue.trim().isEmpty()) {
+          resolver =
+              ConfigValueResolver.of(
+                  candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+        }
+      }
+
+      seqId++;
+    }
+
+    // Re-report the chosen value with the highest seqId
+    if (resolver != null && collectConfig) {
+      resolver.reReportToCollector(key, seqId + 1);
+    }
+
+    return resolver != null ? resolver.value : defaultValue;
+  }
+
+  public String getStringExcludingSource(
+      String key,
+      String defaultValue,
+      Class<? extends ConfigProvider.Source> excludedSource,
+      String... aliases) {
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+    ConfigValueResolver<String> resolver = null;
+    int seqId = DEFAULT_SEQ_ID + 1;
+    for (int i = sources.length - 1; i >= 0; i--) {
+      ConfigProvider.Source source = sources[i];
+      String candidate = source.get(key, aliases);
+
+      // Skip excluded source types
+      if (excludedSource.isAssignableFrom(source.getClass())) {
+        seqId++;
+        continue;
+      }
+      if (candidate != null) {
+        resolver = ConfigValueResolver.of(candidate);
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
         }
       }
       seqId++;
     }
-
     return resolver != null ? resolver.value : defaultValue;
   }
 
