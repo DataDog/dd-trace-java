@@ -14,14 +14,29 @@ import java.util.Set;
  * Lazy deduplication occurs once: before iterating over entries/values, or when combining sizes.
  */
 public final class UnionMap<K, V> extends AbstractMap<K, V> implements Serializable {
-  private final Map<K, V> primaryMap;
-  private final Map<K, V> secondaryMap;
+  private Map<K, V> primaryMap;
+  private Map<K, V> secondaryMap;
   private transient Set<Map.Entry<K, V>> entrySet;
   private transient volatile boolean deduped;
+  private static final ThreadLocal<UnionMap<?, ?>> TL = new ThreadLocal<>();
 
   public UnionMap(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
     this.primaryMap = primaryMap;
     this.secondaryMap = secondaryMap;
+  }
+
+  @SuppressWarnings({"unchecked"})
+  public static <K, V> UnionMap<K, V> create(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
+    UnionMap ret = TL.get();
+    if (ret == null) {
+      ret = new UnionMap(primaryMap, secondaryMap);
+      TL.set(ret);
+    } else {
+      ret.primaryMap = primaryMap;
+      ret.secondaryMap = secondaryMap;
+      ret.deduped = false;
+    }
+    return ret;
   }
 
   private void dedup() {
