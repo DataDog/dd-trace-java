@@ -26,7 +26,7 @@ tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.maven.jar.path=${tasks.shadowJar.archiveFile.get()}"
 
-  // Overriding the default timeout as Gradle smoke tests might run for a longer duration.
+  // Overriding the default timeout as Maven smoke tests might run for a longer duration.
   timeout = Duration.of(25, ChronoUnit.MINUTES)
 
   if (project.hasProperty("mavenRepositoryProxy")) {
