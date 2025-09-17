@@ -228,6 +228,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
