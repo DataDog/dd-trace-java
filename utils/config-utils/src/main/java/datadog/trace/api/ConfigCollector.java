@@ -37,8 +37,7 @@ public class ConfigCollector {
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
     put(key, value, origin, seqId, null);
   }
-
-  // There are no usages of this function
+  
   public void put(String key, Object value, ConfigOrigin origin, String configId) {
     put(key, value, origin, ABSENT_SEQ_ID, configId);
   }
