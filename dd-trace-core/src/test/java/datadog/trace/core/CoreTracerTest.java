@@ -7,7 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import datadog.trace.api.Config;
 import datadog.trace.core.CoreTracer.CoreSpanBuilder;
-import datadog.trace.core.CoreTracer.CoreSpanBuilderThreadLocalCache;
+import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilder;
 import org.junit.Test;
 
 public final class CoreTracerTest {
@@ -48,13 +48,13 @@ public final class CoreTracerTest {
   public void spanBuilderReuse() {
     // Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config
     // is disabled
-    CoreSpanBuilder builder1 = CoreTracer.reuseSpanBuilder(TRACER, CACHE, "foo", "bar");
+    ReusableSingleSpanBuilder builder1 = CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "foo", "bar");
     assertTrue(builder1.inUse);
 
     builder1.start();
     assertFalse(builder1.inUse);
 
-    CoreSpanBuilder builder2 = CoreTracer.reuseSpanBuilder(TRACER, CACHE, "baz", "quux");
+    ReusableSingleSpanBuilder builder2 = CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
     assertTrue(builder2.inUse);
     assertSame(builder1, builder2);
 
@@ -66,10 +66,10 @@ public final class CoreTracerTest {
   public void spanBuilderReuse_stillInUse() {
     // Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config
     // is disabled
-    CoreSpanBuilder builder1 = CoreTracer.reuseSpanBuilder(TRACER, CACHE, "foo", "bar");
+    ReusableSingleSpanBuilder builder1 = CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "foo", "bar");
     assertTrue(builder1.inUse);
 
-    CoreSpanBuilder builder2 = CoreTracer.reuseSpanBuilder(TRACER, CACHE, "baz", "quux");
+    ReusableSingleSpanBuilder builder2 = CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
     assertTrue(builder2.inUse);
     assertNotSame(builder1, builder2);
 

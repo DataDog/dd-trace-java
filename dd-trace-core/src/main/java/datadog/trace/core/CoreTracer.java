@@ -248,8 +248,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       Config.get().isSpanBuilderReuseEnabled();
 
   // Cache used by buildSpan - instance so it can capture the CoreTracer
-  private final CoreSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
-      SPAN_BUILDER_REUSE_ENABLED ? new CoreSpanBuilderThreadLocalCache(this) : null;
+  private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
+      SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -978,35 +978,33 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public CoreSpanBuilder singleSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
     return SPAN_BUILDER_REUSE_ENABLED
-        ? reuseSpanBuilder(instrumentationName, operationName)
+        ? reuseSingleSpanBuilder(instrumentationName, operationName)
         : createSpanBuilder(instrumentationName, operationName);
   }
 
   CoreSpanBuilder createSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
-    CoreSpanBuilder newBuilder = new CoreSpanBuilder(this);
-    newBuilder.reset(instrumentationName, operationName);
-    return newBuilder;
+    return new MultiSpanBuilder(this, instrumentationName, operationName);
   }
 
-  CoreSpanBuilder reuseSpanBuilder(
+  CoreSpanBuilder reuseSingleSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
-    return reuseSpanBuilder(this, spanBuilderThreadLocalCache, instrumentationName, operationName);
+    return reuseSingleSpanBuilder(this, spanBuilderThreadLocalCache, instrumentationName, operationName);
   }
 
-  static final CoreSpanBuilder reuseSpanBuilder(
+  static final ReusableSingleSpanBuilder reuseSingleSpanBuilder(
       final CoreTracer tracer,
-      final CoreSpanBuilderThreadLocalCache tlCache,
+      final ReusableSingleSpanBuilderThreadLocalCache tlCache,
       final String instrumentationName,
       final CharSequence operationName) {
     // retrieve the thread's typical SpanBuilder and try to reset it
     // reset will fail if the CoreSpanBuilder is still "in-use"
-    CoreSpanBuilder tlSpanBuilder = tlCache.get();
+    ReusableSingleSpanBuilder tlSpanBuilder = tlCache.get();
     boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
     if (wasReset) return tlSpanBuilder;
 
     // TODO: counter for how often the fallback is used?
-    CoreSpanBuilder newSpanBuilder = new CoreSpanBuilder(tracer);
+    ReusableSingleSpanBuilder newSpanBuilder = new ReusableSingleSpanBuilder(tracer);
     newSpanBuilder.reset(instrumentationName, operationName);
 
     // DQH - Debated how best to handle the case of someone requesting a CoreSpanBuilder
@@ -1457,85 +1455,41 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return Collections.unmodifiableMap(inverted);
   }
 
-  static final class CoreSpanBuilderThreadLocalCache extends ThreadLocal<CoreSpanBuilder> {
-    private final CoreTracer tracer;
-
-    public CoreSpanBuilderThreadLocalCache(CoreTracer tracer) {
-      this.tracer = tracer;
-    }
-
-    @Override
-    protected CoreSpanBuilder initialValue() {
-      return new CoreSpanBuilder(this.tracer);
-    }
-  }
-
   /** Spans are built using this builder */
-  /*
-   * To reduce overhead, CoreSpanBuilders are reused.
-   * For simplicity, CoreSpanBuilder isn't thread safe, so CoreSpanBuilders can only be reused within one thread.
-   */
-  public static final class CoreSpanBuilder implements AgentTracer.SpanBuilder {
-    private final CoreTracer tracer;
+  public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+    protected final CoreTracer tracer;
 
-    // Used to track whether the CoreSpanBuilder is actively being used
-    // CoreSpanBuilder becomes "inUse" after a succesful reset and remains "inUse" until "build" is
-    // called
-    boolean inUse = false;
-
-    private String instrumentationName;
-    private CharSequence operationName;
+    protected String instrumentationName;
+    protected CharSequence operationName;
 
     // Builder attributes
-    private TagMap.Ledger tagLedger;
-    private long timestampMicro;
-    private AgentSpanContext parent;
-    private String serviceName;
-    private String resourceName;
-    private boolean errorFlag;
-    private CharSequence spanType;
-    private boolean ignoreScope = false;
-    private Object builderRequestContextDataAppSec;
-    private Object builderRequestContextDataIast;
-    private Object builderCiVisibilityContextData;
-    private List<AgentSpanLink> links;
-    private long spanId;
+    protected TagMap.Ledger tagLedger;
+    protected long timestampMicro;
+    protected AgentSpanContext parent;
+    protected String serviceName;
+    protected String resourceName;
+    protected boolean errorFlag;
+    protected CharSequence spanType;
+    protected boolean ignoreScope = false;
+    protected Object builderRequestContextDataAppSec;
+    protected Object builderRequestContextDataIast;
+    protected Object builderCiVisibilityContextData;
+    protected List<AgentSpanLink> links;
+    protected long spanId;
 
     CoreSpanBuilder(CoreTracer tracer) {
       this.tracer = tracer;
     }
 
-    boolean reset(String instrumentationName, CharSequence operationName) {
-      if (this.inUse) return false;
-      this.inUse = true;
-
-      this.instrumentationName = instrumentationName;
-      this.operationName = operationName;
-
-      if (this.tagLedger != null) this.tagLedger.reset();
-      this.timestampMicro = 0L;
-      this.parent = null;
-      this.serviceName = null;
-      this.resourceName = null;
-      this.errorFlag = false;
-      this.spanType = null;
-      this.ignoreScope = false;
-      this.builderRequestContextDataAppSec = null;
-      this.builderRequestContextDataIast = null;
-      this.builderCiVisibilityContextData = null;
-      this.links = null;
-      this.spanId = 0L;
-
-      return true;
-    }
-
     @Override
-    public CoreSpanBuilder ignoreActiveSpan() {
+    public final CoreSpanBuilder ignoreActiveSpan() {
       ignoreScope = true;
       return this;
     }
 
-    private DDSpan buildSpan() {
+    protected abstract DDSpan buildSpan();
+
+    protected final DDSpan buildSpanImpl() {
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
@@ -1543,12 +1497,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           span.setEndpointTracker(tracker);
         }
       }
-
-      this.inUse = false;
       return span;
     }
 
-    private void addParentContextAsLinks(AgentSpanContext parentContext) {
+    private final void addParentContextAsLinks(AgentSpanContext parentContext) {
       SpanLink link;
       if (parentContext instanceof ExtractedContext) {
         String headers = ((ExtractedContext) parentContext).getPropagationStyle().toString();
@@ -1564,7 +1516,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       withLink(link);
     }
 
-    private void addTerminatedContextAsLinks() {
+    private final void addTerminatedContextAsLinks() {
       if (this.parent instanceof TagContext) {
         List<AgentSpanLink> terminatedContextLinks =
             ((TagContext) this.parent).getTerminatedContextLinks();
@@ -1578,7 +1530,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public AgentSpan start() {
+    public final AgentSpan start() {
       AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
         final AgentSpan span = tracer.activeSpan();
@@ -1594,65 +1546,65 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final Number number) {
+    public final CoreSpanBuilder withTag(final String tag, final Number number) {
       return withTag(tag, (Object) number);
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final String string) {
+    public final CoreSpanBuilder withTag(final String tag, final String string) {
       return withTag(tag, (Object) (string == null || string.isEmpty() ? null : string));
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final boolean bool) {
+    public final CoreSpanBuilder withTag(final String tag, final boolean bool) {
       return withTag(tag, (Object) bool);
     }
 
     @Override
-    public CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
+    public final CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
       timestampMicro = timestampMicroseconds;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withServiceName(final String serviceName) {
+    public final CoreSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withResourceName(final String resourceName) {
+    public final CoreSpanBuilder withResourceName(final String resourceName) {
       this.resourceName = resourceName;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withErrorFlag() {
+    public final CoreSpanBuilder withErrorFlag() {
       errorFlag = true;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withSpanType(final CharSequence spanType) {
+    public final CoreSpanBuilder withSpanType(final CharSequence spanType) {
       this.spanType = spanType;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
+    public final CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
       // TODO we will start propagating stack trace hash and it will need to
       //  be extracted here if available
       parent = spanContext;
       return this;
     }
 
-    public CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
+    public final CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
       parent = agentSpan.context();
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final Object value) {
+    public final CoreSpanBuilder withTag(final String tag, final Object value) {
       if (tag == null) {
         return this;
       }
@@ -1676,7 +1628,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public <T> AgentTracer.SpanBuilder withRequestContextData(RequestContextSlot slot, T data) {
+    public final <T> AgentTracer.SpanBuilder withRequestContextData(
+        RequestContextSlot slot, T data) {
       switch (slot) {
         case APPSEC:
           builderRequestContextDataAppSec = data;
@@ -1692,7 +1645,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
+    public final AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
       if (link != null) {
         if (this.links == null) {
           this.links = new ArrayList<>();
@@ -1703,7 +1656,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public CoreSpanBuilder withSpanId(final long spanId) {
+    public final CoreSpanBuilder withSpanId(final long spanId) {
       this.spanId = spanId;
       return this;
     }
@@ -1714,7 +1667,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      *
      * @return the context
      */
-    private DDSpanContext buildSpanContext() {
+    private final DDSpanContext buildSpanContext() {
       final DDTraceId traceId;
       final long spanId;
       final long parentSpanId;
@@ -1960,6 +1913,75 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
       return context;
+    }
+  }
+
+  static final class MultiSpanBuilder extends CoreSpanBuilder {
+    MultiSpanBuilder(CoreTracer tracer, String instrumentationName, CharSequence operationName) {
+      super(tracer);
+      this.instrumentationName = instrumentationName;
+      this.operationName = operationName;
+    }
+
+    @Override
+    protected DDSpan buildSpan() {
+      return this.buildSpanImpl();
+    }
+  }
+
+  static final class ReusableSingleSpanBuilderThreadLocalCache extends ThreadLocal<ReusableSingleSpanBuilder> {
+    private final CoreTracer tracer;
+
+    public ReusableSingleSpanBuilderThreadLocalCache(CoreTracer tracer) {
+      this.tracer = tracer;
+    }
+
+    @Override
+    protected ReusableSingleSpanBuilder initialValue() {
+      return new ReusableSingleSpanBuilder(this.tracer);
+    }
+  }
+
+  static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
+    // Used to track whether the CoreSpanBuilder is actively being used
+    // CoreSpanBuilder becomes "inUse" after a succesful reset and remains "inUse" until "build" is
+    // called
+    protected boolean inUse = false;
+
+    ReusableSingleSpanBuilder(CoreTracer tracer) {
+      super(tracer);
+      this.inUse = false;
+    }
+
+    final boolean reset(String instrumentationName, CharSequence operationName) {
+      if (this.inUse) return false;
+      this.inUse = true;
+
+      this.instrumentationName = instrumentationName;
+      this.operationName = operationName;
+
+      if (this.tagLedger != null) this.tagLedger.reset();
+      this.timestampMicro = 0L;
+      this.parent = null;
+      this.serviceName = null;
+      this.resourceName = null;
+      this.errorFlag = false;
+      this.spanType = null;
+      this.ignoreScope = false;
+      this.builderRequestContextDataAppSec = null;
+      this.builderRequestContextDataIast = null;
+      this.builderCiVisibilityContextData = null;
+      this.links = null;
+      this.spanId = 0L;
+
+      return true;
+    }
+
+    @Override
+    protected DDSpan buildSpan() {
+      DDSpan span = this.buildSpanImpl();
+      this.inUse = false;
+      return span;
     }
   }
 
