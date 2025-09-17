@@ -14,7 +14,6 @@ public final class ConfigSetting {
 
   public final int seqId;
   public static final int DEFAULT_SEQ_ID = 1;
-  // Only used for backwards compatibility with unit tests
   public static final int ABSENT_SEQ_ID = 0;
 
   /** The config ID associated with this setting, or {@code null} if not applicable. */

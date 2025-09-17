@@ -56,15 +56,12 @@ public final class ConfigProvider {
     }
     return "no config file present";
   }
-
+  
   public String getString(String key) {
     return getString(key, null);
   }
 
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
-    // Always report defaults to telemetry before getString to ensure the first item we put at
-    // DEFAULT
-    // is the most accurate one
     if (collectConfig) {
       String defaultValueString = defaultValue == null ? null : defaultValue.name();
       reportDefault(key, defaultValueString);
