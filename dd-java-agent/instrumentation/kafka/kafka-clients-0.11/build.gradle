@@ -45,7 +45,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
-  testImplementation libs.jackson.databind
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.4')
 
   // Include latest version of kafka itself along with latest version of client libs.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
@@ -63,7 +63,7 @@ dependencies {
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
-  iastLatestDepTest3Implementation libs.jackson.databind
+  iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.4')
   iastLatestDepTest3Implementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
 }
