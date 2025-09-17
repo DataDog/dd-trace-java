@@ -31,6 +31,11 @@ public final class Dbcp2PerUserPoolDataSourceInstrumentation extends Instrumente
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".PoolWaitingDecorator"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getPooledConnectionAndInfo"),
@@ -41,12 +46,12 @@ public final class Dbcp2PerUserPoolDataSourceInstrumentation extends Instrumente
   public static class GetPooledConnectionAndInfoAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter() {
-      CallDepthThreadLocalMap.incrementCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class);
+      CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit() {
-      CallDepthThreadLocalMap.decrementCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class);
+      CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
     }
   }
 }

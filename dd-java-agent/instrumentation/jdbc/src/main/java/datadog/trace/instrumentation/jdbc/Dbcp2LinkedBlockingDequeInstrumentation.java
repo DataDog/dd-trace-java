@@ -50,7 +50,7 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
   public static class PollFirstAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan onEnter() {
-      if (CallDepthThreadLocalMap.getCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class) > 0) {
+      if (CallDepthThreadLocalMap.getCallDepth(PoolWaitingDecorator.class) > 0) {
         AgentSpan span = startSpan(POOL_WAITING);
         DECORATE.afterStart(span);
         span.setResourceName("dbcp2.waiting");
