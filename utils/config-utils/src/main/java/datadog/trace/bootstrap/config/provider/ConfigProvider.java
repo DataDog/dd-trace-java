@@ -57,31 +57,27 @@ public final class ConfigProvider {
     return "no config file present";
   }
 
+  // Gets a string value when there is no default value.
   public String getString(String key) {
     return getString(key, null);
   }
 
-  public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
-    if (collectConfig) {
-      String defaultValueString = defaultValue == null ? null : defaultValue.name();
-      reportDefault(key, defaultValueString);
-    }
-    String value = getString(key);
-    if (null != value) {
-      try {
-        return Enum.valueOf(enumType, value);
-      } catch (Exception ignoreAndUseDefault) {
-        log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
-      }
-    }
-    return defaultValue;
-  }
-
+  /**
+   * Gets a string value with a default fallback and optional aliases. Use for configs with
+   * meaningful defaults. Reports default to telemetry.
+   */
   public String getString(String key, String defaultValue, String... aliases) {
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
+    String value = getStringInternal(key, aliases);
 
+    return value != null ? value : defaultValue;
+  }
+
+  // Internal helper that performs configuration source lookup and reports values from non-default
+  // sources to telemetry.
+  private String getStringInternal(String key, String... aliases) {
     ConfigValueResolver<String> resolver = null;
     int seqId = DEFAULT_SEQ_ID + 1;
 
@@ -101,7 +97,23 @@ public final class ConfigProvider {
       seqId++;
     }
 
-    return resolver != null ? resolver.value : defaultValue;
+    return resolver != null ? resolver.value : null;
+  }
+
+  public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
+    if (collectConfig) {
+      String defaultValueString = defaultValue == null ? null : defaultValue.name();
+      reportDefault(key, defaultValueString);
+    }
+    String value = getStringInternal(key);
+    if (null != value) {
+      try {
+        return Enum.valueOf(enumType, value);
+      } catch (Exception ignoreAndUseDefault) {
+        log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
+      }
+    }
+    return defaultValue;
   }
 
   /**
@@ -287,7 +299,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
-    String list = getString(key);
+    String list = getStringInternal(key);
     if (null == list) {
       return defaultValue;
     } else {
@@ -300,7 +312,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
-    String list = getString(key);
+    String list = getStringInternal(key);
     if (null == list) {
       return defaultValue;
     } else {
@@ -443,7 +455,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
-    final String value = getString(key, null, aliases);
+    final String value = getStringInternal(key, aliases);
     try {
       if (value != null) {
         return ConfigConverter.parseIntegerRangeSet(value, key);
