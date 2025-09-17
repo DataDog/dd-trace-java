@@ -25,8 +25,7 @@ test {
     environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
   }
 
-  // overriding the default timeout of 9 minutes set in configure_tests.gradle,
-  // as Gradle smoke tests might run for a longer duration
+  // Overriding the default timeout as Gradle smoke tests might run for a longer duration.
   timeout = Duration.of(20, ChronoUnit.MINUTES)
 }
 
