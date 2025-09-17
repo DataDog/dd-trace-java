@@ -81,23 +81,21 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       String repoUrl = gitInfo.getRepositoryURL();
       if (repoUrl == null || repoUrl.isEmpty()) {
         log.error(
-            "Could not resolve git repository URL (can be provided via "
-                + ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_REPOSITORY_URL)
-                + " env var or corresponding system property, "
-                + GeneralConfig.TAGS
-                + " config property or by embedding git metadata at build time)");
+            "Could not resolve git repository URL (can be provided via {} env var or corresponding system property, {} config property or by embedding git metadata at build time)",
+            ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_REPOSITORY_URL),
+            GeneralConfig.TAGS);
       }
 
       String commitSha = gitInfo.getCommit().getSha();
       if (!GitUtils.isValidCommitShaFull(commitSha)) {
         log.error(
-            "Git commit SHA could not be resolved or is invalid: "
-                + commitSha
-                + " (can be provided via "
-                + ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_COMMIT_SHA)
-                + " env var or corresponding system property, "
-                + GeneralConfig.TAGS
-                + " config property or by embedding git metadata at build time; must be a full-length SHA");
+            "Git commit SHA could not be resolved or is invalid: {}"
+                + " (can be provided via {}"
+                + " env var or corresponding system property, {}"
+                + " config property or by embedding git metadata at build time; must be a full-length SHA",
+            commitSha,
+            ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_COMMIT_SHA),
+            GeneralConfig.TAGS);
       }
     }
 
