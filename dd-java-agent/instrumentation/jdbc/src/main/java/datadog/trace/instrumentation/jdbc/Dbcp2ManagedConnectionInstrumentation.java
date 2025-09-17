@@ -14,7 +14,7 @@ public final class Dbcp2ManagedConnectionInstrumentation extends InstrumenterMod
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public Dbcp2ManagedConnectionInstrumentation() {
-    super("jdbc");
+    super("jdbc", "dbcp2");
   }
 
   @Override

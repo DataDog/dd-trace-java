@@ -38,7 +38,7 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HikariConcurrentBagInstrumentation() {
-    super("jdbc");
+    super("jdbc", "hikari");
   }
 
   @Override

@@ -17,7 +17,7 @@ public final class HikariQueuedSequenceSynchronizerInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HikariQueuedSequenceSynchronizerInstrumentation() {
-    super("jdbc");
+    super("jdbc", "hikari");
   }
 
   @Override

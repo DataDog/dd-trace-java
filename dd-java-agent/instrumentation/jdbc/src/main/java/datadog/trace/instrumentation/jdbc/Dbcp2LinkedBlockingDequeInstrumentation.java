@@ -19,7 +19,7 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public Dbcp2LinkedBlockingDequeInstrumentation() {
-    super("jdbc");
+    super("jdbc", "dbcp2");
   }
 
   @Override

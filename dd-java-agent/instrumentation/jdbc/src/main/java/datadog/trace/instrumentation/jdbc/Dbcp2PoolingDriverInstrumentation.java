@@ -14,7 +14,7 @@ public final class Dbcp2PoolingDriverInstrumentation extends InstrumenterModule.
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public Dbcp2PoolingDriverInstrumentation() {
-    super("jdbc");
+    super("jdbc", "dbcp2");
   }
 
   @Override

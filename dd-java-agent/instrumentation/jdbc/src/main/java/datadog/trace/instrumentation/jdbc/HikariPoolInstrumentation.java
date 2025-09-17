@@ -21,7 +21,7 @@ public final class HikariPoolInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public HikariPoolInstrumentation() {
-    super("jdbc");
+    super("jdbc", "hikari");
   }
 
   @Override
