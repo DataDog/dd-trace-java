@@ -102,7 +102,7 @@ public class IastSystem {
     if (VERBOSITY != Verbosity.OFF) {
       IastMetricCollector.register(new IastMetricCollector());
     }
-    final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
+    final Reporter reporter = new Reporter(config, AgentTaskScheduler.get());
     final boolean globalContext = config.getIastContextMode() == GLOBAL;
     final IastContext.Provider contextProvider = contextProvider(iast, globalContext);
     if (overheadController == null) {
@@ -111,7 +111,7 @@ public class IastSystem {
               globalContext ? UNLIMITED : config.getIastRequestSampling(),
               config.getIastMaxConcurrentRequests(),
               globalContext,
-              AgentTaskScheduler.INSTANCE);
+              AgentTaskScheduler.get());
     }
     IastContext.Provider.register(contextProvider);
     final Dependencies dependencies =

@@ -51,10 +51,8 @@ abstract class AbstractDemoTest extends AbstractSmokeTest {
         if (it.traceId != mainSpan.traceId) {
           return false
         }
-        if (it.parentId != mainSpan.spanId && trace.spans.find(s -> s.spanId == it.parentId).name != 'compute') {
-          return false
-        }
-        return true
+
+        return !(it.parentId != mainSpan.spanId && trace.spans.find(s -> s.spanId == it.parentId).name != 'compute')
       }
     }
   }

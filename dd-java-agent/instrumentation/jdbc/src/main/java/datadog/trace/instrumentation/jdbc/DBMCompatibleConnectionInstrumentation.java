@@ -111,32 +111,26 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
       //      Using INJECT_COMMENT fails to update when a test calls injectSysConfig
-      if (DECORATE.shouldInjectSQLComment()) {
-        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
-        if (callDepth > 0) {
-          return null;
-        }
-        final String inputSql = sql;
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        String dbService = DECORATE.getDbService(dbInfo);
-        if (dbService != null) {
-          dbService =
-              traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
-        }
-        if (dbInfo.getType().equals("sqlserver")) {
-          sql =
-              SQLCommenter.append(
-                  sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());
-        } else {
-          sql =
-              SQLCommenter.prepend(
-                  sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());
-        }
-        return inputSql;
+      if (!DECORATE.shouldInjectSQLComment()) {
+        return sql;
       }
-      return sql;
+      if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
+        return null;
+      }
+      final String inputSql = sql;
+      final DBInfo dbInfo =
+          JDBCDecorator.parseDBInfo(
+              connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+      String dbService = DECORATE.getDbService(dbInfo);
+      if (dbService != null) {
+        dbService =
+            traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
+      }
+      boolean append = "sqlserver".equals(dbInfo.getType());
+      sql =
+          SQLCommenter.inject(
+              sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
+      return inputSql;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -4,6 +4,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -12,16 +13,15 @@ import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.eventspy.EventSpy;
 import org.apache.maven.execution.ExecutionEvent;
 import org.codehaus.plexus.PlexusContainer;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractMavenTest {
-
-  @ClassRule public static TemporaryFolder WORKING_DIRECTORY = new TemporaryFolder();
+  @TempDir static Path WORKING_DIRECTORY;
 
   protected AbstractMavenTest() {
     System.setProperty(
-        "maven.multiModuleProjectDirectory", WORKING_DIRECTORY.getRoot().getAbsolutePath());
+        "maven.multiModuleProjectDirectory",
+        WORKING_DIRECTORY.getRoot().toAbsolutePath().toString());
   }
 
   protected void executeMaven(
@@ -58,7 +58,8 @@ public abstract class AbstractMavenTest {
     arguments[2] = goal;
     System.arraycopy(additionalArgs, 0, arguments, 3, additionalArgs.length);
 
-    mavenCli.doMain(arguments, WORKING_DIRECTORY.getRoot().getAbsolutePath(), stdOut, stderr);
+    mavenCli.doMain(
+        arguments, WORKING_DIRECTORY.getRoot().toAbsolutePath().toString(), stdOut, stderr);
 
     Exception error = spy.handlerError.get();
     if (error != null) {

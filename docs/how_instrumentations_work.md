@@ -87,7 +87,7 @@ When the agent is built, the muzzle plugin will download versions of the framewo
 To run muzzle on your instrumentation, run:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:rediscala-1.8.0:muzzle
+./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle
 ```
 
 * ⚠️ Muzzle does _not_ run tests.
@@ -681,7 +681,7 @@ When writing an instrumentation it is much faster to test just the instrumentati
 for example:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:test
+./gradlew :dd-java-agent:instrumentation:play-ws:play-ws-2.1:test
 ```
 
 Sometimes it is necessary to force Gradle to discard cached test results
@@ -694,7 +694,7 @@ and [rerun all tasks](https://docs.gradle.org/current/userguide/command_line_int
 Running tests that require JDK-21 will require the `JAVA_21_HOME` env var set and can be done like this:
 
 ```shell
-./gradlew  :dd-java-agent:instrumentation:aerospike-4:allLatestDepTests -PtestJvm=21
+./gradlew  :dd-java-agent:instrumentation:aerospike-4.0:allLatestDepTests -PtestJvm=21
 ```
 
 ### Latest Dependency Tests
@@ -715,7 +715,7 @@ latestDepTestCompile(group: 'com.typesafe.play', name: 'play-test_2.11', version
 Dependency tests can be run like:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:latestDepTest
+./gradlew :dd-java-agent:instrumentation:play-ws:play-ws-2.1:latestDepTest
 ```
 
 ### Additional Test Suites

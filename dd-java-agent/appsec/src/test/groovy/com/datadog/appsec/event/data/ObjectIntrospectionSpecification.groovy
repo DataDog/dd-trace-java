@@ -15,6 +15,7 @@ import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE
 import static com.datadog.appsec.event.data.ObjectIntrospection.convert
 
+@SuppressWarnings('UnnecessaryBooleanExpression')
 class ObjectIntrospectionSpecification extends DDSpecification {
 
   @Shared

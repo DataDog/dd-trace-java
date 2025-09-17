@@ -281,8 +281,8 @@ public final class TempLocationManager {
           SEND_TELEMETRY,
           "Base temp directory, as defined in '"
               + ProfilingConfig.PROFILING_TEMP_DIR
-              + "' does not exist: "
-              + configuredTempDir);
+              + "' does not exist: {}",
+          configuredTempDir);
       throw new IllegalStateException(
           "Base temp directory, as defined in '"
               + ProfilingConfig.PROFILING_TEMP_DIR
@@ -298,7 +298,7 @@ public final class TempLocationManager {
     tempDir = baseTempDir.resolve(TEMPDIR_PREFIX + pid);
     if (runStartupCleanup) {
       // do not execute the background cleanup task when running in tests
-      AgentTaskScheduler.INSTANCE.execute(cleanupTask);
+      AgentTaskScheduler.get().execute(cleanupTask);
     }
 
     createTempDir(tempDir);

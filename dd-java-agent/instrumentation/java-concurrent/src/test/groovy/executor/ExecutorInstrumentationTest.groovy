@@ -1,7 +1,7 @@
 package executor
 
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
-abstract class ExecutorInstrumentationTest extends AgentTestRunner {
+abstract class ExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }

@@ -156,7 +156,7 @@ public class CompositeController implements Controller {
           Class.forName("com.oracle.jrockit.jfr.Producer");
           controllers.add(OracleJdkController.instance(provider));
         } catch (Throwable t) {
-          log.debug(SEND_TELEMETRY, "Failed to load oracle profiler: " + t.getMessage(), t);
+          log.debug(SEND_TELEMETRY, "Failed to load oracle profiler: {}", t.getMessage(), t);
         }
       }
       if (!isOracleJDK8) {

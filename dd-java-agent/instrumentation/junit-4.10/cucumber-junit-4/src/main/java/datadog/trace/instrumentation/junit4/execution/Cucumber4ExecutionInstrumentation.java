@@ -118,7 +118,7 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
           runPickle.invokeWithArguments(featureRunner, pickleRunner, failureSuppressingNotifier);
         } catch (Throwable ignored) {
         }
-      } while (!executionPolicy.wasLastExecution());
+      } while (executionPolicy.applicable());
 
       // skip original method
       return Boolean.TRUE;

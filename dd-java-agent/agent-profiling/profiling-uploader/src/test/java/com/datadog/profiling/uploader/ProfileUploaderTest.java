@@ -373,11 +373,11 @@ public class ProfileUploaderTest {
     byte[] uploadedBytes = rawJfr.get();
     if (compression.equals("gzip")) {
       uploadedBytes = unGzip(uploadedBytes);
-    } else if (compression.equals("zstd")) {
-      uploadedBytes = unZstd(uploadedBytes);
-    } else if (compression.equals("on")
-        || compression.equals("lz4")
+    } else if (compression.equals("zstd")
+        || compression.equals("on")
         || compression.equals("invalid")) {
+      uploadedBytes = unZstd(uploadedBytes);
+    } else if (compression.equals("lz4")) {
       uploadedBytes = unLz4(uploadedBytes);
     }
     assertArrayEquals(expectedBytes, uploadedBytes);

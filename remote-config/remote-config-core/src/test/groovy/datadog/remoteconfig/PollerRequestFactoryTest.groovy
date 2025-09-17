@@ -1,6 +1,7 @@
 package datadog.remoteconfig
 
 import com.squareup.moshi.Moshi
+import datadog.environment.JavaVirtualMachine
 import datadog.remoteconfig.tuf.RemoteConfigRequest
 import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -58,8 +59,11 @@ class PollerRequestFactoryTest extends DDSpecification {
 
   void 'remote config provides process tags when enabled  = #enabled'() {
     setup:
+    // to be changed when activated by default
     if (enabled) {
       injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    } else if (JavaVirtualMachine.isJavaVersion(21)) {
+      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     }
     ProcessTags.reset()
     PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null)

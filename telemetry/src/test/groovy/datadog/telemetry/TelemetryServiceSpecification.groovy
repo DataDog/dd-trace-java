@@ -1,12 +1,12 @@
 package datadog.telemetry
 
-import datadog.telemetry.dependency.Dependency
-import datadog.telemetry.api.Integration
 import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.telemetry.dependency.Dependency
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
 import datadog.trace.api.config.AppSecConfig
@@ -15,7 +15,7 @@ import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 
 class TelemetryServiceSpecification extends DDSpecification {
   def confKeyValue = ConfigSetting.of("confkey", "confvalue", ConfigOrigin.DEFAULT)
@@ -482,9 +482,9 @@ class TelemetryServiceSpecification extends DDSpecification {
 
   def 'app-started must include activated products info'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
-    injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
-    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig)
+    injectEnvConfig(ConfigStrings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
+    injectEnvConfig(ConfigStrings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
+    injectEnvConfig(ConfigStrings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig)
 
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)

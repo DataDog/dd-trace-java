@@ -13,9 +13,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'redis.clients', name: 'jedis', version: '1.4.0'
-
-  testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
   testImplementation group: 'redis.clients', name: 'jedis', version: '1.4.0'
+
+  testImplementation (group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3') {
+    // Excluding redis client to avoid conflicts in instrumentation code.
+    exclude group: 'redis.clients', module: 'jedis'
+  }
 
   // Jedis 3.0 has API changes that prevent instrumentation from applying
   latestDepTestImplementation group: 'redis.clients', name: 'jedis', version: '2.+'

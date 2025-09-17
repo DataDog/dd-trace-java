@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -29,7 +29,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 
-class WebsocketTest extends AgentTestRunner {
+class WebsocketTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {
@@ -52,11 +52,11 @@ class WebsocketTest extends AgentTestRunner {
     .decoders([Endpoints.CustomMessageDecoder])
     .build()
 
-    sec.getUserProperties().put(Endpoint.class.getName(), endpoint)
-    sec.getUserProperties().put(AgentSpan.class.getName(), handshakeServerSpan)
+    sec.getUserProperties().put(Endpoint.name, endpoint)
+    sec.getUserProperties().put(AgentSpan.name, handshakeServerSpan)
 
     final ServerApplicationConfig serverConfig =
-    new TyrusServerConfiguration(Collections.singleton(EndpointWrapper.class),
+    new TyrusServerConfiguration(Collections.singleton(EndpointWrapper),
     Collections.singleton(sec))
 
     ClientEndpointConfig cec = ClientEndpointConfig.Builder.create()

@@ -9,10 +9,9 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
-import datadog.trace.api.TagMap
 import datadog.trace.api.ProductTraceSource
+import datadog.trace.api.TagMap
 import datadog.trace.api.config.GeneralConfig
-import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -42,6 +41,7 @@ import static datadog.trace.api.telemetry.LoginEvent.LOGIN_FAILURE
 import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS
 import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP
 
+@SuppressWarnings('UnusedVariable')
 class GatewayBridgeSpecification extends DDSpecification {
 
   @Shared
@@ -81,7 +81,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  EventProducerService.DataSubscriberInfo emptyDsInfo = Stub() {
+  EventProducerService.DataSubscriberInfo emptyDsInfo = Stub {
     isEmpty() >> true
   }
 
