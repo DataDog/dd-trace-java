@@ -101,6 +101,7 @@
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket
 1 org.mockito.codegen.*
+1 io.mockk.*
 
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
