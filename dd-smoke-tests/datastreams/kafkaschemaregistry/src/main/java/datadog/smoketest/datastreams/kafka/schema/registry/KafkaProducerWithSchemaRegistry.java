@@ -1,7 +1,7 @@
-package datadog.smoketest.datastreams.kafkaschemaregistry;
+package datadog.smoketest.datastreams.kafka.schema.registry;
 
 import com.google.protobuf.Duration;
-import datadog.smoketest.datastreams.kafkaschemaregistry.Message.MyMessage;
+import datadog.smoketest.datastreams.kafka.schema.registry.Message.MyMessage;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -57,13 +57,13 @@ public class KafkaProducerWithSchemaRegistry {
             MyMessage.newBuilder().setId("1").setValue("Hello from Protobuf!").build();
 
         ProducerRecord<String, MyMessage> record =
-            new ProducerRecord<String, MyMessage>(topicName, "testkey", message);
+            new ProducerRecord<>(topicName, "testkey", message);
         producer.send(record);
         Thread.sleep(1500);
         log.info("produced message");
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("KafkaProducerWithSchemaRegistry failed", e);
     } finally {
       producer.close();
     }

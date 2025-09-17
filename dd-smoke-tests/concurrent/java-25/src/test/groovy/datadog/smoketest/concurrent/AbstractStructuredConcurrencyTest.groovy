@@ -1,9 +1,11 @@
 package datadog.smoketest.concurrent
 
+import datadog.environment.EnvironmentVariables
 import datadog.smoketest.AbstractSmokeTest
 import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 
+import java.nio.file.Paths
 import java.util.function.Function
 
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -16,7 +18,7 @@ abstract class AbstractStructuredConcurrencyTest extends AbstractSmokeTest {
   ProcessBuilder createProcessBuilder() {
     def jarPath = System.getProperty("datadog.smoketest.shadowJar.path")
     def command = new ArrayList<String>()
-    command.add(System.getenv("JAVA_25_HOME") + "/bin/java")
+    command.add(Paths.get(EnvironmentVariables.get("JAVA_25_HOME"), "bin", "java").toString())
     command.addAll(defaultJavaProperties)
     command.add("--enable-preview")
     command.add("-Ddd.trace.otel.enabled=true")
