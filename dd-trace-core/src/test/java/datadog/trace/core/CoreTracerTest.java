@@ -16,18 +16,25 @@ public final class CoreTracerTest {
 
   @Test
   public void buildSpan() {
+	// buildSpan allows for constructing multiple spans from each returned CoreSpanBuilder
+	// so buildSpan cannot recycle objects - even when SpanBuilder reuse is enabled
     CoreSpanBuilder builder1 = TRACER.buildSpan("foo", "bar");
+    
+    // need to build/start a span to prove that builder isn't being recycled
+    builder1.start();
+    
     CoreSpanBuilder builder2 = TRACER.buildSpan("foo", "bar");
+    builder2.start();
 
     assertNotSame(builder1, builder2);
   }
 
   @Test
   public void singleUseSpanBuilder() {
-    CoreSpanBuilder builder1 = TRACER.buildSpan("foo", "bar");
+    CoreSpanBuilder builder1 = TRACER.singleSpanBuilder("foo", "bar");
     builder1.start();
 
-    CoreSpanBuilder builder2 = TRACER.buildSpan("baz", "quux");
+    CoreSpanBuilder builder2 = TRACER.singleSpanBuilder("baz", "quux");
     builder2.start();
 
     if (Config.get().isSpanBuilderReuseEnabled()) {
@@ -39,6 +46,7 @@ public final class CoreTracerTest {
 
   @Test
   public void spanBuilderReuse() {
+	// Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config is disabled
     CoreSpanBuilder builder1 = CoreTracer.reuseSpanBuilder(TRACER, CACHE, "foo", "bar");
     assertTrue(builder1.inUse);
 
@@ -55,6 +63,7 @@ public final class CoreTracerTest {
 
   @Test
   public void spanBuilderReuse_stillInUse() {
+	// Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config is disabled
     CoreSpanBuilder builder1 = CoreTracer.reuseSpanBuilder(TRACER, CACHE, "foo", "bar");
     assertTrue(builder1.inUse);
 
