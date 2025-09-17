@@ -37,7 +37,7 @@ public class ConfigCollector {
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
     put(key, value, origin, seqId, null);
   }
-  
+
   public void put(String key, Object value, ConfigOrigin origin, String configId) {
     put(key, value, origin, ABSENT_SEQ_ID, configId);
   }
@@ -50,8 +50,7 @@ public class ConfigCollector {
   }
 
   /**
-   * Puts multiple configuration settings with the same origin. Each entry in the map will be added
-   * with the specified origin and ABSENT_SEQ_ID.
+   * Puts multiple configuration settings with the same origin.
    *
    * @param configMap map of configuration key-value pairs to add
    * @param origin the configuration origin for all entries
