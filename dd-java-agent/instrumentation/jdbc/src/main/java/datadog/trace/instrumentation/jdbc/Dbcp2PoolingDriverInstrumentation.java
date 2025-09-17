@@ -31,6 +31,11 @@ public final class Dbcp2PoolingDriverInstrumentation extends InstrumenterModule.
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".PoolWaitingDecorator"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("connect"), Dbcp2PoolingDriverInstrumentation.class.getName() + "$ConnectAdvice");
@@ -39,12 +44,12 @@ public final class Dbcp2PoolingDriverInstrumentation extends InstrumenterModule.
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter() {
-      CallDepthThreadLocalMap.incrementCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class);
+      CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit() {
-      CallDepthThreadLocalMap.decrementCallDepth(Dbcp2LinkedBlockingDequeInstrumentation.class);
+      CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
     }
   }
 }
