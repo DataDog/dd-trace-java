@@ -989,7 +989,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   CoreSpanBuilder reuseSingleSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
-    return reuseSingleSpanBuilder(this, spanBuilderThreadLocalCache, instrumentationName, operationName);
+    return reuseSingleSpanBuilder(
+        this, spanBuilderThreadLocalCache, instrumentationName, operationName);
   }
 
   static final ReusableSingleSpanBuilder reuseSingleSpanBuilder(
@@ -1929,7 +1930,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
-  static final class ReusableSingleSpanBuilderThreadLocalCache extends ThreadLocal<ReusableSingleSpanBuilder> {
+  static final class ReusableSingleSpanBuilderThreadLocalCache
+      extends ThreadLocal<ReusableSingleSpanBuilder> {
     private final CoreTracer tracer;
 
     public ReusableSingleSpanBuilderThreadLocalCache(CoreTracer tracer) {
