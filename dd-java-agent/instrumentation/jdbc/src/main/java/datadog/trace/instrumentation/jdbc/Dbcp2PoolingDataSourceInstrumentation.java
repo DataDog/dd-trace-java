@@ -14,7 +14,7 @@ public final class Dbcp2PoolingDataSourceInstrumentation extends InstrumenterMod
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public Dbcp2PoolingDataSourceInstrumentation() {
-    super("jdbc");
+    super("jdbc", "dbcp2");
   }
 
   @Override

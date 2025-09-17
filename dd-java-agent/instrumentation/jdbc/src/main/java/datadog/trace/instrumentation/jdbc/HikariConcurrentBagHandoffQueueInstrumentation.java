@@ -25,7 +25,7 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
         Instrumenter.WithTypeStructure {
 
   public HikariConcurrentBagHandoffQueueInstrumentation() {
-    super("jdbc");
+    super("jdbc", "hikari");
   }
 
   @Override

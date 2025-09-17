@@ -14,7 +14,7 @@ public final class Dbcp2SharedPoolDataSourceInstrumentation extends Instrumenter
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public Dbcp2SharedPoolDataSourceInstrumentation() {
-    super("jdbc");
+    super("jdbc", "dbcp2");
   }
 
   @Override
