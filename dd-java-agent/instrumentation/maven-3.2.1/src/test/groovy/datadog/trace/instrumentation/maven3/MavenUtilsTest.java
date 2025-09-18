@@ -239,9 +239,11 @@ public class MavenUtilsTest extends AbstractMavenTest {
     if (!MavenUtils.isTestExecution(mojoExecution)) {
       return false;
     }
+
     MavenSession session = executionEvent.getSession();
     String effectiveJvm = MavenUtils.getEffectiveJvmFallback(session, mojoExecution);
-    assertNotNull("/my-jdk-home/bin/java", effectiveJvm);
+    assertNotNull(effectiveJvm);
+    assertTrue(effectiveJvm.endsWith("/my-jdk-home/bin/java"));
     return true;
   }
 
