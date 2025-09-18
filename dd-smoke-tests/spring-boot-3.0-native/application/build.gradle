@@ -39,6 +39,7 @@ if (hasProperty('agentPath')) {
         buildArgs.add("-J-Dnet.bytebuddy.safe=false")
         if (withProfiler && property('profiler') == 'true') {
           buildArgs.add("-J-Ddd.profiling.enabled=true")
+          buildArgs.add("--enable-monitoring=jfr")
         }
         jvmArgs.add("-Xmx3072M")
       }
