@@ -485,7 +485,7 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
-    stopFlarePoller();
+    stopFlareSystem();
     if (agentlessLogSubmissionEnabled) {
       shutdownLogsIntake();
     }
@@ -643,7 +643,7 @@ public class Agent {
         startTelemetry(instrumentation, scoClass, sco);
       }
 
-      startFlarePoller(scoClass, sco);
+      startFlareSystem(scoClass, sco);
     }
 
     private void resumeRemoteComponents() {
@@ -1109,33 +1109,31 @@ public class Agent {
     }
   }
 
-  private static void startFlarePoller( Class<?> scoClass, Object sco) {
-    StaticEventLogger.begin("Flare Poller");
+  private static void startFlareSystem(Class<?> scoClass, Object sco) {
+    StaticEventLogger.begin("Flare System");
     try {
-      final Class<?> tracerFlarePollerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlarePoller");
-      final Method tracerFlarePollerStartMethod =
-          tracerFlarePollerClass.getMethod("start", scoClass);
-      //start will need to be static to do that ...
-      tracerFlarePollerStartMethod.invoke(null, sco);
+      final Class<?> tracerFlareSystemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlareSystem");
+      final Method tracerFlareSystemStartMethod =
+          tracerFlareSystemClass.getMethod("doStart", scoClass);
+      tracerFlareSystemStartMethod.invoke(null, sco);
     } catch (final Throwable e) {
-      log.warn("Unable start Flare Poller", e);
+      log.warn("Unable start Flare System", e);
     }
-    StaticEventLogger.end("Flare Poller");
+    StaticEventLogger.end("Flare System");
   }
 
-  private static void stopFlarePoller() {
+  private static void stopFlareSystem() {
     if (AGENT_CLASSLOADER == null) {
       return;
     }
     try {
-      final Class<?> tracerFlarePollerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlarePoller");
-      final Method stopFlarePoller = tracerFlarePollerClass.getMethod("stop");
-      //stop will need to be static to do that ...
-      stopFlarePoller.invoke(null);
+      final Class<?> tracerFlareSystemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlareSystem");
+      final Method stopFlareSystem = tracerFlareSystemClass.getMethod("doStop");
+      stopFlareSystem.invoke(null);
     } catch (final Throwable ex) {
-      log.error("Error encountered while stopping Flare Poller", ex);
+      log.error("Error encountered while stopping Flare System", ex);
     }
   }
 

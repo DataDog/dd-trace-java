@@ -24,7 +24,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
-import datadog.flare.TracerFlarePoller;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -163,7 +162,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
-  //private final TracerFlarePoller tracerFlarePoller;
+  // private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -739,10 +738,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
 
-//    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
-//    if (pollForTracerFlareRequests) {
-//      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
-//    }
+    //    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
+    //    if (pollForTracerFlareRequests) {
+    //      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
+    //    }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
@@ -1272,7 +1271,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
-   // tracerFlarePoller.stop();
+    // tracerFlarePoller.stop();
     healthMetrics.close();
   }
 
@@ -1328,7 +1327,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
-    //CTE TO CHECK, maybe the tracer version and dynamic config should not be in tracer core...
+    // CTE TO CHECK, maybe the tracer version and dynamic config should not be in tracer core...
     TracerFlare.addText(zip, "tracer_version.txt", VERSION);
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());

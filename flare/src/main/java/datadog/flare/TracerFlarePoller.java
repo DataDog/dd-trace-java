@@ -10,18 +10,17 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
-//import datadog.trace.api.DynamicConfig;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import okio.Okio;
+
+// import datadog.trace.api.DynamicConfig;
 
 public final class TracerFlarePoller {
   private static final String FLARE_LOG_LEVEL = "flare-log-level";
- // private final DynamicConfig<?> dynamicConfig;
+  // private final DynamicConfig<?> dynamicConfig;
 
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
@@ -30,26 +29,22 @@ public final class TracerFlarePoller {
 
   private final Map<String, String> configAction = new HashMap<>();
 
-//  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
-//    this.dynamicConfig = dynamicConfig;
-//  }
-
-//  public void start(Config config, SharedCommunicationObjects sco, CoreTracer tracer) {
-//    stopPreparer = new Preparer().register(config, sco);
-//    stopSubmitter = new Submitter().register(config, sco);
-//
-//    tracerFlareService =
-//        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl, tracer);
-//  }
+  //  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
+  //    this.dynamicConfig = dynamicConfig;
+  //  }
 
   public void start(SharedCommunicationObjects sco) {
-
-    Config config =  Config.get();
+    Config config = Config.get();
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
+    //    Caused by: java.lang.NoClassDefFoundError: okhttp3/RequestBody
+    //    at datadog.flare.TracerFlarePoller.start(TracerFlarePoller.java:53)
+    //    if (TracerFlareService.class.getClassLoader() != null){
+    //      System.out.println("CTE CLASSLOADER: " +
+    // TracerFlareService.class.getClassLoader().getClass().getName());
+    //    }
 
-    tracerFlareService =
-        new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
+    tracerFlareService = new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
   }
 
   public void stop() {

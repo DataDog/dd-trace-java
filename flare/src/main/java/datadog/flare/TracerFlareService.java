@@ -61,7 +61,7 @@ final class TracerFlareService {
 
   TracerFlareService(
       Config config,
-     // DynamicConfig<?> dynamicConfig,
+      // DynamicConfig<?> dynamicConfig,
       OkHttpClient okHttpClient,
       HttpUrl agentUrl) {
     this.config = config;
@@ -218,14 +218,14 @@ final class TracerFlareService {
   private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
       throws IOException {
     TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
-    //CTE move to core tracer for now
-   // TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
+    // CTE move to core tracer for now
+    // TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
   }
 
   private void addConfig(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
-    //CTE move to core tracer for now
-    //TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
+    // CTE move to core tracer for now
+    // TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
   }
 
   private void addRuntime(ZipOutputStream zip) throws IOException {

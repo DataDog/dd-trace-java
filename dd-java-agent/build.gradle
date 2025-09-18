@@ -297,10 +297,7 @@ dependencies {
 
   sharedShadowInclude project(':flare'), {
     transitive = false
-    // do not bring along slf4j and dependent subprojects
-    // (which are loaded on the bootstrap cl)
   }
-
   sharedShadowInclude libs.bundles.cafe.crypto
   sharedShadowInclude project(':remote-config:remote-config-api'), {
     transitive = false

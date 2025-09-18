@@ -67,7 +67,6 @@ dependencies {
   api project(':communication')
   api project(':internal-api')
   implementation project(':components:json')
-  implementation project(':flare')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
   // for span exception debugging
