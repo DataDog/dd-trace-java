@@ -5,7 +5,6 @@ import static datadog.trace.util.Strings.getResourceName;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -30,14 +29,9 @@ public class ClasspathUtils {
   }
 
   public static byte[] convertToByteArray(final Class<?> clazz) throws IOException {
-    InputStream inputStream = null;
-    try {
-      inputStream = clazz.getClassLoader().getResourceAsStream(getResourceName(clazz.getName()));
+    try (InputStream inputStream =
+        clazz.getClassLoader().getResourceAsStream(getResourceName(clazz.getName()))) {
       return convertToByteArray(inputStream);
-    } finally {
-      if (inputStream != null) {
-        inputStream.close();
-      }
     }
   }
 
@@ -82,22 +76,19 @@ public class ClasspathUtils {
    * @throws IOException
    */
   public static URL createJarWithClasses(final Class<?>... classes) throws IOException {
-    final File tmpJar = File.createTempFile(UUID.randomUUID().toString() + "", ".jar");
+    final File tmpJar = File.createTempFile(UUID.randomUUID().toString(), ".jar");
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    final JarOutputStream target = new JarOutputStream(new FileOutputStream(tmpJar), manifest);
+    final JarOutputStream target =
+        new JarOutputStream(
+            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest);
     for (final Class<?> clazz : classes) {
       addToJar(getResourceName(clazz.getName()), convertToByteArray(clazz), target);
     }
     target.close();
 
     return tmpJar.toURI().toURL();
-  }
-
-  public static URL createJarWithClasses() {
-
-    return null;
   }
 
   private static void addToJar(
