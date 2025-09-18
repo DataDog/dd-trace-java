@@ -36,7 +36,6 @@ excludedClassesCoverage += [
   'datadog.trace.common.writer.TraceProcessingWorker.NonDaemonTraceSerializingHandler',
   // Interface with an empty defender method
   'datadog.trace.core.propagation.HttpCodec.Extractor',
-  'datadog.trace.core.flare.*',
   'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper',
   'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper.PayloadV1',
   // FIXME(DSM): test coverage needed
@@ -68,6 +67,7 @@ dependencies {
   api project(':communication')
   api project(':internal-api')
   implementation project(':components:json')
+  implementation project(':flare')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
   // for span exception debugging

@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
+import static datadog.trace.core.DDTraceCoreInfo.VERSION;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -23,6 +24,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
+import datadog.flare.TracerFlarePoller;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -83,7 +85,6 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.flare.TracerFlarePoller;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -128,7 +129,7 @@ import org.slf4j.LoggerFactory;
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
  * reporting, and propagating traces
  */
-public class CoreTracer implements AgentTracer.TracerAPI {
+public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
@@ -162,7 +163,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
-  private final TracerFlarePoller tracerFlarePoller;
+  //private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -633,6 +634,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
     assert baggageMapping != null;
 
+    TracerFlare.addReporter(this);
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     startTimeNano = this.timeSource.getCurrentTimeNanos();
     startNanoTicks = this.timeSource.getNanoTicks();
@@ -737,10 +739,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
 
-    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
-    if (pollForTracerFlareRequests) {
-      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
-    }
+//    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
+//    if (pollForTracerFlareRequests) {
+//      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
+//    }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
@@ -1270,7 +1272,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
-    tracerFlarePoller.stop();
+   // tracerFlarePoller.stop();
     healthMetrics.close();
   }
 
@@ -1324,7 +1326,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return null;
   }
 
-  public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {
+  @Override
+  public void addReportToFlare(ZipOutputStream zip) throws IOException {
+    //CTE TO CHECK, maybe the tracer version and dynamic config should not be in tracer core...
+    TracerFlare.addText(zip, "tracer_version.txt", VERSION);
+    TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
     TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }

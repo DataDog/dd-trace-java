@@ -1,4 +1,4 @@
-package datadog.trace.core.flare;
+package datadog.flare;
 
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -10,17 +10,18 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
-import datadog.trace.api.DynamicConfig;
-import datadog.trace.core.CoreTracer;
+//import datadog.trace.api.DynamicConfig;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import okio.Okio;
 
 public final class TracerFlarePoller {
   private static final String FLARE_LOG_LEVEL = "flare-log-level";
-  private final DynamicConfig<?> dynamicConfig;
+ // private final DynamicConfig<?> dynamicConfig;
 
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
@@ -29,16 +30,26 @@ public final class TracerFlarePoller {
 
   private final Map<String, String> configAction = new HashMap<>();
 
-  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
-    this.dynamicConfig = dynamicConfig;
-  }
+//  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
+//    this.dynamicConfig = dynamicConfig;
+//  }
 
-  public void start(Config config, SharedCommunicationObjects sco, CoreTracer tracer) {
+//  public void start(Config config, SharedCommunicationObjects sco, CoreTracer tracer) {
+//    stopPreparer = new Preparer().register(config, sco);
+//    stopSubmitter = new Submitter().register(config, sco);
+//
+//    tracerFlareService =
+//        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl, tracer);
+//  }
+
+  public void start(SharedCommunicationObjects sco) {
+
+    Config config =  Config.get();
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
 
     tracerFlareService =
-        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl, tracer);
+        new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
   }
 
   public void stop() {

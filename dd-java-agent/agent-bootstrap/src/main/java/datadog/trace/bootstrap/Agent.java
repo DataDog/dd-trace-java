@@ -485,6 +485,7 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
+    stopFlarePoller();
     if (agentlessLogSubmissionEnabled) {
       shutdownLogsIntake();
     }
@@ -641,6 +642,8 @@ public class Agent {
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
       }
+
+      startFlarePoller(scoClass, sco);
     }
 
     private void resumeRemoteComponents() {
@@ -1103,6 +1106,36 @@ public class Agent {
       stopTelemetry.invoke(null);
     } catch (final Throwable ex) {
       log.error("Error encountered while stopping telemetry", ex);
+    }
+  }
+
+  private static void startFlarePoller( Class<?> scoClass, Object sco) {
+    StaticEventLogger.begin("Flare Poller");
+    try {
+      final Class<?> tracerFlarePollerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlarePoller");
+      final Method tracerFlarePollerStartMethod =
+          tracerFlarePollerClass.getMethod("start", scoClass);
+      //start will need to be static to do that ...
+      tracerFlarePollerStartMethod.invoke(null, sco);
+    } catch (final Throwable e) {
+      log.warn("Unable start Flare Poller", e);
+    }
+    StaticEventLogger.end("Flare Poller");
+  }
+
+  private static void stopFlarePoller() {
+    if (AGENT_CLASSLOADER == null) {
+      return;
+    }
+    try {
+      final Class<?> tracerFlarePollerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlarePoller");
+      final Method stopFlarePoller = tracerFlarePollerClass.getMethod("stop");
+      //stop will need to be static to do that ...
+      stopFlarePoller.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Error encountered while stopping Flare Poller", ex);
     }
   }
 

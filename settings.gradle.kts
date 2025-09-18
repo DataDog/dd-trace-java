@@ -105,6 +105,7 @@ include(
   ":components:environment",
   ":components:json",
   ":components:yaml",
+  ":flare",
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",
