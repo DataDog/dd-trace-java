@@ -32,7 +32,8 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.StableConfigParser",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource"
+    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+    "datadog.trace.config.inversion.ConfigInversionStrictStyle",
   )
 )
 
