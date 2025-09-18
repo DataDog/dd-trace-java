@@ -85,31 +85,31 @@ public final class CoreTracerTest {
     builder1.start();
     assertFalse(builder1.inUse);
   }
-  
+
   @Test
   public void spanBuilderReuse_abandoned() {
-	// Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config
-	// is disabled
-	  
-	ReusableSingleSpanBuilder abandonedBuilder =
-	  CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "foo", "bar");
-	assertTrue(abandonedBuilder.inUse);
-	
-	// Requesting the next builder will replace the previous one in the thread local cache
-	// This is done, so that an abandoned builder doesn't permanently burn the cache for a thread
+    // Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config
+    // is disabled
+
+    ReusableSingleSpanBuilder abandonedBuilder =
+        CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "foo", "bar");
+    assertTrue(abandonedBuilder.inUse);
+
+    // Requesting the next builder will replace the previous one in the thread local cache
+    // This is done, so that an abandoned builder doesn't permanently burn the cache for a thread
     ReusableSingleSpanBuilder builder1 =
-      CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
+        CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
     assertTrue(builder1.inUse);
     assertNotSame(abandonedBuilder, builder1);
-    
+
     builder1.start();
     assertFalse(builder1.inUse);
-    
+
     ReusableSingleSpanBuilder builder2 =
-      CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
+        CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
     assertTrue(builder2.inUse);
     assertSame(builder1, builder2);
-    
+
     builder2.start();
     assertFalse(builder2.inUse);
   }
