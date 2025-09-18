@@ -1012,11 +1012,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // and then not using it.  Without an ability to replace the cached SpanBuilder,
     // that case could result in permanently burning the cache for a given thread.
 
-    // That could be solved with additional logic during CoreSpanBuilder#build
-    // that checks to see if the cached CoreSpanBuilder is in use and then replaces it
-    // with the freed CoreSpanBuilder, but that would put extra logic in the common path.
+    // That could be solved with additional logic during ReusableSingleSpanBuilder#buildSpan
+    // that checks to see if the cached the Builder is in use and then replaces it
+    // with the freed Builder, but that would put extra logic in the common path.
 
-    // Instead of making the release process more complicating, I'm chosing to just
+    // Instead of making the release process more complicated, I'm chosing to just
     // override here when we know we're already in an uncommon path.
     tlCache.set(newSpanBuilder);
 
