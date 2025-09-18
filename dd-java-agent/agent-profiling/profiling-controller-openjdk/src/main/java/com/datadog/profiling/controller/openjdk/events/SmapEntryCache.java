@@ -1,7 +1,5 @@
 package com.datadog.profiling.controller.openjdk.events;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.environment.JavaVirtualMachine;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -296,7 +294,7 @@ final class SmapEntryCache {
       }
       return annotatedRegions;
     } catch (Exception e) {
-      log.debug(SEND_TELEMETRY, "Failed to get annotated regions", e);
+      log.debug("Failed to get annotated regions", e);
     }
     return Collections.emptyMap();
   }
@@ -311,9 +309,9 @@ final class SmapEntryCache {
       }
       log.debug("Collected {} smap entry events.", events.size());
     } catch (IOException e) {
-      log.debug(SEND_TELEMETRY, "Failed to read smap file", e);
+      log.debug("Failed to read smap file", e);
     } catch (Exception e) {
-      log.debug(SEND_TELEMETRY, "Failed to parse smap file", e);
+      log.debug("Failed to parse smap file", e);
     }
   }
 }

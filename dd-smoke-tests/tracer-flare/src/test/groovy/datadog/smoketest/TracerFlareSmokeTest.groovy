@@ -131,12 +131,14 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     // Only if there were errors
     "pending_traces.txt",
     // Only if there were traces pending transmission
-    "profiling_template_override.jfp"
+    "profiling_template_override.jfp",
     // Only if template override is configured
+    "profiler_log.txt"
+    // Only if there are any profiler issues reported
   ] as Set<String>
 
   // Profiling-related files
-  private static final PROFILING_FILES = ["profiler_config.txt",
+  private static final PROFILING_FILES = ["profiler_config.txt", "profiler_env.txt"
     // Only if profiling is enabled
   ] as Set<String>
 
