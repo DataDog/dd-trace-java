@@ -6,44 +6,55 @@ spotbugs {
 }
 
 // configure spotbugs for Main tasks and disable it for all other
-afterEvaluate {
-  tasks.withType(spotbugsMain.class).configureEach {
-    def name = it.name
-    if (name.endsWith("Main") || name.endsWith("Main_java11")) {
-      it.ignoreFailures = false
-      // detector documentation is in the following link:
-      // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
-      it.omitVisitors = [
-        'DefaultEncodingDetector',
-        'DoInsideDoPrivileged',
-        'DontUseEnum',
-        'DroppedException',
-        'FindDeadLocalStores',
-        'FindHEmismatch',
-        'FindNullDeref',
-        'FindReturnRef',
-        'FindRunInvocations',
-        'FindUselessControlFlow',
-        'InitializationChain',
-        'LazyInit',
-        'LoadOfKnownNullValue',
-        'LostLoggerDueToWeakReference',
-        'MethodReturnCheck',
-        'MutableStaticFields',
-        'Naming',
-        'RuntimeExceptionCapture',
-        'SerializableIdiom',
-        'UnreadFields',
-      ]
-      it.reports {
-        html {
-          enabled = true
-          destination = file("$buildDir/reports/spotbugs/${name}.html")
-          stylesheet = 'fancy-hist.xsl'
-        }
-      }
-    } else {
-      it.enabled = false
+// Can't use the class here due to being different class
+tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
+  it.launcher = javaToolchains.launcherFor {
+    it.languageVersion = JavaLanguageVersion.current()
+  }
+
+  def launcher = it.launcher
+  doFirst {
+    println(launcher.get().executablePath)
+  }
+
+  def name = it.name
+  if (!(name.endsWith("Main") || name.endsWith("Main_java11"))) {
+    it.enabled = false
+    return
+  }
+
+  it.showProgress = true
+  it.ignoreFailures = false
+  // detector documentation is in the following link:
+  // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
+  it.omitVisitors = [
+    'ConstructorThrow',
+    'DefaultEncodingDetector',
+    'DoInsideDoPrivileged',
+    'DontUseEnum',
+    'DroppedException',
+    'FindDeadLocalStores',
+    'FindHEmismatch',
+    'FindNullDeref',
+    'FindReturnRef',
+    'FindRunInvocations',
+    'FindUselessControlFlow',
+    'InitializationChain',
+    'LazyInit',
+    'LoadOfKnownNullValue',
+    'LostLoggerDueToWeakReference',
+    'MethodReturnCheck',
+    'MutableStaticFields',
+    'Naming',
+    'RuntimeExceptionCapture',
+    'SerializableIdiom',
+    'UnreadFields',
+  ]
+  it.reports {
+    html {
+      required = true
+      destination(file("$buildDir/reports/spotbugs/${name}.html"))
+      stylesheet = 'fancy-hist.xsl'
     }
   }
 }
