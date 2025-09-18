@@ -7,9 +7,7 @@ muzzle {
 apply from: "${rootDir}/gradle/java.gradle"
 
 compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
+  setJavaVersion(it, 8)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

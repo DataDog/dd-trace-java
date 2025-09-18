@@ -16,11 +16,11 @@ java {
 
 tasks.withType<JavaCompile>().configureEach {
   // need access to sun.misc.SharedSecrets
-  setJavaVersion(8)
+  setJavaVersion(8, true)
 }
 
-fun AbstractCompile.setJavaVersion(javaVersionInteger: Int) {
-  (project.extra["setJavaVersion"] as Closure<*>).call(this, javaVersionInteger)
+fun AbstractCompile.setJavaVersion(javaVersionInteger: Int, unsetReleaseFlag: Boolean) {
+  (project.extra["setJavaVersion"] as Closure<*>).call(this, javaVersionInteger, unsetReleaseFlag)
 }
 
 val minimumBranchCoverage by extra(0.7)

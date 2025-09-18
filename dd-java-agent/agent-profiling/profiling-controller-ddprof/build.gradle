@@ -38,8 +38,8 @@ dependencies {
  * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
 [JavaCompile, GroovyCompile].each {
-  tasks.withType(it).configureEach {
-    setJavaVersion(it, 11)
+  tasks.withType(it, AbstractCompile).configureEach {
+    setJavaVersion(it, 11, true)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
     // Disable '-processing' because some annotations are not claimed.

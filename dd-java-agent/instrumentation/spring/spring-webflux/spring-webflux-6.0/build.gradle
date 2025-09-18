@@ -11,15 +11,13 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepBootTest', 'latestDepTest', 'bootTest')
 
-tasks.withType(JavaCompile).each {
-  it.configure {
-    setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.withType(JavaCompile).configureEach {
+  setJavaVersion(it, 17, true)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.withType(GroovyCompile).each {
+tasks.withType(GroovyCompile).configureEach {
   it.javaLauncher = getJavaLauncherFor(17)
 }
 

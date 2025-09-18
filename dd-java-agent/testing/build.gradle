@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 tasks.withType(JavaCompile).configureEach {
   // need access to sun.misc package
-  setJavaVersion(it, 8)
+  setJavaVersion(it, 8, true)
 }
 
 minimumBranchCoverage = 0.5
