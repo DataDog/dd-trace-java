@@ -2,6 +2,7 @@ package datadog.trace.agent.test.utils;
 
 import static datadog.trace.util.Strings.getResourceName;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -56,7 +58,10 @@ public class ClasspathUtils {
 
     final Manifest manifest = new Manifest();
     try (final JarOutputStream target =
-        new JarOutputStream(new FileOutputStream(tmpJar), manifest)) {
+        new JarOutputStream(
+            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())),
+            manifest
+        )) {
       for (final String resourceName : resourceNames) {
         try (InputStream is = loader.getResourceAsStream(resourceName)) {
           if (is != null) {
