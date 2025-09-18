@@ -20,7 +20,7 @@ sourceSets {
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11)
+  setJavaVersion(it, 11, true)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }

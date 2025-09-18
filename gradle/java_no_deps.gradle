@@ -9,12 +9,6 @@ apply plugin: 'java-library'
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
-java {
-  toolchain {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
-}
-
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
@@ -285,19 +279,48 @@ if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
   }
 }
 
-ext.setJavaVersion = (it, javaVersionInteger) -> {
+// Configure the compile task with release if possible
+// other wise use the java 8 compiler
+tasks.withType(JavaCompile).configureEach {
+  def targetVersion = JavaVersion.toVersion(targetCompatibility).majorVersion as Integer
+  if (JavaVersion.current().isJava9Compatible()) {
+    it.options.release = targetVersion
+    // Disable '-options' because we are compiling for java8 from the daemon JDK deliberately
+    it.options.compilerArgs.add('-Xlint:-options')
+  } else {
+    it.javaCompiler = javaToolchains.compilerFor {
+      languageVersion = JavaLanguageVersion.of(targetVersion)
+    }
+  }
+  doFirst("audit-compiler-setting") {
+    def releaseFlagValue = options.release.getOrNull()
+    if (releaseFlagValue != null && !JavaVersion.toVersion(targetCompatibility).isCompatibleWith(JavaVersion.toVersion(releaseFlagValue))) {
+      logger.warn('⚠️ The release flag and targetCompatibility have different values **release will win**, targetCompatibility: ' + targetCompatibility.toString() + ', release: ' + releaseFlagValue + '\n' +
+        '  compiler: ' + javaCompiler.get().executablePath.asFile)
+    }
+  }
+}
+
+// Enforce the use of a toolchain compiler
+ext.setJavaVersion = (AbstractCompile it, int requiredJdkToolchainVersion, boolean unsetReleaseFlag = false) -> {
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+    languageVersion = JavaLanguageVersion.of(requiredJdkToolchainVersion)
   }
   Provider<JavaLauncher> launcher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+    languageVersion = JavaLanguageVersion.of(requiredJdkToolchainVersion)
   }
   try {
     if (it instanceof JavaCompile) {
       JavaCompile jc = (JavaCompile) it
       jc.javaCompiler = compiler
-      if (javaVersionInteger == 8) {
+      if (unsetReleaseFlag || requiredJdkToolchainVersion == 8) {
+        // Don't set the release flag, as code need unpublished symbols,
+        // those are not accessible when using `--release N`
+        // e.g. with sun.misc.SharedSecrets, or jdk.jfr.internal.JVM
         jc.options.release = null
+      } else if (JavaVersion.toVersion(requiredJdkToolchainVersion).isJava9Compatible()) {
+        jc.options.release = requiredJdkToolchainVersion
+        jc.options.compilerArgs.add('-Xlint:-options')
       }
     } else if (it instanceof GroovyCompile) {
       GroovyCompile gc = (GroovyCompile) it
@@ -309,7 +332,7 @@ ext.setJavaVersion = (it, javaVersionInteger) -> {
       throw new GradleException("Unsupported compile type: ${it.getClass()}")
     }
   } catch (NoSuchElementException ignored) {
-    throw new GradleException("Unable to find compiler for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
+    throw new GradleException("Unable to find compiler for Java $requiredJdkToolchainVersion. Have you set JAVA_${requiredJdkToolchainVersion}_HOME?")
   }
 } as Closure<Void>
 

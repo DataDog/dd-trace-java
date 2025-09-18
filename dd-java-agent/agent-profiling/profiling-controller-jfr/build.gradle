@@ -1,3 +1,5 @@
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
+
 // Set properties before any plugins get loaded
 ext {
   // the tests need Java 11 because the JFR writer got compiled with a version
@@ -28,9 +30,8 @@ excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
 
 // Shared JFR implementation. The earliest Java version JFR is working on is Java 8
-
 tasks.named("compileTestJava", JavaCompile) {
-  setJavaVersion(it, 11)
+  setJavaVersion(it, 11, true)
   // tests should be compiled in Java 8 compatible way
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
@@ -40,7 +41,7 @@ tasks.named("compileTestJava", JavaCompile) {
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
 }
 
-tasks.named("forbiddenApisMain") {
+tasks.named("forbiddenApisMain", CheckForbiddenApis) {
   failOnMissingClasses = false
 }
 

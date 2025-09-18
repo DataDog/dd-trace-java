@@ -26,10 +26,10 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('jetty11Test', 'test')
 addTestSuiteForDir('jetty10LatestDepTest', 'test')
-compileMain_java11Java.configure {
+tasks.named("compileMain_java11Java", JavaCompile) {
+  setJavaVersion(it, 11, true)
   it.sourceCompatibility = JavaVersion.VERSION_1_8
   it.targetCompatibility = JavaVersion.VERSION_1_8
-  setJavaVersion(it, 11)
 }
 dependencies {
   main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'

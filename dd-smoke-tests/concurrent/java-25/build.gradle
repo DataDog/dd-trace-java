@@ -18,18 +18,19 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'JDK 25 Concurrent Integration Tests'
 
-tasks.named('compileJava') {
+javaToolchains {
+  java {
+    toolchain {
+      languageVersion = JavaLanguageVersion.of(25)
+    }
+  }
+}
+
+tasks.named('compileJava', JavaCompile) {
   setJavaVersion(it, 25)
   sourceCompatibility = JavaVersion.VERSION_25
   targetCompatibility = JavaVersion.VERSION_25
   options.compilerArgs.add("--enable-preview")
-  javaToolchains {
-    java {
-      toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-      }
-    }
-  }
 }
 
 tasks.named('compileTestGroovy') {

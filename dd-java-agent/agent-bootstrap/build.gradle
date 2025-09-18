@@ -1,3 +1,5 @@
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
+
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id 'com.gradleup.shadow'
@@ -9,7 +11,7 @@ apply plugin: "idea"
 
 tasks.named("compileJava", JavaCompile).configure {
   // need access to sun.* packages
-  setJavaVersion(it, 8)
+  setJavaVersion(it, 8, true)
 }
 
 // FIXME: Improve test coverage.
@@ -37,8 +39,8 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
-  setJavaVersion(it, 11)
+tasks.named("compileMain_java11Java", JavaCompile) {
+  setJavaVersion(it, 11, true)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
@@ -52,7 +54,7 @@ tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-tasks.named("forbiddenApisMain_java11") {
+tasks.named("forbiddenApisMain_java11", CheckForbiddenApis) {
   failOnMissingClasses = false
 }
 
@@ -63,14 +65,12 @@ idea {
 }
 
 jmh {
-  jmhVersion = libs.versions.jmh.get()
+  jmhVersion = libs.versions.jmh
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-      jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
-    }
+tasks.withType(Test).configureEach {
+  if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
+    jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
   }
 }

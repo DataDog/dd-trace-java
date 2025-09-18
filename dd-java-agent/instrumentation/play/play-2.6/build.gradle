@@ -127,9 +127,9 @@ configurations.matching({ it.name.startsWith('latestDepTest') }).each({
   }
 })
 tasks.named("compileLatestDepTestJava", JavaCompile) {
+  setJavaVersion(it, 11)
   it.sourceCompatibility = JavaVersion.VERSION_11
   it.targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
 }
 compileLatestDepTestScala {
   javaLauncher = getJavaLauncherFor(11)

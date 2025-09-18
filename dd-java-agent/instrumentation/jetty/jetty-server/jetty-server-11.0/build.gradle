@@ -17,15 +17,10 @@ apply plugin: "idea"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
-tasks.withType(JavaCompile).configureEach {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-tasks.withType(GroovyCompile) {
+tasks.withType(GroovyCompile).configureEach {
   javaLauncher = getJavaLauncherFor(11)
 }
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
   javaLauncher = getJavaLauncherFor(11)
 }
 

@@ -16,16 +16,16 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir("latestDepTest", "test")
 
-["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each { name ->
-  tasks.named(name, JavaCompile) {
-    setJavaVersion(it, 17)
+["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    setJavaVersion(it, 17, true)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
-tasks.withType(GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(17)
+tasks.withType(GroovyCompile).configureEach {
+  setJavaVersion(it, 17)
   groovyOptions.setParameters(true)
 }
 

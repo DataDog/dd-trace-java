@@ -29,7 +29,7 @@ addTestSuiteForDir('latestSpring5Test', 'test')
 
 ["compileSpring6TestJava", "compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    setJavaVersion(it, 17)
+    setJavaVersion(it, 17, true)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }

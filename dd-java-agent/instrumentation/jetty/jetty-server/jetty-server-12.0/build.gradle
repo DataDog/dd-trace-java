@@ -33,16 +33,15 @@ addTestSuiteExtendingForDir('ee10ForkedTest', 'ee10Test', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'test/ee10')
 
-["compileMain_java17Java", "compileTestJava"].each { name ->
-  tasks.named(name, JavaCompile) {
-    setJavaVersion(it, 17)
+["compileMain_java17Java", "compileTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    setJavaVersion(it, 17, true)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
-
-["ee8LatestDepTest", "ee9LatestDepTest", "ee10LatestDepTest"].each { name ->
-  tasks.named(name, Test) {
+["ee8LatestDepTest", "ee9LatestDepTest", "ee10LatestDepTest"].each {
+  tasks.named(it, Test) {
     it.jvmArgs += ['-Dtest.dd.latestDepTest=true']
   }
 }

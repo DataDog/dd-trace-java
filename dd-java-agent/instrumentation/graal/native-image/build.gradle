@@ -15,9 +15,9 @@ apply plugin: "idea"
 
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
+    setJavaVersion(it, 11, true)
     it.sourceCompatibility = JavaVersion.VERSION_11
     it.targetCompatibility = JavaVersion.VERSION_11
-    setJavaVersion(it, 11)
     it.options.compilerArgs.addAll([
       '-Xlint:all,-processing,-options,-path',
       '--add-modules',
@@ -34,7 +34,7 @@ dependencies {
   main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 
