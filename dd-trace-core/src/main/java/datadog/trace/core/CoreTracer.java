@@ -243,7 +243,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final PropagationTags.Factory propagationTagsFactory;
 
   // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
-  // the other branch in buildSpan
+  // the other branch in singleSpanBuilder
   private static final boolean SPAN_BUILDER_REUSE_ENABLED =
       Config.get().isSpanBuilderReuseEnabled();
 
@@ -999,7 +999,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final String instrumentationName,
       final CharSequence operationName) {
     // retrieve the thread's typical SpanBuilder and try to reset it
-    // reset will fail if the CoreSpanBuilder is still "in-use"
+    // reset will fail if the ReusableSingleSpanBuilder is still "in-use"
     ReusableSingleSpanBuilder tlSpanBuilder = tlCache.get();
     boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
     if (wasReset) return tlSpanBuilder;
@@ -1008,8 +1008,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     ReusableSingleSpanBuilder newSpanBuilder = new ReusableSingleSpanBuilder(tracer);
     newSpanBuilder.reset(instrumentationName, operationName);
 
-    // DQH - Debated how best to handle the case of someone requesting a CoreSpanBuilder
-    // and then not using it.  Without an ability to replace the cached CoreSpanBuilder,
+    // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
+    // and then not using it.  Without an ability to replace the cached SpanBuilder,
     // that case could result in permanently burning the cache for a given thread.
 
     // That could be solved with additional logic during CoreSpanBuilder#build
