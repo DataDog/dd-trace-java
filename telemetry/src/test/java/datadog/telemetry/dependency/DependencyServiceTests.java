@@ -2,6 +2,7 @@ package datadog.telemetry.dependency;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -24,7 +25,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class DependencyServiceTests {
-
   DependencyService depService = new DependencyService();
   Closeable assemblyHandle;
   TempFileProvider tempFileProvider;
@@ -135,6 +135,6 @@ public class DependencyServiceTests {
     assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
 
     Dependency dep = identifyDependency(t, "assembly.jar/nonexistent-1.2.3.jar");
-    assertNotNull(dep);
+    assertNull(dep);
   }
 }
