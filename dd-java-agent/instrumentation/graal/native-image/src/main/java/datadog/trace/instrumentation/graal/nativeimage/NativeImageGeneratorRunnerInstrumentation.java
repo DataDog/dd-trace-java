@@ -169,7 +169,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
         // We don't want to drag in internal-api via Platform class, so we just read the system
         // property directly
         String version = SystemProperties.getOrDefault("java.specification.version", "");
-        if (version.startsWith("17")) {
+        if (version.startsWith("17") || version.startsWith("25")) {
           args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
         } else {
           args[oldLength++] = "-H:EnableMonitoringFeatures@user+api=jfr";
