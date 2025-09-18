@@ -96,7 +96,7 @@ public final class CoreTracerTest {
     assertTrue(abandonedBuilder.inUse);
 
     // Requesting the next builder will replace the previous one in the thread local cache
-    // This is done, so that an abandoned builder doesn't permanently burn the cache for a thread
+    // This is done so that an abandoned builder doesn't permanently burn the cache for a thread
     ReusableSingleSpanBuilder builder1 =
         CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "baz", "quux");
     assertTrue(builder1.inUse);
