@@ -16,22 +16,20 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-[compileMain_java17Java, compileTestJava, compileLatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 17)
+["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it) {
+    setJavaVersion(it, 17, true)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
-tasks.withType(JavaCompile).each {
-  it.configure {
-    setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.withType(JavaCompile).configureEach {
+  setJavaVersion(it, 17, true)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
-tasks.withType(GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(17)
+tasks.withType(GroovyCompile).configureEach {
+  setJavaVersion(it, 17, true)
 }
 
 dependencies {
@@ -68,7 +66,7 @@ dependencies {
 
 }
 
-configurations.testRuntimeClasspath {
+configurations.named("testRuntimeClasspath") {
   // spock-core depends on assertj version that is not compatible with kafka-clients
   resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }
