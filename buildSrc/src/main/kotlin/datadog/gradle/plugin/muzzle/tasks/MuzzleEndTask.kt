@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import datadog.gradle.plugin.muzzle.pathSlug
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
@@ -12,17 +13,15 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   fun generatesResultFile() {
     val endTimeMs = System.currentTimeMillis()
     val seconds = (endTimeMs - startTimeMs.get()).toDouble() / 1000.0
-    val name = "${project.path}:muzzle"
-    val dirname = name.replaceFirst("^:".toRegex(), "").replace(":", "_")
-    val dir = project.rootProject.layout.buildDirectory.dir("${MUZZLE_TEST_RESULTS}/$dirname/results.xml")
-    with(project.file(dir)) {
+    val dirname = "${project.pathSlug}_muzzle"
+    val resultsFile = project.rootProject.layout.buildDirectory.dir("${MUZZLE_TEST_RESULTS}/$dirname/results.xml")
+    with(project.file(resultsFile)) {
       parentFile.mkdirs()
       writeText(
         """
         <?xml version="1.0" encoding="UTF-8"?>
         <testsuite name="$name" tests="1" id="0" time="$seconds">
-          <testcase name="$name" time="$seconds">
-          </testcase>
+          <testcase name="$name" time="$seconds"/>
         </testsuite>
         """.trimIndent()
       )

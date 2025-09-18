@@ -90,7 +90,7 @@ class MuzzlePlugin : Plugin<Project> {
     }.also {
       val printReferencesTask = project.tasks.register("actuallyPrintReferences") {
         doLast {
-          println(it.get().outputFile.get().asFile.readText())
+          project.logger.quiet(it.get().outputFile.get().asFile.readText())
         }
       }
       it.configure { finalizedBy(printReferencesTask) }
