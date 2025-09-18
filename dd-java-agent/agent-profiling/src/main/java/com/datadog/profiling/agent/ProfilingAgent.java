@@ -10,6 +10,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
+import com.datadog.profiling.controller.ProfilerFlareReporter;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
@@ -18,6 +19,7 @@ import com.datadog.profiling.utils.Timestamper;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingType;
@@ -171,16 +173,8 @@ public class ProfilingAgent {
         } catch (final IllegalStateException ex) {
           // The JVM is already shutting down.
         }
-      } catch (final UnsupportedEnvironmentException e) {
-        log.warn(e.getMessage());
-        // no need to send telemetry for this aggregate message
-        //   a detailed telemetry message has been sent from the attempts to enable the controllers
-        // -----------------------------------------------------------------------------------------
-        // but we do want to report this within the profiler flare
-        ProfilerFlareReporter.reportInitializationException(e);
-      } catch (final ConfigurationException e) {
-        log.warn("Failed to initialize profiling agent! {}", e.getMessage());
-        log.debug(SEND_TELEMETRY, "Failed to initialize profiling agent!", e);
+      } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
+        ProfilerFlareLogger.getInstance().log("Failed to initialize profiling agent!", e);
         ProfilerFlareReporter.reportInitializationException(e);
       }
     }

@@ -1,6 +1,5 @@
-package com.datadog.profiling.agent;
+package com.datadog.profiling.controller;
 
-import com.datadog.profiling.controller.ProfilingSupport;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.flare.TracerFlare;
@@ -15,14 +14,14 @@ import java.util.zip.ZipOutputStream;
 
 public final class ProfilerFlareReporter implements TracerFlare.Reporter {
   private static final ProfilerFlareReporter INSTANCE = new ProfilerFlareReporter();
-  private static Exception profilerInitializationException;
+  private volatile Exception profilerInitializationException;
 
   public static void register() {
     TracerFlare.addReporter(INSTANCE);
   }
 
   public static void reportInitializationException(Exception e) {
-    profilerInitializationException = e;
+    INSTANCE.profilerInitializationException = e;
   }
 
   @Override
@@ -40,6 +39,12 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         // no-op, ignore if we can't read the template override file
       }
     }
+
+    StringBuilder envCheck = new StringBuilder();
+    String tempDir = ConfigProvider.getInstance().getString(ProfilingConfig.PROFILING_TEMP_DIR);
+    EnvironmentChecker.checkEnvironment(
+        tempDir != null ? tempDir : System.getProperty("java.io.tmpdir"), envCheck);
+    TracerFlare.addText(zip, "profiler_env.txt", envCheck.toString());
   }
 
   private String getProfilerConfig() {
