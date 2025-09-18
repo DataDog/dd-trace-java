@@ -916,7 +916,8 @@ public class GatewayBridge {
         "_dd.appsec.request.",
         allowed,
         headers,
-        collectAll);
+        collectAll,
+        true);
   }
 
   private static void writeResponseHeaders(
@@ -932,7 +933,8 @@ public class GatewayBridge {
         "_dd.appsec.response.",
         allowed,
         headers,
-        collectAll);
+        collectAll,
+        false);
   }
 
   private static void writeHeaders(
@@ -942,7 +944,8 @@ public class GatewayBridge {
       final String discardedPrefix,
       final Set<String> allowed,
       final Map<String, List<String>> headers,
-      final boolean collectAll) {
+      final boolean collectAll,
+      final boolean checkCookie) {
 
     if (headers == null || headers.isEmpty()) {
       return;
@@ -989,6 +992,9 @@ public class GatewayBridge {
           traceSeg.setTagTop(prefix + name, joined);
           added.add(name);
         }
+      }
+      if (checkCookie && !ctx.getCookies().isEmpty()) {
+        traceSeg.setTagTop(prefix + "cookie", "<redacted>");
       }
 
       if (excluded > 0) {

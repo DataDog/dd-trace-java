@@ -127,7 +127,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
-    //        command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
@@ -175,7 +174,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.meta.get('http.request.headers.x-my-header-4') == 'value4'
     rootSpan.meta.get('http.request.headers.authorization') == '<redacted>'
     rootSpan.meta.get('http.request.headers.proxy-authorization') == '<redacted>'
-    //    rootSpan.meta.get('http.request.headers.cookie') == '<redacted>'
+    rootSpan.meta.get('http.request.headers.cookie') == '<redacted>'
     rootSpan.meta.get('http.request.headers.content-type') == 'text/html'
     !rootSpan.metrics.containsKey('_dd.appsec.response.header_collection.discarded')
     rootSpan.meta.get('http.response.headers.x-test-header-1') == 'value1'
