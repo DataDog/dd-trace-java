@@ -103,7 +103,7 @@ public final class Initializer {
       initializeOOMENotifier(access);
       return true;
     } catch (Throwable t) {
-      LOG.debug("Failed to initialize crash tracking: " + t.getMessage(), t);
+      LOG.debug("Failed to initialize crash tracking: {}", t.getMessage(), t);
     }
     return false;
   }
