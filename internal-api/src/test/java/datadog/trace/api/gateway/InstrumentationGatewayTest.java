@@ -1,5 +1,6 @@
 package datadog.trace.api.gateway;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,7 +15,6 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class InstrumentationGatewayTest {
-
   private InstrumentationGateway gateway;
   private SubscriptionService ss;
   private CallbackProvider cbp;
@@ -41,7 +40,7 @@ public class InstrumentationGatewayTest {
     context =
         new RequestContext() {
           @Override
-          public void close() throws IOException {}
+          public void close() {}
 
           @Override
           public Object getData(RequestContextSlot slot) {
@@ -78,11 +77,10 @@ public class InstrumentationGatewayTest {
     assertNull(cbp.getCallback(events.requestEnded()));
     // check event with registered callback
     Supplier<Flow<Object>> cback = cbp.getCallback(events.requestStarted());
-    // FIXME!!! assertEquals(callback, cback);
+    assertEquals(cback, callback);
     Flow<Object> flow = cback.get();
     assertEquals(Flow.Action.Noop.INSTANCE, flow.getAction());
-    Object ctxt = flow.getResult();
-    assertEquals(context, ctxt);
+    assertEquals(context, flow.getResult());
   }
 
   @Test
@@ -91,38 +89,39 @@ public class InstrumentationGatewayTest {
     // check event without registered callback
     assertNull(cbp.getCallback(events.requestEnded()));
     // check event with registered callback
-    // FIXME !!! assertEquals(callback, cbp.getCallback(events.requestStarted()));
+    assertEquals(cbp.getCallback(events.requestStarted()), callback);
     // check that we can register a callback
     Callback cb = new Callback(context, flow);
     Subscription s2 = ss.registerCallback(events.requestEnded(), cb);
-    // FIXME assertEquals(cb, cbp.getCallback(events.requestEnded()));
+    assertNotNull(s2);
+    assertEquals(cbp.getCallback(events.requestEnded()), cb);
     // check that we can cancel a callback
     s1.cancel();
     assertNull(cbp.getCallback(events.requestStarted()));
     // check that we didn't remove the other callback
-    // FIXME assertEquals(cb, cbp.getCallback(events.requestEnded()));
+    assertEquals(cbp.getCallback(events.requestEnded()), cb);
   }
 
   @Test
   public void testDoubleRegistration() {
     ss.registerCallback(events.requestStarted(), callback);
     // check event with registered callback
-    // FIXME !!! assertEquals(callback, cbp.getCallback(events.requestStarted()));
+    assertEquals(cbp.getCallback(events.requestStarted()), callback);
     // check that we can't overwrite the callback
     IllegalStateException ex =
         assertThrows(
             IllegalStateException.class,
             () -> ss.registerCallback(events.requestStarted(), callback));
-    String msg = ex.getMessage();
-    assertTrue(msg.startsWith("Trying to overwrite existing callback "));
-    assertTrue(msg.contains(events.requestStarted().toString()));
+    assertAll(
+        () -> assertTrue(ex.getMessage().startsWith("Trying to overwrite existing callback ")),
+        () -> assertTrue(ex.getMessage().contains(events.requestStarted().toString())));
   }
 
   @Test
   public void testDoubleCancel() {
     Subscription s1 = ss.registerCallback(events.requestStarted(), callback);
     // check event with registered callback
-    // FIXME !!! assertEquals(callback, cbp.getCallback(events.requestStarted()));
+    assertEquals(cbp.getCallback(events.requestStarted()), callback);
     // check that we can cancel a callback
     s1.cancel();
     assertNull(cbp.getCallback(events.requestStarted()));
@@ -359,7 +358,7 @@ public class InstrumentationGatewayTest {
     final int[] count = new int[1];
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
         (requestContext, igSpanInfo) -> {
-          assertSame(callback.ctxt, requestContext);
+          assertSame(callback.ctx, requestContext);
           assertSame(AgentTracer.noopSpan(), igSpanInfo);
           count[0]++;
           return new Flow.ResultFlow<>(null);
@@ -368,7 +367,7 @@ public class InstrumentationGatewayTest {
     ssIast.registerCallback(events.requestEnded(), cb);
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
         gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
-    Flow<Void> res = uniCb.apply(callback.ctxt, AgentTracer.noopSpan());
+    Flow<Void> res = uniCb.apply(callback.ctx, AgentTracer.noopSpan());
 
     assertEquals(2, count[0]);
     assertNotNull(res);
@@ -465,13 +464,13 @@ public class InstrumentationGatewayTest {
           BiFunction<RequestContext, T, Flow<Void>>,
           TriFunction<RequestContext, T, T, Flow<Void>> {
 
-    private final RequestContext ctxt;
+    private final RequestContext ctx;
     private final Flow<Void> flow;
     private int count = 0;
     private final Function<RequestContext, Flow<Void>> function;
 
-    public Callback(RequestContext ctxt, Flow<Void> flow) {
-      this.ctxt = ctxt;
+    public Callback(RequestContext ctx, Flow<Void> flow) {
+      this.ctx = ctx;
       this.flow = flow;
       function =
           input -> {
@@ -489,7 +488,7 @@ public class InstrumentationGatewayTest {
     @Override
     public Flow<D> get() {
       count++;
-      return new Flow.ResultFlow<>((D) ctxt);
+      return new Flow.ResultFlow<>((D) ctx);
     }
 
     @Override
@@ -595,10 +594,6 @@ public class InstrumentationGatewayTest {
         count++;
         throw new IllegalArgumentException();
       };
-    }
-
-    public int getCount() {
-      return count;
     }
 
     @Override

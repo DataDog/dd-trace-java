@@ -1,7 +1,7 @@
 package datadog.gradle.plugin.version
 
 import org.gradle.testkit.runner.GradleRunner
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -287,7 +287,7 @@ class TracerVersionIntegrationTest {
       // .withDebug(true)
       .build()
 
-    assertTrue(buildResult.output.startsWith(expectedVersion))
+    assertEquals(expectedVersion, buildResult.output.lines().first())
   }
 
   private fun exec(workingDirectory: File, vararg args: String) {
