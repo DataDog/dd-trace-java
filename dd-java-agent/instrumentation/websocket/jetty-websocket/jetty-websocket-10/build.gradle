@@ -17,13 +17,15 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite("latestDepTest")
 
-compileMain_java11Java.configure {
-  setJavaVersion(it, 11)
+tasks.named("compileMain_java11Java") {
+  setJavaVersion(it, 11, true)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
-[compileTestGroovy, compileLatestDepTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
+["compileTestGroovy", "compileLatestDepTestGroovy"].each {
+  tasks.named(it) {
+    setJavaVersion(it, 11)
+  }
 }
 
 dependencies {
@@ -34,7 +36,7 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
 
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
-  configurations.all {
+  configurations.configureEach {
     it.resolutionStrategy {
       force libs.slf4j
     }

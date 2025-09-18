@@ -1,3 +1,5 @@
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
+
 // Set properties before any plugins get loaded
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
@@ -13,8 +15,12 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
-  setJavaVersion(it, 11)
+tasks.named("compileJava", JavaCompile) {
+  setJavaVersion(it, 11, true)
+}
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  setJavaVersion(it, 11, true)
   sourceCompatibility = JavaVersion.VERSION_1_9
   targetCompatibility = JavaVersion.VERSION_1_9
 }
@@ -37,12 +43,12 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.jfr.SimpleJFRAccess*'
 ]
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain {
-  failOnMissingClasses = false
+tasks.named("forbiddenApisMain", CheckForbiddenApis) {
+  it.failOnMissingClasses = false
 }
 
 idea {
@@ -51,12 +57,10 @@ idea {
   }
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 9) {
-      jvmArgs += [
-        '--add-opens',
-        'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
-    }
+tasks.withType(Test).configureEach {
+  if (javaLauncher.get().metadata.languageVersion.asInt() >= 9) {
+    jvmArgs += [
+      '--add-opens',
+      'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
   }
 }
