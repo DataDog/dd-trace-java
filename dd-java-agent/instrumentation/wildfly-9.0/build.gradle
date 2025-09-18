@@ -119,27 +119,24 @@ tasks.named("latestDepTest") {
   dependsOn 'extractLatestWildfly'
 }
 
-compileTestGroovy.configure {
-  javaLauncher = getJavaLauncherFor(11)
+tasks.named("compileTestGroovy") {
+  setJavaVersion(it, 11)
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(17)
-  }
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
+  tasks.named(it) {
+    setJavaVersion(it, 17)}
 }
 
-compileTestJava.configure {
-  it.configure {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.named("compileTestJava") {
+  setJavaVersion(it, 11, true)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  it.configure {
-    setJavaVersion(it, 17)
+["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each {
+  tasks.named(it) {
+    setJavaVersion(it, 17, true)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }

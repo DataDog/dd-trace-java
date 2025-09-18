@@ -31,8 +31,10 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
-project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 17)
+tasks.withType(AbstractCompile).configureEach {
+  // TODO look at this config when refactoring setJavaVersion
+
+  setJavaVersion(it, 17, true)
   if (it.name != 'compileCsiJava') {
     sourceCompatibility = JavaVersion.VERSION_15
     targetCompatibility = JavaVersion.VERSION_15
