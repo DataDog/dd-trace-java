@@ -1463,7 +1463,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     protected String instrumentationName;
     protected CharSequence operationName;
 
-    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset (below)
+    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
+    // (below)
     // Builder attributes
     protected TagMap.Ledger tagLedger;
     protected long timestampMicro;
