@@ -1957,6 +1957,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.inUse = false;
     }
 
+    /**
+     * Resets the ReusableSingleSpanBuilder, so it may be used to build another single span Returns
+     * true if the reset was successful Returns false if this ReusableSingleSpanBuilder is still
+     * "in-use"
+     */
     final boolean reset(String instrumentationName, CharSequence operationName) {
       if (this.inUse) return false;
       this.inUse = true;
@@ -1981,6 +1986,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return true;
     }
 
+    /*
+     * Clears the inUse boolean, so this ReusableSpanBuilder can be reset
+     */
     @Override
     protected DDSpan buildSpan() {
       DDSpan span = this.buildSpanImpl();
