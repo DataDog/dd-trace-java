@@ -8,11 +8,13 @@ import static org.junit.Assert.assertTrue;
 import datadog.trace.api.Config;
 import datadog.trace.core.CoreTracer.CoreSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilder;
+import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilderThreadLocalCache;
 import org.junit.Test;
 
 public final class CoreTracerTest {
   static final CoreTracer TRACER = CoreTracer.builder().build();
-  static final CoreSpanBuilderThreadLocalCache CACHE = new CoreSpanBuilderThreadLocalCache(TRACER);
+  static final ReusableSingleSpanBuilderThreadLocalCache CACHE =
+      new ReusableSingleSpanBuilderThreadLocalCache(TRACER);
 
   @Test
   public void buildSpan() {
