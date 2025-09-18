@@ -36,6 +36,7 @@ if (hasProperty('agentPath')) {
         // quick build mode, enough for smoke test
         buildArgs.add("-Ob")
         buildArgs.add("-J-javaagent:$agentPath")
+        buildArgs.add("-J-Dnet.bytebuddy.safe=false")
         if (withProfiler && property('profiler') == 'true') {
           buildArgs.add("-J-Ddd.profiling.enabled=true")
         }
