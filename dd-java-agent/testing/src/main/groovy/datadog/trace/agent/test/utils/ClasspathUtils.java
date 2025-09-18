@@ -59,9 +59,7 @@ public class ClasspathUtils {
     final Manifest manifest = new Manifest();
     try (final JarOutputStream target =
         new JarOutputStream(
-            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())),
-            manifest
-        )) {
+            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest)) {
       for (final String resourceName : resourceNames) {
         try (InputStream is = loader.getResourceAsStream(resourceName)) {
           if (is != null) {
