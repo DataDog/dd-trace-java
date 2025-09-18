@@ -30,6 +30,14 @@ gradlePlugin {
       id = "tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
+    create("supported-config-generation") {
+      id = "supported-config-generator"
+      implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
+    }
+    create("supported-config-linter") {
+      id = "config-inversion-linter"
+      implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
+    }
   }
 }
 
@@ -52,6 +60,11 @@ dependencies {
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.8")
   implementation("org.ow2.asm", "asm-tree", "9.8")
+
+  implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
+  implementation("com.fasterxml.jackson.core:jackson-databind")
+  implementation("com.fasterxml.jackson.core:jackson-annotations")
+  implementation("com.fasterxml.jackson.core:jackson-core")
 }
 
 tasks.compileKotlin {
