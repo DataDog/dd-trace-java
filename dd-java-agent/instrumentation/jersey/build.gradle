@@ -23,9 +23,7 @@ compileJersey3JettyTestGroovy {
   javaLauncher = getJavaLauncherFor(11)
 }
 compileTestJava.configure {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
 jersey3JettyTest {

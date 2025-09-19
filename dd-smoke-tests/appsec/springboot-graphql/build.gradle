@@ -20,8 +20,8 @@ shadowJar {
 }
 
 // Use Java 11 to build application
-tasks.withType(JavaCompile) {
-  setJavaVersion(delegate, 11)
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(delegate, 11)
 }
 
 dependencies {
@@ -38,9 +38,9 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-task testRuntimeActivation(type: Test) {
+tasks.register('testRuntimeActivation', Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-    "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+      "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 tasks.named('check') {
