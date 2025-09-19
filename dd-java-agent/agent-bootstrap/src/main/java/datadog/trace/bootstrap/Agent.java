@@ -1115,7 +1115,7 @@ public class Agent {
       final Class<?> tracerFlareSystemClass =
           AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlareSystem");
       final Method tracerFlareSystemStartMethod =
-          tracerFlareSystemClass.getMethod("doStart", scoClass);
+          tracerFlareSystemClass.getMethod("start", scoClass);
       tracerFlareSystemStartMethod.invoke(null, sco);
     } catch (final Throwable e) {
       log.warn("Unable start Flare System", e);
@@ -1130,7 +1130,7 @@ public class Agent {
     try {
       final Class<?> tracerFlareSystemClass =
           AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlareSystem");
-      final Method stopFlareSystem = tracerFlareSystemClass.getMethod("doStop");
+      final Method stopFlareSystem = tracerFlareSystemClass.getMethod("stop");
       stopFlareSystem.invoke(null);
     } catch (final Throwable ex) {
       log.error("Error encountered while stopping Flare System", ex);

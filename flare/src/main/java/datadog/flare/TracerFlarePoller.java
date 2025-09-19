@@ -33,21 +33,14 @@ public final class TracerFlarePoller {
   //    this.dynamicConfig = dynamicConfig;
   //  }
 
-  public void start(SharedCommunicationObjects sco) {
+  public void doStart(SharedCommunicationObjects sco) {
     Config config = Config.get();
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
-    //    Caused by: java.lang.NoClassDefFoundError: okhttp3/RequestBody
-    //    at datadog.flare.TracerFlarePoller.start(TracerFlarePoller.java:53)
-    //    if (TracerFlareService.class.getClassLoader() != null){
-    //      System.out.println("CTE CLASSLOADER: " +
-    // TracerFlareService.class.getClassLoader().getClass().getName());
-    //    }
-
     tracerFlareService = new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
   }
 
-  public void stop() {
+  public void doStop() {
     if (null != stopPreparer) {
       stopPreparer.run();
     }
