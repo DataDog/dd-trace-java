@@ -16,11 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 import okio.Okio;
 
-// import datadog.trace.api.DynamicConfig;
-
 public final class TracerFlarePoller {
   private static final String FLARE_LOG_LEVEL = "flare-log-level";
-  // private final DynamicConfig<?> dynamicConfig;
 
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
@@ -28,10 +25,6 @@ public final class TracerFlarePoller {
   private TracerFlareService tracerFlareService;
 
   private final Map<String, String> configAction = new HashMap<>();
-
-  //  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
-  //    this.dynamicConfig = dynamicConfig;
-  //  }
 
   public void doStart(SharedCommunicationObjects sco) {
     Config config = Config.get();

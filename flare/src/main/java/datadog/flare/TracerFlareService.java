@@ -60,11 +60,7 @@ final class TracerFlareService {
 
   private Scheduled<Runnable> scheduledCleanup;
 
-  TracerFlareService(
-      Config config,
-      // DynamicConfig<?> dynamicConfig,
-      OkHttpClient okHttpClient,
-      HttpUrl agentUrl) {
+  TracerFlareService(Config config, OkHttpClient okHttpClient, HttpUrl agentUrl) {
     this.config = config;
     this.okHttpClient = okHttpClient;
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
@@ -224,8 +220,6 @@ final class TracerFlareService {
 
   private void addConfig(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
-    // CTE move to core tracer for now
-    // TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
   }
 
   private void addRuntime(ZipOutputStream zip) throws IOException {
