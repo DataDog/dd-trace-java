@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.net
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.gateway.CallbackProvider
@@ -85,8 +86,8 @@ class URLSinkCallSiteTest extends InstrumentationSpecification {
     TestURLCallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.networkConnection()) >> listener
-    1 * listener.apply(reqCtx, URL.toString())
+    1 * callbackProvider.getCallback(EVENTS.httpClientRequest()) >> listener
+    1 * listener.apply(reqCtx, _ as HttpClientRequest)
 
     where:
     suite << tests()
