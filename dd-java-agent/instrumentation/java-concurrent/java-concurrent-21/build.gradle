@@ -29,20 +29,15 @@ addTestSuite('previewTest')
 
 // Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
 tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 21, true)
-}
-tasks.named("compileJava") {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
 }
 
 // Configure groovy test file compilation
-tasks.named("compilePreviewTestGroovy") {
+tasks.named("compilePreviewTestGroovy", GroovyCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure Java test files compilation
-tasks.named("compilePreviewTestJava") {
-  setJavaVersion(it, 21, true)
+tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution

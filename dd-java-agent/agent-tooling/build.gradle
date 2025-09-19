@@ -87,14 +87,17 @@ tasks.named("forbiddenApisTest_java11") {
 
 tasks.named("compileTestJava") { dependsOn('generateTestClassNameTries') }
 tasks.named("compileTest_java11Java") {
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 tasks.named("compileTest_java21Java") {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-  setJavaVersion(it, 21)
+  configureCompiler(
+    it,
+    21,
+    JavaVersion.VERSION_1_8,
+    "This source set is specifically designed to make `javac` from a JDK post 18/19, generates " +
+    "bytecode that emit `invokeinterface` for `java.lang.Object` methods on an interface type. " +
+    "See https://bugs.openjdk.org/browse/JDK-8272715."
+    )
 }
 
 tasks.named("jmh") {

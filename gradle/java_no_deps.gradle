@@ -6,9 +6,6 @@ import java.nio.file.Paths
 
 apply plugin: 'java-library'
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
@@ -40,18 +37,27 @@ if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
 }
 
-if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
-  def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
-  def name = "java$version.majorVersion"
-  sourceSets {
-    "main_$name" {
-      java.srcDirs = ["${project.projectDir}/src/main/$name"]
-    }
+java {
+  // Our minimum target
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+
+  // See https://docs.gradle.org/current/userguide/upgrading_version_5.html, Automatic target JVM version
+  disableAutoTargetJvm()
+  withJavadocJar()
+  withSourcesJar()
+}
+
+if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
+  def version = JavaVersion.toVersion(project.findProperty('minJavaVersionForTests'))
+  def name = "java${version.majorVersion}"
+  def mainForJavaVersionSourceSet = sourceSets.create("main_$name") {
+    java.srcDirs = ["${project.projectDir}/src/main/$name"]
   }
 
-  tasks.named("compileMain_${name}Java", JavaCompile).configure {
-    sourceCompatibility = version
-    targetCompatibility = version
+  // Task name is registered when source set was created
+  tasks.named(mainForJavaVersionSourceSet.compileJavaTaskName, JavaCompile) {
+    configureCompiler(it, version.majorVersion.toInteger().intValue(), version)
   }
 
   // "socket-utils" is only set to compileOnly because the implementation dependency incorrectly adds Java17 classes to all jar prefixes.
@@ -82,13 +88,6 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 }
 
-java {
-  // See https://docs.gradle.org/current/userguide/upgrading_version_5.html, Automatic target JVM version
-  disableAutoTargetJvm()
-  withJavadocJar()
-  withSourcesJar()
-}
-
 tasks.named("jar", Jar) {
   /**
    Make Jar build fail on duplicate files
@@ -101,7 +100,7 @@ tasks.named("jar", Jar) {
    confusing failures.
    Instead we should 'fail early' and avoid building such Jars.
    */
-  duplicatesStrategy = 'fail'
+  duplicatesStrategy = DuplicatesStrategy.FAIL
 
   manifest {
     attributes(
@@ -301,30 +300,50 @@ tasks.withType(JavaCompile).configureEach {
   }
 }
 
-// Enforce the use of a toolchain compiler
-ext.setJavaVersion = (AbstractCompile it, int requiredJdkToolchainVersion, boolean unsetReleaseFlag = false) -> {
+/**
+ * Customize the compiler config.
+ * Adapts depending on the compile task type (java, groovy, scala covered).
+ * For java changes the compiler from the toolchain, and adapts its configuration.
+ *
+ * For Groovy and Scala compile tasks only sets the launcher.
+ */
+ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion compatibilityVersion = null, String unsetReleaseFlagReason = null) -> {
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(requiredJdkToolchainVersion)
+    languageVersion = JavaLanguageVersion.of(toolchainVersion)
   }
   Provider<JavaLauncher> launcher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(requiredJdkToolchainVersion)
+    languageVersion = JavaLanguageVersion.of(toolchainVersion)
   }
   try {
     if (it instanceof JavaCompile) {
       JavaCompile jc = (JavaCompile) it
       jc.javaCompiler = compiler
-      if (unsetReleaseFlag || requiredJdkToolchainVersion == 8) {
+      if (compatibilityVersion != null) {
+        jc.targetCompatibility = compatibilityVersion
+        jc.sourceCompatibility = compatibilityVersion
+      }
+      def isReleaseFlagIncompatibleWithTarget = compatibilityVersion != null
+      && !compatibilityVersion.isCompatibleWith(JavaVersion.toVersion(toolchainVersion))
+      if (unsetReleaseFlagReason != null || isReleaseFlagIncompatibleWithTarget || toolchainVersion == 8) {
+        logger.debug("Not using --release for {}", jc.path)
         // Don't set the release flag, as code need unpublished symbols,
         // those are not accessible when using `--release N`
         // e.g. with sun.misc.SharedSecrets, or jdk.jfr.internal.JVM
         jc.options.release = null
-      } else if (JavaVersion.toVersion(requiredJdkToolchainVersion).isJava9Compatible()) {
-        jc.options.release = requiredJdkToolchainVersion
+        if (unsetReleaseFlagReason != null) {
+          logger.info("Not using '--release' because: {}", unsetReleaseFlagReason)
+        }
+      } else if (JavaVersion.toVersion(toolchainVersion).isJava9Compatible()) {
+        jc.options.release = toolchainVersion
         jc.options.compilerArgs.add('-Xlint:-options')
       }
     } else if (it instanceof GroovyCompile) {
       GroovyCompile gc = (GroovyCompile) it
       gc.javaLauncher = launcher
+      if (compatibilityVersion != null) {
+        it.sourceCompatibility = compatibilityVersion
+        it.targetCompatibility = compatibilityVersion
+      }
     } else if (it instanceof ScalaCompile) {
       ScalaCompile sc = (ScalaCompile) it
       sc.javaLauncher = launcher
@@ -332,7 +351,7 @@ ext.setJavaVersion = (AbstractCompile it, int requiredJdkToolchainVersion, boole
       throw new GradleException("Unsupported compile type: ${it.getClass()}")
     }
   } catch (NoSuchElementException ignored) {
-    throw new GradleException("Unable to find compiler for Java $requiredJdkToolchainVersion. Have you set JAVA_${requiredJdkToolchainVersion}_HOME?")
+    throw new GradleException("Unable to find compiler for Java $toolchainVersion. Have you set JAVA_${toolchainVersion}_HOME?")
   }
 } as Closure<Void>
 

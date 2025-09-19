@@ -25,14 +25,12 @@ sourceSets {
   }
 }
 
-def compileMain_java6Java = tasks.named("compileMain_java6Java") {
-  setJavaVersion(it, 8, true)
-  sourceCompatibility = JavaVersion.VERSION_1_6
-  targetCompatibility = JavaVersion.VERSION_1_6
+def java6CompileTask = tasks.named("compileMain_java6Java") {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_6)
 }
 
 tasks.named("compileJava") {
-  dependsOn compileMain_java6Java
+  dependsOn(java6CompileTask)
 }
 
 dependencies {

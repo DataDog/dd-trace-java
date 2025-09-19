@@ -22,15 +22,13 @@ tasks.withType<Javadoc>().configureEach() {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
-fun AbstractCompile.setJavaVersion(javaVersionInteger: Int, unsetReleaseFlag: Boolean) {
-  (project.extra.get("setJavaVersion") as Closure<*>).call(this, javaVersionInteger, unsetReleaseFlag)
+fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
 listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
   tasks.withType(compileTaskType).configureEach {
-    setJavaVersion(11, true)
-    sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-    targetCompatibility = JavaVersion.VERSION_1_8.toString()
+    configureCompiler(11, JavaVersion.VERSION_1_8)
   }
 }
 

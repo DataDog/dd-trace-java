@@ -13,12 +13,10 @@ apply plugin: "idea"
 
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  it.sourceCompatibility = JavaVersion.VERSION_11
-  it.targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy") {
   javaLauncher = getJavaLauncherFor(11)
 }
 

@@ -32,12 +32,11 @@ dependencies {
 }
 
 tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 17, true)
-  if (it.name != 'compileCsiJava') {
-    sourceCompatibility = JavaVersion.VERSION_15
-    targetCompatibility = JavaVersion.VERSION_15
-    if (it instanceof JavaCompile) {
-      it.options.release.set(15)
-    }
+  switch (it.name) {
+    case 'compileCsiJava':
+      configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+      break
+    default:
+      configureCompiler(it, 17, JavaVersion.VERSION_15)
   }
 }
