@@ -101,6 +101,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final SharedCommunicationObjects sharedCommunicationObjects;
   private volatile DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final boolean configMetricsEnabled;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -121,7 +122,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             false,
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
-        config.getTracerMetricsMaxPending());
+        config.getTracerMetricsMaxPending(),
+        config.isTracerMetricsEnabled());
   }
 
   ConflatingMetricsAggregator(
@@ -131,7 +133,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
-      int queueSize) {
+      int queueSize,
+      boolean configMetricsEnabled) {
     this(
         wellKnownTags,
         ignoredResources,
@@ -141,7 +144,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         10,
-        SECONDS);
+        SECONDS,
+        configMetricsEnabled);
   }
 
   ConflatingMetricsAggregator(
@@ -153,7 +157,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean configMetricsEnabled) {
     this(
         ignoredResources,
         sharedCommunicationObjects,
@@ -163,7 +168,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         reportingInterval,
-        timeUnit);
+        timeUnit,
+        configMetricsEnabled);
   }
 
   ConflatingMetricsAggregator(
@@ -175,7 +181,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean configMetricsEnabled) {
+    this.configMetricsEnabled = configMetricsEnabled;
     this.ignoredResources = ignoredResources;
     this.inbox = new MpscCompoundQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
@@ -199,16 +207,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.reportingIntervalTimeUnit = timeUnit;
   }
 
-  private DDAgentFeaturesDiscovery featuresDiscovery() {
-    DDAgentFeaturesDiscovery ret = features;
-    if (ret != null) {
-      return ret;
+  private void initialiseFeaturesDiscovery() {
+    features = sharedCommunicationObjects.featuresDiscovery(Config.get());
+    if (!features.supportsMetrics()) {
+      disable();
     }
-    // no need to synchronise here since it's already done in sharedCommunicationObject.
-    // At worst, we'll assign multiple time the variable but it will be the same object
-    ret = sharedCommunicationObjects.featuresDiscovery(Config.get());
-    features = ret;
-    return ret;
+  }
+
+  private boolean supportsMetrics() {
+    final DDAgentFeaturesDiscovery features = this.features;
+    if (features != null) {
+      return features.supportsMetrics();
+    }
+    // when the feature discovery is not yet ready, if metrics are enabled we don't want to loose
+    // spans metrics.
+    // In any case the feature discovery will happen and if not supported the inbox queue will be
+    // cleared
+    return configMetricsEnabled;
   }
 
   @Override
@@ -223,6 +238,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                 reportingInterval,
                 reportingInterval,
                 reportingIntervalTimeUnit);
+    // lazily fetch feature discovery
+    AgentTaskScheduler.get().execute(this::initialiseFeaturesDiscovery);
     log.debug("started metrics aggregator");
   }
 
@@ -242,7 +259,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public Future<Boolean> forceReport() {
-    if (!featuresDiscovery().supportsMetrics()) {
+    if (!supportsMetrics()) {
       return CompletableFuture.completedFuture(false);
     }
     // Wait for the thread to start
@@ -278,8 +295,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    final DDAgentFeaturesDiscovery features = featuresDiscovery();
-    if (features.supportsMetrics()) {
+    if (supportsMetrics()) {
+      final DDAgentFeaturesDiscovery features = this.features;
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span)) {
@@ -293,7 +310,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         }
       }
       healthMetrics.onClientStatTraceComputed(
-          counted, trace.size(), features.supportsDropping() && !forceKeep);
+          counted, trace.size(), features != null && features.supportsDropping() && !forceKeep);
     }
     return forceKeep;
   }
@@ -424,7 +441,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     switch (eventType) {
       case DOWNGRADED:
         log.debug("Agent downgrade was detected");
-        AgentTaskScheduler.get().execute(this::disable);
+        AgentTaskScheduler.get().execute(this::onDowngrade);
         break;
       case BAD_PAYLOAD:
         log.debug("bad metrics payload sent to trace agent: {}", message);
@@ -439,17 +456,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
   }
 
-  private void disable() {
-    final DDAgentFeaturesDiscovery features = featuresDiscovery();
-    features.discover();
-    if (!features.supportsMetrics()) {
+  private void onDowngrade() {
+    DDAgentFeaturesDiscovery features = this.features;
+    if (null != features) {
+      features.discover();
+    }
+    if (!supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
       healthMetrics.onClientStatDowngraded();
-      this.pending.clear();
-      this.batchPool.clear();
-      this.inbox.clear();
-      this.aggregator.clearAggregates();
+      disable();
     }
+  }
+
+  private void disable() {
+    this.pending.clear();
+    this.batchPool.clear();
+    this.inbox.clear();
+    this.aggregator.clearAggregates();
   }
 
   private static final class ReportTask

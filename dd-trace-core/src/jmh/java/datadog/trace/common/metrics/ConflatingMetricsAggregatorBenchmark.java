@@ -49,7 +49,8 @@ public class ConflatingMetricsAggregatorBenchmark {
             HealthMetrics.NO_OP,
             new NullSink(),
             2048,
-            2048);
+            2048,
+            true);
   }
 
   static List<CoreSpan<?>> generateTrace(int len) {
