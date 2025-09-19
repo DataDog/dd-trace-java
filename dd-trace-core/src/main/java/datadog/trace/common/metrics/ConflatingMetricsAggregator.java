@@ -210,7 +210,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private void initialiseFeaturesDiscovery() {
     features = sharedCommunicationObjects.featuresDiscovery(Config.get());
     if (!features.supportsMetrics()) {
-      disable();
+      clean();
     }
   }
 
@@ -245,6 +245,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public boolean report() {
+    // avoid triggering a downgrade if the agent is not ready / discovered
+    if (features == null) {
+      clean();
+      return false;
+    }
+
     boolean published;
     int attempts = 0;
     do {
@@ -464,11 +470,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (!supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
       healthMetrics.onClientStatDowngraded();
-      disable();
+      clean();
     }
   }
 
-  private void disable() {
+  private void clean() {
     this.pending.clear();
     this.batchPool.clear();
     this.inbox.clear();
