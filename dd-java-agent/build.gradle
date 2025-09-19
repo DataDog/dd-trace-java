@@ -133,6 +133,7 @@ def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
 
     from(zipTree(shadowJarTask.get().archiveFile)) {
       into jarname
+      exclude 'datadog/trace/config/inversion/**' // hides large config inversion files
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
@@ -303,6 +304,9 @@ dependencies {
   sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
+
+  sharedShadowInclude project(':utils:config-utils'), { transitive = false }
+
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }
