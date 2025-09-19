@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +25,6 @@ public class ConfigHelperTest {
   private static final String TEST_OTEL_VAR_VAL = "test_otel_var";
   private static final String TEST_REGULAR_VAR = "REGULAR_TEST_CONFIG";
   private static final String TEST_REGULAR_VAR_VAL = "test_regular_var";
-  private static final String UNSUPPORTED_DD_VAR = "DD_UNSUPPORTED_CONFIG";
 
   private static final String ALIAS_DD_VAR = "DD_TEST_CONFIG_ALIAS";
   private static final String ALIAS_DD_VAL = "test_alias_val";
@@ -35,7 +35,7 @@ public class ConfigHelperTest {
   private static final String NEW_ALIAS_KEY_1 = "DD_NEW_ALIAS_KEY_1";
   private static final String NEW_ALIAS_KEY_2 = "DD_NEW_ALIAS_KEY_2";
 
-  private static ConfigInversionStrictStyle strictness;
+  private static ConfigHelper.StrictnessPolicy strictness;
   private static TestSupportedConfigurationSource testSource;
 
   @BeforeAll
@@ -61,13 +61,18 @@ public class ConfigHelperTest {
             testSupported, testAliases, testAliasMapping, new HashMap<>());
     ConfigHelper.setConfigurationSource(testSource);
     strictness = ConfigHelper.configInversionStrictFlag();
-    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.STRICT);
+    ConfigHelper.setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
   }
 
   @AfterAll
   static void tearDown() {
     ConfigHelper.resetToDefaults();
     ConfigHelper.setConfigInversionStrict(strictness);
+  }
+
+  @AfterEach
+  void reset() {
+    ConfigHelper.resetCache();
   }
 
   @Test
@@ -184,7 +189,7 @@ public class ConfigHelperTest {
   // TODO: Update to verify telemetry when implemented
   @Test
   void testUnsupportedEnvWarningNotInTestMode() {
-    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST);
+    ConfigHelper.setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST);
 
     setEnvVar("DD_FAKE_VAR", "banana");
 
@@ -193,7 +198,7 @@ public class ConfigHelperTest {
 
     // Cleanup
     setEnvVar("DD_FAKE_VAR", null);
-    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.STRICT);
+    ConfigHelper.setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
   }
 
   // Copied from utils.TestHelper
