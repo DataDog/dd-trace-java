@@ -102,7 +102,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     /**
      * Flag for the current alive tainted objects (red/black style marking for max age calculation).
      */
-    protected boolean generation;
+    protected volatile boolean generation;
 
     /** Whether to collect the {@link IastMetric#TAINTED_FLAT_MODE} metric or not */
     protected boolean collectFlatBucketMetric;

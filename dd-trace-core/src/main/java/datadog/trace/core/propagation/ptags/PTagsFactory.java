@@ -76,7 +76,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     // tags that don't require any modifications and propagated as-is
     private final List<TagElement> tagPairs;
 
-    private boolean canChangeDecisionMaker;
+    private volatile boolean canChangeDecisionMaker;
 
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;

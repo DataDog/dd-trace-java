@@ -263,24 +263,25 @@ abstract class ProcessManager extends Specification {
   @CompileStatic
   @SuppressForbidden
   private static void eachLine(File file, Closure closure) {
-    def reader = new InputStreamReader(new FileInputStream(file))
     CharBuffer buffer = CharBuffer.allocate(OutputThreads.MAX_LINE_SIZE)
-    while (reader.read(buffer) != -1) {
-      buffer.flip()
-      while (buffer.hasRemaining()) {
-        int c = buffer.get()
-        if (c == '\n' || c == '\r') {
-          break
+    new InputStreamReader(new FileInputStream(file)).withCloseable {
+      while (it.read(buffer) != -1) {
+        buffer.flip()
+        while (buffer.hasRemaining()) {
+          int c = buffer.get()
+          if (c == '\n' || c == '\r') {
+            break
+          }
         }
-      }
-      // we found the separator or we're out of data (max line size hit)
-      // either way, report a line
-      def str = buffer.duplicate().flip().toString().trim()
-      if (str) {
-        closure(str)
-      }
+        // we found the separator or we're out of data (max line size hit)
+        // either way, report a line
+        def str = buffer.duplicate().flip().toString().trim()
+        if (str) {
+          closure(str)
+        }
 
-      buffer.compact()
+        buffer.compact()
+      }
     }
     if (buffer.position() > 0) {
       buffer.flip().toString().split('\r\n|\n').each {

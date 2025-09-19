@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,6 +14,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+@SuppressFBWarnings(
+    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+    justification = "Usage in tests")
 public class LogCollector {
   public static final Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");

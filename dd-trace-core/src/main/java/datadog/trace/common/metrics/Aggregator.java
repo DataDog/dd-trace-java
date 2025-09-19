@@ -34,7 +34,7 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
-  private boolean dirty;
+  private volatile boolean dirty;
 
   Aggregator(
       MetricWriter writer,

@@ -89,7 +89,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile long durationNano;
 
-  private boolean forceKeep;
+  private volatile boolean forceKeep;
 
   private volatile EndpointTracker endpointTracker;
 

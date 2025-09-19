@@ -13,7 +13,7 @@ import org.testng.ITestResult;
 public class RetryAnalyzer implements IRetryAnalyzer {
 
   private volatile TestExecutionPolicy executionPolicy;
-  private boolean suppressFailures;
+  private volatile boolean suppressFailures;
 
   public void createExecutionPolicy(ITestResult result) {
     if (executionPolicy == null) {

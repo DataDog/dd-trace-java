@@ -2,9 +2,17 @@ package datadog.trace.common.metrics;
 
 import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 /** Not thread-safe. Accumulates counts and durations. */
+@SuppressFBWarnings(
+    value = {
+      "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      "AT_NONATOMIC_64BIT_PRIMITIVE",
+      "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"
+    },
+    justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 public final class AggregateMetric {
 
   static final long ERROR_TAG = 0x8000000000000000L;
