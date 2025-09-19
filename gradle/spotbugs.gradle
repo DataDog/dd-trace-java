@@ -8,22 +8,21 @@ spotbugs {
 // configure spotbugs for Main tasks and disable it for all other
 // Can't use the class here due to being different class
 tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
+  // Need Java 11 min
   it.launcher = javaToolchains.launcherFor {
     it.languageVersion = JavaLanguageVersion.current()
   }
 
-  def launcher = it.launcher
-  doFirst {
-    println(launcher.get().executablePath)
-  }
-
   def name = it.name
-  if (!(name.endsWith("Main") || name.endsWith("Main_java11"))) {
+  if (project.path.startsWith(":dd-smoke-tests")
+    || !(name.endsWith("Main")
+    || name.endsWith("Main_java11"))
+    ) {
     it.enabled = false
     return
   }
 
-  it.showProgress = true
+  it.showProgress = !providers.environmentVariable("CI").isPresent()
   it.ignoreFailures = false
   // detector documentation is in the following link:
   // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html

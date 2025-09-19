@@ -1,6 +1,7 @@
 package datadog.trace.test.util
 
 import de.thetaphi.forbiddenapis.SuppressForbidden
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.junit.Rule
 import spock.lang.Shared
 import spock.lang.Specification
@@ -10,6 +11,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 
 @SuppressForbidden
+@SuppressFBWarnings(value = "PA_PUBLIC_PRIMITIVE_ATTRIBUTE", justification = "Spock inject fields")
 abstract class DDSpecification extends Specification {
   private static final CHECK_TIMEOUT_MS = 3000
 
