@@ -27,9 +27,12 @@ public class ConfigCollector {
     return INSTANCE;
   }
 
-  // Sequence ID is critical when a telemetry payload contains multiple entries for the same key and
-  // origin. Use this constructor only when you are certain that there will be one entry for the
-  // given key and origin.
+  /**
+   * @deprecated Use {@link #put(String, Object, ConfigOrigin, int)} or {@link #put(String, Object,
+   *     ConfigOrigin, int, String)} instead to provide explicit sequence IDs for proper telemetry
+   *     ordering.
+   */
+  @Deprecated
   public void put(String key, Object value, ConfigOrigin origin) {
     put(key, value, origin, ABSENT_SEQ_ID, null);
   }

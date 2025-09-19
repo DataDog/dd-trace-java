@@ -15,6 +15,7 @@ import datadog.trace.util.ConfigStrings
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
+import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID
 
 class ConfigCollectorTest extends DDSpecification {
 
@@ -164,10 +165,10 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().collect()
 
     when:
-    ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT)
-    ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV)
-    ConfigCollector.get().put('key1', 'value4', ConfigOrigin.REMOTE)
-    ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP)
+    ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT, ABSENT_SEQ_ID)
+    ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV, ABSENT_SEQ_ID)
+    ConfigCollector.get().put('key1', 'value4', ConfigOrigin.REMOTE, ABSENT_SEQ_ID)
+    ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP, ABSENT_SEQ_ID)
 
     then:
     def collected = ConfigCollector.get().collect()
@@ -183,7 +184,7 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().collect()
 
     when:
-    ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV)
+    ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV, ABSENT_SEQ_ID)
 
     then:
     def collected = ConfigCollector.get().collect()
