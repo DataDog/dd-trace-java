@@ -8,6 +8,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.vertx.core.Handler;
@@ -82,21 +83,27 @@ public class WafPublishingBodyHandler implements Handler<Buffer> {
     @Override
     public String toString() {
       String s = delegate.toString();
-      publishRequestBody(s);
+      // Process XML strings for WAF compatibility
+      Object processedBody = XmlDomUtils.processXmlForWaf(s);
+      publishRequestBody(processedBody != null ? processedBody : s);
       return s;
     }
 
     @Override
     public String toString(String enc) {
       String s = delegate.toString(enc);
-      publishRequestBody(s);
+      // Process XML strings for WAF compatibility
+      Object processedBody = XmlDomUtils.processXmlForWaf(s);
+      publishRequestBody(processedBody != null ? processedBody : s);
       return s;
     }
 
     @Override
     public String toString(Charset enc) {
       String s = delegate.toString(enc);
-      publishRequestBody(s);
+      // Process XML strings for WAF compatibility
+      Object processedBody = XmlDomUtils.processXmlForWaf(s);
+      publishRequestBody(processedBody != null ? processedBody : s);
       return s;
     }
 
