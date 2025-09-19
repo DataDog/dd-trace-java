@@ -93,6 +93,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
     List<? extends CoreSpan<?>> llmobsSpans =
         trace.stream().filter(LLMObsSpanMapper::isLLMObsSpan).collect(Collectors.toList());
 
+    if (llmobsSpans.size() <= 0) {
+      LOGGER.debug("no LLMObs spans found, {} spans found before filtering", trace.size());
+      return;
+    }
+
     writable.startMap(3);
 
     writable.writeUTF8(EVENT_TYPE);
@@ -147,7 +152,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private static boolean isLLMObsSpan(CoreSpan<?> span) {
     CharSequence type = span.getType();
-    return type != null && type.toString().contentEquals(InternalSpanTypes.LLMOBS);
+
+    boolean filtered = type != null && type.toString().contentEquals(InternalSpanTypes.LLMOBS);
+    LOGGER.debug("INCLUDED={} span {}", filtered, span);
+    return filtered;
   }
 
   @Override
@@ -214,6 +222,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String spanKind = "unknown";
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
+        LOGGER.debug("LLM OBS SPAN TAG: key={} val={}", key, tag.getValue());
         if (key.equals(SPAN_KIND_TAG_KEY)) {
           spanKind = String.valueOf(tag.getValue());
         } else if (TAGS_FOR_REMAPPING.contains(key)) {
@@ -243,6 +252,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.startMap(metricsSize);
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String tagKey = tag.getKey();
+        LOGGER.debug("LLM OBS FINAL METRIC: key={} val={}", tagKey, tag.getValue());
         if (tagKey.startsWith(LLMOBS_METRIC_PREFIX) && tag.getValue() instanceof Number) {
           writable.writeString(tagKey.substring(LLMOBS_METRIC_PREFIX.length()), null);
           writable.writeObject(tag.getValue(), null);
@@ -256,6 +266,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
         Object value = tag.getValue();
+        LOGGER.debug("LLM OBS FINAL TAG: key={} val={}", key, value);
         if (!tagsToRemapToMeta.containsKey(key) && key.startsWith(LLMOBS_TAG_PREFIX)) {
           writable.writeObject(key.substring(LLMOBS_TAG_PREFIX.length()) + ":" + value, null);
         }
@@ -276,6 +287,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : tagsToRemapToMeta.entrySet()) {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
+        LOGGER.debug("LLM OBS REMAPPED META SPAN TAG: key={} val={}", key, val);
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
           if (!spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             key += ".value";
