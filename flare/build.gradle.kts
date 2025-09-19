@@ -9,7 +9,7 @@ dependencies {
   api(libs.moshi)
 
   compileOnly(project(":communication"))
-
+  implementation(project(":utils:version-utils"))
   implementation(project(":internal-api"))
   implementation(libs.slf4j)
 }

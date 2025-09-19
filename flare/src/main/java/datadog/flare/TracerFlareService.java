@@ -1,5 +1,6 @@
 package datadog.flare;
 
+import static datadog.common.version.VersionInfo.VERSION;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACER_FLARE;
 
 import datadog.communication.http.OkHttpUtils;
@@ -218,8 +219,7 @@ final class TracerFlareService {
   private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
       throws IOException {
     TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
-    // CTE move to core tracer for now
-    // TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
+    TracerFlare.addText(zip, "tracer_version.txt", VERSION);
   }
 
   private void addConfig(ZipOutputStream zip) throws IOException {

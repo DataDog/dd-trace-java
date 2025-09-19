@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
-import static datadog.trace.core.DDTraceCoreInfo.VERSION;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -161,8 +160,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
-
-  // private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -1266,7 +1263,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
-    // tracerFlarePoller.stop();
     healthMetrics.close();
   }
 
@@ -1322,8 +1318,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
-    // CTE TO CHECK, maybe the tracer version and dynamic config should not be in tracer core...
-    TracerFlare.addText(zip, "tracer_version.txt", VERSION);
+    // CTE TO CHECK dynamic config should not be in tracer core...
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
     TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
