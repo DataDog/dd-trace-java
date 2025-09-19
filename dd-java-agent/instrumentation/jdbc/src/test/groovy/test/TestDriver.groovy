@@ -15,7 +15,7 @@ class TestDriver implements Driver {
 
   @Override
   boolean acceptsURL(String url) throws SQLException {
-    return false
+    return true
   }
 
   @Override
