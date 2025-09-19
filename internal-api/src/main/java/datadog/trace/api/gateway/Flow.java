@@ -1,6 +1,7 @@
 package datadog.trace.api.gateway;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Map;
 
@@ -69,6 +70,9 @@ public interface Flow<T> {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+      justification = "Not a singleton")
   class ResultFlow<R> implements Flow<R> {
     @SuppressWarnings("rawtypes")
     private static final ResultFlow EMPTY = new ResultFlow<>(null);
