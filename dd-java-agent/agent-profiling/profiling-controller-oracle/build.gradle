@@ -24,7 +24,6 @@ dependencies {
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
   testImplementation project(':dd-java-agent:agent-profiling')
 }

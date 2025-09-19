@@ -23,7 +23,6 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
-  testImplementation(libs.truth)
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
