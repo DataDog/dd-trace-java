@@ -1,15 +1,15 @@
 package datadog.trace.common.writer.ddagent;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -153,8 +153,6 @@ public class SimpleUtf8CacheTest {
   }
 
   static final void printStats(SimpleUtf8Cache cache) {
-    System.out.printf(
-        "eden hits: %5d\tpromotion hits: %5d\tpromotions: %5d\tearly: %5d\tlocal evictions: %5d\tglobal evictions: %5d%n",
-        cache.hits, cache.evictions);
+    System.out.printf("eden hits: %5d\tpromotions: %5d", cache.hits, cache.evictions);
   }
 }
