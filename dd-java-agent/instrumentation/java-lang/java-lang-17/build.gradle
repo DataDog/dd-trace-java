@@ -32,14 +32,21 @@ dependencies {
 }
 
 project.tasks.withType(AbstractCompile).configureEach {
-  // TODO look at this config when refactoring setJavaVersion
-
-  setJavaVersion(it, 17, true)
-  if (it.name != 'compileCsiJava') {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-    if (it instanceof JavaCompile) {
-      it.options.release.set(17)
-    }
+  // TODO look at this config when refactoring configureCompiler
+  switch (it.name) {
+    case 'compileCsiJava':
+      configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+      break
+    default:
+      configureCompiler(it, 17)
   }
+
+  // configureCompiler(it, 17, true)
+  // if (it.name != 'compileCsiJava') {
+  //   sourceCompatibility = JavaVersion.VERSION_17
+  //   targetCompatibility = JavaVersion.VERSION_17
+  //   if (it instanceof JavaCompile) {
+  //     it.options.release.set(17)
+  //   }
+  // }
 }
