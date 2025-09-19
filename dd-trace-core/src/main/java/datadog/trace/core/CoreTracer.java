@@ -787,8 +787,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.
-    AgentTaskScheduler.get()
-        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+    sharedCommunicationObjects.whenReady(
+        () ->
+            AgentTaskScheduler.get()
+                .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS));
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
