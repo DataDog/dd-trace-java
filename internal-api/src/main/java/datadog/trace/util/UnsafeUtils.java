@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -57,6 +58,8 @@ public abstract class UnsafeUtils {
     }
   }
 
+  // Using Field.set() will be blocked in later Java versions
+  @SuppressForbidden
   private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {
       if ((field.getModifiers() & Modifier.STATIC) != 0) {

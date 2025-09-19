@@ -16,13 +16,17 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.util.regex.Pattern;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** See https://github.com/akka/akka-http/issues/4304 */
+/**
+ * See <a href="https://github.com/akka/akka-http/issues/4304">Duplicated 100 responses if there is
+ * an exception thrown by the unmarshaller</a>
+ */
 @AutoService(InstrumenterModule.class)
 public class Bug4304Instrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy,
@@ -91,6 +95,8 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
   }
 
   static class GraphStageLogicAdvice {
+    // Using Field.set() will be blocked in later Java versions
+    @SuppressForbidden
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This GraphStageLogic thiz)
         throws NoSuchFieldException, IllegalAccessException {
