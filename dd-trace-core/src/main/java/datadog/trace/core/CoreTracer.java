@@ -1006,7 +1006,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     // TODO: counter for how often the fallback is used?
     ReusableSingleSpanBuilder newSpanBuilder = new ReusableSingleSpanBuilder(tracer);
-    newSpanBuilder.reset(instrumentationName, operationName);
+    newSpanBuilder.init(instrumentationName, operationName);
 
     // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
     // and then not using it.  Without an ability to replace the cached SpanBuilder,
@@ -1950,11 +1950,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Used to track whether the CoreSpanBuilder is actively being used
     // CoreSpanBuilder becomes "inUse" after a succesful reset and remains "inUse" until "build" is
     // called
-    protected boolean inUse = false;
+    protected boolean inUse;
 
     ReusableSingleSpanBuilder(CoreTracer tracer) {
       super(tracer);
       this.inUse = false;
+    }
+
+    /** Similar to reset, but only valid on first use */
+    void init(String instrumentationName, CharSequence operationName) {
+      assert !this.inUse;
+
+      this.instrumentationName = instrumentationName;
+      this.operationName = operationName;
     }
 
     /**
@@ -1991,6 +1999,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     @Override
     protected DDSpan buildSpan() {
+      assert this.inUse
+          : "ReusableSingleSpanBuilder not reset properly -- multiple span construction?";
+
       DDSpan span = this.buildSpanImpl();
       this.inUse = false;
       return span;
