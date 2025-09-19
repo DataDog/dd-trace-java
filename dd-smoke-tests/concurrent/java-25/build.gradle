@@ -27,16 +27,12 @@ javaToolchains {
 }
 
 tasks.named('compileJava', JavaCompile) {
-  setJavaVersion(it, 25)
-  sourceCompatibility = JavaVersion.VERSION_25
-  targetCompatibility = JavaVersion.VERSION_25
+  configureCompiler(it, 25, JavaVersion.VERSION_25)
   options.compilerArgs.add("--enable-preview")
 }
 
 tasks.named('compileTestGroovy') {
-  setJavaVersion(it, 8)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8)
 }
 
 // Disable plugin tasks that do not support Java 25:

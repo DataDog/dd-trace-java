@@ -65,11 +65,11 @@ configurations.named("webappRuntimeClasspath") {
 }
 
 tasks.named('compileJava', JavaCompile) {
-  // Other wise might fails with
-  //   import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
-  //                    ^
-  //     Invalid CEN header (invalid extra data field size for tag: 0xbfef size: 445)
-  setJavaVersion(it, 8)
+  // If using higher toolchain for compilation the following failure happens :
+  // > import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
+  // >                  ^
+  // >   Invalid CEN header (invalid extra data field size for tag: 0xbfef size: 445)
+  configureCompiler(it, 8)
 }
 
 // unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it

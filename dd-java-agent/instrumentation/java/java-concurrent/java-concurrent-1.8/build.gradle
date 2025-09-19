@@ -6,8 +6,8 @@ muzzle {
 
 apply from: "${rootDir}/gradle/java.gradle"
 
-compileJava {
-  setJavaVersion(it, 8)
+tasks.named("compileJava") {
+  configureCompiler(it, 8)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

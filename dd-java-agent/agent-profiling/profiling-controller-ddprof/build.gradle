@@ -37,16 +37,12 @@ dependencies {
  * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
  * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
-[JavaCompile, GroovyCompile].each {
-  tasks.withType(it, AbstractCompile).configureEach {
-    setJavaVersion(it, 11, true)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    // Disable '-processing' because some annotations are not claimed.
-    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
-    // Disable '-path' because we do not have some of the paths seem to be missing.
-    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+  // Disable '-processing' because some annotations are not claimed.
+  // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+  // Disable '-path' because we do not have some of the paths seem to be missing.
+  options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
 }
 
 tasks.named("forbiddenApisMain") {

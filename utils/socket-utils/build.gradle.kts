@@ -22,15 +22,13 @@ tasks.named<CheckForbiddenApis>("forbiddenApisMain_java17") {
   failOnMissingClasses = false
 }
 
-fun AbstractCompile.setJavaVersion(javaVersionInteger: Int, unsetReleaseFlag: Boolean) {
-  (project.extra.get("setJavaVersion") as Closure<*>).call(this, javaVersionInteger, unsetReleaseFlag)
+fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
 listOf("compileMain_java17Java", "compileTestJava").forEach {
   tasks.named<JavaCompile>(it) {
-    setJavaVersion(17, true)
-    sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-    targetCompatibility = JavaVersion.VERSION_1_8.toString()
+    configureCompiler(17, JavaVersion.VERSION_1_8)
   }
 }
 

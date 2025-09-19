@@ -16,13 +16,11 @@ sourceSets {
 }
 
 tasks.named("compileJava", JavaCompile) {
-  setJavaVersion(it, 11, true)
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Need access to jdk.jfr.internal.*")
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11, true)
-  sourceCompatibility = JavaVersion.VERSION_1_9
-  targetCompatibility = JavaVersion.VERSION_1_9
+  configureCompiler(it, 11, JavaVersion.VERSION_1_9)
 }
 
 dependencies {

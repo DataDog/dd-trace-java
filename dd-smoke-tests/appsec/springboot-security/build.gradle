@@ -19,8 +19,8 @@ tasks.named("forbiddenApisMain") {
 }
 
 // Use Java 17 to build application
-tasks.withType(JavaCompile) {
-  setJavaVersion(delegate, 17)
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(delegate, 17)
 }
 
 dependencies {
@@ -44,9 +44,9 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-task testRuntimeActivation(type: Test) {
+tasks.register('testRuntimeActivation', Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-    "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+      "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 tasks.named('check') {

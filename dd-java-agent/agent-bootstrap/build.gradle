@@ -10,8 +10,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 tasks.named("compileJava", JavaCompile).configure {
-  // need access to sun.* packages
-  setJavaVersion(it, 8, true)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.* packages")
 }
 
 // FIXME: Improve test coverage.
@@ -40,9 +39,7 @@ sourceSets {
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11, true)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 dependencies {
