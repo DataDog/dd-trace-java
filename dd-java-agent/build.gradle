@@ -303,8 +303,6 @@ dependencies {
     transitive = false
   }
 
-  sharedShadowInclude project(':utils:config-utils'), { transitive = false }
-
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }
