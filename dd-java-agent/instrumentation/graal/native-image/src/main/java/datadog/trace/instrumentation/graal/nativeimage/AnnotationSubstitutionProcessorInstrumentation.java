@@ -36,7 +36,6 @@ public final class AnnotationSubstitutionProcessorInstrumentation
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".Target_datadog_jctools_counters_FixedSizeStripedLongCounterFields",
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
       packageName + ".Target_org_datadog_jmxfetch_App",
       packageName + ".Target_org_datadog_jmxfetch_Status",
@@ -51,7 +50,6 @@ public final class AnnotationSubstitutionProcessorInstrumentation
       "jdk.vm.ci.meta.ResolvedJavaType",
       "jdk.vm.ci.meta.ResolvedJavaField",
       // ignore helper class names as usual
-      packageName + ".Target_datadog_jctools_counters_FixedSizeStripedLongCounterFields",
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
       packageName + ".Target_org_datadog_jmxfetch_App",
       packageName + ".Target_org_datadog_jmxfetch_Status",
@@ -62,7 +60,6 @@ public final class AnnotationSubstitutionProcessorInstrumentation
   public static class FindTargetClassesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return(readOnly = false) List<Class<?>> result) {
-      result.add(Target_datadog_jctools_counters_FixedSizeStripedLongCounterFields.class);
       result.add(Target_datadog_jctools_util_UnsafeRefArrayAccess.class);
       result.add(Target_org_datadog_jmxfetch_App.class);
       result.add(Target_org_datadog_jmxfetch_Status.class);
