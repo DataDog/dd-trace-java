@@ -19,7 +19,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-/**
+/*
  * Benchmark Mode Cnt Score Error Units
  * LongAdderBenchmark.benchLongAdderIncrement avgt 0.009 us/op
  * LongAdderBenchmark.benchLongAdderSum avgt 0.297 us/op
