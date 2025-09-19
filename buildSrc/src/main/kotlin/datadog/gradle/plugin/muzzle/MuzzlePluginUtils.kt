@@ -17,3 +17,6 @@ internal val Project.allMainSourceSet: List<SourceSet>
   get() = extensions.findByType<SourceSetContainer>()
     ?.filter { it.name.startsWith(MAIN_SOURCE_SET_NAME) }
     .orEmpty()
+
+internal val Project.pathSlug: String
+  get() = path.removePrefix(":").replace(':', '_')
