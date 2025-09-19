@@ -149,6 +149,27 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     assert !spanContent.containsKey("parent_id")
   }
 
+  def "verify result is not affected by successive mapping calls"(){
+    setup:
+    def span = generateRandomSpan(InternalSpanTypes.TEST, [
+      (Tags.TEST_SESSION_ID): DDTraceId.from(123),
+      (Tags.TEST_MODULE_ID) : 456,
+      (Tags.TEST_SUITE_ID)  : 789,
+    ])
+
+    when:
+    whenASpanIsWritten(span)
+    Map<String, Object> deserializedSpan = whenASpanIsWritten(span)
+
+    then:
+    verifyTopLevelTags(deserializedSpan, DDTraceId.from(123), 456, 789)
+
+    def spanContent = (Map<String, Object>) deserializedSpan.get("content")
+    assert spanContent.containsKey("trace_id")
+    assert spanContent.containsKey("span_id")
+    assert spanContent.containsKey("parent_id")
+  }
+
   private static void verifyTopLevelTags(Map<String, Object> deserializedSpan, DDTraceId testSessionId, Long testModuleId, Long testSuiteId) {
     Map<String, Object> deserializedSpanContent = (Map<String, Object>) deserializedSpan.get("content")
     Map<String, Object> deserializedMetrics = (Map<String, Object>) deserializedSpanContent.get("metrics")
