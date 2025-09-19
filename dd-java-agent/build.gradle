@@ -93,6 +93,8 @@ ext.generalShadowJarConfig = {
   exclude '**/io/airlift/compress/snappy/**'
   relocate 'io.airlift', 'datadog.io.airlift'
 
+  exclude '**/supported-configurations.json'
+
   final String projectName = "${project.name}"
 
   // Prevents conflict with other instances, but doesn't relocate instrumentation
