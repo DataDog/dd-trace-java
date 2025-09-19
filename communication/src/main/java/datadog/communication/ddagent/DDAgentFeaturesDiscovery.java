@@ -271,13 +271,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
       }
       // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
-      // because older agents support diagnostics, we fall back to it before falling back to v1
+      // because older agents support diagnostics from DD agent 7.49
       if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
         newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
       } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
         newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      } else if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V1;
       }
       if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
         newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
