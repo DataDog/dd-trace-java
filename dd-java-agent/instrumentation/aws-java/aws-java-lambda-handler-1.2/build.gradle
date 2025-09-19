@@ -11,15 +11,24 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 test {
-  environment "_HANDLER", "Handler"
+  environment([
+    "_HANDLER": "Handler",
+    "TEST_ENV_PROPAGATE_VARS": "_HANDLER"
+  ])
 }
 
 forkedTest {
-  environment "_HANDLER", "Handler"
+  environment([
+    "_HANDLER": "Handler",
+    "TEST_ENV_PROPAGATE_VARS": "_HANDLER"
+  ])
 }
 
 latestDepTest {
-  environment "_HANDLER", "Handler"
+  environment([
+    "_HANDLER": "Handler",
+    "TEST_ENV_PROPAGATE_VARS": "_HANDLER"
+  ])
 }
 
 dependencies {

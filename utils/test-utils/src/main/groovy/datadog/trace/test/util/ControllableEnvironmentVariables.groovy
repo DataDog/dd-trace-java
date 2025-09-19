@@ -39,6 +39,13 @@ class ControllableEnvironmentVariables extends EnvironmentVariables.EnvironmentV
     ControllableEnvironmentVariables provider = new ControllableEnvironmentVariables(kv)
     EnvironmentVariables.provider = provider
 
+    // Propagate specified environment variables to test environment.
+    System.getenv("TEST_ENV_PROPAGATE_VARS")
+      ?.split(',')
+      ?.each { envVar ->
+        provider[envVar] = System.getenv(envVar)
+      }
+
     return provider
   }
 }
