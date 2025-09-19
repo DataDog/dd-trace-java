@@ -13,11 +13,3 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
 }
-
-tasks.named<ProcessResources>("processResources") {
-  exclude("supported-configurations.json")
-}
-
-tasks.named<Jar>("jar") {
-  exclude("supported-configurations.json")
-}
