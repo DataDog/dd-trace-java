@@ -99,6 +99,7 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -783,8 +784,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     metricsAggregator =
         createMetricsAggregator(config, sharedCommunicationObjects, this.healthMetrics);
-    // the jitter is brought implicitly by the callback that can vary
-    sharedCommunicationObjects.whenReady(metricsAggregator::start);
+    // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
+    // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
+    // same time from sending metrics in sync.
+    sharedCommunicationObjects.whenReady(
+        () ->
+            AgentTaskScheduler.get()
+                .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS));
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
