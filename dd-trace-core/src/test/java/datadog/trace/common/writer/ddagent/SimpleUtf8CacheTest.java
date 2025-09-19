@@ -96,7 +96,7 @@ public class SimpleUtf8CacheTest {
   @Test
   public void bigString_dont_cache() {
     String lorem = "Lorem ipsum dolor sit amet";
-    while (lorem.length() < 100) {
+    while (lorem.length() <= SimpleUtf8Cache.MAX_ENTRY_LEN) {
       lorem += lorem;
     }
     byte[] expected = lorem.getBytes(StandardCharsets.UTF_8);

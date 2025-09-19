@@ -53,7 +53,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
   private static final double HIT_DECAY = 0.5D;
   private static final double PURGE_THRESHOLD = 0.25D;
 
-  private static final int MAX_ENTRY_LEN = 128;
+  static final int MAX_ENTRY_LEN = 128;
 
   protected int hits = 0;
   protected int evictions = 0;
