@@ -19,7 +19,8 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
+    final contentType = headers.remove("Content-Type")
+    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse(contentType ?: "text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
       .method(method, reqBody)
@@ -33,13 +34,13 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
     client.newCall(request).enqueue(new Callback() {
         void onResponse(Response response) {
           responseRef.set(response)
-          callback?.call()
+          callback?.call(response.body().byteStream())
           latch.countDown()
         }
 
         void onFailure(Request req, IOException e) {
           exRef.set(e)
-          callback?.call()
+          callback?.call(e)
           latch.countDown()
         }
       })

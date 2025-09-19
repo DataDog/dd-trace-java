@@ -149,6 +149,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile Long apiSecurityEndpointHash;
   private volatile byte keepType = PrioritySampling.SAMPLER_KEEP;
 
+  private static final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
+  private static final Set<Long> sampledHttpClientRequests = new HashSet<>();
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
@@ -233,6 +236,29 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void increaseRaspTimeouts() {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
+  }
+
+  public void increaseHttpClientRequestCount() {
+    httpClientRequestCount.incrementAndGet();
+  }
+
+  public boolean sampleHttpClientRequest(final long id) {
+    synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.size()
+          < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
+        sampledHttpClientRequests.add(id);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean isHttpClientRequestSampled(final long id) {
+    return sampledHttpClientRequests.contains(id);
+  }
+
+  public int getHttpClientRequestCount() {
+    return httpClientRequestCount.get();
   }
 
   public int getWafTimeouts() {
