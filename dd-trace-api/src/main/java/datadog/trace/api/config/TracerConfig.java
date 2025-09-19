@@ -66,6 +66,11 @@ public final class TracerConfig {
       "trace.http.resource.remove-trailing-slash";
   public static final String TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.server.path-resource-name-mapping";
+
+  // HTTP Endpoint Tagging feature flags
+  public static final String TRACE_RESOURCE_RENAMING_ENABLED = "trace.resource.renaming.enabled";
+  public static final String TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT =
+      "trace.resource.renaming.always-simplified-endpoint";
   public static final String TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.client.path-resource-name-mapping";
   // Use TRACE_HTTP_SERVER_ERROR_STATUSES instead
