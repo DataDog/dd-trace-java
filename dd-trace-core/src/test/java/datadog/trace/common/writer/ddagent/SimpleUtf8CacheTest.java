@@ -153,6 +153,6 @@ public class SimpleUtf8CacheTest {
   }
 
   static final void printStats(SimpleUtf8Cache cache) {
-    System.out.printf("eden hits: %5d\tpromotions: %5d", cache.hits, cache.evictions);
+    System.out.printf("eden hits: %5d\tpromotions: %5d%n", cache.hits, cache.evictions);
   }
 }
