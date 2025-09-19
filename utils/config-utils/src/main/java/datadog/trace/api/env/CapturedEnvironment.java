@@ -3,6 +3,7 @@ package datadog.trace.api.env;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.GeneralConfig;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,6 +42,9 @@ public class CapturedEnvironment {
   private final Map<String, String> properties;
   private ProcessInfo processInfo;
 
+  @SuppressFBWarnings(
+      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+      justification = "Used in unit test")
   CapturedEnvironment() {
     properties = new HashMap<>();
     processInfo = new ProcessInfo();

@@ -11,6 +11,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,9 +28,15 @@ public class SharedCommunicationObjects {
   private final List<Runnable> pausedComponents = new ArrayList<>();
   private volatile boolean paused;
 
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public OkHttpClient okHttpClient;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public HttpUrl agentUrl;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public Monitoring monitoring;
+
   private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
 

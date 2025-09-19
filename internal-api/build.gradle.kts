@@ -1,3 +1,4 @@
+import com.github.spotbugs.snom.SpotBugsTask
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
@@ -26,6 +27,10 @@ fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVers
 tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
   // sun.* are accessible in JDK8, but maybe not accessible when this task is running
   failOnMissingClasses = false
+}
+
+tasks.named<SpotBugsTask>("spotbugsMain") {
+  extraArgs.add("-noClassOk")
 }
 
 val minimumBranchCoverage by extra(0.7)
