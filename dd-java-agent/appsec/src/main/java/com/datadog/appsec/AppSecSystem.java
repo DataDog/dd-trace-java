@@ -1,5 +1,6 @@
 package com.datadog.appsec;
 
+import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
 import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.api.security.ApiSecuritySamplerImpl;
 import com.datadog.appsec.api.security.AppSecSpanPostProcessor;
@@ -81,11 +82,14 @@ public class AppSecSystem {
     }
     sco.createRemaining(config);
 
+    final double maxDownstreamRequestsRate =
+        config.getApiSecurityDownstreamRequestAnalysisSampleRate();
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
             REPLACEABLE_EVENT_PRODUCER,
             () -> API_SECURITY_SAMPLER,
+            ApiSecurityDownstreamSampler.build(maxDownstreamRequestsRate),
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(

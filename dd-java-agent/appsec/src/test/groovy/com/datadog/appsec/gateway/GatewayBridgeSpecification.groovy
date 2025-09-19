@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
+import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler
 import com.datadog.appsec.api.security.ApiSecuritySamplerImpl
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
@@ -11,6 +12,9 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.TagMap
+import datadog.trace.api.appsec.HttpClientRequest
+import datadog.trace.api.appsec.HttpClientResponse
+import datadog.trace.api.appsec.MediaType
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -87,7 +91,8 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   TraceSegmentPostProcessor pp = Mock()
   ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, () -> requestSampler, [pp])
+  ApiSecurityDownstreamSampler downstreamSampler = Mock(ApiSecurityDownstreamSampler)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, () -> requestSampler, downstreamSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -109,7 +114,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
   BiConsumer<RequestContext, String> databaseConnectionCB
   BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
-  BiFunction<RequestContext, String, Flow<Void>> networkConnectionCB
+  BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCB
+  BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCB
+  BiFunction<RequestContext, Long, Flow<Void>> httpClientSamplingCB
   BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
   BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
@@ -474,7 +481,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.networkConnection(), _) >> { networkConnectionCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.httpClientRequest(), _) >> { httpClientRequestCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.httpClientResponse(), _) >> { httpClientResponseCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.httpClientSampling(), _) >> { httpClientSamplingCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> { fileLoadedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestSession(), _) >> { requestSessionCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.execCmd(), _) >> { execCmdCB = it[1]; null }
@@ -844,24 +853,89 @@ class GatewayBridgeSpecification extends DDSpecification {
     gatewayContext.isRasp == true
   }
 
-  void 'process network connection URL'() {
+  void 'process http client request sampling'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.IO_NET_URL in it }) >> nonEmptyDsInfo
+
+    when:
+    Flow<?> flow = httpClientSamplingCB.apply(ctx, 1L)
+
+    then:
+    1 * downstreamSampler.sampleHttpClientRequest(arCtx, 1L) >> { sampled }
+    flow.result == sampled
+
+    where:
+    sampled << [true, false]
+  }
+
+  void 'process http client request'() {
     setup:
     final url = 'https://www.datadoghq.com/'
+    final method = 'POST'
+    final headers = ['X-AppSec-TEst': ['true']]
+    final contentType = MediaType.parse('application/json')
+    final body = new ByteArrayInputStream('{"hello": "World!"}'.bytes)
     eventDispatcher.getDataSubscribers({ KnownAddresses.IO_NET_URL in it }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
     when:
-    Flow<?> flow = networkConnectionCB.apply(ctx, url)
+    final request = new HttpClientRequest(1L, url, method, headers)
+    request.setBody(contentType, body)
+    Flow<?> flow = httpClientRequestCB.apply(ctx, request)
 
     then:
+    downstreamSampler.isSampled(arCtx, _ as long) >> { sampled }
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.size() == (sampled ? 4 : 3)
     bundle.get(KnownAddresses.IO_NET_URL) == url
+    bundle.get(KnownAddresses.IO_NET_REQUEST_METHOD) == method
+    bundle.get(KnownAddresses.IO_NET_REQUEST_HEADERS) == headers
+    if (sampled) {
+      bundle.get(KnownAddresses.IO_NET_REQUEST_BODY) == ['Hello': 'World!']
+    }
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
     gatewayContext.isRasp == true
+
+    where:
+    sampled << [true, false]
+  }
+
+  void 'process http client response'() {
+    setup:
+    final status = 200
+    final headers = ['X-AppSec-TEst': ['true']]
+    final contentType = MediaType.parse('application/json')
+    final body = new ByteArrayInputStream('{"hello": "World!"}'.bytes)
+    eventDispatcher.getDataSubscribers({ KnownAddresses.IO_NET_RESPONSE_STATUS in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    final response = new HttpClientResponse(1L, status, headers)
+    response.setBody(contentType, body)
+    Flow<?> flow = httpClientResponseCB.apply(ctx, response)
+
+    then:
+    downstreamSampler.isSampled(arCtx, _ as long) >> { sampled }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.size() == (sampled ? 3 : 2)
+    bundle.get(KnownAddresses.IO_NET_RESPONSE_STATUS) == status
+    bundle.get(KnownAddresses.IO_NET_RESPONSE_HEADERS) == headers
+    if (sampled) {
+      bundle.get(KnownAddresses.IO_NET_RESPONSE_BODY) == ['Hello': 'World!']
+    }
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == false
+
+    where:
+    sampled << [true, false]
   }
 
   void 'process file loaded'() {
