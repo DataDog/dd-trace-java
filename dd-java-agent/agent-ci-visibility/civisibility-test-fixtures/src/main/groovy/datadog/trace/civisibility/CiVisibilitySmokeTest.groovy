@@ -1,5 +1,6 @@
 package datadog.trace.civisibility
 
+import datadog.environment.EnvironmentVariables
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.config.CiVisibilityConfig
@@ -21,9 +22,9 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
   protected static String buildJavaHome() {
     if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
+      return EnvironmentVariables.get("JAVA_8_HOME")
     }
-    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
+    return EnvironmentVariables.get("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
   }
 
   protected static String javaPath() {
@@ -67,10 +68,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
 
     // for convenience when debugging locally
-    if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
+    if (EnvironmentVariables.get("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
       arguments +=  "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
     }
-    if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null) {
+    if (EnvironmentVariables.get("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null) {
       argMap.put(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT, "5055")
     }
 
@@ -83,7 +84,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]
 
-    if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
+    if (EnvironmentVariables.get("GENERATE_TEST_FIXTURES") != null) {
       def baseTemplatesPath = CiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
       CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet() + additionalDynamicTags, SMOKE_IGNORED_TAGS)
     } else {

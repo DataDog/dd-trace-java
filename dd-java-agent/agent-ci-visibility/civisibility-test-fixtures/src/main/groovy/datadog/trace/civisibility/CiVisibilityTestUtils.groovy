@@ -7,6 +7,7 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import datadog.environment.EnvironmentVariables
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
@@ -162,7 +163,7 @@ abstract class CiVisibilityTestUtils {
   }
 
   private static void compareJson(String expectedJson, String actualJson) {
-    def environment = System.getenv()
+    def environment = EnvironmentVariables.getAll()
     def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
     def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
 
