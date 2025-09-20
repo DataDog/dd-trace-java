@@ -59,8 +59,11 @@ import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
@@ -487,9 +490,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.version = Opcodes.V1_8;
     }
     ClassWriter writer = new SafeClassWriter(loader);
+    ClassVisitor visitor = new JsrInliningClassVisitor(writer);
     log.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
     try {
-      classNode.accept(writer);
+      classNode.accept(visitor);
     } catch (Throwable t) {
       log.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
       reportInstrumentationFails(definitions, Strings.getClassName(classFilePath));
@@ -926,6 +930,26 @@ public class DebuggerTransformer implements ClassFileTransformer {
     } catch (IOException e) {
       log.error("", e);
       return null;
+    }
+  }
+
+  /**
+   * A {@link org.objectweb.asm.ClassVisitor} that uses {@link
+   * org.objectweb.asm.commons.JSRInlinerAdapter} to remove JSR instructions and inlines the
+   * referenced subroutines. This allows pre-Java 6 classes with finally blocks to be successfully
+   * transformed. Without this an IllegalArgumentException for "JSR/RET are not supported with
+   * computeFrames option" would be thrown when writing the transformed class.
+   */
+  static class JsrInliningClassVisitor extends ClassVisitor {
+    protected JsrInliningClassVisitor(ClassVisitor parent) {
+      super(Opcodes.ASM9, parent);
+    }
+
+    @Override
+    public MethodVisitor visitMethod(
+        int access, String name, String descriptor, String signature, String[] exceptions) {
+      MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+      return new JSRInlinerAdapter(mv, access, name, descriptor, signature, exceptions);
     }
   }
 
