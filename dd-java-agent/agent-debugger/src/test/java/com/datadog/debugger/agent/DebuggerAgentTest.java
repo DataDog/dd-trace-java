@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static utils.TestHelper.setEnvVar;
 import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.util.RemoteConfigHelper;
@@ -22,6 +21,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.test.util.ControllableEnvironmentVariables;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -54,6 +54,8 @@ public class DebuggerAgentTest {
   final MockWebServer server = new MockWebServer();
   HttpUrl url;
 
+  private ControllableEnvironmentVariables env = ControllableEnvironmentVariables.setup();
+
   private static void setFieldInContainerInfo(
       ContainerInfo containerInfo, String fieldName, Object value) {
     try {
@@ -67,6 +69,7 @@ public class DebuggerAgentTest {
 
   @BeforeEach
   public void setUp() {
+    env.clear();
     url = server.url(URL_PATH);
   }
 
@@ -175,14 +178,14 @@ public class DebuggerAgentTest {
     when(config.getGlobalTags()).thenReturn(globalTags);
     // set env vars now to be cached by GitInfoProvider
     GitInfoProvider.INSTANCE.invalidateCache();
-    setEnvVar("DD_GIT_COMMIT_SHA", "sha1");
-    setEnvVar("DD_GIT_REPOSITORY_URL", "http://github.com");
+    env.set("DD_GIT_COMMIT_SHA", "sha1");
+    env.set("DD_GIT_REPOSITORY_URL", "http://github.com");
     String tags;
     try {
       tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
     } finally {
-      setEnvVar("DD_GIT_COMMIT_SHA", null);
-      setEnvVar("DD_GIT_REPOSITORY_URL", null);
+      env.set("DD_GIT_COMMIT_SHA", null);
+      env.set("DD_GIT_REPOSITORY_URL", null);
       GitInfoProvider.INSTANCE.invalidateCache();
     }
     Map<String, String> resultTags = new HashMap<>();
