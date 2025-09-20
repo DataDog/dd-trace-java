@@ -58,10 +58,7 @@ public class CapturedEnvironment {
   // Testing purposes
   static void useFixedEnv(final Map<String, String> props) {
     INSTANCE.properties.clear();
-
-    for (final Map.Entry<String, String> entry : props.entrySet()) {
-      INSTANCE.properties.put(entry.getKey(), entry.getValue());
-    }
+    INSTANCE.properties.putAll(props);
   }
 
   /**

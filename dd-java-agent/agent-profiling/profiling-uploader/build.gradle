@@ -33,8 +33,9 @@ dependencies {
   implementation libs.lz4
   implementation libs.aircompressor
 
-  testImplementation libs.bundles.junit5
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
+  testImplementation project(':utils:test-utils')
+  testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 
