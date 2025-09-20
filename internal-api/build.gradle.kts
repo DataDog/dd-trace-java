@@ -1,11 +1,11 @@
+import com.github.spotbugs.snom.SpotBugsTask
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
 plugins {
   `java-library`
   id("me.champeau.jmh")
 }
-
-val skipSettingCompilerRelease by extra(true) // need access to sun.misc.SharedSecrets
 
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/tries.gradle")
@@ -16,18 +16,21 @@ java {
   }
 }
 
-tasks.compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
+tasks.withType<JavaCompile>().configureEach {
+  configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")
 }
 
-tasks.compileTestJava {
-  setJavaVersion(8)
+fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
-fun AbstractCompile.setJavaVersion(javaVersionInteger: Int) {
-  (project.extra["setJavaVersion"] as Closure<*>).call(this, javaVersionInteger)
+tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
+  // sun.* are accessible in JDK8, but maybe not accessible when this task is running
+  failOnMissingClasses = false
+}
+
+tasks.named<SpotBugsTask>("spotbugsMain") {
+  extraArgs.add("-noClassOk")
 }
 
 val minimumBranchCoverage by extra(0.7)
