@@ -1193,7 +1193,7 @@ public class Agent {
             SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
       }
     } catch (Throwable t) {
-      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking", t);
+      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking");
     }
   }
 

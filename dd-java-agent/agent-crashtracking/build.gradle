@@ -23,7 +23,7 @@ dependencies {
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
+  testImplementation libs.jackson.databind
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
-  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10'
 }
 

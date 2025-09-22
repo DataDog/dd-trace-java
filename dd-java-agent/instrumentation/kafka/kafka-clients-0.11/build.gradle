@@ -1,6 +1,3 @@
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
 muzzle {
   pass {
     name = "since-0.11"
@@ -25,11 +22,6 @@ addTestSuite('iastLatestDepTest3')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-// Increased time needed in CI due to migration from JUnit 4 SpockRunner to JUnit 5 SpockExtension
-forkedTest {
-  timeout = Duration.of(15, ChronoUnit.MINUTES)
-}
-
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
@@ -53,7 +45,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
-  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.4')
 
   // Include latest version of kafka itself along with latest version of client libs.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
@@ -71,7 +63,7 @@ dependencies {
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
-  iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
+  iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.4')
   iastLatestDepTest3Implementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
 }
