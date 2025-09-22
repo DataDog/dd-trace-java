@@ -51,7 +51,6 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       "-Ddd.trace.debug=true",
       "-Ddd.jmxfetch.statsd.port=${statsdPort}",
       "-Ddd.jmxfetch.start-delay=0",
-      "-XX:StartFlightRecording=filename=${testJfrDir}/recording.jfr",
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
