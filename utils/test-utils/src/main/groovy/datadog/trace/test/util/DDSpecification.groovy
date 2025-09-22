@@ -35,7 +35,7 @@ abstract class DDSpecification extends Specification {
   static configModificationFailed = false
 
   @Shared
-  protected ControllableEnvironmentVariables environmentVariables = ControllableEnvironmentVariables.setup()
+  protected static ControllableEnvironmentVariables environmentVariables = ControllableEnvironmentVariables.setup()
 
   // Intentionally saving and restoring System properties.
   private static Properties originalSystemProperties
