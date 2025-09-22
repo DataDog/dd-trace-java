@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 final class Aggregator implements Runnable {
 
-  private static final long DEFAULT_SLEEP_MILLIS = 10;
+  private static final long DEFAULT_SLEEP_MILLIS = 1;
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 

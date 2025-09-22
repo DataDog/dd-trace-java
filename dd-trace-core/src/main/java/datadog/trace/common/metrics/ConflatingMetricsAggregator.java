@@ -436,6 +436,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public void close() {
     stop();
     try {
+      thread.interrupt();
       thread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
