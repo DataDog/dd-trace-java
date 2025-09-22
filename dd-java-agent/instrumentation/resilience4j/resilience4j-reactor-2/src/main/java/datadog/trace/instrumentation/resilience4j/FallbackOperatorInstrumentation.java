@@ -10,8 +10,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.core.functions.CheckedSupplier;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -37,13 +35,6 @@ public class FallbackOperatorInstrumentation extends Resilience4jReactorInstrume
                 takesArgument(0, named("java.util.function.UnaryOperator"))
                     .and(returns(named("java.util.function.Function")))),
         FallbackOperatorInstrumentation.class.getName() + "$DecorateAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
-    return ret;
   }
 
   public static class DecorateAdvice {

@@ -47,8 +47,7 @@ public class ReactorHelper {
       Resilience4jSpanDecorator<T> spanDecorator,
       T data,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
-    // Create span at construction (needs transformDeferred which is the case for Spring
-    // annotations)
+    // Create span at construction (needs transformDeferred which is what Spring R4j use)
     AgentSpan current = Resilience4jSpan.current();
     AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
     if (owned != null) {

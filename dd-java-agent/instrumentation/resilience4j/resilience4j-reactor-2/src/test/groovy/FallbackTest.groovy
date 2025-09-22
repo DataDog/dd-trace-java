@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator
 import io.github.resilience4j.reactor.retry.RetryOperator
 import io.github.resilience4j.retry.Retry
@@ -16,14 +15,13 @@ class FallbackTest extends InstrumentationSpecification {
     setup:
     RetryConfig config = RetryConfig.custom()
     .retryOnResult(1::equals) // retry when element is greater than 1
-    //    .waitDuration(Duration.ofMillis(1))
     .maxAttempts(2)
     .failAfterMaxAttempts(true)
     .build()
     Retry retry = Retry.of("R0", config)
     def fallback = Flux.just(-1, -2).map({ v -> runUnderTrace("in"+v) { v } })
 
-    def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback) // TODO CircuitBreaker, TimeLimiter
+    def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback)
     Flux<Integer> flux = Flux
     .just(1, 2).map({ v -> runUnderTrace("in"+v) { v } })
     .transformDeferred(retryOperator)
@@ -101,7 +99,6 @@ class FallbackTest extends InstrumentationSpecification {
     setup:
     RetryConfig config = RetryConfig.<String>custom()
     .retryOnResult(1::equals) // retry when element is "retry"
-    //    .waitDuration(Duration.ofMillis(10))
     .maxAttempts(2)
     .failAfterMaxAttempts(true)
     .build()
@@ -153,22 +150,6 @@ class FallbackTest extends InstrumentationSpecification {
           errored false
         }
       }
-    }
-  }
-
-  def <T> T serviceCall(T value) {
-    AgentTracer.startSpan("test", "serviceCall/$value").finish()
-    value
-  }
-
-  void serviceCallErr(String value, IllegalStateException e) {
-    def span = AgentTracer.startSpan("test", "serviceCallErr/$value")
-    def scope = AgentTracer.activateSpan(span)
-    try {
-      throw e
-    } finally {
-      scope.close()
-      span.finish()
     }
   }
 }

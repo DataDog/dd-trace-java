@@ -5,6 +5,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
@@ -31,18 +32,15 @@ class CircuitBreakerTest extends InstrumentationSpecification {
 
     Flux<String> flux = Flux.just("foo", "bar")
       .transformDeferred(CircuitBreakerOperator.of(cb))
-      .publishOn(Schedulers.boundedElastic())
 
     when:
     runnableUnderTrace("parent", {
-      flux.subscribe {
-        AgentTracer.startSpan("test", it).finish()
-      }
+      flux.subscribe()
     })
 
     then:
     assertTraces(1) {
-      trace(4) {
+      trace(2) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -69,24 +67,12 @@ class CircuitBreakerTest extends InstrumentationSpecification {
             defaultTags()
           }
         }
-        span(2) {
-          operationName "foo"
-          childOf(span(1))
-          errored false
-        }
-        span(3) {
-          operationName "bar"
-          childOf(span(1))
-          errored false
-        }
       }
     }
   }
 
-  def "test circuit-breaker"() {
-    // TODO add mono, error, and other tests
+  def "test circuit-breaker with Flux"() {
     ConnectableFlux<String> connection = Flux.just("foo", "bar")
-      .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C2")))
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C1")))
       .publishOn(Schedulers.boundedElastic())
       .publish()
@@ -127,27 +113,20 @@ class CircuitBreakerTest extends InstrumentationSpecification {
     }
   }
 
-  def "test circuit-breaker span before"() {
-    // TODO add mono, error, and other tests
-    ConnectableFlux<String> connection = Flux.just("foo", "bar")
-      .map({ it -> serviceCall(it) }) // serviceCall span is under r4j
+  def "test circuit-breaker with Mono"() {
+    Mono<String> mono = Mono.just("abc")
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C2")))
-      .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C1")))
-      .publishOn(Schedulers.boundedElastic())
-      .publish()
 
     when:
-    connection.subscribe {
-      AgentTracer.startSpan("test", it).finish() // these spans are under r4j as well. UPDATE: NOPE, they're not and shouldn't be
-    }
-
     runnableUnderTrace("parent", {
-      connection.connect()
+      mono.subscribe {
+        AgentTracer.startSpan("test", it).finish()
+      }
     })
 
     then:
     assertTraces(1) {
-      trace(6) {
+      trace(3) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -159,42 +138,11 @@ class CircuitBreakerTest extends InstrumentationSpecification {
           errored false
         }
         span(2) {
-          operationName "serviceCall"
-          childOf(span(1))
-          errored false
-        }
-        span(3) {
-          operationName "serviceCall"
-          childOf(span(1))
-          errored false
-        }
-        span(4) {
-          operationName "foo"
-          childOf(span(1))
-          errored false
-        }
-        span(5) {
-          operationName "bar"
+          operationName "abc"
           childOf(span(1))
           errored false
         }
       }
-    }
-  }
-
-  def <T> T serviceCall(T value) {
-    AgentTracer.startSpan("test", "serviceCall").finish()
-    value
-  }
-
-  void serviceCallErr(IllegalStateException e) {
-    def span = AgentTracer.startSpan("test", "serviceCall")
-    def scope = AgentTracer.activateSpan(span)
-    try {
-      throw e
-    } finally {
-      scope.close()
-      span.finish()
     }
   }
 }

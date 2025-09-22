@@ -9,8 +9,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.retry.Retry;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
@@ -35,17 +33,9 @@ public class RetryOperatorInstrumentation extends Resilience4jReactorInstrumenta
         RetryOperatorInstrumentation.class.getName() + "$ApplyAdvice");
   }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
-    return ret;
-  }
-
   public static class ApplyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
-        @Advice.Argument(value = 0, readOnly = false) Publisher<?> source,
         @Advice.Return(readOnly = false) Publisher<?> result,
         @Advice.FieldValue(value = "retry") Retry retry) {
 

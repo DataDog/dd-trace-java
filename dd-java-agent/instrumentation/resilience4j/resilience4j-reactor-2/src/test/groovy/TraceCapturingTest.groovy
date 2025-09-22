@@ -8,15 +8,17 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class TraceCapturingTest extends InstrumentationSpecification {
-  // TODO test Mono
 
   def "cold publisher"() {
     def cb1 = CircuitBreaker.ofDefaults("cb1")
     def flux = runUnderTrace("init") {
       Flux.range(1, 2)
-      .map { v -> runUnderTrace("in" + v) { return v } }
-      .transformDeferred(CircuitBreakerOperator.of(cb1)) // TODO parametrize operator type
-      //        .transform(CircuitBreakerOperator.of(cb1)) // TODO this only works for one-off subscription and capturing the trace at the publisher creation time as opposed to transformDeferred
+      .map {
+        v -> runUnderTrace("in" + v) {
+          return v
+        }
+      }
+      .transformDeferred(CircuitBreakerOperator.of(cb1))
     }
 
     when:
@@ -107,9 +109,12 @@ class TraceCapturingTest extends InstrumentationSpecification {
     def cb1 = CircuitBreaker.ofDefaults("cb1")
     ConnectableFlux<Integer> conn = runUnderTrace("init") {
       Flux.range(1, 2)
-      .map { v -> runUnderTrace("in" + v) { return v } }
+      .map {
+        v -> runUnderTrace("in" + v) {
+          return v
+        }
+      }
       .transformDeferred(CircuitBreakerOperator.of(cb1))
-      //        .transform(CircuitBreakerOperator.of(cb1))
       .publish() // or replay()
     }
 
@@ -189,15 +194,16 @@ class TraceCapturingTest extends InstrumentationSpecification {
     }
   }
 
-  def "hot publisher with autoConnect/refCount -- r4j spans connected to the one subscriber that triggered auto-connect"() {
+  def "hot publisher with autoConnect/refCount -- r4j spans connect to the subscriber that triggered auto-connect"() {
     def cb1 = CircuitBreaker.ofDefaults("cb1")
     Flux<Integer> flux = runUnderTrace("init") {
       Flux.range(1, 2)
-      .map { v -> runUnderTrace("in" + v) {
+      .map {
+        v -> runUnderTrace("in" + v) {
           return v
-        } }
+        }
+      }
       .transformDeferred(CircuitBreakerOperator.of(cb1))
-      //        .transform(CircuitBreakerOperator.of(cb1))
       .publish()
       .autoConnect(2) // refCount
     }

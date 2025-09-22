@@ -13,7 +13,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class StackedOperatorsTest extends InstrumentationSpecification {
 
-  def "test stacked operators retry(circuitbreaker(retry(circuitbreaker)))"() {
+  def "test stacked operators retry(circuitbreaker)"() {
     setup:
     ConnectableFlux<String> connection = Flux
       .just("abc", "def")
