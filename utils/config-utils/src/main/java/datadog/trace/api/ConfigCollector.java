@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 
 /**
  * Collects system properties and environment variables set by the user and used by the tracer. Puts
@@ -20,6 +21,9 @@ public class ConfigCollector {
 
   private static final AtomicReferenceFieldUpdater<ConfigCollector, Map> COLLECTED_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ConfigCollector.class, Map.class, "collected");
+
+  private static final Function<ConfigOrigin, Map<String, ConfigSetting>> NEW_SUB_MAP =
+      k -> new ConcurrentHashMap<>();
 
   private volatile Map<ConfigOrigin, Map<String, ConfigSetting>> collected =
       new ConcurrentHashMap<>();
@@ -34,8 +38,7 @@ public class ConfigCollector {
 
   public void put(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId, configId);
-    Map<String, ConfigSetting> configMap =
-        collected.computeIfAbsent(origin, k -> new ConcurrentHashMap<>());
+    Map<String, ConfigSetting> configMap = collected.computeIfAbsent(origin, NEW_SUB_MAP);
     configMap.put(key, setting); // replaces any previous value for this key at origin
   }
 
@@ -55,8 +58,7 @@ public class ConfigCollector {
   // origins
   public void putDefault(String key, Object value) {
     ConfigSetting setting = ConfigSetting.of(key, value, DEFAULT, DEFAULT_SEQ_ID);
-    Map<String, ConfigSetting> configMap =
-        collected.computeIfAbsent(DEFAULT, k -> new ConcurrentHashMap<>());
+    Map<String, ConfigSetting> configMap = collected.computeIfAbsent(DEFAULT, NEW_SUB_MAP);
     if (!configMap.containsKey(key)) {
       configMap.put(key, setting);
     }
