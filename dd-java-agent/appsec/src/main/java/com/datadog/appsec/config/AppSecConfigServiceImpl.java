@@ -23,7 +23,6 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RUL
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
-import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 
 import com.datadog.appsec.AppSecModule;
@@ -51,7 +50,6 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.telemetry.LogCollector;
@@ -590,7 +588,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       newState = asm.enabled;
       // Report AppSec activation change via telemetry when modified via remote config
-      ConfigCollector.get().put(APPSEC_ENABLED, asm.enabled, ConfigOrigin.REMOTE, ABSENT_SEQ_ID);
+      ConfigCollector.get().putRemote(APPSEC_ENABLED, asm.enabled);
     }
     if (AppSecSystem.isActive() != newState) {
       log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");

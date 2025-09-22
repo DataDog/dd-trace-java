@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.ConfigOrigin.DEFAULT;
+import static datadog.trace.api.ConfigOrigin.REMOTE;
 import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
 import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
 
@@ -73,6 +74,11 @@ public class ConfigCollector {
     if (!configMap.containsKey(key)) {
       configMap.put(key, setting);
     }
+  }
+
+  // report config from Remote Config origin
+  public void putRemote(String key, Object value) {
+    put(key, value, REMOTE, DEFAULT_SEQ_ID);
   }
 
   @SuppressWarnings("unchecked")
