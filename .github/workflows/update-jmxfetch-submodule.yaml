@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to create and push branch
+      contents: read
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -20,7 +20,6 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
-
       - name: Update Submodule
         run: |
           git submodule update --remote -- dd-java-agent/agent-jmxfetch/integrations-core
@@ -34,6 +33,12 @@ jobs:
           else
             echo "commit_changes=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Configure git
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        id: configure-git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Pick a branch name
         if: steps.check-changes.outputs.commit_changes == 'true'
         id: define-branch
@@ -43,20 +48,25 @@ jobs:
         run: |
           git checkout -b ${{ steps.define-branch.outputs.branch }}
           git push -u origin ${{ steps.define-branch.outputs.branch }} --force
-      - name: Commit and push changes
-        if: steps.check-changes.outputs.commit_changes == 'true'
         env:
           GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
+      - name: Commit changes
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        id: create-commit
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dd-java-agent/agent-jmxfetch/integrations-core
-          git commit -m "Update agent-jmxfetch submodule"
-          git push origin ${{ steps.define-branch.outputs.branch }}
+          git commit --message "feat(ci): Update agent-jmxfetch submodule" dd-java-agent/agent-jmxfetch/integrations-core
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
+      - name: Push changes
+        uses: Asana/push-signed-commits@d615ca88d8e1a946734c24970d1e7a6c56f34897
+        if: ${{ steps.create-commit.outputs.commit != '' }}
+        with:
+          github-token: ${{ steps.octo-sts.outputs.token }}
+          local_branch_name: ${{ steps.define-branch.outputs.branch }}
+          remote_branch_name: ${{ steps.define-branch.outputs.branch }}
       - name: Create pull request
         if: steps.check-changes.outputs.commit_changes == 'true'
-        env:
-          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
           gh pr create --title "Update agent-jmxfetch submodule" \
             --base master \
@@ -65,3 +75,5 @@ jobs:
             --label "type: enhancement" \
             --label "tag: no release notes" \
             --body "This PR updates the agent-jmxfetch submodule."
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
