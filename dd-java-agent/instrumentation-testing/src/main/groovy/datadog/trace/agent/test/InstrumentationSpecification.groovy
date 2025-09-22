@@ -25,24 +25,20 @@ import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
-import datadog.trace.api.DDSpanId
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
-import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.ActiveSubsystems
-import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.debugger.DebuggerContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.DDAgentWriter
@@ -54,7 +50,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
@@ -70,7 +66,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
-import org.spockframework.mock.runtime.MockInvocation
 import spock.lang.Shared
 
 import java.lang.instrument.ClassFileTransformer
@@ -122,7 +117,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     StringBuilder ddEnvVars = new StringBuilder()
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
-        ddEnvVars.append(Strings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
+        ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
           .append("=").append(entry.getValue()).append(",")
       }
     }
@@ -152,7 +147,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TracerAPI TEST_TRACER
+  AgentTracer.TracerAPI TEST_TRACER
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -174,10 +169,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   @SuppressWarnings('PropertyName')
   @Shared
   TestProfilingContextIntegration TEST_PROFILING_CONTEXT_INTEGRATION = new TestProfilingContextIntegration()
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  Set<DDSpanId> TEST_SPANS = Sets.newHashSet()
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -264,7 +255,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   @Shared
   ConcurrentHashMap<DDSpan, List<Exception>> spanFinishLocations = new ConcurrentHashMap<>()
   @Shared
-  ConcurrentHashMap<DDSpan, DDSpan> originalToSpySpan = new ConcurrentHashMap<>()
+  ConcurrentHashMap<DDSpan, DDSpan> originalToTrackingSpan = new ConcurrentHashMap<>()
 
   protected boolean enabledFinishTimingChecks() {
     false
@@ -399,67 +390,13 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
     TEST_TRACER.startSpan(*_) >> {
       AgentSpan agentSpan = callRealMethod()
-      TEST_SPANS.add(agentSpan.spanId)
       if (!enabledFinishTimingChecks) {
         return agentSpan
       }
 
-      // rest of closure if for checking duplicate finishes and tags set after finish
-      AgentSpan spiedAgentSpan = Spy(agentSpan)
-      originalToSpySpan[agentSpan] = spiedAgentSpan
-      def handleFinish = { MockInvocation mi ->
-        def depth = CallDepthThreadLocalMap.incrementCallDepth(DDSpan)
-        try {
-          if (depth > 0) {
-            return
-          }
-          List<Exception> locations
-          List<Exception> newLocations
-          do {
-            locations = spanFinishLocations.get(agentSpan)
-            newLocations = (locations ?: []) + new Exception()
-          } while (!(locations == null ?
-          spanFinishLocations.putIfAbsent(agentSpan, newLocations) == null :
-          spanFinishLocations.replace(agentSpan, locations, newLocations)))
-            mi.callRealMethod()
-        } finally {
-          CallDepthThreadLocalMap.decrementCallDepth(DDSpan)
-        }
-      }
-      spiedAgentSpan.finish() >> {
-        handleFinish(delegate)
-      }
-      spiedAgentSpan.finish(_ as long) >> {
-        handleFinish(delegate)
-      }
-      spiedAgentSpan.finishWithDuration() >> {
-        handleFinish(delegate)
-      }
-      spiedAgentSpan.finishWithEndToEnd() >> {
-        handleFinish(delegate)
-      }
-      spiedAgentSpan.getLocalRootSpan() >> {
-        DDSpan unwrappedSpan = callRealMethod()
-        originalToSpySpan.getOrDefault(unwrappedSpan, unwrappedSpan)
-      }
-      RequestContext requestContext = agentSpan.getRequestContext()
-      TraceSegment segment = requestContext.getTraceSegment()
-      RequestContext spiedReqCtx = Spy(requestContext)
-      TraceSegment checkedSegment = new PreconditionCheckTraceSegment(
-        check: {
-          -> if (useStrictTraceWrites() && spiedAgentSpan.localRootSpan.isFinished()) {
-            throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
-          }},
-        delegate: segment
-        )
-      spiedAgentSpan.getRequestContext() >> {
-        spiedReqCtx
-      }
-      spiedReqCtx.getTraceSegment() >> {
-        checkedSegment
-      }
-
-      spiedAgentSpan
+      def trackingSpan = new TrackingSpanDecorator(agentSpan, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+      originalToTrackingSpan[agentSpan] = trackingSpan
+      return trackingSpan
     }
 
     // if a test enables the instrumentation it verifies,
@@ -498,7 +435,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
     TEST_TRACER.flush()
-    TEST_SPANS.clear()
 
     if (isTestAgentEnabled()) {
       TEST_AGENT_WRITER.flush()
@@ -561,7 +497,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       }
     } finally {
       spanFinishLocations.clear()
-      originalToSpySpan.clear()
+      originalToTrackingSpan.clear()
     }
     assert InstrumentationErrors.errorCount == 0
   }
@@ -578,7 +514,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
         pw.write "Location $i:\n"
         def st = e.stackTrace
         int loc = st.findIndexOf {
-          it.className.startsWith('datadog.trace.core.DDSpan$SpockMock$') &&
+          it.className.startsWith(TrackingSpanDecorator.class.name) &&
             it.methodName.startsWith('finish')
         }
         for (int j = loc == -1 ? 0 : loc; j < st.length; j++) {
@@ -587,77 +523,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       }
       pw.flush()
       throw new AssertionError("The span ${entry.key} was finished more than once.\n${sw}")
-    }
-  }
-
-  class PreconditionCheckTraceSegment implements TraceSegment {
-    Closure check
-    TraceSegment delegate
-
-    @Override
-    void setTagTop(String key, Object value, boolean sanitize) {
-      check()
-      delegate.setTagTop(key, value, sanitize)
-    }
-
-    @Override
-    void setTagCurrent(String key, Object value, boolean sanitize) {
-      check()
-      delegate.setTagCurrent(key, value, sanitize)
-    }
-
-    @Override
-    Object getTagTop(String key, boolean sanitize) {
-      check()
-      return delegate.getTagTop(key, sanitize)
-    }
-
-    @Override
-    Object getTagCurrent(String key, boolean sanitize) {
-      check()
-      return delegate.getTagCurrent(key, sanitize)
-    }
-
-    @Override
-    void setDataTop(String key, Object value) {
-      check()
-      delegate.setDataTop(key, value)
-    }
-
-    @Override
-    Object getDataTop(String key) {
-      check()
-      return delegate.getDataTop(key)
-    }
-
-    @Override
-    void setMetaStructTop(String key, Object value) {
-      check()
-      delegate.setMetaStructTop(key, value)
-    }
-
-    @Override
-    void setMetaStructCurrent(String key, Object value) {
-      check()
-      delegate.setMetaStructCurrent(key, value)
-    }
-
-    @Override
-    void effectivelyBlocked() {
-      check()
-      delegate.effectivelyBlocked()
-    }
-
-    @Override
-    void setDataCurrent(String key, Object value) {
-      check()
-      delegate.setDataCurrent(key, value)
-    }
-
-    @Override
-    Object getDataCurrent(String key) {
-      check()
-      return delegate.getDataCurrent(key)
     }
   }
 
@@ -793,5 +658,3 @@ class AbortTransformationException extends RuntimeException {
     super(message)
   }
 }
-
-

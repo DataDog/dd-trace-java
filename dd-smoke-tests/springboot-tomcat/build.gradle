@@ -11,12 +11,12 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Tomcat Smoke Tests.'
-
 
 repositories {
   ivy {
-    url 'https://archive.apache.org/dist'
+    url = 'https://archive.apache.org/dist'
     patternLayout {
       artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
     }

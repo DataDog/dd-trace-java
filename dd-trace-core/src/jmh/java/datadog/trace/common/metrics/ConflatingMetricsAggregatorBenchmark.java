@@ -4,6 +4,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
@@ -32,19 +33,24 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class ConflatingMetricsAggregatorBenchmark {
-  private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new FixedAgentFeaturesDiscovery(
-          Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ConflatingMetricsAggregator aggregator =
-      new ConflatingMetricsAggregator(
-          new WellKnownTags("", "", "", "", "", ""),
-          Collections.emptySet(),
-          featuresDiscovery,
-          HealthMetrics.NO_OP,
-          new NullSink(),
-          2048,
-          2048);
+  private final SharedCommunicationObjects sco = new SharedCommunicationObjects();
+  private final ConflatingMetricsAggregator aggregator;
   private final List<CoreSpan<?>> spans = generateTrace(64);
+
+  public ConflatingMetricsAggregatorBenchmark() {
+    sco.setFeaturesDiscovery(
+        new FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"), Collections.emptySet()));
+    aggregator =
+        new ConflatingMetricsAggregator(
+            new WellKnownTags("", "", "", "", "", ""),
+            Collections.emptySet(),
+            sco,
+            HealthMetrics.NO_OP,
+            new NullSink(),
+            2048,
+            2048);
+  }
 
   static List<CoreSpan<?>> generateTrace(int len) {
     final List<CoreSpan<?>> trace = new ArrayList<>();

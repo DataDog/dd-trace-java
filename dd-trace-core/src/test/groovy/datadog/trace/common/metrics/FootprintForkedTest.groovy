@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.WellKnownTags
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
@@ -26,14 +27,16 @@ class FootprintForkedTest extends DDSpecification {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
     ValidatingSink sink = new ValidatingSink(latch)
+    SharedCommunicationObjects sco = new SharedCommunicationObjects()
     DDAgentFeaturesDiscovery features = Stub(DDAgentFeaturesDiscovery) {
       it.supportsMetrics() >> true
       it.peerTags() >> []
     }
+    sco.setFeaturesDiscovery(features)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
-      features,
+      sco,
       HealthMetrics.NO_OP,
       sink,
       1000,

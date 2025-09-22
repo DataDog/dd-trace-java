@@ -14,7 +14,7 @@ abstract class OkHttp3Test extends HttpClientTest {
     super.configurePreAgent()
     // disable tracer metrics because it uses OkHttp and class loading is
     // not isolated in tests
-    injectSysConfig("dd.trace.tracer.metrics.enabled", "false")
+    injectSysConfig("trace.stats.computation.enabled", "false")
   }
 
   @Override

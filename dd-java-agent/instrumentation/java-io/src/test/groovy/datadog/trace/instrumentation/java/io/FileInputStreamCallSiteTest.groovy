@@ -11,7 +11,7 @@ class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final path = newFile('test.txt').toString()
+    final path = newFile('test_iast.txt').toString()
 
     when:
     TestFileInputStreamSuite.newFileInputStream(path)
@@ -24,7 +24,7 @@ class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     final helper = Mock(FileLoadedRaspHelper)
     FileLoadedRaspHelper.INSTANCE = helper
-    final path = newFile('test.txt').toString()
+    final path = newFile('test_rasp.txt').toString()
 
     when:
     TestFileInputStreamSuite.newFileInputStream(path)

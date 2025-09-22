@@ -9,8 +9,8 @@ apply plugin: 'call-site-instrumentation'
 
 repositories {
   maven {
-    name 'WSO2-Dist'
-    url 'https://dist.wso2.org/maven2/'
+    name = 'WSO2-Dist'
+    url = 'https://dist.wso2.org/maven2/'
   }
 }
 
