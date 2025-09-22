@@ -28,16 +28,6 @@ public class ConfigCollector {
     return INSTANCE;
   }
 
-  /**
-   * @deprecated Use {@link #put(String, Object, ConfigOrigin, int)} or {@link #put(String, Object,
-   *     ConfigOrigin, int, String)} instead to provide explicit sequence IDs for proper telemetry
-   *     ordering.
-   */
-  @Deprecated
-  public void put(String key, Object value, ConfigOrigin origin) {
-    put(key, value, origin, ABSENT_SEQ_ID, null);
-  }
-
   public void put(String key, Object value, ConfigOrigin origin, int seqId) {
     put(key, value, origin, seqId, null);
   }
