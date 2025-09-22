@@ -50,7 +50,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
@@ -117,7 +117,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     StringBuilder ddEnvVars = new StringBuilder()
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
-        ddEnvVars.append(Strings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
+        ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
           .append("=").append(entry.getValue()).append(",")
       }
     }

@@ -117,22 +117,33 @@ internal object MuzzleMavenRepoUtils {
    * Equivalent to the Groovy implementation in MuzzlePlugin.
    */
   fun resolveVersionRange(
-      muzzleDirective: MuzzleDirective,
-      system: RepositorySystem,
-      session: RepositorySystemSession
+    muzzleDirective: MuzzleDirective,
+    system: RepositorySystem,
+    session: RepositorySystemSession
   ): VersionRangeResult {
-      val directiveArtifact: Artifact = DefaultArtifact(
-          muzzleDirective.group,
-          muzzleDirective.module,
-          muzzleDirective.classifier ?: "",
-          "jar",
-          muzzleDirective.versions
-      )
-      val rangeRequest = VersionRangeRequest().apply {
-          repositories = muzzleDirective.getRepositories(MUZZLE_REPOS)
-          artifact = directiveArtifact
+    val directiveArtifact: Artifact = DefaultArtifact(
+      muzzleDirective.group,
+      muzzleDirective.module,
+      muzzleDirective.classifier ?: "",
+      "jar",
+      muzzleDirective.versions
+    )
+    val rangeRequest = VersionRangeRequest().apply {
+      repositories = muzzleDirective.getRepositories(MUZZLE_REPOS)
+      artifact = directiveArtifact
+    }
+
+    // In rare cases, the version resolution range silently failed with the maven proxy,
+    // retries 3 times at most then suggest to restart the job later.
+    var range = system.resolveVersionRange(session, rangeRequest)
+    for (i in 0..3) {
+      if (range.lowestVersion != null && range.highestVersion != null) {
+        return range
       }
-      return system.resolveVersionRange(session, rangeRequest)
+      range = system.resolveVersionRange(session, rangeRequest)
+    }
+
+    throw IllegalStateException("The version range resolution failed during report, this is not expected. Advised course of action: Restart the job later.")
   }
 
   /**
@@ -157,6 +168,7 @@ internal object MuzzleMavenRepoUtils {
   ): Map<String, TestedArtifact> {
     val scanPluginClass = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
     val listMethod = scanPluginClass.getMethod("listInstrumentationNames", ClassLoader::class.java, String::class.java)
+
     @Suppress("UNCHECKED_CAST")
     val names = listMethod.invoke(null, cl, directive.name) as Set<String>
 
@@ -178,12 +190,12 @@ internal object MuzzleMavenRepoUtils {
   /**
    * Returns the highest of two Version objects.
    */
-  fun highest(a: Version, b: Version): Version = if (a.compareTo(b) > 0) a else b
+  fun highest(a: Version, b: Version): Version = if (a > b) a else b
 
   /**
    * Returns the lowest of two Version objects.
    */
-  fun lowest(a: Version, b: Version): Version = if (a.compareTo(b) < 0) a else b
+  fun lowest(a: Version, b: Version): Version = if (a < b) a else b
 
   /**
    * Convert a muzzle directive to a set of artifacts for all filtered versions.

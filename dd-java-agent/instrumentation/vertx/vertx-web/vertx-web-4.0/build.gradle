@@ -37,11 +37,11 @@ artifacts {
 }
 
 dependencies {
-  api project(':dd-java-agent:instrumentation:netty-4.1-shared')
+  api project(':dd-java-agent:instrumentation:netty:netty-common')
 
   compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
@@ -52,7 +52,7 @@ dependencies {
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'

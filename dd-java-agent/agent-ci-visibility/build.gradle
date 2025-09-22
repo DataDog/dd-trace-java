@@ -1,19 +1,16 @@
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
 buildscript {
   repositories {
     mavenLocal()
     if (project.rootProject.hasProperty("gradlePluginProxy")) {
       maven {
         url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
       maven {
         url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
@@ -66,8 +63,4 @@ shadowJar {
 
 jar {
   archiveClassifier = 'unbundled'
-}
-
-tasks.withType(Test).configureEach {
-  timeout = Duration.of(12, ChronoUnit.MINUTES)
 }

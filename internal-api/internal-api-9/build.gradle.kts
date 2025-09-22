@@ -1,4 +1,5 @@
 import groovy.lang.Closure
+import java.nio.file.Paths
 
 plugins {
   `java-library`
@@ -56,5 +57,5 @@ idea {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvm = System.getenv("JAVA_11_HOME") + "/bin/java"
+  jvm = providers.environmentVariable("JAVA_11_HOME").map { Paths.get(it, "bin", "java").toString() }
 }

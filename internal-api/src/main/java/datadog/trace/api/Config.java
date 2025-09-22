@@ -603,6 +603,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
@@ -634,7 +635,7 @@ import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
-import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
+import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
@@ -652,11 +653,14 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
 import datadog.trace.api.rum.RumInjectorConfig.PrivacyLevel;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
+import datadog.trace.util.ConfigStrings;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
@@ -833,6 +837,7 @@ public class Config {
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
   private final List<String> traceBaggageTagKeys;
+  private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1238,6 +1243,11 @@ public class Config {
   private final int stackTraceLengthLimit;
 
   private final RumInjectorConfig rumInjectorConfig;
+
+  static {
+    // Bind telemetry collector to config module before initializing ConfigProvider
+    OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
+  }
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1746,6 +1756,8 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceInferredProxyEnabled =
+        configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -3148,6 +3160,10 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isInferredProxyPropagationEnabled() {
+    return traceInferredProxyEnabled;
   }
 
   public boolean isBaggageExtract() {
@@ -5246,7 +5262,7 @@ public class Config {
       } catch (Throwable t) {
         // Ignore
       }
-      possibleHostname = Strings.trim(possibleHostname);
+      possibleHostname = ConfigStrings.trim(possibleHostname);
       if (!possibleHostname.isEmpty()) {
         log.debug("Determined hostname from file {}", hostNameFile);
         return possibleHostname;
@@ -5480,6 +5496,8 @@ public class Config {
         + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
+        + ", traceInferredProxyEnabled="
+        + traceInferredProxyEnabled
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="
