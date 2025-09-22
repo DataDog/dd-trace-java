@@ -269,6 +269,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL, "http://somehost:123/debugger/v1/input")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
@@ -2785,7 +2786,6 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
   }
 

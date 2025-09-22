@@ -104,7 +104,7 @@ public class DebuggerAgentTest {
     setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 4096L);
     setFieldInContainerInfo(ContainerInfo.get(), "containerId", "");
     String infoContent =
-        "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
+        "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"debugger/v1/diagnostics\", \"v0.7/config\"] }";
     datadogAgentServer.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     datadogAgentServer.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     try (BufferedReader reader =
