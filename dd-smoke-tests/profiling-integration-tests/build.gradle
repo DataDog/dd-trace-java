@@ -30,7 +30,7 @@ dependencies {
   testImplementation libs.bundles.mockito
   testImplementation libs.bundles.jmc
   testImplementation libs.aircompressor
-  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+  testImplementation libs.jackson.databind
 }
 
 tasks.withType(Test).configureEach {

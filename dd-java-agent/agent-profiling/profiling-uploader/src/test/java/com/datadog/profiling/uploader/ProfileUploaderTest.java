@@ -188,7 +188,7 @@ public class ProfileUploaderTest {
   }
 
   @AfterEach
-  public void tearDown() throws IOException {
+  public void tearDown() {
     uploader.shutdown();
     try {
       server.shutdown();
@@ -511,7 +511,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() throws Exception {
+  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
     when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
 
     uploader = new ProfileUploader(config, configProvider);
@@ -522,7 +522,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientUsesDefaultConnspecsOverTLS() throws Exception {
+  void testOkHttpClientUsesDefaultConnspecsOverTLS() {
     when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
 
     uploader = new ProfileUploader(config, configProvider);
