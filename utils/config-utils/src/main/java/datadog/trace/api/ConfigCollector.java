@@ -42,10 +42,6 @@ public class ConfigCollector {
     put(key, value, origin, seqId, null);
   }
 
-  public void put(String key, Object value, ConfigOrigin origin, String configId) {
-    put(key, value, origin, ABSENT_SEQ_ID, configId);
-  }
-
   public void put(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId, configId);
     Map<String, ConfigSetting> configMap =
