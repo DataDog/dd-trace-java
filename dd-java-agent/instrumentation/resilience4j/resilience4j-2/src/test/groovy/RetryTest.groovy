@@ -170,9 +170,7 @@ class RetryTest extends InstrumentationSpecification {
     assertExpectedTrace()
   }
 
-  /////
-
-  def "decorateSupplier retry twice on error"() {
+  def "decorateSupplier retry twice on error -- second call scoped by the r4j span"() {
     when:
     Supplier<String> supplier = Retry.decorateSupplier(
       Retry.of("rt", RetryConfig.custom().maxAttempts(2).build())
@@ -209,7 +207,7 @@ class RetryTest extends InstrumentationSpecification {
     }
   }
 
-  def "decorateCompletionStage retry twice on error"() {
+  def "decorateCompletionStage retry twice on error -- second call scoped by the r4j span"() {
     setup:
     def scheduler = Executors.newSingleThreadScheduledExecutor()
     Supplier<CompletionStage<String>> supplier = Retry.decorateCompletionStage(

@@ -1,5 +1,5 @@
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17 // TODO -PtestJvm=17
+  minJavaVersionForTests = JavaVersion.VERSION_17
 }
 
 apply from: "$rootDir/gradle/java.gradle"

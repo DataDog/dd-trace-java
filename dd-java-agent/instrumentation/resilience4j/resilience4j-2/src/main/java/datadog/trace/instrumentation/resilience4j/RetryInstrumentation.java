@@ -97,9 +97,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound =
-          new WrapperWithContext.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+        @Advice.Return(readOnly = false) Supplier<?> result) {
+      result = new WrapperWithContext.SupplierWithContext<>(result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -107,9 +106,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Callable<?> outbound) {
-      outbound =
-          new WrapperWithContext.CallableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+        @Advice.Return(readOnly = false) Callable<?> result) {
+      result = new WrapperWithContext.CallableWithContext<>(result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -117,9 +115,8 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Function<?, ?> outbound) {
-      outbound =
-          new WrapperWithContext.FunctionWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+        @Advice.Return(readOnly = false) Function<?, ?> result) {
+      result = new WrapperWithContext.FunctionWithContext<>(result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -127,10 +124,10 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) CheckedFunction<?, ?> outbound) {
-      outbound =
+        @Advice.Return(readOnly = false) CheckedFunction<?, ?> result) {
+      result =
           new WrapperWithContext.CheckedFunctionWithContext<>(
-              outbound, RetryDecorator.DECORATE, retry);
+              result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -138,10 +135,10 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
-      outbound =
+        @Advice.Return(readOnly = false) CheckedSupplier<?> result) {
+      result =
           new WrapperWithContext.CheckedSupplierWithContext<>(
-              outbound, RetryDecorator.DECORATE, retry);
+              result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -149,10 +146,10 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) CheckedRunnable outbound) {
-      outbound =
+        @Advice.Return(readOnly = false) CheckedRunnable result) {
+      result =
           new WrapperWithContext.CheckedRunnableWithContext<>(
-              outbound, RetryDecorator.DECORATE, retry);
+              result, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -160,20 +157,18 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound =
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> result) {
+      result =
           new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
-              outbound, RetryDecorator.DECORATE, retry);
+              result, RetryDecorator.DECORATE, retry);
     }
   }
 
   public static class RunnableAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Runnable outbound) {
-      outbound =
-          new WrapperWithContext.RunnableWithContext<>(outbound, RetryDecorator.DECORATE, retry);
+        @Advice.Argument(value = 0) Retry retry, @Advice.Return(readOnly = false) Runnable result) {
+      result = new WrapperWithContext.RunnableWithContext<>(result, RetryDecorator.DECORATE, retry);
     }
   }
 }

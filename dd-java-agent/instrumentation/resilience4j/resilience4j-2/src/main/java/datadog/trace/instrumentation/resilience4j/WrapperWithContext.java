@@ -22,18 +22,18 @@ public class WrapperWithContext<T> {
 
   public static final class CheckedConsumerWithContext<T, I> extends WrapperWithContext<T>
       implements CheckedConsumer<I> {
-    private final CheckedConsumer<I> outbound;
+    private final CheckedConsumer<I> delegate;
 
     public CheckedConsumerWithContext(
-        CheckedConsumer<I> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedConsumer<I> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public void accept(I arg) throws Throwable {
       try (AgentScope ignore = activateScope()) {
-        outbound.accept(arg);
+        delegate.accept(arg);
       } finally {
         finishSpanIfNeeded();
       }
@@ -42,18 +42,18 @@ public class WrapperWithContext<T> {
 
   public static final class ConsumerWithContext<T, I> extends WrapperWithContext<T>
       implements Consumer<I> {
-    private final Consumer<I> outbound;
+    private final Consumer<I> delegate;
 
     public ConsumerWithContext(
-        Consumer<I> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Consumer<I> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public void accept(I arg) {
       try (AgentScope ignore = activateScope()) {
-        outbound.accept(arg);
+        delegate.accept(arg);
       } finally {
         finishSpanIfNeeded();
       }
@@ -62,18 +62,18 @@ public class WrapperWithContext<T> {
 
   public static final class CheckedFunctionWithContext<T, I, O> extends WrapperWithContext<T>
       implements CheckedFunction<I, O> {
-    private final CheckedFunction<I, O> outbound;
+    private final CheckedFunction<I, O> delegate;
 
     public CheckedFunctionWithContext(
-        CheckedFunction<I, O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedFunction<I, O> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public O apply(I arg) throws Throwable {
       try (AgentScope ignore = activateScope()) {
-        return outbound.apply(arg);
+        return delegate.apply(arg);
       } finally {
         finishSpanIfNeeded();
       }
@@ -82,18 +82,18 @@ public class WrapperWithContext<T> {
 
   public static final class SupplierWithContext<T, O> extends WrapperWithContext<T>
       implements Supplier<O> {
-    private final Supplier<O> outbound;
+    private final Supplier<O> delegate;
 
     public SupplierWithContext(
-        Supplier<O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Supplier<O> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public O get() {
       try (AgentScope ignore = activateScope()) {
-        return outbound.get();
+        return delegate.get();
       } finally {
         finishSpanIfNeeded();
       }
@@ -102,18 +102,18 @@ public class WrapperWithContext<T> {
 
   public static final class CallableWithContext<T, O> extends WrapperWithContext<T>
       implements Callable<O> {
-    private final Callable<O> outbound;
+    private final Callable<O> delegate;
 
     public CallableWithContext(
-        Callable<O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Callable<O> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public O call() throws Exception {
       try (AgentScope ignore = activateScope()) {
-        return outbound.call();
+        return delegate.call();
       } finally {
         finishSpanIfNeeded();
       }
@@ -122,18 +122,18 @@ public class WrapperWithContext<T> {
 
   public static final class FunctionWithContext<T, I, O> extends WrapperWithContext<T>
       implements Function<I, O> {
-    private final Function<I, O> outbound;
+    private final Function<I, O> delegate;
 
     public FunctionWithContext(
-        Function<I, O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Function<I, O> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public O apply(I arg) {
       try (AgentScope ignore = activateScope()) {
-        return outbound.apply(arg);
+        return delegate.apply(arg);
       } finally {
         finishSpanIfNeeded();
       }
@@ -142,18 +142,18 @@ public class WrapperWithContext<T> {
 
   public static final class CheckedSupplierWithContext<T, O> extends WrapperWithContext<T>
       implements CheckedSupplier<O> {
-    private final CheckedSupplier<O> outbound;
+    private final CheckedSupplier<O> delegate;
 
     public CheckedSupplierWithContext(
-        CheckedSupplier<O> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedSupplier<O> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public O get() throws Throwable {
       try (AgentScope ignore = activateScope()) {
-        return outbound.get();
+        return delegate.get();
       } finally {
         finishSpanIfNeeded();
       }
@@ -162,18 +162,18 @@ public class WrapperWithContext<T> {
 
   public static final class CheckedRunnableWithContext<T> extends WrapperWithContext<T>
       implements CheckedRunnable {
-    private final CheckedRunnable outbound;
+    private final CheckedRunnable delegate;
 
     public CheckedRunnableWithContext(
-        CheckedRunnable outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        CheckedRunnable delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public void run() throws Throwable {
       try (AgentScope ignore = activateScope()) {
-        outbound.run();
+        delegate.run();
       } finally {
         finishSpanIfNeeded();
       }
@@ -182,18 +182,18 @@ public class WrapperWithContext<T> {
 
   public static final class RunnableWithContext<T> extends WrapperWithContext<T>
       implements Runnable {
-    private final Runnable outbound;
+    private final Runnable delegate;
 
     public RunnableWithContext(
-        Runnable outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Runnable delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public void run() {
       try (AgentScope ignore = activateScope()) {
-        outbound.run();
+        delegate.run();
       } finally {
         finishSpanIfNeeded();
       }
@@ -202,18 +202,18 @@ public class WrapperWithContext<T> {
 
   public static final class SupplierOfCompletionStageWithContext<T> extends WrapperWithContext<T>
       implements Supplier<CompletionStage<?>> {
-    private final Supplier<CompletionStage<?>> outbound;
+    private final Supplier<CompletionStage<?>> delegate;
 
     public SupplierOfCompletionStageWithContext(
-        Supplier<CompletionStage<?>> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Supplier<CompletionStage<?>> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public CompletionStage<?> get() {
       try (AgentScope ignore = activateScope()) {
-        return outbound
+        return delegate
             .get()
             .whenComplete(
                 (v, e) -> {
@@ -225,18 +225,18 @@ public class WrapperWithContext<T> {
 
   public static final class SupplierOfFutureWithContext<T> extends WrapperWithContext<T>
       implements Supplier<Future<?>> {
-    private final Supplier<Future<?>> outbound;
+    private final Supplier<Future<?>> delegate;
 
     public SupplierOfFutureWithContext(
-        Supplier<Future<?>> outbound, Resilience4jSpanDecorator<T> spanDecorator, T data) {
+        Supplier<Future<?>> delegate, Resilience4jSpanDecorator<T> spanDecorator, T data) {
       super(spanDecorator, data);
-      this.outbound = outbound;
+      this.delegate = delegate;
     }
 
     @Override
     public Future<?> get() {
       try (AgentScope ignore = activateScope()) {
-        Future<?> future = outbound.get();
+        Future<?> future = delegate.get();
         if (future instanceof CompletableFuture) {
           ((CompletableFuture<?>) future)
               .whenComplete(

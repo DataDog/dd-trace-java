@@ -19,9 +19,9 @@ class StackedDecoratorsTest extends InstrumentationSpecification {
     Supplier<String> supplier = Decorators
       .ofSupplier{serviceCall("foobar", "serviceCall")}
       .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
-      .withRateLimiter(RateLimiter.ofDefaults("L")) // not instrumented
+      .withRateLimiter(RateLimiter.ofDefaults("L")) // not instrumented, doesn't break the scope
       .withRetry(Retry.ofDefaults("R"))
-      .withBulkhead(Bulkhead.ofDefaults("B")) // not instrumented
+      .withBulkhead(Bulkhead.ofDefaults("B")) // not instrumented, doesn't break the scope
       .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
       .decorate()
 
