@@ -6,9 +6,16 @@ on:
 jobs:
   update-releases:
     permissions:
-      contents: write
+      contents: read
+      id-token: write # Required for OIDC token federation
     runs-on: ubuntu-latest
     steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.add-release-to-cloudfoundry
+
       - name: Checkout "cloudfoundry" branch
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
         with:
@@ -59,6 +66,7 @@ jobs:
         uses: DataDog/commit-headless@1186485b788f57eedaaadb19919781698b4d262f # action/v1.0.0
         if: ${{ steps.create-commit.outputs.commit != '' }}
         with:
+          token: "${{ steps.octo-sts.outputs.token }}"
           branch: cloudfoundry
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
