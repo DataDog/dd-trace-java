@@ -43,14 +43,13 @@ public class ConfigCollector {
   }
 
   /**
-   * Updates multiple configuration settings with the same origin.
+   * Updates multiple configuration settings with REMOTE origin.
    *
    * @param configMap map of configuration key-value pairs to add
-   * @param origin the configuration origin for all entries
    */
   public void updateAll(Map<String, Object> configMap) {
     for (Map.Entry<String, Object> entry : configMap.entrySet()) {
-      put(entry.getKey(), entry.getValue(), origin, ABSENT_SEQ_ID, null);
+      put(entry.getKey(), entry.getValue(), REMOTE, ABSENT_SEQ_ID, null);
     }
   }
 
