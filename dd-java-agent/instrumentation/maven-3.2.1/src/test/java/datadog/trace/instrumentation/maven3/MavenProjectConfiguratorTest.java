@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -12,54 +12,42 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.stream.Stream;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(Parameterized.class)
 public class MavenProjectConfiguratorTest extends AbstractMavenTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfiguratorTest.class);
 
-  @Parameterized.Parameters(name = "{0} - {1}")
-  public static Collection<Object[]> surefireVersions() {
-    return Arrays.asList(
-        new Object[][] {
-          {"sampleProject/pom.xml", "test", new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}},
-          {
+  public static Stream<Arguments> surefireVersions() {
+    return Stream.of(
+        Arguments.of(
+            "sampleProject/pom.xml", "test", new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}),
+        Arguments.of(
             "sampleProject/pom.xml",
             "surefire:test",
-            new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}
-          },
-          {"sampleProjectArgLine/pom.xml", "test", new String[] {"-X"}},
-          {"sampleProjectArgLine/pom.xml", "surefire:test", new String[] {"-X"}},
-          {"sampleProjectSurefireArgLine/pom.xml", "test", new String[] {"-X"}},
-          {"sampleProjectSurefireArgLine/pom.xml", "surefire:test", new String[] {"-X"}},
-          {"sampleProjectSurefireLateProcessingArgLine/pom.xml", "test", new String[] {"-X"}},
-        });
+            new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}),
+        Arguments.of("sampleProjectArgLine/pom.xml", "test", new String[] {"-X"}),
+        Arguments.of("sampleProjectArgLine/pom.xml", "surefire:test", new String[] {"-X"}),
+        Arguments.of("sampleProjectSurefireArgLine/pom.xml", "test", new String[] {"-X"}),
+        Arguments.of("sampleProjectSurefireArgLine/pom.xml", "surefire:test", new String[] {"-X"}),
+        Arguments.of(
+            "sampleProjectSurefireLateProcessingArgLine/pom.xml", "test", new String[] {"-X"}));
   }
 
-  private final String pomPath;
-  private final String goal;
-  private final String[] additionalCmdLineArgs;
-
-  public MavenProjectConfiguratorTest(String pomPath, String goal, String[] additionalCmdLineArgs) {
-    this.pomPath = pomPath;
-    this.goal = goal;
-    this.additionalCmdLineArgs = additionalCmdLineArgs;
-  }
-
-  @Test
-  public void testTracerInjection() throws Exception {
+  @ParameterizedTest
+  @MethodSource("surefireVersions")
+  public void testTracerInjection(String pomPath, String goal, String[] additionalCmdLineArgs)
+      throws Exception {
     ByteArrayOutputStream stdOutBaos = new ByteArrayOutputStream();
     PrintStream buildOutput = new PrintStream(stdOutBaos);
 
@@ -85,8 +73,8 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
                 && buildOutputLine.contains("-DmyArgLineProp=true");
       }
 
-      assertTrue("Tracer wasn't injected", javaAgentInjected);
-      assertTrue("Original argLine was not preserved", argLinePreserved);
+      assertTrue(javaAgentInjected, "Tracer wasn't injected");
+      assertTrue(argLinePreserved, "Original argLine was not preserved");
 
     } catch (Exception | Error e) {
       LOGGER.info("Build output:\n\n" + stdOutBaos);

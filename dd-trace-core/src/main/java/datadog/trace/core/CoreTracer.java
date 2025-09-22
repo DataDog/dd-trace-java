@@ -7,6 +7,7 @@ import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.INFERRED_PROXY_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
@@ -90,6 +91,7 @@ import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.propagation.InferredProxyPropagator;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
@@ -815,6 +817,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (config.isBaggagePropagationEnabled()
         && config.getTracePropagationBehaviorExtract() != IGNORE) {
       Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
+    }
+    if (config.isInferredProxyPropagationEnabled()) {
+      Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
     }
 
     if (config.isCiVisibilityEnabled()) {
