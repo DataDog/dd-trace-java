@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import freemarker.template.Configuration;
@@ -32,7 +33,6 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainer;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -79,7 +79,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetMojoConfigValueReturnsNullIfValueNotSet(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -105,7 +105,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetMojoConfigValueReturnsConfiguredValue(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -131,7 +131,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetMojoConfigValueResolvesPropertyPlaceholders(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -159,7 +159,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetMojoConfigValueResolvesPropertiesSuppliedViaCmdLine(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -188,7 +188,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetArgLineResolvesLatePropertyPlaceholders(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -215,7 +215,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetJacocoAgent(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(this::assertGetJacocoAgent, "samplePomJacoco.xml", "test");
@@ -240,7 +240,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetEffectiveJvmFallbackUsesJvmProperty(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -266,11 +266,11 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetEffectiveJvmFallbackUsesToolchains(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
-    Assumptions.assumeTrue(surefirePluginVersion.compareTo(SUREFIRE_3_0_0) >= 0);
-    Assumptions.assumeTrue(getCurrentMavenVersion().compareTo(MAVEN_3_3_1) >= 0);
+    assumeTrue(surefirePluginVersion.compareTo(SUREFIRE_3_0_0) >= 0);
+    assumeTrue(getCurrentMavenVersion().compareTo(MAVEN_3_3_1) >= 0);
 
     File toolchainsFile = createToolchainsFile();
     executeMaven(
@@ -318,7 +318,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetForkedJvmPath(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -345,7 +345,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetClasspath(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -361,7 +361,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
 
     for (String suffix : suffixes) {
       assertFalse(
-          classpath.stream().noneMatch(c -> c.endsWith(suffix)), "Missing entry: " + suffix);
+          classpath.stream().noneMatch(c -> c.toString().endsWith(suffix)),
+          "Missing entry: " + suffix);
     }
   }
 
@@ -374,7 +375,12 @@ public class MavenUtilsTest extends AbstractMavenTest {
     MavenSession session = executionEvent.getSession();
     List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
     assertClasspath(
-        classpath, "/test-classes", "/classes", "/junit-4.13.2.jar", "/commons-lang3-3.17.0.jar");
+        classpath,
+        "/test-classes",
+        "/classes",
+        "/junit-4.13.2.jar",
+        "/hamcrest-core-1.3.jar",
+        "/commons-lang3-3.17.0.jar");
     return true;
   }
 
@@ -383,10 +389,10 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetClasspathConsidersAdditionalClasspathDependencies(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
-    Assumptions.assumeTrue(surefirePluginVersion.compareTo(SUREFIRE_3_2_0) >= 0);
+    assumeTrue(surefirePluginVersion.compareTo(SUREFIRE_3_2_0) >= 0);
     executeMaven(
         this::assertGetClasspathConsidersAdditionalClasspathDependencies,
         "samplePomAdditionalClasspathDependencies.xml",
@@ -404,7 +410,12 @@ public class MavenUtilsTest extends AbstractMavenTest {
     MavenSession session = executionEvent.getSession();
     List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
     assertClasspath(
-        classpath, "/test-classes", "/classes", "/junit-4.13.2.jar", "/commons-io-2.16.1.jar");
+        classpath,
+        "/test-classes",
+        "/classes",
+        "/junit-4.13.2.jar",
+        "/hamcrest-core-1.3.jar",
+        "/commons-io-2.16.1.jar");
     return true;
   }
 
@@ -413,7 +424,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetClasspathConsidersAdditionalClasspathElements(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
@@ -437,6 +448,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
         "/test-classes",
         "/classes",
         "/junit-4.13.2.jar",
+        "/hamcrest-core-1.3.jar",
         "/path/to/additional/classpath/element",
         "/path/to/another/additional/classpath/element");
     return true;
@@ -447,7 +459,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
   public void testGetContainer(
       ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
       throws Exception {
-    Assumptions.assumeTrue(
+    assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
     executeMaven(
