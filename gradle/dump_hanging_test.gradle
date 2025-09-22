@@ -68,16 +68,16 @@ tasks.withType(Test).configureEach { testTask ->
     }, delayMinutes, TimeUnit.MINUTES)
 
     // Store handles for cancellation in doLast.
-    ext.dumpFuture = future
-    ext.dumpScheduler = scheduler
+    testTask.ext.dumpFuture = future
+    testTask.ext.dumpScheduler = scheduler
   }
 
   doLast {
     // Cancel if the task finished before the scheduled dump.
     try {
-      ext.dumpFuture?.cancel(false)
+      testTask.ext.dumpFuture?.cancel(false)
     } finally {
-      ext.dumpScheduler?.shutdownNow()
+      testTask.ext.dumpScheduler?.shutdownNow()
     }
   }
 }

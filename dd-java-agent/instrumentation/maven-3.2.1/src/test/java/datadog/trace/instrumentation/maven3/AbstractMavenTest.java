@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -20,8 +20,7 @@ public abstract class AbstractMavenTest {
 
   protected AbstractMavenTest() {
     System.setProperty(
-        "maven.multiModuleProjectDirectory",
-        WORKING_DIRECTORY.getRoot().toAbsolutePath().toString());
+        "maven.multiModuleProjectDirectory", WORKING_DIRECTORY.toAbsolutePath().toString());
   }
 
   protected void executeMaven(
@@ -58,8 +57,7 @@ public abstract class AbstractMavenTest {
     arguments[2] = goal;
     System.arraycopy(additionalArgs, 0, arguments, 3, additionalArgs.length);
 
-    mavenCli.doMain(
-        arguments, WORKING_DIRECTORY.getRoot().toAbsolutePath().toString(), stdOut, stderr);
+    mavenCli.doMain(arguments, WORKING_DIRECTORY.toAbsolutePath().toString(), stdOut, stderr);
 
     Exception error = spy.handlerError.get();
     if (error != null) {
