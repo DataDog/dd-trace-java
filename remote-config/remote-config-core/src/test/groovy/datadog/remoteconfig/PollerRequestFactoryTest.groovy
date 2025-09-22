@@ -1,7 +1,6 @@
 package datadog.remoteconfig
 
 import com.squareup.moshi.Moshi
-import datadog.environment.JavaVirtualMachine
 import datadog.remoteconfig.tuf.RemoteConfigRequest
 import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
