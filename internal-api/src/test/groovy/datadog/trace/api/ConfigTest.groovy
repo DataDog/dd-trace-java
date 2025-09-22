@@ -173,12 +173,8 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
 
-  def setupSpec() {
-    ControllableCapturedEnvironment.useFixedEnv([:])
-  }
-
   def setup() {
-    ControllableCapturedEnvironment.useFixedEnv([:])
+    FixedCapturedEnvironment.useFixedEnv([:])
   }
 
   def "specify overrides via properties"() {
@@ -797,9 +793,6 @@ class ConfigTest extends DDSpecification {
   }
 
   def "override null properties"() {
-    setup:
-    FixedCapturedEnvironment.useFixedEnv([:])
-
     when:
     def config = Config.get(null)
 
