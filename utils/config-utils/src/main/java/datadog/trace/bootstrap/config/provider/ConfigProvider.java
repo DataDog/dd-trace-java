@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
-import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
+import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
 import datadog.environment.SystemProperties;
@@ -79,7 +79,7 @@ public final class ConfigProvider {
   // sources to telemetry.
   private String getStringInternal(String key, String... aliases) {
     ConfigValueResolver<String> resolver = null;
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
@@ -126,7 +126,7 @@ public final class ConfigProvider {
     }
 
     ConfigValueResolver<String> resolver = null;
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
@@ -166,7 +166,7 @@ public final class ConfigProvider {
       reportDefault(key, defaultValue);
     }
     ConfigValueResolver<String> resolver = null;
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
     for (int i = sources.length - 1; i >= 0; i--) {
       ConfigProvider.Source source = sources[i];
       String candidate = source.get(key, aliases);
@@ -251,7 +251,7 @@ public final class ConfigProvider {
     }
 
     ConfigValueResolver<T> resolver = null;
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     for (int i = sources.length - 1; i >= 0; i--) {
       String sourceValue = sources[i].get(key, aliases);
@@ -326,7 +326,7 @@ public final class ConfigProvider {
 
   public Map<String, String> getMergedMap(String key, String... aliases) {
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     // System properties take precedence over env
     // prior art:
@@ -356,7 +356,7 @@ public final class ConfigProvider {
 
   public Map<String, String> getMergedTagsMap(String key, String... aliases) {
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     // System properties take precedence over env
     // prior art:
@@ -388,7 +388,7 @@ public final class ConfigProvider {
   public Map<String, String> getOrderedMap(String key) {
     // Use LinkedHashMap to preserve insertion order of map entries
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new LinkedHashMap<>());
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     // System properties take precedence over env
     // prior art:
@@ -419,7 +419,7 @@ public final class ConfigProvider {
   public Map<String, String> getMergedMapWithOptionalMappings(
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
-    int seqId = DEFAULT_SEQ_ID + 1;
+    int seqId = NON_DEFAULT_SEQ_ID;
 
     // System properties take precedence over env
     // prior art:

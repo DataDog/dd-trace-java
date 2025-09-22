@@ -170,7 +170,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
-import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
+import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
@@ -5295,7 +5295,7 @@ public class Config {
     String value = EnvironmentVariables.get(name);
     if (value != null) {
       // Report non-default sequence id for consistency
-      ConfigCollector.get().put(name, value, ConfigOrigin.ENV, DEFAULT_SEQ_ID + 1);
+      ConfigCollector.get().put(name, value, ConfigOrigin.ENV, NON_DEFAULT_SEQ_ID);
     }
     return value;
   }
@@ -5319,7 +5319,7 @@ public class Config {
     String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
       // Report non-default sequence id for consistency
-      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP, DEFAULT_SEQ_ID + 1);
+      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP, NON_DEFAULT_SEQ_ID);
     }
     return value;
   }

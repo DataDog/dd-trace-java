@@ -8,13 +8,14 @@ import java.util.Objects;
 import java.util.Set;
 
 public final class ConfigSetting {
+  public static final int DEFAULT_SEQ_ID = 1;
+  public static final int NON_DEFAULT_SEQ_ID = DEFAULT_SEQ_ID + 1;
+  public static final int ABSENT_SEQ_ID = 0;
+
   public final String key;
   public final Object value;
   public final ConfigOrigin origin;
-
   public final int seqId;
-  public static final int DEFAULT_SEQ_ID = 1;
-  public static final int ABSENT_SEQ_ID = 0;
 
   /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
