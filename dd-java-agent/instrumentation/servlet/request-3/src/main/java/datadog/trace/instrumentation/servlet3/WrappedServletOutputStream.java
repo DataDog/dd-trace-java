@@ -3,13 +3,13 @@ package datadog.trace.instrumentation.servlet3;
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream;
 import datadog.trace.util.MethodHandles;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
+import java.util.function.LongConsumer;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
 
 public class WrappedServletOutputStream extends ServletOutputStream {
-  private final OutputStream filtered;
+  private final InjectingPipeOutputStream filtered;
   private final ServletOutputStream delegate;
 
   private static final MethodHandle IS_READY_MH = getMh("isReady");
@@ -30,8 +30,15 @@ public class WrappedServletOutputStream extends ServletOutputStream {
   }
 
   public WrappedServletOutputStream(
-      ServletOutputStream delegate, byte[] marker, byte[] contentToInject, Runnable onInjected) {
-    this.filtered = new InjectingPipeOutputStream(delegate, marker, contentToInject, onInjected);
+      ServletOutputStream delegate,
+      byte[] marker,
+      byte[] contentToInject,
+      Runnable onInjected,
+      LongConsumer onBytesWritten,
+      LongConsumer onInjectionTime) {
+    this.filtered =
+        new InjectingPipeOutputStream(
+            delegate, marker, contentToInject, onInjected, onBytesWritten, onInjectionTime);
     this.delegate = delegate;
   }
 
@@ -82,5 +89,13 @@ public class WrappedServletOutputStream extends ServletOutputStream {
     } catch (Throwable e) {
       sneakyThrow(e);
     }
+  }
+
+  public void commit() throws IOException {
+    filtered.commit();
+  }
+
+  public void setFilter(boolean filter) {
+    filtered.setFilter(filter);
   }
 }

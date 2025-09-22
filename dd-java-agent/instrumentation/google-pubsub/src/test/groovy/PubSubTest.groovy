@@ -168,7 +168,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     latch.await()
 
     then:
-    def sendSpan
     assertTraces(shadowGrpcSpans() ? 2 : 3, [
       compare            : { List<DDSpan> o1, List<DDSpan> o2 ->
         // trace will never be empty
@@ -199,8 +198,10 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         if (!shadowGrpcSpans()) {
           grpcSpans(it)
         }
-        sendSpan = span(1)
+
+        assert span(1) != null
       }
+
       if (!shadowGrpcSpans()) {
         // Acknowledge
         trace(1) {
@@ -271,6 +272,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         "response.type" { String }
         "$Tags.RPC_SERVICE" { String }
         "status.code" { String }
+        "grpc.status.code" { String }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }

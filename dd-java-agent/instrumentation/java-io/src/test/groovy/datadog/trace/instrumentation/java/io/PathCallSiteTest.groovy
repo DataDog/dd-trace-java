@@ -11,10 +11,10 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final path = 'test.txt'
+    final path = 'test_iast.txt'
 
     when:
-    TestPathSuite.resolve(getRootFolder().toPath(), path)
+    TestPathSuite.resolve(getRootFolder(), path)
 
     then:
     1 * iastModule.onPathTraversal(path)
@@ -24,8 +24,8 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final sibling = newFile('test1.txt').toPath()
-    final path = 'test2.txt'
+    final sibling = newFile('test_iast_1.txt').toPath()
+    final path = 'test_iast_2.txt'
 
     when:
     TestPathSuite.resolveSibling(sibling, path)
@@ -38,10 +38,10 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     final helper = Mock(FileLoadedRaspHelper)
     FileLoadedRaspHelper.INSTANCE = helper
-    final path = 'test.txt'
+    final path = 'test_rasp.txt'
 
     when:
-    TestPathSuite.resolve(getRootFolder().toPath(), path)
+    TestPathSuite.resolve(getRootFolder(), path)
 
     then:
     1 * helper.beforeFileLoaded(path)
@@ -51,8 +51,8 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     final helper = Mock(FileLoadedRaspHelper)
     FileLoadedRaspHelper.INSTANCE = helper
-    final sibling = newFile('test1.txt').toPath()
-    final path = 'test2.txt'
+    final sibling = newFile('test_rasp_1.txt').toPath()
+    final path = 'test_rasp_2.txt'
 
     when:
     TestPathSuite.resolveSibling(sibling, path)

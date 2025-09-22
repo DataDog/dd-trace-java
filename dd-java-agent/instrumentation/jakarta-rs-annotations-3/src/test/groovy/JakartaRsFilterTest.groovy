@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
@@ -12,7 +12,7 @@ import jakarta.ws.rs.ext.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-abstract class JakartaRsFilterTest extends AgentTestRunner {
+abstract class JakartaRsFilterTest extends InstrumentationSpecification {
 
   @Shared
   SimpleRequestFilter simpleRequestFilter = new SimpleRequestFilter()

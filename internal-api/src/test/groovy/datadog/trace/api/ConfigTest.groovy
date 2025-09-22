@@ -1652,6 +1652,32 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == "https://some.new.url/goes/here"
   }
 
+  def "ipv6 profiling url"() {
+    setup:
+    def configuredUrl = "http://[2600:1f14:1cfc:5f07::38d4]:8126"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == configuredUrl + "/profiling/v1/input"
+  }
+
+  def "uds profiling url"() {
+    setup:
+    def configuredUrl = "unix:///path/to/socket"
+    def props = new Properties()
+    props.setProperty(TRACE_AGENT_URL, configuredUrl)
+
+    when:
+    Config config = Config.get(props)
+
+    then:
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
+  }
+
   def "fallback to DD_TAGS"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
@@ -2029,17 +2055,12 @@ class ConfigTest extends DDSpecification {
     where:
     // spotless:off
     value       | tClass  | expected
-    "42.42"     | Boolean | false
-    "42.42"     | Boolean | false
     "true"      | Boolean | true
     "trUe"      | Boolean | true
-    "trUe"      | Boolean | true
-    "tru"       | Boolean | false
-    "truee"     | Boolean | false
-    "true "     | Boolean | false
-    " true"     | Boolean | false
-    " true "    | Boolean | false
-    "   true  " | Boolean | false
+    "false"     | Boolean | false
+    "False"     | Boolean | false
+    "1"         | Boolean | true
+    "0"         | Boolean | false
     "42.42"     | Float   | 42.42f
     "42.42"     | Double  | 42.42
     "44"        | Integer | 44
@@ -2063,6 +2084,20 @@ class ConfigTest extends DDSpecification {
     ""       | "43"
     "      " | "44"
     "1"      | "45"
+    // spotless:on
+  }
+
+  def "valueOf negative test for invalid boolean values"() {
+    when:
+    ConfigConverter.valueOf(value, Boolean)
+
+    then:
+    def exception = thrown(IllegalArgumentException)
+    exception.message.contains("Invalid boolean value")
+
+    where:
+    // spotless:off
+    value << ["42.42", "tru", "truee", "true ", " true", " true ", "   true  ", "notABool", "invalid", "yes", "no", "42"]
     // spotless:on
   }
 
@@ -2297,27 +2332,64 @@ class ConfigTest extends DDSpecification {
     !hostname.trim().isEmpty()
   }
 
-  def "config instantiation should fail if llm obs is enabled via sys prop and ml app is not set"() {
+  def "config instantiation should NOT fail if llm obs is enabled via sys prop and ml app is not set"() {
     setup:
     Properties properties = new Properties()
     properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(SERVICE, "test-service")
 
     when:
-    new Config(ConfigProvider.withPropertiesOverride(properties))
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    thrown IllegalArgumentException
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
   }
 
-  def "config instantiation should fail if llm obs is enabled via env var and ml app is not set"() {
+  def "config instantiation should NOT fail if llm obs is enabled via sys prop and ml app is empty"() {
     setup:
-    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(SERVICE, "test-service")
+    properties.setProperty(LLMOBS_ML_APP, "")
 
     when:
-    new Config()
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    thrown IllegalArgumentException
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled via env var and ml app is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "test-service")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled via env var and ml app is empty"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "test-service")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
   }
 
 

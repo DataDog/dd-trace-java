@@ -230,6 +230,9 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("value").value(configSetting.stringValue());
     bodyWriter.setSerializeNulls(false);
     bodyWriter.name("origin").value(configSetting.origin.value);
+    if (configSetting.configId != null) {
+      bodyWriter.name("config_id").value(configSetting.configId);
+    }
     bodyWriter.endObject();
   }
 
@@ -329,7 +332,7 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("operation_name").value(endpoint.getOperation());
     bodyWriter.name("resource_name").value(endpoint.getResource());
     if (endpoint.getRequestBodyType() != null) {
-      bodyWriter.name("request-body-type").jsonValue(endpoint.getRequestBodyType());
+      bodyWriter.name("request_body_type").jsonValue(endpoint.getRequestBodyType());
     }
     if (endpoint.getResponseBodyType() != null) {
       bodyWriter.name("response_body_type").jsonValue(endpoint.getResponseBodyType());

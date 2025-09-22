@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.apachehttpcore5
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.apache.hc.core5.http.HttpHost
 
-class IastHttpHostInstrumentationTest extends AgentTestRunner {
+class IastHttpHostInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

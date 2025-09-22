@@ -8,6 +8,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
@@ -32,6 +33,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_EXECUTOR_TASK_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_POOL_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
@@ -75,6 +77,8 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
@@ -168,6 +172,13 @@ public class InstrumenterConfig {
 
   private final Collection<String> additionalJaxRsAnnotations;
 
+  private final boolean rumEnabled;
+
+  static {
+    // Bind telemetry collector to config module before initializing ConfigProvider
+    OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
+  }
+
   private InstrumenterConfig() {
     this(ConfigProvider.createDefault());
   }
@@ -195,7 +206,7 @@ public class InstrumenterConfig {
     profilingEnabled =
         ProfilingEnablement.of(
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
-
+    rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -567,6 +578,10 @@ public class InstrumenterConfig {
         Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
+  public boolean isRumEnabled() {
+    return rumEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final InstrumenterConfig INSTANCE =
@@ -669,6 +684,8 @@ public class InstrumenterConfig {
         + websocketTracingEnabled
         + ", pekkoSchedulerEnabled="
         + pekkoSchedulerEnabled
+        + ", rumEnabled="
+        + rumEnabled
         + '}';
   }
 }

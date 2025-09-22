@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 
 import java.util.concurrent.Callable
@@ -8,7 +8,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
-class StructuredConcurrencyTest extends AgentTestRunner {
+class StructuredConcurrencyTest extends InstrumentationSpecification {
   /**
    * Tests the structured task scope with a single task.
    */

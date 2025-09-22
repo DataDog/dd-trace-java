@@ -142,7 +142,7 @@ public class SharedCommunicationObjects {
     DDAgentFeaturesDiscovery ret = featuresDiscovery;
     if (ret == null) {
       synchronized (this) {
-        if (featuresDiscovery == null) {
+        if ((ret = featuresDiscovery) == null) {
           createRemaining(config);
           ret =
               new DDAgentFeaturesDiscovery(
@@ -159,7 +159,7 @@ public class SharedCommunicationObjects {
               ret.discover(); // safe to run on same thread
             } else {
               // avoid performing blocking I/O operation on application thread
-              AgentTaskScheduler.INSTANCE.execute(ret::discoverIfOutdated);
+              AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
             }
           }
           featuresDiscovery = ret;

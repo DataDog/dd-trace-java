@@ -1,0 +1,50 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+muzzle {
+
+  pass {
+    module = 'play-ahc-ws-standalone_2.11'
+    group = 'com.typesafe.play'
+    versions = '[2.0.0,]'
+    assertInverse = true
+  }
+
+  pass {
+    group = 'com.typesafe.play'
+    module = 'play-ahc-ws-standalone_2.12'
+    versions = '[2.0.0,2.1.0)'
+    skipVersions += '2.0.5' // Bad release
+    assertInverse = true
+  }
+
+  // No Scala 2.13 versions below 2.0.6 exist
+  pass {
+    group = 'com.typesafe.play'
+    module = 'play-ahc-ws-standalone_2.13'
+    versions = '[2.0.6,2.1.0)'
+  }
+}
+
+def scalaVersion = '2.12'
+
+dependencies {
+  compileOnly group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '2.0.0'
+
+  implementation project(':dd-java-agent:instrumentation:play-ws:play-ws-common')
+  testImplementation project(path: ':dd-java-agent:instrumentation:play-ws:play-ws-common', configuration: 'testArtifacts')
+
+  // These are to ensure cross compatibility
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
+  testImplementation project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
+  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+
+  testImplementation group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '2.0.0'
+
+  latestDepTestImplementation group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '2.0.+'
+}

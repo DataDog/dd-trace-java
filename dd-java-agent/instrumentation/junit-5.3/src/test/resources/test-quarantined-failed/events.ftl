@@ -16,7 +16,7 @@
       "test.command" : "junit-5.3",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -49,7 +49,7 @@
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "junit-5.3",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -82,7 +82,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "junit-5.3",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -120,6 +120,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.failure_suppressed" : "true",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "junit-5.3",

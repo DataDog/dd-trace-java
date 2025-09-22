@@ -2,6 +2,10 @@ package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
+import static datadog.trace.api.datastreams.DataStreamsTags.createManual;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
@@ -12,7 +16,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.*;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
@@ -53,7 +56,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final Thread thread;
@@ -96,7 +98,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         features,
         timeSource,
         traceConfigSupplier,
-        config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
             sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
         Config.get().getDataStreamsBucketDurationNanoseconds());
@@ -107,13 +108,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
-      WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
 
@@ -121,10 +120,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sink.register(this);
     schemaSamplers = new ConcurrentHashMap<>();
 
-    this.propagator =
-        new DataStreamsPropagator(this, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
-    // configure global tags behavior
-    DataStreamsTags.setGlobalBaseHash(this.hashOfKnownTags);
+    this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
@@ -132,8 +128,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void start() {
     checkDynamicConfig();
     cancellation =
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                new ReportTask(),
+                this,
+                bucketDurationNanos,
+                bucketDurationNanos,
+                TimeUnit.NANOSECONDS);
     thread.start();
   }
 
@@ -188,7 +189,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, hashOfKnownTags, getThreadServiceName());
+      return new DefaultPathwayContext(timeSource, getThreadServiceName());
     } else {
       return NoopPathwayContext.INSTANCE;
     }
@@ -207,7 +208,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.hashOfKnownTags,
               getThreadServiceName());
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
@@ -246,9 +246,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     DataStreamsTags tags;
     if (isManual) {
-      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Inbound, source);
+      tags = createManual(type, INBOUND, source);
     } else {
-      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Inbound, source);
+      tags = create(type, INBOUND, source);
     }
 
     setCheckpoint(span, fromTags(tags));
@@ -268,9 +268,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
     DataStreamsTags tags;
     if (manualCheckpoint) {
-      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Outbound, target);
+      tags = createManual(type, OUTBOUND, target);
     } else {
-      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Outbound, target);
+      tags = create(type, OUTBOUND, target);
     }
 
     DataStreamsContext dsmContext = fromTags(tags);

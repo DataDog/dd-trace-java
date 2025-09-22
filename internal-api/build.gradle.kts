@@ -73,6 +73,8 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
     "datadog.trace.api.datastreams.NoopPathwayContext",
     "datadog.trace.api.datastreams.StatsPoint",
+    // Debugger
+    "datadog.trace.api.debugger.DebuggerConfigUpdate",
     // Bootstrap API
     "datadog.trace.bootstrap.ActiveSubsystems",
     "datadog.trace.bootstrap.ContextStore.Factory",
@@ -84,6 +86,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
     "datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor",
     "datadog.trace.bootstrap.instrumentation.api.AgentScope",
+    "datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation",
     "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
     "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
     "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
@@ -120,6 +123,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.civisibility.config.TestSourceData",
     "datadog.trace.api.civisibility.config.LibraryCapability",
     "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
+    "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge.TotalProbeCount",
     "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
     "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
     "datadog.trace.api.civisibility.coverage.NoOpCoverageStore.Factory",
@@ -250,6 +254,8 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
+    // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
+    "datadog.trace.api.rum.RumInjectorMetrics",
   )
 )
 
@@ -273,6 +279,7 @@ dependencies {
   api(project(":components:environment"))
   api(project(":components:json"))
   api(project(":components:yaml"))
+  api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 
   // has to be loaded by system classloader:
@@ -281,12 +288,10 @@ dependencies {
 
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
-  testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation(libs.bundles.junit5)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
-  testImplementation(libs.truth)
 }
 
 jmh {

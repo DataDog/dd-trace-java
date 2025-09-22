@@ -13,6 +13,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
+import net.bytebuddy.jar.asm.Opcodes;
 
 /** Provides an outline of a type; i.e. the named elements making up its structure. */
 final class TypeOutline extends WithName {
@@ -87,6 +88,30 @@ final class TypeOutline extends WithName {
   @Override
   public int getModifiers() {
     return modifiers;
+  }
+
+  @Override
+  public boolean isAbstract() {
+    return matchesMask(Opcodes.ACC_ABSTRACT);
+  }
+
+  @Override
+  public boolean isEnum() {
+    return matchesMask(Opcodes.ACC_ENUM);
+  }
+
+  @Override
+  public boolean isInterface() {
+    return matchesMask(Opcodes.ACC_INTERFACE);
+  }
+
+  @Override
+  public boolean isAnnotation() {
+    return matchesMask(Opcodes.ACC_ANNOTATION);
+  }
+
+  private boolean matchesMask(int mask) {
+    return (this.getModifiers() & mask) == mask;
   }
 
   @Override

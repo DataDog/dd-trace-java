@@ -81,7 +81,13 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
 
   def cleanup() {
     connection.close()
-    redisClient.shutdown()
+
+    try {
+      redisClient.shutdown(5, 10, TimeUnit.SECONDS)
+    } catch (Throwable ignored) {
+      // No-op.
+    }
+
     redisServer.stop()
   }
 }

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.lang.invoke
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ReflectionInjectionModule
 import foo.bar.TestLookup9Suite
@@ -9,7 +9,7 @@ import spock.lang.Requires
 @Requires({
   jvm.java9Compatible
 })
-class Lookup9CallSiteTest extends AgentTestRunner {
+class Lookup9CallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

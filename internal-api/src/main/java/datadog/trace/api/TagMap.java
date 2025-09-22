@@ -45,17 +45,17 @@ import java.util.stream.StreamSupport;
  */
 public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
-  public static final TagMap EMPTY = TagMapFactory.INSTANCE.empty();
+  TagMap EMPTY = TagMapFactory.INSTANCE.empty();
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
-  public static TagMap fromMap(Map<String, ?> map) {
+  static TagMap fromMap(Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
     tagMap.putAll(map);
     return tagMap;
   }
 
   /** Creates a new immutable TagMap that contains the contents of <code>map</code> */
-  public static TagMap fromMapImmutable(Map<String, ?> map) {
+  static TagMap fromMapImmutable(Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
     } else {
@@ -72,12 +72,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
   }
 
   /** Creates a new TagMap.Ledger */
-  public static Ledger ledger() {
+  static Ledger ledger() {
     return new Ledger();
   }
 
   /** Creates a new TagMap.Ledger which handles <code>size</code> modifications before expansion */
-  public static Ledger ledger(int size) {
+  static Ledger ledger(int size) {
     return new Ledger(size);
   }
 
@@ -273,7 +273,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
   /** Checks if the TagMap is writable - if not throws {@link IllegalStateException} */
   void checkWriteAccess();
 
-  public abstract static class EntryChange {
+  abstract class EntryChange {
     public static final EntryRemoval newRemoval(String tag) {
       return new EntryRemoval(tag);
     }
@@ -295,18 +295,18 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     public abstract boolean isRemoval();
   }
 
-  public static final class EntryRemoval extends EntryChange {
+  final class EntryRemoval extends EntryChange {
     EntryRemoval(String tag) {
       super(tag);
     }
 
     @Override
-    public final boolean isRemoval() {
+    public boolean isRemoval() {
       return true;
     }
   }
 
-  public static final class Entry extends EntryChange implements Map.Entry<String, Object> {
+  final class Entry extends EntryChange implements Map.Entry<String, Object> {
     /*
      * Special value used for Objects that haven't been type checked yet.
      * These objects might be primitive box objects.
@@ -330,11 +330,11 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     public static final byte FLOAT = 8;
     public static final byte DOUBLE = 9;
 
-    static final Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
+    static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
       return newAnyEntry(entry.getKey(), entry.getValue());
     }
 
-    static final Entry newAnyEntry(String tag, Object value) {
+    static Entry newAnyEntry(String tag, Object value) {
       // DQH - To keep entry creation (e.g. map changes) as fast as possible,
       // the entry construction is kept as simple as possible.
 
@@ -345,47 +345,47 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return new Entry(tag, ANY, 0L, value);
     }
 
-    static final Entry newObjectEntry(String tag, Object value) {
+    static Entry newObjectEntry(String tag, Object value) {
       return new Entry(tag, OBJECT, 0, value);
     }
 
-    static final Entry newBooleanEntry(String tag, boolean value) {
+    static Entry newBooleanEntry(String tag, boolean value) {
       return new Entry(tag, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
     }
 
-    static final Entry newBooleanEntry(String tag, Boolean box) {
+    static Entry newBooleanEntry(String tag, Boolean box) {
       return new Entry(tag, BOOLEAN, boolean2Prim(box.booleanValue()), box);
     }
 
-    static final Entry newIntEntry(String tag, int value) {
+    static Entry newIntEntry(String tag, int value) {
       return new Entry(tag, INT, int2Prim(value), null);
     }
 
-    static final Entry newIntEntry(String tag, Integer box) {
+    static Entry newIntEntry(String tag, Integer box) {
       return new Entry(tag, INT, int2Prim(box.intValue()), box);
     }
 
-    static final Entry newLongEntry(String tag, long value) {
+    static Entry newLongEntry(String tag, long value) {
       return new Entry(tag, LONG, long2Prim(value), null);
     }
 
-    static final Entry newLongEntry(String tag, Long box) {
+    static Entry newLongEntry(String tag, Long box) {
       return new Entry(tag, LONG, long2Prim(box.longValue()), box);
     }
 
-    static final Entry newFloatEntry(String tag, float value) {
+    static Entry newFloatEntry(String tag, float value) {
       return new Entry(tag, FLOAT, float2Prim(value), null);
     }
 
-    static final Entry newFloatEntry(String tag, Float box) {
+    static Entry newFloatEntry(String tag, Float box) {
       return new Entry(tag, FLOAT, float2Prim(box.floatValue()), box);
     }
 
-    static final Entry newDoubleEntry(String tag, double value) {
+    static Entry newDoubleEntry(String tag, double value) {
       return new Entry(tag, DOUBLE, double2Prim(value), null);
     }
 
-    static final Entry newDoubleEntry(String tag, Double box) {
+    static Entry newDoubleEntry(String tag, Double box) {
       return new Entry(tag, DOUBLE, double2Prim(box.doubleValue()), box);
     }
 
@@ -435,11 +435,11 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return hash;
     }
 
-    public final byte type() {
+    public byte type() {
       return this.resolveAny();
     }
 
-    public final boolean is(byte type) {
+    public boolean is(byte type) {
       byte curType = this.rawType;
       if (curType == type) {
         return true;
@@ -450,7 +450,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       }
     }
 
-    public final boolean isNumericPrimitive() {
+    public boolean isNumericPrimitive() {
       byte curType = this.rawType;
       if (_isNumericPrimitive(curType)) {
         return true;
@@ -461,16 +461,16 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       }
     }
 
-    public final boolean isNumber() {
+    public boolean isNumber() {
       byte curType = this.rawType;
       return _isNumericPrimitive(curType) || (this.rawObj instanceof Number);
     }
 
-    private static final boolean _isNumericPrimitive(byte type) {
+    static boolean _isNumericPrimitive(byte type) {
       return (type >= BYTE);
     }
 
-    private final byte resolveAny() {
+    private byte resolveAny() {
       byte curType = this.rawType;
       if (curType != ANY) return curType;
 
@@ -516,15 +516,15 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       this.rawType = type;
     }
 
-    public final boolean isObject() {
+    public boolean isObject() {
       return this.is(OBJECT);
     }
 
-    public final boolean isRemoval() {
+    public boolean isRemoval() {
       return false;
     }
 
-    public final Object objectValue() {
+    public Object objectValue() {
       if (this.rawObj != null) {
         return this.rawObj;
       }
@@ -561,7 +561,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return this.rawObj;
     }
 
-    public final boolean booleanValue() {
+    public boolean booleanValue() {
       byte type = this.rawType;
 
       if (type == BOOLEAN) {
@@ -596,7 +596,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return false;
     }
 
-    public final int intValue() {
+    public int intValue() {
       byte type = this.rawType;
 
       if (type == INT) {
@@ -631,7 +631,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0;
     }
 
-    public final long longValue() {
+    public long longValue() {
       byte type = this.rawType;
 
       if (type == LONG) {
@@ -651,7 +651,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
           return prim2Boolean(prim) ? 1L : 0L;
 
         case INT:
-          return (long) prim2Int(prim);
+          return prim2Int(prim);
 
         case FLOAT:
           return (long) prim2Float(prim);
@@ -666,7 +666,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0;
     }
 
-    public final float floatValue() {
+    public float floatValue() {
       byte type = this.rawType;
 
       if (type == FLOAT) {
@@ -701,7 +701,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0F;
     }
 
-    public final double doubleValue() {
+    public double doubleValue() {
       byte type = this.rawType;
 
       if (type == DOUBLE) {
@@ -721,13 +721,13 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
           return prim2Boolean(prim) ? 1D : 0D;
 
         case INT:
-          return (double) prim2Int(prim);
+          return prim2Int(prim);
 
         case LONG:
           return (double) prim2Long(prim);
 
         case FLOAT:
-          return (double) prim2Float(prim);
+          return prim2Float(prim);
 
         case OBJECT:
           return 0D;
@@ -736,7 +736,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0D;
     }
 
-    public final String stringValue() {
+    public String stringValue() {
       String strCache = this.strCache;
       if (strCache != null) {
         return strCache;
@@ -747,7 +747,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return computeStr;
     }
 
-    private final String computeStringValue() {
+    private String computeStringValue() {
       // Could do type resolution here,
       // but decided to just fallback to this.obj.toString() for ANY case
       switch (this.rawType) {
@@ -775,7 +775,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     }
 
     @Override
-    public final String toString() {
+    public String toString() {
       return this.tag() + '=' + this.stringValue();
     }
 
@@ -809,7 +809,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     }
 
     @Override
-    public final int hashCode() {
+    public int hashCode() {
       return this.hash();
     }
 
@@ -821,47 +821,47 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return this.tag.equals(that.tag) && this.objectValue().equals(that.objectValue());
     }
 
-    private static final long boolean2Prim(boolean value) {
+    private static long boolean2Prim(boolean value) {
       return value ? 1L : 0L;
     }
 
-    private static final boolean prim2Boolean(long prim) {
+    private static boolean prim2Boolean(long prim) {
       return (prim != 0L);
     }
 
-    private static final long int2Prim(int value) {
-      return (long) value;
-    }
-
-    private static final int prim2Int(long prim) {
-      return (int) prim;
-    }
-
-    private static final long long2Prim(long value) {
+    private static long int2Prim(int value) {
       return value;
     }
 
-    private static final long prim2Long(long prim) {
+    private static int prim2Int(long prim) {
+      return (int) prim;
+    }
+
+    private static long long2Prim(long value) {
+      return value;
+    }
+
+    private static long prim2Long(long prim) {
       return prim;
     }
 
-    private static final long float2Prim(float value) {
-      return (long) Float.floatToIntBits(value);
+    private static long float2Prim(float value) {
+      return Float.floatToIntBits(value);
     }
 
-    private static final float prim2Float(long prim) {
+    private static float prim2Float(long prim) {
       return Float.intBitsToFloat((int) prim);
     }
 
-    private static final long double2Prim(double value) {
+    private static long double2Prim(double value) {
       return Double.doubleToRawLongBits(value);
     }
 
-    private static final double prim2Double(long prim) {
+    private static double prim2Double(long prim) {
       return Double.longBitsToDouble(prim);
     }
 
-    static final int _hash(String tag) {
+    static int _hash(String tag) {
       int hash = tag.hashCode();
       return hash == 0 ? 0xDD06 : hash ^ (hash >>> 16);
     }
@@ -871,7 +871,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
    * An in-order ledger of changes to be made to a TagMap.
    * Ledger can also serves as a builder for TagMap-s via build & buildImmutable.
    */
-  public static final class Ledger implements Iterable<EntryChange> {
+  final class Ledger implements Iterable<EntryChange> {
     EntryChange[] entryChanges;
     int nextPos = 0;
     boolean containsRemovals = false;
@@ -884,7 +884,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       this.entryChanges = new EntryChange[size];
     }
 
-    public final boolean isDefinitelyEmpty() {
+    public boolean isDefinitelyEmpty() {
       return (this.nextPos == 0);
     }
 
@@ -894,63 +894,63 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
      *
      * @return
      */
-    public final int estimateSize() {
+    public int estimateSize() {
       return this.nextPos;
     }
 
-    public final boolean containsRemovals() {
+    public boolean containsRemovals() {
       return this.containsRemovals;
     }
 
-    public final Ledger set(String tag, Object value) {
+    public Ledger set(String tag, Object value) {
       return this.recordEntry(Entry.newAnyEntry(tag, value));
     }
 
-    public final Ledger set(String tag, CharSequence value) {
+    public Ledger set(String tag, CharSequence value) {
       return this.recordEntry(Entry.newObjectEntry(tag, value));
     }
 
-    public final Ledger set(String tag, boolean value) {
+    public Ledger set(String tag, boolean value) {
       return this.recordEntry(Entry.newBooleanEntry(tag, value));
     }
 
-    public final Ledger set(String tag, int value) {
+    public Ledger set(String tag, int value) {
       return this.recordEntry(Entry.newIntEntry(tag, value));
     }
 
-    public final Ledger set(String tag, long value) {
+    public Ledger set(String tag, long value) {
       return this.recordEntry(Entry.newLongEntry(tag, value));
     }
 
-    public final Ledger set(String tag, float value) {
+    public Ledger set(String tag, float value) {
       return this.recordEntry(Entry.newFloatEntry(tag, value));
     }
 
-    public final Ledger set(String tag, double value) {
+    public Ledger set(String tag, double value) {
       return this.recordEntry(Entry.newDoubleEntry(tag, value));
     }
 
-    public final Ledger set(Entry entry) {
+    public Ledger set(Entry entry) {
       return this.recordEntry(entry);
     }
 
-    public final Ledger remove(String tag) {
+    public Ledger remove(String tag) {
       return this.recordRemoval(EntryChange.newRemoval(tag));
     }
 
-    private final Ledger recordEntry(Entry entry) {
+    private Ledger recordEntry(Entry entry) {
       this.recordChange(entry);
       return this;
     }
 
-    private final Ledger recordRemoval(EntryRemoval entry) {
+    private Ledger recordRemoval(EntryRemoval entry) {
       this.recordChange(entry);
       this.containsRemovals = true;
 
       return this;
     }
 
-    private final void recordChange(EntryChange entryChange) {
+    private void recordChange(EntryChange entryChange) {
       if (this.nextPos >= this.entryChanges.length) {
         this.entryChanges = Arrays.copyOf(this.entryChanges, this.entryChanges.length << 1);
       }
@@ -958,14 +958,14 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       this.entryChanges[this.nextPos++] = entryChange;
     }
 
-    public final Ledger smartRemove(String tag) {
+    public Ledger smartRemove(String tag) {
       if (this.contains(tag)) {
         this.remove(tag);
       }
       return this;
     }
 
-    private final boolean contains(String tag) {
+    private boolean contains(String tag) {
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so bounds check elimination optimization works
@@ -979,7 +979,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     /*
      * Just for testing
      */
-    final Entry findLastEntry(String tag) {
+    Entry findLastEntry(String tag) {
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
@@ -991,13 +991,13 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return null;
     }
 
-    public final void reset() {
+    public void reset() {
       Arrays.fill(this.entryChanges, null);
       this.nextPos = 0;
     }
 
     @Override
-    public final Iterator<EntryChange> iterator() {
+    public Iterator<EntryChange> iterator() {
       return new IteratorImpl(this.entryChanges, this.nextPos);
     }
 
@@ -1057,7 +1057,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       }
 
       @Override
-      public final boolean hasNext() {
+      public boolean hasNext() {
         return (this.pos + 1 < this.size);
       }
 
@@ -1080,7 +1080,7 @@ abstract class TagMapFactory<MapT extends TagMap> {
       createFactory(Config.get().isOptimizedMapEnabled());
 
   static final TagMapFactory<?> createFactory(boolean useOptimized) {
-    return useOptimized ? new OptimizedTagMapFactory() : new LegacyTagMapFactory();
+    return useOptimized ? OptimizedTagMapFactory.INSTANCE : LegacyTagMapFactory.INSTANCE;
   }
 
   public abstract MapT create();
@@ -1091,8 +1091,12 @@ abstract class TagMapFactory<MapT extends TagMap> {
 }
 
 final class OptimizedTagMapFactory extends TagMapFactory<OptimizedTagMap> {
+  static final OptimizedTagMapFactory INSTANCE = new OptimizedTagMapFactory();
+
+  private OptimizedTagMapFactory() {}
+
   @Override
-  public final OptimizedTagMap create() {
+  public OptimizedTagMap create() {
     return new OptimizedTagMap();
   }
 
@@ -1108,8 +1112,12 @@ final class OptimizedTagMapFactory extends TagMapFactory<OptimizedTagMap> {
 }
 
 final class LegacyTagMapFactory extends TagMapFactory<LegacyTagMap> {
+  static final LegacyTagMapFactory INSTANCE = new LegacyTagMapFactory();
+
+  private LegacyTagMapFactory() {}
+
   @Override
-  public final LegacyTagMap create() {
+  public LegacyTagMap create() {
     return new LegacyTagMap();
   }
 
@@ -1168,81 +1176,81 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final boolean isOptimized() {
+  public boolean isOptimized() {
     return true;
   }
 
   @Override
-  public final int size() {
+  public int size() {
     return this.size;
   }
 
   @Override
-  public final boolean isEmpty() {
+  public boolean isEmpty() {
     return (this.size == 0);
   }
 
   @Deprecated
   @Override
-  public final Object get(Object tag) {
+  public Object get(Object tag) {
     if (!(tag instanceof String)) return null;
 
     return this.getObject((String) tag);
   }
 
   /** Provides the corresponding entry value as an Object - boxing if necessary */
-  public final Object getObject(String tag) {
+  public Object getObject(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.objectValue();
   }
 
   /** Provides the corresponding entry value as a String - calling toString if necessary */
-  public final String getString(String tag) {
+  public String getString(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.stringValue();
   }
 
-  public final boolean getBoolean(String tag) {
+  public boolean getBoolean(String tag) {
     return this.getBooleanOrDefault(tag, false);
   }
 
-  public final boolean getBooleanOrDefault(String tag, boolean defaultValue) {
+  public boolean getBooleanOrDefault(String tag, boolean defaultValue) {
     Entry entry = this.getEntry(tag);
     return entry == null ? defaultValue : entry.booleanValue();
   }
 
-  public final int getInt(String tag) {
+  public int getInt(String tag) {
     return getIntOrDefault(tag, 0);
   }
 
-  public final int getIntOrDefault(String tag, int defaultValue) {
+  public int getIntOrDefault(String tag, int defaultValue) {
     Entry entry = this.getEntry(tag);
     return entry == null ? defaultValue : entry.intValue();
   }
 
-  public final long getLong(String tag) {
+  public long getLong(String tag) {
     return this.getLongOrDefault(tag, 0L);
   }
 
-  public final long getLongOrDefault(String tag, long defaultValue) {
+  public long getLongOrDefault(String tag, long defaultValue) {
     Entry entry = this.getEntry(tag);
     return entry == null ? defaultValue : entry.longValue();
   }
 
-  public final float getFloat(String tag) {
+  public float getFloat(String tag) {
     return this.getFloatOrDefault(tag, 0F);
   }
 
-  public final float getFloatOrDefault(String tag, float defaultValue) {
+  public float getFloatOrDefault(String tag, float defaultValue) {
     Entry entry = this.getEntry(tag);
     return entry == null ? defaultValue : entry.floatValue();
   }
 
-  public final double getDouble(String tag) {
+  public double getDouble(String tag) {
     return this.getDoubleOrDefault(tag, 0D);
   }
 
-  public final double getDoubleOrDefault(String tag, double defaultValue) {
+  public double getDoubleOrDefault(String tag, double defaultValue) {
     Entry entry = this.getEntry(tag);
     return entry == null ? defaultValue : entry.doubleValue();
   }
@@ -1279,7 +1287,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final Entry getEntry(String tag) {
+  public Entry getEntry(String tag) {
     Object[] thisBuckets = this.buckets;
 
     int hash = TagMap.Entry._hash(tag);
@@ -1295,60 +1303,60 @@ final class OptimizedTagMap implements TagMap {
       BucketGroup lastGroup = (BucketGroup) bucket;
 
       Entry tagEntry = lastGroup.findInChain(hash, tag);
-      if (tagEntry != null) return tagEntry;
+      return tagEntry;
     }
     return null;
   }
 
   @Deprecated
   @Override
-  public final Object put(String tag, Object value) {
+  public Object put(String tag, Object value) {
     TagMap.Entry entry = this.getAndSet(Entry.newAnyEntry(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
   @Override
-  public final void set(TagMap.Entry newEntry) {
+  public void set(TagMap.Entry newEntry) {
     this.getAndSet(newEntry);
   }
 
   @Override
-  public final void set(String tag, Object value) {
+  public void set(String tag, Object value) {
     this.getAndSet(Entry.newAnyEntry(tag, value));
   }
 
   @Override
-  public final void set(String tag, CharSequence value) {
+  public void set(String tag, CharSequence value) {
     this.getAndSet(Entry.newObjectEntry(tag, value));
   }
 
   @Override
-  public final void set(String tag, boolean value) {
+  public void set(String tag, boolean value) {
     this.getAndSet(Entry.newBooleanEntry(tag, value));
   }
 
   @Override
-  public final void set(String tag, int value) {
+  public void set(String tag, int value) {
     this.getAndSet(Entry.newIntEntry(tag, value));
   }
 
   @Override
-  public final void set(String tag, long value) {
+  public void set(String tag, long value) {
     this.getAndSet(Entry.newLongEntry(tag, value));
   }
 
   @Override
-  public final void set(String tag, float value) {
+  public void set(String tag, float value) {
     this.getAndSet(Entry.newFloatEntry(tag, value));
   }
 
   @Override
-  public final void set(String tag, double value) {
+  public void set(String tag, double value) {
     this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
 
   @Override
-  public final Entry getAndSet(Entry newEntry) {
+  public Entry getAndSet(Entry newEntry) {
     this.checkWriteAccess();
 
     Object[] thisBuckets = this.buckets;
@@ -1407,31 +1415,31 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, boolean value) {
+  public TagMap.Entry getAndSet(String tag, boolean value) {
     return this.getAndSet(Entry.newBooleanEntry(tag, value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, int value) {
+  public TagMap.Entry getAndSet(String tag, int value) {
     return this.getAndSet(Entry.newIntEntry(tag, value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, long value) {
+  public TagMap.Entry getAndSet(String tag, long value) {
     return this.getAndSet(Entry.newLongEntry(tag, value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, float value) {
+  public TagMap.Entry getAndSet(String tag, float value) {
     return this.getAndSet(Entry.newFloatEntry(tag, value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, double value) {
+  public TagMap.Entry getAndSet(String tag, double value) {
     return this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
 
-  public final void putAll(Map<? extends String, ? extends Object> map) {
+  public void putAll(Map<? extends String, ? extends Object> map) {
     this.checkWriteAccess();
 
     if (map instanceof OptimizedTagMap) {
@@ -1441,7 +1449,7 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  private final void putAllUnoptimizedMap(Map<? extends String, ? extends Object> that) {
+  private void putAllUnoptimizedMap(Map<? extends String, ? extends Object> that) {
     for (Map.Entry<? extends String, ?> entry : that.entrySet()) {
       // use set which returns a prior Entry rather put which may box a prior primitive value
       this.set(entry.getKey(), entry.getValue());
@@ -1455,7 +1463,7 @@ final class OptimizedTagMap implements TagMap {
    * quickly handle each bucket. And similar to {@link TagMap#getAndSet(Entry)} this method shares
    * Entry objects from the source TagMap
    */
-  public final void putAll(TagMap that) {
+  public void putAll(TagMap that) {
     this.checkWriteAccess();
 
     if (that instanceof OptimizedTagMap) {
@@ -1465,7 +1473,7 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  private final void putAllOptimizedMap(OptimizedTagMap that) {
+  private void putAllOptimizedMap(OptimizedTagMap that) {
     if (this.size == 0) {
       this.putAllIntoEmptyMap(that);
     } else {
@@ -1473,7 +1481,7 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  private final void putAllMerge(OptimizedTagMap that) {
+  private void putAllMerge(OptimizedTagMap that) {
     Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
 
@@ -1590,7 +1598,7 @@ final class OptimizedTagMap implements TagMap {
   /*
    * Specially optimized version of putAll for the common case of destination map being empty
    */
-  private final void putAllIntoEmptyMap(OptimizedTagMap that) {
+  private void putAllIntoEmptyMap(OptimizedTagMap that) {
     Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
 
@@ -1614,7 +1622,7 @@ final class OptimizedTagMap implements TagMap {
     this.size = that.size;
   }
 
-  public final void fillMap(Map<? super String, Object> map) {
+  public void fillMap(Map<? super String, Object> map) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1632,7 +1640,7 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  public final void fillStringMap(Map<? super String, ? super String> stringMap) {
+  public void fillStringMap(Map<? super String, ? super String> stringMap) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1651,19 +1659,19 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final Object remove(Object tag) {
+  public Object remove(Object tag) {
     if (!(tag instanceof String)) return null;
 
     Entry entry = this.getAndRemove((String) tag);
     return entry == null ? null : entry.objectValue();
   }
 
-  public final boolean remove(String tag) {
+  public boolean remove(String tag) {
     return (this.getAndRemove(tag) != null);
   }
 
   @Override
-  public final Entry getAndRemove(String tag) {
+  public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
 
     Object[] thisBuckets = this.buckets;
@@ -1703,13 +1711,13 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final TagMap copy() {
+  public TagMap copy() {
     OptimizedTagMap copy = new OptimizedTagMap();
     copy.putAllIntoEmptyMap(this);
     return copy;
   }
 
-  public final TagMap immutableCopy() {
+  public TagMap immutableCopy() {
     if (this.frozen) {
       return this;
     } else {
@@ -1718,17 +1726,17 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final Iterator<Entry> iterator() {
+  public Iterator<Entry> iterator() {
     return new EntryIterator(this);
   }
 
   @Override
-  public final Stream<Entry> stream() {
+  public Stream<Entry> stream() {
     return StreamSupport.stream(spliterator(), false);
   }
 
   @Override
-  public final void forEach(Consumer<? super TagMap.Entry> consumer) {
+  public void forEach(Consumer<? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1747,7 +1755,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1766,7 +1774,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final <T, U> void forEach(
+  public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
 
@@ -1785,14 +1793,14 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  public final void clear() {
+  public void clear() {
     this.checkWriteAccess();
 
     Arrays.fill(this.buckets, null);
     this.size = 0;
   }
 
-  public final OptimizedTagMap freeze() {
+  public OptimizedTagMap freeze() {
     this.frozen = true;
 
     return this;
@@ -1802,11 +1810,11 @@ final class OptimizedTagMap implements TagMap {
     return this.frozen;
   }
 
-  public final void checkWriteAccess() {
+  public void checkWriteAccess() {
     if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
 
-  final void checkIntegrity() {
+  void checkIntegrity() {
     // Decided to use if ( cond ) throw new IllegalStateException rather than assert
     // That was done to avoid the extra static initialization needed for an assertion
     // While that's probably an unnecessary optimization, this method is only called in tests
@@ -1852,7 +1860,7 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  final int computeSize() {
+  int computeSize() {
     Object[] thisBuckets = this.buckets;
 
     int size = 0;
@@ -1869,7 +1877,7 @@ final class OptimizedTagMap implements TagMap {
     return size;
   }
 
-  final boolean checkIfEmpty() {
+  boolean checkIfEmpty() {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1911,14 +1919,14 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public final String toString() {
+  public String toString() {
     return toPrettyString();
   }
 
   /**
    * Standard toString implementation - output is similar to {@link java.util.HashMap#toString()}
    */
-  final String toPrettyString() {
+  String toPrettyString() {
     boolean first = true;
 
     StringBuilder ledger = new StringBuilder(128);
@@ -1940,7 +1948,7 @@ final class OptimizedTagMap implements TagMap {
    * toString that more visibility into the internal structure of TagMap - primarily for deep
    * debugging
    */
-  final String toInternalString() {
+  String toInternalString() {
     Object[] thisBuckets = this.buckets;
 
     StringBuilder ledger = new StringBuilder(128);
@@ -2004,7 +2012,7 @@ final class OptimizedTagMap implements TagMap {
       }
     }
 
-    private final Entry advance() {
+    private Entry advance() {
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
           for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
@@ -2647,7 +2655,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
     super.clear();
   }
 
-  public final LegacyTagMap freeze() {
+  public LegacyTagMap freeze() {
     this.frozen = true;
 
     return this;
@@ -2657,36 +2665,36 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
     return this.frozen;
   }
 
-  public final void checkWriteAccess() {
+  public void checkWriteAccess() {
     if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
 
   @Override
-  public final TagMap copy() {
+  public TagMap copy() {
     return new LegacyTagMap(this);
   }
 
   @Override
-  public final void fillMap(Map<? super String, Object> map) {
+  public void fillMap(Map<? super String, Object> map) {
     map.putAll(this);
   }
 
   @Override
-  public final void fillStringMap(Map<? super String, ? super String> stringMap) {
+  public void fillStringMap(Map<? super String, ? super String> stringMap) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       stringMap.put(entry.getKey(), entry.getValue().toString());
     }
   }
 
   @Override
-  public final void forEach(Consumer<? super datadog.trace.api.TagMap.Entry> consumer) {
+  public void forEach(Consumer<? super datadog.trace.api.TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(TagMap.Entry.newAnyEntry(entry));
     }
   }
 
   @Override
-  public final <T> void forEach(
+  public <T> void forEach(
       T thisObj, BiConsumer<T, ? super datadog.trace.api.TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(thisObj, TagMap.Entry.newAnyEntry(entry));
@@ -2694,7 +2702,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final <T, U> void forEach(
+  public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super datadog.trace.api.TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(thisObj, otherObj, TagMap.Entry.newAnyEntry(entry));
@@ -2702,65 +2710,65 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, Object value) {
+  public TagMap.Entry getAndSet(String tag, Object value) {
     Object prior = this.put(tag, value);
     return prior == null ? null : TagMap.Entry.newAnyEntry(tag, prior);
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, CharSequence value) {
+  public TagMap.Entry getAndSet(String tag, CharSequence value) {
     Object prior = this.put(tag, value);
     return prior == null ? null : TagMap.Entry.newAnyEntry(tag, prior);
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, boolean value) {
+  public TagMap.Entry getAndSet(String tag, boolean value) {
     return this.getAndSet(tag, Boolean.valueOf(value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, double value) {
+  public TagMap.Entry getAndSet(String tag, double value) {
     return this.getAndSet(tag, Double.valueOf(value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, float value) {
+  public TagMap.Entry getAndSet(String tag, float value) {
     return this.getAndSet(tag, Float.valueOf(value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, int value) {
+  public TagMap.Entry getAndSet(String tag, int value) {
     return this.getAndSet(tag, Integer.valueOf(value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(String tag, long value) {
+  public TagMap.Entry getAndSet(String tag, long value) {
     return this.getAndSet(tag, Long.valueOf(value));
   }
 
   @Override
-  public final TagMap.Entry getAndSet(TagMap.Entry newEntry) {
+  public TagMap.Entry getAndSet(TagMap.Entry newEntry) {
     return this.getAndSet(newEntry.tag(), newEntry.objectValue());
   }
 
   @Override
-  public final TagMap.Entry getAndRemove(String tag) {
+  public TagMap.Entry getAndRemove(String tag) {
     Object prior = this.remove((Object) tag);
     return prior == null ? null : TagMap.Entry.newAnyEntry(tag, prior);
   }
 
   @Override
-  public final Object getObject(String tag) {
+  public Object getObject(String tag) {
     return this.get(tag);
   }
 
   @Override
-  public final boolean getBoolean(String tag) {
+  public boolean getBoolean(String tag) {
     return this.getBooleanOrDefault(tag, false);
   }
 
   @Override
-  public final boolean getBooleanOrDefault(String tag, boolean defaultValue) {
+  public boolean getBooleanOrDefault(String tag, boolean defaultValue) {
     Object result = this.get(tag);
     if (result == null) {
       return defaultValue;
@@ -2781,7 +2789,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final double getDoubleOrDefault(String tag, double defaultValue) {
+  public double getDoubleOrDefault(String tag, double defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
       return defaultValue;
@@ -2796,11 +2804,11 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final long getLong(String tag) {
+  public long getLong(String tag) {
     return this.getLongOrDefault(tag, 0L);
   }
 
-  public final long getLongOrDefault(String tag, long defaultValue) {
+  public long getLongOrDefault(String tag, long defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
       return defaultValue;
@@ -2815,12 +2823,12 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final float getFloat(String tag) {
+  public float getFloat(String tag) {
     return this.getFloatOrDefault(tag, 0F);
   }
 
   @Override
-  public final float getFloatOrDefault(String tag, float defaultValue) {
+  public float getFloatOrDefault(String tag, float defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
       return defaultValue;
@@ -2835,12 +2843,12 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final int getInt(String tag) {
+  public int getInt(String tag) {
     return this.getIntOrDefault(tag, 0);
   }
 
   @Override
-  public final int getIntOrDefault(String tag, int defaultValue) {
+  public int getIntOrDefault(String tag, int defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
       return defaultValue;
@@ -2855,13 +2863,13 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final String getString(String tag) {
+  public String getString(String tag) {
     Object value = this.get(tag);
     return value == null ? null : value.toString();
   }
 
   @Override
-  public final TagMap.Entry getEntry(String tag) {
+  public TagMap.Entry getEntry(String tag) {
     Object value = this.get(tag);
     return value == null ? null : TagMap.Entry.newAnyEntry(tag, value);
   }
@@ -2873,7 +2881,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
 
   @Override
   public void set(String tag, CharSequence value) {
-    this.put(tag, (Object) value);
+    this.put(tag, value);
   }
 
   @Override
@@ -2943,7 +2951,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   public boolean remove(String tag) {
     this.checkWriteAccess();
 
-    return (super.remove((Object) tag) != null);
+    return (super.remove(tag) != null);
   }
 
   @Override
@@ -2989,20 +2997,20 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
     return StreamSupport.stream(this.spliterator(), false);
   }
 
-  private final class IteratorImpl implements Iterator<TagMap.Entry> {
-    private Iterator<Map.Entry<String, Object>> wrappedIter;
+  private static final class IteratorImpl implements Iterator<TagMap.Entry> {
+    private final Iterator<Map.Entry<String, Object>> wrappedIter;
 
     IteratorImpl(LegacyTagMap legacyMap) {
       this.wrappedIter = legacyMap.entrySet().iterator();
     }
 
     @Override
-    public final boolean hasNext() {
+    public boolean hasNext() {
       return this.wrappedIter.hasNext();
     }
 
     @Override
-    public final TagMap.Entry next() {
+    public TagMap.Entry next() {
       return TagMap.Entry.newAnyEntry(this.wrappedIter.next());
     }
   }

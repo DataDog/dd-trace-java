@@ -14,7 +14,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:junit-4.10')
   compileOnly group: 'io.cucumber', name: 'cucumber-junit', version: '5.4.0'
 
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
   // version used below is not the minimum one that we support,
   // but the tests need to use it in order to be compliant with Spock 2.x
@@ -26,7 +26,7 @@ dependencies {
 
   testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
   testImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '5.4.0'
-  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.14.1'
+  testImplementation libs.jackson.databind
 
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '+'
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-junit', version: '+'

@@ -112,7 +112,7 @@ class FixedSizeCacheTest extends DDSpecification {
 
   def "identity cache should store and retrieve values"() {
     setup:
-    def fsCache = DDCaches.newFixedSizeIdentityCache(15)
+    def fsCache = DDCaches.newFixedSizeIdentityCache(256)
     def creationCount = new AtomicInteger(0)
     def tvc = new TVC(creationCount)
     fsCache.computeIfAbsent(id1, tvc)
@@ -140,7 +140,7 @@ class FixedSizeCacheTest extends DDSpecification {
 
   def "weak key cache should store and retrieve values"() {
     setup:
-    def fsCache = DDCaches.newFixedSizeWeakKeyCache(15)
+    def fsCache = DDCaches.newFixedSizeWeakKeyCache(256)
     def creationCount = new AtomicInteger(0)
     def tvc = new TVC(creationCount)
     fsCache.computeIfAbsent(id1, tvc)

@@ -8,7 +8,6 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -37,17 +36,15 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
     setCurrentConfiguration(createConfig(Collections.emptyList())); // remove probes
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
@@ -61,17 +58,15 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
     setCurrentConfiguration(createConfig(Collections.emptyList())); // no probe
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
@@ -86,9 +81,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
 
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
     Configuration.FilterList denyList =
@@ -103,9 +97,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.INSTALLED);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test
@@ -120,9 +113,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
-    List<Snapshot> snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    Snapshot snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
 
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
     Configuration.FilterList allowList =
@@ -137,9 +129,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.INSTALLED);
     execute(appUrl, FULL_METHOD_NAME);
-    snapshots = waitForSnapshots();
-    assertEquals(1, snapshots.size());
-    assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
+    snapshot = waitForOneSnapshot();
+    assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
   }
 
   @Test

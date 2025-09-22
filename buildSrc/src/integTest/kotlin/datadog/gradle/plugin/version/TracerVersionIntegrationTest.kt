@@ -1,13 +1,11 @@
 package datadog.gradle.plugin.version
 
-import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.CleanupMode
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.IOException
-
 
 class TracerVersionIntegrationTest {
 
@@ -89,6 +87,13 @@ class TracerVersionIntegrationTest {
       projectDir,
       "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
+        println("Setting up git repository in $projectDir")
+        File(projectDir, "gradle.properties").writeText(
+          """
+          tracerVersion.dirtiness=true
+          """.trimIndent()
+        )
+
         exec(projectDir, "git", "init", "--initial-branch", "main")
         exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
         exec(projectDir, "git", "config", "user.name", "Test")
@@ -101,29 +106,6 @@ class TracerVersionIntegrationTest {
           // uncommitted change this file, 
         """.trimIndent())
       }
-    )
-  }
-
-  @Test
-  fun `should ignore dirtiness if CI env`(@TempDir projectDir: File) { // CI patch some tracked files
-    assertTracerVersion(
-      projectDir,
-      "1.52.0",
-      beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-
-        // dirty file ignored
-        File(projectDir, "settings.gradle.kts").appendText("""
-          
-          // uncommitted change this file, 
-        """.trimIndent())
-      },
-      additionalEnv = mapOf("CI" to "true")
     )
   }
 
@@ -157,6 +139,12 @@ class TracerVersionIntegrationTest {
       projectDir,
       "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
+        File(projectDir, "gradle.properties").writeText(
+          """
+          tracerVersion.dirtiness=true
+          """.trimIndent()
+        )
+
         exec(projectDir, "git", "init", "--initial-branch", "main")
         exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
         exec(projectDir, "git", "config", "user.name", "Test")
@@ -268,7 +256,6 @@ class TracerVersionIntegrationTest {
     expectedVersion: String,
     beforeGradle: () -> Unit = {},
     workingDirectory: File = projectDir,
-    additionalEnv: Map<String, String> = mapOf("CI" to "false"),
   ) {
     File(projectDir, "settings.gradle.kts").writeText(
       """
@@ -296,12 +283,11 @@ class TracerVersionIntegrationTest {
       // .withGradleVersion(gradleVersion)  // Use current gradle version
       .withPluginClasspath()
       .withArguments("printVersion", "--quiet")
-      .withEnvironment(System.getenv() + additionalEnv)
       .withProjectDir(workingDirectory)
       // .withDebug(true)
       .build()
 
-    assertThat(buildResult.output).isEqualToIgnoringNewLines(expectedVersion)
+    assertEquals(expectedVersion, buildResult.output.lines().first())
   }
 
   private fun exec(workingDirectory: File, vararg args: String) {

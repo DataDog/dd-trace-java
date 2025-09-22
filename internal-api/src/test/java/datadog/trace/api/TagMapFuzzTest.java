@@ -1,8 +1,9 @@
 package datadog.trace.api;
 
-import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -11,11 +12,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 public final class TagMapFuzzTest {
   static final int NUM_KEYS = 128;
   static final int MAX_NUM_ACTIONS = 32;
+  static final int MIN_NUM_ACTIONS = 8;
 
   @Test
   void test() {
@@ -295,8 +298,8 @@ public final class TagMapFuzzTest {
             "values-9646496",
             "key-90",
             "values-1485206899");
-    failingAction.apply(map);
-    failingAction.verify(map);
+    failingAction.applyToTestMap(map);
+    failingAction.verifyTestMap(map);
   }
 
   @Test
@@ -515,8 +518,8 @@ public final class TagMapFuzzTest {
             "values--48760205",
             "key-61",
             "values--1942966789");
-    failingAction.apply(map);
-    failingAction.verify(map);
+    failingAction.applyToTestMap(map);
+    failingAction.verifyTestMap(map);
   }
 
   @Test
@@ -858,11 +861,10 @@ public final class TagMapFuzzTest {
     OptimizedTagMap actual = makeTagMap(testCase);
 
     MapAction failingAction = remove("key-127");
-    failingAction.apply(expected);
-    failingAction.verify(expected);
+    failingAction.applyToExpectedMap(expected);
 
-    failingAction.apply(actual);
-    failingAction.verify(actual);
+    failingAction.applyToTestMap(actual);
+    failingAction.verifyTestMap(actual);
 
     assertMapEquals(expected, actual);
   }
@@ -882,7 +884,7 @@ public final class TagMapFuzzTest {
   public static final Map<String, Object> makeMap(List<MapAction> actions) {
     Map<String, Object> map = new HashMap<>();
     for (MapAction action : actions) {
-      action.apply(map);
+      action.applyToExpectedMap(map);
     }
     return map;
   }
@@ -898,7 +900,7 @@ public final class TagMapFuzzTest {
   public static final OptimizedTagMap makeTagMap(List<MapAction> actions) {
     OptimizedTagMap map = new OptimizedTagMap();
     for (MapAction action : actions) {
-      action.apply(map);
+      action.applyToTestMap(map);
     }
     return map;
   }
@@ -914,12 +916,12 @@ public final class TagMapFuzzTest {
       for (actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
         MapAction action = actions.get(actionIndex);
 
-        Object expected = action.apply(hashMap);
-        Object result = action.apply(tagMap);
+        Object expected = action.applyToExpectedMap(hashMap);
+        Object actual = action.applyToTestMap(tagMap);
 
-        assertEquals(expected, result);
+        action.verifyResults(expected, actual);
 
-        action.verify(tagMap);
+        action.verifyTestMap(tagMap);
 
         assertMapEquals(hashMap, tagMap);
       }
@@ -932,7 +934,9 @@ public final class TagMapFuzzTest {
   }
 
   public static final TestCase generateTest() {
-    return generateTest(ThreadLocalRandom.current().nextInt(MAX_NUM_ACTIONS));
+    int numActions =
+        ThreadLocalRandom.current().nextInt(MAX_NUM_ACTIONS - MIN_NUM_ACTIONS) + MIN_NUM_ACTIONS;
+    return generateTest(numActions);
   }
 
   public static final TestCase generateTest(int size) {
@@ -946,25 +950,40 @@ public final class TagMapFuzzTest {
   public static final MapAction randomAction() {
     float actionSelector = ThreadLocalRandom.current().nextFloat();
 
-    if (actionSelector > 0.5) {
-      // 50% puts
-      return put(randomKey(), randomValue());
-    } else if (actionSelector > 0.3) {
-      // 20% removes
-      return remove(randomKey());
-    } else if (actionSelector > 0.2) {
-      // 10% putAll TagMap
-      return putAllTagMap(randomKeysAndValues());
-    } else if (actionSelector > 0.02) {
-      // ~10% putAll HashMap
-      return putAll(randomKeysAndValues());
-    } else {
-      return clear();
+    switch (randomChoice(0.02, 0.1, 0.2)) {
+      case 0:
+        return clear();
+
+      case 1:
+        return randomChoice(
+            () -> putAll(randomKeysAndValues()),
+            () -> putAllTagMap(randomKeysAndValues()),
+            () -> putAllLedger(randomKeysAndValues()));
+
+      case 2:
+        return randomChoice(
+            () -> remove(randomKey()),
+            () -> removeLight(randomKey()),
+            () -> getAndRemove(randomKey()));
+
+      default:
+        return randomChoice(
+            () -> put(randomKey(), randomValue()),
+            () -> set(randomKey(), randomValue()),
+            () -> getAndSet(randomKey(), randomValue()));
     }
   }
 
   public static final MapAction put(String key, String value) {
     return new Put(key, value);
+  }
+
+  public static final MapAction set(String key, String value) {
+    return new Set(key, value);
+  }
+
+  public static final MapAction getAndSet(String key, String value) {
+    return new GetAndSet(key, value);
   }
 
   public static final MapAction putAll(String... keysAndValues) {
@@ -975,12 +994,24 @@ public final class TagMapFuzzTest {
     return new PutAllTagMap(keysAndValues);
   }
 
+  public static final MapAction putAllLedger(String... keysAndValues) {
+    return new PutAllLedger(keysAndValues);
+  }
+
   public static final MapAction clear() {
     return Clear.INSTANCE;
   }
 
   public static final MapAction remove(String key) {
     return new Remove(key);
+  }
+
+  public static final MapAction removeLight(String key) {
+    return new RemoveLight(key);
+  }
+
+  public static final MapAction getAndRemove(String key) {
+    return new GetAndRemove(key);
   }
 
   static final void assertMapEquals(Map<String, Object> expected, OptimizedTagMap actual) {
@@ -998,6 +1029,31 @@ public final class TagMapFuzzTest {
     }
 
     actual.checkIntegrity();
+  }
+
+  static final float randomFloat() {
+    return ThreadLocalRandom.current().nextFloat();
+  }
+
+  static final int randomChoice(int numChoices) {
+    return ThreadLocalRandom.current().nextInt(numChoices);
+  }
+
+  static final <T> T randomChoice(Supplier<T>... choiceSuppliers) {
+    int choice = randomChoice(choiceSuppliers.length);
+
+    return choiceSuppliers[choice].get();
+  }
+
+  static final int randomChoice(double... proportions) {
+    double selector = ThreadLocalRandom.current().nextDouble();
+
+    for (int i = 0; i < proportions.length; ++i) {
+      if (selector < proportions[i]) return i;
+
+      selector -= proportions[i];
+    }
+    return proportions.length;
   }
 
   static final String randomKey() {
@@ -1056,6 +1112,17 @@ public final class TagMapFuzzTest {
     return map;
   }
 
+  static final TagMap.Ledger ledgerOf(String... keysAndValues) {
+    TagMap.Ledger ledger = TagMap.ledger();
+    for (int i = 0; i < keysAndValues.length; i += 2) {
+      String key = keysAndValues[i];
+      String value = keysAndValues[i + 1];
+
+      ledger.set(key, value);
+    }
+    return ledger;
+  }
+
   static final class TestCase {
     final List<MapAction> actions;
 
@@ -1082,14 +1149,84 @@ public final class TagMapFuzzTest {
   }
 
   abstract static class MapAction {
-    public abstract Object apply(Map<String, Object> mapUnderTest);
+    public abstract Object applyToTestMap(TagMap testMap);
 
-    public abstract void verify(Map<String, Object> mapUnderTest);
+    public abstract Object applyToExpectedMap(Map<String, Object> expectedMap);
+
+    public abstract void verifyResults(Object expected, Object actual);
+
+    public abstract void verifyTestMap(TagMap testMap);
 
     public abstract String toString();
   }
 
-  static final class Put extends MapAction {
+  abstract static class BasicAction extends MapAction {
+    @Override
+    public final Object applyToTestMap(TagMap testMap) {
+      _applyToTestMap(testMap);
+
+      return void.class;
+    }
+
+    protected abstract void _applyToTestMap(TagMap testMap);
+
+    @Override
+    public final Object applyToExpectedMap(Map<String, Object> expectedMap) {
+      _applyToExpectedMap(expectedMap);
+
+      return void.class;
+    }
+
+    protected abstract void _applyToExpectedMap(Map<String, Object> expectedMap);
+
+    public final void verifyResults(Object expected, Object actual) {}
+  }
+
+  abstract static class BasicReturningAction<TResult> extends MapAction {
+    @Override
+    public final TResult applyToTestMap(TagMap testMap) {
+      return _applyToTestMap(testMap);
+    }
+
+    protected abstract TResult _applyToTestMap(TagMap testMap);
+
+    @Override
+    public final TResult applyToExpectedMap(Map<String, Object> expectedMap) {
+      return _applyToExpectedMap(expectedMap);
+    }
+
+    protected abstract TResult _applyToExpectedMap(Map<String, Object> expectedMap);
+
+    @SuppressWarnings("unchecked")
+    public final void verifyResults(Object expected, Object actual) {
+      assertEquals(expected, actual);
+    }
+  }
+
+  abstract static class ReturningAction<TExpectedResult, TActualResult> extends MapAction {
+    @Override
+    public final TActualResult applyToTestMap(TagMap testMap) {
+      return _applyToTestMap(testMap);
+    }
+
+    protected abstract TActualResult _applyToTestMap(TagMap testMap);
+
+    @Override
+    public final TExpectedResult applyToExpectedMap(Map<String, Object> expectedMap) {
+      return _applyToExpectedMap(expectedMap);
+    }
+
+    protected abstract TExpectedResult _applyToExpectedMap(Map<String, Object> expectedMap);
+
+    @SuppressWarnings("unchecked")
+    public final void verifyResults(Object expected, Object actual) {
+      _verifyResults((TExpectedResult) expected, (TActualResult) actual);
+    }
+
+    protected abstract void _verifyResults(TExpectedResult expected, TActualResult actual);
+  }
+
+  static final class Put extends BasicReturningAction<Object> {
     final String key;
     final String value;
 
@@ -1099,13 +1236,18 @@ public final class TagMapFuzzTest {
     }
 
     @Override
-    public Object apply(Map<String, Object> mapUnderTest) {
-      return mapUnderTest.put(this.key, this.value);
+    protected Object _applyToTestMap(TagMap testMap) {
+      return testMap.put(this.key, this.value);
     }
 
     @Override
-    public void verify(Map<String, Object> mapUnderTest) {
-      assertEquals(this.value, mapUnderTest.get(this.key));
+    protected Object _applyToExpectedMap(Map<String, Object> expectedMap) {
+      return expectedMap.put(this.key, this.value);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertEquals(this.value, testMap.get(this.key));
     }
 
     @Override
@@ -1114,7 +1256,76 @@ public final class TagMapFuzzTest {
     }
   }
 
-  static final class PutAll extends MapAction {
+  static final class Set extends BasicAction {
+    final String key;
+    final String value;
+
+    Set(String key, String value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    @Override
+    protected void _applyToTestMap(TagMap testMap) {
+      testMap.set(this.key, this.value);
+    }
+
+    @Override
+    protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
+      expectedMap.put(this.key, this.value);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertEquals(this.value, testMap.get(this.key));
+    }
+
+    @Override
+    public String toString() {
+      return String.format("set(%s,%s)", literal(this.key), literal(this.value));
+    }
+  }
+
+  static final class GetAndSet extends ReturningAction<Object, TagMap.Entry> {
+    final String key;
+    final String value;
+
+    GetAndSet(String key, String value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    @Override
+    protected TagMap.Entry _applyToTestMap(TagMap testMap) {
+      return testMap.getAndSet(this.key, this.value);
+    }
+
+    @Override
+    protected Object _applyToExpectedMap(Map<String, Object> expectedMap) {
+      return expectedMap.put(this.key, this.value);
+    }
+
+    @Override
+    protected void _verifyResults(Object expected, TagMap.Entry actual) {
+      if (expected == null) {
+        assertNull(actual);
+      } else {
+        assertEquals(expected, actual.objectValue());
+      }
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertEquals(this.value, testMap.get(this.key));
+    }
+
+    @Override
+    public String toString() {
+      return String.format("getAndSet(%s,%s)", literal(this.key), literal(this.value));
+    }
+  }
+
+  static final class PutAll extends BasicAction {
     final String[] keysAndValues;
     final Map<String, String> map;
 
@@ -1124,16 +1335,19 @@ public final class TagMapFuzzTest {
     }
 
     @Override
-    public Object apply(Map<String, Object> mapUnderTest) {
-      mapUnderTest.putAll(this.map);
-
-      return void.class;
+    protected void _applyToTestMap(TagMap testMap) {
+      testMap.putAll(this.map);
     }
 
     @Override
-    public void verify(Map<String, Object> mapUnderTest) {
+    public void _applyToExpectedMap(Map<String, Object> expectedMap) {
+      expectedMap.putAll(this.map);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap expectedMap) {
       for (Map.Entry<String, String> entry : this.map.entrySet()) {
-        assertEquals(entry.getValue(), mapUnderTest.get(entry.getKey()));
+        assertEquals(entry.getValue(), expectedMap.get(entry.getKey()));
       }
     }
 
@@ -1143,7 +1357,7 @@ public final class TagMapFuzzTest {
     }
   }
 
-  static final class PutAllTagMap extends MapAction {
+  static final class PutAllTagMap extends BasicAction {
     final String[] keysAndValues;
     final TagMap tagMap;
 
@@ -1153,16 +1367,19 @@ public final class TagMapFuzzTest {
     }
 
     @Override
-    public Object apply(Map<String, Object> mapUnderTest) {
-      mapUnderTest.putAll(this.tagMap);
-
-      return void.class;
+    protected void _applyToTestMap(TagMap testMap) {
+      testMap.putAll(this.tagMap);
     }
 
     @Override
-    public void verify(Map<String, Object> mapUnderTest) {
+    protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
+      expectedMap.putAll(this.tagMap);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap expectedMap) {
       for (TagMap.Entry entry : this.tagMap) {
-        assertEquals(entry.objectValue(), mapUnderTest.get(entry.tag()), "key=" + entry.tag());
+        assertEquals(entry.objectValue(), expectedMap.get(entry.tag()), "key=" + entry.tag());
       }
     }
 
@@ -1172,7 +1389,46 @@ public final class TagMapFuzzTest {
     }
   }
 
-  static final class Remove extends MapAction {
+  static final class PutAllLedger extends BasicAction {
+    final String[] keysAndValues;
+    final TagMap.Ledger ledger;
+
+    PutAllLedger(String... keysAndValues) {
+      this.keysAndValues = keysAndValues;
+      this.ledger = ledgerOf(keysAndValues);
+    }
+
+    @Override
+    protected void _applyToTestMap(TagMap testMap) {
+      this.ledger.fill(testMap);
+    }
+
+    @Override
+    protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
+      for (TagMap.EntryChange change : this.ledger) {
+        // ledgerOf - doesn't produce / removes, so this is safe
+        TagMap.Entry entry = (TagMap.Entry) change;
+        expectedMap.put(entry.tag(), entry.objectValue());
+      }
+    }
+
+    @Override
+    public void verifyTestMap(TagMap expectedMap) {
+      // ledger may contain multiple updates of the same key
+      // easier to produce a TagMap and check against it
+
+      for (TagMap.Entry entry : this.ledger.buildImmutable()) {
+        assertEquals(entry.objectValue(), expectedMap.get(entry.tag()), "key=" + entry.tag());
+      }
+    }
+
+    @Override
+    public String toString() {
+      return String.format("putAllLedger(%s)", literalVarArgs(this.keysAndValues));
+    }
+  }
+
+  static final class Remove extends BasicReturningAction<Object> {
     final String key;
 
     Remove(String key) {
@@ -1180,13 +1436,18 @@ public final class TagMapFuzzTest {
     }
 
     @Override
-    public Object apply(Map<String, Object> mapUnderTest) {
-      return mapUnderTest.remove(this.key);
+    protected Object _applyToTestMap(TagMap testMap) {
+      return testMap.remove((Object) this.key);
     }
 
     @Override
-    public void verify(Map<String, Object> mapUnderTest) {
-      assertFalse(mapUnderTest.containsKey(this.key));
+    protected Object _applyToExpectedMap(Map<String, Object> expectedMap) {
+      return expectedMap.remove(this.key);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertFalse(testMap.containsKey(this.key));
     }
 
     @Override
@@ -1195,21 +1456,94 @@ public final class TagMapFuzzTest {
     }
   }
 
-  static final class Clear extends MapAction {
+  static final class RemoveLight extends ReturningAction<Object, Boolean> {
+    final String key;
+
+    RemoveLight(String key) {
+      this.key = key;
+    }
+
+    @Override
+    protected Boolean _applyToTestMap(TagMap testMap) {
+      return testMap.remove(this.key);
+    }
+
+    @Override
+    protected Object _applyToExpectedMap(Map<String, Object> expectedMap) {
+      return expectedMap.remove(this.key);
+    }
+
+    @Override
+    protected void _verifyResults(Object expected, Boolean actual) {
+      assertEquals((expected != null), actual);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertFalse(testMap.containsKey(this.key));
+    }
+
+    @Override
+    public String toString() {
+      return String.format("removeLight(%s)", literal(this.key));
+    }
+  }
+
+  static final class GetAndRemove extends ReturningAction<Object, TagMap.Entry> {
+    final String key;
+
+    GetAndRemove(String key) {
+      this.key = key;
+    }
+
+    @Override
+    protected TagMap.Entry _applyToTestMap(TagMap testMap) {
+      return testMap.getAndRemove(this.key);
+    }
+
+    @Override
+    protected Object _applyToExpectedMap(Map<String, Object> expectedMap) {
+      return expectedMap.remove(this.key);
+    }
+
+    @Override
+    protected void _verifyResults(Object expected, TagMap.Entry actual) {
+      if (expected == null) {
+        assertNull(actual);
+      } else {
+        assertEquals(expected, actual.objectValue());
+      }
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertFalse(testMap.containsKey(this.key));
+    }
+
+    @Override
+    public String toString() {
+      return String.format("getAndRemove(%s)", literal(this.key));
+    }
+  }
+
+  static final class Clear extends BasicAction {
     static final Clear INSTANCE = new Clear();
 
     private Clear() {}
 
     @Override
-    public Object apply(Map<String, Object> mapUnderTest) {
-      mapUnderTest.clear();
-
-      return void.class;
+    protected void _applyToTestMap(TagMap testMap) {
+      testMap.clear();
     }
 
     @Override
-    public void verify(Map<String, Object> mapUnderTest) {
-      assertTrue(mapUnderTest.isEmpty());
+    protected void _applyToExpectedMap(Map<String, Object> mapUnderTest) {
+      mapUnderTest.clear();
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertTrue(testMap.isEmpty());
     }
 
     @Override

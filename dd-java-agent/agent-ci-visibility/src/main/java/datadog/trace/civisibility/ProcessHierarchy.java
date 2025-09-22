@@ -3,28 +3,28 @@ package datadog.trace.civisibility;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 
 import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.net.InetSocketAddress;
-import java.util.Properties;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 public class ProcessHierarchy {
 
   private static final class SystemPropertiesPropagationGetter
-      implements AgentPropagation.ContextVisitor<Properties> {
-    static final AgentPropagation.ContextVisitor<Properties> INSTANCE =
+      implements AgentPropagation.ContextVisitor<Map<String, String>> {
+    static final AgentPropagation.ContextVisitor<Map<String, String>> INSTANCE =
         new SystemPropertiesPropagationGetter();
 
     private SystemPropertiesPropagationGetter() {}
 
     @Override
-    public void forEachKey(Properties carrier, AgentPropagation.KeyClassifier classifier) {
-      for (String propertyName : carrier.stringPropertyNames()) {
-        if (!classifier.accept(propertyName, carrier.getProperty(propertyName))) {
+    public void forEachKey(Map<String, String> carrier, AgentPropagation.KeyClassifier classifier) {
+      for (Map.Entry<String, String> property : carrier.entrySet()) {
+        if (!classifier.accept(property.getKey(), property.getValue())) {
           return;
         }
       }
@@ -36,7 +36,7 @@ public class ProcessHierarchy {
   ProcessHierarchy() {
     parentProcessModuleContext =
         extractContextAndGetSpanContext(
-            System.getProperties(), SystemPropertiesPropagationGetter.INSTANCE);
+            SystemProperties.asStringMap(), SystemPropertiesPropagationGetter.INSTANCE);
   }
 
   /**

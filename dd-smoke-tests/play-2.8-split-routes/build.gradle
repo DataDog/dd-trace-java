@@ -3,6 +3,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
 
 def playVer = "2.8.15"
 def scalaVer = System.getProperty("scala.version", /* default = */ "2.13")
@@ -31,18 +32,18 @@ repositories {
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
-      allowInsecureProtocol true
+      allowInsecureProtocol = true
     }
   }
   mavenCentral()
   maven {
-    name "lightbend-maven-releases"
-    url "https://repo.lightbend.com/lightbend/maven-release"
+    name = "lightbend-maven-releases"
+    url = "https://repo.lightbend.com/lightbend/maven-release"
   }
   ivy {
-    name "lightbend-ivy-release"
-    url "https://repo.lightbend.com/lightbend/ivy-releases"
-    layout "ivy"
+    name = "lightbend-ivy-release"
+    url = "https://repo.lightbend.com/lightbend/ivy-releases"
+    layout("ivy")
   }
 }
 
@@ -66,7 +67,7 @@ dependencies {
 }
 
 configurations.testImplementation {
-  exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
+  exclude group: 'com.typesafe.play', module: "play-test_$scalaVer"
 }
 
 tasks.named('compileTestGroovy').configure {

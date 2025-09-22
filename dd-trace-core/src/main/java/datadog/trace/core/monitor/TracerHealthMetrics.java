@@ -17,9 +17,8 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.IntFunction;
-import org.jctools.counters.CountersFactory;
-import org.jctools.counters.FixedSizeStripedLongCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,100 +36,65 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final AtomicBoolean started = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<TracerHealthMetrics> cancellation;
 
-  private final FixedSizeStripedLongCounter apiRequests =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter apiErrors =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter apiResponsesOK =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder apiRequests = new LongAdder();
+  private final LongAdder apiErrors = new LongAdder();
+  private final LongAdder apiResponsesOK = new LongAdder();
 
-  private final FixedSizeStripedLongCounter userDropEnqueuedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter userKeepEnqueuedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter samplerDropEnqueuedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter samplerKeepEnqueuedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter unsetPriorityEnqueuedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder userDropEnqueuedTraces = new LongAdder();
+  private final LongAdder userKeepEnqueuedTraces = new LongAdder();
+  private final LongAdder samplerDropEnqueuedTraces = new LongAdder();
+  private final LongAdder samplerKeepEnqueuedTraces = new LongAdder();
+  private final LongAdder unsetPriorityEnqueuedTraces = new LongAdder();
 
-  private final FixedSizeStripedLongCounter userDropDroppedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter userKeepDroppedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter samplerDropDroppedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter samplerKeepDroppedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter serialFailedDroppedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter unsetPriorityDroppedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder userDropDroppedTraces = new LongAdder();
+  private final LongAdder userKeepDroppedTraces = new LongAdder();
+  private final LongAdder samplerDropDroppedTraces = new LongAdder();
+  private final LongAdder samplerKeepDroppedTraces = new LongAdder();
+  private final LongAdder serialFailedDroppedTraces = new LongAdder();
+  private final LongAdder unsetPriorityDroppedTraces = new LongAdder();
 
-  private final FixedSizeStripedLongCounter userDropDroppedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter userKeepDroppedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter samplerDropDroppedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter samplerKeepDroppedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter serialFailedDroppedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter unsetPriorityDroppedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder userDropDroppedSpans = new LongAdder();
+  private final LongAdder userKeepDroppedSpans = new LongAdder();
+  private final LongAdder samplerDropDroppedSpans = new LongAdder();
+  private final LongAdder samplerKeepDroppedSpans = new LongAdder();
+  private final LongAdder serialFailedDroppedSpans = new LongAdder();
+  private final LongAdder unsetPriorityDroppedSpans = new LongAdder();
 
-  private final FixedSizeStripedLongCounter enqueuedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter enqueuedBytes =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter createdTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter createdSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter finishedSpans =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter flushedTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter flushedBytes =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter partialTraces =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter partialBytes =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter clientSpansWithoutContext =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder enqueuedSpans = new LongAdder();
+  private final LongAdder enqueuedBytes = new LongAdder();
+  private final LongAdder createdTraces = new LongAdder();
+  private final LongAdder createdSpans = new LongAdder();
+  private final LongAdder finishedSpans = new LongAdder();
+  private final LongAdder flushedTraces = new LongAdder();
+  private final LongAdder flushedBytes = new LongAdder();
+  private final LongAdder partialTraces = new LongAdder();
+  private final LongAdder partialBytes = new LongAdder();
+  private final LongAdder clientSpansWithoutContext = new LongAdder();
 
-  private final FixedSizeStripedLongCounter singleSpanSampled =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter singleSpanUnsampled =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder singleSpanSampled = new LongAdder();
+  private final LongAdder singleSpanUnsampled = new LongAdder();
 
-  private final FixedSizeStripedLongCounter capturedContinuations =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter cancelledContinuations =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter finishedContinuations =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder capturedContinuations = new LongAdder();
+  private final LongAdder cancelledContinuations = new LongAdder();
+  private final LongAdder finishedContinuations = new LongAdder();
 
-  private final FixedSizeStripedLongCounter activatedScopes =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter closedScopes =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter scopeStackOverflow =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter scopeCloseErrors =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter userScopeCloseErrors =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder activatedScopes = new LongAdder();
+  private final LongAdder closedScopes = new LongAdder();
+  private final LongAdder scopeStackOverflow = new LongAdder();
+  private final LongAdder scopeCloseErrors = new LongAdder();
+  private final LongAdder userScopeCloseErrors = new LongAdder();
 
-  private final FixedSizeStripedLongCounter longRunningTracesWrite =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter longRunningTracesDropped =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter longRunningTracesExpired =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder longRunningTracesWrite = new LongAdder();
+  private final LongAdder longRunningTracesDropped = new LongAdder();
+  private final LongAdder longRunningTracesExpired = new LongAdder();
+
+  private final LongAdder clientStatsProcessedSpans = new LongAdder();
+  private final LongAdder clientStatsProcessedTraces = new LongAdder();
+  private final LongAdder clientStatsP0DroppedSpans = new LongAdder();
+  private final LongAdder clientStatsP0DroppedTraces = new LongAdder();
+  private final LongAdder clientStatsRequests = new LongAdder();
+  private final LongAdder clientStatsErrors = new LongAdder();
+  private final LongAdder clientStatsDowngrades = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -140,8 +104,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void start() {
     if (started.compareAndSet(false, true)) {
       cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new Flush(), this, interval, interval, units);
+          AgentTaskScheduler.get()
+              .scheduleAtFixedRate(new Flush(), this, interval, interval, units);
     }
   }
 
@@ -167,21 +131,21 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onPublish(final List<DDSpan> trace, final int samplingPriority) {
     switch (samplingPriority) {
       case USER_DROP:
-        userDropEnqueuedTraces.inc();
+        userDropEnqueuedTraces.increment();
         break;
       case USER_KEEP:
-        userKeepEnqueuedTraces.inc();
+        userKeepEnqueuedTraces.increment();
         break;
       case SAMPLER_DROP:
-        samplerDropEnqueuedTraces.inc();
+        samplerDropEnqueuedTraces.increment();
         break;
       case SAMPLER_KEEP:
-        samplerKeepEnqueuedTraces.inc();
+        samplerKeepEnqueuedTraces.increment();
         break;
       default:
-        unsetPriorityEnqueuedTraces.inc();
+        unsetPriorityEnqueuedTraces.increment();
     }
-    enqueuedSpans.inc(trace.size());
+    enqueuedSpans.add(trace.size());
     checkForClientSpansWithoutContext(trace);
   }
 
@@ -190,7 +154,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       if (span != null && span.getParentId() == ZERO) {
         String spanKind = span.getTag(SPAN_KIND, "undefined");
         if (SPAN_KIND_CLIENT.equals(spanKind)) {
-          this.clientSpansWithoutContext.inc();
+          this.clientSpansWithoutContext.increment();
         }
       }
     }
@@ -200,31 +164,31 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   public void onFailedPublish(final int samplingPriority, final int spanCount) {
     switch (samplingPriority) {
       case USER_DROP:
-        userDropDroppedSpans.inc(spanCount);
-        userDropDroppedTraces.inc();
+        userDropDroppedSpans.add(spanCount);
+        userDropDroppedTraces.increment();
         break;
       case USER_KEEP:
-        userKeepDroppedSpans.inc(spanCount);
-        userKeepDroppedTraces.inc();
+        userKeepDroppedSpans.add(spanCount);
+        userKeepDroppedTraces.increment();
         break;
       case SAMPLER_DROP:
-        samplerDropDroppedSpans.inc(spanCount);
-        samplerDropDroppedTraces.inc();
+        samplerDropDroppedSpans.add(spanCount);
+        samplerDropDroppedTraces.increment();
         break;
       case SAMPLER_KEEP:
-        samplerKeepDroppedSpans.inc(spanCount);
-        samplerKeepDroppedTraces.inc();
+        samplerKeepDroppedSpans.add(spanCount);
+        samplerKeepDroppedTraces.increment();
         break;
       default:
-        unsetPriorityDroppedSpans.inc(spanCount);
-        unsetPriorityDroppedTraces.inc();
+        unsetPriorityDroppedSpans.add(spanCount);
+        unsetPriorityDroppedTraces.increment();
     }
   }
 
   @Override
   public void onPartialPublish(final int numberOfDroppedSpans) {
-    partialTraces.inc();
-    samplerDropDroppedSpans.inc(numberOfDroppedSpans);
+    partialTraces.increment();
+    samplerDropDroppedSpans.add(numberOfDroppedSpans);
   }
 
   @Override
@@ -237,85 +201,85 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onPartialFlush(final int sizeInBytes) {
-    partialBytes.inc(sizeInBytes);
+    partialBytes.add(sizeInBytes);
   }
 
   @Override
   public void onSingleSpanSample() {
-    singleSpanSampled.inc();
+    singleSpanSampled.increment();
   }
 
   @Override
   public void onSingleSpanUnsampled() {
-    singleSpanUnsampled.inc();
+    singleSpanUnsampled.increment();
   }
 
   @Override
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
-    enqueuedBytes.inc(serializedSizeInBytes);
+    enqueuedBytes.add(serializedSizeInBytes);
   }
 
   @Override
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     if (trace != null) {
-      serialFailedDroppedTraces.inc();
-      serialFailedDroppedSpans.inc(trace.size());
+      serialFailedDroppedTraces.increment();
+      serialFailedDroppedSpans.add(trace.size());
     }
   }
 
   @Override
   public void onCreateSpan() {
-    createdSpans.inc();
+    createdSpans.increment();
   }
 
   @Override
   public void onFinishSpan() {
-    finishedSpans.inc();
+    finishedSpans.increment();
   }
 
   @Override
   public void onCreateTrace() {
-    createdTraces.inc();
+    createdTraces.increment();
   }
 
   @Override
   public void onScopeCloseError(boolean manual) {
-    scopeCloseErrors.inc();
+    scopeCloseErrors.increment();
     if (manual) {
-      userScopeCloseErrors.inc();
+      userScopeCloseErrors.increment();
     }
   }
 
   @Override
   public void onCaptureContinuation() {
-    capturedContinuations.inc();
+    capturedContinuations.increment();
   }
 
   @Override
   public void onCancelContinuation() {
-    cancelledContinuations.inc();
+    cancelledContinuations.increment();
   }
 
   @Override
   public void onFinishContinuation() {
-    finishedContinuations.inc();
+    finishedContinuations.increment();
   }
 
   @Override
   public void onActivateScope() {
-    activatedScopes.inc();
+    activatedScopes.increment();
   }
 
   @Override
   public void onCloseScope() {
-    closedScopes.inc();
+    closedScopes.increment();
   }
 
   @Override
   public void onScopeStackOverflow() {
-    scopeStackOverflow.inc();
+    scopeStackOverflow.increment();
   }
 
   @Override
@@ -332,32 +296,57 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
-    longRunningTracesWrite.inc(write);
-    longRunningTracesDropped.inc(dropped);
-    longRunningTracesExpired.inc(expired);
+    longRunningTracesWrite.add(write);
+    longRunningTracesDropped.add(dropped);
+    longRunningTracesExpired.add(expired);
   }
 
   private void onSendAttempt(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
-    apiRequests.inc();
-    flushedTraces.inc(traceCount);
+    apiRequests.increment();
+    flushedTraces.add(traceCount);
     // TODO: missing queue.spans (# of spans being sent)
-    flushedBytes.inc(sizeInBytes);
+    flushedBytes.add(sizeInBytes);
 
     if (response.exception() != null) {
       // covers communication errors -- both not receiving a response or
       // receiving malformed response (even when otherwise successful)
-      apiErrors.inc();
+      apiErrors.increment();
     }
 
     Integer status = response.status();
     if (status != null) {
       if (200 == status) {
-        apiResponsesOK.inc();
+        apiResponsesOK.increment();
       } else {
         statsd.incrementCounter("api.responses.total", statusTagsCache.get(status));
       }
     }
+  }
+
+  @Override
+  public void onClientStatTraceComputed(int countedSpans, int totalSpans, boolean dropped) {
+    clientStatsProcessedTraces.increment();
+    clientStatsProcessedSpans.add(countedSpans);
+    if (dropped) {
+      clientStatsP0DroppedTraces.increment();
+      clientStatsP0DroppedSpans.add(totalSpans);
+    }
+  }
+
+  @Override
+  public void onClientStatPayloadSent() {
+    clientStatsRequests.increment();
+  }
+
+  @Override
+  public void onClientStatDowngraded() {
+    clientStatsDowngrades.increment();
+  }
+
+  @Override
+  public void onClientStatErrorReceived() {
+    clientStatsErrors.increment();
   }
 
   @Override
@@ -377,7 +366,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
-    private final long[] previousCounts = new long[43];
+    private final long[] previousCounts = new long[50];
     private int countIndex;
 
     @Override
@@ -488,6 +477,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
 
+        reportIfChanged(
+            target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.dropped_p0_traces", target.clientStatsP0DroppedTraces, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.dropped_p0_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_payloads", target.clientStatsRequests, NO_TAGS);
+        reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
+
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
             "previousCounts array needs resizing to at least {}, was {}",
@@ -497,11 +498,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     }
 
     private void reportIfChanged(
-        StatsDClient statsDClient,
-        String aspect,
-        FixedSizeStripedLongCounter counter,
-        String[] tags) {
-      long count = counter.get();
+        StatsDClient statsDClient, String aspect, LongAdder counter, String[] tags) {
+      long count = counter.sum();
       long delta = count - previousCounts[++countIndex];
       if (delta > 0) {
         statsDClient.count(aspect, delta, tags);
@@ -513,99 +511,114 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public String summary() {
     return "apiRequests="
-        + apiRequests.get()
+        + apiRequests.sum()
         + "\napiErrors="
-        + apiErrors.get()
+        + apiErrors.sum()
         + "\napiResponsesOK="
-        + apiResponsesOK.get()
+        + apiResponsesOK.sum()
         + "\n"
         + "\nuserDropEnqueuedTraces="
-        + userDropEnqueuedTraces.get()
+        + userDropEnqueuedTraces.sum()
         + "\nuserKeepEnqueuedTraces="
-        + userKeepEnqueuedTraces.get()
+        + userKeepEnqueuedTraces.sum()
         + "\nsamplerDropEnqueuedTraces="
-        + samplerDropEnqueuedTraces.get()
+        + samplerDropEnqueuedTraces.sum()
         + "\nsamplerKeepEnqueuedTraces="
-        + samplerKeepEnqueuedTraces.get()
+        + samplerKeepEnqueuedTraces.sum()
         + "\nunsetPriorityEnqueuedTraces="
-        + unsetPriorityEnqueuedTraces.get()
+        + unsetPriorityEnqueuedTraces.sum()
         + "\n"
         + "\nuserDropDroppedTraces="
-        + userDropDroppedTraces.get()
+        + userDropDroppedTraces.sum()
         + "\nuserKeepDroppedTraces="
-        + userKeepDroppedTraces.get()
+        + userKeepDroppedTraces.sum()
         + "\nsamplerDropDroppedTraces="
-        + samplerDropDroppedTraces.get()
+        + samplerDropDroppedTraces.sum()
         + "\nsamplerKeepDroppedTraces="
-        + samplerKeepDroppedTraces.get()
+        + samplerKeepDroppedTraces.sum()
         + "\nserialFailedDroppedTraces="
-        + serialFailedDroppedTraces.get()
+        + serialFailedDroppedTraces.sum()
         + "\nunsetPriorityDroppedTraces="
-        + unsetPriorityDroppedTraces.get()
+        + unsetPriorityDroppedTraces.sum()
         + "\n"
         + "\nuserDropDroppedSpans="
-        + userDropDroppedSpans.get()
+        + userDropDroppedSpans.sum()
         + "\nuserKeepDroppedSpans="
-        + userKeepDroppedSpans.get()
+        + userKeepDroppedSpans.sum()
         + "\nsamplerDropDroppedSpans="
-        + samplerDropDroppedSpans.get()
+        + samplerDropDroppedSpans.sum()
         + "\nsamplerKeepDroppedSpans="
-        + samplerKeepDroppedSpans.get()
+        + samplerKeepDroppedSpans.sum()
         + "\nserialFailedDroppedSpans="
-        + serialFailedDroppedSpans.get()
+        + serialFailedDroppedSpans.sum()
         + "\nunsetPriorityDroppedSpans="
-        + unsetPriorityDroppedSpans.get()
+        + unsetPriorityDroppedSpans.sum()
         + "\n"
         + "\nenqueuedSpans="
-        + enqueuedSpans.get()
+        + enqueuedSpans.sum()
         + "\nenqueuedBytes="
-        + enqueuedBytes.get()
+        + enqueuedBytes.sum()
         + "\ncreatedTraces="
-        + createdTraces.get()
+        + createdTraces.sum()
         + "\ncreatedSpans="
-        + createdSpans.get()
+        + createdSpans.sum()
         + "\nfinishedSpans="
-        + finishedSpans.get()
+        + finishedSpans.sum()
         + "\nflushedTraces="
-        + flushedTraces.get()
+        + flushedTraces.sum()
         + "\nflushedBytes="
-        + flushedBytes.get()
+        + flushedBytes.sum()
         + "\npartialTraces="
-        + partialTraces.get()
+        + partialTraces.sum()
         + "\npartialBytes="
-        + partialBytes.get()
+        + partialBytes.sum()
         + "\n"
         + "\nclientSpansWithoutContext="
-        + clientSpansWithoutContext.get()
+        + clientSpansWithoutContext.sum()
         + "\n"
         + "\nsingleSpanSampled="
-        + singleSpanSampled.get()
+        + singleSpanSampled.sum()
         + "\nsingleSpanUnsampled="
-        + singleSpanUnsampled.get()
+        + singleSpanUnsampled.sum()
         + "\n"
         + "\ncapturedContinuations="
-        + capturedContinuations.get()
+        + capturedContinuations.sum()
         + "\ncancelledContinuations="
-        + cancelledContinuations.get()
+        + cancelledContinuations.sum()
         + "\nfinishedContinuations="
-        + finishedContinuations.get()
+        + finishedContinuations.sum()
         + "\n"
         + "\nactivatedScopes="
-        + activatedScopes.get()
+        + activatedScopes.sum()
         + "\nclosedScopes="
-        + closedScopes.get()
+        + closedScopes.sum()
         + "\nscopeStackOverflow="
-        + scopeStackOverflow.get()
+        + scopeStackOverflow.sum()
         + "\nscopeCloseErrors="
-        + scopeCloseErrors.get()
+        + scopeCloseErrors.sum()
         + "\nuserScopeCloseErrors="
-        + userScopeCloseErrors.get()
+        + userScopeCloseErrors.sum()
         + "\n"
         + "\nlongRunningTracesWrite="
-        + longRunningTracesWrite.get()
+        + longRunningTracesWrite.sum()
         + "\nlongRunningTracesDropped="
-        + longRunningTracesDropped.get()
+        + longRunningTracesDropped.sum()
         + "\nlongRunningTracesExpired="
-        + longRunningTracesExpired.get();
+        + longRunningTracesExpired.sum()
+        + "\n"
+        + "\nclientStatsRequests="
+        + clientStatsRequests.sum()
+        + "\nclientStatsErrors="
+        + clientStatsErrors.sum()
+        + "\nclientStatsDowngrades="
+        + clientStatsDowngrades.sum()
+        + "\nclientStatsP0DroppedSpans="
+        + clientStatsP0DroppedSpans.sum()
+        + "\nclientStatsP0DroppedTraces="
+        + clientStatsP0DroppedTraces.sum()
+        + "\nclientStatsProcessedSpans="
+        + clientStatsProcessedSpans.sum()
+        + "\nclientStatsProcessedTraces="
+        + clientStatsProcessedTraces.sum();
   }
 }

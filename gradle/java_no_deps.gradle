@@ -1,6 +1,9 @@
 import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
+import java.nio.file.Files
+import java.nio.file.Paths
+
 apply plugin: 'java-library'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
@@ -17,7 +20,7 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-if (tasks.matching({it.name == 'forkedTest'}).empty) {
+if (tasks.matching({ it.name == 'forkedTest' }).empty) {
   tasks.register('forkedTest', Test).configure {
     useJUnitPlatform()
   }
@@ -51,7 +54,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   def name = "java$version.majorVersion"
   sourceSets {
     "main_$name" {
-      java.srcDirs "${project.projectDir}/src/main/$name"
+      java.srcDirs = ["${project.projectDir}/src/main/$name"]
     }
   }
 
@@ -64,10 +67,10 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
   dependencies {
     if ("${project.projectDir}".endsWith("socket-utils")) {
-      compileOnly files(project.sourceSets."main_$name".output)
+      compileOnly(files(project.sourceSets."main_$name".output))
     } else {
-      compileOnly files(project.sourceSets."main_$name".compileClasspath)
-      implementation files(project.sourceSets."main_$name".output)
+      compileOnly(files(project.sourceSets."main_$name".compileClasspath))
+      implementation(files(project.sourceSets."main_$name".output))
     }
   }
 
@@ -138,10 +141,10 @@ javadoc {
   classpath = configurations.compileClasspath
 
   options {
-    setMemberLevel JavadocMemberLevel.PUBLIC
-    setAuthor true
+    setMemberLevel(JavadocMemberLevel.PUBLIC)
+    setAuthor(true)
 
-    links "https://docs.oracle.com/javase/8/docs/api/"
+    links = ["https://docs.oracle.com/javase/8/docs/api/"]
     source = 8
   }
 }
@@ -151,11 +154,14 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+
+  // "stable" is calculated as the largest X found in JAVA_X_HOME
   if (testJvm == "stable") {
-    def javaVersions = System.getenv()
-      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
-      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
-      .findAll { it != 25 }  // Exclude LTS JDK v25 (early access)
+    def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
+      javaHomes
+        .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+        .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+    }.get()
 
     if (javaVersions.isEmpty()) {
       throw new GradleException("No valid JAVA_X_HOME environment variables found.")
@@ -163,18 +169,24 @@ project.afterEvaluate {
 
     testJvm = javaVersions.max().toString()
   }
+
   if (testJvm) {
-    def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
-    if (!matcher.matches()) {
-      throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+    def testJvmHomePath
+    if (Files.exists(Paths.get(testJvm))) {
+      testJvmHomePath = getJavaHomePath(testJvm)
+    } else {
+      def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
+      if (!matcher.matches()) {
+        throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+      }
+      def testJvmLanguageVersion = matcher.group(2) as Integer
+      def testJvmEnv = "JAVA_${testJvm}_HOME"
+      def testJvmHome = providers.environmentVariable(testJvmEnv).orNull
+      if (!testJvmHome) {
+        throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
+      }
+      testJvmHomePath = getJavaHomePath(testJvmHome)
     }
-    def testJvmLanguageVersion = matcher.group(2) as Integer
-    def testJvmEnv = "JAVA_${testJvm}_HOME"
-    def testJvmHome = System.getenv(testJvmEnv)
-    if (!testJvmHome) {
-      throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
-    }
-    def testJvmHomePath = getJavaHomePath(testJvmHome)
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
       def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))
@@ -248,7 +260,7 @@ project.afterEvaluate {
 
   tasks.withType(JavaExec).configureEach {
     if (!it.maxHeapSize) {
-      it.maxHeapSize('256M')
+      it.maxHeapSize = '256M'
     }
   }
 }
@@ -265,7 +277,7 @@ if (project.plugins.hasPlugin('com.gradleup.shadow')) {
     }
   }
   artifacts {
-    archives shadowJar
+    archives(shadowJar)
   }
 }
 
@@ -363,7 +375,7 @@ def getJavaHomePath(String path) {
 
 tasks.register('testJar', Jar) {
   dependsOn(testClasses)
-  from sourceSets.test.output
+  from(sourceSets.test.output)
   archiveClassifier = 'test'
 }
 

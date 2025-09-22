@@ -1,8 +1,8 @@
 package datadog.smoketest;
 
 import static datadog.smoketest.ProcessBuilderHelper.buildDirectory;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -21,10 +21,11 @@ import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.test.agent.decoder.DecodedMessage;
-import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.agent.decoder.Decoder;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
@@ -45,6 +46,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -61,7 +63,9 @@ public abstract class BaseIntegrationTest {
   protected static final Logger LOG = LoggerFactory.getLogger(BaseIntegrationTest.class);
   protected static final String TRACE_URL_PATH = "/v0.4/traces";
   protected static final String CONFIG_URL_PATH = "/v0.7/config";
-  protected static final String SNAPSHOT_URL_PATH = "/debugger/v1/input";
+  protected static final String LOG_UPLOAD_URL_PATH = "/debugger/v1/input";
+  protected static final String SNAPSHOT_UPLOAD_URL_PATH = "/debugger/v2/input";
+  protected static final String DIAGNOSTICS_URL_PATH = "/debugger/v1/diagnostics";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
   private static final Path LOG_FILE_BASE =
       Paths.get(
@@ -72,7 +76,9 @@ public abstract class BaseIntegrationTest {
       "{\"endpoints\": [\""
           + TRACE_URL_PATH
           + "\", \""
-          + SNAPSHOT_URL_PATH
+          + LOG_UPLOAD_URL_PATH
+          + "\", \""
+          + DIAGNOSTICS_URL_PATH
           + "\", \""
           + CONFIG_URL_PATH
           + "\"]}";
@@ -81,7 +87,7 @@ public abstract class BaseIntegrationTest {
   private static final MockResponse TELEMETRY_RESPONSE = new MockResponse().setResponseCode(202);
   protected static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
-  private static final ByteString DIAGNOSTICS_STR = ByteString.encodeUtf8("diagnostics");
+  private static final ByteString DIAGNOSTICS_STR = ByteString.encodeUtf8("{\"diagnostics\":");
   private static final String LD_CONFIG_ID = UUID.randomUUID().toString();
   private static final String APM_CONFIG_ID = UUID.randomUUID().toString();
   public static final String LIVE_DEBUGGING_PRODUCT = "LIVE_DEBUGGING";
@@ -118,7 +124,7 @@ public abstract class BaseIntegrationTest {
     datadogAgentServer.setDispatcher(probeMockDispatcher);
     probeUrl = datadogAgentServer.url(CONFIG_URL_PATH);
     LOG.info("DatadogAgentServer on {}", datadogAgentServer.getPort());
-    snapshotUrl = datadogAgentServer.url(SNAPSHOT_URL_PATH);
+    snapshotUrl = datadogAgentServer.url(LOG_UPLOAD_URL_PATH);
     statsDServer = new StatsDServer();
     statsDServer.start();
     LOG.info("statsDServer on {}", statsDServer.getPort());
@@ -168,60 +174,13 @@ public abstract class BaseIntegrationTest {
             "-Ddd.dynamic.instrumentation.capture.timeout=200"));
   }
 
-  protected RecordedRequest retrieveSnapshotRequest() throws Exception {
-    return retrieveRequest(
-        request -> {
-          try {
-            return request.getPath().startsWith(SNAPSHOT_URL_PATH)
-                && request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) == -1;
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
-          }
-        });
-  }
-
-  protected DecodedSpan retrieveSpanRequest(String name) throws Exception {
-    DecodedSpan decodedSpan = null;
-    int attempt = 3;
-    retrieveSpan:
-    do {
-      LOG.info("retrieveSpanRequest...");
-      RecordedRequest spanRequest =
-          retrieveRequest(request -> request.getPath().equals(TRACE_URL_PATH));
-      attempt--;
-      if (spanRequest == null) {
-        continue;
-      }
-      DecodedMessage decodedMessage = Decoder.decodeV04(spanRequest.getBody().readByteArray());
-      LOG.info(
-          "Traces={} Spans={}",
-          decodedMessage.getTraces().size(),
-          decodedMessage.getTraces().get(0).getSpans().size());
-      for (int traceIdx = 0; traceIdx < decodedMessage.getTraces().size(); traceIdx++) {
-        List<DecodedSpan> spans = decodedMessage.getTraces().get(traceIdx).getSpans();
-        for (int spanIdx = 0; spanIdx < spans.size(); spanIdx++) {
-          decodedSpan = spans.get(spanIdx);
-          LOG.info(
-              "Trace[{}}].Span[{}}] name={}} resource={}} Meta={}",
-              traceIdx,
-              spanIdx,
-              decodedSpan.getName(),
-              decodedSpan.getResource(),
-              decodedSpan.getMeta());
-          if (decodedSpan.getName().equals(name)) {
-            break retrieveSpan;
-          }
-        }
-      }
-    } while (attempt > 0);
-    return decodedSpan;
-  }
-
   protected enum RequestType {
     SNAPSHOT {
       @Override
       public void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
-        if (!request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
+        if (!(request.getPath().startsWith(LOG_UPLOAD_URL_PATH)
+            || request.getPath().startsWith(DIAGNOSTICS_URL_PATH)
+            || request.getPath().startsWith(SNAPSHOT_UPLOAD_URL_PATH))) {
           return;
         }
         try {
@@ -270,7 +229,7 @@ public abstract class BaseIntegrationTest {
     PROBE_STATUS {
       @Override
       public void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request) {
-        if (!request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
+        if (!request.getPath().startsWith(DIAGNOSTICS_URL_PATH)) {
           return;
         }
         try {
@@ -286,7 +245,12 @@ public abstract class BaseIntegrationTest {
         String bodyStr = request.getBody().readUtf8();
         LOG.info("got probe status: {}", bodyStr);
         try {
-          List<ProbeStatus> probeStatuses = adapter.fromJson(bodyStr);
+          // Http multipart decode
+          String partBody = parseMultiPart(request, bodyStr);
+          if (partBody == null) {
+            return;
+          }
+          List<ProbeStatus> probeStatuses = adapter.fromJson(partBody);
           for (Consumer<ProbeStatus> listener : baseIntegrationTest.probeStatusListeners) {
             for (ProbeStatus probeStatus : probeStatuses) {
               listener.accept(probeStatus);
@@ -299,6 +263,46 @@ public abstract class BaseIntegrationTest {
     };
 
     public abstract void process(BaseIntegrationTest baseIntegrationTest, RecordedRequest request);
+  }
+
+  private static String parseMultiPart(RecordedRequest request, String bodyStr) throws IOException {
+    // To parse it as multipart, you'll need to use the boundary from the Content-Type header
+    String contentType = request.getHeader("Content-Type");
+    String boundary = null;
+    // Extract the boundary from the Content-Type header
+    if (contentType != null && contentType.startsWith("multipart/")) {
+      String[] parts = contentType.split("boundary=");
+      if (parts.length > 1) {
+        boundary = parts[1].trim();
+      }
+    }
+
+    try (BufferedReader reader = new BufferedReader(new StringReader(bodyStr))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        // Process each line of the multipart body
+        if (line.startsWith("--" + boundary)) {
+          // This is a part boundary
+          // The next line should be headers for this part
+          Headers.Builder partHeaders = new Headers.Builder();
+          while (!(line = reader.readLine()).isEmpty()) {
+            // Parse headers
+            int colon = line.indexOf(':');
+            if (colon != -1) {
+              partHeaders.add(line.substring(0, colon).trim(), line.substring(colon + 1).trim());
+            }
+          }
+
+          // Now read the part content until we hit the boundary
+          StringBuilder partContent = new StringBuilder();
+          while ((line = reader.readLine()) != null && !line.startsWith("--" + boundary)) {
+            partContent.append(line).append("\n");
+          }
+          return partContent.toString().trim();
+        }
+      }
+    }
+    return null;
   }
 
   protected void registerIntakeRequestListener(
@@ -411,7 +415,7 @@ public abstract class BaseIntegrationTest {
       // Ack every telemetry request. This is needed if telemetry is enabled in the tests.
       return TELEMETRY_RESPONSE;
     }
-    if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
+    if (request.getPath().startsWith(LOG_UPLOAD_URL_PATH)) {
       return EMPTY_200_RESPONSE;
     }
     if (request.getPath().equals("/v0.7/config")) {
@@ -533,7 +537,7 @@ public abstract class BaseIntegrationTest {
     assertEquals(typeName, capturedValue.getType());
     Object objValue = capturedValue.getValue();
     assertNotNull(
-        "objValue null for argName=" + name + " capturedValue=" + capturedValue, objValue);
+        objValue, "objValue null for argName=" + name + " capturedValue=" + capturedValue);
     if (objValue.getClass().isArray()) {
       assertEquals(value, Arrays.toString((Object[]) objValue));
     } else {
@@ -561,23 +565,26 @@ public abstract class BaseIntegrationTest {
     assertEquals(message, throwable.getMessage());
   }
 
-  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
-      throws IOException {
-    long errorLines =
-        Files.lines(logFilePath)
-            .filter(
-                it ->
-                    it.contains(" ERROR ")
-                        || it.contains("ASSERTION FAILED")
-                        || it.contains("Error:")
-                        || checker.apply(it))
-            .peek(System.out::println)
-            .count();
-    boolean hasErrors = errorLines > 0;
-    if (hasErrors) {
-      LOG.info("Test application log is containing errors. See full run logs in {}", logFilePath);
+  protected static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker) {
+    try {
+      long errorLines =
+          Files.lines(logFilePath)
+              .filter(
+                  it ->
+                      it.contains(" ERROR ")
+                          || it.contains("ASSERTION FAILED")
+                          || it.contains("Error:")
+                          || checker.apply(it))
+              .peek(System.out::println)
+              .count();
+      boolean hasErrors = errorLines > 0;
+      if (hasErrors) {
+        LOG.info("Test application log is containing errors. See full run logs in {}", logFilePath);
+      }
+      return hasErrors;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    return hasErrors;
   }
 
   private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {

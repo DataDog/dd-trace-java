@@ -26,6 +26,8 @@ public class ExecutionSettings {
           false,
           false,
           false,
+          false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
           TestManagementSettings.DEFAULT,
           null,
@@ -43,6 +45,8 @@ public class ExecutionSettings {
   private final boolean testSkippingEnabled;
   private final boolean flakyTestRetriesEnabled;
   private final boolean impactedTestsDetectionEnabled;
+  private final boolean codeCoverageReportUploadEnabled;
+  private final boolean failedTestReplayEnabled;
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   @Nonnull private final TestManagementSettings testManagementSettings;
   @Nullable private final String itrCorrelationId;
@@ -58,6 +62,8 @@ public class ExecutionSettings {
       boolean testSkippingEnabled,
       boolean flakyTestRetriesEnabled,
       boolean impactedTestsDetectionEnabled,
+      boolean codeCoverageReportUploadEnabled,
+      boolean failedTestReplayEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       @Nonnull TestManagementSettings testManagementSettings,
       @Nullable String itrCorrelationId,
@@ -74,6 +80,8 @@ public class ExecutionSettings {
     this.testSkippingEnabled = testSkippingEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
+    this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled;
+    this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
     this.itrCorrelationId = itrCorrelationId;
@@ -110,6 +118,8 @@ public class ExecutionSettings {
       boolean testSkippingEnabled,
       boolean flakyTestRetriesEnabled,
       boolean impactedTestsDetectionEnabled,
+      boolean codeCoverageReportUploadEnabled,
+      boolean failedTestReplayEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       @Nonnull TestManagementSettings testManagementSettings,
       @Nullable String itrCorrelationId,
@@ -123,6 +133,8 @@ public class ExecutionSettings {
     this.testSkippingEnabled = testSkippingEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
+    this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled;
+    this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
     this.itrCorrelationId = itrCorrelationId;
@@ -155,6 +167,14 @@ public class ExecutionSettings {
 
   public boolean isImpactedTestsDetectionEnabled() {
     return impactedTestsDetectionEnabled;
+  }
+
+  public boolean isCodeCoverageReportUploadEnabled() {
+    return codeCoverageReportUploadEnabled;
+  }
+
+  public boolean isFailedTestReplayEnabled() {
+    return failedTestReplayEnabled;
   }
 
   @Nonnull
@@ -243,6 +263,8 @@ public class ExecutionSettings {
         && testSkippingEnabled == that.testSkippingEnabled
         && flakyTestRetriesEnabled == that.flakyTestRetriesEnabled
         && impactedTestsDetectionEnabled == that.impactedTestsDetectionEnabled
+        && codeCoverageReportUploadEnabled == that.codeCoverageReportUploadEnabled
+        && failedTestReplayEnabled == that.failedTestReplayEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
@@ -261,6 +283,8 @@ public class ExecutionSettings {
         testSkippingEnabled,
         flakyTestRetriesEnabled,
         impactedTestsDetectionEnabled,
+        codeCoverageReportUploadEnabled,
+        failedTestReplayEnabled,
         earlyFlakeDetectionSettings,
         testManagementSettings,
         itrCorrelationId,
@@ -278,6 +302,8 @@ public class ExecutionSettings {
     private static final int TEST_SKIPPING_ENABLED_FLAG = 4;
     private static final int FLAKY_TEST_RETRIES_ENABLED_FLAG = 8;
     private static final int IMPACTED_TESTS_DETECTION_ENABLED_FLAG = 16;
+    private static final int CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG = 32;
+    private static final int FAILED_TEST_REPLAY_ENABLED_FLAG = 64;
 
     public static ByteBuffer serialize(ExecutionSettings settings) {
       datadog.trace.civisibility.ipc.serialization.Serializer s =
@@ -291,7 +317,11 @@ public class ExecutionSettings {
                   | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0)
                   | (settings.impactedTestsDetectionEnabled
                       ? IMPACTED_TESTS_DETECTION_ENABLED_FLAG
-                      : 0));
+                      : 0)
+                  | (settings.codeCoverageReportUploadEnabled
+                      ? CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG
+                      : 0)
+                  | (settings.failedTestReplayEnabled ? FAILED_TEST_REPLAY_ENABLED_FLAG : 0));
       s.write(flags);
 
       EarlyFlakeDetectionSettings.Serializer.serialize(s, settings.earlyFlakeDetectionSettings);
@@ -330,6 +360,9 @@ public class ExecutionSettings {
       boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
       boolean flakyTestRetriesEnabled = (flags & FLAKY_TEST_RETRIES_ENABLED_FLAG) != 0;
       boolean impactedTestsDetectionEnabled = (flags & IMPACTED_TESTS_DETECTION_ENABLED_FLAG) != 0;
+      boolean codeCoverageReportUploadEnabled =
+          (flags & CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG) != 0;
+      boolean failedTestReplayEnabled = (flags & FAILED_TEST_REPLAY_ENABLED_FLAG) != 0;
 
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
           EarlyFlakeDetectionSettings.Serializer.deserialize(buffer);
@@ -372,6 +405,8 @@ public class ExecutionSettings {
           testSkippingEnabled,
           flakyTestRetriesEnabled,
           impactedTestsDetectionEnabled,
+          codeCoverageReportUploadEnabled,
+          failedTestReplayEnabled,
           earlyFlakeDetectionSettings,
           testManagementSettings,
           itrCorrelationId,

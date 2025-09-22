@@ -1,7 +1,9 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.WellKnownTags
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
 import spock.lang.Requires
@@ -25,19 +27,22 @@ class FootprintForkedTest extends DDSpecification {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
     ValidatingSink sink = new ValidatingSink(latch)
+    SharedCommunicationObjects sco = new SharedCommunicationObjects()
     DDAgentFeaturesDiscovery features = Stub(DDAgentFeaturesDiscovery) {
       it.supportsMetrics() >> true
+      it.peerTags() >> []
     }
+    sco.setFeaturesDiscovery(features)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
-      features,
+      sco,
+      HealthMetrics.NO_OP,
       sink,
       1000,
       1000,
       100,
-      SECONDS
-      )
+      SECONDS)
     // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
     def baseline = footprint(aggregator, features)
     aggregator.start()
@@ -73,8 +78,8 @@ class FootprintForkedTest extends DDSpecification {
     assert latch.await(30, SECONDS)
 
     then:
-    def layout = footprint(aggregator, features)
-    layout.totalSize() - baseline.totalSize() <= 10 * 1024 * 1024
+    def after = footprint(aggregator, features)
+    after - baseline <= 10 * 1024 * 1024
 
     cleanup:
     aggregator.close()
@@ -137,15 +142,17 @@ class FootprintForkedTest extends DDSpecification {
     }
   }
 
-
-  static GraphLayout footprint(Object root, Object... excludedRootFieldInstance) {
+  static long footprint(Object root, Object... excludedRootFieldInstance) {
     GraphLayout layout = GraphLayout.parseInstance(root)
+    def size = layout.totalSize()
 
     excludedRootFieldInstance.each {
-      layout = layout.subtract(GraphLayout.parseInstance(it))
+      def excludedLayout = GraphLayout.parseInstance(it)
+      layout = layout.subtract(excludedLayout)
+      size -= excludedLayout.totalSize()
     }
 
-    println layout.toFootprint()
-    return layout
+    println(layout.toFootprint())
+    return size
   }
 }

@@ -1,13 +1,14 @@
 package datadog.trace.api.datastreams;
 
+import datadog.trace.api.BaseHash;
 import datadog.trace.util.FNV64Hash;
 import java.util.Objects;
 
 public class DataStreamsTags {
   public enum Direction {
-    Unknown,
-    Inbound,
-    Outbound,
+    UNKNOWN,
+    INBOUND,
+    OUTBOUND,
   }
 
   public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
@@ -52,7 +53,6 @@ public class DataStreamsTags {
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
 
   private static volatile ThreadLocal<String> serviceNameOverride;
-  private static volatile long baseHash;
 
   public static byte[] longToBytes(long val) {
     return new byte[] {
@@ -159,7 +159,7 @@ public class DataStreamsTags {
         case DIRECTION_TAG:
           if (!Objects.equals(
               this.directionValue,
-              Objects.equals(value, "out") ? Direction.Outbound : Direction.Inbound)) {
+              Objects.equals(value, "out") ? Direction.OUTBOUND : Direction.INBOUND)) {
             return false;
           }
           break;
@@ -260,10 +260,6 @@ public class DataStreamsTags {
     DataStreamsTags.serviceNameOverride = serviceNameOverride;
   }
 
-  public static void setGlobalBaseHash(long hash) {
-    DataStreamsTags.baseHash = hash;
-  }
-
   public static DataStreamsTags createWithClusterId(
       String type, Direction direction, String topic, String clusterId) {
     return new DataStreamsTags(
@@ -307,9 +303,9 @@ public class DataStreamsTags {
       String partition) {
     this.bus = bus != null ? BUS_TAG + ":" + bus : null;
     this.directionValue = direction;
-    if (direction == Direction.Inbound) {
+    if (direction == Direction.INBOUND) {
       this.direction = DIRECTION_TAG + ":in";
-    } else if (direction == Direction.Outbound) {
+    } else if (direction == Direction.OUTBOUND) {
       this.direction = DIRECTION_TAG + ":out";
     } else {
       this.direction = null;
@@ -329,9 +325,7 @@ public class DataStreamsTags {
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
-    if (DataStreamsTags.baseHash != 0) {
-      this.hash = DataStreamsTags.baseHash;
-    }
+    this.hash = BaseHash.getBaseHash();
 
     if (DataStreamsTags.serviceNameOverride != null) {
       String val = DataStreamsTags.serviceNameOverride.get();

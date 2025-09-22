@@ -1,9 +1,11 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
+import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
@@ -37,7 +39,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
-      features,
+      sharedCommunicationObjects(features),
+      HealthMetrics.NO_OP,
       sink,
       10,
       queueSize,
@@ -66,7 +69,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),
-      features,
+      sharedCommunicationObjects(features),
+      HealthMetrics.NO_OP,
       sink,
       10,
       queueSize,
@@ -99,22 +103,36 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
     when:
     CountDownLatch latch = new CountDownLatch(1)
-    aggregator.publish([new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)])
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "baz")
+    ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
 
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-      value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
-    }
+    1 * writer.add(new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
+      }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -127,15 +145,15 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.spanKindsToComputedStats() >> ["client", "server", "producer", "consumer"]
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
     when:
     CountDownLatch latch = new CountDownLatch(1)
-    def span = Spy(new SimpleSpan("service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK))
-    span.getTag(SPAN_KIND) >> kind
+    def span = new SimpleSpan("service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, kind)
     aggregator.publish([span])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
@@ -143,9 +161,20 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered == statsComputed
     (statsComputed ? 1 : 0) * writer.startBucket(1, _, _)
-    (statsComputed ? 1 : 0) * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-      value.getHitCount() == 1 && value.getTopLevelCount() == 0 && value.getDuration() == 100
-    }
+    (statsComputed ? 1 : 0) * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      kind,
+      []
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
     (statsComputed ? 1 : 0) * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -154,9 +183,119 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     where:
     kind                             | statsComputed
     "client"                         | true
+    "producer"                       | true
+    "consumer"                       | true
     UTF8BytesString.create("server") | true
     "internal"                       | false
     null                             | false
+  }
+
+  def "should create bucket for each set of peer tags"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >>> [["country"], ["country", "georegion"],]
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe"),
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(2, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "client",
+      [UTF8BytesString.create("country:france")]
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "client",
+      [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")]
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should aggregate the right peer tags for kind #kind"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> ["peer.hostname", "_dd.base_service"]
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, kind).setTag("peer.hostname", "localhost").setTag("_dd.base_service", UTF8BytesString.create("test"))
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      kind,
+      expectedPeerTags
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+
+    where:
+    kind       | expectedPeerTags
+    "client"   | [UTF8BytesString.create("peer.hostname:localhost"), UTF8BytesString.create("_dd.base_service:test")]
+    "internal" | [UTF8BytesString.create("_dd.base_service:test")]
+    "server"   | []
   }
 
   def "measured spans do not contribute to top level count"() {
@@ -165,7 +304,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, features,
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, sharedCommunicationObjects(features), HealthMetrics.NO_OP,
       sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
@@ -173,6 +313,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
       new SimpleSpan("service", "operation", "resource", "type", measured, topLevel, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "baz")
     ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
@@ -180,9 +321,19 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-      value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
-    }
+    1 * writer.add(new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), { AggregateMetric value ->
+        value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
+      })
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -201,13 +352,14 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     long duration = 100
     List<CoreSpan> trace = [
-      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, duration, HTTP_OK),
-      new SimpleSpan("service1", "operation1", "resource1", "type", false, false, false, 0, 0, HTTP_OK),
-      new SimpleSpan("service2", "operation2", "resource2", "type", true, false, false, 0, duration * 2, HTTP_OK)
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, duration, HTTP_OK).setTag(SPAN_KIND, "baz"),
+      new SimpleSpan("service1", "operation1", "resource1", "type", false, false, false, 0, 0, HTTP_OK).setTag(SPAN_KIND, "baz"),
+      new SimpleSpan("service2", "operation2", "resource2", "type", true, false, false, 0, duration * 2, HTTP_OK).setTag(SPAN_KIND, "baz")
     ]
     aggregator.start()
 
@@ -224,12 +376,32 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-      value.getHitCount() == count && value.getDuration() == count * duration
-    }
-    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-      value.getHitCount() == count && value.getDuration() == count * duration * 2
-    }
+    1 * writer.add(new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), { AggregateMetric value ->
+        value.getHitCount() == count && value.getDuration() == count * duration
+      })
+    1 * writer.add(new MetricKey(
+      "resource2",
+      "service2",
+      "operation2",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), { AggregateMetric value ->
+        value.getHitCount() == count && value.getDuration() == count * duration * 2
+      })
 
     cleanup:
     aggregator.close()
@@ -245,8 +417,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -255,6 +428,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     for (int i = 0; i < 11; ++i) {
       aggregator.publish([
         new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
       ])
     }
     aggregator.report()
@@ -264,11 +438,31 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 11; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      }
+      1 * writer.add(new MetricKey(
+        "resource",
+        "service" + i,
+        "operation",
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        []
+        ), _) >> { MetricKey key, AggregateMetric value ->
+          value.getHitCount() == 1 && value.getDuration() == duration
+        }
     }
-    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", HTTP_OK, false), _)
+    0 * writer.add(new MetricKey(
+      "resource",
+      "service0",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -282,8 +476,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -292,6 +487,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     for (int i = 0; i < 5; ++i) {
       aggregator.publish([
         new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
       ])
     }
     aggregator.report()
@@ -301,9 +497,19 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      }
+      1 * writer.add(new MetricKey(
+        "resource",
+        "service" + i,
+        "operation",
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        []
+        ), { AggregateMetric value ->
+          value.getHitCount() == 1 && value.getDuration() == duration
+        })
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -312,6 +518,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     for (int i = 1; i < 5; ++i) {
       aggregator.publish([
         new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
       ])
     }
     aggregator.report()
@@ -321,11 +528,31 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      }
+      1 * writer.add(new MetricKey(
+        "resource",
+        "service" + i,
+        "operation",
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        []
+        ), { AggregateMetric value ->
+          value.getHitCount() == 1 && value.getDuration() == duration
+        })
     }
-    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", HTTP_OK, false), _)
+    0 * writer.add(new MetricKey(
+      "resource",
+      "service0",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -339,8 +566,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -349,6 +577,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     for (int i = 0; i < 5; ++i) {
       aggregator.publish([
         new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        .setTag(SPAN_KIND, "quux")
       ])
     }
     aggregator.report()
@@ -358,9 +587,19 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      }
+      1 * writer.add(new MetricKey(
+        "resource",
+        "service" + i,
+        "operation",
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "quux",
+        []
+        ), { AggregateMetric value ->
+          value.getHitCount() == 1 && value.getDuration() == duration
+        })
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -383,8 +622,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -392,7 +632,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 5; ++i) {
       aggregator.publish([
-        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK, true)
+        .setTag(SPAN_KIND, "garply")
       ])
     }
     def latchTriggered = latch.await(2, SECONDS)
@@ -401,9 +642,19 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(1))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      }
+      1 * writer.add(new MetricKey(
+        "resource",
+        "service" + i,
+        "operation",
+        "type",
+        HTTP_OK,
+        false,
+        true,
+        "garply",
+        []
+        ), { AggregateMetric value ->
+          value.getHitCount() == 1 && value.getDuration() == duration
+        })
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -418,8 +669,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -456,8 +708,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -488,7 +741,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     aggregator.start()
 
     when:
@@ -508,8 +761,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> false
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, 10, queueSize, 200, MILLISECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, 200, MILLISECONDS)
     final spans = [
       new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
     ]
@@ -541,7 +795,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
 
     when:
     def async = CompletableFuture.supplyAsync(new Supplier<Boolean>() {
@@ -567,6 +821,48 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should not count partial snapshot(long running)"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      sharedCommunicationObjects(features), HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 12345),
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 0)
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      true,
+      "",
+      []
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
   def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {
     waitUntilEmpty(aggregator)
     aggregator.report()
@@ -579,5 +875,11 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     while (!aggregator.inbox.isEmpty() && i++ < 100) {
       Thread.sleep(10)
     }
+  }
+
+  def sharedCommunicationObjects(features) {
+    def ret = new SharedCommunicationObjects()
+    ret.setFeaturesDiscovery(features)
+    ret
   }
 }

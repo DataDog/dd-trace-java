@@ -20,7 +20,7 @@ gradlePlugin {
     }
     create("muzzle-plugin") {
       id = "muzzle"
-      implementationClass = "MuzzlePlugin"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
@@ -76,7 +76,6 @@ testing {
     val integTest by registering(JvmTestSuite::class) {
       dependencies {
         implementation(gradleTestKit())
-        implementation("org.assertj:assertj-core:3.25.3")
       }
       // Makes the gradle plugin publish its declared plugins to this source set
       gradlePlugin.testSourceSet(sources)
