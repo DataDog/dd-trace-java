@@ -145,7 +145,16 @@ public final class MongoCommandListener implements CommandListener {
                 Tags.DB_OPERATION,
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));
       }
-      decorator.onStatement(span, event.getCommand(), byteBufAccessor);
+
+      BsonDocument commandToExecute = event.getCommand();
+
+      // Comment injection
+      String dbmComment = MongoCommentInjector.getComment(span, event);
+      if (dbmComment != null) {
+        commandToExecute = MongoCommentInjector.injectComment(dbmComment, event);
+      }
+
+      decorator.onStatement(span, commandToExecute, byteBufAccessor);
       spanMap.put(event.getRequestId(), new SpanEntry(span));
     }
   }
