@@ -28,3 +28,16 @@ net.bytebuddy.matcher.ElementMatchers#isAbstract()
 @defaultMessage Avoid using System.out/err to prevent excess logging. To override, add @SuppressForbidden.
 java.lang.System#out
 java.lang.System#err
+
+# prepare for JEP 500 (https://openjdk.org/jeps/500)
+@defaultMessage Prepare to Make Final Mean Final - JEP 500
+java.lang.reflect.Field#set(java.lang.Object,java.lang.Object)
+java.lang.reflect.Field#setBoolean(java.lang.Object,boolean)
+java.lang.reflect.Field#setByte(java.lang.Object,byte)
+java.lang.reflect.Field#setChar(java.lang.Object,char)
+java.lang.reflect.Field#setShort(java.lang.Object,short)
+java.lang.reflect.Field#setInt(java.lang.Object,int)
+java.lang.reflect.Field#setLong(java.lang.Object,long)
+java.lang.reflect.Field#setFloat(java.lang.Object,float)
+java.lang.reflect.Field#setDouble(java.lang.Object,double)
+java.lang.invoke.MethodHandles.Lookup#unreflectSetter(java.lang.reflect.Field)
