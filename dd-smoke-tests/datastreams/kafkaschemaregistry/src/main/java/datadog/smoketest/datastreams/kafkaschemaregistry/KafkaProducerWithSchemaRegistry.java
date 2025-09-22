@@ -63,7 +63,7 @@ public class KafkaProducerWithSchemaRegistry {
         log.info("produced message");
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("KafkaProducerWithSchemaRegistry failed", e);
     } finally {
       producer.close();
     }
