@@ -1,6 +1,5 @@
 package datadog.trace.api
 
-import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.test.util.DDSpecification
 
