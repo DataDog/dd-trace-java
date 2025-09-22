@@ -83,7 +83,7 @@ class ConfigCollectorTest extends DDSpecification {
     if (jvmConfigValue != null ) {
       def jvmSetting = collected.get(ConfigOrigin.JVM_PROP)
       def jvmConfig = jvmSetting.get(configKey)
-      jvmConfig.stringValue().split(',').toList().toSet() == jvmConfigValue.split(',').toList().toSet()
+      jvmConfig.stringValue().split(',') as Set == jvmConfigValue.split(',') as Set
       jvmConfig.origin == ConfigOrigin.JVM_PROP
     }
 
