@@ -22,10 +22,9 @@ class ConfigCollectorTest extends DDSpecification {
   def "non-default config settings get collected"() {
     setup:
     injectEnvConfig(ConfigStrings.toEnvVar(configKey), configValue)
-    def origin = ConfigOrigin.ENV
 
     expect:
-    def envConfigByKey = ConfigCollector.get().collect().get(origin)
+    def envConfigByKey = ConfigCollector.get().collect().get(ConfigOrigin.ENV)
     def config = envConfigByKey.get(configKey)
     config.stringValue() == configValue
     config.origin == ConfigOrigin.ENV
