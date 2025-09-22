@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -30,7 +31,9 @@ public class Resilience4jSpanDecorator<T> extends BaseDecorator {
     super.afterStart(span);
     span.setSpanName(RESILIENCE4J);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    span.setMeasured(true); // TODO only if enabled in the config
+    if (Config.get().isResilience4jMeasuredEnabled()) {
+      span.setMeasured(true);
+    }
     return span;
   }
 

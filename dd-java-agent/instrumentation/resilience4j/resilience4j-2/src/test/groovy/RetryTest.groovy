@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.core.functions.CheckedFunction
@@ -20,6 +21,10 @@ class RetryTest extends InstrumentationSpecification {
   static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
   def "decorate span with retry"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED, measuredEnabled.toString())
+    injectSysConfig(TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED, tagMetricsEnabled.toString())
+
     def ms = Mock(Retry.Metrics)
     def rc = Mock(RetryConfig)
     def rt = Mock(Retry)
@@ -53,16 +58,19 @@ class RetryTest extends InstrumentationSpecification {
           operationName "resilience4j"
           childOf(span(0))
           errored false
+          measured(measuredEnabled)
           tags {
             "$Tags.COMPONENT" "resilience4j"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
             "resilience4j.retry.name" "rt1"
             "resilience4j.retry.max_attempts" 23
             "resilience4j.retry.fail_after_max_attempts" true
-            "resilience4j.retry.metrics.failed_without_retry" 1
-            "resilience4j.retry.metrics.failed_with_retry" 2
-            "resilience4j.retry.metrics.success_without_retry" 3
-            "resilience4j.retry.metrics.success_with_retry" 4
+            if (tagMetricsEnabled) {
+              "resilience4j.retry.metrics.failed_without_retry" 1
+              "resilience4j.retry.metrics.failed_with_retry" 2
+              "resilience4j.retry.metrics.success_without_retry" 3
+              "resilience4j.retry.metrics.success_with_retry" 4
+            }
             defaultTags()
           }
         }
@@ -74,6 +82,13 @@ class RetryTest extends InstrumentationSpecification {
         }
       }
     }
+
+    where:
+    measuredEnabled | tagMetricsEnabled
+    true            | true
+    false           | false
+    true            | false
+    false           | true
   }
 
   def "decorateCompletionStage"() {
