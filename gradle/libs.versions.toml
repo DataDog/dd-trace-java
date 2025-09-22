@@ -35,6 +35,7 @@ asm = "9.8"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
 jmh = "1.37"
+jackson = "2.20.0"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -99,6 +100,8 @@ coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version
 
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
+
+jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
 
 [bundles]
 asm = ["asm", "asmcommons"]
