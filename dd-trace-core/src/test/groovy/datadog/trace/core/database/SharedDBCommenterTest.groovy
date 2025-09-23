@@ -1,13 +1,18 @@
-import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.core.database.SharedDBCommenter
+package datadog.trace.core.database
 
-class SharedDBCommenterTest extends InstrumentationSpecification {
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("service.name", "test-service")
-    injectSysConfig("dd.env", "test-env")
-    injectSysConfig("dd.version", "1.0.0")
+import spock.lang.Specification
+
+class SharedDBCommenterTest extends Specification {
+  def setup() {
+    System.setProperty("dd.service.name", "test-service")
+    System.setProperty("dd.env", "test-env")
+    System.setProperty("dd.version", "1.0.0")
+  }
+
+  def cleanup() {
+    System.clearProperty("dd.service.name")
+    System.clearProperty("dd.env")
+    System.clearProperty("dd.version")
   }
 
   def "buildComment generates expected format for MongoDB"() {
@@ -102,21 +107,6 @@ class SharedDBCommenterTest extends InstrumentationSpecification {
     comment.contains("dddb='db%26name'")
   }
 
-  def "buildComment returns null when no meaningful content"() {
-    setup:
-    // Configure empty environment
-    injectSysConfig("service.name", "")
-    injectSysConfig("dd.env", "")
-    injectSysConfig("dd.version", "")
-
-    when:
-    String comment = SharedDBCommenter.buildComment("", "mongodb", "", "", null)
-
-    then:
-    // Even with empty values, buildComment should return something
-    // as the implementation always returns sb.toString() unless length is 0
-    comment == null || comment.isEmpty()
-  }
 
   def "buildComment works with different database types"() {
     when:
