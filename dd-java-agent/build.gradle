@@ -302,6 +302,7 @@ dependencies {
   sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
+
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }
