@@ -177,6 +177,7 @@ public class Agent {
   private static boolean llmObsAgentlessEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
+  private static boolean flareEnabled = true;
   private static boolean dynamicInstrumentationEnabled = false;
   private static boolean exceptionReplayEnabled = false;
   private static boolean codeOriginEnabled = false;
@@ -205,6 +206,7 @@ public class Agent {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
       telemetryEnabled = false;
+      flareEnabled = false;
       // apply trace instrumentation, but skip other products at native-image build time
       startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
@@ -485,7 +487,10 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
-    stopFlareSystem();
+    if (flareEnabled) {
+      stopFlareSystem();
+    }
+
     if (agentlessLogSubmissionEnabled) {
       shutdownLogsIntake();
     }
@@ -642,8 +647,9 @@ public class Agent {
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
       }
-
-      startFlareSystem(scoClass, sco);
+      if (flareEnabled) {
+        startFlareSystem(scoClass, sco);
+      }
     }
 
     private void resumeRemoteComponents() {
@@ -1130,8 +1136,8 @@ public class Agent {
     try {
       final Class<?> tracerFlareSystemClass =
           AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlareSystem");
-      final Method stopFlareSystem = tracerFlareSystemClass.getMethod("stop");
-      stopFlareSystem.invoke(null);
+      final Method tracerFlareSystemStopMethod = tracerFlareSystemClass.getMethod("stop");
+      tracerFlareSystemStopMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Error encountered while stopping Flare System", ex);
     }

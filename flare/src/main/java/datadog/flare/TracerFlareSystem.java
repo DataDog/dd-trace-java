@@ -11,6 +11,8 @@ public final class TracerFlareSystem {
   }
 
   public static void stop() {
-    tracerFlarePoller.doStop();
+    if (null != tracerFlarePoller) {
+      tracerFlarePoller.doStop();
+    }
   }
 }
