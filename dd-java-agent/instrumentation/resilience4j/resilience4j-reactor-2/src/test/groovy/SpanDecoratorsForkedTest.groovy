@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
@@ -12,6 +13,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 class SpanDecoratorsForkedTest extends InstrumentationSpecification {
 
   def "decorate span with circuit-breaker"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED, measuredEnabled.toString())
+    injectSysConfig(TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED, tagMetricsEnabled.toString())
+
     def ms = Mock(CircuitBreaker.Metrics)
 
     def cb = Mock(CircuitBreaker)
@@ -68,9 +73,20 @@ class SpanDecoratorsForkedTest extends InstrumentationSpecification {
         }
       }
     }
+
+    where:
+    measuredEnabled | tagMetricsEnabled
+    true            | true
+    false           | false
+    true            | false
+    false           | true
   }
 
   def "decorate span with retry"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED, measuredEnabled.toString())
+    injectSysConfig(TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED, tagMetricsEnabled.toString())
+
     def ms = Mock(Retry.Metrics)
     def rc = Mock(RetryConfig)
     def rt = Mock(Retry)
@@ -128,5 +144,12 @@ class SpanDecoratorsForkedTest extends InstrumentationSpecification {
         }
       }
     }
+
+    where:
+    measuredEnabled | tagMetricsEnabled
+    true            | true
+    false           | false
+    true            | false
+    false           | true
   }
 }
