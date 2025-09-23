@@ -35,8 +35,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
     try (final AgentScope scope = activateSpan(span)) {
       final HttpResponse response = (HttpResponse) msg;
-      span.setTag("guance_trace_id",span.getTraceId().toString());
-      addTag(span,response.headers());
+      span.setTag("ext_trace_id", span.getTraceId().toString());
+      addTag(span, response.headers());
       try {
         ctx.write(msg, prm);
       } catch (final Throwable throwable) {
@@ -64,24 +64,30 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
     }
   }
 
-  private void addTag(AgentSpan span, HttpHeaders headers){
+  private void addTag(AgentSpan span, HttpHeaders headers) {
     StringBuffer responseHeader = new StringBuffer("");
     boolean tracerHeader = Config.get().isTracerHeaderEnabled();
     if (tracerHeader) {
       int count = 0;
       for (Map.Entry<String, String> entry : headers.entries()) {
-        if (count==0){
+        if (count == 0) {
           responseHeader.append("{");
-        }else{
+        } else {
           responseHeader.append(",\n");
         }
-        responseHeader.append("\"").append(entry.getKey()).append("\":").append("\"").append(entry.getValue().replace("\"","")).append("\"");
-        count ++;
+        responseHeader
+            .append("\"")
+            .append(entry.getKey())
+            .append("\":")
+            .append("\"")
+            .append(entry.getValue().replace("\"", ""))
+            .append("\"");
+        count++;
       }
-      if (count>0){
+      if (count > 0) {
         responseHeader.append("}");
       }
     }
-    span.setTag("response_header",responseHeader.toString());
+    span.setTag("response_header", responseHeader.toString());
   }
 }

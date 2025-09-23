@@ -39,7 +39,7 @@ public class Servlet2Advice {
     }
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-    httpServletResponse.setHeader("guance_trace_id", GlobalTracer.get().getTraceId());
+    httpServletResponse.setHeader("ext_trace_id", GlobalTracer.get().getTraceId());
     Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
 
     StringBuffer requestHeader = new StringBuffer("");

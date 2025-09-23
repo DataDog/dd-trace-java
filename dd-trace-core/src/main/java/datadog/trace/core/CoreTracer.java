@@ -1445,7 +1445,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       span.setTag("trace_128_bit_id", span.getTraceId().toString());
 
       if (!Objects.equals(DDTraceCoreInfo.VERSION, "")) {
-        span.setTag("dd_guance_version", DDTraceCoreInfo.VERSION);
+        span.setTag("dd_ext_version", DDTraceCoreInfo.VERSION);
       }
       return span;
     }
