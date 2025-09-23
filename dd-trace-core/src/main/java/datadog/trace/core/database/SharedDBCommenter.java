@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jdbc;
+package datadog.trace.core.database;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
