@@ -3,14 +3,17 @@ import java.util.concurrent.TimeUnit
 
 // Schedule thread and heap dumps collection near test timeout.
 tasks.withType(Test).configureEach { testTask ->
+  String taskName = testTask.path.replaceAll(/[^A-Za-z0-9_]/, "_")
+  long startedAt = System.currentTimeMillis()
+
   doFirst {
     if (!testTask.timeout.present) {
-      logger.info("No timeout for ${testTask.path}; skipping dump scheduler")
+      logger.info("No timeout for ${taskName}; skipping dump scheduler")
       return
     }
 
     def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
-      Thread t = new Thread(r, "dump-scheduler:${testTask.path}")
+      Thread t = new Thread(r, "dump_scheduler_${taskName}")
       t.daemon = true
       t
     })
@@ -19,7 +22,7 @@ tasks.withType(Test).configureEach { testTask ->
     def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
     def future = scheduler.schedule({
-      logger.warn("Taking dumps for: ${testTask.path} after ${delayMinutes} minutes.")
+      logger.warn("Taking dumps for: ${taskName} after ${delayMinutes} minutes.")
 
       try {
         // Use Gradle's build dir and adjust for CI artifacts collection if needed.
@@ -73,25 +76,28 @@ tasks.withType(Test).configureEach { testTask ->
     }, delayMinutes, TimeUnit.MINUTES)
 
     // Store handles for cancellation in doLast.
-    logger.warn("Saving objects for: ${testTask.path}")
-    testTask.extensions.extraProperties.set("dumpFuture_${testTask.path}", future)
-    testTask.extensions.extraProperties.set("dumpScheduler_${testTask.path}", scheduler)
+    logger.warn("Saving objects for: ${taskName}")
+    testTask.extensions.extraProperties.set("dumpFuture_${taskName}", future)
+    testTask.extensions.extraProperties.set("dumpScheduler_${taskName}", scheduler)
   }
 
   doLast {
     // Cancel if the task finished before the scheduled dump.
     def ex = testTask.extensions.extraProperties
+
+    logger.warn("Dump cleanup logic after: ${(System.currentTimeMillis() - startedAt) / 1000} seconds")
+
     try {
-      if (ex.hasProperty("dumpFuture_${testTask.path}")) {
-        ex.get("dumpFuture_${testTask.path}")?.cancel(false)
+      if (ex.hasProperty("dumpFuture_${taskName}")) {
+        ex.get("dumpFuture_${taskName}")?.cancel(false)
       } else {
-        logger.warn("dump future not found: ${testTask.path}")
+        logger.warn("dump future not found: ${taskName}")
       }
     } finally {
-      if (ex.hasProperty("dumpScheduler_${testTask.path}")) {
-        ex.get("dumpScheduler_${testTask.path}")?.shutdownNow()
+      if (ex.hasProperty("dumpScheduler_${taskName}")) {
+        ex.get("dumpScheduler_${taskName}")?.shutdownNow()
       } else {
-        logger.warn("dump scheduler not found: ${testTask.path}")
+        logger.warn("dump scheduler not found: ${taskName}")
       }
     }
   }
