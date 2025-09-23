@@ -12,8 +12,6 @@ import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-import java.util.concurrent.TimeUnit
-
 class MetricsReliabilityTest extends DDCoreSpecification {
 
   static class State {
@@ -89,7 +87,6 @@ class MetricsReliabilityTest extends DDCoreSpecification {
 
 
     when: "simulate an agent downgrade"
-    def discoveryState = featuresDiscovery.discoveryState
     state.reset(false, 404)
     tracer.startSpan("test", "test").finish()
     tracer.flush()
@@ -97,11 +94,6 @@ class MetricsReliabilityTest extends DDCoreSpecification {
 
     then: "a discovery should have done - we do not support anymore stats calculation"
     state.latch.await()
-    // wait at least 5 seconds. the discovery is done asynchronously so we should wait for the internal state flip
-    def start = System.nanoTime()
-    while (discoveryState == featuresDiscovery.discoveryState && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) < 5) {
-      Thread.yield()
-    }
     assert !featuresDiscovery.supportsMetrics()
     // 2 traces processed. 1 p0 dropped. 2 requests and 1 downgrade no errors
     assertMetrics(healthMetrics, 2, 1, 2, 0, 1)

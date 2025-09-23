@@ -187,6 +187,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':components:context'))
+    exclude(project(':utils:config-utils'))
     exclude(project(':utils:time-utils'))
     exclude(dependency('org.slf4j::'))
   }
