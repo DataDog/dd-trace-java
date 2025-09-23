@@ -47,9 +47,7 @@ public class ConfigCollector {
   public void putDefault(String key, Object value) {
     ConfigSetting setting = ConfigSetting.of(key, value, DEFAULT, DEFAULT_SEQ_ID);
     Map<String, ConfigSetting> configMap = collected.computeIfAbsent(DEFAULT, NEW_SUB_MAP);
-    if (!configMap.containsKey(key)) {
-      configMap.put(key, setting);
-    }
+    configMap.putIfAbsent(key, setting); // don't replace previous default for this key
   }
 
   /**
@@ -59,7 +57,7 @@ public class ConfigCollector {
    * @param value configuration value to report
    */
   public void putRemote(String key, Object value) {
-    put(key, value, REMOTE, DEFAULT_SEQ_ID);
+    put(key, value, REMOTE, ABSENT_SEQ_ID);
   }
 
   /**
@@ -68,8 +66,29 @@ public class ConfigCollector {
    * @param configMap map of configuration key-value pairs to report
    */
   public void putRemote(Map<String, Object> configMap) {
+    // attempt merge+replace to avoid collector seeing partial update
+    Map<String, ConfigSetting> merged = new ConcurrentHashMap<>();
+
+    // prepare update
     for (Map.Entry<String, Object> entry : configMap.entrySet()) {
-      put(entry.getKey(), entry.getValue(), REMOTE, ABSENT_SEQ_ID, null);
+      ConfigSetting setting =
+          ConfigSetting.of(entry.getKey(), entry.getValue(), REMOTE, ABSENT_SEQ_ID);
+      merged.put(entry.getKey(), setting);
+    }
+
+    while (true) {
+      // first try adding our update to the map
+      Map<String, ConfigSetting> current = collected.putIfAbsent(REMOTE, merged);
+      if (current == null) {
+        break; // success, no merging required
+      }
+      // merge existing entries with updated entries
+      current.forEach(merged::putIfAbsent);
+      if (collected.replace(REMOTE, current, merged)) {
+        break; // success, atomically swapped in merged map
+      }
+      // roll back to original update before next attempt
+      merged.keySet().retainAll(configMap.keySet());
     }
   }
 
