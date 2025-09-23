@@ -629,7 +629,7 @@ public final class ConfigProvider {
   }
 
   /** Helper class to store resolved configuration values with their metadata */
-  static class ConfigValueResolver<T> {
+  static final class ConfigValueResolver<T> {
     final T value;
     final ConfigOrigin origin;
     final int seqId;
@@ -662,8 +662,8 @@ public final class ConfigProvider {
     }
   }
 
-  /** Helper class for methods that merge maps from multiple sources (e.g., getMergedMap) */
-  private static class ConfigMergeResolver {
+  /** Helper class for methods that merge map values from multiple sources (e.g., getMergedMap) */
+  private static final class ConfigMergeResolver {
     private final Map<String, String> mergedValue;
     private ConfigOrigin currentOrigin;
 
