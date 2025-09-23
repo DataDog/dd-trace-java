@@ -274,42 +274,6 @@ class ConfigCollectorTest extends DDSpecification {
     jvmSetting.seqId < remoteSetting.seqId
   }
 
-  def "getAppliedConfigSetting returns highest precedence setting"() {
-    setup:
-    ConfigCollector.get().collect() // clear previous state
-
-    when:
-    // Add multiple settings for the same key with different seqIds
-    ConfigCollector.get().put("test.key", "default-value", ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID)
-    ConfigCollector.get().put("test.key", "env-value", ConfigOrigin.ENV, 2)
-    ConfigCollector.get().put("test.key", "jvm-value", ConfigOrigin.JVM_PROP, 5)
-    ConfigCollector.get().put("test.key", "remote-value", ConfigOrigin.REMOTE, 3)
-
-    // Add another key with only one setting
-    ConfigCollector.get().put("single.key", "only-value", ConfigOrigin.ENV, 1)
-
-    def collected = ConfigCollector.get().collect()
-
-    then:
-    // Should return the setting with highest seqId (5)
-    def appliedSetting = ConfigCollector.getAppliedConfigSetting("test.key", collected)
-    appliedSetting != null
-    appliedSetting.value == "jvm-value"
-    appliedSetting.origin == ConfigOrigin.JVM_PROP
-    appliedSetting.seqId == 5
-
-    // Should return the only setting for single.key
-    def singleSetting = ConfigCollector.getAppliedConfigSetting("single.key", collected)
-    singleSetting != null
-    singleSetting.value == "only-value"
-    singleSetting.origin == ConfigOrigin.ENV
-    singleSetting.seqId == 1
-
-    // Should return null for non-existent key
-    def nonExistentSetting = ConfigCollector.getAppliedConfigSetting("non.existent.key", collected)
-    nonExistentSetting == null
-  }
-
   def "config id is null for non-StableConfigSource"() {
     setup:
     def key = "test.key"

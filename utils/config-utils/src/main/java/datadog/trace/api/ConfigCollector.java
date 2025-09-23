@@ -81,19 +81,4 @@ public class ConfigCollector {
       return Collections.emptyMap();
     }
   }
-
-  // NOTE: Only used to preserve legacy behavior for with smoke tests
-  public static ConfigSetting getAppliedConfigSetting(
-      String key, Map<ConfigOrigin, Map<String, ConfigSetting>> configMap) {
-    ConfigSetting best = null;
-    for (Map<String, ConfigSetting> originConfigMap : configMap.values()) {
-      ConfigSetting setting = originConfigMap.get(key);
-      if (setting != null) {
-        if (best == null || setting.seqId > best.seqId) {
-          best = setting;
-        }
-      }
-    }
-    return best;
-  }
 }
