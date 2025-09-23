@@ -662,7 +662,7 @@ public final class ConfigProvider {
     }
   }
 
-  /** Helper class for methods that merge maps from multiple sources (e.g., getMergedMap) */
+  /** Helper class for methods that merge map values from multiple sources (e.g., getMergedMap) */
   private static final class ConfigMergeResolver {
     private final Map<String, String> mergedValue;
     private ConfigOrigin currentOrigin;
