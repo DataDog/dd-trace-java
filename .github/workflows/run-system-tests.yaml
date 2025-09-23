@@ -58,7 +58,7 @@ jobs:
   main:
     needs:
     - build
-    uses: DataDog/system-tests/.github/workflows/system-tests.yml@84c7354433427ffb4d1a48ad60166627fac8cee3 # Automated: This reference is automatically updated.
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@4cd0d9c17677998a7aed352b7df0c2330bf0bfd7 # Automated: This reference is automatically updated.
     secrets: inherit
     permissions:
       contents: read
@@ -66,7 +66,7 @@ jobs:
       packages: write
     with:
       library: java
-      ref: 84c7354433427ffb4d1a48ad60166627fac8cee3 # Automated: This reference is automatically updated.
+      ref: 4cd0d9c17677998a7aed352b7df0c2330bf0bfd7 # Automated: This reference is automatically updated.
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
