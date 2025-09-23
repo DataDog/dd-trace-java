@@ -8,6 +8,11 @@ import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.build.event.BuildEventsListenerRegistry
+import org.gradle.tooling.events.FinishEvent
+import org.gradle.tooling.events.OperationCompletionListener
+import org.gradle.tooling.events.task.TaskFinishEvent
+import org.gradle.tooling.events.task.TaskSuccessResult
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.lang.reflect.Method
@@ -19,8 +24,16 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
   providers: ProviderFactory,
   objects: ObjectFactory,
 ) : AbstractMuzzleTask() {
+
+  @get:Inject
+  abstract val buildEventsListenerRegistry: BuildEventsListenerRegistry
+
   init {
     description = "Print references created by instrumentation muzzle"
+    outputs.upToDateWhen { true }
+    buildEventsListenerRegistry.doOnSuccess(providers) {
+      project.logger.quiet(outputFile.get().asFile.readText())
+    }
   }
 
   @get:InputFiles
@@ -46,5 +59,19 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
     printMethod.invoke(null, cl, PrintWriter(stringWriter))
 
     outputFile.get().asFile.writeText(stringWriter.toString())
+  }
+
+  private fun BuildEventsListenerRegistry.doOnSuccess(providers: ProviderFactory, block: () -> Unit) {
+    onTaskCompletion(
+      providers.provider {
+        object : OperationCompletionListener {
+          override fun onFinish(event: FinishEvent) {
+            if ((event is TaskFinishEvent) && (event.descriptor.taskPath == path) && (event.result is TaskSuccessResult)) {
+              block()
+            }
+          }
+        }
+      }
+    )
   }
 }
