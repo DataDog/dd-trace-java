@@ -305,7 +305,7 @@ apm_configuration_default:
 
     then:
     def collectedConfigs = ConfigCollector.get().collect()
-    def serviceSetting = collectedConfigs.get("SERVICE")
+    def serviceSetting = collectedConfigs.get(ConfigOrigin.LOCAL_STABLE_CONFIG).("SERVICE")
     serviceSetting.configId == expectedConfigId
     serviceSetting.value == "test-service"
     serviceSetting.origin == ConfigOrigin.LOCAL_STABLE_CONFIG
