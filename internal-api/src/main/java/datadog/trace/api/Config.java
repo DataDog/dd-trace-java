@@ -5084,6 +5084,9 @@ public class Config {
 
   // Helper method to check if comment injection is enabled
   public boolean isDbmCommentInjectionEnabled() {
+    if (dbmPropagationMode == null) {
+      return false;
+    }
     return dbmPropagationMode.equals(DBM_PROPAGATION_MODE_FULL)
         || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC);
   }

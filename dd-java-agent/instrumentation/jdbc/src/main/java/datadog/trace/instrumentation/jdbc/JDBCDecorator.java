@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
@@ -50,11 +51,12 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
 
-  // Use Config methods for DBM settings
-  private static final Config CONFIG = Config.get();
-  public static final boolean INJECT_COMMENT = CONFIG.isDbmCommentInjectionEnabled();
+  public static final String DBM_PROPAGATION_MODE = Config.get().getDbmPropagationMode();
+  public static final boolean INJECT_COMMENT =
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
   private static final boolean INJECT_TRACE_CONTEXT =
-      CONFIG.getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL);
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
@@ -417,9 +419,5 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       return false;
     }
     return INJECT_TRACE_CONTEXT;
-  }
-
-  public boolean shouldInjectSQLComment() {
-    return Config.get().isDbmCommentInjectionEnabled();
   }
 }
