@@ -113,13 +113,13 @@ public class SQLCommenter {
       int startIdx = sql.lastIndexOf(OPEN_COMMENT);
       int endIdx = sql.lastIndexOf(CLOSE_COMMENT);
       if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-        return sql.substring(startIdx + 2, endIdx);
+        return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
       }
     } else {
       int startIdx = sql.indexOf(OPEN_COMMENT);
       int endIdx = sql.indexOf(CLOSE_COMMENT);
       if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-        return sql.substring(startIdx + 2, endIdx);
+        return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
       }
     }
     return "";
