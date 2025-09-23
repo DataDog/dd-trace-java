@@ -72,6 +72,7 @@ import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
+import datadog.trace.common.metrics.NoOpMetricsAggregator;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.sampling.SpanSamplingRules;
@@ -182,7 +183,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
 
-  final MetricsAggregator metricsAggregator;
+  volatile MetricsAggregator metricsAggregator;
 
   /** Initial static configuration associated with the tracer. */
   final Config initialConfig;
@@ -783,14 +784,26 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceBuffer.start();
 
     sharedCommunicationObjects.whenReady(this.writer::start);
-
-    metricsAggregator =
-        createMetricsAggregator(config, sharedCommunicationObjects, this.healthMetrics);
-    // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
-    // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
-    // same time from sending metrics in sync.
-    AgentTaskScheduler.get()
-        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+    // temporary assign a no-op instance. The final one will be resolved when the discovery will be
+    // allowed
+    metricsAggregator = NoOpMetricsAggregator.INSTANCE;
+    final SharedCommunicationObjects sco = sharedCommunicationObjects;
+    // asynchronously create the aggregator to avoid triggering expensive classloading during the
+    // tracer initialisation.
+    sharedCommunicationObjects.whenReady(
+        () ->
+            AgentTaskScheduler.get()
+                .execute(
+                    () -> {
+                      metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
+                      // Schedule the metrics aggregator to begin reporting after a random delay of
+                      // 1 to 10 seconds (using milliseconds granularity.)
+                      // This avoids a fleet of traced applications starting at the same time from
+                      // sending metrics in sync.
+                      AgentTaskScheduler.get()
+                          .scheduleWithJitter(
+                              MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+                    }));
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
