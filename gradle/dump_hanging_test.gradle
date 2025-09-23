@@ -4,17 +4,22 @@ import java.util.concurrent.TimeUnit
 // Schedule thread and heap dumps collection near test timeout.
 tasks.withType(Test).configureEach { testTask ->
   doFirst {
+    if (!testTask.timeout.present) {
+      logger.info("No timeout for ${testTask.path}; skipping dump scheduler")
+      return
+    }
+
     def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
-      Thread t = new Thread(r, 'dump-scheduler')
+      Thread t = new Thread(r, "dump-scheduler:${testTask.path}")
       t.daemon = true
       t
     })
 
     // Calculate delay for taking dumps as test timeout minus 1 minutes, but no less than 1 minute.
-    def delayMinutes = Math.max(1L, timeout.get().minusMinutes(1).toMinutes())
+    def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
     def future = scheduler.schedule({
-      logger.warn("Taking dumps for: ${testTask.getPath()} after ${delayMinutes} minutes.")
+      logger.warn("Taking dumps for: ${testTask.path} after ${delayMinutes} minutes.")
 
       try {
         // Use Gradle's build dir and adjust for CI artifacts collection if needed.
@@ -68,21 +73,22 @@ tasks.withType(Test).configureEach { testTask ->
     }, delayMinutes, TimeUnit.MINUTES)
 
     // Store handles for cancellation in doLast.
-    if (testTask.ext.dumpFuture != null) {
-      logger.warn("Found dumpFuture is not null: ${testTask.getPath()}")
-    }
-
-    logger.warn("Saving objects for: ${testTask.getPath()}")
-    testTask.ext.dumpFuture = future
-    testTask.ext.dumpScheduler = scheduler
+    logger.warn("Saving objects for: ${testTask.path}")
+    testTask.extensions.extraProperties.set('dumpFuture', future)
+    testTask.extensions.extraProperties.set('dumpScheduler', scheduler)
   }
 
   doLast {
     // Cancel if the task finished before the scheduled dump.
+    def ex = testTask.extensions.extraProperties
     try {
-      testTask.ext.dumpFuture?.cancel(false)
+      if (ex.hasProperty('dumpFuture')) {
+        ex.get('dumpFuture')?.cancel(false)
+      }
     } finally {
-      testTask.ext.dumpScheduler?.shutdownNow()
+      if (ex.hasProperty('dumpScheduler')) {
+        ex.get('dumpScheduler')?.shutdownNow()
+      }
     }
   }
 }
