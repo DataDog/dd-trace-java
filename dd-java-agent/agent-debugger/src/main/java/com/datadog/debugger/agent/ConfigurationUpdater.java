@@ -131,7 +131,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       }
       currentConfiguration = newConfiguration;
       if (changes.hasProbeRelatedChanges()) {
-        LOGGER.info("Applying new probe configuration, changes: {}", changes);
+        LOGGER.debug("Applying new probe configuration, changes: {}", changes);
         handleProbesChanges(changes, newConfiguration);
       }
     } finally {
@@ -208,7 +208,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
     for (Class<?> clazz : classesToBeTransformed) {
       try {
-        LOGGER.info("Re-transforming class: {}", clazz.getTypeName());
+        LOGGER.debug("Re-transforming class: {}", clazz.getTypeName());
         instrumentation.retransformClasses(clazz);
       } catch (Exception ex) {
         ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
@@ -233,7 +233,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   public ProbeImplementation resolve(String encodedProbeId) {
     ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
     if (definition == null) {
-      LOGGER.warn(SEND_TELEMETRY, "Cannot resolve probe id=" + encodedProbeId);
+      LOGGER.warn(SEND_TELEMETRY, "Cannot resolve probe id={}", encodedProbeId);
     }
     return definition;
   }

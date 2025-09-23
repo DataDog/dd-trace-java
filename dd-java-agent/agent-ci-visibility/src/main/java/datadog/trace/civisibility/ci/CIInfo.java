@@ -23,6 +23,7 @@ public class CIInfo {
     private String ciPipelineId;
     private String ciPipelineName;
     private String ciStageName;
+    private String ciJobId;
     private String ciJobName;
     private String ciPipelineNumber;
     private String ciPipelineUrl;
@@ -72,6 +73,11 @@ public class CIInfo {
       return this;
     }
 
+    public Builder ciJobId(String ciJobId) {
+      this.ciJobId = ciJobId;
+      return this;
+    }
+
     public Builder ciJobUrl(String ciJobUrl) {
       this.ciJobUrl = ciJobUrl;
       return this;
@@ -118,6 +124,7 @@ public class CIInfo {
           ciPipelineId,
           ciPipelineName,
           ciStageName,
+          ciJobId,
           ciJobName,
           ciPipelineNumber,
           ciPipelineUrl,
@@ -134,6 +141,7 @@ public class CIInfo {
   private final String ciPipelineId;
   private final String ciPipelineName;
   private final String ciStageName;
+  private final String ciJobId;
   private final String ciJobName;
   private final String ciPipelineNumber;
   private final String ciPipelineUrl;
@@ -145,7 +153,7 @@ public class CIInfo {
   private final Map<String, String> additionalTags;
 
   public CIInfo() {
-    this(null, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   public CIInfo(
@@ -153,6 +161,7 @@ public class CIInfo {
       String ciPipelineId,
       String ciPipelineName,
       String ciStageName,
+      String ciJobId,
       String ciJobName,
       String ciPipelineNumber,
       String ciPipelineUrl,
@@ -166,6 +175,7 @@ public class CIInfo {
     this.ciPipelineId = ciPipelineId;
     this.ciPipelineName = ciPipelineName;
     this.ciStageName = ciStageName;
+    this.ciJobId = ciJobId;
     this.ciJobName = ciJobName;
     this.ciPipelineNumber = ciPipelineNumber;
     this.ciPipelineUrl = ciPipelineUrl;
@@ -191,6 +201,10 @@ public class CIInfo {
 
   public String getCiStageName() {
     return ciStageName;
+  }
+
+  public String getCiJobId() {
+    return ciJobId;
   }
 
   public String getCiJobName() {
@@ -252,6 +266,7 @@ public class CIInfo {
         && Objects.equals(ciPipelineId, ciInfo.ciPipelineId)
         && Objects.equals(ciPipelineName, ciInfo.ciPipelineName)
         && Objects.equals(ciStageName, ciInfo.ciStageName)
+        && Objects.equals(ciJobId, ciInfo.ciJobId)
         && Objects.equals(ciJobName, ciInfo.ciJobName)
         && Objects.equals(ciPipelineNumber, ciInfo.ciPipelineNumber)
         && Objects.equals(ciPipelineUrl, ciInfo.ciPipelineUrl)
@@ -270,6 +285,7 @@ public class CIInfo {
     hash = 31 * hash + (ciPipelineId == null ? 0 : ciPipelineId.hashCode());
     hash = 31 * hash + (ciPipelineName == null ? 0 : ciPipelineName.hashCode());
     hash = 31 * hash + (ciStageName == null ? 0 : ciStageName.hashCode());
+    hash = 31 * hash + (ciJobId == null ? 0 : ciJobId.hashCode());
     hash = 31 * hash + (ciJobName == null ? 0 : ciJobName.hashCode());
     hash = 31 * hash + (ciPipelineNumber == null ? 0 : ciPipelineNumber.hashCode());
     hash = 31 * hash + (ciPipelineUrl == null ? 0 : ciPipelineUrl.hashCode());
@@ -296,6 +312,9 @@ public class CIInfo {
         + '\''
         + ", ciStageName='"
         + ciStageName
+        + '\''
+        + ", ciJobId='"
+        + ciJobId
         + '\''
         + ", ciJobName='"
         + ciJobName

@@ -1,7 +1,6 @@
 package datadog.common.socket;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import datadog.trace.api.Config;
 import java.io.IOException;

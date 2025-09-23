@@ -10,13 +10,17 @@ import datadog.telemetry.endpoint.EndpointPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
+import datadog.telemetry.metric.ConfigInversionMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
+import datadog.telemetry.rum.RumPeriodicAction;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -51,6 +55,7 @@ public class TelemetrySystem {
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
       actions.add(new OtelEnvMetricPeriodicAction());
+      actions.add(new ConfigInversionMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
@@ -66,6 +71,10 @@ public class TelemetrySystem {
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
       log.debug("Telemetry log collection enabled");
+    }
+    if (InstrumenterConfig.get().isRumEnabled()) {
+      RumInjector.enableTelemetry();
+      actions.add(new RumPeriodicAction(RumInjector.getTelemetryCollector()));
     }
     actions.add(new ProductChangeAction());
     if (Config.get().isApiSecurityEndpointCollectionEnabled()) {

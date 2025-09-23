@@ -6,7 +6,9 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CON
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
+import com.datadog.debugger.exception.AbstractExceptionDebugger;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
+import com.datadog.debugger.exception.FailedTestReplayExceptionDebugger;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
@@ -25,6 +27,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -33,18 +36,13 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.util.SizeCheckedInputStream;
 import datadog.trace.util.TagsHelper;
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +64,7 @@ public class DebuggerAgent {
   private static volatile ClassNameFilter classNameFilter;
   private static volatile SymDBEnablement symDBEnablement;
   private static volatile ConfigurationUpdater configurationUpdater;
-  private static volatile DefaultExceptionDebugger exceptionDebugger;
+  private static volatile AbstractExceptionDebugger exceptionDebugger;
   private static final AtomicBoolean commonInitDone = new AtomicBoolean();
   static final AtomicBoolean dynamicInstrumentationEnabled = new AtomicBoolean();
   static final AtomicBoolean exceptionReplayEnabled = new AtomicBoolean();
@@ -78,9 +76,10 @@ public class DebuggerAgent {
     instrumentation = inst;
     sharedCommunicationObjects = sco;
     Config config = Config.get();
-    DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    // set config updater after setup is done, as some deferred updates might be immediately called
+    DebuggerConfigBridge.setUpdater(new DefaultDebuggerConfigUpdater());
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
@@ -89,6 +88,7 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation();
+      startCodeOriginForSpans();
       if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
@@ -120,7 +120,8 @@ public class DebuggerAgent {
     ProbeStatusSink probeStatusSink =
         new ProbeStatusSink(
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
-    DebuggerSink debuggerSink = createDebuggerSink(config, probeStatusSink);
+    DebuggerSink debuggerSink =
+        createDebuggerSink(config, ddAgentFeaturesDiscovery, probeStatusSink);
     debuggerSink.start();
     configurationUpdater =
         new ConfigurationUpdater(
@@ -154,8 +155,14 @@ public class DebuggerAgent {
     String probeFileLocation = config.getDynamicInstrumentationProbeFile();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
-      loadFromFile(
-          probeFilePath, configurationUpdater, config.getDynamicInstrumentationMaxPayloadSize());
+      Configuration configuration =
+          ConfigurationFileLoader.from(
+              probeFilePath, config.getDynamicInstrumentationMaxPayloadSize());
+      if (configuration != null) {
+        LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
+        configurationUpdater.accept(
+            ConfigurationAcceptor.Source.LOCAL_FILE, configuration.getDefinitions());
+      }
       return;
     }
     if (configurationPoller != null) {
@@ -207,13 +214,13 @@ public class DebuggerAgent {
     Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
-    exceptionDebugger =
-        new DefaultExceptionDebugger(
-            configurationUpdater,
-            classNameFilter,
-            Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond(),
-            config.getDebuggerExceptionMaxCapturedFrames());
+    if (config.isCiVisibilityEnabled()) {
+      exceptionDebugger =
+          new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFilter, config);
+    } else {
+      exceptionDebugger =
+          new DefaultExceptionDebugger(configurationUpdater, classNameFilter, config);
+    }
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }
@@ -270,14 +277,24 @@ public class DebuggerAgent {
     LOGGER.info("Sopping Distributed Debugger");
   }
 
-  private static DebuggerSink createDebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
+  private static DebuggerSink createDebuggerSink(
+      Config config,
+      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
+      ProbeStatusSink probeStatusSink) {
     String tags = getDefaultTagsMergedWithGlobalTags(config);
-    SnapshotSink snapshotSink =
-        new SnapshotSink(
+    BatchUploader lowRateUploader =
+        new BatchUploader(
+            "Snapshots",
             config,
-            tags,
-            new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
+            getSnapshotEndpoint(config, ddAgentFeaturesDiscovery),
+            SnapshotSink.RETRY_POLICY);
+    BatchUploader highRateUploader =
+        new BatchUploader(
+            "Logs",
+            config,
+            getLogEndpoint(config, ddAgentFeaturesDiscovery),
+            SnapshotSink.RETRY_POLICY);
+    SnapshotSink snapshotSink = new SnapshotSink(config, tags, lowRateUploader, highRateUploader);
     SymbolSink symbolSink = new SymbolSink(config);
     return new DebuggerSink(
         config,
@@ -311,6 +328,28 @@ public class DebuggerAgent {
     return debuggerTags + "," + globalTags;
   }
 
+  private static String getLogEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
+      return ddAgentFeaturesDiscovery
+          .buildUrl(ddAgentFeaturesDiscovery.getDebuggerLogEndpoint())
+          .toString();
+    }
+    return config.getFinalDebuggerSnapshotUrl();
+  }
+
+  private static String getSnapshotEndpoint(
+      Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
+    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
+      String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
+      if (debuggerSnapshotEndpoint == null) {
+        throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
+      }
+      return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
+    }
+    return config.getFinalDebuggerSnapshotUrl();
+  }
+
   private static String getDiagnosticEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
     if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
@@ -323,34 +362,14 @@ public class DebuggerAgent {
 
   private static void setupSourceFileTracking(
       Instrumentation instrumentation, ClassesToRetransformFinder finder) {
+    if (!Config.get().isDebuggerSourceFileTrackingEnabled()) {
+      LOGGER.debug("Source file tracking is disabled");
+      return;
+    }
     SourceFileTrackingTransformer sourceFileTrackingTransformer =
         new SourceFileTrackingTransformer(finder);
     sourceFileTrackingTransformer.start();
     instrumentation.addTransformer(sourceFileTrackingTransformer);
-  }
-
-  private static void loadFromFile(
-      Path probeFilePath, ConfigurationUpdater configurationUpdater, long maxPayloadSize) {
-    LOGGER.debug("try to load from file...");
-    try (InputStream inputStream =
-        new SizeCheckedInputStream(new FileInputStream(probeFilePath.toFile()), maxPayloadSize)) {
-      byte[] buffer = new byte[4096];
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
-      int bytesRead;
-      do {
-        bytesRead = inputStream.read(buffer);
-        if (bytesRead > -1) {
-          outputStream.write(buffer, 0, bytesRead);
-        }
-      } while (bytesRead > -1);
-      Configuration configuration =
-          DebuggerProductChangesListener.Adapter.deserializeConfiguration(
-              outputStream.toByteArray());
-      LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
-      configurationUpdater.accept(REMOTE_CONFIG, configuration.getDefinitions());
-    } catch (IOException ex) {
-      LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);
-    }
   }
 
   private static void subscribeConfigurationPoller(
@@ -495,7 +514,9 @@ public class DebuggerAgent {
             "SymbolDB stats:",
             symbolDBStats,
             "Exception Fingerprints:",
-            exceptionFingerprints);
+            exceptionFingerprints,
+            "SourceFile tracking entries:",
+            String.valueOf(classesToRetransformFinder.getClassNamesBySourceFile().size()));
     TracerFlare.addText(zip, "dynamic_instrumentation.txt", content);
   }
 }

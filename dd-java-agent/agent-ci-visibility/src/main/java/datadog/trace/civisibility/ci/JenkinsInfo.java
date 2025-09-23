@@ -36,6 +36,8 @@ class JenkinsInfo implements CIProviderInfo {
   public static final String JENKINS_DD_CUSTOM_TRACE_ID = "DD_CUSTOM_TRACE_ID";
   public static final String JENKINS_NODE_NAME = "NODE_NAME";
   public static final String JENKINS_NODE_LABELS = "NODE_LABELS";
+  public static final String JENKINS_PR_NUMBER = "CHANGE_ID";
+  public static final String JENKINS_PR_BASE_BRANCH = "CHANGE_TARGET";
 
   private final CiEnvironment environment;
 
@@ -72,7 +74,12 @@ class JenkinsInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(JENKINS_PR_BASE_BRANCH)),
+        null,
+        null,
+        CommitInfo.NOOP,
+        environment.get(JENKINS_PR_NUMBER));
   }
 
   private String buildCiNodeLabels() {

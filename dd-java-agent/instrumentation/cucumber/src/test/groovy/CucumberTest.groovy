@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.config.CiVisibilityConfig
@@ -13,7 +13,7 @@ import org.junit.platform.suite.engine.SuiteTestEngine
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
-class CucumberTest extends AgentTestRunner {
+class CucumberTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

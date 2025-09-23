@@ -1,5 +1,5 @@
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -34,7 +34,7 @@ tasks.withType(Test).configureEach {
 
   // TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
   //  def isLatestJdk = project.findProperty("testJvm") == latestJdk
-  //  def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
+  //  def latestJavaHome = providers.environmentVariable("JAVA_${latestJdk}_HOME").orNull
   //  if (isLatestJdk && latestJavaHome) {
   //    dependsOn buildLatestJdkApp
   //  }

@@ -1,5 +1,7 @@
 package jvmbootstraptest;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+
 import datadog.trace.agent.test.IntegrationTestUtils;
 import java.io.File;
 import java.io.FilePermission;
@@ -9,10 +11,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Basic sanity check that InitializationTelemetry is functioning
@@ -20,12 +26,19 @@ import java.util.Set;
  * <p>Checks edge cases where InitializationTelemetry is blocked by SecurityManagers
  */
 public class InitializationTelemetryCheck {
-  public static void main(String[] args) throws InterruptedException {
+  public static void main(String[] args) throws Exception {
     // Emulates the real application performing work in main().
-    // That should give enough time to send initial telemetry from daemon thread.
-    if (args.length > 0 && "sleep".equals(args[0])) {
-      Thread.sleep(1000);
+    // Start sub-process to generate one trace.
+    try {
+      ProcessBuilder builder = new ProcessBuilder("echo");
+      Process process = builder.start();
+      process.waitFor(5, TimeUnit.SECONDS);
+    } catch (SecurityException se) {
+      // Ignore security exceptions, as it can be part of strict security manager test.
     }
+
+    // That should give enough time to send initial telemetry and traces.
+    Thread.sleep(2000);
   }
 
   /** Blocks the loading of the agent bootstrap */
@@ -75,22 +88,13 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final Result runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
+  public static Result runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
       throws Exception {
-    return runTestJvm(securityManagerClass, false, null);
+    return runTestJvm(securityManagerClass, DEFAULT_TRACE_AGENT_PORT);
   }
 
-  public static final Result runTestJvm(
-      Class<? extends TestSecurityManager> securityManagerClass, boolean printStreams)
-      throws Exception {
-    return runTestJvm(securityManagerClass, printStreams, null);
-  }
-
-  public static final Result runTestJvm(
-      Class<? extends TestSecurityManager> securityManagerClass,
-      boolean printStreams,
-      String mainArgs)
-      throws Exception {
+  public static Result runTestJvm(
+      Class<? extends TestSecurityManager> securityManagerClass, int port) throws Exception {
 
     File jarFile =
         IntegrationTestUtils.createJarFileWithClasses(requiredClasses(securityManagerClass));
@@ -98,6 +102,12 @@ public class InitializationTelemetryCheck {
     File forwarderFile =
         createTempFile("forwarder", "sh", PosixFilePermissions.fromString("rwxr--r--"));
     File outputFile = new File(forwarderFile.getAbsoluteFile() + ".out");
+
+    List<String> jvmArgs = new ArrayList<>();
+    jvmArgs.add("-Ddd.trace.agent.port=" + port);
+    if (securityManagerClass != null) {
+      jvmArgs.add("-Djava.security.manager=" + securityManagerClass.getName());
+    }
 
     write(
         forwarderFile,
@@ -108,11 +118,11 @@ public class InitializationTelemetryCheck {
       int exitCode =
           IntegrationTestUtils.runOnSeparateJvm(
               InitializationTelemetryCheck.class.getName(),
-              InitializationTelemetryCheck.jvmArgs(securityManagerClass),
-              InitializationTelemetryCheck.mainArgs(mainArgs),
+              jvmArgs,
+              Collections.emptyList(),
               InitializationTelemetryCheck.envVars(forwarderFile),
               jarFile,
-              printStreams);
+              true);
 
       return new Result(exitCode, read(outputFile));
     } finally {
@@ -120,8 +130,8 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  static final File createTempFile(
-      String baseName, String extension, Set<PosixFilePermission> perms) throws IOException {
+  static File createTempFile(String baseName, String extension, Set<PosixFilePermission> perms)
+      throws IOException {
     Path path =
         Files.createTempFile(
             baseName + "-integration-telemetry-check",
@@ -132,11 +142,11 @@ public class InitializationTelemetryCheck {
     return file;
   }
 
-  static final void write(File file, String... lines) throws IOException {
+  static void write(File file, String... lines) throws IOException {
     Files.write(file.toPath(), Arrays.asList(lines));
   }
 
-  static final String read(File file) {
+  static String read(File file) {
     try {
       return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     } catch (IOException e) {
@@ -144,13 +154,13 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  static final void delete(File... tempFiles) {
+  static void delete(File... tempFiles) {
     for (File file : tempFiles) {
       file.delete();
     }
   }
 
-  public static final Class<?>[] requiredClasses(
+  public static Class<?>[] requiredClasses(
       Class<? extends TestSecurityManager> securityManagerClass) {
 
     if (securityManagerClass == null) {
@@ -168,23 +178,7 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final String[] jvmArgs(Class<? extends TestSecurityManager> securityManagerClass) {
-    if (securityManagerClass == null) {
-      return new String[] {};
-    } else {
-      return new String[] {"-Djava.security.manager=" + securityManagerClass.getName()};
-    }
-  }
-
-  public static final String[] mainArgs(String args) {
-    if (args == null) {
-      return new String[] {};
-    } else {
-      return args.split(",");
-    }
-  }
-
-  public static final Map<String, String> envVars(File forwarderFile) {
+  public static Map<String, String> envVars(File forwarderFile) {
     Map<String, String> envVars = new HashMap<>();
     envVars.put("DD_TELEMETRY_FORWARDER_PATH", forwarderFile.getAbsolutePath());
     return envVars;

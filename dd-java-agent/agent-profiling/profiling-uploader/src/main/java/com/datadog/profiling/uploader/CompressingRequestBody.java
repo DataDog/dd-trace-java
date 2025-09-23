@@ -85,9 +85,9 @@ final class CompressingRequestBody extends RequestBody {
 
   // https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md#general-structure-of-lz4-frame-format
   private static final int[] LZ4_MAGIC = new int[] {0x04, 0x22, 0x4D, 0x18};
-  private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
-  private static final int GZ_MAGIC[] = new int[] {31, 139};
-  private static final int ZSTD_MAGIC[] = new int[] {0x28, 0xB5, 0x2F, 0xFD};
+  private static final int[] ZIP_MAGIC = new int[] {80, 75, 3, 4};
+  private static final int[] GZ_MAGIC = new int[] {31, 139};
+  private static final int[] ZSTD_MAGIC = new int[] {0x28, 0xB5, 0x2F, 0xFD};
 
   private final InputStreamSupplier inputStreamSupplier;
   private final OutputStreamMappingFunction outputStreamMapper;
@@ -364,15 +364,15 @@ final class CompressingRequestBody extends RequestBody {
         {
           return out -> out;
         }
-      case ZSTD:
-        {
-          return CompressingRequestBody::toZstdStream;
-        }
-      case ON:
       case LZ4:
-      default:
         {
           return CompressingRequestBody::toLz4Stream;
+        }
+      case ON:
+      case ZSTD:
+      default:
+        {
+          return CompressingRequestBody::toZstdStream;
         }
     }
   }

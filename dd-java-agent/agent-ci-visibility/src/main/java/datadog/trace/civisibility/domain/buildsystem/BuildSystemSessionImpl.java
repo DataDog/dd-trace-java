@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -8,17 +9,14 @@ import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
-import datadog.trace.api.civisibility.telemetry.TagValue;
-import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
+import datadog.trace.civisibility.coverage.report.CoverageProcessor;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.BuildSystemSession;
@@ -35,7 +33,6 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,7 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 
-public class BuildSystemSessionImpl<T extends CoverageCalculator> extends AbstractTestSession
+public class BuildSystemSessionImpl<T extends CoverageProcessor> extends AbstractTestSession
     implements BuildSystemSession {
 
   private final String startCommand;
@@ -51,10 +48,9 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
   private final ExecutionSettingsFactory executionSettingsFactory;
   private final SignalServer signalServer;
   private final RepoIndexProvider repoIndexProvider;
-  private final CoverageCalculator.Factory<T> coverageCalculatorFactory;
-  private final T coverageCalculator;
+  private final CoverageProcessor.Factory<T> coverageProcessorFactory;
+  private final T coverageProcessor;
   private final BuildSessionSettings settings;
-  private final Object tagPropagationLock = new Object();
 
   public BuildSystemSessionImpl(
       String projectName,
@@ -71,7 +67,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       ExecutionSettingsFactory executionSettingsFactory,
       SignalServer signalServer,
       RepoIndexProvider repoIndexProvider,
-      CoverageCalculator.Factory<T> coverageCalculatorFactory) {
+      CoverageProcessor.Factory<T> coverageProcessorFactory) {
     super(
         projectName,
         startTime,
@@ -88,10 +84,14 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     this.executionSettingsFactory = executionSettingsFactory;
     this.signalServer = signalServer;
     this.repoIndexProvider = repoIndexProvider;
-    this.coverageCalculatorFactory = coverageCalculatorFactory;
-    this.coverageCalculator = coverageCalculatorFactory.sessionCoverage(span.getSpanId());
+    this.coverageProcessorFactory = coverageProcessorFactory;
+    this.coverageProcessor = coverageProcessorFactory.sessionCoverage(span.getSpanId());
+
+    ExecutionSettings executionSettings =
+        executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
     this.settings =
         new BuildSessionSettings(
+            executionSettings.isCodeCoverageReportUploadEnabled(),
             getCoverageIncludedPackages(config, repoIndexProvider),
             config.getCiVisibilityCodeCoverageExcludes());
 
@@ -169,8 +169,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         codeowners,
         linesResolver,
         moduleSignalRouter,
-        coverageCalculatorFactory,
-        coverageCalculator,
+        coverageProcessorFactory,
+        coverageProcessor,
         executionSettings,
         settings,
         this::onModuleFinish);
@@ -183,22 +183,18 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
 
   private void onModuleFinish(AgentSpan moduleSpan) {
     // multiple modules can finish in parallel
-    synchronized (tagPropagationLock) {
-      SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
-
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_EARLY_FLAKE_ENABLED, Boolean::logicalOr);
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_EARLY_FLAKE_ABORT_REASON);
-
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_CODE_COVERAGE_ENABLED, Boolean::logicalOr);
-      SpanUtils.propagateTag(
-          span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, Boolean::logicalOr);
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_TYPE);
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum);
-      SpanUtils.propagateTag(span, moduleSpan, DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr);
-
-      SpanUtils.propagateTag(
-          span, moduleSpan, Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr);
-    }
+    tagPropagator.propagateCiVisibilityTags(moduleSpan);
+    tagPropagator.propagateTags(
+        moduleSpan,
+        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
+        TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum),
+        TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY, Boolean::logicalOr));
   }
 
   @Override
@@ -207,18 +203,10 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
   }
 
   @Override
-  protected Collection<TagValue> additionalTelemetryTags() {
-    if (Constants.EFD_ABORT_REASON_FAULTY.equals(span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
-      return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
-    }
-    return Collections.emptySet();
-  }
-
-  @Override
   public void end(@Nullable Long endTime) {
     signalServer.stop();
 
-    Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
+    Long coveragePercentage = coverageProcessor.processCoverageData();
     if (coveragePercentage != null) {
       setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
 

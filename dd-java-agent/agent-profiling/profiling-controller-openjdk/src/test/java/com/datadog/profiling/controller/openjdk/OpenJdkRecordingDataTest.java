@@ -1,14 +1,13 @@
 package com.datadog.profiling.controller.openjdk;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,7 +43,7 @@ public class OpenJdkRecordingDataTest {
 
   @BeforeEach
   public void setup() throws IOException {
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
     when(recording.getStream(start, end)).thenReturn(stream);
     when(recording.getStream(customStart, customEnd)).thenReturn(customStream);
     when(recording.getStartTime()).thenReturn(start);
@@ -76,7 +75,7 @@ public class OpenJdkRecordingDataTest {
 
   @Test
   public void testToString() {
-    assertThat(recordingData.toString(), containsString(TEST_NAME));
+    assertTrue(recordingData.toString().contains(TEST_NAME));
   }
 
   @Test

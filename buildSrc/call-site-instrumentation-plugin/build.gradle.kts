@@ -37,9 +37,9 @@ dependencies {
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
   testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
-  testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
+  testImplementation(libs.spock.core)
   testImplementation("org.objenesis", "objenesis", "3.0.1")
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
+  testImplementation(libs.groovy)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.2.0")
 }
@@ -52,41 +52,39 @@ sourceSets {
   }
 }
 
-val copyCallSiteSources = tasks.register<Copy>("copyCallSiteSources") {
-  val csiPackage = "datadog/trace/agent/tooling/csi"
-  val source = layout.projectDirectory.file("../../dd-java-agent/agent-tooling/src/main/java/$csiPackage")
-  val target = layout.buildDirectory.dir("generated/sources/csi/$csiPackage")
-  doFirst {
-    val folder = target.get().asFile
-    if (folder.exists() && !folder.deleteRecursively()) {
-      throw GradleException("Cannot delete files in $folder")
-    }
-  }
-  from(source)
-  into(target)
-  group = "build"
-}
-
 tasks {
-  withType<AbstractCompile>() {
+  val copyCallSiteSources = register<Copy>("copyCallSiteSources") {
+    val csiPackage = "datadog/trace/agent/tooling/csi"
+    val source = layout.projectDirectory.file("../../dd-java-agent/agent-tooling/src/main/java/$csiPackage")
+    val target = layout.buildDirectory.dir("generated/sources/csi/$csiPackage")
+    doFirst {
+      val folder = target.get().asFile
+      if (folder.exists() && !folder.deleteRecursively()) {
+        throw GradleException("Cannot delete files in $folder")
+      }
+    }
+    from(source)
+    into(target)
+    group = "build"
+  }
+
+  withType<AbstractCompile>().configureEach {
     dependsOn(copyCallSiteSources)
   }
-}
 
-tasks {
-  named<ShadowJar>("shadowJar") {
+  shadowJar {
     mergeServiceFiles()
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }
   }
-}
 
-tasks.build {
-  dependsOn(tasks.shadowJar)
-}
+  build {
+    dependsOn(shadowJar)
+  }
 
-tasks.test {
-  useJUnitPlatform()
-  enabled = project.hasProperty("runBuildSrcTests")
+  test {
+    useJUnitPlatform()
+    enabled = project.hasProperty("runBuildSrcTests")
+  }
 }

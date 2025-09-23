@@ -1,21 +1,21 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.Platform
-import datadog.trace.test.agent.decoder.DecodedSpan
-import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
+import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
+import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.util.Strings
 import groovy.json.JsonSlurper
-
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicInteger
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Function
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -49,6 +49,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   @Shared
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
+
+  @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> rcClientMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  private Throwable rcClientDecodingFailure = null
 
   @Shared
   protected final PollingConditions defaultPoll = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
@@ -129,6 +135,14 @@ abstract class AbstractSmokeTest extends ProcessManager {
         response.status(200).send()
       }
       prefix("/v0.7/config") {
+        if (request.getBody() != null) {
+          try {
+            final msg = new JsonSlurper().parseText(new String(request.getBody(), StandardCharsets.UTF_8)) as Map<String, Object>
+            rcClientMessages.add(msg)
+          } catch (Throwable t) {
+            rcClientDecodingFailure = t
+          }
+        }
         response.status(200).send(remoteConfigResponse)
       }
       prefix("/telemetry/proxy/api/v2/apmtelemetry") {
@@ -199,7 +213,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       ret += "-Ddd.telemetry.heartbeat.interval=5"
     }
     // DQH - Nov 2024 - skipping for J9 which doesn't have full crash tracking support
-    if (testCrashTracking() && !Platform.isJ9()) {
+    if (testCrashTracking() && !JavaVirtualMachine.isJ9()) {
       def extension = getScriptExtension()
       ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
@@ -209,7 +223,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   static String getScriptExtension() {
-    return Platform.isWindows() ? "bat" : "sh"
+    return OperatingSystem.isWindows() ? "bat" : "sh"
   }
 
   def inferServiceName() {
@@ -218,7 +232,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   private static boolean isDdprofSafe() {
     // currently the J9 handling of jmethodIDs will cause frequent crashes
-    return !Platform.isJ9()
+    return !JavaVirtualMachine.isJ9()
   }
 
 
@@ -347,6 +361,21 @@ abstract class AbstractSmokeTest extends ProcessManager {
       }
       assert telemetryFlatMessages.find { predicate.apply(it) } != null
     }
+  }
+
+  Map<String, Object> waitForRcClientRequest(final Function<Map<String, Object>, Boolean> predicate) {
+    waitForRcClientRequest(defaultPoll, predicate)
+  }
+
+  Map<String, Object> waitForRcClientRequest(final PollingConditions poll, final Function<Map<String, Object>, Boolean> predicate) {
+    def message = null
+    poll.eventually {
+      if (rcClientDecodingFailure != null) {
+        throw rcClientDecodingFailure
+      }
+      assert (message = rcClientMessages.find { predicate.apply(it) }) != null
+    }
+    return message
   }
 
   List<DecodedTrace> getTraces() {

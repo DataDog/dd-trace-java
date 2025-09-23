@@ -1,14 +1,19 @@
 package datadog.trace.instrumentation.grpc.client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
+import datadog.context.Context;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -18,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -29,15 +33,9 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
-  private static LinkedHashMap<String, String> createClientPathwaySortedTags() {
-    LinkedHashMap<String, String> result = new LinkedHashMap<>();
-    result.put(DIRECTION_TAG, DIRECTION_OUT);
-    result.put(TYPE_TAG, "grpc");
-    return result;
+  private static DataStreamsContext createDsmContext() {
+    return fromTags(create("grpc", OUTBOUND));
   }
-
-  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS =
-      createClientPathwaySortedTags();
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
@@ -108,9 +106,16 @@ public class GrpcClientDecorator extends ClientDecorator {
     return afterStart(span);
   }
 
-  public AgentSpan onClose(final AgentSpan span, final Status status) {
+  public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
+    if (traceConfig().isDataStreamsEnabled()) {
+      context = context.with(createDsmContext());
+    }
+    defaultPropagator().inject(context, request, setter);
+  }
 
+  public AgentSpan onClose(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
+    span.setTag("grpc.status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
 
     // TODO why is there a mismatch between client / server for calling the onError method?

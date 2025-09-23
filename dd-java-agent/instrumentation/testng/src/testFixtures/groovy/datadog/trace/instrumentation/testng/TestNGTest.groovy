@@ -1,10 +1,8 @@
 package datadog.trace.instrumentation.testng
 
-
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import org.example.*
 import org.junit.jupiter.api.Assumptions
@@ -149,8 +147,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName            | tests         | prDiff
     "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
     "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
     "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }

@@ -1,0 +1,43 @@
+plugins {
+  id 'com.google.protobuf' version '0.9.4'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = "com.google.protobuf"
+    module = "protobuf-java"
+    versions = "[2.0.0,)"
+    skipVersions = ["2.0.1", "2.0.3", "2.1.0", "2.2.0", "2.3.0", "2.4.0a", "2.4.1"]
+    assertInverse = true
+  }
+}
+
+protobuf {
+  protoc {
+    def os = System.getProperty("os.name").toLowerCase()
+    def arch = System.getProperty("os.arch").toLowerCase()
+
+    // There is no m1 support for protoc 3.0.0, so require Rosetta
+    if (os.contains("mac") && arch.contains("aarch64")) {
+      artifact = "com.google.protobuf:protoc:3.0.0:osx-x86_64"
+    } else {
+      artifact = "com.google.protobuf:protoc:3.0.0"
+    }
+  }
+}
+
+
+dependencies {
+  compileOnly group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
+  testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
+}
+
+sourceSets {
+  test {
+    java {
+      srcDir "$buildDir/generated/source/proto/test/java"
+    }
+  }
+}

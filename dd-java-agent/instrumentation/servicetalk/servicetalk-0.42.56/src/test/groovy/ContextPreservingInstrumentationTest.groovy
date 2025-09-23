@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.servicetalk.concurrent.api.AsyncContext
@@ -8,7 +8,7 @@ import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ContextPreservingInstrumentationTest extends AgentTestRunner {
+class ContextPreservingInstrumentationTest extends InstrumentationSpecification {
 
   def "capturedContext"() {
     setup:
@@ -25,6 +25,27 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
 
     then:
     assertParentChildTrace()
+  }
+
+  def "capturedContext without an active span"() {
+    when:
+    runInSeparateThread {
+      try (def _ = asyncContextProvider.captureContext().attachContext()) {
+        childSpan()
+      }
+    }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "child"
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
   def "wrapBiConsumer"() {

@@ -3,10 +3,11 @@
 ## Introduction
 
 Around 120 integrations consisting of about 200 instrumentations are currently provided with the Datadog Java Trace
-Agent. An auto-instrumentation allows compiled Java applications to be instrumented at runtime by a Java agent. This
-happens when compiled classes matching rules defined in the instrumentation undergo bytecode manipulation to accomplish
-some of what could be done by a developer instrumenting the code manually. Instrumentations are maintained
-in `/dd-java-agent/instrumentation/`
+Agent.
+An auto-instrumentation allows compiled Java applications to be instrumented at runtime by a Java agent.
+This happens when compiled classes matching rules defined in the instrumentation undergo bytecode manipulation to
+accomplish some of what could be done by a developer instrumenting the code manually.
+Instrumentations are maintained in `/dd-java-agent/instrumentation/`
 
 ## Files/Directories
 
@@ -15,12 +16,12 @@ Instrumentations are in the directory:
 `/dd-java-agent/instrumentation/$framework/$framework-$minVersion`
 
 where `$framework` is the framework name, and `$minVersion` is the minimum version of the framework supported by the
-instrumentation. For example:
+instrumentation.
+For example:
 
 ```
 $ tree dd-java-agent/instrumentation/couchbase -L 2
 dd-java-agent/instrumentation/couchbase
-├── build.gradle
 ├── couchbase-2.0
 │   ├── build.gradle
 │   └── src
@@ -35,32 +36,30 @@ dd-java-agent/instrumentation/couchbase
     └── src
 ```
 
-In some cases, such
-as [Hibernate](../dd-java-agent/instrumentation/hibernate), there is a
-submodule containing different version-specific instrumentations, but typically a version-specific module is enough when
-there is only one instrumentation implemented (
-e.g. [Akka-HTTP](../dd-java-agent/instrumentation/akka-http-10.0))
+In some cases, such as [Hibernate](../dd-java-agent/instrumentation/hibernate), there is a submodule containing
+different version-specific instrumentations, but typically a version-specific module is enough when there is only one
+instrumentation implemented (e.g. [Akka-HTTP](../dd-java-agent/instrumentation/akka/akka-http/akka-http-10.0))
 
 ## Gradle
 
-Instrumentations included when building the Datadog java trace agent are defined
-in [`/settings.gradle`](../settings.gradle) in alphabetical order with
-the other instrumentations in this format:
+Instrumentations included when building the Datadog java trace agent are defined in
+[`/settings.gradle`](../settings.gradle.kts) in alphabetical order with the other instrumentations in this format:
 
-```groovy
-include ':dd-java-agent:instrumentation:$framework?:$framework-$minVersion'
+```kotlin
+include(":dd-java-agent:instrumentation:<framework>:<framework>-<minVersion>")
 ```
 
 Dependencies specific to a particular instrumentation are added to the `build.gradle` file in that instrumentation’s
-directory. Add necessary dependencies as `compileOnly` so they do not leak into the tracer.
+directory.
+Declare necessary dependencies under `compileOnly` configuration so they do not leak into the agent jar.
 
 ## Muzzle
 
-Muzzle directives are applied at build time from the `build.gradle` file. OpenTelemetry provides
-some [Muzzle documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/muzzle.md).
+Muzzle directives are applied at build time from the `build.gradle` file.
+OpenTelemetry provides some [Muzzle documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/muzzle.md).
 Muzzle directives check for a range of framework versions that are safe to load the instrumentation.
 
-See this excerpt as an example from [rediscala](../dd-java-agent/instrumentation/rediscala-1.8.0/build.gradle)
+See this excerpt as an example from [rediscala](../dd-java-agent/instrumentation/rediscala-1.8/build.gradle):
 
 ```groovy
 muzzle {
@@ -87,12 +86,14 @@ When the agent is built, the muzzle plugin will download versions of the framewo
 To run muzzle on your instrumentation, run:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:rediscala-1.8.0:muzzle
+./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle
 ```
 
-* ⚠️ Muzzle does _not_ run tests.
-  It checks that the types and methods used by the instrumentation are present in particular versions of libraries.
-  It can be subverted with `MethodHandle` and reflection, so muzzle passing is not the end of the story.
+> [!WARNING]
+> Muzzle does _not_ run tests.
+> It checks that the types and methods used by the instrumentation are present in particular versions of libraries. 
+> It can be subverted with `MethodHandle` and reflection -- in other words, having the `muzzle` task passing is not enough 
+> to validate an instrumentation.
 
 By default, all the muzzle directives are checked against all the instrumentations included in a module.
 However, there can be situations in which it’s only needed to check one specific directive on an instrumentation.
@@ -139,8 +140,8 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
 ### Grouping Instrumentations
 
-Related instrumentations may be grouped under a single `InstrumenterModule` to share common details
-such as integration name, helpers, context store use, and optional `classLoaderMatcher()`.
+Related instrumentations may be grouped under a single `InstrumenterModule` to share common details such as integration
+name, helpers, context store use, and optional `classLoaderMatcher()`.
 
 Module classes:
 
@@ -152,11 +153,12 @@ Module classes:
 
 > [!WARNING]
 > Grouped instrumentations must NOT be annotated with `@AutoService(InstrumenterModule.class)
-> and must NOT extend any of the six abstract TargetSystem `InstrumenterModule` classes
+> and must NOT extend any of the six abstract `TargetSystem` `InstrumenterModule` classes.
 
 Existing instrumentations can be grouped under a new module, assuming they share the same integration name.
 
 For each member instrumentation:
+
 1. Remove `@AutoService(InstrumenterModule.class)`
 2. Remove `extends InstrumenterModule...`
 3. Move the list of helpers to the module, merging as necessary
@@ -189,7 +191,6 @@ appropriate [ClassLoaderMatcher](https://github.com/DataDog/dd-trace-java/blob/8
 so the Instrumentation only activates when that class is loaded. For example:
 
 ```java
-
 @Override
 public ElementMatcher<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("java.net.http.HttpClient");
@@ -229,7 +230,6 @@ class also provides these 10 additional matchers:
 Here, any public `execute()` method taking no arguments will have `PreparedStatementAdvice` applied:
 
 ```java
-
 @Override
 public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -244,7 +244,6 @@ public void adviceTransformations(AdviceTransformation transformation) {
 Here, any matching `connect()` method will have `DriverAdvice` applied:
 
 ```java
-
 @Override
 public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
@@ -256,18 +255,18 @@ public void adviceTransformations(AdviceTransformation transformation) {
 }
 ```
 
-Be precise in matching to avoid inadvertently instrumenting something unintended in a current or future version of the
-target class. Having multiple precise matchers is preferable to one more vague catch-all matcher which leaves some
-method characteristics undefined.
+Be precise in matching to avoid inadvertently instrumenting something unintended in a current or future version of the target class.
+Having multiple precise matchers is preferable to one more vague catch-all matcher which leaves some method characteristics undefined.
 
 Instrumentation class names should end in _Instrumentation._
 
 ## Helper Classes
 
 Classes referenced by Advice that are not provided on the bootclasspath must be defined in Helper Classes otherwise they
-will not be loaded at runtime. This included any decorators, extractors/injectors or wrapping classes such as tracing
-listeners that extend or implement types provided by the library being instrumented. Also watch out for implicit types
-such as anonymous/nested classes because they must be listed alongside the main helper class.
+will not be loaded at runtime.
+This includes any decorators, extractors/injectors, or wrapping classes such as tracing listeners that extend or implement
+types provided by the library being instrumented. Also watch out for implicit types such as anonymous/nested classes
+because they must be listed alongside the main helper class.
 
 If an instrumentation is producing no results it may be that a required class is missing. Running muzzle
 
@@ -275,8 +274,8 @@ If an instrumentation is producing no results it may be that a required class is
 ./gradlew muzzle
 ```
 
-can quickly tell you if you missed a required helper class. Messages like this in debug logs also indicate that classes
-are missing:
+can quickly tell you if you missed a required helper class.
+Messages like this in debug logs also indicate that classes are missing:
 
 ```
 [MSC service thread 1-3] DEBUG datadog.trace.agent.tooling.muzzle.MuzzleCheck - Muzzled mismatch - instrumentation.names=[jakarta-mdb] instrumentation.class=datadog.trace.instrumentation.jakarta.jms.MDBMessageConsumerInstrumentation instrumentation.target.classloader=ModuleClassLoader for Module "deployment.cmt.war" from Service Module Loader muzzle.mismatch="datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter:20 Missing class datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter$1"
@@ -285,7 +284,6 @@ are missing:
 The missing class must be added in the helperClassNames method, for example:
 
 ```java
-
 @Override
 public String[] helperClassNames() {
     return new String[]{
@@ -299,8 +297,8 @@ public String[] helperClassNames() {
 ## Enums
 
 Use care when deciding to include enums in your Advice and Decorator classes because each element of the enum will need
-to be added to the helper classes individually. For example not just `MyDecorator.MyEnum` but
-also `MyDecorator.MyEnum$1, MyDecorator.MyEnum$2`, etc.
+to be added to the helper classes individually.
+For example not just `MyDecorator.MyEnum` but also `MyDecorator.MyEnum$1, MyDecorator.MyEnum$2`, etc.
 
 ## Decorator Classes
 
@@ -342,57 +340,58 @@ Decorator class names should end in _Decorator._
 
 ## Advice Classes
 
-Byte Buddy injects compiled bytecode at runtime to wrap existing methods, so they communicate with Datadog at entry or
-exit. These modifications are referred to as _advice transformation_ or just _advice_.
+Byte Buddy injects compiled bytecode at runtime to wrap existing methods, so they communicate with Datadog at entry or exit.
+These modifications are referred to as _advice transformation_ or just _advice_.
 
-Instrumenters register advice transformations by calling
-
-`AdviceTransformation.applyAdvice(ElementMatcher, String) `and Methods are matched by the
-instrumentation's `adviceTransformations()` method.
+Instrumenters register advice transformations by calling `AdviceTransformation.applyAdvice(ElementMatcher, String)` 
+and Methods are matched by the instrumentation's `adviceTransformations()` method.
 
 The Advice is injected into the type so Advice can only refer to those classes on the bootstrap class-path or helpers
-injected into the application class-loader. Advice must not refer to any methods in the instrumentation class or even
-other methods in the same advice class because the advice is really only a template of bytecode to be inserted into the
-target class. It is only the advice bytecode (plus helpers) that is copied over. The rest of the instrumenter and advice
-class is ignored. Do not place code in the Advice constructor because the constructor is never called.
+injected into the application class-loader.
+Advice must not refer to any methods in the instrumentation class or even other methods in the same advice class because
+the advice is really only a template of bytecode to be inserted into the target class.
+It is only the advice bytecode (plus helpers) that is copied over.
+The rest of the instrumenter and advice class is ignored.
+Do not place code in the Advice constructor because the constructor is never called.
 
-You can not use methods like `InstrumentationContext.get()`outside of the instrumentation advice because the tracer
-currently patches the method stub with the real call at runtime. But you can pass the ContextStore into a
-helper/decorator like
-in [DatadogMessageListener](https://github.com/DataDog/dd-trace-java/blob/743bacde52ba4369e05631436168bfde9b815c8b/dd-java-agent/instrumentation/jms/src/main/java/datadog/trace/instrumentation/jms/DatadogMessageListener.java).
-This could reduce duplication if you re-used the helper. But unlike most applications, some duplication can be the
-better choice in the tracer if it simplifies things and reduces overhead. You might end up with very similar code
-scattered around, but it will be simple to maintain. Trying to find an abstraction that works well across
-instrumentations can take time and may introduce extra indirection.
+You can not use methods like `InstrumentationContext.get()` outside of the instrumentation advice because the tracer
+currently patches the method stub with the real call at runtime.
+But you can pass the ContextStore into a helper/decorator like in [DatadogMessageListener](https://github.com/DataDog/dd-trace-java/blob/743bacde52ba4369e05631436168bfde9b815c8b/dd-java-agent/instrumentation/jms/src/main/java/datadog/trace/instrumentation/jms/DatadogMessageListener.java).
+This could reduce duplication if you re-used the helper.
+But unlike most applications, some duplication can be the better choice in the tracer if it simplifies things and reduces overhead.
+You might end up with very similar code scattered around, but it will be simple to maintain.
+Trying to find an abstraction that works well across instrumentations can take time and may introduce extra indirection.
 
-Advice classes provide the code to be executed before and/or after a matched method. The classes use a static method
-annotated by `@Advice.OnMethodEnter` and/or `@Advice.OnMethodExit` to provide the code. The method name is irrelevant.
+Advice classes provide the code to be executed before and/or after a matched method.
+The classes use a static method annotated by `@Advice.OnMethodEnter` and/or `@Advice.OnMethodExit` to provide the code.
+The method name is irrelevant.
 
-A method that is annotated with `@Advice.OnMethodEnter `can annotate its parameters
-with `@Advice.Argument`.  `@Advice.Argument` will substitute this parameter with the corresponding argument of the
-instrumented method. This allows the  `@Advice.OnMethodEnter` code to see and modify the parameters that would be passed
-to the target method.
+A method that is annotated with `@Advice.OnMethodEnter `can annotate its parameters with `@Advice.Argument`.
+`@Advice.Argument` will substitute this parameter with the corresponding argument of the instrumented method.
+This allows the `@Advice.OnMethodEnter` code to see and modify the parameters that would be passed to the target method.
 
 Alternatively, a parameter can be annotated by `Advice.This` where the `this` reference of the instrumented method is
-assigned to the new parameter. This can also be used to assign a new value to the `this` reference of an instrumented
-method.
+assigned to the new parameter.
+This can also be used to assign a new value to the `this` reference of an instrumented method.
 
 If no annotation is used on a parameter, it is assigned the n-th parameter of the instrumented method for the n-th
-parameter of the advice method. Explicitly specifying which parameter is intended is recommended to be more clear, for
-example:
+parameter of the advice method.
+Explicitly specifying which parameter is intended is recommended to be more clear, for example:
 
 `@Advice.Argument(0) final HttpUriRequest request`
 
 All parameters must declare the exact same type as the parameters of the instrumented type or the method's declaring
-type for `Advice.This`. If they are marked as read-only, then the parameter type may be a super type of the original.
+type for `Advice.This`.
+If they are marked as read-only, then the parameter type may be a super type of the original.
 
 A method that is annotated with `Advice.OnMethodExit` can also annotate its parameters with `Advice.Argument`
-and `Advice.This`. It can also annotate a parameter with `Advice.Return` to receive the original method's return value.
-By reassigning the return value, it can replace the returned value. If an instrumented method does not return a value,
-this annotation must not be used. If a method throws an exception, the parameter is set to its default value (0 for
-primitive types and to null for reference types). The parameter's type must equal the instrumented method's return type
-if it is not set to read-only. If the parameter is read-only it may be a super type of the instrumented method's return
-type.
+and `Advice.This`.
+It can also annotate a parameter with `Advice.Return` to receive the original method's return value.
+By reassigning the return value, it can replace the returned value.
+If an instrumented method does not return a value, this annotation must not be used.
+If a method throws an exception, the parameter is set to its default value (0 for primitive types and null for reference types).
+The parameter's type must equal the instrumented method's return type if it is not set to read-only.
+If the parameter is read-only it may be a super type of the instrumented method's return type.
 
 Advice class names should end in _Advice._
 
@@ -406,10 +405,15 @@ and
 
 `@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)`
 
-Using `suppress = Throwable.class` is considered our default for both unless there is a reason not to. It means the
-exception handler is triggered on any exception thrown within the Advice and the Advice method terminates. The opposite
-would be either no `suppress` annotation or equivalently `suppress = NoExceptionHandler.class` which would both allow
-exceptions in Advice code to surface and is usually undesirable.
+Using `suppress = Throwable.class` is considered our default for both methods unless there is a reason not to suppress.
+It means the exception handler is triggered on any exception thrown within the Advice, which terminates the Advice method.
+The opposite would be either no `suppress` annotation or equivalently `suppress = NoExceptionHandler.class` which would 
+allow exceptions in Advice code to surface and is usually undesirable.
+
+> [!NOTE]
+> Don't use `suppress` on an advice hooking a constructor.
+> For older JVMs that do not support [flexible constructor bodies](https://openjdk.org/jeps/513), you can't decorate the
+> mandatory self or parent constructor call with try/catch, as it must be the first call from the constructor body.
 
 If
 the [`Advice.OnMethodEnter`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.OnMethodEnter.html)
@@ -421,7 +425,8 @@ The [`Advice.Thrown`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/
 annotation passes any thrown exception from the instrumented method to
 the [`Advice.OnMethodExit`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.OnMethodExit.html)
 advice
-method.  [`Advice.Thrown`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.Thrown.html) ****
+method.  
+[`Advice.Thrown`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.Thrown.html) ****
 should annotate at most one parameter on the exit advice.
 
 If the instrumented method throws an exception,
@@ -433,16 +438,16 @@ the [Advice.Thrown](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/ne
 annotation must not be used on any parameter.
 
 If an instrumented method throws an exception, the return parameter is set to its default of 0 for primitive types or
-null for reference types. An exception can be read by annotating an exit
+null for reference types.
+An exception can be read by annotating an exit
 method’s [Throwable](http://docs.oracle.com/javase/1.5.0/docs/api/java/lang/Throwable.html?is-external=true) parameter
 with [Advice.Thrown](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.Thrown.html)
 which is assigned the
 thrown [Throwable](http://docs.oracle.com/javase/1.5.0/docs/api/java/lang/Throwable.html?is-external=true) or null if a
-method returns normally. This allows exchanging a thrown exception with any checked or unchecked exception. For example,
-either the result or the exception will be passed to the helper method here:
+method returns normally. This allows exchanging a thrown exception with any checked or unchecked exception.
+For example, either the result or the exception will be passed to the helper method here:
 
 ```java
-
 @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
 public static void methodExit(
         @Advice.Return final Object result,
@@ -507,10 +512,10 @@ These implementation-specific methods are both wrapped in a standard set(...) me
 Typically, an instrumentation will use ByteBuddy to apply new code from an Advice class before and/or after the targeted
 code using `@Advice.OnMethodEnter` and `@Advice.OnMethodExit.`
 
-Alternatively, you can replace the call to the target method with your own code which wraps the original method call. An
-example is the JMS Instrumentation which replaces the `MessageListener.onMessage() `method
-with `DatadogMessageListener.onMessage(). `The `DatadogMessageListener`
-then [calls the original`  onMessage()  `method](https://github.com/DataDog/dd-trace-java/blob/9a28dc3f0333e781b2defc378c9020bf0a44ee9a/dd-java-agent/instrumentation/jms/src/main/java/datadog/trace/instrumentation/jms/DatadogMessageListener.java#L73).
+Alternatively, you can replace the call to the target method with your own code which wraps the original method call.
+An example is the JMS Instrumentation which replaces the `MessageListener.onMessage()` method
+with `DatadogMessageListener.onMessage()`. 
+The `DatadogMessageListener` then [calls the original `onMessage()` method](https://github.com/DataDog/dd-trace-java/blob/9a28dc3f0333e781b2defc378c9020bf0a44ee9a/dd-java-agent/instrumentation/jms/src/main/java/datadog/trace/instrumentation/jms/DatadogMessageListener.java#L73).
 Note that this style is **_not recommended_** because it can cause datadog packages to appear in stack traces generated
 by errors in user code. This has created confusion in the past.
 
@@ -518,8 +523,10 @@ by errors in user code. This has created confusion in the past.
 
 Context stores pass information between instrumented methods, using library objects that both methods have access to.
 They can be used to attach data to a request when the request is received, and read that data where the request is
-deserialized. Context stores work internally by dynamically adding a field to the “carrier” object by manipulating the
-bytecode. Since they manipulate bytecode, context stores can only be created within Advice classes. For example:
+deserialized.
+Context stores work internally by dynamically adding a field to the “carrier” object by manipulating the bytecode.
+Since they manipulate bytecode, context stores can only be created within Advice classes.
+For example:
 
 ```java
 ContextStore<X> store = InstrumentationContext.get(
@@ -527,11 +534,12 @@ ContextStore<X> store = InstrumentationContext.get(
 ```
 
 It’s also possible to pass the types as class objects, but this is only possible for classes that are in the bootstrap
-classpath. Basic types like `String` would work and the usual datadog types like `AgentSpan` are OK too, but classes
-from the library you are instrumenting are not.
+classpath.
+Basic types like `String` would work and the usual datadog types like `AgentSpan` are OK too, but classes from the
+library you are instrumenting are not.
 
-In the example above, that context store is used to store an arbitrary `String` in a `ReceiveMessageResult` class. It is
-used like a Map:
+In the example above, that context store is used to store an arbitrary `String` in a `ReceiveMessageResult` class.
+It is used like a Map:
 
 ```java
 store.put(response, "my string");
@@ -547,7 +555,6 @@ Context stores also need to be pre-declared in the Advice by overriding the `con
 them throws exceptions.
 
 ```java
-
 @Override
 public Map<String, String> contextStore() {
     return singletonMap(
@@ -558,8 +565,8 @@ public Map<String, String> contextStore() {
 ```
 
 It is important to understand that even though they look like maps, since the value is stored in the key, you can only
-retrieve a value if you use the exact same key object as when it was set. Using a different object that is “`.equals()`”
-to the first will yield nothing.
+retrieve a value if you use the exact same key object as when it was set.
+Using a different object that is “`.equals()`” to the first will yield nothing.
 
 Since `ContextStore` does not support null keys, null checks must be enforced _before_ using an object as a key.
 
@@ -587,19 +594,13 @@ Finishing the span is normally done by calling `span.finish()` in the exit metho
 The basic span lifecycle in an Advice class looks like:
 
 1. Start the span
-
 2. Decorate the span
-
 3. Activate the span and get the AgentScope
-
 4. Run the instrumented target method
-
 5. Close the Agent Scope
-
 6. Finish the span
 
 ```java
-
 @Advice.OnMethodEnter(suppress = Throwable.class)
 public static AgentScope begin() {
     final AgentSpan span = startSpan(/* */);
@@ -641,11 +642,11 @@ finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61
 ## Naming
 
 - Instrumentation names use kebab case. For example: `google-http-client`
-- Instrumentation module name and package name should be consistent. For example, the
-  instrumentation `google-http-client `contains the `GoogleHttpClientInstrumentation` class in the
+- Instrumentation module name and package name should be consistent.
+  For example, the instrumentation `google-http-client `contains the `GoogleHttpClientInstrumentation` class in the
   package` datadog.trace.instrumentation.googlehttpclient.`
-- As usual, class names should be nouns, in camel case with the first letter of each internal word capitalized. Use
-  whole words-avoid acronyms and abbreviations (unless the abbreviation is much more widely used than the long form,
+- As usual, class names should be nouns, in camel case with the first letter of each internal word capitalized.
+  Use whole words-avoid acronyms and abbreviations (unless the abbreviation is much more widely used than the long form,
   such as URL or HTML).
 - Advice class names should end in _Advice._
 - Instrumentation class names should end in _Instrumentation._
@@ -655,17 +656,15 @@ finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61
 
 ### ignored\_class\_name.trie
 
-The
-file [ignored\_class\_name.trie](../dd-java-agent/agent-tooling/src/main/resources/datadog/trace/agent/tooling/bytebuddy/matcher/ignored_class_name.trie)
+The file [ignored\_class\_name.trie](../dd-java-agent/agent-tooling/src/main/resources/datadog/trace/agent/tooling/bytebuddy/matcher/ignored_class_name.trie)
 lists classes that are to be globally ignored by matchers because they are unsafe, pointless or expensive to transform.
 If you notice an expected class is not being transformed, it may be covered by an entry in this list.
 
 ## GraalVM
 
-Instrumentations running on GraalVM should avoid using reflection if possible. If reflection must be used the reflection
-usage should be added to
-
-`dd-java-agent/agent-bootstrap/src/main/resources/META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json`
+Instrumentations running on GraalVM should avoid using reflection if possible.
+If reflection must be used the reflection usage should be added to
+`dd-java-agent/agent-bootstrap/src/main/resources/META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json`.
 
 See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/native-image/dynamic-features/Reflection/#manual-configuration).
 
@@ -673,19 +672,18 @@ See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/
 
 ### Instrumentation Tests
 
-Tests are written in Groovy using the [Spock framework](http://spockframework.org). For
-instrumentations, `AgentTestRunner` must be extended. For example, HTTP server frameworks use base tests which enforce
-consistency between different implementations (
-see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
+Tests are written in Groovy using the [Spock framework](http://spockframework.org).
+For instrumentations, `InstrumentationSpecification` must be extended.
+For example, HTTP server frameworks use base tests which enforce consistency between different implementations
+(see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project,
 for example:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:test
+./gradlew :dd-java-agent:instrumentation:play-ws:play-ws-2.1:test
 ```
 
-Sometimes it is necessary to force Gradle to discard cached test results
-and [rerun all tasks](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:rerun_tasks).
+Sometimes it is necessary to force Gradle to discard cached test results and [rerun all tasks](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:rerun_tasks).
 
 ```shell
 ./gradle test --rerun-tasks
@@ -694,7 +692,7 @@ and [rerun all tasks](https://docs.gradle.org/current/userguide/command_line_int
 Running tests that require JDK-21 will require the `JAVA_21_HOME` env var set and can be done like this:
 
 ```shell
-./gradlew  :dd-java-agent:instrumentation:aerospike-4:allLatestDepTests -PtestJvm=21
+./gradlew  :dd-java-agent:instrumentation:aerospike-4.0:allLatestDepTests -PtestJvm=21
 ```
 
 ### Latest Dependency Tests
@@ -715,16 +713,14 @@ latestDepTestCompile(group: 'com.typesafe.play', name: 'play-test_2.11', version
 Dependency tests can be run like:
 
 ```shell
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:latestDepTest
+./gradlew :dd-java-agent:instrumentation:play-ws:play-ws-2.1:latestDepTest
 ```
 
 ### Additional Test Suites
 
-The
-file [dd-trace-java/gradle/test-suites.gradle](../gradle/test-suites.gradle)
-contains these macros for adding different test suites to individual instrumentation builds. Notice how `addTestSuite`
-and `addTestSuiteForDir` pass values
-to [`addTestSuiteExtendingForDir`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/gradle/test-suites.gradle#L3)
+The file [dd-trace-java/gradle/test-suites.gradle](../gradle/test-suites.gradle)
+contains these macros for adding different test suites to individual instrumentation builds.
+Notice how `addTestSuite` and `addTestSuiteForDir` pass values to [`addTestSuiteExtendingForDir`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/gradle/test-suites.gradle#L3)
 which configures the tests.
 
 ```groovy
@@ -751,19 +747,18 @@ Also, the forked test for latestDep is not run by default without declaring some
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 ```
 
-(also
-example [`vertx-web-3.5/build.gradle`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/dd-java-agent/instrumentation/vertx-web-3.5/build.gradle#L18)`)`
+(also example [`vertx-web-3.5/build.gradle`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/dd-java-agent/instrumentation/vertx-web-3.5/build.gradle#L18)`)`
 
 ### Smoke Tests
 
-In addition to unit tests, [Smoke tests](../dd-smoke-tests) may be
-needed. Smoke tests run with a real agent jar file set as the `javaagent`. These are optional and not all frameworks
-have them, but contributions are very welcome.
+In addition to unit tests, [Smoke tests](../dd-smoke-tests) may be needed.
+Smoke tests run with a real agent jar file set as the `javaagent`.
+These are optional and not all frameworks have them, but contributions are very welcome.
 
 # Summary
 
-Integrations have evolved over time. Newer examples of integrations such as Spring and JDBC illustrate current best
-practices.
+Integrations have evolved over time.
+Newer examples of integrations such as Spring and JDBC illustrate current best practices.
 
 # Additional Reading
 

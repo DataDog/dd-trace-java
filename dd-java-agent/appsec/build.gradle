@@ -2,9 +2,8 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 plugins {
-  id "com.gradleup.shadow"
-  id "me.champeau.jmh"
-  id 'java-test-fixtures'
+  id 'com.gradleup.shadow'
+  id 'me.champeau.jmh'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -15,21 +14,15 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '13.0.1'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '16.0.0'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
-
-  testFixturesApi project(':dd-java-agent:testing')
-}
-
-configurations.testFixturesApi {
-  exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  testImplementation libs.jackson.databind
 }
 
 shadowJar {
@@ -50,7 +43,7 @@ processResources {
 }
 
 jmh {
-  jmhVersion = '1.32'
+  jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
   jvmArgs = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
   failOnError = false
@@ -67,9 +60,10 @@ ext {
   minimumBranchCoverage = 0.6
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
-    'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
+    'com.datadog.appsec.config.AppSecConfigServiceImpl.AppSecConfigChangesListener',
     'com.datadog.appsec.ddwaf.WafInitialization',
     'com.datadog.appsec.ddwaf.WAFModule.WAFDataCallback',
+    'com.datadog.appsec.config.AppSecModuleConfigurer.Reconfiguration',
     'com.datadog.appsec.report.*',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
@@ -81,6 +75,7 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures.Asm',
     'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
     'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
+    'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
   ]

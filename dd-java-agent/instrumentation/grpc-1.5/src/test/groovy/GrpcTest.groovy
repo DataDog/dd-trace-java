@@ -1,3 +1,4 @@
+
 import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES
 
@@ -170,6 +171,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" server.port
             "status.code" "OK"
+            "grpc.status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
@@ -208,6 +210,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
+            "grpc.status.code" "OK"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -243,14 +246,12 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["direction:out", "type:grpc"])
-        edgeTags.size() == 2
+        tags.hasAllTags("direction:out", "type:grpc")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["direction:in", "type:grpc"])
-        edgeTags.size() == 2
+        tags.hasAllTags("direction:in", "type:grpc")
       }
     }
 
@@ -314,6 +315,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "${status.code.name()}"
+            "grpc.status.code" "${status.code.name()}"
             "status.description" description
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
@@ -337,6 +339,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "${status.code.name()}"
+            "grpc.status.code" "${status.code.name()}"
             "status.description" description
             if (status.cause != null) {
               errorTags status.cause.class, status.cause.message
@@ -419,6 +422,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" server.port
             "status.code" "UNKNOWN"
+            "grpc.status.code" "UNKNOWN"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             "status.description" { it == null || String}
@@ -442,6 +446,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "${status.code.name()}"
+            "grpc.status.code" "${status.code.name()}"
             "status.description"  { it == null || String}
             errorTags error.class, error.message
             if ({ isDataStreamsEnabled() }) {
@@ -547,6 +552,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
+            "grpc.status.code" "OK"
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -613,6 +619,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
+            "grpc.status.code" "OK"
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {

@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TagMap
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
@@ -274,7 +275,7 @@ class DDSpanTest extends DDCoreSpecification {
 
     where:
     extractedContext                                                                                                              | _
-    new TagContext("some-origin", [:])                                                                                            | _
+    new TagContext("some-origin", TagMap.fromMap([:]))                                                                                            | _
     new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", propagationTagsFactory.empty(), DATADOG) | _
   }
 
@@ -455,6 +456,11 @@ class DDSpanTest extends DDCoreSpecification {
     span.setError(true, ErrorPriorities.HTTP_SERVER_DECORATOR)
     then:
     !span.isError()
+
+    when:
+    span.setError(true, ErrorPriorities.MANUAL_INSTRUMENTATION)
+    then:
+    span.isError()
 
     when:
     span.setError(true, Byte.MAX_VALUE)

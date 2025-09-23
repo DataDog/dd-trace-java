@@ -40,9 +40,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import datadog.common.version.VersionInfo;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Platform;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -188,7 +188,7 @@ public class ProfileUploaderTest {
   }
 
   @AfterEach
-  public void tearDown() throws IOException {
+  public void tearDown() {
     uploader.shutdown();
     try {
       server.shutdown();
@@ -373,11 +373,11 @@ public class ProfileUploaderTest {
     byte[] uploadedBytes = rawJfr.get();
     if (compression.equals("gzip")) {
       uploadedBytes = unGzip(uploadedBytes);
-    } else if (compression.equals("zstd")) {
-      uploadedBytes = unZstd(uploadedBytes);
-    } else if (compression.equals("on")
-        || compression.equals("lz4")
+    } else if (compression.equals("zstd")
+        || compression.equals("on")
         || compression.equals("invalid")) {
+      uploadedBytes = unZstd(uploadedBytes);
+    } else if (compression.equals("lz4")) {
       uploadedBytes = unLz4(uploadedBytes);
     }
     assertArrayEquals(expectedBytes, uploadedBytes);
@@ -511,7 +511,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() throws Exception {
+  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
     when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
 
     uploader = new ProfileUploader(config, configProvider);
@@ -522,7 +522,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientUsesDefaultConnspecsOverTLS() throws Exception {
+  void testOkHttpClientUsesDefaultConnspecsOverTLS() {
     when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
 
     uploader = new ProfileUploader(config, configProvider);
@@ -568,7 +568,7 @@ public class ProfileUploaderTest {
 
     // J9 has 'almost' implemented JFR, but not really
     // we need to skip this part for J9
-    if (!Platform.isJ9()
+    if (!JavaVirtualMachine.isJ9()
         && Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"))) {
       verify(ioLogger)
           .error(

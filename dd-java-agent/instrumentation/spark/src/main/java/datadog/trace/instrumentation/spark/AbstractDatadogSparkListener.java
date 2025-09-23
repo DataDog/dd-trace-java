@@ -1,15 +1,14 @@
 package datadog.trace.instrumentation.spark;
 
-import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.ProcessTags;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstanceStore;
@@ -31,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -183,7 +181,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           "_dd.trace_id:"
               + traceId.toString()
               + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
-              + sparkServiceName
+              + getServiceForOpenLineage(sparkConf, isRunningOnDatabricks)
+              + ";_dd.ol_intake.process_tags:"
+              + ProcessTags.getTagsForSerialization()
               + ";_dd.ol_app_id:"
               + appId);
       return;
@@ -672,6 +672,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     }
 
+    // OpenLineage call should be prior to method return statements
+    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
+
     // Only sending failing tasks
     if (!(taskEnd.reason() instanceof TaskFailedReason)) {
       return;
@@ -690,8 +693,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     Properties props = stageProperties.get(stageSpanKey);
     sendTaskSpan(stageSpan, taskEnd, props);
-
-    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
   }
 
   public static boolean classIsLoadable(String className) {
@@ -1295,9 +1296,36 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return sparkAppName;
   }
 
+  private static String getServiceForOpenLineage(SparkConf conf, boolean isRunningOnDatabricks) {
+    // Service for OpenLineage in Databricks is not supported yet
+    if (isRunningOnDatabricks) {
+      return null;
+    }
+
+    // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
+    String serviceName = Config.get().getServiceName();
+    if (Config.get().isServiceNameSetByUser()
+        && !"spark".equals(serviceName)
+        && !"hadoop".equals(serviceName)) {
+      log.debug(
+          "Service explicitly set by user, not using the application name. Service name: {}",
+          serviceName);
+      return serviceName;
+    }
+
+    String sparkAppName = conf.get("spark.app.name", null);
+    if (sparkAppName != null) {
+      log.debug(
+          "Using Spark application name as the Datadog service for OpenLineage. Spark application name: {}",
+          sparkAppName);
+    }
+
+    return sparkAppName;
+  }
+
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
-    if (!span.traceConfig().isDataStreamsEnabled()
+    if (!traceConfig().isDataStreamsEnabled()
         || progress == null
         || progress.description() == null) {
       return;
@@ -1316,20 +1344,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           JsonNode topicNode = jsonNode.get(topic);
           // iterate thought reported partitions
           Iterator<String> allPartitions = topicNode.fieldNames();
-          // dsm tags
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(CONSUMER_GROUP_TAG, appName);
-          // will be overwritten
-          sortedTags.put(PARTITION_TAG, "");
-          sortedTags.put(TOPIC_TAG, topic);
-          sortedTags.put(TYPE_TAG, "kafka_commit");
-
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
-            sortedTags.put(PARTITION_TAG, partition);
+            DataStreamsTags tags =
+                DataStreamsTags.createWithPartition(
+                    "kafka_commit", topic, partition, null, appName);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .trackBacklog(sortedTags, topicNode.get(partition).asLong());
+                .trackBacklog(tags, topicNode.get(partition).asLong());
           }
         }
       } catch (Throwable e) {

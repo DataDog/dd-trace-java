@@ -1,5 +1,5 @@
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -10,14 +10,15 @@ excludedClassesCoverage += [
   'com.datadog.profiling.agent.CompositeController.CompositeOngoingRecording',
   'com.datadog.profiling.agent.ProfilingAgent',
   'com.datadog.profiling.agent.ProfilingAgent.ShutdownHook',
-  'com.datadog.profiling.agent.ProfilingAgent.DataDumper'
+  'com.datadog.profiling.agent.ProfilingAgent.DataDumper',
+  'com.datadog.profiling.agent.ProfilerFlare'
 ]
 
 dependencies {
   api libs.slf4j
   api project(':internal-api')
 
-  implementation project(path: ':dd-java-agent:agent-profiling:profiling-ddprof', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')

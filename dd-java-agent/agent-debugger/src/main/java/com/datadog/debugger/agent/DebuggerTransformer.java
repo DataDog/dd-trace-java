@@ -25,6 +25,7 @@ import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.ExceptionHelper;
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -58,8 +59,11 @@ import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
@@ -75,7 +79,7 @@ import org.slf4j.LoggerFactory;
  * debugger configuration
  */
 public class DebuggerTransformer implements ClassFileTransformer {
-  private static final Logger log = LoggerFactory.getLogger(DebuggerTransformer.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s%s";
   private static final String INSTRUMENTATION_FAILS = "Instrumentation fails for %s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
@@ -89,7 +93,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
-  public static Path DUMP_PATH = Paths.get(System.getProperty(JAVA_IO_TMPDIR), "debugger");
+  public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -147,7 +151,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       } else if (itwType.equals("line")) {
         probeCreator = this::createLineProbes;
       } else {
-        log.warn(
+        LOGGER.warn(
             "Invalid value for 'dd.debugger.instrument-the-world' property: {}. "
                 + "Valid values are 'method' or 'line'.",
             itwType);
@@ -180,7 +184,15 @@ public class DebuggerTransformer implements ClassFileTransformer {
                 config,
                 "",
                 new BatchUploader(
-                    config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
+                    "Snapshots",
+                    config,
+                    config.getFinalDebuggerSnapshotUrl(),
+                    SnapshotSink.RETRY_POLICY),
+                new BatchUploader(
+                    "Logs",
+                    config,
+                    config.getFinalDebuggerSnapshotUrl(),
+                    SnapshotSink.RETRY_POLICY)),
             new SymbolSink(config)));
   }
 
@@ -193,7 +205,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     for (String fileName : fileNames) {
       Path excludePath = Paths.get(fileName);
       if (!Files.exists(excludePath)) {
-        log.warn("Cannot find exclude file: {}", excludePath);
+        LOGGER.warn("Cannot find exclude file: {}", excludePath);
         continue;
       }
       try {
@@ -214,7 +226,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
                   classes.add(line);
                 });
       } catch (IOException ex) {
-        log.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
+        LOGGER.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
       }
     }
   }
@@ -241,7 +253,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (definitions.isEmpty()) {
         return null;
       }
-      log.debug("Matching definitions for class[{}]: {}", fullyQualifiedClassName, definitions);
+      LOGGER.debug("Matching definitions for class[{}]: {}", fullyQualifiedClassName, definitions);
       if (!instrumentationIsAllowed(fullyQualifiedClassName, definitions)) {
         return null;
       }
@@ -251,14 +263,14 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (transformed) {
         return writeClassFile(definitions, loader, classFilePath, classNode);
       }
-      // This is an info log because in case of SourceFile definition and multiple top-level
+      // We are logging this because in case of SourceFile definition and multiple top-level
       // classes, type may match, but there is one classfile per top-level class so source file
       // will match, but not the classfile.
       // e.g. Main.java contains Main & TopLevel class, line numbers are in TopLevel class
-      log.info(
+      LOGGER.debug(
           "type {} matched but no transformation for definitions: {}", classFilePath, definitions);
     } catch (Throwable ex) {
-      log.warn("Cannot transform: ", ex);
+      LOGGER.warn("Cannot transform: ", ex);
       reportInstrumentationFails(definitions, fullyQualifiedClassName);
     }
     return null;
@@ -266,7 +278,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
     if (definitionMatcher.isEmpty()) {
-      log.debug("No debugger definitions present.");
+      LOGGER.debug("No debugger definitions present.");
       return true;
     }
     if (classFilePath == null) {
@@ -302,7 +314,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           location = codeSource.getLocation();
         }
       }
-      log.debug(
+      LOGGER.debug(
           "Parsing class '{}' {}B loaded from loader='{}' location={}",
           classFilePath,
           classfileBuffer.length,
@@ -311,7 +323,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       if (isClassLoaderRelated(classNode)) {
         // Skip ClassLoader classes
-        log.debug("Skipping ClassLoader class: {}", classFilePath);
+        LOGGER.debug("Skipping ClassLoader class: {}", classFilePath);
         excludeClasses.add(classFilePath);
         return null;
       }
@@ -328,10 +340,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (transformed) {
         return writeClassFile(probes, loader, classFilePath, classNode);
       } else {
-        log.debug("Class not transformed: {}", classFilePath);
+        LOGGER.debug("Class not transformed: {}", classFilePath);
       }
     } catch (Throwable ex) {
-      log.warn("Cannot transform: ", ex);
+      LOGGER.warn("Cannot transform: ", ex);
       writeToInstrumentationLog(classFilePath);
     }
     return null;
@@ -345,7 +357,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
     String fqnMethod = classNode.name + "::" + methodNode.name;
     if (excludeMethods.contains(fqnMethod)) {
-      log.debug("Skipping method: {}", fqnMethod);
+      LOGGER.debug("Skipping method: {}", fqnMethod);
       return false;
     }
     return methodNames.add(methodNode.name);
@@ -395,7 +407,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       writer.write(classFilePath);
       writer.write("\n");
     } catch (Exception ex) {
-      log.warn("Cannot write to instrumentation.log", ex);
+      LOGGER.warn("Cannot write to instrumentation.log", ex);
     }
   }
 
@@ -434,7 +446,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private boolean instrumentationIsAllowed(
       String fullyQualifiedClassName, List<ProbeDefinition> definitions) {
     if (denyListHelper.isDenied(fullyQualifiedClassName)) {
-      log.info("Instrumentation denied for {}", fullyQualifiedClassName);
+      LOGGER.debug("Instrumentation denied for {}", fullyQualifiedClassName);
       InstrumentationResult result =
           InstrumentationResult.Factory.blocked(
               fullyQualifiedClassName,
@@ -446,7 +458,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       return false;
     }
     if (!allowListHelper.isAllowAll() && !allowListHelper.isAllowed(fullyQualifiedClassName)) {
-      log.info("Instrumentation not allowed for {}", fullyQualifiedClassName);
+      LOGGER.debug("Instrumentation not allowed for {}", fullyQualifiedClassName);
       InstrumentationResult result =
           InstrumentationResult.Factory.blocked(
               fullyQualifiedClassName,
@@ -478,11 +490,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.version = Opcodes.V1_8;
     }
     ClassWriter writer = new SafeClassWriter(loader);
-    log.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
+    ClassVisitor visitor = new JsrInliningClassVisitor(writer);
+    LOGGER.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
     try {
-      classNode.accept(writer);
+      classNode.accept(visitor);
     } catch (Throwable t) {
-      log.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
+      LOGGER.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
       reportInstrumentationFails(definitions, Strings.getClassName(classFilePath));
       return null;
     }
@@ -517,8 +530,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     printWriter.flush();
     String result = stringWriter.toString();
     if (!result.isEmpty()) {
-      log.warn("Verification of instrumented class {} failed", classFilePath);
-      log.debug("Verify result: {}", stringWriter);
+      LOGGER.warn("Verification of instrumented class {} failed", classFilePath);
+      LOGGER.debug("Verify result: {}", stringWriter);
       throw new RuntimeException("Generated bytecode is invalid for " + classFilePath);
     }
   }
@@ -534,18 +547,26 @@ public class DebuggerTransformer implements ClassFileTransformer {
     for (MethodNode methodNode : classNode.methods) {
       List<ProbeDefinition> matchingDefs = new ArrayList<>();
       for (ProbeDefinition definition : definitions) {
-        if (definition.getWhere().isMethodMatching(methodNode, classFileLines)
-            && remainingDefinitions.contains(definition)) {
-          matchingDefs.add(definition);
-          remainingDefinitions.remove(definition);
+        Where.MethodMatching methodMatching =
+            definition.getWhere().isMethodMatching(methodNode, classFileLines);
+        if (remainingDefinitions.contains(definition)) {
+          if (methodMatching == Where.MethodMatching.MATCH) {
+            // method matches, add into collection of definitions to instrument
+            matchingDefs.add(definition);
+          }
+          if (methodMatching == Where.MethodMatching.MATCH
+              || methodMatching == Where.MethodMatching.SKIP)
+            // match or need to skip instrumentation (because bridge) remove from remaining
+            // definitions to avoid reporting error
+            remainingDefinitions.remove(definition);
         }
       }
       if (matchingDefs.isEmpty()) {
         continue;
       }
-      if (log.isDebugEnabled()) {
+      if (LOGGER.isDebugEnabled()) {
         List<String> probeIds = matchingDefs.stream().map(ProbeDefinition::getId).collect(toList());
-        log.debug(
+        LOGGER.debug(
             "Instrumenting method: {}.{}{} for probe ids: {}",
             fullyQualifiedClassName,
             methodNode.name,
@@ -610,7 +631,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private void addDiagnostics(
       ProbeDefinition definition, List<DiagnosticMessage> diagnosticMessages) {
     debuggerSink.addDiagnostics(definition.getProbeId(), diagnosticMessages);
-    log.debug("Diagnostic messages for definition[{}]: {}", definition, diagnosticMessages);
+    LOGGER.debug("Diagnostic messages for definition[{}]: {}", definition, diagnosticMessages);
   }
 
   private void notifyBlockedDefinitions(
@@ -641,7 +662,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           status = definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIds);
         }
       } catch (Throwable t) {
-        log.warn("Exception during instrumentation: ", t);
+        LOGGER.warn("Exception during instrumentation: ", t);
         status = InstrumentationResult.Status.ERROR;
         addDiagnosticForAllProbes(
             new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, t), diagnostics);
@@ -677,7 +698,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // and therefore need to be instrumented once
       // note: exception probes are log probes and are handled the same way
       if (!Config.get().isDistributedDebuggerEnabled() && definition instanceof TriggerProbe) {
-        log.debug(
+        LOGGER.debug(
             "The distributed debugger feature is disabled. Trigger probes will not be installed.");
       } else if (isCapturedContextProbe(definition)) {
         if (definition.isLineProbe()) {
@@ -849,12 +870,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
     List<MethodNode> result = new ArrayList<>();
     try {
       for (MethodNode methodNode : classNode.methods) {
-        if (where.isMethodMatching(methodNode, classFileLines)) {
+        if (where.isMethodMatching(methodNode, classFileLines) == Where.MethodMatching.MATCH) {
           result.add(methodNode);
         }
       }
     } catch (Exception ex) {
-      log.warn("Cannot match method: {}", ex.toString());
+      LOGGER.warn("Cannot match method: {}", ex.toString());
     }
     return result;
   }
@@ -871,22 +892,22 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (matchingMethods != null) {
       matchingMethods.forEach(
           methodNode -> {
-            log.debug("Found lineNode {} method: {}", matchingLine, methodNode.name);
+            LOGGER.debug("Found lineNode {} method: {}", matchingLine, methodNode.name);
           });
       // pick the first matching method.
       // TODO need a way to disambiguate if multiple methods match the same line
       return matchingMethods.isEmpty() ? null : matchingMethods.get(0);
     }
-    log.debug("Cannot find line: {} in class {}", matchingLine, classNode.name);
+    LOGGER.debug("Cannot find line: {} in class {}", matchingLine, classNode.name);
     return null;
   }
 
   private void dumpInstrumentedClassFile(String className, byte[] data) {
     if (config.isDynamicInstrumentationClassFileDumpEnabled()) {
-      log.debug("Generated bytecode len: {}", data.length);
+      LOGGER.debug("Generated bytecode len: {}", data.length);
       Path classFilePath = dumpClassFile(className, data);
       if (classFilePath != null) {
-        log.debug("Instrumented class saved as: {}", classFilePath.toString());
+        LOGGER.debug("Instrumented class saved as: {}", classFilePath.toString());
       }
     }
   }
@@ -895,7 +916,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (config.isDynamicInstrumentationClassFileDumpEnabled()) {
       Path classFilePath = dumpClassFile(className + "_orig", classfileBuffer);
       if (classFilePath != null) {
-        log.debug("Original class saved as: {}", classFilePath.toString());
+        LOGGER.debug("Original class saved as: {}", classFilePath.toString());
       }
     }
   }
@@ -907,8 +928,28 @@ public class DebuggerTransformer implements ClassFileTransformer {
       Files.write(classFilePath, classfileBuffer, StandardOpenOption.CREATE);
       return classFilePath;
     } catch (IOException e) {
-      log.error("", e);
+      LOGGER.error("", e);
       return null;
+    }
+  }
+
+  /**
+   * A {@link org.objectweb.asm.ClassVisitor} that uses {@link
+   * org.objectweb.asm.commons.JSRInlinerAdapter} to remove JSR instructions and inlines the
+   * referenced subroutines. This allows pre-Java 6 classes with finally blocks to be successfully
+   * transformed. Without this an IllegalArgumentException for "JSR/RET are not supported with
+   * computeFrames option" would be thrown when writing the transformed class.
+   */
+  static class JsrInliningClassVisitor extends ClassVisitor {
+    protected JsrInliningClassVisitor(ClassVisitor parent) {
+      super(Opcodes.ASM9, parent);
+    }
+
+    @Override
+    public MethodVisitor visitMethod(
+        int access, String name, String descriptor, String signature, String[] exceptions) {
+      MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+      return new JSRInlinerAdapter(mv, access, name, descriptor, signature, exceptions);
     }
   }
 
@@ -964,7 +1005,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         }
         return common.getInternalName();
       } catch (Exception ex) {
-        ExceptionHelper.logException(log, ex, "getCommonSuperClass failed: ");
+        ExceptionHelper.logException(LOGGER, ex, "getCommonSuperClass failed: ");
         return tpDatadogClassLoader.describe("java.lang.Object").resolve().getInternalName();
       }
     }

@@ -88,19 +88,19 @@ class ProcessTagsForkedTest extends DDSpecification {
     null     | "server1"  | "^((?!cluster.name|server.name|server.type).)*\$"
   }
 
-  def 'should not calculate process tags by default'() {
+  def 'calculate process tags by default'() {
     when:
     ProcessTags.reset()
     def processTags = ProcessTags.tagsForSerialization
     then:
-    assert !ProcessTags.enabled
-    assert processTags == null
+    assert ProcessTags.enabled
+    assert (processTags != null)
     when:
     ProcessTags.addTag("test", "value")
     then:
-    assert ProcessTags.tagsForSerialization == null
-    assert ProcessTags.tagsAsStringList == null
-    assert ProcessTags.tagsAsUTF8ByteStringList == null
+    assert (ProcessTags.tagsForSerialization != null)
+    assert (ProcessTags.tagsAsStringList != null)
+    assert (ProcessTags.tagsAsUTF8ByteStringList != null)
   }
 
   def 'should lazily recalculate when a tag is added'() {

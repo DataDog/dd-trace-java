@@ -4,6 +4,7 @@ import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
@@ -63,21 +64,22 @@ public class CiVisibilityRepoServices {
   CiVisibilityRepoServices(CiVisibilityServices services, Path path) {
     CIProviderInfo ciProviderInfo = services.ciProviderInfoFactory.createCIProviderInfo(path);
     ciProvider = ciProviderInfo.getProvider();
-
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(services.config, services.environment, ciProviderInfo);
-
-    if (pullRequestInfo.isNotEmpty()) {
-      LOGGER.info("PR detected: {}", pullRequestInfo);
-    }
 
     repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
     moduleName = getModuleName(services.config, repoRoot, path);
-    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
+    PullRequestInfo pullRequestInfo =
+        buildPullRequestInfo(
+            services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
+
+    if (!pullRequestInfo.isEmpty()) {
+      LOGGER.info("PR detected: {}", pullRequestInfo);
+    }
+
+    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
     gitDataUploader =
         buildGitDataUploader(
@@ -110,39 +112,66 @@ public class CiVisibilityRepoServices {
   }
 
   @Nonnull
-  private static PullRequestInfo buildPullRequestInfo(
-      Config config, CiEnvironment environment, CIProviderInfo ciProviderInfo) {
-    PullRequestInfo info = buildUserPullRequestInfo(config, environment);
-
-    if (info.isComplete()) {
-      return info;
-    }
-
-    // complete with CI vars if user didn't provide all information
-    return PullRequestInfo.merge(info, ciProviderInfo.buildPullRequestInfo());
-  }
-
-  @Nonnull
-  private static PullRequestInfo buildUserPullRequestInfo(
-      Config config, CiEnvironment environment) {
-    PullRequestInfo userInfo =
-        new PullRequestInfo(
-            config.getGitPullRequestBaseBranch(),
-            config.getGitPullRequestBaseBranchSha(),
-            config.getGitCommitHeadSha());
+  static PullRequestInfo buildPullRequestInfo(
+      Config config,
+      CiEnvironment environment,
+      CIProviderInfo ciProviderInfo,
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow) {
+    PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient);
 
     if (userInfo.isComplete()) {
       return userInfo;
     }
 
-    // logs-backend specific vars
+    // complete with CI vars if user didn't provide all information
+    PullRequestInfo ciInfo =
+        PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo());
+    String headSha = ciInfo.getHeadCommit().getSha();
+    if (Strings.isNotBlank(headSha)) {
+      // if head sha present try to populate author, committer and message info through git client
+      try {
+        CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);
+        return PullRequestInfo.coalesce(
+            ciInfo, new PullRequestInfo(null, null, null, commitInfo, null));
+      } catch (Exception ignored) {
+      }
+    }
+    return ciInfo;
+  }
+
+  @Nonnull
+  private static PullRequestInfo buildUserPullRequestInfo(
+      Config config, CiEnvironment environment, GitClient gitClient) {
+    PullRequestInfo userInfo =
+        new PullRequestInfo(
+            config.getGitPullRequestBaseBranch(),
+            config.getGitPullRequestBaseBranchSha(),
+            null,
+            new CommitInfo(config.getGitCommitHeadSha()),
+            null);
+
+    if (userInfo.isComplete()) {
+      return userInfo;
+    }
+
+    // ddci specific vars
+    String targetSha = environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA);
+    String sourceSha = environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA);
+    String mergeBase = null;
+    try {
+      mergeBase = gitClient.getMergeBase(targetSha, sourceSha);
+    } catch (Exception ignored) {
+    }
     PullRequestInfo ddCiInfo =
         new PullRequestInfo(
             null,
-            environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
-            environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
+            mergeBase,
+            null,
+            new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
+            null);
 
-    return PullRequestInfo.merge(userInfo, ddCiInfo);
+    return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {

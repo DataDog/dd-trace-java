@@ -367,6 +367,7 @@ class B3HttpExtractorTest extends DDSpecification {
       (HttpCodec.X_CLIENT_IP_KEY): '3.3.3.3',
       (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
       (HttpCodec.FORWARDED_FOR_KEY): '5.5.5.5',
+      (HttpCodec.FORWARDED_KEY): '6.6.6.6',
       (HttpCodec.FASTLY_CLIENT_IP_KEY): '7.7.7.7',
       (HttpCodec.CF_CONNECTING_IP_KEY): '8.8.8.8',
       (HttpCodec.CF_CONNECTING_IP_V6_KEY): '9.9.9.9',
@@ -382,6 +383,7 @@ class B3HttpExtractorTest extends DDSpecification {
     assert context.XClientIp == '3.3.3.3'
     assert context.trueClientIp == '4.4.4.4'
     assert context.forwardedFor == '5.5.5.5'
+    assert context.forwarded == '6.6.6.6'
     assert context.fastlyClientIp == '7.7.7.7'
     assert context.cfConnectingIp == '8.8.8.8'
     assert context.cfConnectingIpv6 == '9.9.9.9'

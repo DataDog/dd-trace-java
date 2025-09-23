@@ -240,10 +240,12 @@
     "error" : 1,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.failed_test_replay" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
-      "_dd.library_capabilities.test_management.attempt_to_fix" : "4",
+      "_dd.library_capabilities.test_management.attempt_to_fix" : "5",
       "_dd.library_capabilities.test_management.disable" : "1",
       "_dd.library_capabilities.test_management.quarantine" : "1",
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},

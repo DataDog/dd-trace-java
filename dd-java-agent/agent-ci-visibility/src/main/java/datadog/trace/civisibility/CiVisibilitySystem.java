@@ -13,6 +13,8 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -41,6 +43,7 @@ import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
@@ -99,6 +102,10 @@ public class CiVisibilitySystem {
         Predicate<String> instrumentationFilter =
             createCoverageInstrumentationFilter(services, repoServices);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
+      }
+
+      if (executionSettings.isFailedTestReplayEnabled()) {
+        DebuggerConfigBridge.updateConfig(new DebuggerConfigUpdate(null, true, null, null));
       }
 
       CiVisibilityCoverageServices.Child coverageServices =
@@ -241,7 +248,7 @@ public class CiVisibilitySystem {
           repoServices.executionSettingsFactory,
           signalServer,
           repoServices.repoIndexProvider,
-          coverageServices.coverageCalculatorFactory);
+          coverageServices.coverageProcessorFactory);
     };
   }
 
@@ -265,6 +272,11 @@ public class CiVisibilitySystem {
               executionSettings,
               repoServices.sourcePathResolver,
               services.linesResolver);
+
+      // only add report upload capability for children sessions,
+      // because report upload is only supported when the build system is instrumented
+      capabilities = new ArrayList<>(capabilities);
+      capabilities.add(LibraryCapability.COV_REPORT_UPLOAD);
 
       return new ProxyTestSession(
           services.processHierarchy.parentProcessModuleContext,

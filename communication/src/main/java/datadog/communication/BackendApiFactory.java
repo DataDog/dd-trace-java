@@ -5,8 +5,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -28,8 +28,8 @@ public class BackendApiFactory {
   public @Nullable BackendApi createBackendApi(Intake intake) {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
-    if (intake.agentlessModeEnabled.apply(config)) {
-      HttpUrl agentlessUrl = getAgentlessUrl(intake);
+    if (intake.isAgentlessEnabled(config)) {
+      HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
       String apiKey = config.getApiKey();
       if (apiKey == null || apiKey.isEmpty()) {
         throw new FatalAgentMisconfigurationError(
@@ -49,49 +49,19 @@ public class BackendApiFactory {
       String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
       String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
       HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
+      String subdomain = intake.getUrlPrefix();
       return new EvpProxyApi(
-          traceId, evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient, true);
+          traceId,
+          evpProxyUrl,
+          subdomain,
+          retryPolicyFactory,
+          sharedCommunicationObjects.okHttpClient,
+          true);
     }
 
     log.warn(
         "Cannot create backend API client since agentless mode is disabled, "
             + "and agent does not support EVP proxy");
     return null;
-  }
-
-  private HttpUrl getAgentlessUrl(Intake intake) {
-    String customUrl = intake.customUrl.apply(config);
-    if (customUrl != null && !customUrl.isEmpty()) {
-      return HttpUrl.get(String.format("%s/api/%s/", customUrl, intake.version));
-    } else {
-      String site = config.getSite();
-      return HttpUrl.get(
-          String.format("https://%s.%s/api/%s/", intake.urlPrefix, site, intake.version));
-    }
-  }
-
-  public enum Intake {
-    API("api", "v2", Config::isCiVisibilityAgentlessEnabled, Config::getCiVisibilityAgentlessUrl),
-    LOGS(
-        "http-intake.logs",
-        "v2",
-        Config::isAgentlessLogSubmissionEnabled,
-        Config::getAgentlessLogSubmissionUrl);
-
-    public final String urlPrefix;
-    public final String version;
-    public final Function<Config, Boolean> agentlessModeEnabled;
-    public final Function<Config, String> customUrl;
-
-    Intake(
-        String urlPrefix,
-        String version,
-        Function<Config, Boolean> agentlessModeEnabled,
-        Function<Config, String> customUrl) {
-      this.urlPrefix = urlPrefix;
-      this.version = version;
-      this.agentlessModeEnabled = agentlessModeEnabled;
-      this.customUrl = customUrl;
-    }
   }
 }

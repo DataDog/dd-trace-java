@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.spray;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -15,27 +17,26 @@ public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope enter(
       @Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
+    final Context parentContext;
+    final Context context;
     final AgentSpan span;
-    final Context extractedContext;
-    final ContextScope scope;
     if (activeSpan() == null) {
       // Propagate context in case income request was going through several routes
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
-      extractedContext = DECORATE.extractContext(request);
-      span = DECORATE.startSpan(request, extractedContext);
-      scope = extractedContext.with(span).attach();
+      parentContext = DECORATE.extract(request);
+      context = DECORATE.startSpan(request, parentContext);
+      span = spanFromContext(context);
     } else {
-      extractedContext = null;
-      span = startSpan(DECORATE.spanName());
-      scope = span.attach();
+      parentContext = getRootContext();
+      span = startSpan("spray", DECORATE.spanName());
+      context = span;
     }
 
+    ContextScope scope = context.attach();
     DECORATE.afterStart(span);
 
-    ctx =
-        SprayHelper.wrapRequestContext(
-            ctx, span, DECORATE.getExtractedSpanContext(extractedContext));
+    ctx = SprayHelper.wrapRequestContext(ctx, span, parentContext);
     return scope;
   }
 

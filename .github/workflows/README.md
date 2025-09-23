@@ -85,13 +85,6 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
-### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
-
-_Trigger:_ Every day or manually.
-
-_Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
-
-_Recovery:_ Manually trigger the action again.
 
 ### prune-old-pull-requests [🔗](prune-old-pull-requests.yaml)
 
@@ -115,16 +108,6 @@ _Action:_
 
 _Notes:_ Results are sent on both production and staging environments.
 
-### check-ci-pipelines [🔗](check-ci-pipelines.yaml)
-
-_Trigger:_ When opening or updating a PR.
-
-_Action:_ This action will check all other continuous integration jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails.
-The purpose of this job is to be required for PR merges, achieving Green CI Policy.
-It got an `ignored` parameters to exclude some jobs if they are temprorary failing.
-
-_Recovery:_ Manually trigger the action on the desired branch.
-
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
 _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a Git Submodule update.
@@ -147,6 +130,14 @@ _Action:_ Build the Java Client Library and runs [the system tests](https://gith
 
 _Recovery:_ Manually trigger the action on the desired branch.
 
+### update-jmxfetch-submodule [🔗](update-jmxfetch-submodule.yaml)
+
+_Trigger:_ Monthly or manually
+
+_Action:_ Creates a PR updating the git submodule at dd-java-agent/agent-jmxfetch/integrations-core
+
+_Recovery:_ Manually trigger the action again.
+
 ## Maintenance
 
 GitHub actions should be part of the [repository allowed actions to run](https://github.com/DataDog/dd-trace-java/settings/actions).
@@ -160,8 +151,9 @@ find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; |
 ## Testing
 
 Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/).
+Docker and [GiHub CLI](https://cli.github.com/) need also to be installed.
 The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
 
 > [!WARNING]
-> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.
+> Local workflow tests run against the repository and will potentially alter existing issues, milestones and releases.  
 > Pay extra attention to the workflow jobs you trigger to not create development disruption.

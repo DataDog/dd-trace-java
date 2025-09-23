@@ -9,14 +9,14 @@ ext {
 
 repositories {
   ivy {
-    url 'https://download.jboss.org/'
+    url = 'https://download.jboss.org/'
     patternLayout {
       // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
       // we download the full EE profile and not the servlet minimal one
       artifact '/[organisation]/[revision]/[organisation]-[revision].[ext]'
-      metadataSources {
-        artifact()
-      }
+    }
+    metadataSources {
+      it.artifact()
     }
   }
 }

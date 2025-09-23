@@ -15,10 +15,14 @@
  */
 package com.datadog.profiling.controller;
 
+import static datadog.environment.OperatingSystem.isLinux;
+import static datadog.environment.OperatingSystem.isMacOs;
+import static datadog.environment.OperatingSystem.isWindows;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
@@ -160,17 +164,16 @@ public final class ProfilingSystem {
           TimeUnit.MILLISECONDS);
       started = true;
     } catch (UnsupportedEnvironmentException unsupported) {
-      log.warn(
-          SEND_TELEMETRY,
-          "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
-              + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
-          Platform.isLinux()
-              ? "Linux"
-              : Platform.isWindows() ? "Windows" : Platform.isMac() ? "MacOS" : "Other",
-          Platform.getLangVersion(),
-          Platform.getRuntimeVersion(),
-          Platform.getRuntimeVendor(),
-          "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements");
+      ProfilerFlareLogger.getInstance()
+          .log(
+              "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
+                  + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
+              isLinux() ? "Linux" : isWindows() ? "Windows" : isMacOs() ? "MacOS" : "Other",
+              JavaVirtualMachine.getLangVersion(),
+              JavaVirtualMachine.getRuntimeVersion(),
+              JavaVirtualMachine.getRuntimeVendor(),
+              "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements",
+              unsupported);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         // Possibly a wrapped exception related to Oracle JDK 8 JFR MX beans
@@ -179,9 +182,10 @@ public final class ProfilingSystem {
           String msg = inspecting.getMessage();
           if (msg != null && msg.contains("com.oracle.jrockit:type=FlightRecorder")) {
             // Yes, the commercial JFR is not enabled
-            log.warn(
-                SEND_TELEMETRY,
-                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.");
+            String logMsg =
+                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.";
+            ProfilerFlareLogger.getInstance().log(logMsg, t);
+            log.warn(logMsg);
             // Do not log the underlying exception
             t = null;
             break;
@@ -191,9 +195,10 @@ public final class ProfilingSystem {
       }
       if (t != null) {
         if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
-          log.debug("Shutdown in progress, cannot start profiling");
+          ProfilerFlareLogger.getInstance().log("Shutdown in progress, cannot start profiling");
         } else {
-          log.error(SEND_TELEMETRY, "Fatal exception during profiling startup", t);
+          ProfilerFlareLogger.getInstance().log("Failed to start profiling", t);
+
           throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
         }
       }

@@ -494,6 +494,7 @@
       "BUDDY_PIPELINE_ID": "456",
       "BUDDY_PIPELINE_NAME": "Deploy to Production",
       "BUDDY_RUN_PR_BASE_BRANCH": "target-branch",
+      "BUDDY_RUN_PR_NO": 42,
       "BUDDY_SCM_URL": "https://github.com/buddyworks/my-project.git"
     },
     {
@@ -509,7 +510,8 @@
       "git.commit.sha": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123",
       "git.pull_request.base_branch": "target-branch",
       "git.repository_url": "https://github.com/buddyworks/my-project.git",
-      "git.tag": "v1.0"
+      "git.tag": "v1.0",
+      "pr.number": "42"
     }
   ]
 ]

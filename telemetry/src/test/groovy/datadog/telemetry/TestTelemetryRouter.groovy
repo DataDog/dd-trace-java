@@ -237,7 +237,8 @@ class TestTelemetryRouter extends TelemetryRouter {
       def expected = configuration == null ? null : []
       if (configuration != null) {
         for (ConfigSetting cs : configuration) {
-          expected.add([name: cs.normalizedKey(), value: cs.stringValue(), origin: cs.origin.value])
+          def item = [name: cs.normalizedKey(), value: cs.stringValue(), origin: cs.origin.value, 'seq_id': cs.seqId]
+          expected.add(item)
         }
       }
       assert this.payload['configuration'] == expected
@@ -273,22 +274,29 @@ class TestTelemetryRouter extends TelemetryRouter {
       def expected = []
       endpoints.each {
         final item = [
-          'type'          : it.type,
-          'method'        : it.method,
-          'path'          : it.path,
-          'operation-name': it.operation
+          'operation_name': it.operation,
+          'resource_name' : it.method + ' ' + it.path,
         ] as Map<String, Object>
+        if (it.type) {
+          item['type'] = it.type
+        }
+        if (it.method) {
+          item['method'] = it.method
+        }
+        if (it.path) {
+          item['path'] = it.path
+        }
         if (it.requestBodyType) {
-          item['request-body-type'] = it.requestBodyType
+          item['request_body_type'] = it.requestBodyType
         }
         if (it.responseBodyType) {
-          item['response-body-type'] = it.responseBodyType
+          item['response_body_type'] = it.responseBodyType
         }
         if (it.authentication) {
           item['authentication'] = it.authentication
         }
         if (it.responseCode) {
-          item['response-code'] = it.responseCode
+          item['response_code'] = it.responseCode
         }
         if (it.metadata) {
           item['metadata'] = it.metadata

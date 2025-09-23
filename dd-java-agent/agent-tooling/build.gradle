@@ -43,6 +43,7 @@ dependencies {
   }
   compileOnly project(':dd-java-agent:agent-jmxfetch')
   compileOnly project(':dd-java-agent:agent-profiling')
+  compileOnly project(':dd-java-agent:agent-profiling:profiling-controller')
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
   api libs.bytebuddy
   api libs.bytebuddyagent
@@ -63,7 +64,7 @@ dependencies {
 }
 
 jmh {
-  jmhVersion = '1.32'
+  jmhVersion = libs.versions.jmh.get()
   includeTests = true
 }
 compileJmhJava.dependsOn compileTestJava

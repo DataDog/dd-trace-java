@@ -275,6 +275,24 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertOneSnapshot(listener);
   }
 
+  /**
+   * Ensure older pre-Java 6 class files with JSR/RET can be rewritten without "JSR/RET are not
+   * supported with computeFrames option" exceptions being thrown.
+   */
+  @Test
+  public void veryOldClassFileWithJsrRet() throws Exception {
+    final String CLASS_NAME = "antlr.Tool"; // compiled with jdk 1.2
+    TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "copyFile", null);
+    Class<?> testClass = Class.forName(CLASS_NAME);
+    assertNotNull(testClass);
+    try {
+      Reflect.onClass(testClass).create().call("copyFile", null, null);
+    } catch (Throwable t) {
+      // ignore
+    }
+    assertOneSnapshot(listener);
+  }
+
   @Test
   public void oldClass1_1() throws Exception {
     final String CLASS_NAME = "org.apache.commons.lang.BooleanUtils"; // compiled with jdk 1.1
@@ -621,8 +639,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot301";
@@ -651,8 +670,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void suspendKotlin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot302";
@@ -678,8 +698,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void suspendMethodKotlin() {
     final String CLASS_NAME = "CapturedSnapshot302";
@@ -711,8 +732,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void hoistVarKotlin() {
     final String CLASS_NAME = "CapturedSnapshot303";
@@ -1863,46 +1885,45 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
-    try {
-      final String CLASS_NAME = "CapturedSnapshot05";
-      LogProbe probe =
-          createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
-              .when(
-                  new ProbeCondition(
-                      DSL.when(DSL.ge(DSL.ref("after"), DSL.value(0))), "after >= 0"))
-              .evaluateAt(MethodLocation.EXIT)
-              .build();
-      TestSnapshotListener listener = installProbes(probe);
-      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-      try {
-        Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
-        Assertions.fail("should not reach this code");
-      } catch (ReflectException ex) {
-        assertEquals("oops", ex.getCause().getCause().getMessage());
-      }
-      Snapshot snapshot = assertOneSnapshot(listener);
-      assertCaptureThrowable(
-          snapshot.getCaptures().getReturn(),
-          "CapturedSnapshot05$CustomException",
-          "oops",
-          "CapturedSnapshot05.triggerUncaughtException",
-          8);
-      assertNull(snapshot.getEvaluationErrors());
-      // after is 0 because the exception is thrown before the assignment and local var initialized
-      // at the beginning of the method by instrumentation
-      assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
-    } finally {
-      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
+    if (Config.get().getDynamicInstrumentationLocalVarHoistingLevel() < 2) {
+      // this test requires local var hoisting level 2 (aggressive)
+      // because we need to hoist long local variables (2 slots)
+      return;
     }
+    final String CLASS_NAME = "CapturedSnapshot05";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
+            .when(
+                new ProbeCondition(DSL.when(DSL.ge(DSL.ref("after"), DSL.value(0))), "after >= 0"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
+      Assertions.fail("should not reach this code");
+    } catch (ReflectException ex) {
+      assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureThrowable(
+        snapshot.getCaptures().getReturn(),
+        "CapturedSnapshot05$CustomException",
+        "oops",
+        "CapturedSnapshot05.triggerUncaughtException",
+        8);
+    assertNull(snapshot.getEvaluationErrors());
+    // after is 0 because the exception is thrown before the assignment and local var initialized
+    // at the beginning of the method by instrumentation
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
   }
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionCaptureLocalVars() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -1921,33 +1942,29 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         "java.lang.RuntimeException",
         "oops",
         "com.datadog.debugger.CapturedSnapshot31.uncaughtException",
-        30);
+        51);
   }
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsLocalScopes() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
-    try {
-      final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
-      LogProbe probe = createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
-      TestSnapshotListener listener = installProbes(probe);
-      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-      int result = Reflect.onClass(testClass).call("main", "localScopes").get();
-      assertEquals(42, result);
-      Snapshot snapshot = assertOneSnapshot(listener);
-      assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
-      assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
-    } finally {
-      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
-    }
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "localScopes").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVar", "int", "42");
   }
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsDeepScopes() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -1969,17 +1986,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     //        0      79     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
     //        0      79     1   arg   Ljava/lang/String;
     //        2      77     2 localVarL0   I
-    assertEquals(6, snapshot.getCaptures().getReturn().getLocals().size());
+    // localVarL4 cannot be hoisted in safe mode because of the same name and slot
+    assertEquals(5, snapshot.getCaptures().getReturn().getLocals().size());
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL0", "int", "0");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL1", "int", "1");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL2", "int", "2");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL3", "int", "3");
-    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL4", "int", "4");
   }
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeExceptionLocalVars() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2013,7 +2030,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void overlappingLocalVarSlot() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2030,24 +2047,123 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
-    try {
-      final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
-      LogProbe probe =
-          createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "duplicateLocalDifferentScope", "(String)");
-      TestSnapshotListener listener = installProbes(probe);
-      Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-      int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
-      assertEquals(28, result);
-      Snapshot snapshot = assertOneSnapshot(listener);
-      assertCaptureLocals(
-          snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
-    } finally {
-      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
-    }
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe =
+        createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "duplicateLocalDifferentScope", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
+    assertEquals(28, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
+    // ch cannot be hoisted in safe mode, because it has the duplicate name with different slot
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "@return", Integer.TYPE.getTypeName(), "28");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void mixingIntAndLongWhenHoisting() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "mixingIntAndLong", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "mixingIntAndLong").get();
+    assertEquals(1626, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    // no hoisting in safe mode: long local variable and 2-slots type (forbidden slots)
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "l", Long.TYPE.getTypeName(), "1626");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "@return", Integer.TYPE.getTypeName(), "1626");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void mixingIntAndCharWhenHoisting() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "mixingIntAndChar", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "mixingIntAndChar").get();
+    assertEquals(-327, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "i", Integer.TYPE.getTypeName(), "-327");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "@return", Integer.TYPE.getTypeName(), "-327");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void mixingIntAndRefTypeWhenHoisting() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe =
+        createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "mixingIntAndRefType", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "mixingIntAndRefType").get();
+    assertEquals(19, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "i", Integer.TYPE.getTypeName(), "19");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "@return", Integer.TYPE.getTypeName(), "19");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void sameSlotAndTypeDifferentName() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe =
+        createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "sameSlotAndTypeDifferentName", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "sameSlotAndTypeDifferentName").get();
+    assertEquals(28, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    // r and o cannot be hoisted in safe mode, because they have the same slot
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "p",
+        String.class.getTypeName(),
+        "sameSlotAndTypeDifferentName");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "@return", Integer.TYPE.getTypeName(), "28");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void sameSlotAndNameOneReturn() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe =
+        createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "sameSlotAndNameOneReturn", "(String)");
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "sameSlotAndNameOneReturn").get();
+    assertEquals(24, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    // o is not hoisted in safe mode, because it has the same slot and name on different range
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "result", Integer.TYPE.getTypeName(), "24");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "@return", Integer.TYPE.getTypeName(), "24");
   }
 
   @Test

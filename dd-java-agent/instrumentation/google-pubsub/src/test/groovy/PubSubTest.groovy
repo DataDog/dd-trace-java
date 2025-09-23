@@ -1,3 +1,4 @@
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import com.google.api.gax.core.NoCredentialsProvider
@@ -38,10 +39,6 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
-import java.util.function.Function
-import java.util.function.ToDoubleFunction
-import java.util.function.ToIntFunction
-import java.util.function.ToLongFunction
 
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
@@ -171,7 +168,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     latch.await()
 
     then:
-    def sendSpan
     assertTraces(shadowGrpcSpans() ? 2 : 3, [
       compare            : { List<DDSpan> o1, List<DDSpan> o2 ->
         // trace will never be empty
@@ -202,8 +198,10 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         if (!shadowGrpcSpans()) {
           grpcSpans(it)
         }
-        sendSpan = span(1)
+
+        assert span(1) != null
       }
+
       if (!shadowGrpcSpans()) {
         // Acknowledge
         trace(1) {
@@ -236,13 +234,11 @@ abstract class PubSubTest extends VersionedNamingTestBase {
 
       StatsGroup sendStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0}
       verifyAll (sendStat) {
-        edgeTags.containsAll(["direction:out" , "topic:test-topic", "type:google-pubsub"])
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:out" , "topic:test-topic", "type:google-pubsub")
       }
       StatsGroup receiveStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == sendStat.hash}
       verifyAll(receiveStat) {
-        edgeTags.containsAll(["direction:in" , "subscription:my-subscription", "type:google-pubsub"])
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:in" , "subscription:my-subscription", "type:google-pubsub")
         pathwayLatency.count == 1
         pathwayLatency.minValue > 0.0
         edgeLatency.count == 1
@@ -276,6 +272,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         "response.type" { String }
         "$Tags.RPC_SERVICE" { String }
         "status.code" { String }
+        "grpc.status.code" { String }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }

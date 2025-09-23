@@ -1,5 +1,5 @@
 plugins {
-  id "me.champeau.jmh"
+  id 'me.champeau.jmh'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -35,7 +35,7 @@ jmh {
   // Allows to include test sources into generate JMH jar, i.e. use it when benchmarks depend on the test classes.
 
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jmhVersion = '1.23' // Specifies JMH version
+  jmhVersion = libs.versions.jmh.get()
 }
 
 tasks.named('jmh').configure {

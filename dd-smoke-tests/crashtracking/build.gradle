@@ -1,5 +1,5 @@
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 
 ext {
@@ -19,14 +19,19 @@ jar {
 dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
+  testImplementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
   testImplementation libs.bundles.junit5
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation libs.bundles.mockito
 }
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.app.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+
+  testLogging {
+    events "started", "passed", "skipped", "failed"
+    showStandardStreams = true
+  }
 }
 

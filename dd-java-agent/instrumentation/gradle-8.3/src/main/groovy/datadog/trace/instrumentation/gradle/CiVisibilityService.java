@@ -41,7 +41,8 @@ public abstract class CiVisibilityService
   }
 
   public boolean isJacocoInjectionEnabled() {
-    return config.isCiVisibilityJacocoPluginVersionProvided();
+    return config.isCiVisibilityJacocoPluginVersionProvided()
+        || buildEventsHandler.getSessionSettings(SESSION_KEY).isCoverageReportUploadEnabled();
   }
 
   public String getJacocoVersion() {

@@ -3,7 +3,6 @@ import net.ltgt.gradle.errorprone.CheckSeverity
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'java-test-fixtures'
   id 'com.google.protobuf' version '0.8.18'
   id 'net.ltgt.errorprone' version '3.1.0'
 }
@@ -52,11 +51,11 @@ dependencies {
   implementation libs.moshi
   implementation libs.bundles.asm
 
-  testFixturesApi project(':dd-java-agent:testing')
-  testFixturesApi project(':utils:test-utils')
+  testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
-  testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')
+  testImplementation libs.groovy.yaml
   testImplementation libs.guava
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
@@ -112,7 +111,7 @@ spotless {
 }
 
 jmh {
-  jmhVersion = '1.28'
+  jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 

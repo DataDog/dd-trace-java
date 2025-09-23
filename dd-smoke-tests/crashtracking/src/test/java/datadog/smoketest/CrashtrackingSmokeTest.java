@@ -1,14 +1,16 @@
 package datadog.smoketest;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.datadoghq.profiler.Platform;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,8 +18,10 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +53,11 @@ public class CrashtrackingSmokeTest {
   @BeforeAll
   static void setupAll() {
     // Only Hotspot based implementation are supported
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
+    // Currently, we require the ddprof java library for crash-tracking; bail out if not supported
+    assumeTrue(
+        DdprofLibraryLoader.jvmAccess().getReasonNotLoaded() == null,
+        "JVM Access is not available");
   }
 
   private Path tempDir;
@@ -127,7 +135,34 @@ public class CrashtrackingSmokeTest {
   }
 
   private static String getExtension() {
-    return Platform.isWindows() ? "bat" : "sh";
+    return OperatingSystem.isWindows() ? "bat" : "sh";
+  }
+
+  @Test
+  void testAutoInjection() throws Exception {
+    assumeTrue(OperatingSystem.isLinux()); // we support only linux ATM
+
+    ProcessBuilder pb =
+        new ProcessBuilder(
+            Arrays.asList(
+                javaPath(),
+                "-javaagent:" + agentShadowJar(),
+                "-Xmx96m",
+                "-Xms96m",
+                "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
+                "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
+                // no need to specify the scripts
+                "-Ddd.trace.enabled=false",
+                "-jar",
+                appShadowJar()));
+
+    pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
+
+    Process p = pb.start();
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingInjected.log").toFile());
+
+    assertExpectedCrash(p);
   }
 
   /*
@@ -140,28 +175,34 @@ public class CrashtrackingSmokeTest {
     String onErrorValue = script + " %p";
     String errorFile = tempDir.resolve("hs_err.log").toString();
 
-    ProcessBuilder pb =
-        new ProcessBuilder(
-            Arrays.asList(
-                javaPath(),
-                "-javaagent:" + agentShadowJar(),
-                "-Xmx96m",
-                "-Xms96m",
-                "-XX:OnError=" + onErrorValue,
-                "-XX:ErrorFile=" + errorFile,
-                "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
-                "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
-                // the scripts
-                "-Ddd.trace.enabled=false",
-                "-jar",
-                appShadowJar(),
-                script.toString()));
+    String onErrorArg =
+        !Platform.isLinux()
+            ? "-XX:OnError=" + onErrorValue
+            : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
+    // inject the arg
+    List<String> processArgs = new ArrayList<>();
+    processArgs.add(javaPath());
+    processArgs.add("-javaagent:" + agentShadowJar());
+    processArgs.add("-Xmx96m");
+    processArgs.add("-Xms96m");
+    if (!onErrorArg.isEmpty()) {
+      processArgs.add(onErrorArg);
+    }
+    processArgs.add("-XX:ErrorFile=" + errorFile);
+    processArgs.add("-XX:+CrashOnOutOfMemoryError"); // Use OOME to trigger crash
+    processArgs.add(
+        "-Ddd.dogstatsd.start-delay=0"); // Minimize the delay to initialize JMX and create the
+    // scripts
+    processArgs.add("-Ddd.trace.enabled=false");
+    processArgs.add("-jar");
+    processArgs.add(appShadowJar());
+    ProcessBuilder pb = new ProcessBuilder(processArgs);
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
     OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
 
-    assertNotEquals(0, p.waitFor(), "Application should have crashed");
+    assertExpectedCrash(p);
     assertCrashData();
   }
 
@@ -189,15 +230,14 @@ public class CrashtrackingSmokeTest {
                 // the scripts
                 "-Ddd.trace.enabled=false",
                 "-jar",
-                appShadowJar(),
-                script.toString()));
+                appShadowJar()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
     OUTPUT.captureOutput(
         p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingLegacy.log").toFile());
 
-    assertNotEquals(0, p.waitFor(), "Application should have crashed");
+    assertExpectedCrash(p);
 
     assertCrashData();
   }
@@ -212,28 +252,38 @@ public class CrashtrackingSmokeTest {
     String onErrorValue = script + " %p";
     String errorFile = tempDir.resolve("hs_err_pid%p.log").toString();
 
-    ProcessBuilder pb =
-        new ProcessBuilder(
-            Arrays.asList(
-                javaPath(),
-                "-javaagent:" + agentShadowJar(),
-                "-Xmx96m",
-                "-Xms96m",
-                "-XX:OnOutOfMemoryError=" + onErrorValue,
-                "-XX:ErrorFile=" + errorFile,
-                "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
-                "-Ddd.dogstatsd.start-delay=0", // Minimize the delay to initialize JMX and create
-                // the scripts
-                "-Ddd.trace.enabled=false",
-                "-jar",
-                appShadowJar(),
-                script.toString()));
+    String onOOMEArg =
+        !Platform.isLinux()
+            ? "-XX:OnOutOfMemoryError=" + onErrorValue
+            : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
+    // inject the arg
+
+    List<String> processArgs = new ArrayList<>();
+    processArgs.add(javaPath());
+    processArgs.add("-javaagent:" + agentShadowJar());
+    processArgs.add("-Xmx96m");
+    processArgs.add("-Xms96m");
+    if (!onOOMEArg.isEmpty()) {
+      processArgs.add(onOOMEArg);
+    }
+    processArgs.add("-XX:ErrorFile=" + errorFile);
+    processArgs.add("-XX:+CrashOnOutOfMemoryError"); // Use OOME to trigger crash
+    processArgs.add(
+        "-Ddd.dogstatsd.start-delay=0"); // Minimize the delay to initialize JMX and create the
+    // scripts
+    processArgs.add("-Ddd.trace.enabled=false");
+    processArgs.add("-jar");
+    processArgs.add(appShadowJar());
+
+    ProcessBuilder pb = new ProcessBuilder(processArgs);
     pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
+
+    System.out.println("==> Process args: " + pb.command());
 
     Process p = pb.start();
     OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
 
-    assertNotEquals(0, p.waitFor(), "Application should have crashed");
+    assertExpectedCrash(p);
     assertOOMEvent();
   }
 
@@ -260,25 +310,29 @@ public class CrashtrackingSmokeTest {
                 // the scripts
                 "-Ddd.trace.enabled=false",
                 "-jar",
-                appShadowJar(),
-                oomeScript.toString()));
+                appShadowJar()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
     pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
 
     Process p = pb.start();
     OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
 
-    assertNotEquals(0, p.waitFor(), "Application should have crashed");
-
+    assertExpectedCrash(p);
     assertCrashData();
     assertOOMEvent();
+  }
+
+  private static void assertExpectedCrash(Process p) throws InterruptedException {
+    // exit code -1 means the test application exited prematurely
+    // exit code > 0 means the test application crashed, as expected
+    assertTrue(p.waitFor() > 0, "Application should have crashed");
   }
 
   private void assertCrashData() throws InterruptedException {
     CrashTelemetryData crashData = crashEvents.poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     assertNotNull(crashData, "Crash data not uploaded");
-    assertThat(crashData.payload.get(0).message, containsString("OutOfMemory"));
-    assertThat(crashData.payload.get(0).tags, containsString("severity:crash"));
+    assertTrue(crashData.payload.get(0).message.contains("OutOfMemory"));
+    assertTrue(crashData.payload.get(0).tags.contains("severity:crash"));
   }
 
   private void assertOOMEvent() throws InterruptedException {
@@ -289,8 +343,8 @@ public class CrashtrackingSmokeTest {
 
     assertNotNull(event, "OOM Event not received");
 
-    assertThat(event, containsString(":OutOfMemoryError"));
-    assertThat(event, containsString("t:error"));
-    assertThat(event, containsString("s:java"));
+    assertTrue(event.contains(":OutOfMemoryError"));
+    assertTrue(event.contains("t:error"));
+    assertTrue(event.contains("s:java"));
   }
 }

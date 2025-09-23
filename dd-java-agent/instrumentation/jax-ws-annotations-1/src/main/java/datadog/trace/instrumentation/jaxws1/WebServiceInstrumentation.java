@@ -37,11 +37,6 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return null; // bootstrap type
   }

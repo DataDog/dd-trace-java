@@ -1,7 +1,7 @@
 import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ObjectMapper
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
@@ -13,7 +13,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class Json2FactoryInstrumentationTest extends AgentTestRunner {
+class Json2FactoryInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   @AutoCleanup

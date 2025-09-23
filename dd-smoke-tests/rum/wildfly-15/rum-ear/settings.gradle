@@ -1,0 +1,36 @@
+pluginManagement {
+  repositories {
+    mavenLocal()
+    if (settings.hasProperty("gradlePluginProxy")) {
+      maven {
+        url settings["gradlePluginProxy"]
+        allowInsecureProtocol = true
+      }
+    }
+    if (settings.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url settings["mavenRepositoryProxy"]
+        allowInsecureProtocol = true
+      }
+    }
+    gradlePluginPortal()
+    mavenCentral()
+  }
+}
+
+def isCI = providers.environmentVariable("CI").isPresent()
+
+// Don't pollute the dependency cache with the build cache
+if (isCI) {
+  def sharedRootDir = "$rootDir/../../../../"
+  buildCache {
+    local {
+      // This needs to line up with the code in the outer project settings.gradle
+      directory = "$sharedRootDir/workspace/build-cache"
+    }
+  }
+}
+
+rootProject.name='wildfly-rum-ear-smoketest'
+
+include 'war'

@@ -1,7 +1,7 @@
 name: Update Gradle dependencies
 on:
   schedule:
-    - cron: '0 4 * * 0'
+    - cron: "0 4 * * 0"
   workflow_dispatch:
 
 jobs:
@@ -9,13 +9,19 @@ jobs:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
     permissions:
-      contents: write # Required to commit and push changes to a new branch
-      pull-requests: write # Required to create a pull request
+      contents: write # Required to create new branch
+      id-token: write # Required for OIDC token federation
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
         with:
-          submodules: 'recursive'
+          scope: DataDog/dd-trace-java
+          policy: self.update-gradle-dependencies.create-pr
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        with:
+          submodules: "recursive"
       - name: Download ghcommit CLI
         run: |
           curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
@@ -28,7 +34,7 @@ jobs:
           git push -u origin $BRANCH_NAME --force
       - name: Update Gradle dependencies
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
@@ -37,12 +43,12 @@ jobs:
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
       - name: Commit changes
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
           GH_ADD_ARGS=""
           COUNT=0
           BRANCH_HEAD=$(git rev-parse HEAD)
-          for lockfile in $(git status --porcelain=v1 | awk '{ print $NF }'); do
+          for lockfile in $(git status --porcelain=v1 -- ':(glob)**/gradle.lockfile' | awk '{ print $NF }'); do
             echo "Found lockfile: $lockfile"
             GH_ADD_ARGS="$GH_ADD_ARGS --add $lockfile"
             COUNT=$((COUNT+1))
@@ -69,7 +75,7 @@ jobs:
           fi
       - name: Create pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
           # use echo to set a multiline body for the PR
           echo -e "This PR updates the Gradle dependencies. ⚠️ Don't forget to squash commits before merging. ⚠️\n\n- [ ] Update PR title if a code change is needed to support one of those new dependencies" | \

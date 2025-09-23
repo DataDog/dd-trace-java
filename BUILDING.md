@@ -28,13 +28,14 @@ or on Windows:
 Your output should look something like the following:
 
 ```
-ℹ️ Checking required JVM:
-✅ JAVA_HOME is set to /Users/datadog/.sdkman/candidates/java/8.0.402-zulu.
-✅ JAVA_8_HOME is set to /Users/datadog/.sdkman/candidates/java/8.0.402-zulu.
-✅ JAVA_11_HOME is set to /Users/datadog/.sdkman/candidates/java/11.0.22-zulu.
-✅ JAVA_17_HOME is set to /Users/datadog/.sdkman/candidates/java/17.0.10-zulu.
-✅ JAVA_21_HOME is set to /Users/datadog/.sdkman/candidates/java/21.0.2-zulu.
-✅ JAVA_GRAALVM17_HOME is set to /Users/datadog/.sdkman/candidates/java/17.0.9-graalce.
+ℹ️ Checking required JVMs:
+✅ JAVA_HOME is set to /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home.
+✅ JAVA_8_HOME is set to /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home.
+✅ JAVA_11_HOME is set to /Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home.
+✅ JAVA_17_HOME is set to /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home.
+✅ JAVA_21_HOME is set to /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home.
+✅ JAVA_25_HOME is set to /Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home.
+✅ JAVA_GRAALVM17_HOME is set to /Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1/Contents/Home.
 ℹ️ Checking git configuration:
 ✅ The git command line is installed.
 ✅ pre-commit hook is installed in repository.
@@ -51,8 +52,8 @@ If there is any issue with your output, check the requirements above and use the
 
 Requirements to build the full project:
 
-* The JDK versions 8, 11, 17 and 21 must be installed.
-* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME`, and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
+* The JDK versions 8, 11, 17, 21, and 25 must be installed.
+* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME`, `JAVA_25_HOME`, and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
 * The JDK 8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
 * The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`).
 * The `git` command line must be installed.
@@ -60,24 +61,34 @@ Requirements to build the full project:
 
 ### Install the required JDKs
 
-Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
+Download and install JDK versions 8, 11, 17, 21 and 25, and GraalVM 17 for your OS.
+
+> [!NOTE]
+> While Temurin JDK 25 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) has not been released, please download the OpenJDK EA version at [this link](https://jdk.java.net/25/). Add the required environment variable using an `export` command along the lines of `export JAVA_25_HOME=/Library/Java/JavaVirtualMachines/jdk-25.jdk/Contents/Home`. Then, confirm that this was set properly by executing `echo $JAVA_25_HOME`.
 
 #### macOS
 
 * Install the required JDKs using `brew`:
   ```shell
-  brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 graalvm/tap/graalvm-ce-java17
+  brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu graalvm/tap/graalvm-ce-java17
   ```
-* Fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
+* Identify your local version of GraalVM:
+  ```
+  ls /Library/Java/JavaVirtualMachines | grep graalvm
+  ```
+  Example: `graalvm-ce-java17-22.3.1`
+* Use this version in the following command to fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
   ```
   sudo xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>
   ```
+  Example: `/Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1`
 * Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
   ```shell
   export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home
   export JAVA_11_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
   export JAVA_17_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
   export JAVA_21_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
+  export JAVA_25_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
   export JAVA_GRAALVM17_HOME=/Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>/Contents/Home
   export JAVA_HOME=$JAVA_8_HOME
   ```
@@ -93,7 +104,7 @@ Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
 
 #### Linux
 
-* Download and extract JDK 8, 11, 17, and 21 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM 17 from [Oracle downloads](https://www.graalvm.org/downloads/).
+* Download and extract JDK 8, 11, 17, 21, and 25 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM 17 from [Oracle downloads](https://www.graalvm.org/downloads/).
 * Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/reference-manual/native-image/#prerequisites).
 * Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `~/.bashrc` or other.
   ```shell
@@ -101,6 +112,7 @@ Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
   export JAVA_11_HOME=/<path to extracted archive>/jdk-11.<current version of JDK 11>
   export JAVA_17_HOME=/<path to extracted archive>/jdk-17.<current version of JDK 17>
   export JAVA_21_HOME=/<path to extracted archive>/jdk-21.<current version of JDK 21>
+  export JAVA_25_HOME=/<path to extracted archive>/jdk-25.<current version of JDK 25>
   export JAVA_GRAALVM17_HOME=/<path to extracted archive>/graalvm-jdk-17.<current version of graalvm>/Contents/Home
   export JAVA_HOME=$JAVA_8_HOME
   ```
@@ -108,7 +120,7 @@ Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
 
 #### Windows
 
-* Download and install JDK 8, 11, 17, and 21 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
+* Download and install JDK 8, 11, 17, 21, and 25 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
 
   <details>
   <summary>Alternatively, install JDKs using winget or scoop. (click here to expand)</summary>
@@ -118,6 +130,7 @@ Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
     winget install --id EclipseAdoptium.Temurin.11.JDK
     winget install --id EclipseAdoptium.Temurin.17.JDK
     winget install --id EclipseAdoptium.Temurin.21.JDK
+    winget install --id EclipseAdoptium.Temurin.25.JDK
     ```
 
   ```pwsh
@@ -126,6 +139,7 @@ Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
   scoop install temurin11-jdk
   scoop install temurin17-jdk
   scoop install temurin21-jdk
+  scoop install temurin25-jdk
   ```
 
   </details>
@@ -136,6 +150,7 @@ Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
   [Environment]::SetEnvironmentVariable("JAVA_11_HOME", "C:\Program Files\Eclipse Adoptium\jdk-11.0.25.9-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_17_HOME", "C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_21_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot", [EnvironmentVariableTarget]::User)
+  [Environment]::SetEnvironmentVariable("JAVA_25_HOME", "C:\Program Files\Eclipse Adoptium\jdk-25.0.1.9-hotspot", [EnvironmentVariableTarget]::User)
 
   # JAVA_HOME = JAVA_8_HOME
   [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)

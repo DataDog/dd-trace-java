@@ -39,13 +39,6 @@ public final class ProfilingConfig {
    */
   @Deprecated
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
-  /**
-   * Default compression value. Supported values are: - "on": equivalent to "lz4", will later be
-   * "zstd" - "off": disables compression - "lz4": uses LZ4 compression (fast with moderate
-   * compression ratio) - "gzip": uses GZIP compression (higher compression ratio but slower) -
-   * "zstd": uses ZSTD compression (high compression ratio with reasonable performance)
-   */
-  public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT = "lz4";
 
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
@@ -136,6 +129,10 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
       "profiling.experimental.ddprof.scheduling.event.interval";
 
+  public static final String PROFILING_PROCESS_CONTEXT_ENABLED =
+      "profiling.experimental.process_context.enabled";
+  public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = false;
+
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
@@ -204,14 +201,22 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
+  // spotless:off
   /**
-   * Configuration for profile upload compression. Supported values are: - "on": equivalent to "lz4"
-   * - "off": disables compression - "lz4": uses LZ4 compression (fast with moderate compression
-   * ratio) - "gzip": uses GZIP compression (higher compression ratio but slower) - "zstd": uses
-   * ZSTD compression (high compression ratio with reasonable performance)
+   * Configuration for profile upload compression.<br><br> Supported values are:
+   * <ul>
+   * <li><b>on</b>: equivalent to <b>zstd</b></li>
+   * <li><b>off</b>: disables compression</li>
+   * <li><b>lz4</b>: uses LZ4 compression (fast with moderate compression ratio)</li>
+   * <li><b>gzip</b>: uses GZIP compression (higher compression ratio but slower)</li>
+   * <li><b>zstd</b>: uses ZSTD compression (high compression ratio with reasonable performance)</li>
+   * </ul>
    */
+  // spotless:on
   public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION =
       "profiling.debug.upload.compression";
+
+  public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT = "zstd";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 

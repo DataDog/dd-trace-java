@@ -1,5 +1,6 @@
 package datadog.trace.api.git;
 
+import datadog.trace.util.Strings;
 import java.util.Objects;
 
 public class CommitInfo {
@@ -44,10 +45,32 @@ public class CommitInfo {
   }
 
   public boolean isEmpty() {
-    return (sha == null || sha.isEmpty())
+    return Strings.isBlank(sha)
         && (author == null || author.isEmpty())
         && (committer == null || committer.isEmpty())
-        && (fullMessage == null || fullMessage.isEmpty());
+        && Strings.isBlank(fullMessage);
+  }
+
+  public boolean isComplete() {
+    return Strings.isNotBlank(sha)
+        && (author != null && author.isComplete())
+        && (committer != null && committer.isComplete())
+        && Strings.isNotBlank(fullMessage);
+  }
+
+  /**
+   * Combine infos by completing the empty information fields in {@code first} with {@code second}'s
+   *
+   * @param first Base commit info
+   * @param second Fallback commit info
+   * @return Combined commit info
+   */
+  public static CommitInfo coalesce(final CommitInfo first, final CommitInfo second) {
+    return new CommitInfo(
+        Strings.coalesce(first.sha, second.sha),
+        PersonInfo.coalesce(first.author, second.author),
+        PersonInfo.coalesce(first.committer, second.committer),
+        Strings.coalesce(first.fullMessage, second.fullMessage));
   }
 
   @Override

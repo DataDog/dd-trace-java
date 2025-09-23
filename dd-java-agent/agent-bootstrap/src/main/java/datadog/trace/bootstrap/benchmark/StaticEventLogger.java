@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.benchmark;
 
+import datadog.environment.SystemProperties;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -18,8 +19,8 @@ public class StaticEventLogger {
   static {
     BufferedWriter writer = null;
 
-    if ("true".equalsIgnoreCase(System.getProperty("dd.benchmark.enabled"))) {
-      String dir = System.getProperty("dd.benchmark.output.dir");
+    if ("true".equalsIgnoreCase(SystemProperties.get("dd.benchmark.enabled"))) {
+      String dir = SystemProperties.get("dd.benchmark.output.dir");
       dir = (dir != null ? dir + File.separator : "");
       String fileName = dir + "startup_" + System.currentTimeMillis() + ".csv";
 
@@ -96,7 +97,7 @@ public class StaticEventLogger {
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);
       }
-    } catch (IOException e) {
+    } catch (Throwable ignored) {
       // swallow exception
       return null;
     }

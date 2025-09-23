@@ -4,6 +4,7 @@ import com.squareup.moshi.FromJson;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public class CiVisibilitySettings {
 
@@ -16,8 +17,11 @@ public class CiVisibilitySettings {
           false,
           false,
           false,
+          false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT);
+          TestManagementSettings.DEFAULT,
+          null);
 
   private final boolean itrEnabled;
   private final boolean codeCoverage;
@@ -26,8 +30,11 @@ public class CiVisibilitySettings {
   private final boolean flakyTestRetriesEnabled;
   private final boolean impactedTestsDetectionEnabled;
   private final boolean knownTestsEnabled;
+  private final boolean coverageReportUploadEnabled;
+  private final boolean failedTestReplayEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
+  @Nullable private final String defaultBranch;
 
   CiVisibilitySettings(
       boolean itrEnabled,
@@ -37,8 +44,11 @@ public class CiVisibilitySettings {
       boolean flakyTestRetriesEnabled,
       boolean impactedTestsDetectionEnabled,
       boolean knownTestsEnabled,
+      boolean coverageReportUploadEnabled,
+      boolean failedTestReplayEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
-      TestManagementSettings testManagementSettings) {
+      TestManagementSettings testManagementSettings,
+      @Nullable String defaultBranch) {
     this.itrEnabled = itrEnabled;
     this.codeCoverage = codeCoverage;
     this.testsSkipping = testsSkipping;
@@ -46,8 +56,11 @@ public class CiVisibilitySettings {
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.knownTestsEnabled = knownTestsEnabled;
+    this.coverageReportUploadEnabled = coverageReportUploadEnabled;
+    this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
+    this.defaultBranch = defaultBranch;
   }
 
   public boolean isItrEnabled() {
@@ -78,12 +91,25 @@ public class CiVisibilitySettings {
     return knownTestsEnabled;
   }
 
+  public boolean isCoverageReportUploadEnabled() {
+    return coverageReportUploadEnabled;
+  }
+
+  public boolean isFailedTestReplayEnabled() {
+    return failedTestReplayEnabled;
+  }
+
   public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
     return earlyFlakeDetectionSettings;
   }
 
   public TestManagementSettings getTestManagementSettings() {
     return testManagementSettings;
+  }
+
+  @Nullable
+  public String getDefaultBranch() {
+    return defaultBranch;
   }
 
   @Override
@@ -102,8 +128,11 @@ public class CiVisibilitySettings {
         && flakyTestRetriesEnabled == that.flakyTestRetriesEnabled
         && impactedTestsDetectionEnabled == that.impactedTestsDetectionEnabled
         && knownTestsEnabled == that.knownTestsEnabled
+        && coverageReportUploadEnabled == that.coverageReportUploadEnabled
+        && failedTestReplayEnabled == that.failedTestReplayEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
-        && Objects.equals(testManagementSettings, that.testManagementSettings);
+        && Objects.equals(testManagementSettings, that.testManagementSettings)
+        && Objects.equals(defaultBranch, that.defaultBranch);
   }
 
   @Override
@@ -116,8 +145,11 @@ public class CiVisibilitySettings {
         flakyTestRetriesEnabled,
         impactedTestsDetectionEnabled,
         knownTestsEnabled,
+        coverageReportUploadEnabled,
+        failedTestReplayEnabled,
         earlyFlakeDetectionSettings,
-        testManagementSettings);
+        testManagementSettings,
+        defaultBranch);
   }
 
   public interface Factory {
@@ -142,16 +174,25 @@ public class CiVisibilitySettings {
           getBoolean(json, "flaky_test_retries_enabled", false),
           getBoolean(json, "impacted_tests_enabled", false),
           getBoolean(json, "known_tests_enabled", false),
+          getBoolean(json, "coverage_report_upload_enabled", false),
+          getBoolean(json, "di_enabled", false),
           EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("early_flake_detection")),
           TestManagementSettings.JsonAdapter.INSTANCE.fromJson(
-              (Map<String, Object>) json.get("test_management")));
+              (Map<String, Object>) json.get("test_management")),
+          getString(json, "default_branch", null));
     }
 
     private static boolean getBoolean(
         Map<String, Object> json, String fieldName, boolean defaultValue) {
       Object value = json.get(fieldName);
       return value instanceof Boolean ? (Boolean) value : defaultValue;
+    }
+
+    private static String getString(
+        Map<String, Object> json, String fieldName, String defaultValue) {
+      Object value = json.get(fieldName);
+      return value instanceof String ? (String) value : defaultValue;
     }
   }
 }

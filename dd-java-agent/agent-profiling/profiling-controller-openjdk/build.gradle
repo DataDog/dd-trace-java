@@ -17,6 +17,7 @@ apply plugin: 'idea'
 dependencies {
   api libs.slf4j
   api project(':internal-api')
+  api project(':utils:version-utils')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
@@ -25,7 +26,6 @@ dependencies {
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
   testImplementation project(':dd-java-agent:agent-profiling')
 }

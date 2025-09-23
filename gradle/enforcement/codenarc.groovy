@@ -316,10 +316,13 @@ ruleset {
   }
   ObjectOverrideMisspelledMethodName
   PackageName
-  ParameterName
+  ParameterName {
+    ignoreParameterNames = '_'
+  }
   PropertyName
   VariableName {
     finalRegex = '^[a-z][a-zA-Z0-9]*$'
+    ignoreVariableNames = '_'
   }
 
   // rulesets/security.xml

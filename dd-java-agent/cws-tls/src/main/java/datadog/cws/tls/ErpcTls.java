@@ -10,6 +10,7 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.cws.erpc.Erpc;
 import datadog.cws.erpc.Request;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
 
@@ -40,7 +41,7 @@ public class ErpcTls implements Tls {
   }
 
   static int getGettidSyscallId() {
-    String arch = System.getProperty("os.arch");
+    String arch = SystemProperties.get("os.arch");
     if (arch.equals("amd64")) {
       return 186; // 186 is the syscall ID for "gettid" on amd64
     } else if (arch.equals("arm64")) {

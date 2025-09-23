@@ -170,7 +170,6 @@ class CompressingRequestBodyTest {
           break;
         }
       case LZ4:
-      case ON:
         {
           assertTrue(CompressingRequestBody.isLz4(compressedStream));
           byte[] uncompressed = IOUtils.toByteArray(new LZ4FrameInputStream(compressedStream));
@@ -188,6 +187,7 @@ class CompressingRequestBodyTest {
           assertEquals(compressed.length, instance.getWrittenBytes());
           break;
         }
+      case ON:
       case ZSTD:
         {
           assertTrue(CompressingRequestBody.isZstd(compressedStream));

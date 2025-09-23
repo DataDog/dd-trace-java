@@ -215,7 +215,7 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 40,
+      "test.source.end" : 44,
       "test.source.start" : 16
     },
     "name" : "junit5.test_suite",
@@ -234,11 +234,13 @@
     "error" : 0,
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.coverage_report_upload" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.fail_fast_test_order" : "1",
+      "_dd.library_capabilities.failed_test_replay" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
-      "_dd.library_capabilities.test_management.attempt_to_fix" : "4",
+      "_dd.library_capabilities.test_management.attempt_to_fix" : "5",
       "_dd.library_capabilities.test_management.disable" : "1",
       "_dd.library_capabilities.test_management.quarantine" : "1",
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
@@ -273,7 +275,7 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 39,
+      "test.source.end" : 43,
       "test.source.start" : 30
     },
     "name" : "junit5.test",

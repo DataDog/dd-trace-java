@@ -75,7 +75,7 @@ spotless {
 
   format 'misc', {
     toggleOffOn()
-    target '.gitignore', '*.sh', 'tooling/*.sh', '.circleci/*.sh'
+    target '.gitignore', '*.sh', 'tooling/*.sh', '.gitlab/*.sh'
     indentWithSpaces()
     trimTrailingWhitespace()
     endWithNewline()

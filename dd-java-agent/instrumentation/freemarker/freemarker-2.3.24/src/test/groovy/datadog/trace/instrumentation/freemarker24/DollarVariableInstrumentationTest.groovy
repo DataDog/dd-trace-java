@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.freemarker24
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
 import freemarker.template.Configuration
@@ -8,7 +8,7 @@ import freemarker.template.SimpleHash
 import freemarker.template.Template
 import freemarker.template.TemplateHashModel
 
-class DollarVariableInstrumentationTest extends AgentTestRunner {
+class DollarVariableInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

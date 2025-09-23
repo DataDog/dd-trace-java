@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.javax.xml
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XPathInjectionModule
 import foo.bar.TestXPathSuite
@@ -10,7 +10,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants
 import javax.xml.xpath.XPathFactory
 
-class XPathInstrumentationTest extends AgentTestRunner {
+class XPathInstrumentationTest extends InstrumentationSpecification {
 
   private static final String XML_STRING = """<?xml version="1.0" encoding="UTF-8"?>
 <bookstore>

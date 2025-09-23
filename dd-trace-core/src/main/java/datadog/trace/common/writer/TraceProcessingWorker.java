@@ -254,14 +254,14 @@ public class TraceProcessingWorker implements AutoCloseable {
       final SpanPostProcessor postProcessor = SpanPostProcessor.Holder.INSTANCE;
       try {
         final long timeout = Config.get().getTracePostProcessingTimeout();
-        final long deadline = System.currentTimeMillis() + timeout;
+        final long deadline = System.nanoTime() + timeout * 1000 * 1000;
         final boolean[] timedOut = {false};
         final BooleanSupplier timeoutCheck =
             () -> {
               if (timedOut[0]) {
                 return true;
               }
-              if (System.currentTimeMillis() > deadline) {
+              if (System.nanoTime() > deadline) {
                 timedOut[0] = true;
               }
               return timedOut[0];

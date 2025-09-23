@@ -50,7 +50,14 @@
       <dependency>
         <groupId>org.spockframework</groupId>
         <artifactId>spock-bom</artifactId>
-        <version>2.4-M2-groovy-4.0</version>
+        <version>2.4-M6-groovy-4.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.groovy</groupId>
+        <artifactId>groovy-bom</artifactId>
+        <version>4.0.28</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -73,6 +80,11 @@
       <artifactId>spock-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.groovy</groupId>
+      <artifactId>groovy</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -80,7 +92,7 @@
       <plugin>
         <groupId>org.codehaus.gmavenplus</groupId>
         <artifactId>gmavenplus-plugin</artifactId>
-        <version>3.0.2</version>
+        <version>4.2.1</version>
         <executions>
           <execution>
             <goals>

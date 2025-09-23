@@ -1,6 +1,6 @@
 plugins {
   id 'java'
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -48,4 +48,7 @@ task testRuntimeActivation(type: Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
     "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+
+tasks.named('check') {
+  dependsOn(testRuntimeActivation)
+}

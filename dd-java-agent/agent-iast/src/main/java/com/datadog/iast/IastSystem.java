@@ -102,7 +102,7 @@ public class IastSystem {
     if (VERBOSITY != Verbosity.OFF) {
       IastMetricCollector.register(new IastMetricCollector());
     }
-    final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
+    final Reporter reporter = new Reporter(config, AgentTaskScheduler.get());
     final boolean globalContext = config.getIastContextMode() == GLOBAL;
     final IastContext.Provider contextProvider = contextProvider(iast, globalContext);
     if (overheadController == null) {
@@ -111,7 +111,7 @@ public class IastSystem {
               globalContext ? UNLIMITED : config.getIastRequestSampling(),
               config.getIastMaxConcurrentRequests(),
               globalContext,
-              AgentTaskScheduler.INSTANCE);
+              AgentTaskScheduler.get());
     }
     IastContext.Provider.register(contextProvider);
     final Dependencies dependencies =
@@ -122,6 +122,7 @@ public class IastSystem {
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
     registerHeadersCallback(ss);
+    registerHttpRouteCallback(ss);
     registerGrpcServerRequestMessageCallback(ss);
     maybeApplySecurityControls(instrumentation);
     LOGGER.debug("IAST started");
@@ -244,6 +245,10 @@ public class IastSystem {
         Events.get().requestHeader();
     final TriConsumer<RequestContext, String, String> handler = new RequestHeaderHandler();
     ss.registerCallback(event, handler);
+  }
+
+  private static void registerHttpRouteCallback(final SubscriptionService ss) {
+    ss.registerCallback(Events.get().httpRoute(), new HttpRouteHandler());
   }
 
   private static void registerGrpcServerRequestMessageCallback(final SubscriptionService ss) {

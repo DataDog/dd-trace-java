@@ -83,8 +83,8 @@ public final class OkHttpSink implements Sink, EventListener {
     } else {
       if (asyncTaskStarted.compareAndSet(false, true)) {
         this.future =
-            AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-                new Sender(enqueuedRequests), this, 1, 1, SECONDS);
+            AgentTaskScheduler.get()
+                .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
       sendAsync(messageCount, buffer);
     }

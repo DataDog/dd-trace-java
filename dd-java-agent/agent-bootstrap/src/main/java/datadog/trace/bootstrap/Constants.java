@@ -11,14 +11,14 @@ public final class Constants {
    * packages which will be loaded on the bootstrap classloader
    *
    * <p>Updates should be mirrored in
-   * datadog.trace.agent.test.SpockRunner#BOOTSTRAP_PACKAGE_PREFIXES_COPY
+   * datadog.trace.agent.test.BootstrapClasspathSetup#BOOTSTRAP_PACKAGE_PREFIXES_COPY
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES = {
     "datadog.slf4j",
+    "datadog.context",
+    "datadog.environment",
     "datadog.json",
     "datadog.yaml",
-    "datadog.context",
-    "datadog.cli",
     "datadog.appsec.api",
     "datadog.trace.api",
     "datadog.trace.bootstrap",

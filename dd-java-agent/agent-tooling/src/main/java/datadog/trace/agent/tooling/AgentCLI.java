@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling;
 
-import com.datadog.crashtracking.CrashUploader;
-import com.datadog.crashtracking.OOMENotifier;
+import datadog.crashtracking.CrashUploader;
+import datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.profiler.EnvironmentChecker;
@@ -164,7 +164,7 @@ public final class AgentCLI {
                     log.debug("Adding new jar: {}", temp.getAbsolutePath());
                     recursiveDependencySearch(invoker, temp);
                     if (!temp.delete()) {
-                      log.error("Error deleting temp file:{}", temp.getAbsolutePath());
+                      log.error("Error deleting temp file: {}", temp.getAbsolutePath());
                     }
                   } catch (Exception ex) {
                     log.error("Error unzipping file", ex);

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
@@ -18,7 +18,7 @@ import org.opensearch.node.Node
 import org.opensearch.transport.Netty4Plugin
 import spock.lang.Shared
 
-class OpensearchRestClientTest extends AgentTestRunner {
+class OpensearchRestClientTest extends InstrumentationSpecification {
   @Shared
   TransportAddress httpTransportAddress
   @Shared
@@ -30,6 +30,12 @@ class OpensearchRestClientTest extends AgentTestRunner {
 
   @Shared
   RestClient client
+
+  @Override
+  boolean useStrictTraceWrites() {
+    //FIXME IDM
+    false
+  }
 
   def setupSpec() {
 

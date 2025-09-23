@@ -1,23 +1,21 @@
 package datadog.trace.instrumentation.gradle;
 
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
-import datadog.trace.api.config.CiVisibilityConfig;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 public class GradleDaemonInjectionUtils {
 
   public static Map<String, String> addJavaagentToGradleDaemonProperties(
       Map<String, String> jvmOptions) {
-    Properties systemProperties = System.getProperties();
-    if (systemProperties.containsKey(
-        propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION))) {
+    if (SystemProperties.get(propertyNameToSystemPropertyName(CIVISIBILITY_INJECTED_TRACER_VERSION))
+        != null) {
       // This Gradle launcher is started by a process that is itself instrumented,
       // most likely this is a Gradle build using Gradle Test Kit to fork another Gradle instance
       // (e.g. to test a Gradle plugin).
@@ -29,14 +27,14 @@ public class GradleDaemonInjectionUtils {
     Path agentJarPath = agentJar.toPath();
     StringBuilder agentArg = new StringBuilder("-javaagent:").append(agentJarPath).append('=');
 
-    for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-      String propertyName = (String) e.getKey();
-      Object propertyValue = e.getValue();
+    for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
+      String propertyName = p.getKey();
+      String propertyValue = p.getValue();
       if (propertyName.startsWith(Config.PREFIX)) {
         agentArg
             .append(propertyName)
             .append("='")
-            .append(String.valueOf(propertyValue).replace("'", "'\\''"))
+            .append(propertyValue.replace("'", "'\\''"))
             .append("',");
       }
     }

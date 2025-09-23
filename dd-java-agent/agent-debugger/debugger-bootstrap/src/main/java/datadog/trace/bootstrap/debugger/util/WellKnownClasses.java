@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.ToLongFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +60,13 @@ public class WellKnownClasses {
     // implementations of java.io.file.Path interfaces
     SAFE_TO_STRING_FUNCTIONS.put("sun.nio.fs.UnixPath", String::valueOf);
     SAFE_TO_STRING_FUNCTIONS.put("sun.nio.fs.WindowsPath", String::valueOf);
+    SAFE_TO_STRING_FUNCTIONS.put("java.util.Date", WellKnownClasses::dateToString);
+  }
+
+  private static final Map<String, ToLongFunction<Object>> LONG_FUNCTIONS = new HashMap<>();
+
+  static {
+    LONG_FUNCTIONS.put("java.util.Date", WellKnownClasses::dateToLongValue);
   }
 
   private static final Set<String> EQUALS_SAFE_CLASSES = new HashSet<>();
@@ -98,9 +107,12 @@ public class WellKnownClasses {
               "java.time.LocalDate",
               "java.time.LocalDateTime",
               "java.util.UUID",
+              "java.net.URI",
               "java.io.File",
               "sun.nio.fs.UnixPath",
               "sun.nio.fs.WindowsPath"));
+
+  private static final Set<String> LONG_PRIMITIVES = new HashSet<>(Arrays.asList("java.util.Date"));
 
   private static final Map<Class<?>, Map<String, Function<Object, CapturedContext.CapturedValue>>>
       SPECIAL_TYPE_ACCESS = new HashMap<>();
@@ -212,6 +224,14 @@ public class WellKnownClasses {
   }
 
   /**
+   * indicates if type is considered as a int/long primitive and can be compared to another long
+   * value or literal with Expression Language
+   */
+  public static boolean isLongPrimitive(String type) {
+    return LONG_PRIMITIVES.contains(type);
+  }
+
+  /**
    * @return a map of fields with function to access special field of a type, or null if type is not
    *     supported. This is used to avoid using reflection to access fields on well known types
    */
@@ -232,6 +252,8 @@ public class WellKnownClasses {
   }
 
   /**
+   * @param type the type name of the object to generate a string representation for. Must be a
+   *     concrete type, not a declared type. see {@link #isToStringSafe(String)}
    * @return a function to generate a string representation of a type where the default toString
    *     method is not suitable
    */
@@ -243,10 +265,22 @@ public class WellKnownClasses {
     return ((Class<?>) o).getTypeName();
   }
 
+  private static String dateToString(Object o) {
+    return Long.toString(((Date) o).getTime());
+  }
+
+  private static long dateToLongValue(Object o) {
+    return ((Date) o).getTime();
+  }
+
   public static boolean isEqualsSafe(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isEnum()
         || EQUALS_SAFE_CLASSES.contains(clazz.getTypeName());
+  }
+
+  public static ToLongFunction<Object> getLongPrimitiveValueFunction(String typeName) {
+    return LONG_FUNCTIONS.get(typeName);
   }
 
   private static class ThrowableFields {

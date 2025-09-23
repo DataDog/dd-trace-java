@@ -2,6 +2,7 @@ plugins {
   groovy
   `java-gradle-plugin`
   `kotlin-dsl`
+  `jvm-test-suite`
   id("com.diffplug.spotless") version "6.13.0"
 }
 
@@ -19,11 +20,23 @@ gradlePlugin {
     }
     create("muzzle-plugin") {
       id = "muzzle"
-      implementationClass = "MuzzlePlugin"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
+    }
+    create("tracer-version-plugin") {
+      id = "tracer-version"
+      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
+    create("supported-config-generation") {
+      id = "supported-config-generator"
+      implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
+    }
+    create("supported-config-linter") {
+      id = "config-inversion-linter"
+      implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
     }
   }
 }
@@ -42,19 +55,50 @@ dependencies {
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
+  implementation("com.github.zafarkhaja:java-semver:0.10.2")
+
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.8")
   implementation("org.ow2.asm", "asm-tree", "9.8")
 
-  testImplementation("org.spockframework", "spock-core", "2.2-groovy-3.0")
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
+  implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
+  implementation("com.fasterxml.jackson.core:jackson-databind")
+  implementation("com.fasterxml.jackson.core:jackson-annotations")
+  implementation("com.fasterxml.jackson.core:jackson-core")
 }
 
 tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
-tasks.test {
-  useJUnitPlatform()
-  enabled = project.hasProperty("runBuildSrcTests")
+testing {
+  @Suppress("UnstableApiUsage")
+  suites {
+    val test by getting(JvmTestSuite::class) {
+      dependencies {
+        implementation(libs.spock.core)
+        implementation(libs.groovy)
+      }
+      targets.configureEach {
+        testTask.configure {
+          enabled = project.hasProperty("runBuildSrcTests")
+        }
+      }
+    }
+
+    val integTest by registering(JvmTestSuite::class) {
+      dependencies {
+        implementation(gradleTestKit())
+      }
+      // Makes the gradle plugin publish its declared plugins to this source set
+      gradlePlugin.testSourceSet(sources)
+    }
+
+    withType(JvmTestSuite::class).configureEach {
+      useJUnitJupiter(libs.versions.junit5)
+      targets.configureEach {
+        testTask
+      }
+    }
+  }
 }

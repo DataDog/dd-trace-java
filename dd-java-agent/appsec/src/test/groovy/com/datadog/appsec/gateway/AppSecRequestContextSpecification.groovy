@@ -1,23 +1,31 @@
 package com.datadog.appsec.gateway
 
-
-import com.datadog.appsec.config.CurrentAppSecConfig
+import com.datadog.appsec.ddwaf.WafInitialization
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.ddwaf.Waf
+import com.datadog.ddwaf.WafBuilder
+import com.datadog.ddwaf.WafContext
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
-import datadog.trace.util.stacktrace.StackTraceEvent
-import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.stacktrace.StackTraceEvent
 import datadog.trace.util.stacktrace.StackTraceFrame
-import com.datadog.ddwaf.WafContext
-import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
+import okio.Okio
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
+  private static final JsonAdapter<Map<String, Object>> ADAPTER =
+  new Moshi.Builder()
+  .build()
+  .adapter(Types.newParameterizedType(Map, String, Object))
+
   AppSecRequestContext ctx = new AppSecRequestContext()
+  WafBuilder wafBuilder
 
   void 'implements DataBundle'() {
     when:
@@ -204,14 +212,13 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   private WafContext createWafContext() {
+    WafInitialization.ONLINE
     Waf.initialize false
-    def service = new StubAppSecConfigService()
-    service.init()
-    CurrentAppSecConfig config = service.lastConfig['waf']
-    String uniqueId = UUID.randomUUID() as String
-    config.dirtyStatus.markAllDirty()
-    WafHandle context = Waf.createHandle(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new WafContext(context)
+    wafBuilder?.close()
+    wafBuilder = new WafBuilder()
+    def stream = getClass().classLoader.getResourceAsStream("test_multi_config.json")
+    wafBuilder.addOrUpdateConfig("test", ADAPTER.fromJson(Okio.buffer(Okio.source(stream))))
+    new WafContext(wafBuilder.buildWafHandleInstance())
   }
 
   void 'close closes the wafContext'() {
@@ -304,5 +311,126 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     cleanup:
     TestLogCollector.disable()
+  }
+  void 'test that processed attributes are cleared on close'() {
+    setup:
+    def derivatives = [
+      'numeric': '42',
+      'string': 'value'
+    ]
+
+    when:
+    ctx.reportDerivatives(derivatives)
+    ctx.close()
+
+    then:
+    ctx.getDerivativeKeys().isEmpty()
+  }
+
+  def "test attribute handling with literal values and request data extraction"() {
+    given:
+    def context = new AppSecRequestContext()
+    context.setMethod("POST")
+    context.setScheme("https")
+    context.setRawURI("/api/test")
+    context.setRoute("/api/{param}")
+    context.setResponseStatus(200)
+    context.addRequestHeader("user-agent", "TestAgent/1.0")
+    context.addRequestHeader("content-type", "application/json")
+
+    // Test data for attributes
+    def attributes = [
+      "_dd.appsec.s.res.headers": [
+        "value": "literal-header-value"
+      ],
+      "_dd.appsec.s.res.method": [
+        "address": "server.request.method"
+      ],
+      "_dd.appsec.s.res.scheme": [
+        "address": "server.request.scheme"
+      ],
+      "_dd.appsec.s.res.uri": [
+        "address": "server.request.uri.raw"
+      ],
+      "_dd.appsec.s.res.route": [
+        "address": "server.request.route"
+      ],
+      "_dd.appsec.s.res.status": [
+        "address": "server.response.status"
+      ],
+      "_dd.appsec.s.res.user_agent": [
+        "address": "server.request.headers",
+        "key_path": ["user-agent"]
+      ],
+      "_dd.appsec.s.res.content_type": [
+        "address": "server.request.headers",
+        "key_path": ["content-type"]
+      ],
+      "_dd.appsec.s.res.user_agent_lower": [
+        "address": "server.request.headers",
+        "key_path": ["user-agent"],
+        "transformers": ["lowercase"]
+      ],
+      "_dd.appsec.s.res.content_type_upper": [
+        "address": "server.request.headers",
+        "key_path": ["content-type"],
+        "transformers": ["uppercase"]
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(attributes)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 10
+    keys.contains("_dd.appsec.s.res.headers")
+    keys.contains("_dd.appsec.s.res.method")
+    keys.contains("_dd.appsec.s.res.scheme")
+    keys.contains("_dd.appsec.s.res.uri")
+    keys.contains("_dd.appsec.s.res.route")
+    keys.contains("_dd.appsec.s.res.status")
+    keys.contains("_dd.appsec.s.res.user_agent")
+    keys.contains("_dd.appsec.s.res.content_type")
+    keys.contains("_dd.appsec.s.res.user_agent_lower")
+    keys.contains("_dd.appsec.s.res.content_type_upper")
+  }
+
+  def "test attribute handling with unknown address"() {
+    given:
+    def context = new AppSecRequestContext()
+
+    def attributes = [
+      "_dd.appsec.s.res.unknown": [
+        "address": "server.request.unknown"
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(attributes)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 0 // No attributes should be added for unknown addresses
+  }
+
+  def "test attribute handling with invalid key path"() {
+    given:
+    def context = new AppSecRequestContext()
+    context.addRequestHeader("user-agent", "TestAgent/1.0")
+
+    def attributes = [
+      "_dd.appsec.s.res.invalid": [
+        "address": "server.request.headers",
+        "key_path": ["non-existent-header"]
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(attributes)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 0 // No attributes should be added for invalid key paths
   }
 }

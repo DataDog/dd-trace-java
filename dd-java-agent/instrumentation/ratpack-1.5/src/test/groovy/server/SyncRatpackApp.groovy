@@ -5,6 +5,7 @@ import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.HandlerDecorator
 import ratpack.test.embed.EmbeddedApp
+import static ratpack.jackson.Jackson.json
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
@@ -46,9 +47,10 @@ enum SyncRatpackApp implements EmbeddedApp {
       prefix(CREATED.relativeRawPath()) {
         all {
           controller(CREATED) {
-            request.body.then { typedData ->
+            request.body.then {
+              typedData ->
               response.status(CREATED.status)
-                .send('text/plain', "${CREATED.body}: ${typedData.text}")
+              .send('text/plain', "${CREATED.body}: ${typedData.text}")
             }
           }
         }
@@ -61,9 +63,14 @@ enum SyncRatpackApp implements EmbeddedApp {
       prefix(BODY_URLENCODED.relativeRawPath()) {
         all {
           controller(BODY_URLENCODED) {
-            context.parse(Form).then { form ->
-              def text = form.findAll { it.key != 'ignore'}
-              .collectEntries {[it.key, it.value as List]} as String
+            context.parse(Form).then {
+              form ->
+              def text = form.findAll {
+                it.key != 'ignore'
+              }
+              .collectEntries {
+                [it.key, it.value as List]
+              } as String
               response.status(BODY_URLENCODED.status).send('text/plain', text)
             }
           }
@@ -72,8 +79,11 @@ enum SyncRatpackApp implements EmbeddedApp {
       prefix(BODY_MULTIPART.relativeRawPath()) {
         all {
           controller(BODY_MULTIPART) {
-            context.parse(Form).then { form ->
-              def text = form.collectEntries {[it.key, it.value as List]} as String
+            context.parse(Form).then {
+              form ->
+              def text = form.collectEntries {
+                [it.key, it.value as List]
+              } as String
               response.status(BODY_MULTIPART.status).send('text/plain', text)
             }
           }
@@ -82,8 +92,11 @@ enum SyncRatpackApp implements EmbeddedApp {
       prefix(BODY_JSON.relativeRawPath()) {
         all {
           controller(BODY_JSON) {
-            context.parse(Map).then { map ->
-              response.status(BODY_JSON.status).send('text/plain', "{\"a\":\"${map['a']}\"}")
+            context.parse(Map).then {
+              map -> {
+                response.status(BODY_JSON.status)
+                context.render(json(map))
+              }
             }
           }
         }

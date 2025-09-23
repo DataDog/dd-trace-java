@@ -64,7 +64,7 @@ dependencies {
     transitive = false
   }
 
-  testFixturesImplementation(project(':dd-java-agent:testing')) {
+  testFixturesApi(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testFixturesCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'

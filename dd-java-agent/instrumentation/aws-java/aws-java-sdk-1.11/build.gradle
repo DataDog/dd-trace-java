@@ -1,0 +1,112 @@
+// compiling against 1.11.0, but instrumentation should work against 1.10.33 with varying effects,
+// depending on the version's implementation. (i.e. DeleteOptionGroup may have less handlerCounts than
+// expected in 1.11.84. Testing against 1.11.0 instead of 1.10.33 because the RequestHandler class
+// used in testing is abstract in 1.10.33
+// keeping base test version on 1.11.0 because RequestHandler2 is abstract in 1.10.33,
+// therefore keeping base version as 1.11.0 even though the instrumentation probably
+// is able to support up to 1.10.33
+muzzle {
+  pass {
+    group = "com.amazonaws"
+    module = "aws-java-sdk-core"
+    versions = "[1.10.33,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+// Features used in test_1_11_106 (builder) is available since 1.11.84, but
+// using 1.11.106 because of previous concerns with byte code differences
+// in 1.11.106, also, the DeleteOptionGroup request generates more spans
+// in 1.11.106 than 1.11.84.
+// We test older version in separate test set to test newer version and latest deps in the 'default'
+// test dir. Otherwise we get strange warnings in Idea.
+addTestSuite('test_before_1_11_106')
+addTestSuiteExtendingForDir('test_before_1_11_106ForkedTest', 'test_before_1_11_106', 'test_before_1_11_106')
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+addTestSuite('dsmTest')
+addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
+addTestSuiteForDir('latestDsmTest', 'dsmTest')
+addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
+
+dependencies {
+  compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.0'
+
+  // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
+  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
+
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-rds', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-ec2', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '[1.11,1.11.106]'
+
+  // needed for kinesis:
+  testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: null
+  testImplementation group: 'org.json', name: 'json', version: '20231013'
+
+
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-s3') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-rds') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-ec2') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-kinesis') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-sqs') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-sns') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb') {
+    version {
+      strictly '1.11.0'
+    }
+  }
+
+  dsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '1.12.366'
+  // no batch publish before v1.12
+  dsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '1.12.366'
+  latestDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '+'
+  latestDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
+
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-rds', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-ec2', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '+'
+}
+
+tasks.named("test").configure {
+  dependsOn "test_before_1_11_106"
+}
+
+tasks.named("forkedTest").configure {
+  dependsOn "test_before_1_11_106ForkedTest"
+}

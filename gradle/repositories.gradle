@@ -1,38 +1,36 @@
 repositories {
   mavenLocal()
+  if (project.rootProject.name != "dd-trace-java" && project.rootProject.name != "buildSrc") {
+    logger.lifecycle("Using maven repository proxy: " + project.rootProject.findProperty("mavenRepositoryProxy"))
+  }
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
-      allowInsecureProtocol true
+      allowInsecureProtocol = true
     }
   }
   mavenCentral()
-  // add sonatype repository for snapshot dependencies
+  // add maven central repository for snapshot dependencies
   maven {
     content {
       includeGroup "com.datadoghq"
+      includeGroup "io.sqreen"
     }
     mavenContent {
       snapshotsOnly()
     }
-    url 'https://oss.sonatype.org/content/repositories/snapshots/'
-  }
-  ivy {
-    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
-    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
-    content {
-      includeGroup 'io.sqreen'
-    }
+    // see https://central.sonatype.org/publish/publish-portal-snapshots/#consuming-via-gradle
+    url = 'https://central.sonatype.com/repository/maven-snapshots/'
   }
   maven {
-    url 'https://packages.confluent.io/maven/'
+    url = 'https://packages.confluent.io/maven/'
     content {
       includeGroupAndSubgroups "io.confluent"
       includeGroupAndSubgroups "org.apache.kafka"
     }
   }
   maven {
-    url 'https://repo.spring.io/libs-milestone'
+    url = 'https://repo.spring.io/libs-milestone'
     content {
       includeGroupAndSubgroups "org.springframework"
     }

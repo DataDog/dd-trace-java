@@ -40,6 +40,8 @@ class AzurePipelinesInfo implements CIProviderInfo {
   public static final String AZURE_BUILD_SOURCEVERSION_MESSAGE = "BUILD_SOURCEVERSIONMESSAGE";
   public static final String AZURE_BUILD_REQUESTED_FOR_ID = "BUILD_REQUESTEDFORID";
   public static final String AZURE_BUILD_REQUESTED_FOR_EMAIL = "BUILD_REQUESTEDFOREMAIL";
+  public static final String AZURE_PR_NUMBER = "SYSTEM_PULLREQUEST_PULLREQUESTNUMBER";
+  public static final String AZURE_PR_TARGET_BRANCH = "SYSTEM_PULLREQUEST_TARGETBRANCH";
 
   private final CiEnvironment environment;
 
@@ -75,6 +77,7 @@ class AzurePipelinesInfo implements CIProviderInfo {
         .ciPipelineNumber(buildId)
         .ciPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
         .ciStageName(environment.get(AZURE_SYSTEM_STAGEDISPLAYNAME))
+        .ciJobId(jobId)
         .ciJobName(environment.get(AZURE_SYSTEM_JOBDISPLAYNAME))
         .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
         .ciWorkspace(expandTilde(environment.get(AZURE_WORKSPACE_PATH)))
@@ -85,7 +88,12 @@ class AzurePipelinesInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(AZURE_PR_TARGET_BRANCH)),
+        null,
+        null,
+        CommitInfo.NOOP,
+        environment.get(AZURE_PR_NUMBER));
   }
 
   private String buildGitBranch() {

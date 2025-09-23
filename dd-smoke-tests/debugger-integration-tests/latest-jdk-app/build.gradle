@@ -6,12 +6,12 @@ plugins {
 
 shadowJar {
     // Define the main class for the application.
-    mainClassName = 'App'
+    mainClass = 'App'
 }
 
 def latestJdk = 17
 
-def latestJdkHome = System.getenv("JAVA_${latestJdk}_HOME")
+def latestJdkHome = providers.environmentVariable("JAVA_${latestJdk}_HOME").orNull
 if (latestJdkHome != null) {
   tasks.withType(JavaCompile) {
     options.fork = true

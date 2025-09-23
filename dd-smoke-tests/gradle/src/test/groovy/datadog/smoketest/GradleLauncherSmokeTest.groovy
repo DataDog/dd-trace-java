@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.utils.ShellCommandExecutor
+import org.opentest4j.AssertionFailedError
 
 /**
  * This test runs Gradle Launcher with the Java Tracer injected
@@ -11,7 +12,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
 
-  private static final String AGENT_JAR = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  private static final String JAVA_HOME = buildJavaHome()
 
   def "test Gradle Launcher injects tracer into Gradle Daemon: v#gradleVersion, cmd line - #gradleDaemonCmdLineParams"() {
     given:
@@ -45,22 +46,23 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   }
 
   private void givenGradleWrapper(String gradleVersion) {
-    def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS)
+    def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, ["JAVA_HOME": JAVA_HOME])
     shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
   }
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams) {
     def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, [
-      "GRADLE_OPTS"                        : "-javaagent:${AGENT_JAR}".toString(),
-      "DD_CIVISIBILITY_ENABLED"            : "true",
-      "DD_CIVISIBILITY_AGENTLESS_ENABLED"  : "true",
-      "DD_CIVISIBILITY_AGENTLESS_URL"      : "${mockBackend.intakeUrl}".toString(),
-      "DD_CIVISIBILITY_GIT_UPLOAD_ENABLED" : "false",
-      "DD_API_KEY"                         : "dummy"
+      "JAVA_HOME"                         : JAVA_HOME,
+      "GRADLE_OPTS"                       : "-javaagent:${AGENT_JAR}".toString(),
+      "DD_CIVISIBILITY_ENABLED"           : "true",
+      "DD_CIVISIBILITY_AGENTLESS_ENABLED" : "true",
+      "DD_CIVISIBILITY_AGENTLESS_URL"     : "${mockBackend.intakeUrl}".toString(),
+      "DD_CIVISIBILITY_GIT_UPLOAD_ENABLED": "false",
+      "DD_API_KEY"                        : "dummy"
     ])
     String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {
-      command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams"
+      command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams".toString()
     }
     return shellCommandExecutor.executeCommand(IOUtils::readFully, command)
   }
@@ -69,7 +71,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     def daemonStartCommandLog = buildOutput.split("\n").find { it.contains("Starting process 'Gradle build daemon'") }
     for (String token : tokens) {
       if (!daemonStartCommandLog.contains(token)) {
-        throw new org.opentest4j.AssertionFailedError("Gradle Daemon start command does not contain " + token, token, daemonStartCommandLog)
+        throw new AssertionFailedError("Gradle Daemon start command does not contain " + token, token, daemonStartCommandLog)
       }
     }
     return true

@@ -1,0 +1,26 @@
+plugins {
+  id 'com.gradleup.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'RUM Tomcat 9 Smoke Tests'
+
+dependencies {
+  implementation 'org.apache.tomcat.embed:tomcat-embed-core:9.0.88'
+  implementation 'org.apache.tomcat.embed:tomcat-embed-jasper:9.0.88'
+  implementation 'javax.servlet:javax.servlet-api:4.0.1'
+
+  testImplementation project(':dd-smoke-tests:rum')
+}
+
+jar {
+  manifest {
+    attributes('Main-Class': 'com.example.Main')
+  }
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.rum.tomcat9.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
