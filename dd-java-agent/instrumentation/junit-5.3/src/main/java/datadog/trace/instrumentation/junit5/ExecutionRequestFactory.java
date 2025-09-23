@@ -29,6 +29,11 @@ public class ExecutionRequestFactory {
    */
   private static final MethodHandle GET_CANCELLATION_TOKEN =
       METHOD_HANDLES.method(ExecutionRequest.class, "getCancellationToken");
+  /*
+   * From 6.0.0-RC3 onwards OutputDirectoryProvider is deprecated in favor of OutputDirectoryCreator
+   */
+  private static final MethodHandle GET_OUTPUT_DIRECTORY_CREATOR =
+      METHOD_HANDLES.method(ExecutionRequest.class, "getOutputDirectoryCreator");
 
   private static final String[] CREATE_PARAMETER_TYPES =
       new String[] {
@@ -40,11 +45,48 @@ public class ExecutionRequestFactory {
         "org.junit.platform.engine.CancellationToken"
       };
 
+  private static final String[] CREATE_PARAMETER_TYPES_WITH_CREATOR =
+      new String[] {
+        "org.junit.platform.engine.TestDescriptor",
+        "org.junit.platform.engine.EngineExecutionListener",
+        "org.junit.platform.engine.ConfigurationParameters",
+        "org.junit.platform.engine.OutputDirectoryCreator",
+        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore",
+        "org.junit.platform.engine.CancellationToken"
+      };
+
   private static final BiFunction<ExecutionRequest, EngineExecutionListener, ExecutionRequest>
       EXECUTION_REQUEST_CREATE = createExecutionRequestHandle();
 
   private static BiFunction<ExecutionRequest, EngineExecutionListener, ExecutionRequest>
       createExecutionRequestHandle() {
+    // 6.0.0-RC3 and later
+    if (GET_OUTPUT_DIRECTORY_CREATOR != null) {
+      MethodHandle createMethod =
+          METHOD_HANDLES.method(
+              ExecutionRequest.class,
+              m ->
+                  "create".equals(m.getName())
+                      && m.getParameterCount() == 6
+                      && Arrays.equals(
+                          Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
+                          CREATE_PARAMETER_TYPES_WITH_CREATOR));
+
+      return (request, listener) -> {
+        Object creator = METHOD_HANDLES.invoke(GET_OUTPUT_DIRECTORY_CREATOR, request);
+        Object store = METHOD_HANDLES.invoke(GET_STORE, request);
+        Object cancellationToken = METHOD_HANDLES.invoke(GET_CANCELLATION_TOKEN, request);
+        return METHOD_HANDLES.invoke(
+            createMethod,
+            request.getRootTestDescriptor(),
+            listener,
+            request.getConfigurationParameters(),
+            creator,
+            store,
+            cancellationToken);
+      };
+    }
+
     // 6.0.0-M2 and later
     if (GET_CANCELLATION_TOKEN != null) {
       MethodHandle createMethod =
