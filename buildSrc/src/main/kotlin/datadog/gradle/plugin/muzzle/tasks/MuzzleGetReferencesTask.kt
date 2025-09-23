@@ -31,6 +31,7 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
   init {
     description = "Print references created by instrumentation muzzle"
     outputs.upToDateWhen { true }
+
     buildEventsListenerRegistry.doOnSuccess(providers) {
       project.logger.quiet(outputFile.get().asFile.readText())
     }
@@ -62,16 +63,15 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
   }
 
   private fun BuildEventsListenerRegistry.doOnSuccess(providers: ProviderFactory, block: () -> Unit) {
-    onTaskCompletion(
-      providers.provider {
-        object : OperationCompletionListener {
-          override fun onFinish(event: FinishEvent) {
-            if ((event is TaskFinishEvent) && (event.descriptor.taskPath == path) && (event.result is TaskSuccessResult)) {
-              block()
-            }
-          }
+    val onTaskFinished = object : OperationCompletionListener {
+      override fun onFinish(event: FinishEvent) {
+        if ((event is TaskFinishEvent) && (event.descriptor.taskPath == path) && (event.result is TaskSuccessResult)) {
+          block()
         }
       }
+    }
+    onTaskCompletion(
+      providers.provider { onTaskFinished }
     )
   }
 }
