@@ -58,7 +58,7 @@ class RetryTest extends InstrumentationSpecification {
           operationName "resilience4j"
           childOf(span(0))
           errored false
-          measured(measuredEnabled)
+          measured measuredEnabled
           tags {
             "$Tags.COMPONENT" "resilience4j"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
