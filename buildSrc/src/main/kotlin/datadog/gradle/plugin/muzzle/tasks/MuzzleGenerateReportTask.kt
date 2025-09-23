@@ -12,8 +12,7 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
     description = "Print instrumentation version report"
   }
 
-  @InputFiles
-  val versionReports = project.fileTree(project.rootProject.layout.buildDirectory.dir(MUZZLE_DEPS_RESULTS)) {
+  private val versionReports = project.fileTree(project.rootProject.layout.buildDirectory.dir(MUZZLE_DEPS_RESULTS)) {
     include("*.csv")
   }
 
