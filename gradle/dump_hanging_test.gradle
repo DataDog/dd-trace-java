@@ -74,20 +74,24 @@ tasks.withType(Test).configureEach { testTask ->
 
     // Store handles for cancellation in doLast.
     logger.warn("Saving objects for: ${testTask.path}")
-    testTask.extensions.extraProperties.set('dumpFuture', future)
-    testTask.extensions.extraProperties.set('dumpScheduler', scheduler)
+    testTask.extensions.extraProperties.set("dumpFuture_${testTask.path}", future)
+    testTask.extensions.extraProperties.set("dumpScheduler_${testTask.path}", scheduler)
   }
 
   doLast {
     // Cancel if the task finished before the scheduled dump.
     def ex = testTask.extensions.extraProperties
     try {
-      if (ex.hasProperty('dumpFuture')) {
-        ex.get('dumpFuture')?.cancel(false)
+      if (ex.hasProperty("dumpFuture_${testTask.path}")) {
+        ex.get("dumpFuture_${testTask.path}")?.cancel(false)
+      } else {
+        logger.warn("dump future not found: ${testTask.path}")
       }
     } finally {
-      if (ex.hasProperty('dumpScheduler')) {
-        ex.get('dumpScheduler')?.shutdownNow()
+      if (ex.hasProperty("dumpScheduler_${testTask.path}")) {
+        ex.get("dumpScheduler_${testTask.path}")?.shutdownNow()
+      } else {
+        logger.warn("dump scheduler not found: ${testTask.path}")
       }
     }
   }
