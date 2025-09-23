@@ -27,9 +27,6 @@ def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", 
   maxParallelUsages = 3
 }
 
-// Force timeout after 9 minutes (The timeout is configurable per job, default job timeout is 1h)
-def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
-
 testing {
   suites.configureEach {
     // Use JUnit 5 to run tests
@@ -39,10 +36,6 @@ testing {
 
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
-  // All tests must complete within 15 minutes.
-  // This value is quite big because with lower values (3 mins) we were experiencing large number of false positives
-  timeout = Duration.ofMinutes(15)
-
   // Disable all tests if skipTests property was specified
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 
@@ -82,7 +75,8 @@ tasks.withType(Test).configureEach {
     exclude("**/*ForkedTest*")
   }
 
-  timeout = testTimeoutDuration
+  // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
+  timeout = Duration.of(20, ChronoUnit.MINUTES)
 
   check.dependsOn(it)
 }
@@ -134,7 +128,7 @@ tasks.withType(Test).configureEach {
   // https://docs.gradle.com/develocity/flaky-test-detection/
   // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
   develocity.testRetry {
-    if (System.getenv().containsKey("CI")) {
+    if (providers.environmentVariable("CI").isPresent()) {
       maxRetries = 3
     }
   }
