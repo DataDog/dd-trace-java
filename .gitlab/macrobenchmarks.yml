@@ -142,4 +142,4 @@ notify-slo-breaches:
       when: never
     - when: always
   variables:
-    CHANNEL: "apm-release-platform"
+    CHANNEL: "apm-java"

@@ -17,7 +17,7 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
   Path projectFolder
 
   @Override
-  void setup() {
+  def setup() {
     System.setProperty("maven.multiModuleProjectDirectory", projectFolder.toAbsolutePath().toString())
     givenMavenProjectFiles((String) specificationContext.currentIteration.dataVariables.testcaseName)
     givenMavenDependenciesAreLoaded()

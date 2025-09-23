@@ -50,7 +50,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
@@ -80,6 +80,7 @@ import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
@@ -117,7 +118,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     StringBuilder ddEnvVars = new StringBuilder()
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
-        ddEnvVars.append(Strings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
+        ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
           .append("=").append(entry.getValue()).append(",")
       }
     }
@@ -308,6 +309,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
     injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
+    injectSysConfig(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL, "http://localhost:1234/debugger/v1/input", true)
     rebuildConfig()
 
     def configuration = Configuration.builder()

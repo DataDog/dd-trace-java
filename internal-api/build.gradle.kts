@@ -279,6 +279,7 @@ dependencies {
   api(project(":components:environment"))
   api(project(":components:json"))
   api(project(":components:yaml"))
+  api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 
   // has to be loaded by system classloader:
@@ -287,12 +288,10 @@ dependencies {
 
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
-  testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation(libs.bundles.junit5)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
-  testImplementation(libs.truth)
 }
 
 jmh {

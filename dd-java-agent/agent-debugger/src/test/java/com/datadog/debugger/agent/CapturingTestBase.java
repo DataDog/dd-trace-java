@@ -385,7 +385,7 @@ public class CapturingTestBase {
     setFieldInConfig(config, "dynamicInstrumentationClassFileDumpEnabled", true);
     setFieldInConfig(config, "dynamicInstrumentationVerifyByteCode", false);
     setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
-
+    setFieldInConfig(config, "dynamicInstrumentationSnapshotUrl", "http://localhost:8080");
     return config;
   }
 
