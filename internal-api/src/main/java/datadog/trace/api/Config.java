@@ -1532,8 +1532,7 @@ public class Config {
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
-        configProvider.getBoolean(
-            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, JavaVirtualMachine.isJavaVersion(21));
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, true);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -4193,7 +4192,7 @@ public class Config {
     } else if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
-      return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+      throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
     }
   }
 
