@@ -58,21 +58,22 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
       val repoRoot = target.projectDir.toPath()
       val tokenRegex = Regex("\"(?:DD_|OTEL_)[A-Za-z0-9_]+\"")
 
-      val violations = mutableListOf<String>()
-      javaFiles.files.forEach { f ->
-        val rel = repoRoot.relativize(f.toPath()).toString()
-        var inBlock = false
-        f.readLines().forEachIndexed { i, raw ->
-          val trimmed = raw.trim()
-          if (trimmed.startsWith("//")) return@forEachIndexed
-          if (!inBlock && trimmed.contains("/*")) inBlock = true
-          if (inBlock) {
-            if (trimmed.contains("*/")) inBlock = false
-            return@forEachIndexed
-          }
-          tokenRegex.findAll(raw).forEach { m ->
-            val token = m.value.trim('"')
-            if (token !in supported) violations += "$rel:${i + 1} -> Unsupported token '$token'"
+      val violations = buildList {
+        javaFiles.files.forEach { f ->
+          val rel = repoRoot.relativize(f.toPath()).toString()
+          var inBlock = false
+          f.readLines().forEachIndexed { i, raw ->
+            val trimmed = raw.trim()
+            if (trimmed.startsWith("//")) return@forEachIndexed
+            if (!inBlock && trimmed.contains("/*")) inBlock = true
+            if (inBlock) {
+              if (trimmed.contains("*/")) inBlock = false
+              return@forEachIndexed
+            }
+            tokenRegex.findAll(raw).forEach { m ->
+              val token = m.value.trim('"')
+              if (token !in supported) add("$rel:${i + 1} -> Unsupported token'$token'")
+            }
           }
         }
       }
@@ -104,13 +105,13 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
       }
 
       val pattern = Regex("""EnvironmentVariables\.get\s*\(""")
-      val matches = mutableListOf<String>()
-
-      javaFiles.forEach { f ->
-        val relative = repoRoot.relativize(f.toPath())
-        f.readLines().forEachIndexed { idx, line ->
-          if (pattern.containsMatchIn(line)) {
-            matches += "$relative:${idx + 1} -> ${line.trim()}"
+      val matches = buildList {
+        javaFiles.forEach { f ->
+          val relative = repoRoot.relativize(f.toPath())
+          f.readLines().forEachIndexed { idx, line ->
+            if (pattern.containsMatchIn(line)) {
+              add("$relative:${idx + 1} -> ${line.trim()}")
+            }
           }
         }
       }
