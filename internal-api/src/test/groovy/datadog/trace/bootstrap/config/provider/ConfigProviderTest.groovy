@@ -531,4 +531,46 @@ class ConfigProviderTest extends DDSpecification {
     then:
     0 * ConfigCollector.get().put(_, _, _, _, _)
   }
+
+  def "ConfigMergeResolver reports correct origin for single vs multiple source contributions"() {
+    setup:
+    ConfigCollector.get().collect() // clear previous state
+    def provider = ConfigProvider.createDefault()
+
+    when: "Only ENV source contributes to merged map"
+    injectEnvConfig("DD_SINGLE_SOURCE_MAP", "key1:value1,key2:value2")
+    // No JVM prop set, so only ENV contributes
+    def singleSourceResult = provider.getMergedMap("single.source.map")
+    def singleSourceCollected = ConfigCollector.get().collect()
+
+    then: "Should report with ENV origin, not CALCULATED"
+    singleSourceResult == ["key1": "value1", "key2": "value2"]
+
+    // Should have DEFAULT for default value
+    def singleDefault = singleSourceCollected.get(ConfigOrigin.DEFAULT)?.get("single.source.map")
+    singleDefault?.value == [:]
+
+    // Should have ENV for the actual value (not CALCULATED)
+    def singleEnv = singleSourceCollected.get(ConfigOrigin.ENV)?.get("single.source.map")
+    singleEnv?.value == ["key1": "value1", "key2": "value2"]
+    singleEnv?.origin == ConfigOrigin.ENV
+
+    // Should NOT have CALCULATED entry since only one source contributed
+    singleSourceCollected.get(ConfigOrigin.CALCULATED)?.get("single.source.map") == null
+
+    when: "Multiple sources contribute to merged map"
+    ConfigCollector.get().collect() // clear for next test
+    injectEnvConfig("DD_MULTI_SOURCE_MAP", "env_key:env_value,shared:from_env")
+    injectSysConfig("multi.source.map", "jvm_key:jvm_value,shared:from_jvm")
+    def multiSourceResult = provider.getMergedMap("multi.source.map")
+    def multiSourceCollected = ConfigCollector.get().collect()
+
+    then: "Should report with CALCULATED origin when multiple sources contribute"
+    multiSourceResult == ["env_key": "env_value", "jvm_key": "jvm_value", "shared": "from_jvm"]
+
+    // Should have CALCULATED for the final merged result
+    def multiCalculated = multiSourceCollected.get(ConfigOrigin.CALCULATED)?.get("multi.source.map")
+    multiCalculated?.value == multiSourceResult
+    multiCalculated?.origin == ConfigOrigin.CALCULATED
+  }
 }

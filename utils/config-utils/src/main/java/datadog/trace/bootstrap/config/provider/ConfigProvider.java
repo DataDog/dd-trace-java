@@ -691,7 +691,7 @@ public final class ConfigProvider {
      */
     void reReportFinalResult(String key, int finalSeqId) {
       if (currentOrigin != ConfigOrigin.DEFAULT && !mergedValue.isEmpty()) {
-        ConfigCollector.get().put(key, mergedValue, ConfigOrigin.CALCULATED, finalSeqId);
+        ConfigCollector.get().put(key, mergedValue, currentOrigin, finalSeqId);
       }
     }
 
