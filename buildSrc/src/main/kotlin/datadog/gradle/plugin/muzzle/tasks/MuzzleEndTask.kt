@@ -3,18 +3,23 @@ package datadog.gradle.plugin.muzzle.tasks
 import datadog.gradle.plugin.muzzle.pathSlug
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 abstract class MuzzleEndTask : AbstractMuzzleTask() {
   @get:Input
   abstract val startTimeMs: Property<Long>
 
+  @get:OutputFile
+  val resultsFile = project.rootProject
+    .layout
+    .buildDirectory
+    .file("${MUZZLE_TEST_RESULTS}/${project.pathSlug}_muzzle/results.xml")
+
   @TaskAction
   fun generatesResultFile() {
     val endTimeMs = System.currentTimeMillis()
     val seconds = (endTimeMs - startTimeMs.get()).toDouble() / 1000.0
-    val dirname = "${project.pathSlug}_muzzle"
-    val resultsFile = project.rootProject.layout.buildDirectory.dir("${MUZZLE_TEST_RESULTS}/$dirname/results.xml")
     with(project.file(resultsFile)) {
       parentFile.mkdirs()
       writeText(
