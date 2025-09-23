@@ -276,9 +276,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   /**
-    * Ensure older pre-Java 6 class files with JSR/RET can be rewritten without "JSR/RET are not
-    * supported with computeFrames option" exceptions being thrown.
-    */
+   * Ensure older pre-Java 6 class files with JSR/RET can be rewritten without "JSR/RET are not
+   * supported with computeFrames option" exceptions being thrown.
+   */
   @Test
   public void veryOldClassFileWithJsrRet() throws Exception {
     final String CLASS_NAME = "antlr.Tool"; // compiled with jdk 1.2
