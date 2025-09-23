@@ -6,7 +6,7 @@ import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.OutputFile
-import java.util.*
+import java.util.SortedMap
 
 abstract class AbstractMuzzleReportTask : AbstractMuzzleTask() {
   @get:OutputFile

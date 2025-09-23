@@ -87,6 +87,13 @@ class MuzzlePlugin : Plugin<Project> {
 
     project.tasks.register<MuzzleGetReferencesTask>("printReferences") {
       dependsOn(compileMuzzle)
+    }.also {
+      val printReferencesTask = project.tasks.register("actuallyPrintReferences") {
+        doLast {
+          println(it.get().outputFile.get().asFile.readText())
+        }
+      }
+      it.configure { finalizedBy(printReferencesTask) }
     }
 
     project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
