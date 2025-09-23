@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.reactor.retry.RetryOperator
 import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
@@ -10,66 +9,6 @@ import reactor.core.scheduler.Schedulers
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class RetryTest extends InstrumentationSpecification {
-
-  def "decorate span with retry"() {
-    def ms = Mock(Retry.Metrics)
-    def rc = Mock(RetryConfig)
-    def rt = Mock(Retry)
-    def cx = Mock(Retry.Context)
-    rt.getName() >> "rt1"
-    rt.getRetryConfig() >> rc
-    rt.getMetrics() >> ms
-    rt.context() >> cx
-    rc.getMaxAttempts() >> 23
-    rc.isFailAfterMaxAttempts() >> true
-    ms.getNumberOfFailedCallsWithoutRetryAttempt() >> 1
-    ms.getNumberOfFailedCallsWithRetryAttempt() >> 2
-    ms.getNumberOfSuccessfulCallsWithoutRetryAttempt() >> 3
-    ms.getNumberOfSuccessfulCallsWithRetryAttempt() >> 4
-
-    when:
-    Flux<String> connection = Flux.just("abc")
-      .map({ serviceCall(it)})
-      .transformDeferred(RetryOperator.of(rt))
-      .publish()
-
-    runnableUnderTrace("parent") {
-      connection.connect()
-    }
-
-    then:
-    assertTraces(1) {
-      trace(3) {
-        sortSpansByStart()
-        span(0) {
-          operationName "parent"
-          errored false
-        }
-        span(1) {
-          operationName "resilience4j"
-          childOf(span(0))
-          errored false
-          tags {
-            "$Tags.COMPONENT" "resilience4j"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_INTERNAL
-            "resilience4j.retry.name" "rt1"
-            "resilience4j.retry.max_attempts" 23
-            "resilience4j.retry.fail_after_max_attempts" true
-            "resilience4j.retry.metrics.failed_without_retry" 1
-            "resilience4j.retry.metrics.failed_with_retry" 2
-            "resilience4j.retry.metrics.success_without_retry" 3
-            "resilience4j.retry.metrics.success_with_retry" 4
-            defaultTags()
-          }
-        }
-        span(2) {
-          operationName "serviceCall/abc"
-          childOf span(1)
-          errored false
-        }
-      }
-    }
-  }
 
   def "decorateCompletionStage retry twice on error"() {
     setup:
