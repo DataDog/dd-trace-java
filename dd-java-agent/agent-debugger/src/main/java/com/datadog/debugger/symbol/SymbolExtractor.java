@@ -82,8 +82,13 @@ public class SymbolExtractor {
   private static List<Symbol> extractFields(ClassNode classNode) {
     List<Symbol> fields = new ArrayList<>();
     for (FieldNode fieldNode : classNode.fields) {
-      SymbolType symbolType =
-          ASMHelper.isStaticField(fieldNode) ? SymbolType.STATIC_FIELD : SymbolType.FIELD;
+      boolean isStatic = ASMHelper.isStaticField(fieldNode);
+      boolean isFinal = ASMHelper.isFinalField(fieldNode);
+      if (isFinal && isStatic) {
+        // skip final static fields, considered as constant and not captured by context probes
+        continue;
+      }
+      SymbolType symbolType = isStatic ? SymbolType.STATIC_FIELD : SymbolType.FIELD;
       LanguageSpecifics fieldSpecifics =
           new LanguageSpecifics.Builder()
               .addModifiers(extractFieldModifiers(fieldNode.access))

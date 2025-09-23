@@ -837,23 +837,8 @@ class SymbolExtractionTransformerTest {
         Enum.class.getTypeName(),
         null,
         null);
-    assertEquals(4, myEnumClassScope.getSymbols().size());
-    Symbol oneField = myEnumClassScope.getSymbols().get(0);
-    assertLangSpecifics(
-        oneField.getLanguageSpecifics(),
-        asList("public", "static", "final", "enum"),
-        null,
-        null,
-        null,
-        null);
-    Symbol valuesField = myEnumClassScope.getSymbols().get(3);
-    assertLangSpecifics(
-        valuesField.getLanguageSpecifics(),
-        asList("private", "static", "final", "synthetic"),
-        null,
-        null,
-        null,
-        null);
+    // enum constants are static final fields and therefore not extracted
+    assertEquals(0, myEnumClassScope.getSymbols().size());
   }
 
   @Test
