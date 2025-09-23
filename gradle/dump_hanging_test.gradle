@@ -68,6 +68,11 @@ tasks.withType(Test).configureEach { testTask ->
     }, delayMinutes, TimeUnit.MINUTES)
 
     // Store handles for cancellation in doLast.
+    if (testTask.ext.dumpFuture != null) {
+      logger.warn("Found dumpFuture is not null: ${testTask.getPath()}")
+    }
+
+    logger.warn("Saving objects for: ${testTask.getPath()}")
     testTask.ext.dumpFuture = future
     testTask.ext.dumpScheduler = scheduler
   }
