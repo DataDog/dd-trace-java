@@ -411,6 +411,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
             .withTag("details", queryStart.details())
+            .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
