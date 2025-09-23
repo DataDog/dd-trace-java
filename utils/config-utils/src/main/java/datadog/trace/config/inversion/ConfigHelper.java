@@ -34,39 +34,45 @@ public class ConfigHelper {
 
   private static final Logger log = LoggerFactory.getLogger(ConfigHelper.class);
 
-  private static StrictnessPolicy configInversionStrict = StrictnessPolicy.WARNING;
+  private static final ConfigHelper INSTANCE = new ConfigHelper();
+
+  private StrictnessPolicy configInversionStrict = StrictnessPolicy.WARNING;
 
   // Cache for configs, init value is null
-  private static Map<String, String> configs;
+  private Map<String, String> configs;
 
   // Default to production source
-  private static SupportedConfigurationSource configSource = new SupportedConfigurationSource();
+  private SupportedConfigurationSource configSource = new SupportedConfigurationSource();
 
-  public static void setConfigInversionStrict(StrictnessPolicy configInversionStrict) {
-    ConfigHelper.configInversionStrict = configInversionStrict;
+  public static ConfigHelper get() {
+    return INSTANCE;
   }
 
-  public static StrictnessPolicy configInversionStrictFlag() {
+  public void setConfigInversionStrict(StrictnessPolicy configInversionStrict) {
+    this.configInversionStrict = configInversionStrict;
+  }
+
+  public StrictnessPolicy configInversionStrictFlag() {
     return configInversionStrict;
   }
 
   // Used only for testing purposes
-  static void setConfigurationSource(SupportedConfigurationSource testSource) {
+  void setConfigurationSource(SupportedConfigurationSource testSource) {
     configSource = testSource;
   }
 
   /** Resetting config cache. Useful for cleaning up after tests. */
-  static void resetCache() {
+  void resetCache() {
     configs = null;
   }
 
   /** Reset all configuration data to the generated defaults. Useful for cleaning up after tests. */
-  static void resetToDefaults() {
+  void resetToDefaults() {
     configSource = new SupportedConfigurationSource();
-    configInversionStrict = StrictnessPolicy.WARNING;
+    this.configInversionStrict = StrictnessPolicy.WARNING;
   }
 
-  public static Map<String, String> getEnvironmentVariables() {
+  public Map<String, String> getEnvironmentVariables() {
     if (configs != null) {
       return configs;
     }
@@ -111,7 +117,7 @@ public class ConfigHelper {
     return configs;
   }
 
-  public static String getEnvironmentVariable(String name) {
+  public String getEnvironmentVariable(String name) {
     if (configs != null && configs.containsKey(name)) {
       return configs.get(name);
     }
