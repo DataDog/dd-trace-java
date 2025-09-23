@@ -23,22 +23,22 @@ class TestSupportedConfigurationSource extends SupportedConfigurationSource {
   }
 
   @Override
-  public Set<String> getSupportedConfigurations() {
-    return supported;
+  public boolean supported(String env) {
+    return supported.contains(env);
   }
 
   @Override
-  public Map<String, List<String>> getAliases() {
-    return aliases;
+  public List<String> getAliases(String env) {
+    return aliases.getOrDefault(env, null);
   }
 
   @Override
-  public Map<String, String> getAliasMapping() {
-    return aliasMapping;
+  public String primaryEnvFromAlias(String alias) {
+    return aliasMapping.getOrDefault(alias, null);
   }
 
   @Override
-  public Map<String, String> getDeprecatedConfigurations() {
-    return deprecated;
+  public String primaryEnvFromDeprecated(String deprecated) {
+    return this.deprecated.getOrDefault(deprecated, null);
   }
 }

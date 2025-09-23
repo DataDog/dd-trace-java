@@ -82,32 +82,29 @@ public class ConfigHelper {
     for (Map.Entry<String, String> entry : env.entrySet()) {
       String key = entry.getKey();
       String value = entry.getValue();
-      Map<String, String> aliasMapping = configSource.getAliasMapping();
-      if (key.startsWith("DD_") || key.startsWith("OTEL_") || aliasMapping.containsKey(key)) {
-        String baseConfig;
-        if (configSource.getSupportedConfigurations().contains(key)) {
+      String primaryEnv = configSource.primaryEnvFromAlias(key);
+      if (key.startsWith("DD_") || key.startsWith("OTEL_") || null != primaryEnv) {
+        if (configSource.supported(key)) {
           configs.put(key, value);
           // If this environment variable is the alias of another, and we haven't processed the
           // original environment variable yet, handle it here.
-        } else if (aliasMapping.containsKey(key)
-            && !configs.containsKey(baseConfig = aliasMapping.get(key))) {
-          List<String> aliasList = configSource.getAliases().get(baseConfig);
-          for (String alias : aliasList) {
+        } else if (null != primaryEnv && !configs.containsKey(primaryEnv)) {
+          List<String> aliases = configSource.getAliases(primaryEnv);
+          for (String alias : aliases) {
             if (env.containsKey(alias)) {
-              configs.put(baseConfig, env.get(alias));
+              configs.put(primaryEnv, env.get(alias));
               break;
             }
           }
         }
-        // TODO: Follow-up - Add deprecation handling
-        if (configSource.getDeprecatedConfigurations().containsKey(key)) {
+        String envFromDeprecated;
+        if ((envFromDeprecated = configSource.primaryEnvFromDeprecated(key)) != null) {
           String warning =
               "Environment variable "
                   + key
-                  + " is deprecated. "
-                  + (configSource.getAliasMapping().containsKey(key)
-                      ? "Please use " + configSource.getAliasMapping().get(key) + " instead."
-                      : configSource.getDeprecatedConfigurations().get(key));
+                  + " is deprecated. Please use "
+                  + (primaryEnv != null ? primaryEnv : envFromDeprecated)
+                  + " instead.";
           log.warn(warning);
         }
       } else {
@@ -123,8 +120,8 @@ public class ConfigHelper {
     }
 
     if ((name.startsWith("DD_") || name.startsWith("OTEL_"))
-        && !configSource.getAliasMapping().containsKey(name)
-        && !configSource.getSupportedConfigurations().contains(name)) {
+        && null != configSource.primaryEnvFromAlias(name)
+        && !configSource.supported(name)) {
       if (configInversionStrict != StrictnessPolicy.TEST) {
         ConfigInversionMetricCollectorProvider.get().setUndocumentedEnvVarMetric(name);
       }
@@ -136,7 +133,7 @@ public class ConfigHelper {
 
     String config = EnvironmentVariables.get(name);
     List<String> aliases;
-    if (config == null && (aliases = configSource.getAliases().get(name)) != null) {
+    if (config == null && (aliases = configSource.getAliases(name)) != null) {
       for (String alias : aliases) {
         String aliasValue = EnvironmentVariables.get(alias);
         if (aliasValue != null) {

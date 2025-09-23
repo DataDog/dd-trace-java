@@ -1,8 +1,6 @@
 package datadog.trace.config.inversion;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * This class uses {@link #GeneratedSupportedConfigurations} for handling supported configurations
@@ -10,23 +8,23 @@ import java.util.Set;
  */
 class SupportedConfigurationSource {
 
-  /** @return Set of supported configuration keys */
-  public Set<String> getSupportedConfigurations() {
-    return GeneratedSupportedConfigurations.SUPPORTED;
+  /** @return Set of supported environment variable keys */
+  public boolean supported(String env) {
+    return GeneratedSupportedConfigurations.SUPPORTED.contains(env);
   }
 
-  /** @return Map of configuration keys to their aliases */
-  public Map<String, List<String>> getAliases() {
-    return GeneratedSupportedConfigurations.ALIASES;
+  /** @return List of aliases for an environment variable */
+  public List<String> getAliases(String env) {
+    return GeneratedSupportedConfigurations.ALIASES.getOrDefault(env, null);
   }
 
-  /** @return Map of alias keys to their primary configuration keys */
-  public Map<String, String> getAliasMapping() {
-    return GeneratedSupportedConfigurations.ALIAS_MAPPING;
+  /** @return Primary environment variable for a queried alias */
+  public String primaryEnvFromAlias(String alias) {
+    return GeneratedSupportedConfigurations.ALIAS_MAPPING.getOrDefault(alias, null);
   }
 
   /** @return Map of deprecated configurations */
-  public Map<String, String> getDeprecatedConfigurations() {
-    return GeneratedSupportedConfigurations.DEPRECATED;
+  public String primaryEnvFromDeprecated(String deprecated) {
+    return GeneratedSupportedConfigurations.DEPRECATED.getOrDefault(deprecated, null);
   }
 }
