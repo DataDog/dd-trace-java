@@ -3,6 +3,7 @@ package datadog.gradle.plugin.muzzle.tasks
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils
 import datadog.gradle.plugin.muzzle.TestedArtifact
 import org.eclipse.aether.util.version.GenericVersionScheme
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.TaskAction
 import java.util.TreeMap
 
@@ -11,14 +12,16 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
     description = "Print instrumentation version report"
   }
 
+  @InputFiles
+  val versionReports = project.fileTree(project.rootProject.layout.buildDirectory.dir(MUZZLE_DEPS_RESULTS)) {
+    include("*.csv")
+  }
+
   /**
    * Merges all muzzle report CSVs in the build directory into a single map and writes the merged results to a CSV.
    */
   @TaskAction
   fun mergeReports() {
-    val versionReports = project.fileTree(project.rootProject.layout.buildDirectory.dir(MUZZLE_DEPS_RESULTS)) {
-      include("*.csv")
-    }
     val map = TreeMap<String, TestedArtifact>()
     val versionScheme = GenericVersionScheme()
     versionReports.forEach {

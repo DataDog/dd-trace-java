@@ -1,14 +1,21 @@
 package datadog.gradle.plugin.muzzle.tasks
 
-import datadog.gradle.plugin.muzzle.pathSlug
 import datadog.gradle.plugin.muzzle.TestedArtifact
-import java.util.SortedMap
+import datadog.gradle.plugin.muzzle.pathSlug
+import org.gradle.api.file.RegularFile
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.OutputFile
+import java.util.*
 
 abstract class AbstractMuzzleReportTask : AbstractMuzzleTask() {
+  @get:OutputFile
+  val versionsFile: Provider<RegularFile> = project.rootProject
+    .layout
+    .buildDirectory
+    .file("$MUZZLE_DEPS_RESULTS/${project.pathSlug}.csv")
+
   internal fun dumpVersionsToCsv(versions: SortedMap<String, TestedArtifact>) {
-    val filename = "${project.pathSlug}.csv"
-    val resultsDir = project.rootProject.layout.buildDirectory
-    val versionsFile = resultsDir.file("${MUZZLE_DEPS_RESULTS}/$filename")
     with(project.file(versionsFile)) {
       parentFile.mkdirs()
       writeText("instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion\n")
