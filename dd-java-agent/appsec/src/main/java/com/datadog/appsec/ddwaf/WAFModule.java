@@ -396,6 +396,7 @@ public class WAFModule implements AppSecModule {
         boolean isThrottled = reqCtx.isThrottled(rateLimiter);
 
         if (resultWithData.keep) {
+          reqCtx.setManuallyKept(true);
           if (!isThrottled) {
             AgentSpan activeSpan = AgentTracer.get().activeSpan();
             if (activeSpan != null) {
@@ -413,10 +414,6 @@ public class WAFModule implements AppSecModule {
               // If active span is not available then we need to set manual keep in GatewayBridge
               log.debug("There is no active span available");
             }
-
-            if (resultWithData.events) {
-              reqCtx.reportEvents(events);
-            }
           } else {
             log.debug("Rate limited WAF events");
             if (!gwCtx.isRasp) {
@@ -429,6 +426,10 @@ public class WAFModule implements AppSecModule {
           if (!gwCtx.isRasp) {
             reqCtx.setWafBlocked();
           }
+        }
+        // report is still done even without keep, in case sampler_keep is desired
+        if (resultWithData.events) {
+          reqCtx.reportEvents(events);
         }
       }
 

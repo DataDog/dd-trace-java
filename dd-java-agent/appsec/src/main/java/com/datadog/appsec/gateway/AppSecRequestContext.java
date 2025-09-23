@@ -151,6 +151,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+  private boolean manuallyKept = false;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -937,5 +938,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRaspMatched(boolean raspMatched) {
     this.raspMatched = raspMatched;
+  }
+
+  public boolean isManuallyKept() {
+    return manuallyKept;
+  }
+
+  public void setManuallyKept(boolean manuallyKept) {
+    this.manuallyKept = manuallyKept;
   }
 }
