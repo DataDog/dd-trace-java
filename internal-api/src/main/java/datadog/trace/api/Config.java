@@ -5078,6 +5078,16 @@ public class Config {
     return dbmPropagationMode;
   }
 
+  // Database monitoring propagation mode constants
+  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
+  public static final String DBM_PROPAGATION_MODE_FULL = "full";
+
+  // Helper method to check if comment injection is enabled
+  public boolean isDbmCommentInjectionEnabled() {
+    return dbmPropagationMode.equals(DBM_PROPAGATION_MODE_FULL)
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC);
+  }
+
   private void logIgnoredSettingWarning(
       String setting, String overridingSetting, String overridingSuffix) {
     log.warn(

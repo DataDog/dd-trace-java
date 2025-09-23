@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.mongo;
 
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_PROPAGATION_MODE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_PROPAGATION_MODE_FULL;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandStartedEvent;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.jdbc.SharedDBCommenter;
+import datadog.trace.core.database.SharedDBCommenter;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
@@ -25,7 +24,7 @@ public class MongoCommentInjector {
 
   /** Main entry point for MongoDB command comment injection */
   public static BsonDocument injectComment(String dbmComment, CommandStartedEvent event) {
-    if (!INJECT_COMMENT || dbmComment == null || event == null) {
+    if (!Config.get().isDbmCommentInjectionEnabled() || dbmComment == null || event == null) {
       return event != null ? event.getCommand() : null;
     }
 
@@ -55,7 +54,7 @@ public class MongoCommentInjector {
 
   /** Build comment content using SharedDBCommenter */
   public static String getComment(AgentSpan dbSpan, CommandStartedEvent event) {
-    if (!INJECT_COMMENT) {
+    if (!Config.get().isDbmCommentInjectionEnabled()) {
       return null;
     }
 
@@ -67,7 +66,9 @@ public class MongoCommentInjector {
     String hostname = getHostnameFromEvent(event);
     String dbName = event.getDatabaseName();
     String traceParent =
-        DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL) ? buildTraceParent(dbSpan) : null;
+        Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
+            ? buildTraceParent(dbSpan)
+            : null;
 
     // Use shared comment builder directly
     return SharedDBCommenter.buildComment(dbService, "mongodb", hostname, dbName, traceParent);
