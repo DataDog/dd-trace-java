@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.instrumentation.jdbc.SharedDBCommenter
+import datadog.trace.core.database.SharedDBCommenter
 
 class SharedDBCommenterTest extends InstrumentationSpecification {
   @Override
