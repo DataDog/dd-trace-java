@@ -42,17 +42,6 @@ public class ConfigCollector {
     configMap.put(key, setting); // replaces any previous value for this key at origin
   }
 
-  /**
-   * Updates multiple configuration settings with REMOTE origin.
-   *
-   * @param configMap map of configuration key-value pairs to add
-   */
-  public void updateAll(Map<String, Object> configMap) {
-    for (Map.Entry<String, Object> entry : configMap.entrySet()) {
-      put(entry.getKey(), entry.getValue(), REMOTE, ABSENT_SEQ_ID, null);
-    }
-  }
-
   // put method specifically for DEFAULT origins. We don't allow overrides for configs from DEFAULT
   // origins
   public void putDefault(String key, Object value) {
@@ -63,9 +52,25 @@ public class ConfigCollector {
     }
   }
 
-  // report config from Remote Config origin
+  /**
+   * Report single configuration setting with REMOTE origin.
+   *
+   * @param key configuration key to report
+   * @param value configuration value to report
+   */
   public void putRemote(String key, Object value) {
     put(key, value, REMOTE, DEFAULT_SEQ_ID);
+  }
+
+  /**
+   * Report multiple configuration settings with REMOTE origin.
+   *
+   * @param configMap map of configuration key-value pairs to report
+   */
+  public void putRemote(Map<String, Object> configMap) {
+    for (Map.Entry<String, Object> entry : configMap.entrySet()) {
+      put(entry.getKey(), entry.getValue(), REMOTE, ABSENT_SEQ_ID, null);
+    }
   }
 
   @SuppressWarnings("unchecked")
