@@ -1,8 +1,9 @@
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-project.ext.tasksDumps = new HashMap<String, ScheduledFuture>()
+project.ext.tasksDumps = new ConcurrentHashMap<String, ScheduledFuture<?>>()
 project.ext.taskDumpsScheduler = Executors.newScheduledThreadPool(4, { r ->
   Thread t = new Thread(r, "dump-scheduler")
   t.daemon = true
@@ -11,17 +12,9 @@ project.ext.taskDumpsScheduler = Executors.newScheduledThreadPool(4, { r ->
 
 // Schedule thread and heap dumps collection near test timeout.
 tasks.withType(Test).configureEach { testTask ->
-  String taskName = testTask.path
-  long startedAt = System.currentTimeMillis()
-
   doFirst {
     if (!testTask.timeout.present) {
-      logger.info("No timeout for ${taskName}; skipping dump scheduler")
-      return
-    }
-
-    if (project.ext.tasksDumps.containsKey(taskName)) {
-      logger.info("Future for ${taskName} already scheduled; skipping")
+      logger.info("No timeout for ${testTask.path}; skipping dumps scheduler")
       return
     }
 
@@ -29,14 +22,14 @@ tasks.withType(Test).configureEach { testTask ->
     def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
     def future = project.ext.taskDumpsScheduler.schedule({
-      logger.warn("Taking dumps for: ${taskName} after ${delayMinutes} minutes.")
+      logger.warn("Taking dumps for: ${testTask.path} after ${delayMinutes} minutes.")
 
       try {
         // Use Gradle's build dir and adjust for CI artifacts collection if needed.
         def dumpsDir = layout.buildDirectory.dir('dumps').map {
           if (providers.environmentVariable("CI").isPresent()) {
             // Move reports into the folder collected by the collect_reports.sh script.
-            new File(it.getAsFile().absolutePath.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent'))
+            new File(it.asFile.absolutePath.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent'))
           } else {
             it.asFile
           }
@@ -77,30 +70,19 @@ tasks.withType(Test).configureEach { testTask ->
       } catch (Throwable e) {
         logger.warn("Dumping failed: ${e.message}")
       }
-      finally {
-        scheduler.shutdown()
-      }
     }, delayMinutes, TimeUnit.MINUTES)
 
-    // Store handles for cancellation in doLast.
-    logger.warn("Saving future for: ${taskName} palned at ${delayMinutes} mins")
-    project.ext.tasksDumps.put(taskName, future)
+    // Store future for cancellation in doLast.
+    project.ext.tasksDumps.put(testTask.path, future)
   }
 
   doLast {
     // Cancel if the task finished before the scheduled dump.
-    logger.warn("Dump cleanup logic after: ${(System.currentTimeMillis() - startedAt) / 1000} seconds")
-
     try {
-      def future = project.ext.tasksDumps.get(taskName)
-
-      if (future) {
-        future.cancel(false)
-      } else {
-        logger.warn("dump future not found: ${taskName}")
-      }
+      def future = project.ext.tasksDumps.remove(testTask.path)
+      future?.cancel(false)
     } catch(Throwable e) {
-      logger.warn("Failed to cancel future: ${e.getMessage()}")
+      logger.warn("Failed to cancel dump future for ${testTask.path}: ${e.message}")
     }
   }
 }
