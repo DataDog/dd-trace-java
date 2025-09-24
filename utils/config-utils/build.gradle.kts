@@ -13,3 +13,7 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
 }
+
+tasks.named("javadoc") {
+  dependsOn("generateSupportedConfigurations")
+}
