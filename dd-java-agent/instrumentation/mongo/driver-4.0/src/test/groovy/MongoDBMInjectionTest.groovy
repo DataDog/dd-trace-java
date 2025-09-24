@@ -1,38 +1,40 @@
 import com.mongodb.client.MongoClients
-import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import org.bson.Document
-import org.testcontainers.containers.GenericContainer
-import spock.lang.Shared
 import spock.lang.Unroll
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED
 
-class MongoDBMInjectionTest extends InstrumentationSpecification {
-  @Shared
-  GenericContainer mongo
+class MongoDBMInjectionTest extends MongoBaseTest {
 
-  def setupSpec() {
-    mongo = new GenericContainer("mongo:4.4.29").withExposedPorts(27017)
-    mongo.start()
+  @Override
+  int version() {
+    return 0
   }
 
-  def cleanupSpec() {
-    if (mongo) {
-      mongo.stop()
-    }
+  @Override
+  String service() {
+    return V0_SERVICE
+  }
+
+  @Override
+  String operation() {
+    return V0_OPERATION
+  }
+
+  @Override
+  String dbType() {
+    return "mongo"
   }
 
   def "MongoDB find command includes comment"() {
     setup:
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
-    def collection = database.getCollection("testCollection")
+    def collectionName = randomCollectionName()
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
+    def collection = database.getCollection(collectionName)
 
     when:
     runUnderTrace("test") {
@@ -42,11 +44,11 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def traces = TEST_WRITER.waitForTraces(1)
     traces.size() == 1
-    def mongoSpan = traces[0].find { it.operationName in ["mongo.query", "mongodb.query"] }
+    def mongoSpan = traces[0].find { it.operationName == "mongo.query" }
     mongoSpan != null
     // Verify span has trace injected tag
     mongoSpan.getTag(DBM_TRACE_INJECTED) == true
-    mongoSpan.getTag(Tags.DB_TYPE) in ["mongo", "mongodb"]
+    mongoSpan.getTag(Tags.DB_TYPE) == "mongo"
     mongoSpan.getTag(Tags.DB_OPERATION) != null
 
     cleanup:
@@ -55,10 +57,8 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
 
   def "MongoDB aggregate command includes comment"() {
     setup:
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
     def collection = database.getCollection("testCollection")
 
     when:
@@ -69,11 +69,11 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def traces = TEST_WRITER.waitForTraces(1)
     traces.size() == 1
-    def mongoSpan = traces[0].find { it.operationName in ["mongo.query", "mongodb.query"] }
+    def mongoSpan = traces[0].find { it.operationName == "mongo.query" }
     mongoSpan != null
     // Verify span has trace injected tag
     mongoSpan.getTag(DBM_TRACE_INJECTED) == true
-    mongoSpan.getTag(Tags.DB_TYPE) in ["mongo", "mongodb"]
+    mongoSpan.getTag(Tags.DB_TYPE) == "mongo"
     mongoSpan.getTag(Tags.DB_OPERATION) != null
 
     cleanup:
@@ -82,10 +82,8 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
 
   def "MongoDB insert command includes comment"() {
     setup:
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
     def collection = database.getCollection("testCollection")
 
     when:
@@ -96,11 +94,11 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def traces = TEST_WRITER.waitForTraces(1)
     traces.size() == 1
-    def mongoSpan = traces[0].find { it.operationName in ["mongo.query", "mongodb.query"] }
+    def mongoSpan = traces[0].find { it.operationName == "mongo.query" }
     mongoSpan != null
     // Verify span has trace injected tag
     mongoSpan.getTag(DBM_TRACE_INJECTED) == true
-    mongoSpan.getTag(Tags.DB_TYPE) in ["mongo", "mongodb"]
+    mongoSpan.getTag(Tags.DB_TYPE) == "mongo"
     mongoSpan.getTag(Tags.DB_OPERATION) != null
 
     cleanup:
@@ -109,10 +107,8 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
 
   def "Comment format matches expected pattern"() {
     setup:
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
     def collection = database.getCollection("testCollection")
 
     when:
@@ -123,7 +119,7 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def spans = TEST_WRITER.waitForTraces(1)
     spans.size() == 1
-    def mongoSpan = spans[0].find { it.operationName in ["mongo.query", "mongodb.query"] } as DDSpan
+    def mongoSpan = traces[0].find { it.operationName == "mongo.query" }
     mongoSpan != null
     mongoSpan.getTag(DBM_TRACE_INJECTED) == true
 
@@ -136,23 +132,12 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     client?.close()
   }
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    // Enable in service mode only
-    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "service")
-    injectSysConfig("dd.service.name", "test-mongo-service")
-    injectSysConfig("dd.env", "test")
-  }
-
   @Unroll
   def "Comment injection works for different propagation modes: #mode"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, mode)
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
     def collection = database.getCollection("testCollection")
 
     when:
@@ -163,7 +148,7 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def traces = TEST_WRITER.waitForTraces(1)
     traces.size() == 1
-    def mongoSpan = traces[0].find { it.operationName in ["mongo.query", "mongodb.query"] } as DDSpan
+    def mongoSpan = traces[0].find { it.operationName == "mongo.query" }
     mongoSpan != null
 
     if (mode == "disabled") {
@@ -192,10 +177,8 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     setup:
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "service")
     injectSysConfig("dd.service.name", "test-mongo-service")
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
     def collection = database.getCollection("testCollection")
 
     when:
@@ -222,10 +205,10 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def traces = TEST_WRITER.waitForTraces(1)
     traces.size() == 1
-    def mongoSpan = traces[0].find { it.operationName in ["mongo.query", "mongodb.query"] }
+    def mongoSpan = traces[0].find { it.operationName == "mongo.query" }
     mongoSpan != null
     mongoSpan.getTag(DBM_TRACE_INJECTED) == true
-    mongoSpan.getTag(Tags.DB_TYPE) in ["mongo", "mongodb"]
+    mongoSpan.getTag(Tags.DB_TYPE) == "mongo"
 
     cleanup:
     client?.close()
@@ -239,10 +222,8 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "service")
     injectSysConfig("service.name", "original-service")
     injectSysConfig("dd.service.mapping", "mongo:mapped-mongo-service")
-    def mongoHost = mongo.getHost()
-    def mongoPort = mongo.getFirstMappedPort()
-    def client = MongoClients.create("mongodb://${mongoHost}:${mongoPort}")
-    def database = client.getDatabase("test")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:${port}")
+    def database = client.getDatabase(databaseName)
     def collection = database.getCollection("testCollection")
 
     when:
@@ -253,7 +234,7 @@ class MongoDBMInjectionTest extends InstrumentationSpecification {
     then:
     def traces = TEST_WRITER.waitForTraces(1)
     traces.size() == 1
-    def mongoSpan = traces[0].find { it.operationName in ["mongo.query", "mongodb.query"] }
+    def mongoSpan = traces[0].find { it.operationName == "mongodb.query" }
     mongoSpan != null
     mongoSpan.getTag(DBM_TRACE_INJECTED) == true
     // The exact service name used in comment is tested in unit tests
