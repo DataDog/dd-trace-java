@@ -325,6 +325,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
+    private boolean pollForTracerFlareRequests;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
     private boolean flushOnClose;
@@ -451,6 +452,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    public CoreTracerBuilder pollForTracerFlareRequests() {
+      this.pollForTracerFlareRequests = true;
+      return this;
+    }
+
     public CoreTracerBuilder pollForTracingConfiguration() {
       this.pollForTracingConfiguration = true;
       return this;
@@ -525,6 +531,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
+          pollForTracerFlareRequests,
           pollForTracingConfiguration,
           injectBaggageAsTags,
           flushOnClose);
@@ -556,6 +563,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
+      final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
       final boolean flushOnClose) {
@@ -583,6 +591,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         timeSource,
         dataStreamsMonitoring,
         profilingContextIntegration,
+        pollForTracerFlareRequests,
         pollForTracingConfiguration,
         injectBaggageAsTags,
         flushOnClose);
@@ -613,6 +622,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
+      final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
       final boolean flushOnClose) {
