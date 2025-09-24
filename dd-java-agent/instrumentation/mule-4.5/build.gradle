@@ -71,7 +71,7 @@ configurations {
   latestMuleServices
 }
 
-configurations.all {
+configurations.configureEach {
   exclude group: 'pull-parser', module: 'pull-parser'
 
   resolutionStrategy {
