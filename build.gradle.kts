@@ -5,7 +5,8 @@ plugins {
   id("datadog.dependency-locking")
 
   id("com.diffplug.spotless") version "6.13.0"
-  id("com.github.spotbugs") version "5.0.14"
+  // id("com.github.spotbugs") version "5.0.14"
+  id("com.github.spotbugs") version "6.4.2"
   id("de.thetaphi.forbiddenapis") version "3.8"
 
   id("tracer-version")
