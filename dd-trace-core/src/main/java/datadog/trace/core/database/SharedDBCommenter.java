@@ -36,8 +36,13 @@ public class SharedDBCommenter {
   public static boolean containsTraceComment(String commentContent) {
     return commentContent.contains(PARENT_SERVICE + "=")
         || commentContent.contains(DATABASE_SERVICE + "=")
+        || commentContent.contains(DD_HOSTNAME + "=")
+        || commentContent.contains(DD_DB_NAME + "=")
+        || commentContent.contains(DD_PEER_SERVICE + "=")
         || commentContent.contains(DD_ENV + "=")
-        || commentContent.contains(TRACEPARENT + "=");
+        || commentContent.contains(DD_VERSION + "=")
+        || commentContent.contains(TRACEPARENT + "=")
+        || commentContent.contains(DD_SERVICE_HASH + "=");
   }
 
   // Build database comment content without comment delimiters such as /* */
