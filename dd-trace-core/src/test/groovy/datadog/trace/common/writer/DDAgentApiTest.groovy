@@ -68,7 +68,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     expect:
     def response = client.sendSerializedTraces(payload)
     response.success()
-    response.status() == 200
+    response.status().present
+    response.status().asInt == 200
     agent.getLastRequest().path == "/" + agentVersion
 
     cleanup:
@@ -96,7 +97,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     !clientResponse.success()
-    clientResponse.status() == 404
+    clientResponse.status().present
+    clientResponse.status().asInt == 404
     agent.getLastRequest().path == "/v0.3/traces"
 
     cleanup:

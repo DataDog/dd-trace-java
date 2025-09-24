@@ -3,6 +3,8 @@ package datadog.trace.common.writer;
 import datadog.trace.relocate.api.IOLogger;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.util.Optional;
+import java.util.OptionalInt;
 import org.slf4j.Logger;
 
 public abstract class RemoteApi {
@@ -141,21 +143,19 @@ public abstract class RemoteApi {
       this.response = response;
     }
 
-    public final boolean success() {
+    public boolean success() {
       return success;
     }
 
-    // TODO: DQH - In Java 8, switch to OptionalInteger
-    public final Integer status() {
-      return status;
+    public OptionalInt status() {
+      return status == null ? OptionalInt.empty() : OptionalInt.of(status);
     }
 
-    // TODO: DQH - In Java 8, switch to Optional<Throwable>?
-    public final Throwable exception() {
-      return exception;
+    public Optional<Throwable> exception() {
+      return Optional.ofNullable(exception);
     }
 
-    public final String response() {
+    public String response() {
       return response;
     }
   }
