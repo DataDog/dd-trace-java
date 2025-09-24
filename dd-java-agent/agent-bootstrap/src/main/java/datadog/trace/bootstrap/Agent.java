@@ -1139,7 +1139,7 @@ public class Agent {
       final Method tracerFlareSystemStopMethod = tracerFlareSystemClass.getMethod("stop");
       tracerFlareSystemStopMethod.invoke(null);
     } catch (final Throwable ex) {
-      log.error("Error encountered while stopping Flare System", ex);
+      log.warn("Error encountered while stopping Flare System", ex);
     }
   }
 
