@@ -52,7 +52,7 @@ afterEvaluate {
     }
   }
 
-  jacocoTestCoverageVerification {
+  tasks.named("jacocoTestCoverageVerification") {
     violationRules {
       rule {
         element = 'CLASS'
