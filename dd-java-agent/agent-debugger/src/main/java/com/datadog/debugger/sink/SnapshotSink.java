@@ -196,6 +196,7 @@ public class SnapshotSink {
   private String serializeSnapshot(String serviceName, Snapshot snapshot) {
     snapshot.getId(); // Ensure id is generated
     String str = DebuggerAgent.getSnapshotSerializer().serializeSnapshot(serviceName, snapshot);
+    LOGGER.debug("Serialized snapshot for probe: {} {}", snapshot.getProbe().getId(), str);
     String prunedStr = SnapshotPruner.prune(str, MAX_SNAPSHOT_SIZE, 4);
     if (prunedStr.length() != str.length()) {
       LOGGER.debug(

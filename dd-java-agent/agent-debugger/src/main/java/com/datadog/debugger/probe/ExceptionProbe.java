@@ -46,7 +46,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         // forcing a useless condition to be instrumented with captureEntry=false
         new ProbeCondition(DSL.when(DSL.TRUE), "true"),
         capture,
-        sampling);
+        sampling,
+        null);
     this.exceptionProbeManager = exceptionProbeManager;
     this.chainedExceptionIdx = chainedExceptionIdx;
   }
