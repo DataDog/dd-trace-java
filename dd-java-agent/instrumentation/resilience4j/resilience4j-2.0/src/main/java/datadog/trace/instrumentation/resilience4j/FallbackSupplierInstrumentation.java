@@ -3,17 +3,13 @@ package datadog.trace.instrumentation.resilience4j;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.Instrumenter;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class FallbackSupplierInstrumentation extends Resilience4jInstrumentation {
-  public FallbackSupplierInstrumentation() {
-    super("resilience4j-fallback");
-  }
+public class FallbackSupplierInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

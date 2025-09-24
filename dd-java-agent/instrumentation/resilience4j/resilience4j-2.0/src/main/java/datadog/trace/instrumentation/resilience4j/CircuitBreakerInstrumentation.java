@@ -6,8 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.Instrumenter;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.core.functions.CheckedConsumer;
 import io.github.resilience4j.core.functions.CheckedFunction;
@@ -21,17 +20,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class CircuitBreakerInstrumentation extends Resilience4jInstrumentation {
-
+public final class CircuitBreakerInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   private static final String CIRCUIT_BREAKER_FQCN =
       "io.github.resilience4j.circuitbreaker.CircuitBreaker";
-
   private static final String THIS_CLASS = CircuitBreakerInstrumentation.class.getName();
-
-  public CircuitBreakerInstrumentation() {
-    super("resilience4j-circuitbreaker");
-  }
 
   @Override
   public String instrumentedType() {
@@ -45,77 +38,77 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(CHECKED_SUPPLIER_FQCN))),
+            .and(returns(named("io.github.resilience4j.core.functions.CheckedSupplier"))),
         THIS_CLASS + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCheckedFunction"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(CHECKED_FUNCTION_FQCN))),
+            .and(returns(named("io.github.resilience4j.core.functions.CheckedFunction"))),
         THIS_CLASS + "$CheckedFunctionAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCheckedConsumer"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(CHECKED_CONSUMER_FQCN))),
+            .and(returns(named("io.github.resilience4j.core.functions.CheckedConsumer"))),
         THIS_CLASS + "$CheckedConsumerAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(SUPPLIER_FQCN))),
+            .and(returns(named(Supplier.class.getName()))),
         THIS_CLASS + "$CompletionStageAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateFuture"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(SUPPLIER_FQCN))),
+            .and(returns(named(Supplier.class.getName()))),
         THIS_CLASS + "$FutureAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateConsumer"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(CONSUMER_FQCN))),
+            .and(returns(named(Consumer.class.getName()))),
         THIS_CLASS + "$ConsumerAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCheckedRunnable"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(CHECKED_RUNNABLE_FQCN))),
+            .and(returns(named("io.github.resilience4j.core.functions.CheckedRunnable"))),
         THIS_CLASS + "$CheckedRunnableAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCallable"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(CALLABLE_FQCN))),
+            .and(returns(named(Callable.class.getName()))),
         THIS_CLASS + "$CallableAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateRunnable"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(RUNNABLE_FQCN))),
+            .and(returns(named(Runnable.class.getName()))),
         THIS_CLASS + "$RunnableAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(SUPPLIER_FQCN))),
+            .and(returns(named(Supplier.class.getName()))),
         THIS_CLASS + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateFunction"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named(FUNCTION_FQCN))),
+            .and(returns(named(Function.class.getName()))),
         THIS_CLASS + "$FunctionAdvice");
   }
 

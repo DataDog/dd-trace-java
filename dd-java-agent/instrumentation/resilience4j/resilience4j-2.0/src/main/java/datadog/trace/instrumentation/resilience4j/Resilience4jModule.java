@@ -1,31 +1,16 @@
 package datadog.trace.instrumentation.resilience4j;
 
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.concurrent.Callable;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.Arrays;
+import java.util.List;
 
-public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+@AutoService(InstrumenterModule.class)
+public class Resilience4jModule extends InstrumenterModule.Tracing {
 
-  public static final String CHECKED_SUPPLIER_FQCN =
-      "io.github.resilience4j.core.functions.CheckedSupplier";
-  public static final String CHECKED_RUNNABLE_FQCN =
-      "io.github.resilience4j.core.functions.CheckedRunnable";
-  public static final String CHECKED_FUNCTION_FQCN =
-      "io.github.resilience4j.core.functions.CheckedFunction";
-  public static final String CHECKED_CONSUMER_FQCN =
-      "io.github.resilience4j.core.functions.CheckedConsumer";
-  public static final String SUPPLIER_FQCN = Supplier.class.getName();
-  public static final String FUNCTION_FQCN = Function.class.getName();
-  public static final String CONSUMER_FQCN = Consumer.class.getName();
-  public static final String CALLABLE_FQCN = Callable.class.getName();
-  public static final String RUNNABLE_FQCN = Runnable.class.getName();
-
-  public Resilience4jInstrumentation(String... additionalNames) {
-    super("resilience4j", additionalNames);
+  public Resilience4jModule() {
+    super("resilience4j");
   }
 
   @Override
@@ -49,5 +34,16 @@ public abstract class Resilience4jInstrumentation extends InstrumenterModule.Tra
       packageName + ".CircuitBreakerDecorator",
       packageName + ".RetryDecorator",
     };
+  }
+
+  @Override
+  public List<Instrumenter> typeInstrumentations() {
+    return Arrays.asList(
+        new CircuitBreakerInstrumentation(),
+        new FallbackCallableInstrumentation(),
+        new FallbackCheckedSupplierInstrumentation(),
+        new FallbackCompletionStageInstrumentation(),
+        new FallbackSupplierInstrumentation(),
+        new RetryInstrumentation());
   }
 }

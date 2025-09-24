@@ -4,20 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.retry.Retry;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
-@AutoService(InstrumenterModule.class)
-public class RetryOperatorInstrumentation extends Resilience4jReactorInstrumentation {
-
-  public RetryOperatorInstrumentation() {
-    super("resilience4j-retry");
-  }
+public class RetryOperatorInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

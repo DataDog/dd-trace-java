@@ -5,8 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.core.functions.CheckedSupplier;
@@ -14,12 +13,8 @@ import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
-@AutoService(InstrumenterModule.class)
-public class FallbackOperatorInstrumentation extends Resilience4jReactorInstrumentation {
-
-  public FallbackOperatorInstrumentation() {
-    super("resilience4j-fallback");
-  }
+public class FallbackOperatorInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

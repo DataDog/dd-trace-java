@@ -4,20 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
-@AutoService(InstrumenterModule.class)
-public class CircuitBreakerOperatorInstrumentation extends Resilience4jReactorInstrumentation {
-
-  public CircuitBreakerOperatorInstrumentation() {
-    super("resilience4j-circuitbreaker");
-  }
+public class CircuitBreakerOperatorInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {
