@@ -56,3 +56,7 @@ dependencies {
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
 }
+
+tasks.named("javadoc") {
+  dependsOn("generateSupportedConfigurations")
+}
