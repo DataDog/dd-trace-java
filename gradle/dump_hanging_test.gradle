@@ -2,8 +2,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-ext.tasksDumps = new HashMap<String, ScheduledFuture>()
-ext.taskDumpsScheduler = Executors.newScheduledThreadPool(4, { r ->
+project.ext.tasksDumps = new HashMap<String, ScheduledFuture>()
+project.ext.taskDumpsScheduler = Executors.newScheduledThreadPool(4, { r ->
   Thread t = new Thread(r, "dump-scheduler")
   t.daemon = true
   t
@@ -20,7 +20,7 @@ tasks.withType(Test).configureEach { testTask ->
       return
     }
 
-    if (ext.tasksDumps.containsKey(taskName)) {
+    if (project.ext.tasksDumps.containsKey(taskName)) {
       logger.info("Future for ${taskName} already scheduled; skipping")
       return
     }
@@ -28,7 +28,7 @@ tasks.withType(Test).configureEach { testTask ->
     // Calculate delay for taking dumps as test timeout minus 1 minutes, but no less than 1 minute.
     def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
-    def future = ext.taskDumpsScheduler.schedule({
+    def future = project.ext.taskDumpsScheduler.schedule({
       logger.warn("Taking dumps for: ${taskName} after ${delayMinutes} minutes.")
 
       try {
@@ -84,7 +84,7 @@ tasks.withType(Test).configureEach { testTask ->
 
     // Store handles for cancellation in doLast.
     logger.warn("Saving future for: ${taskName} palned at ${delayMinutes} mins")
-    ext.tasksDumps.put(taskName, future)
+    project.ext.tasksDumps.put(taskName, future)
   }
 
   doLast {
@@ -92,7 +92,7 @@ tasks.withType(Test).configureEach { testTask ->
     logger.warn("Dump cleanup logic after: ${(System.currentTimeMillis() - startedAt) / 1000} seconds")
 
     try {
-      def future = ext.tasksDumps.get(taskName)
+      def future = project.ext.tasksDumps.get(taskName)
 
       if (future) {
         future.cancel(false)
