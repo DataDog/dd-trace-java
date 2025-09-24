@@ -5,27 +5,22 @@ import datadog.trace.test.util.DDSpecification
 
 class ApiSecurityDownstreamSamplerTest extends DDSpecification {
 
-  void 'test include all/none'() {
+  void 'test noop'() {
     given:
     final ctx = Mock(AppSecRequestContext)
-    final sampler = ApiSecurityDownstreamSampler.build(rate)
+    final sampler = new ApiSecurityDownstreamSampler.NoOp()
 
     when:
     final initialDecisions = (1..10).collect { sampler.sampleHttpClientRequest(ctx, it)}
 
     then:
-    initialDecisions.every { it == expected }
+    initialDecisions.every { it == false }
 
     when:
     final sampled = (1..10).collect { sampler.isSampled(ctx, it)}
 
     then:
-    sampled.every { it == expected }
-
-    where:
-    rate | expected
-    0D   | false
-    1D   | true
+    sampled.every { it == false }
   }
 
   void 'test sampling algorithm'() {
@@ -45,6 +40,6 @@ class ApiSecurityDownstreamSamplerTest extends DDSpecification {
     rate.subtract(expectedRate).abs() <= epsilon
 
     where:
-    expectedRate << [0.1, 0.25, 0.5, 0.75, 0.9]
+    expectedRate << [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]
   }
 }
