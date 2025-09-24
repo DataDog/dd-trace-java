@@ -329,9 +329,8 @@ public class GatewayBridge {
   private Flow<Boolean> onHttpClientSampling(RequestContext ctx_, final long requestId) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
-      return new Flow.ResultFlow<>(null);
+      return new Flow.ResultFlow<>(false);
     }
-    ctx.increaseHttpClientRequestCount();
     final ApiSecurityDownstreamSampler sampler = downstreamSamplerSupplier.get();
     return new Flow.ResultFlow<>(sampler.sampleHttpClientRequest(ctx, requestId));
   }

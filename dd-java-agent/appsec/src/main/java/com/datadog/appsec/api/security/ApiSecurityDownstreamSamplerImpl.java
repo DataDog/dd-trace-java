@@ -6,21 +6,21 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ApiSecurityDownstreamSamplerImpl implements ApiSecurityDownstreamSampler {
 
   private static final long KNUTH_FACTOR = 1111111111111111111L;
-  private static final double SAMPLING_MAX = Math.pow(2, 64) - 1;
-
-  private final AtomicLong globalRequestCount = new AtomicLong(0);
+  private final AtomicLong globalRequestCount;
   private final double threshold;
 
   public ApiSecurityDownstreamSamplerImpl(double rate) {
     threshold = samplingCutoff(rate < 0.0 ? 0 : (rate > 1.0 ? 1 : rate));
+    globalRequestCount = new AtomicLong(0);
   }
 
   private static double samplingCutoff(double rate) {
+    final double max = Math.pow(2, 64) - 1;
     if (rate < 0.5) {
-      return (long) (rate * SAMPLING_MAX) + Long.MIN_VALUE;
+      return (long) (rate * max) + Long.MIN_VALUE;
     }
     if (rate < 1.0) {
-      return (long) ((rate * SAMPLING_MAX) + Long.MIN_VALUE);
+      return (long) ((rate * max) + Long.MIN_VALUE);
     }
     return Long.MAX_VALUE;
   }

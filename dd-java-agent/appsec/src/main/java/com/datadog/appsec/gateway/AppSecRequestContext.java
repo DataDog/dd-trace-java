@@ -238,11 +238,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public void increaseHttpClientRequestCount() {
-    httpClientRequestCount.incrementAndGet();
-  }
-
   public boolean sampleHttpClientRequest(final long id) {
+    httpClientRequestCount.incrementAndGet();
     synchronized (sampledHttpClientRequests) {
       if (sampledHttpClientRequests.size()
           < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
