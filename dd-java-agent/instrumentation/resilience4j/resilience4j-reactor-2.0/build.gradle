@@ -33,7 +33,7 @@ compileJava.configure {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:resilience4j:resilience4j-2')
+  implementation project(':dd-java-agent:instrumentation:resilience4j:resilience4j-2.0')
 
   compileOnly group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
   testImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
