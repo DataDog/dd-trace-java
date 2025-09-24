@@ -143,7 +143,7 @@ public class DDAgentWriter extends RemoteWriter {
       if (null == featureDiscovery) {
         featureDiscovery =
             new DDAgentFeaturesDiscovery(
-                client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
+                client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled, true);
       }
       if (null == agentApi) {
         agentApi =

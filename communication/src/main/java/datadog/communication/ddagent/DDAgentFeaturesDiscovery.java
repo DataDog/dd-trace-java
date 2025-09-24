@@ -97,16 +97,198 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
     long lastTimeDiscovered;
+
+    public String getTraceEndpoint() {
+      return traceEndpoint;
+    }
+
+    public String getMetricsEndpoint() {
+      return metricsEndpoint;
+    }
+
+    public String getDataStreamsEndpoint() {
+      return dataStreamsEndpoint;
+    }
+
+    public boolean isSupportsLongRunning() {
+      return supportsLongRunning;
+    }
+
+    public boolean isSupportsDropping() {
+      return supportsDropping;
+    }
+
+    public String getState() {
+      return state;
+    }
+
+    public String getConfigEndpoint() {
+      return configEndpoint;
+    }
+
+    public String getDebuggerLogEndpoint() {
+      return debuggerLogEndpoint;
+    }
+
+    public String getDebuggerSnapshotEndpoint() {
+      return debuggerSnapshotEndpoint;
+    }
+
+    public String getDebuggerDiagnosticsEndpoint() {
+      return debuggerDiagnosticsEndpoint;
+    }
+
+    public String getEvpProxyEndpoint() {
+      return evpProxyEndpoint;
+    }
+
+    public String getVersion() {
+      return version;
+    }
+
+    public String getTelemetryProxyEndpoint() {
+      return telemetryProxyEndpoint;
+    }
+
+    public Set<String> getPeerTags() {
+      return peerTags;
+    }
+
+    public long getLastTimeDiscovered() {
+      return lastTimeDiscovered;
+    }
+
+    void allowIO() {}
+  }
+
+  private class UndiscoveredState extends State {
+    private boolean ioAllowed;
+
+    public UndiscoveredState(boolean ioAllowed) {
+      this.ioAllowed = ioAllowed;
+    }
+
+    @Override
+    void allowIO() {
+      this.ioAllowed = true;
+    }
+
+    private void doDiscovery() {
+      if (ioAllowed) {
+        DDAgentFeaturesDiscovery.this.discoverIfOutdated();
+      }
+    }
+
+    @Override
+    public String getTraceEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getTraceEndpoint();
+    }
+
+    @Override
+    public String getMetricsEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getMetricsEndpoint();
+    }
+
+    @Override
+    public String getDataStreamsEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getDataStreamsEndpoint();
+    }
+
+    @Override
+    public boolean isSupportsLongRunning() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.isSupportsLongRunning();
+    }
+
+    @Override
+    public boolean isSupportsDropping() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.isSupportsDropping();
+    }
+
+    @Override
+    public String getState() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getState();
+    }
+
+    @Override
+    public String getConfigEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getConfigEndpoint();
+    }
+
+    @Override
+    public String getDebuggerLogEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getDebuggerLogEndpoint();
+    }
+
+    @Override
+    public String getDebuggerSnapshotEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getDebuggerSnapshotEndpoint();
+    }
+
+    @Override
+    public String getDebuggerDiagnosticsEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getDebuggerDiagnosticsEndpoint();
+    }
+
+    @Override
+    public String getEvpProxyEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getEvpProxyEndpoint();
+    }
+
+    @Override
+    public String getVersion() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getVersion();
+    }
+
+    @Override
+    public String getTelemetryProxyEndpoint() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getTelemetryProxyEndpoint();
+    }
+
+    @Override
+    public Set<String> getPeerTags() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getPeerTags();
+    }
+
+    @Override
+    public long getLastTimeDiscovered() {
+      doDiscovery();
+      return DDAgentFeaturesDiscovery.this.discoveryState.getLastTimeDiscovered();
+    }
   }
 
   private volatile State discoveryState;
+
+  // kept for testing
+  protected DDAgentFeaturesDiscovery(
+      OkHttpClient client,
+      Monitoring monitoring,
+      HttpUrl agentUrl,
+      boolean enableV05Traces,
+      boolean metricsEnabled) {
+    this(client, monitoring, agentUrl, enableV05Traces, metricsEnabled, true);
+  }
 
   public DDAgentFeaturesDiscovery(
       OkHttpClient client,
       Monitoring monitoring,
       HttpUrl agentUrl,
       boolean enableV05Traces,
-      boolean metricsEnabled) {
+      boolean metricsEnabled,
+      boolean ioAllowed) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
@@ -115,7 +297,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
-    this.discoveryState = new State();
+    this.discoveryState = new UndiscoveredState(ioAllowed);
   }
 
   /** Run feature discovery, unconditionally. */
@@ -145,6 +327,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private void doDiscovery(State newState) {
+    discoveryState.allowIO();
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
@@ -356,51 +539,51 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public boolean supportsMetrics() {
-    return metricsEnabled && null != discoveryState.metricsEndpoint;
+    return metricsEnabled && null != discoveryState.getMetricsEndpoint();
   }
 
   public boolean supportsDebugger() {
-    return discoveryState.debuggerLogEndpoint != null;
+    return discoveryState.getDebuggerLogEndpoint() != null;
   }
 
   public String getDebuggerSnapshotEndpoint() {
-    return discoveryState.debuggerSnapshotEndpoint;
+    return discoveryState.getDebuggerSnapshotEndpoint();
   }
 
   public String getDebuggerLogEndpoint() {
-    return discoveryState.debuggerLogEndpoint;
+    return discoveryState.getDebuggerLogEndpoint();
   }
 
   public boolean supportsDebuggerDiagnostics() {
-    return discoveryState.debuggerDiagnosticsEndpoint != null;
+    return discoveryState.getDebuggerDiagnosticsEndpoint() != null;
   }
 
   public boolean supportsDropping() {
-    return discoveryState.supportsDropping;
+    return discoveryState.isSupportsDropping();
   }
 
   public boolean supportsLongRunning() {
-    return discoveryState.supportsLongRunning;
+    return discoveryState.isSupportsLongRunning();
   }
 
   public Set<String> peerTags() {
-    return discoveryState.peerTags;
+    return discoveryState.getPeerTags();
   }
 
   public String getMetricsEndpoint() {
-    return discoveryState.metricsEndpoint;
+    return discoveryState.getMetricsEndpoint();
   }
 
   public String getTraceEndpoint() {
-    return discoveryState.traceEndpoint;
+    return discoveryState.getTraceEndpoint();
   }
 
   public String getDataStreamsEndpoint() {
-    return discoveryState.dataStreamsEndpoint;
+    return discoveryState.getDataStreamsEndpoint();
   }
 
   public String getEvpProxyEndpoint() {
-    return discoveryState.evpProxyEndpoint;
+    return discoveryState.getEvpProxyEndpoint();
   }
 
   public HttpUrl buildUrl(String endpoint) {
@@ -408,25 +591,25 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public boolean supportsDataStreams() {
-    return discoveryState.dataStreamsEndpoint != null;
+    return discoveryState.getDataStreamsEndpoint() != null;
   }
 
   public boolean supportsEvpProxy() {
-    return discoveryState.evpProxyEndpoint != null;
+    return discoveryState.getEvpProxyEndpoint() != null;
   }
 
   public boolean supportsContentEncodingHeadersWithEvpProxy() {
     // content encoding headers are supported in /v4 and above
-    final String evpProxyEndpoint = discoveryState.evpProxyEndpoint;
+    final String evpProxyEndpoint = discoveryState.getEvpProxyEndpoint();
     return evpProxyEndpoint != null && V4_EVP_PROXY_ENDPOINT.compareTo(evpProxyEndpoint) <= 0;
   }
 
   public String getConfigEndpoint() {
-    return discoveryState.configEndpoint;
+    return discoveryState.getConfigEndpoint();
   }
 
   public String getVersion() {
-    return discoveryState.version;
+    return discoveryState.getVersion();
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
@@ -434,15 +617,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public String state() {
-    return discoveryState.state;
+    return discoveryState.getState();
   }
 
   @Override
   public boolean active() {
-    return supportsMetrics() && discoveryState.supportsDropping;
+    return supportsMetrics() && discoveryState.isSupportsLongRunning();
   }
 
   public boolean supportsTelemetryProxy() {
-    return discoveryState.telemetryProxyEndpoint != null;
+    return discoveryState.getTelemetryProxyEndpoint() != null;
   }
 }

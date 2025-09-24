@@ -1,7 +1,6 @@
 package datadog.communication.ddagent;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
-import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
@@ -10,7 +9,6 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
-import datadog.trace.util.AgentTaskScheduler;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
@@ -78,7 +76,7 @@ public class SharedCommunicationObjects {
     paused = false;
     // attempt discovery first to avoid potential race condition on IBM Java8
     if (null != featuresDiscovery) {
-      featuresDiscovery.discoverIfOutdated();
+      // featuresDiscovery.discoverIfOutdated();
     } else {
       Security.getProviders(); // fallback to preloading provider extensions
     }
@@ -150,18 +148,8 @@ public class SharedCommunicationObjects {
                   monitoring,
                   agentUrl,
                   config.isTraceAgentV05Enabled(),
-                  config.isTracerMetricsEnabled());
-
-          if (paused) {
-            // defer remote discovery until remote I/O is allowed
-          } else {
-            if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-              ret.discover(); // safe to run on same thread
-            } else {
-              // avoid performing blocking I/O operation on application thread
-              AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
-            }
-          }
+                  config.isTracerMetricsEnabled(),
+                  !paused);
           featuresDiscovery = ret;
         }
       }
