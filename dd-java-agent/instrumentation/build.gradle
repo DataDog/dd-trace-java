@@ -128,7 +128,7 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 }
 
 
-tasks.named('shadowJar').configure {
+tasks.named('shadowJar') {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar

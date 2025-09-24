@@ -12,7 +12,7 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy") {
   classpath += files(compileLatestDepTestKotlin.destinationDirectory)
 }
 
