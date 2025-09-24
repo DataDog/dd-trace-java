@@ -1,9 +1,17 @@
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+
+ext.tasksDumps = new HashMap<String, ScheduledFuture>()
+ext.taskDumpsScheduler = Executors.newScheduledThreadPool(4, { r ->
+  Thread t = new Thread(r, "dump-scheduler")
+  t.daemon = true
+  t
+})
 
 // Schedule thread and heap dumps collection near test timeout.
 tasks.withType(Test).configureEach { testTask ->
-  String taskName = testTask.path.replaceAll(/[^A-Za-z0-9_]/, "_")
+  String taskName = testTask.path
   long startedAt = System.currentTimeMillis()
 
   doFirst {
@@ -12,16 +20,15 @@ tasks.withType(Test).configureEach { testTask ->
       return
     }
 
-    def scheduler = Executors.newSingleThreadScheduledExecutor({ r ->
-      Thread t = new Thread(r, "dump_scheduler_${taskName}")
-      t.daemon = true
-      t
-    })
+    if (ext.tasksDumps.containsKey(taskName)) {
+      logger.info("Future for ${taskName} already scheduled; skipping")
+      return
+    }
 
     // Calculate delay for taking dumps as test timeout minus 1 minutes, but no less than 1 minute.
     def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
-    def future = scheduler.schedule({
+    def future = ext.taskDumpsScheduler.schedule({
       logger.warn("Taking dumps for: ${taskName} after ${delayMinutes} minutes.")
 
       try {
@@ -76,29 +83,24 @@ tasks.withType(Test).configureEach { testTask ->
     }, delayMinutes, TimeUnit.MINUTES)
 
     // Store handles for cancellation in doLast.
-    logger.warn("Saving objects for: ${taskName}")
-    testTask.extensions.extraProperties.set("dumpFuture_${taskName}", future)
-    testTask.extensions.extraProperties.set("dumpScheduler_${taskName}", scheduler)
+    logger.warn("Saving future for: ${taskName} palned at ${delayMinutes} mins")
+    ext.tasksDumps.put(taskName, future)
   }
 
   doLast {
     // Cancel if the task finished before the scheduled dump.
-    def ex = testTask.extensions.extraProperties
-
     logger.warn("Dump cleanup logic after: ${(System.currentTimeMillis() - startedAt) / 1000} seconds")
 
     try {
-      if (ex.hasProperty("dumpFuture_${taskName}")) {
-        ex.get("dumpFuture_${taskName}")?.cancel(false)
+      def future = ext.tasksDumps.get(taskName)
+
+      if (future) {
+        future.cancel(false)
       } else {
         logger.warn("dump future not found: ${taskName}")
       }
-    } finally {
-      if (ex.hasProperty("dumpScheduler_${taskName}")) {
-        ex.get("dumpScheduler_${taskName}")?.shutdownNow()
-      } else {
-        logger.warn("dump scheduler not found: ${taskName}")
-      }
+    } catch(Throwable e) {
+      logger.warn("Failed to cancel future: ${e.getMessage()}")
     }
   }
 }
