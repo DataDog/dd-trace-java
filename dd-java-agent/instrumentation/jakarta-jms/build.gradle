@@ -19,8 +19,8 @@ apply from: "$rootDir/gradle/configure_tests.gradle"
 repositories {
   maven {
     // only place that has org.jboss.naming:jnpserver:5.0.3.GA publicly accessible
-    name 'jboss-releases'
-    url 'https://repository.jboss.org/nexus/content/repositories/releases/'
+    name = 'jboss-releases'
+    url = 'https://repository.jboss.org/nexus/content/repositories/releases/'
   }
 }
 

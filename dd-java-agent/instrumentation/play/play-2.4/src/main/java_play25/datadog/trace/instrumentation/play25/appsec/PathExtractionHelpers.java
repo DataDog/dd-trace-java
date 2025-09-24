@@ -24,7 +24,7 @@ public class PathExtractionHelpers {
     try {
       return doCallRequestPathParamsCallback(reqCtx, params, origin);
     } catch (Exception e) {
-      log.warn("Error calling " + origin, e);
+      log.warn("Error calling {}", origin, e);
       return null;
     }
   }

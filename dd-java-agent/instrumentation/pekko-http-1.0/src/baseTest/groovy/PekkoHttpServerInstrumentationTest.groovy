@@ -40,21 +40,6 @@ abstract class PekkoHttpServerInstrumentationTest extends HttpServerTest<PekkoHt
     true
   }
 
-  @Override
-  protected void waitForRequestToComplete() {
-    // Pekko HTTP is asynchronous, and spans may not be completed
-    // immediately after the HTTP response is sent. Wait for the trace
-    // to be written to avoid race conditions in trace assertions.
-    try {
-      // Wait up to 1 sec for the trace to be written
-      TEST_WRITER.waitForTracesMax(1, 1)
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt()
-      // If interrupted, proceed anyway - test may still pass
-    }
-  }
-
-
   //@Ignore("https://github.com/DataDog/dd-trace-java/pull/5213")
   @Override
   boolean testBadUrl() {

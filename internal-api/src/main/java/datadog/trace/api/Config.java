@@ -170,6 +170,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
+import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
@@ -603,6 +604,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
@@ -836,6 +838,7 @@ public class Config {
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
   private final List<String> traceBaggageTagKeys;
+  private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1525,8 +1528,7 @@ public class Config {
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
-        configProvider.getBoolean(
-            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, JavaVirtualMachine.isJavaVersion(21));
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, true);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1754,6 +1756,8 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceInferredProxyEnabled =
+        configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -3158,6 +3162,10 @@ public class Config {
     return tracePropagationExtractFirst;
   }
 
+  public boolean isInferredProxyPropagationEnabled() {
+    return traceInferredProxyEnabled;
+  }
+
   public boolean isBaggageExtract() {
     return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
   }
@@ -4176,7 +4184,7 @@ public class Config {
     } else if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
-      return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+      throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
     }
   }
 
@@ -5293,7 +5301,8 @@ public class Config {
   private static String getEnv(String name) {
     String value = EnvironmentVariables.get(name);
     if (value != null) {
-      ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
+      // Report non-default sequence id for consistency
+      ConfigCollector.get().put(name, value, ConfigOrigin.ENV, NON_DEFAULT_SEQ_ID);
     }
     return value;
   }
@@ -5316,7 +5325,8 @@ public class Config {
   private static String getProp(String name, String def) {
     String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
-      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
+      // Report non-default sequence id for consistency
+      ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP, NON_DEFAULT_SEQ_ID);
     }
     return value;
   }
@@ -5488,6 +5498,8 @@ public class Config {
         + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
+        + ", traceInferredProxyEnabled="
+        + traceInferredProxyEnabled
         + ", clockSyncPeriod="
         + clockSyncPeriod
         + ", jmxFetchEnabled="

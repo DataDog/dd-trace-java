@@ -6,10 +6,7 @@ val ddGradleDebugEnabled = project.hasProperty("ddGradleDebug")
 val logPath = rootProject.layout.buildDirectory.file("datadog.gradle-debug.log")
 
 fun inferJdkFromJavaHome(javaHome: String?): String {
-  val effectiveJavaHome = javaHome ?: System.getenv("JAVA_HOME")
-  if (effectiveJavaHome == null) {
-    throw IllegalStateException("JAVA_HOME is not set")
-  }
+  val effectiveJavaHome = javaHome ?: providers.environmentVariable("JAVA_HOME").orNull ?: error("JAVA_HOME is not set")
   val javaExecutable = File(effectiveJavaHome, "bin/java").absolutePath
   return try {
     val process = ProcessBuilder(javaExecutable, "-version")

@@ -59,8 +59,8 @@ repositories {
   maven {
     // for muzzle because of play-2.3
     // only place that has 'com.typesafe.netty:netty-http-pipelining:1.1.2' publicly accessible
-    name 'typesafe'
-    url 'https://repo.typesafe.com/typesafe/maven-releases/'
+    name = 'typesafe'
+    url = 'https://repo.typesafe.com/typesafe/maven-releases/'
   }
 }
 
@@ -104,8 +104,8 @@ dependencies {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:netty-4.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:netty-4.1')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala-concurrent')

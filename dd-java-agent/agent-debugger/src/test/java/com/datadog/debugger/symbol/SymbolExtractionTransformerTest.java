@@ -829,6 +829,14 @@ class SymbolExtractionTransformerTest {
         null,
         null,
         Void.TYPE.getTypeName());
+    Scope m4MethodScope = i1ClassScope.getScopes().get(1);
+    assertLangSpecifics(
+        m4MethodScope.getLanguageSpecifics(),
+        asList("public", "static"),
+        null,
+        null,
+        null,
+        String.class.getTypeName());
     Scope myEnumClassScope = symbolSinkMock.jarScopes.get(3).getScopes().get(0);
     assertLangSpecifics(
         myEnumClassScope.getLanguageSpecifics(),

@@ -10,7 +10,8 @@ The project leverages different types of test:
    * Spock framework provides an alternative for more complex test scenarios, or tests that require Groovy Script to access data outside their scope limitation (eg private fields).
 
 2. A variant of unit tests is **instrumented tests**.  
-   Their purpose is similar to the unit tests but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running. They extend the Spock specification `datadog.trace.agent.test.AgentTestRunner` which allows to test produced traces and metrics.
+   Their purpose is similar to unit tests, but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running.
+   They extend the Spock specification `datadog.trace.agent.test.InstrumentationSpecification` which produces traces and metrics for testing.
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.

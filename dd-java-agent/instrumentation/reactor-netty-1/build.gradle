@@ -20,13 +20,13 @@ addTestSuite('latestDepTest')
 dependencies {
   compileOnly group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '1.0.0'
   // This instrumentation interacts with the netty instrumentation
-  implementation project(':dd-java-agent:instrumentation:netty-4.1-shared')
+  implementation project(':dd-java-agent:instrumentation:netty:netty-common')
 
   testImplementation group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '1.0.0'
-  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
 
   latestDepTestImplementation group: 'io.projectreactor.netty', name: 'reactor-netty-http', version: '+'
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
 }
