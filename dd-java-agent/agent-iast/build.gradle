@@ -115,11 +115,6 @@ jmh {
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-pitest {
-  targetClasses = ['com.datadog.iast.*']
-  jvmArgs = ['-Ddd.iast.enabled=true']
-}
-
 sourceSets {
   test {
     java {
