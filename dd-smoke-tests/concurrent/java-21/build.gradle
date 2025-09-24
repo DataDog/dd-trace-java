@@ -31,7 +31,7 @@ forbiddenApisMain {
   failOnMissingClasses = false
 }
 ['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
-  tasks.named(it).configure { enabled = false }
+  tasks.named(it) { enabled = false }
 }
 
 application {
