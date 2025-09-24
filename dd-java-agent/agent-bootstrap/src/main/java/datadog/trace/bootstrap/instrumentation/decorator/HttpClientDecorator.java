@@ -186,7 +186,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     if (url == null) {
       return;
     }
-    final long requestId = span.getSpanId();
     final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
         AgentTracer.get()
             .getCallbackProvider(RequestContextSlot.APPSEC)
@@ -201,6 +200,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       return;
     }
 
+    final long requestId = span.getSpanId();
     Flow<Void> flow = requestCb.apply(ctx, new HttpClientRequest(requestId, url));
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
