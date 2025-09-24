@@ -16,13 +16,11 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
-import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.WeakIdentityHashMap;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -42,10 +40,8 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -157,7 +153,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   }
 
   /** Stores capture limits */
-  public static final class Capture {
+  public static class Capture {
     private int maxReferenceDepth = Limits.DEFAULT_REFERENCE_DEPTH;
     private int maxCollectionSize = Limits.DEFAULT_COLLECTION_SIZE;
     private int maxLength = Limits.DEFAULT_LENGTH;
@@ -236,7 +232,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   }
 
   /** Stores sampling configuration */
-  public static final class Sampling extends com.datadog.debugger.probe.Sampling {
+  public static class Sampling extends com.datadog.debugger.probe.Sampling {
     private double snapshotsPerSecond;
 
     public Sampling(double snapshotsPerSecond) {
@@ -274,10 +270,48 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     }
   }
 
+  public static class CaptureExpression {
+    private final String name;
+    private final ValueScript expr;
+    private final Capture capture;
+
+    public CaptureExpression(String name, ValueScript expr, Capture capture) {
+      this.name = name;
+      this.expr = expr;
+      this.capture = capture;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public ValueScript getExpr() {
+      return expr;
+    }
+
+    public Capture getCapture() {
+      return capture;
+    }
+
+    @Generated
+    @Override
+    public String toString() {
+      return "CaptureExpression{"
+          + "name='"
+          + name
+          + '\''
+          + ", expr="
+          + expr
+          + ", capture="
+          + capture
+          + '}';
+    }
+  }
+
   private final String template;
   private final List<Segment> segments;
   private final boolean captureSnapshot;
-  private transient List<ValueScript> watches;
+  private final List<CaptureExpression> captureExpressions;
 
   @Json(name = "when")
   private final ProbeCondition probeCondition;
@@ -302,6 +336,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
         false,
         null,
         null,
+        null,
         null);
   }
 
@@ -316,7 +351,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       boolean captureSnapshot,
       ProbeCondition probeCondition,
       Capture capture,
-      Sampling sampling) {
+      Sampling sampling,
+      List<CaptureExpression> captureExpressions) {
     this(
         language,
         probeId,
@@ -328,7 +364,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
         captureSnapshot,
         probeCondition,
         capture,
-        sampling);
+        sampling,
+        captureExpressions);
   }
 
   private LogProbe(
@@ -342,7 +379,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       boolean captureSnapshot,
       ProbeCondition probeCondition,
       Capture capture,
-      Sampling sampling) {
+      Sampling sampling,
+      List<CaptureExpression> captureExpressions) {
     super(language, probeId, tags, where, evaluateAt);
     this.template = template;
     this.segments = segments;
@@ -350,6 +388,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     this.probeCondition = probeCondition;
     this.capture = capture;
     this.sampling = sampling;
+    this.captureExpressions = captureExpressions;
   }
 
   public LogProbe(LogProbe.Builder builder) {
@@ -364,38 +403,9 @@ public class LogProbe extends ProbeDefinition implements Sampled {
         builder.captureSnapshot,
         builder.probeCondition,
         builder.capture,
-        builder.sampling);
+        builder.sampling,
+        builder.captureExpressions);
     this.snapshotProcessor = builder.snapshotProcessor;
-  }
-
-  @SuppressForbidden // String#split(String)
-  private static List<ValueScript> parseWatchesFromTags(Tag[] tags) {
-    if (tags == null || tags.length == 0) {
-      return Collections.emptyList();
-    }
-    List<ValueScript> result = new ArrayList<>();
-    for (Tag tag : tags) {
-      if ("dd_watches_dsl".equals(tag.getKey())) {
-        String ddWatches = tag.getValue();
-        // this for POC only, parsing is not robust!
-        String[] splitWatches = ddWatches.split(",");
-        for (String watchDef : splitWatches) {
-          // remove curly braces
-          String refPath = watchDef.substring(1, watchDef.length() - 1);
-          result.add(new ValueScript(ValueScript.parseRefPath(refPath), refPath));
-        }
-      } else if ("dd_watches_json".equals(tag.getKey())) {
-        String json = tag.getValue();
-        try {
-          ParameterizedType type = Types.newParameterizedType(List.class, ValueScript.class);
-          result.addAll(
-              MoshiHelper.createMoshiWatches().<List<ValueScript>>adapter(type).fromJson(json));
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
-    return result;
   }
 
   public LogProbe copy() {
@@ -410,7 +420,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
         captureSnapshot,
         probeCondition,
         capture,
-        sampling);
+        sampling,
+        captureExpressions);
   }
 
   public String getTemplate() {
@@ -425,10 +436,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     return captureSnapshot;
   }
 
-  public List<ValueScript> getWatches() {
-    return watches;
-  }
-
   public ProbeCondition getProbeCondition() {
     return probeCondition;
   }
@@ -439,6 +446,10 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
   public Sampling getSampling() {
     return sampling;
+  }
+
+  public List<CaptureExpression> getCaptureExpressions() {
+    return captureExpressions;
   }
 
   @Override
@@ -481,7 +492,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       sample(logStatus, methodLocation);
     }
     processMsgTemplate(context, logStatus);
-    processWatches(context, logStatus);
+    processCaptureExpressions(context, logStatus);
   }
 
   private void processMsgTemplate(CapturedContext context, LogStatus logStatus) {
@@ -497,37 +508,6 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       msg = sb.toString();
     }
     logStatus.setMessage(msg);
-  }
-
-  private void processWatches(CapturedContext context, LogStatus logStatus) {
-    if (watches == null) {
-      watches = parseWatchesFromTags(tags);
-    }
-    if (watches.isEmpty()) {
-      return;
-    }
-    if (!logStatus.isSampled()) {
-      return;
-    }
-    for (ValueScript watch : watches) {
-      try {
-        Value<?> result = watch.execute(context);
-        if (result.isUndefined()) {
-          throw new EvaluationException("UNDEFINED", watch.getDsl());
-        }
-        if (result.isNull()) {
-          context.addWatch(
-              CapturedContext.CapturedValue.of(watch.getDsl(), Object.class.getTypeName(), null));
-        } else {
-          context.addWatch(
-              CapturedContext.CapturedValue.of(
-                  watch.getDsl(), Object.class.getTypeName(), result.getValue()));
-        }
-      } catch (EvaluationException ex) {
-        logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
-        logStatus.setLogTemplateErrors(true);
-      }
-    }
   }
 
   private void sample(LogStatus logStatus, MethodLocation methodLocation) {
@@ -616,7 +596,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
       snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
-      if (isCaptureSnapshot()) {
+      if (isFullSnapshot()) {
         snapshot.setEntry(entryContext);
         snapshot.setExit(exitContext);
       }
@@ -634,6 +614,45 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       shouldCommit = true;
     }
     return shouldCommit;
+  }
+
+  private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
+    if (captureExpressions == null) {
+      return;
+    }
+    for (CaptureExpression captureExpression : captureExpressions) {
+      LOGGER.debug("processing capture expressions: {}", captureExpression);
+      try {
+        Value<?> result = captureExpression.expr.execute(context);
+        if (result.isUndefined()) {
+          throw new EvaluationException("UNDEFINED", captureExpression.getExpr().getDsl());
+        }
+        if (result.isNull()) {
+          context.addCaptureExpression(
+              CapturedContext.CapturedValue.of(
+                  captureExpression.getName(), Object.class.getTypeName(), null));
+        } else {
+          if (captureExpression.capture != null) {
+            context.addCaptureExpression(
+                CapturedContext.CapturedValue.of(
+                    captureExpression.getName(),
+                    Object.class.getTypeName(),
+                    result.getValue(),
+                    captureExpression.capture.maxReferenceDepth,
+                    captureExpression.capture.maxCollectionSize,
+                    captureExpression.capture.maxLength,
+                    captureExpression.capture.maxFieldCount));
+          } else {
+            context.addCaptureExpression(
+                CapturedContext.CapturedValue.of(
+                    captureExpression.getName(), Object.class.getTypeName(), result.getValue()));
+          }
+        }
+      } catch (EvaluationException ex) {
+        logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+        logStatus.setLogTemplateErrors(true);
+      }
+    }
   }
 
   private static void populateErrors(
@@ -673,7 +692,7 @@ public class LogProbe extends ProbeDefinition implements Sampled {
      * - ProbeDefinition.commit()
      * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
      */
-    if (isCaptureSnapshot()) {
+    if (isFullSnapshot()) {
       snapshot.recordStackTrace(5);
       sink.addSnapshot(snapshot);
     } else {
@@ -897,6 +916,10 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     }
   }
 
+  private boolean isFullSnapshot() {
+    return isCaptureSnapshot() || captureExpressions != null;
+  }
+
   @Generated
   @Override
   public boolean equals(Object o) {
@@ -968,6 +991,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
         + capture
         + ", sampling="
         + sampling
+        + ", captureExpressions="
+        + captureExpressions
         + "} ";
   }
 
@@ -979,10 +1004,10 @@ public class LogProbe extends ProbeDefinition implements Sampled {
     private String template;
     private List<Segment> segments;
     private boolean captureSnapshot;
-    private List<ValueScript> watches;
     private ProbeCondition probeCondition;
     private Capture capture;
     private Sampling sampling;
+    private List<CaptureExpression> captureExpressions;
     private Consumer<Snapshot> snapshotProcessor;
 
     public Builder snapshotProcessor(Consumer<Snapshot> processor) {
@@ -1023,6 +1048,11 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     public Builder sampling(double rateLimit) {
       return sampling(new Sampling(rateLimit));
+    }
+
+    public Builder captureExpressions(List<CaptureExpression> captureExpressions) {
+      this.captureExpressions = captureExpressions;
+      return this;
     }
 
     public LogProbe build() {
