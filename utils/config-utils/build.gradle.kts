@@ -20,6 +20,8 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.ConfigConverter.ValueOfLookup",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.ConfigProvider",
+    "datadog.trace.bootstrap.config.provider.ConfigProvider.ConfigMergeResolver",
+    "datadog.trace.bootstrap.config.provider.ConfigProvider.ConfigValueResolver",
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Source",
     "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
@@ -35,7 +37,6 @@ val excludedClassesCoverage by extra(
 val excludedClassesBranchCoverage by extra(
   listOf(
     "datadog.trace.bootstrap.config.provider.AgentArgsInjector",
-    "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
     "datadog.trace.util.ConfigStrings"
   )
 )

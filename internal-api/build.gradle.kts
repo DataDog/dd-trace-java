@@ -78,7 +78,6 @@ val excludedClassesCoverage by extra(
     // Bootstrap API
     "datadog.trace.bootstrap.ActiveSubsystems",
     "datadog.trace.bootstrap.ContextStore.Factory",
-    "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
     "datadog.trace.bootstrap.instrumentation.api.Tags",
     "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
@@ -167,7 +166,6 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.Config",
     "datadog.trace.api.Config.HostNameHolder",
     "datadog.trace.api.Config.RuntimeIdHolder",
-    "datadog.trace.api.ConfigCollector",
     "datadog.trace.api.DynamicConfig",
     "datadog.trace.api.DynamicConfig.Builder",
     "datadog.trace.api.DynamicConfig.Snapshot",
@@ -249,9 +247,6 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
     "datadog.trace.util.stacktrace.HotSpotStackWalker",
     "datadog.trace.util.stacktrace.StackWalkerFactory",
-    // Tested using forked process
-    "datadog.trace.api.env.CapturedEnvironment",
-    "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
     // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
@@ -261,8 +256,6 @@ val excludedClassesBranchCoverage by extra(
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
     "datadog.trace.util.stacktrace.StackWalkerFactory"
   )
 )
