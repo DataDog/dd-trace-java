@@ -26,14 +26,14 @@ public final class TracerFlarePoller {
 
   private final Map<String, String> configAction = new HashMap<>();
 
-  public void doStart(SharedCommunicationObjects sco) {
+  public void start(SharedCommunicationObjects sco) {
     Config config = Config.get();
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
     tracerFlareService = new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
   }
 
-  public void doStop() {
+  public void stop() {
     if (null != stopPreparer) {
       stopPreparer.run();
     }

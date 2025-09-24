@@ -7,12 +7,12 @@ public final class TracerFlareSystem {
 
   public static void start(SharedCommunicationObjects sco) {
     tracerFlarePoller = new TracerFlarePoller();
-    tracerFlarePoller.doStart(sco);
+    tracerFlarePoller.start(sco);
   }
 
   public static void stop() {
     if (null != tracerFlarePoller) {
-      tracerFlarePoller.doStop();
+      tracerFlarePoller.stop();
     }
   }
 }
