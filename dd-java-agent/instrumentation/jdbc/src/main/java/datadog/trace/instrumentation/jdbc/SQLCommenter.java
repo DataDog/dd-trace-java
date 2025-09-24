@@ -109,18 +109,17 @@ public class SQLCommenter {
   }
 
   private static String extractCommentContent(String sql, boolean appendComment) {
+    int startIdx;
+    int endIdx;
     if (appendComment) {
-      int startIdx = sql.lastIndexOf(OPEN_COMMENT);
-      int endIdx = sql.lastIndexOf(CLOSE_COMMENT);
-      if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-        return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
-      }
+      startIdx = sql.lastIndexOf(OPEN_COMMENT);
+      endIdx = sql.lastIndexOf(CLOSE_COMMENT);
     } else {
-      int startIdx = sql.indexOf(OPEN_COMMENT);
-      int endIdx = sql.indexOf(CLOSE_COMMENT);
-      if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-        return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
-      }
+      startIdx = sql.indexOf(OPEN_COMMENT);
+      endIdx = sql.indexOf(CLOSE_COMMENT);
+    }
+    if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+      return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
     }
     return "";
   }
