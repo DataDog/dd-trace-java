@@ -386,7 +386,7 @@ public class GatewayBridge {
 
     final MapDataBundle.Builder bundleBuilder =
         new MapDataBundle.Builder(CAPACITY_3_4)
-            .add(KnownAddresses.IO_NET_RESPONSE_STATUS, response.getStatus())
+            .add(KnownAddresses.IO_NET_RESPONSE_STATUS, Integer.toString(response.getStatus()))
             .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, response.getHeaders());
     // ignore the response if not sampled
     final ApiSecurityDownstreamSampler sampler = downstreamSamplerSupplier.get();

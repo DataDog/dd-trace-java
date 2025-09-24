@@ -129,7 +129,7 @@ public interface KnownAddresses {
   Address<Object> IO_NET_REQUEST_BODY = new Address<>("server.io.net.request.body");
 
   /** The status of a network resource being requested (outgoing request) */
-  Address<Integer> IO_NET_RESPONSE_STATUS = new Address<>("server.io.net.response.status");
+  Address<String> IO_NET_RESPONSE_STATUS = new Address<>("server.io.net.response.status");
 
   /** The response headers of a network resource being requested (outgoing request) */
   Address<Map<String, List<String>>> IO_NET_RESPONSE_HEADERS =

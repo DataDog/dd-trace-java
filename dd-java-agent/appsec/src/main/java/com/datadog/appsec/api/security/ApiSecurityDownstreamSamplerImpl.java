@@ -12,7 +12,7 @@ public class ApiSecurityDownstreamSamplerImpl implements ApiSecurityDownstreamSa
   private final double threshold;
 
   public ApiSecurityDownstreamSamplerImpl(double rate) {
-    threshold = samplingCutoff(rate);
+    threshold = samplingCutoff(rate < 0.0 ? 0 : (rate > 1.0 ? 1 : rate));
   }
 
   private static double samplingCutoff(double rate) {

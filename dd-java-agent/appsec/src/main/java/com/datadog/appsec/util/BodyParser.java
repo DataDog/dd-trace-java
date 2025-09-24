@@ -33,6 +33,10 @@ public interface BodyParser {
     return null;
   }
 
+  static BodyParser forMediaType(final String type) {
+    return forMediaType(MediaType.parse(type));
+  }
+
   class State {
     private int elemsLeft = MAX_ELEMENTS;
     public boolean objectTooDeep = false;
@@ -62,6 +66,7 @@ public interface BodyParser {
         this.state = state;
       }
 
+      @Generated
       @Override
       public void toJson(final JsonWriter writer, @Nullable final Object value) throws IOException {
         throw new UnsupportedOperationException("Parsing-only adapter");
@@ -79,18 +84,16 @@ public interface BodyParser {
           return null;
         }
 
-        if (state.elemsLeft == 0) {
+        if (state.elemsLeft-- == 0) {
           state.listMapTooLarge = true;
           r.skipValue();
           return null;
         }
-        state.elemsLeft--;
 
         switch (r.peek()) {
           case BEGIN_OBJECT:
             return readObject(r, depth);
           case BEGIN_ARRAY:
-            state.elemsLeft--;
             return readArray(r, depth);
           case STRING:
             String value = r.nextString();
@@ -116,12 +119,9 @@ public interface BodyParser {
         r.beginObject();
         while (r.hasNext()) {
           String name = r.nextName();
-          if (state.elemsLeft > 0) {
-            Object val = readValue(r, depth + 1);
+          Object val = readValue(r, depth + 1);
+          if (!state.listMapTooLarge) {
             map.put(name, val);
-          } else {
-            state.listMapTooLarge = true;
-            r.skipValue();
           }
         }
         r.endObject();
@@ -132,11 +132,9 @@ public interface BodyParser {
         List<Object> list = new ArrayList<>();
         r.beginArray();
         while (r.hasNext()) {
-          if (state.elemsLeft > 0) {
-            list.add(readValue(r, depth + 1));
-          } else {
-            state.listMapTooLarge = true;
-            r.skipValue();
+          Object value = readValue(r, depth + 1);
+          if (!state.listMapTooLarge) {
+            list.add(value);
           }
         }
         r.endArray();

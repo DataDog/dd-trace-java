@@ -1,6 +1,7 @@
 package com.datadog.appsec;
 
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
+import com.datadog.appsec.api.security.ApiSecurityDownstreamSamplerImpl;
 import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.api.security.ApiSecuritySamplerImpl;
 import com.datadog.appsec.api.security.AppSecSpanPostProcessor;
@@ -218,7 +219,7 @@ public class AppSecSystem {
         API_SECURITY_SAMPLER = requestSampler;
 
         final double rate = Config.get().getApiSecurityDownstreamRequestAnalysisSampleRate();
-        API_SECURITY_DOWNSTREAM_SAMPLER = ApiSecurityDownstreamSampler.build(rate);
+        API_SECURITY_DOWNSTREAM_SAMPLER = new ApiSecurityDownstreamSamplerImpl(rate);
       }
     }
   }

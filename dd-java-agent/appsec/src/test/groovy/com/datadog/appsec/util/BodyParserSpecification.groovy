@@ -7,6 +7,19 @@ import java.nio.charset.StandardCharsets
 
 class BodyParserSpecification extends Specification {
 
+  void 'test body parser per media type'() {
+    when:
+    final result = BodyParser.forMediaType(media)
+
+    then:
+    (result != null) == nonNull
+
+    where:
+    media              | nonNull
+    'application/json' | true
+    'application/xml'  | false
+  }
+
   void 'test parse simple JSON object'() {
     given:
     def parser = BodyParser.forJson()

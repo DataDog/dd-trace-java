@@ -20,13 +20,4 @@ public interface ApiSecurityDownstreamSampler {
       return false;
     }
   }
-
-  static ApiSecurityDownstreamSampler build(double rate) {
-    if (rate < 0.0D) {
-      rate = 0.D;
-    } else if (rate > 1.0D) {
-      rate = 1.0D;
-    }
-    return new ApiSecurityDownstreamSamplerImpl(rate);
-  }
 }

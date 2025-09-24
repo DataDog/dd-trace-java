@@ -318,7 +318,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
                     address: "server.io.net.response.status"
                   ]
                 ],
-                list: [201]
+                list: ["201"]
               ],
               operator: "exact_match"
             ]

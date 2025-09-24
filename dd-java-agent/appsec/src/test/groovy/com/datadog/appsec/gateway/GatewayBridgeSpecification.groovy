@@ -924,7 +924,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.size() == (sampled ? 3 : 2)
-    bundle.get(KnownAddresses.IO_NET_RESPONSE_STATUS) == status
+    bundle.get(KnownAddresses.IO_NET_RESPONSE_STATUS) == Integer.toString(status)
     bundle.get(KnownAddresses.IO_NET_RESPONSE_HEADERS) == headers
     if (sampled) {
       bundle.get(KnownAddresses.IO_NET_RESPONSE_BODY) == ['Hello': 'World!']

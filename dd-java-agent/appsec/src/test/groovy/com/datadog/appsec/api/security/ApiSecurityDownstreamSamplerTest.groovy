@@ -26,20 +26,21 @@ class ApiSecurityDownstreamSamplerTest extends DDSpecification {
   void 'test sampling algorithm'() {
     given:
     final epsilon = 0.05
+    final expectedRate = rate < 0 ? 0.0 : rate > 1 ? 1.0 : rate
     final ctx = Mock(AppSecRequestContext) {
       sampleHttpClientRequest(_ as long) >> true
       isHttpClientRequestSampled(_ as long) >> true
     }
-    final sampler = ApiSecurityDownstreamSampler.build(expectedRate)
+    final sampler = new ApiSecurityDownstreamSamplerImpl(rate)
 
     when:
     final samples = (1..100).collect { sampler.sampleHttpClientRequest(ctx, it)}
 
     then:
-    final rate = samples.count { it } / samples.size()
-    rate.subtract(expectedRate).abs() <= epsilon
+    final receivedRate = samples.count { it } / samples.size()
+    receivedRate.subtract(expectedRate).abs() <= epsilon
 
     where:
-    expectedRate << [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]
+    rate << [-1.0, 0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0, 2.0]
   }
 }
