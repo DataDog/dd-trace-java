@@ -65,7 +65,7 @@ addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'latestDepTest
 
 def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
 
-configurations.all {
+configurations.configureEach {
   // shut up about broken xml-api pom relocation
   resolutionStrategy {
     force 'xml-apis:xml-apis:1.4.01'

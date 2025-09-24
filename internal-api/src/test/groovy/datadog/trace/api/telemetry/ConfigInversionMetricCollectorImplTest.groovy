@@ -2,13 +2,13 @@ package datadog.trace.api.telemetry
 
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.api.telemetry.ConfigInversionMetricCollector.CONFIG_INVERSION_METRIC_NAME
+import static ConfigInversionMetricCollectorImpl.CONFIG_INVERSION_METRIC_NAME
 
-class ConfigInversionMetricCollectorTest extends DDSpecification {
+class ConfigInversionMetricCollectorImplTest extends DDSpecification {
 
   def "should emit metric when unsupported env var is used"() {
     setup:
-    def collector = ConfigInversionMetricCollector.getInstance()
+    def collector = ConfigInversionMetricCollectorImpl.getInstance()
 
     when:
     ConfigInversionMetricCollectorTestHelper.checkAndEmitUnsupported("DD_UNKNOWN_FEATURE")
@@ -28,7 +28,7 @@ class ConfigInversionMetricCollectorTest extends DDSpecification {
 
   def "should not emit metric when supported env var is used"() {
     setup:
-    def collector = ConfigInversionMetricCollector.getInstance()
+    def collector = ConfigInversionMetricCollectorImpl.getInstance()
 
     when:
     ConfigInversionMetricCollectorTestHelper.checkAndEmitUnsupported("DD_ENV")

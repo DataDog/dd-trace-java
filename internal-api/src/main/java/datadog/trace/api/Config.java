@@ -654,6 +654,8 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.rum.RumInjectorConfig;
 import datadog.trace.api.rum.RumInjectorConfig.PrivacyLevel;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
@@ -1248,6 +1250,8 @@ public class Config {
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
     OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
+    ConfigInversionMetricCollectorProvider.register(
+        ConfigInversionMetricCollectorImpl.getInstance());
   }
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
