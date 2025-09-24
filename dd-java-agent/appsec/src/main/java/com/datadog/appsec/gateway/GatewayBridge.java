@@ -100,7 +100,7 @@ public class GatewayBridge {
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final Supplier<ApiSecuritySampler> requestSamplerSupplier;
-  private final ApiSecurityDownstreamSampler downstreamSampler;
+  private final Supplier<ApiSecurityDownstreamSampler> downstreamSamplerSupplier;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -129,12 +129,12 @@ public class GatewayBridge {
       SubscriptionService subscriptionService,
       EventProducerService producerService,
       @Nonnull Supplier<ApiSecuritySampler> requestSamplerSupplier,
-      ApiSecurityDownstreamSampler downstreamSampler,
+      @Nonnull Supplier<ApiSecurityDownstreamSampler> downstreamSamplerSupplier,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.requestSamplerSupplier = requestSamplerSupplier;
-    this.downstreamSampler = downstreamSampler;
+    this.downstreamSamplerSupplier = downstreamSamplerSupplier;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -332,7 +332,8 @@ public class GatewayBridge {
       return new Flow.ResultFlow<>(null);
     }
     ctx.increaseHttpClientRequestCount();
-    return new Flow.ResultFlow<>(downstreamSampler.sampleHttpClientRequest(ctx, requestId));
+    final ApiSecurityDownstreamSampler sampler = downstreamSamplerSupplier.get();
+    return new Flow.ResultFlow<>(sampler.sampleHttpClientRequest(ctx, requestId));
   }
 
   private Flow<Void> onHttpClientRequest(RequestContext ctx_, HttpClientRequest request) {
@@ -346,8 +347,9 @@ public class GatewayBridge {
             .add(KnownAddresses.IO_NET_URL, request.getUrl())
             .add(KnownAddresses.IO_NET_REQUEST_METHOD, request.getMethod())
             .add(KnownAddresses.IO_NET_REQUEST_HEADERS, request.getHeaders());
-    ;
-    if (downstreamSampler.isSampled(ctx, request.getRequestId())) {
+
+    final ApiSecurityDownstreamSampler sampler = downstreamSamplerSupplier.get();
+    if (sampler.isSampled(ctx, request.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, request);
       if (body != null) {
         bundleBuilder.add(KnownAddresses.IO_NET_REQUEST_BODY, body);
@@ -387,7 +389,8 @@ public class GatewayBridge {
             .add(KnownAddresses.IO_NET_RESPONSE_STATUS, response.getStatus())
             .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, response.getHeaders());
     // ignore the response if not sampled
-    if (downstreamSampler.isSampled(ctx, response.getRequestId())) {
+    final ApiSecurityDownstreamSampler sampler = downstreamSamplerSupplier.get();
+    if (sampler.isSampled(ctx, response.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, response);
       if (body != null) {
         bundleBuilder.add(KnownAddresses.IO_NET_RESPONSE_BODY, body);

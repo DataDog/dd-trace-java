@@ -46,6 +46,8 @@ public class AppSecSystem {
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
   private static final AtomicBoolean API_SECURITY_INITIALIZED = new AtomicBoolean(false);
   private static volatile ApiSecuritySampler API_SECURITY_SAMPLER = new ApiSecuritySampler.NoOp();
+  private static volatile ApiSecurityDownstreamSampler API_SECURITY_DOWNSTREAM_SAMPLER =
+      new ApiSecurityDownstreamSampler.NoOp();
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -82,14 +84,12 @@ public class AppSecSystem {
     }
     sco.createRemaining(config);
 
-    final double maxDownstreamRequestsRate =
-        config.getApiSecurityDownstreamRequestAnalysisSampleRate();
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
             REPLACEABLE_EVENT_PRODUCER,
             () -> API_SECURITY_SAMPLER,
-            ApiSecurityDownstreamSampler.build(maxDownstreamRequestsRate),
+            () -> API_SECURITY_DOWNSTREAM_SAMPLER,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(
@@ -216,6 +216,9 @@ public class AppSecSystem {
         SpanPostProcessor.Holder.INSTANCE =
             new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
         API_SECURITY_SAMPLER = requestSampler;
+
+        final double rate = Config.get().getApiSecurityDownstreamRequestAnalysisSampleRate();
+        API_SECURITY_DOWNSTREAM_SAMPLER = ApiSecurityDownstreamSampler.build(rate);
       }
     }
   }
