@@ -115,7 +115,7 @@ tasks.register('checkJarSize') {
   }
 }
 
-tasks.named('check').configure {
+tasks.named('check') {
   dependsOn 'checkJarContents'
   dependsOn 'checkJarSize'
 }

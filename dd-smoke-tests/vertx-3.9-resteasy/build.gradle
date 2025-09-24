@@ -35,7 +35,7 @@ vertxBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   dependsOn 'vertxBuild'
   outputs.upToDateWhen {
     !vertxBuild.didWork

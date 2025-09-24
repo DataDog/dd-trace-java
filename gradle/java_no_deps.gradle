@@ -21,7 +21,7 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 
 // Task for tests that want to run forked in their own separate JVM
 if (tasks.matching({ it.name == 'forkedTest' }).empty) {
-  tasks.register('forkedTest', Test).configure {
+  tasks.register('forkedTest', Test) {
     useJUnitPlatform()
   }
 }
@@ -252,7 +252,7 @@ project.afterEvaluate {
 
   if (project.plugins.hasPlugin('kotlin')) {
     ['compileKotlin', 'compileTestKotlin'].each { type ->
-      tasks.named(type).configure {
+      tasks.named(type) {
         kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
       }
     }

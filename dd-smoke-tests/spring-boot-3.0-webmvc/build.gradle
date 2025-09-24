@@ -39,7 +39,7 @@ compileTestGroovy {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   dependsOn 'webmvcBuild30'
   outputs.upToDateWhen {
     !webmvcBuild30.didWork
