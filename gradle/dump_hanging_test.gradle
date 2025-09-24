@@ -21,6 +21,8 @@ tasks.withType(Test).configureEach { testTask ->
     // Calculate delay for taking dumps as test timeout minus 1 minutes, but no less than 1 minute.
     def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
+    logger.warn("Scheduling dumps for: ${testTask.path}")
+
     def future = project.ext.taskDumpsScheduler.schedule({
       logger.warn("Taking dumps for: ${testTask.path} after ${delayMinutes} minutes.")
 
@@ -77,10 +79,19 @@ tasks.withType(Test).configureEach { testTask ->
   }
 
   doLast {
+    logger.warn("Cleanup dump future: ${testTask.path}")
     // Cancel if the task finished before the scheduled dump.
     try {
       def future = project.ext.tasksDumps.remove(testTask.path)
+
+      if (future) {
+        logger.warn("Future for: ${testTask.path} has remaining delay of: ${future.getDelay(TimeUnit.SECONDS)}")
+      } else {
+        logger.warn("Future for: ${testTask.path} not found!!!")
+      }
+
       future?.cancel(false)
+
     } catch(Throwable e) {
       logger.warn("Failed to cancel dump future for ${testTask.path}: ${e.message}")
     }
