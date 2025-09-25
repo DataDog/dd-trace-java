@@ -633,7 +633,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     assert taggedHeaders != null;
     assert baggageMapping != null;
 
-    TracerFlare.addReporter(this);
+    if (pollForTracerFlareRequests) {
+      TracerFlare.addReporter(this);
+    }
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     startTimeNano = this.timeSource.getCurrentTimeNanos();
     startNanoTicks = this.timeSource.getNanoTicks();
