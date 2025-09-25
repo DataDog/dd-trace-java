@@ -34,7 +34,7 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
 
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
-  configurations.all {
+  configurations.configureEach {
     it.resolutionStrategy {
       force libs.slf4j
     }

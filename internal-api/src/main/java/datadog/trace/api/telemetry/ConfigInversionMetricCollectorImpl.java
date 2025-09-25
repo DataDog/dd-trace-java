@@ -9,22 +9,25 @@ import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConfigInversionMetricCollector
-    implements MetricCollector<ConfigInversionMetricCollector.ConfigInversionMetric> {
-  private static final Logger log = LoggerFactory.getLogger(ConfigInversionMetricCollector.class);
+public class ConfigInversionMetricCollectorImpl
+    implements MetricCollector<ConfigInversionMetricCollectorImpl.ConfigInversionMetric>,
+        ConfigInversionMetricCollector {
+  private static final Logger log =
+      LoggerFactory.getLogger(ConfigInversionMetricCollectorImpl.class);
   private static final String CONFIG_INVERSION_KEY_TAG = "config_name:";
   private static final String CONFIG_INVERSION_METRIC_NAME = "untracked.config.detected";
   private static final String NAMESPACE = "tracers";
-  private static final ConfigInversionMetricCollector INSTANCE =
-      new ConfigInversionMetricCollector();
+  private static final ConfigInversionMetricCollectorImpl INSTANCE =
+      new ConfigInversionMetricCollectorImpl();
 
-  private final BlockingQueue<ConfigInversionMetricCollector.ConfigInversionMetric> metricsQueue;
+  private final BlockingQueue<ConfigInversionMetricCollectorImpl.ConfigInversionMetric>
+      metricsQueue;
 
-  private ConfigInversionMetricCollector() {
+  private ConfigInversionMetricCollectorImpl() {
     this.metricsQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
   }
 
-  public static ConfigInversionMetricCollector getInstance() {
+  public static ConfigInversionMetricCollectorImpl getInstance() {
     return INSTANCE;
   }
 
@@ -34,7 +37,7 @@ public class ConfigInversionMetricCollector
 
   private void setMetricConfigInversionMetric(final String... tags) {
     if (!metricsQueue.offer(
-        new ConfigInversionMetricCollector.ConfigInversionMetric(
+        new ConfigInversionMetricCollectorImpl.ConfigInversionMetric(
             NAMESPACE, true, CONFIG_INVERSION_METRIC_NAME, "count", 1, tags))) {
       log.debug("Unable to add telemetry metric {} for {}", CONFIG_INVERSION_METRIC_NAME, tags[0]);
     }
@@ -46,11 +49,11 @@ public class ConfigInversionMetricCollector
   }
 
   @Override
-  public Collection<ConfigInversionMetricCollector.ConfigInversionMetric> drain() {
+  public Collection<ConfigInversionMetricCollectorImpl.ConfigInversionMetric> drain() {
     if (this.metricsQueue.isEmpty()) {
       return Collections.emptyList();
     }
-    List<ConfigInversionMetricCollector.ConfigInversionMetric> drained =
+    List<ConfigInversionMetricCollectorImpl.ConfigInversionMetric> drained =
         new ArrayList<>(this.metricsQueue.size());
     this.metricsQueue.drainTo(drained);
     return drained;

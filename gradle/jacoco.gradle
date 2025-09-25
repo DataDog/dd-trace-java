@@ -19,7 +19,7 @@ tasks.register('forkedTestJacocoData') {
   }
 }
 
-tasks.named('jacocoTestReport').configure {
+tasks.named('jacocoTestReport') {
   dependsOn('test', 'forkedTestJacocoData')
   reports {
     xml.required = true
@@ -77,10 +77,10 @@ afterEvaluate {
     onlyIf { !project.rootProject.hasProperty('skipTests') }
   }
 
-  tasks.named('jacocoTestCoverageVerification').configure {
+  tasks.named('jacocoTestCoverageVerification') {
     dependsOn('jacocoTestReport')
   }
-  tasks.named('check').configure {
+  tasks.named('check') {
     dependsOn('jacocoTestCoverageVerification')
   }
 }

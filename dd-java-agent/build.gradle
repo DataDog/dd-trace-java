@@ -147,7 +147,7 @@ def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
     }
   }
 
-  project.tasks.named("processResources").configure {
+  project.tasks.named("processResources") {
     dependsOn shadowJarTask
   }
   shadowJarTask.configure generalShadowJarConfig
@@ -184,6 +184,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':components:context'))
+    exclude(project(':utils:config-utils'))
     exclude(project(':utils:time-utils'))
     exclude(dependency('org.slf4j::'))
   }
@@ -301,6 +302,7 @@ dependencies {
   sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
+
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }
@@ -342,7 +344,7 @@ tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 }
 
-tasks.register('checkAgentJarSize').configure {
+tasks.register('checkAgentJarSize') {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
@@ -352,6 +354,6 @@ tasks.register('checkAgentJarSize').configure {
   dependsOn "shadowJar"
 }
 
-tasks.named('check').configure {
+tasks.named('check') {
   dependsOn 'checkAgentJarSize'
 }

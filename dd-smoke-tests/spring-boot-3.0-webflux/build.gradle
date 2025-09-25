@@ -39,7 +39,7 @@ webfluxBuild30 {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   dependsOn 'webfluxBuild30'
   outputs.upToDateWhen {
     !webfluxBuild30.didWork

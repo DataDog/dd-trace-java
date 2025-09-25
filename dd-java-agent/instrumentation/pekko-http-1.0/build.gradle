@@ -108,12 +108,12 @@ latestDepIastTest {
   }
 }
 
-tasks.named("test").configure {
+tasks.named("test") {
   dependsOn "baseTest"
   dependsOn "iastTest"
 }
 
-tasks.named('latestDepTest').configure {
+tasks.named('latestDepTest') {
   dependsOn "latestDepIastTest"
 }
 
