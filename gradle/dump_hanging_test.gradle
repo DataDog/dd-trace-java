@@ -1,18 +1,12 @@
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
-
-project.ext.tasksDumps = new ConcurrentHashMap<String, ScheduledFuture<?>>()
-project.ext.taskDumpsScheduler = Executors.newScheduledThreadPool(4, { r ->
-  Thread t = new Thread(r, "dump-scheduler")
-  t.daemon = true
-  t
-})
 
 // Schedule thread and heap dumps collection near test timeout.
 tasks.withType(Test).configureEach { testTask ->
   doFirst {
+    if (!project.ext.has('tasksDumps')) {
+      project.ext.tasksDumps = new ConcurrentHashMap<String, Timer>()
+    }
+
     if (project.ext.tasksDumps.containsKey(testTask.path)) {
       logger.warn("Taking dumps already scheduled: ${testTask.path}; skipping.")
       return
@@ -26,67 +20,72 @@ tasks.withType(Test).configureEach { testTask ->
     // Calculate delay for taking dumps as test timeout minus 1 minutes, but no less than 1 minute.
     def delayMinutes = Math.max(1L, testTask.timeout.get().minusMinutes(1).toMinutes())
 
-    def future = project.ext.taskDumpsScheduler.schedule({
-      logger.warn("Taking dumps for: ${testTask.path} after ${delayMinutes} minutes.")
+    // Create timer backed by daemon thread.
+    def timer = new Timer(true)
+    timer.schedule(new TimerTask() {
+        @Override
+        void run() {
+          logger.warn("Taking dumps for: ${testTask.path} after ${delayMinutes} minutes.")
 
-      try {
-        // Use Gradle's build dir and adjust for CI artifacts collection if needed.
-        def dumpsDir = layout.buildDirectory.dir('dumps').map {
-          if (providers.environmentVariable("CI").isPresent()) {
-            // Move reports into the folder collected by the collect_reports.sh script.
-            new File(it.asFile.absolutePath.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent'))
-          } else {
-            it.asFile
+          try {
+            // Use Gradle's build dir and adjust for CI artifacts collection if needed.
+            def dumpsDir = layout.buildDirectory.dir('dumps').map {
+              if (providers.environmentVariable("CI").isPresent()) {
+                // Move reports into the folder collected by the collect_reports.sh script.
+                new File(it.asFile.absolutePath.replace('dd-trace-java/dd-java-agent', 'dd-trace-java/workspace/dd-java-agent'))
+              } else {
+                it.asFile
+              }
+            }.get()
+
+            dumpsDir.mkdirs()
+
+            // For simplicity, use `0` as the PID, which collects all thread dumps across JVMs.
+            // Single file can be useful for quick search.
+            def threadDumpsFile = new File(dumpsDir, "all-thread-dumps-${System.currentTimeMillis()}.log")
+            new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
+              .redirectErrorStream(true)
+              .redirectOutput(threadDumpsFile)
+              .start().waitFor()
+
+            // Collect PIDs of all Java processes.
+            def jvmProcesses = 'jcmd -l'.execute().text.readLines()
+
+            // Collect pids for 'Gradle test executors'.
+            def pids = jvmProcesses
+              .findAll({ it.contains('Gradle Test Executor') })
+              .collect({ it.substring(0, it.indexOf(' ')) })
+
+            pids.each { pid ->
+              // Collect heap dump by pid.
+              def heapDumpFile = new File(dumpsDir, "${pid}-heap-dump-${System.currentTimeMillis()}.hprof").absolutePath
+              def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
+              cmd.execute().waitFor()
+
+              // Collect thread dump by pid.
+              def threadDumpFile = new File(dumpsDir, "${pid}-thread-dump-${System.currentTimeMillis()}.log")
+              new ProcessBuilder('jcmd', pid, 'Thread.print', '-l')
+                .redirectErrorStream(true)
+                .redirectOutput(threadDumpFile)
+                .start()
+                .waitFor()
+            }
+          } catch (Throwable e) {
+            logger.warn("Dumping failed: ${e.message}")
           }
-        }.get()
-
-        dumpsDir.mkdirs()
-
-        // For simplicity, use `0` as the PID, which collects all thread dumps across JVMs.
-        // Single file can be useful for quick search.
-        def threadDumpsFile = new File(dumpsDir, "all-thread-dumps-${System.currentTimeMillis()}.log")
-        new ProcessBuilder("jcmd", "0", "Thread.print", "-l")
-          .redirectErrorStream(true)
-          .redirectOutput(threadDumpsFile)
-          .start().waitFor()
-
-        // Collect PIDs of all Java processes.
-        def jvmProcesses = 'jcmd -l'.execute().text.readLines()
-
-        // Collect pids for 'Gradle test executors'.
-        def pids = jvmProcesses
-          .findAll({ it.contains('Gradle Test Executor') })
-          .collect({ it.substring(0, it.indexOf(' ')) })
-
-        pids.each { pid ->
-          // Collect heap dump by pid.
-          def heapDumpFile = new File(dumpsDir, "${pid}-heap-dump-${System.currentTimeMillis()}.hprof").absolutePath
-          def cmd = "jcmd ${pid} GC.heap_dump ${heapDumpFile}"
-          cmd.execute().waitFor()
-
-          // Collect thread dump by pid.
-          def threadDumpFile = new File(dumpsDir, "${pid}-thread-dump-${System.currentTimeMillis()}.log")
-          new ProcessBuilder('jcmd', pid, 'Thread.print', '-l')
-            .redirectErrorStream(true)
-            .redirectOutput(threadDumpFile)
-            .start()
-            .waitFor()
         }
-      } catch (Throwable e) {
-        logger.warn("Dumping failed: ${e.message}")
-      }
-    }, delayMinutes, TimeUnit.MINUTES)
+      }, delayMinutes * 60_000)
 
-    // Store future for cancellation in doLast.
-    project.ext.tasksDumps.put(testTask.path, future)
+    // Store timer for cancellation in doLast.
+    project.ext.tasksDumps.put(testTask.path, timer)
   }
 
   doLast {
-    // Cancel if the task finished before the scheduled dump.
+    // Cancel if the test finished before scheduled dump.
     try {
-      def future = project.ext.tasksDumps.remove(testTask.path)
-      future?.cancel(false)
-    } catch(Throwable e) {
+      def timer = project.ext.tasksDumps.remove(testTask.path)
+      timer?.cancel()
+    } catch (Throwable e) {
       logger.warn("Failed to cancel dump future for ${testTask.path}: ${e.message}")
     }
   }
