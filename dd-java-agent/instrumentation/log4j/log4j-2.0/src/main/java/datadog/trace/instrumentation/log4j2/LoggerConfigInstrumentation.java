@@ -37,6 +37,11 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "logs-intake";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),
