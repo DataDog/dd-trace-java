@@ -1,4 +1,3 @@
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Open Liberty Smoke Tests'
 

@@ -34,7 +34,8 @@ tasks.register('quarkusBuild', Exec) {
 }
 
 evaluationDependsOn ':dd-trace-api'
-quarkusBuild {
+
+tasks.named("quarkusBuild", Exec) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 

@@ -33,7 +33,7 @@ tasks.register('vertxBuild', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-vertxBuild {
+tasks.named("vertxBuild", Exec) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
