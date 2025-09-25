@@ -3,6 +3,7 @@ package datadog.environment;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -17,10 +18,13 @@ public final class EnvironmentVariables {
   private EnvironmentVariables() {}
 
   public static class EnvironmentVariablesProvider {
+
+    @SuppressForbidden
     public String get(String name) {
       return System.getenv(name);
     }
 
+    @SuppressForbidden
     public Map<String, String> getAll() {
       return System.getenv();
     }
