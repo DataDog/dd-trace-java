@@ -96,12 +96,19 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class HttpMessageConverterReadAdvice {
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Return final Object obj,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
       if (obj == null || t != null) {
+        return;
+      }
+
+      // CharSequence or byte[] cannot be treated as parsed body content, as they may lead to false
+      // positives in the WAF rules.
+      if (obj instanceof CharSequence || obj instanceof byte[]) {
         return;
       }
 
