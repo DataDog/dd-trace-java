@@ -1,6 +1,6 @@
 package datadog.trace.config.inversion;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +30,7 @@ class TestSupportedConfigurationSource extends SupportedConfigurationSource {
 
   @Override
   public List<String> getAliases(String env) {
-    return aliases.getOrDefault(env, new ArrayList<>());
+    return aliases.getOrDefault(env, Collections.emptyList());
   }
 
   @Override

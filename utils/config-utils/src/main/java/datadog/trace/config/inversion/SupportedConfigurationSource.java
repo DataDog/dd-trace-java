@@ -1,6 +1,6 @@
 package datadog.trace.config.inversion;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -16,7 +16,7 @@ class SupportedConfigurationSource {
 
   /** @return List of aliases for an environment variable */
   public List<String> getAliases(String env) {
-    return GeneratedSupportedConfigurations.ALIASES.getOrDefault(env, new ArrayList<>());
+    return GeneratedSupportedConfigurations.ALIASES.getOrDefault(env, Collections.emptyList());
   }
 
   /** @return Primary environment variable for a queried alias */
