@@ -25,15 +25,29 @@ public final class TracerFlarePoller {
   private TracerFlareService tracerFlareService;
 
   private final Map<String, String> configAction = new HashMap<>();
+  private static TracerFlarePoller INSTANCE;
 
-  public void start(SharedCommunicationObjects sco) {
+  public static void start(SharedCommunicationObjects sco) {
+    if (null == INSTANCE) {
+      INSTANCE = new TracerFlarePoller();
+    }
+    INSTANCE.doStart(sco);
+  }
+
+  public static void stop() {
+    if (null != INSTANCE) {
+      INSTANCE.doStop();
+    }
+  }
+
+  private void doStart(SharedCommunicationObjects sco) {
     Config config = Config.get();
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
     tracerFlareService = new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
   }
 
-  public void stop() {
+  private void doStop() {
     if (null != stopPreparer) {
       stopPreparer.run();
     }
