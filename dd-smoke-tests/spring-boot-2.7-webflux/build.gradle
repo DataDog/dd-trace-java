@@ -35,7 +35,7 @@ webfluxBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy") {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'webfluxBuild'
   outputs.upToDateWhen {
     !webfluxBuild.didWork
