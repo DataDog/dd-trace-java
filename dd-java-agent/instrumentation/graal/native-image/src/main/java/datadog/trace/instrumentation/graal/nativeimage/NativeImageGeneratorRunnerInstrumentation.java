@@ -155,6 +155,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.logging.PrintStreamWrapper:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"
               + "datadog.trace.util.TempLocationManager$SingletonHolder:run_time,"
+              + "datadog.trace.util.AgentThreadFactory:build_time,"
               + "datadog.slf4j.helpers.NOPLoggerFactory:build_time,"
               + "datadog.slf4j.helpers.SubstituteLoggerFactory:build_time,"
               + "datadog.slf4j.impl.StaticLoggerBinder:build_time,"
