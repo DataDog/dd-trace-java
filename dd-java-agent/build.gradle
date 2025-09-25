@@ -295,7 +295,7 @@ dependencies {
     // (which are loaded on the bootstrap cl)
   }
 
-  sharedShadowInclude project(':flare'), {
+  sharedShadowInclude project(':utils:flare-utils'), {
     transitive = false
   }
   sharedShadowInclude libs.bundles.cafe.crypto
