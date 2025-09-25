@@ -1199,6 +1199,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == EXCEPTION.status
     if (testExceptionBody()) {
       assert response.body().string() == EXCEPTION.body
+    } else {
+      // Ensure the response stream is closed even when we don't assert the body, to avoid
+      // leaving the server-side request/response in an indeterminate state which can delay
+      // or prevent span emission in some servers/transports (e.g., HTTP/2).
+      response.body()?.close()
     }
 
     and:
