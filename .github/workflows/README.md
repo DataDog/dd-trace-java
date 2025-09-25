@@ -34,7 +34,7 @@ _Trigger:_ When creating or updating a pull request.
 
 _Action:_ Check the pull request did not introduce unexpected label.
 
-_Recovery:_ Update the pull requets or add a comment to trigger the action again.
+_Recovery:_ Update the pull request or add a comment to trigger the action again.
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
