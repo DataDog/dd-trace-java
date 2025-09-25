@@ -20,6 +20,13 @@ muzzle {
   }
 
   pass {
+    name = 'logs-intake'
+    group = 'org.apache.logging.log4j'
+    module = 'log4j-core'
+    versions = '[,3.0.0)'
+  }
+
+  pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-api'
     versions = '[,2.7)'
