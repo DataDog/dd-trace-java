@@ -20,6 +20,8 @@ import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
+import datadog.trace.bootstrap.InitializationTelemetry;
+import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -73,7 +75,8 @@ public class AgentInstaller {
     }
   }
 
-  public static Thread installBytebuddyAgent(final Instrumentation inst) {
+  public static Thread installBytebuddyAgent(
+      final Instrumentation inst, InitializationTelemetry initTelemetry) {
     /*
      * ByteBuddy agent is used by several systems which can be enabled independently;
      * we need to install the agent whenever any of them is active.
@@ -82,23 +85,30 @@ public class AgentInstaller {
         newAgentThread(
             AGENT_INIT_INSTRUMENTATION,
             () -> {
-              Set<InstrumenterModule.TargetSystem> enabledSystems = getEnabledSystems();
-              if (!enabledSystems.isEmpty()) {
-                installBytebuddyAgent(inst, false, enabledSystems);
-                if (DEBUG) {
-                  log.debug("Instrumentation installed for {}", enabledSystems);
+              try {
+                Set<InstrumenterModule.TargetSystem> enabledSystems = getEnabledSystems();
+                if (!enabledSystems.isEmpty()) {
+                  installBytebuddyAgent(inst, false, enabledSystems);
+                  if (DEBUG) {
+                    log.debug("Instrumentation installed for {}", enabledSystems);
+                  }
+                  int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
+                  if (poolCleaningInterval > 0) {
+                    AgentTaskScheduler.get()
+                        .scheduleAtFixedRate(
+                            SharedTypePools::clear,
+                            poolCleaningInterval,
+                            Math.max(poolCleaningInterval, 10),
+                            TimeUnit.SECONDS);
+                  }
+                } else if (DEBUG) {
+                  log.debug("No target systems enabled, skipping instrumentation.");
                 }
-                int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
-                if (poolCleaningInterval > 0) {
-                  AgentTaskScheduler.get()
-                      .scheduleAtFixedRate(
-                          SharedTypePools::clear,
-                          poolCleaningInterval,
-                          Math.max(poolCleaningInterval, 10),
-                          TimeUnit.SECONDS);
-                }
-              } else if (DEBUG) {
-                log.debug("No target systems enabled, skipping instrumentation.");
+              } catch (Throwable ex) {
+                log.error("Throwable thrown while installing the Datadog Agent", ex);
+                initTelemetry.onFatalError(ex);
+              } finally {
+                StaticEventLogger.end("BytebuddyAgent");
               }
             });
     ret.start();

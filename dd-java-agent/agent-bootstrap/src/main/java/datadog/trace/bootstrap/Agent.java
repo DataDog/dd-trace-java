@@ -746,12 +746,12 @@ public class Agent {
         final Class<?> agentInstallerClass =
             AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
         final Method agentInstallerMethod =
-            agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
-        return (Thread) agentInstallerMethod.invoke(null, inst);
+            agentInstallerClass.getMethod(
+                "installBytebuddyAgent", Instrumentation.class, InitializationTelemetry.class);
+        return (Thread) agentInstallerMethod.invoke(null, inst, initTelemetry);
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
         initTelemetry.onFatalError(ex);
-      } finally {
         StaticEventLogger.end("BytebuddyAgent");
       }
     }
