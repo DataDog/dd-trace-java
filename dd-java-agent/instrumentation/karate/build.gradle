@@ -28,8 +28,8 @@ dependencies {
   compileOnly group: 'com.intuit.karate', name: 'karate-core', version: '1.0.0'
 
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
-  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.8.2'
-  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
+  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
 
   testImplementation (group: 'com.intuit.karate', name: 'karate-core', version: '1.0.0') {
     // excluding logback to avoid conflicts with libs.bundles.test.logging
@@ -81,7 +81,7 @@ sourceSets {
   }
 }
 
-tasks.named("compileLatestDepTestJava").configure {
+tasks.named("compileLatestDepTestJava") {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8

@@ -4,7 +4,7 @@ plugins {
 
 repositories {
   maven {
-    url 'https://resources.knopflerfish.org/repo/maven2/release'
+    url = 'https://resources.knopflerfish.org/repo/maven2/release'
   }
 }
 
@@ -42,7 +42,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-jar {
+tasks.named("jar", Jar) {
   include 'datadog/smoketest/osgi/app/**'
 }
 

@@ -18,7 +18,7 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 addTestSuite('akka23Test')
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileAkka23TestGroovy").configure {
+tasks.named("compileAkka23TestGroovy") {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
@@ -41,7 +41,7 @@ sourceSets {
     }
   }
 }
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy") {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
@@ -68,6 +68,6 @@ configurations.matching({ it.name.startsWith('akka23') }).each({
 
 
 // Run 2.3 tests along with the rest of unit tests
-tasks.named("test").configure {
+tasks.named("test") {
   dependsOn "akka23Test"
 }

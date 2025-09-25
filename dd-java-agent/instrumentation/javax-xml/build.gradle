@@ -9,12 +9,12 @@ apply plugin: 'call-site-instrumentation'
 
 repositories {
   maven {
-    name 'WSO2-Dist'
-    url 'https://dist.wso2.org/maven2/'
+    name = 'WSO2-Dist'
+    url = 'https://dist.wso2.org/maven2/'
   }
 }
 
-configurations.all {
+configurations.configureEach {
   // shut up about broken xml-api pom relocation
   resolutionStrategy {
     force 'xml-apis:xml-apis:1.4.01'

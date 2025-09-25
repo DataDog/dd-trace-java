@@ -20,8 +20,8 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-if (tasks.matching({it.name == 'forkedTest'}).empty) {
-  tasks.register('forkedTest', Test).configure {
+if (tasks.matching({ it.name == 'forkedTest' }).empty) {
+  tasks.register('forkedTest', Test) {
     useJUnitPlatform()
   }
 }
@@ -54,11 +54,11 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   def name = "java$version.majorVersion"
   sourceSets {
     "main_$name" {
-      java.srcDirs "${project.projectDir}/src/main/$name"
+      java.srcDirs = ["${project.projectDir}/src/main/$name"]
     }
   }
 
-  "compileMain_${name}Java" {
+  tasks.named("compileMain_${name}Java", JavaCompile).configure {
     sourceCompatibility = version
     targetCompatibility = version
   }
@@ -67,14 +67,14 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
   dependencies {
     if ("${project.projectDir}".endsWith("socket-utils")) {
-      compileOnly files(project.sourceSets."main_$name".output)
+      compileOnly(files(project.sourceSets."main_$name".output))
     } else {
-      compileOnly files(project.sourceSets."main_$name".compileClasspath)
-      implementation files(project.sourceSets."main_$name".output)
+      compileOnly(files(project.sourceSets."main_$name".compileClasspath))
+      implementation(files(project.sourceSets."main_$name".output))
     }
   }
 
-  jar {
+  tasks.named("jar", Jar) {
     from sourceSets."main_$name".output
   }
 
@@ -98,7 +98,7 @@ java {
   withSourcesJar()
 }
 
-jar {
+tasks.named("jar", Jar) {
   /**
    Make Jar build fail on duplicate files
    By default Gradle Jar task can put multiple files with the same name
@@ -136,15 +136,15 @@ tasks.withType(Javadoc).configureEach {
   }
 }
 
-javadoc {
+tasks.named("javadoc", Javadoc) {
   source = sourceSets.main.java.srcDirs
   classpath = configurations.compileClasspath
 
   options {
-    setMemberLevel JavadocMemberLevel.PUBLIC
-    setAuthor true
+    setMemberLevel(JavadocMemberLevel.PUBLIC)
+    setAuthor(true)
 
-    links "https://docs.oracle.com/javase/8/docs/api/"
+    links = ["https://docs.oracle.com/javase/8/docs/api/"]
     source = 8
   }
 }
@@ -154,11 +154,14 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+
   // "stable" is calculated as the largest X found in JAVA_X_HOME
   if (testJvm == "stable") {
-    def javaVersions = System.getenv()
-      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
-      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+    def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
+      javaHomes
+        .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+        .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+    }.get()
 
     if (javaVersions.isEmpty()) {
       throw new GradleException("No valid JAVA_X_HOME environment variables found.")
@@ -166,6 +169,7 @@ project.afterEvaluate {
 
     testJvm = javaVersions.max().toString()
   }
+
   if (testJvm) {
     def testJvmHomePath
     if (Files.exists(Paths.get(testJvm))) {
@@ -177,7 +181,7 @@ project.afterEvaluate {
       }
       def testJvmLanguageVersion = matcher.group(2) as Integer
       def testJvmEnv = "JAVA_${testJvm}_HOME"
-      def testJvmHome = System.getenv(testJvmEnv)
+      def testJvmHome = providers.environmentVariable(testJvmEnv).orNull
       if (!testJvmHome) {
         throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
       }
@@ -248,7 +252,7 @@ project.afterEvaluate {
 
   if (project.plugins.hasPlugin('kotlin')) {
     ['compileKotlin', 'compileTestKotlin'].each { type ->
-      tasks.named(type).configure {
+      tasks.named(type) {
         kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
       }
     }
@@ -256,7 +260,7 @@ project.afterEvaluate {
 
   tasks.withType(JavaExec).configureEach {
     if (!it.maxHeapSize) {
-      it.maxHeapSize('256M')
+      it.maxHeapSize = '256M'
     }
   }
 }
@@ -273,7 +277,7 @@ if (project.plugins.hasPlugin('com.gradleup.shadow')) {
     }
   }
   artifacts {
-    archives shadowJar
+    archives(shadowJar)
   }
 }
 
@@ -371,7 +375,7 @@ def getJavaHomePath(String path) {
 
 tasks.register('testJar', Jar) {
   dependsOn(testClasses)
-  from sourceSets.test.output
+  from(sourceSets.test.output)
   archiveClassifier = 'test'
 }
 

@@ -12,7 +12,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-debugger')
 
-  implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+  implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
 
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 

@@ -273,7 +273,7 @@ class ConfigurationApiImplTest extends Specification {
     HttpUrl proxyUrl = HttpUrl.get(address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
     OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
-    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client, responseCompression)
+    return new EvpProxyApi(traceId, proxyUrl, "api", retryPolicyFactory, client, responseCompression)
   }
 
   private BackendApi givenIntakeApi(URI address, boolean responseCompression) {

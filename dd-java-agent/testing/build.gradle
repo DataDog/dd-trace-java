@@ -49,7 +49,7 @@ dependencies {
 
   api libs.groovy
 
-  implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+  implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
   implementation project(':dd-java-agent:appsec')
 }
 

@@ -56,7 +56,7 @@ sourceSets {
 }
 
 
-tasks.named('processLoggingResources').configure {
+tasks.named('processLoggingResources') {
   // Don't know why this tries to copy the logback.xml file twice, but only accept it once
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -128,7 +128,7 @@ dependencies {
 
 def generateTestingJar(String interfaceName, String backend, List<Configuration> configurationsList) {
   def name = interfaceName + "Interface" + backend + "Backend"
-  tasks.register(name, ShadowJar).configure {
+  tasks.register(name, ShadowJar) {
     from sourceSets.main.output
     from sourceSets.logging.output
 
@@ -355,8 +355,10 @@ tasks.withType(Test).configureEach {
 
   // Runtime.getRuntime().availableProcessors() is used to scale the parallelism by default,
   // but it returns weird values in Gitlab/kubernetes, so fix to a specific value when available
-  def override = System.getenv("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
-  maxParallelForks = override?.toInteger() ?: Math.max(1, (Runtime.runtime.availableProcessors() / 2).toInteger())
+  maxParallelForks = providers.environmentVariable("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+    .map { it.toInteger() }
+    .orElse(Math.max(1, (Runtime.runtime.availableProcessors() / 2).toInteger()))
+    .get()
 }
 
 

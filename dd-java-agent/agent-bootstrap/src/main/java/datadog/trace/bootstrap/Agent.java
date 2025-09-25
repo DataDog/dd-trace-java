@@ -14,8 +14,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
-import static datadog.trace.util.Strings.toEnvVar;
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
+import static datadog.trace.util.ConfigStrings.toEnvVar;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
@@ -1162,7 +1162,7 @@ public class Agent {
             SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
       }
     } catch (Throwable t) {
-      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking", t);
+      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking");
     }
   }
 

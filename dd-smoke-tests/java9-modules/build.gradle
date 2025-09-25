@@ -4,7 +4,7 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.moduleapp.ModuleApplication')
   }

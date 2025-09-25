@@ -12,8 +12,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import org.jctools.counters.CountersFactory;
-import org.jctools.counters.FixedSizeStripedLongCounter;
+import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,10 +29,8 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
   private RemoteMapper mapper;
   private WritableFormatter packer;
 
-  private final FixedSizeStripedLongCounter droppedSpanCount =
-      CountersFactory.createFixedSizeStripedCounter(8);
-  private final FixedSizeStripedLongCounter droppedTraceCount =
-      CountersFactory.createFixedSizeStripedCounter(8);
+  private final LongAdder droppedSpanCount = new LongAdder();
+  private final LongAdder droppedTraceCount = new LongAdder();
 
   public PayloadDispatcherImpl(
       RemoteMapperDiscovery mapperDiscovery,
@@ -60,8 +57,8 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
 
   @Override
   public void onDroppedTrace(int spanCount) {
-    droppedSpanCount.inc(spanCount);
-    droppedTraceCount.inc();
+    droppedSpanCount.add(spanCount);
+    droppedTraceCount.increment();
   }
 
   @Override
@@ -97,8 +94,8 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     return mapper
         .newPayload()
         .withBody(messageCount, buffer)
-        .withDroppedSpans(droppedSpanCount.getAndReset())
-        .withDroppedTraces(droppedTraceCount.getAndReset());
+        .withDroppedSpans(droppedSpanCount.sumThenReset())
+        .withDroppedTraces(droppedTraceCount.sumThenReset());
   }
 
   @Override
