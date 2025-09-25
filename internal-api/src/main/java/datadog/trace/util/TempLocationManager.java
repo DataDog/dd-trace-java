@@ -1,10 +1,10 @@
 package datadog.trace.util;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -300,7 +300,7 @@ public final class TempLocationManager {
   static String getBaseTempDirName() {
     String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
-    userName = userName == null ? EnvironmentVariables.get("USER") : userName;
+    userName = userName == null ? ConfigHelper.get().getEnvironmentVariable("USER") : userName;
     // make sure we do not have any illegal characters in the user name
     userName =
         userName != null ? userName.replace('.', '_').replace('/', '_').replace(' ', '_') : null;

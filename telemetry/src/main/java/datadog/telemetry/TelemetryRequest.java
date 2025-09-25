@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
-import datadog.environment.EnvironmentVariables;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -17,6 +16,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
+import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
@@ -112,9 +112,11 @@ public class TelemetryRequest {
   }
 
   public void writeInstallSignature() {
-    String installId = EnvironmentVariables.get("DD_INSTRUMENTATION_INSTALL_ID");
-    String installType = EnvironmentVariables.get("DD_INSTRUMENTATION_INSTALL_TYPE");
-    String installTime = EnvironmentVariables.get("DD_INSTRUMENTATION_INSTALL_TIME");
+    String installId = ConfigHelper.get().getEnvironmentVariable("DD_INSTRUMENTATION_INSTALL_ID");
+    String installType =
+        ConfigHelper.get().getEnvironmentVariable("DD_INSTRUMENTATION_INSTALL_TYPE");
+    String installTime =
+        ConfigHelper.get().getEnvironmentVariable("DD_INSTRUMENTATION_INSTALL_TIME");
 
     try {
       requestBody.writeInstallSignature(installId, installType, installTime);
