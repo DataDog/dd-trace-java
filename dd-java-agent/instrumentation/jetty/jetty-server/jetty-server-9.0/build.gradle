@@ -105,7 +105,7 @@ instrument {
   ]
 }
 
-tasks['compileMain_jetty10Java'].configure {
+tasks.named("compileMain_jetty10Java") {
   setJavaVersion(it, 11)
 }
 
@@ -114,10 +114,10 @@ addTestSuiteForDir('jetty94ForkedTest', 'test')
 addTestSuiteForDir('latestDepJetty9ForkedTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
-tasks.named("latestDepForkedTest").configure {
+tasks.named("latestDepForkedTest") {
   javaLauncher = getJavaLauncherFor(11)
 }
-tasks.named("compileLatestDepForkedTestGroovy").configure {
+tasks.named("compileLatestDepForkedTestGroovy") {
   setJavaVersion(it, 11)
 }
 

@@ -147,7 +147,7 @@ def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
     }
   }
 
-  project.tasks.named("processResources").configure {
+  project.tasks.named("processResources") {
     dependsOn shadowJarTask
   }
   shadowJarTask.configure generalShadowJarConfig
@@ -344,7 +344,7 @@ tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 }
 
-tasks.register('checkAgentJarSize').configure {
+tasks.register('checkAgentJarSize') {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
@@ -354,6 +354,6 @@ tasks.register('checkAgentJarSize').configure {
   dependsOn "shadowJar"
 }
 
-tasks.named('check').configure {
+tasks.named('check') {
   dependsOn 'checkAgentJarSize'
 }

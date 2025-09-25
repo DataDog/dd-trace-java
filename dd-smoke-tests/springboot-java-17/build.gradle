@@ -23,7 +23,7 @@ dependencies {
   implementation project(':dd-smoke-tests:iast-util:iast-util-17')
 }
 
-tasks.named("compileJava", JavaCompile).configure {
+tasks.named("compileJava", JavaCompile) {
   setJavaVersion(it, 17)
   sourceCompatibility = JavaVersion.VERSION_17
   targetCompatibility = JavaVersion.VERSION_17
