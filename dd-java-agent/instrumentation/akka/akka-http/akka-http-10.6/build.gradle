@@ -41,21 +41,27 @@ repositories {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-[compileMain_java11Java, compileTestScala, compileLatestDepTestScala].each {
-  it.configure {
+tasks.named("compileMain_java11Java", JavaCompile) {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+["compileTestScala", "compileLatestDepTestScala"].each { name ->
+  tasks.named(name, ScalaCompile) {
     setJavaVersion(it, 11)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy", GroovyCompile) {
   javaLauncher = getJavaLauncherFor(11)
   dependsOn compileTestScala
   classpath += files(compileTestScala.destinationDirectory)
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   javaLauncher = getJavaLauncherFor(11)
   dependsOn compileLatestDepTestScala
   classpath += files(compileLatestDepTestScala.destinationDirectory)
