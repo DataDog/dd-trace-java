@@ -3,6 +3,8 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.ExtensionFinder.findExtensions;
 import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.AGENT_INIT_INSTRUMENTATION;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
@@ -71,29 +73,36 @@ public class AgentInstaller {
     }
   }
 
-  public static void installBytebuddyAgent(final Instrumentation inst) {
+  public static Thread installBytebuddyAgent(final Instrumentation inst) {
     /*
      * ByteBuddy agent is used by several systems which can be enabled independently;
      * we need to install the agent whenever any of them is active.
      */
-    Set<InstrumenterModule.TargetSystem> enabledSystems = getEnabledSystems();
-    if (!enabledSystems.isEmpty()) {
-      installBytebuddyAgent(inst, false, enabledSystems);
-      if (DEBUG) {
-        log.debug("Instrumentation installed for {}", enabledSystems);
-      }
-      int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
-      if (poolCleaningInterval > 0) {
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                SharedTypePools::clear,
-                poolCleaningInterval,
-                Math.max(poolCleaningInterval, 10),
-                TimeUnit.SECONDS);
-      }
-    } else if (DEBUG) {
-      log.debug("No target systems enabled, skipping instrumentation.");
-    }
+    final Thread ret =
+        newAgentThread(
+            AGENT_INIT_INSTRUMENTATION,
+            () -> {
+              Set<InstrumenterModule.TargetSystem> enabledSystems = getEnabledSystems();
+              if (!enabledSystems.isEmpty()) {
+                installBytebuddyAgent(inst, false, enabledSystems);
+                if (DEBUG) {
+                  log.debug("Instrumentation installed for {}", enabledSystems);
+                }
+                int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
+                if (poolCleaningInterval > 0) {
+                  AgentTaskScheduler.get()
+                      .scheduleAtFixedRate(
+                          SharedTypePools::clear,
+                          poolCleaningInterval,
+                          Math.max(poolCleaningInterval, 10),
+                          TimeUnit.SECONDS);
+                }
+              } else if (DEBUG) {
+                log.debug("No target systems enabled, skipping instrumentation.");
+              }
+            });
+    ret.start();
+    return ret;
   }
 
   /**

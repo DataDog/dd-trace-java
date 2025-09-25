@@ -57,6 +57,8 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     RETRANSFORMER("dd-retransformer"),
 
+    AGENT_INIT_INSTRUMENTATION("dd-agent-init-instrumentation"),
+
     LOGS_INTAKE("dd-logs-intake"),
 
     LLMOBS_EVALS_PROCESSOR("dd-llmobs-evals-processor");

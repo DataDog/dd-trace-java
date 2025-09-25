@@ -206,7 +206,14 @@ public class Agent {
       remoteConfigEnabled = false;
       telemetryEnabled = false;
       // apply trace instrumentation, but skip other products at native-image build time
-      startDatadogAgent(initTelemetry, inst);
+      final Thread t = startDatadogAgent(initTelemetry, inst);
+      if (t != null) {
+        try {
+          t.join();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
       StaticEventLogger.end("Agent.start");
       return;
     }
@@ -301,7 +308,7 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
-    startDatadogAgent(initTelemetry, inst);
+    final Thread agentLoadThread = startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -382,6 +389,14 @@ public class Agent {
       }
 
       StaticEventLogger.end("Profiling");
+    }
+
+    if (agentLoadThread != null) {
+      try {
+        agentLoadThread.join();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
 
     StaticEventLogger.end("Agent.start");
@@ -722,7 +737,7 @@ public class Agent {
     StaticEventLogger.end("Remote Config");
   }
 
-  private static synchronized void startDatadogAgent(
+  private static synchronized Thread startDatadogAgent(
       final InitializationTelemetry initTelemetry, final Instrumentation inst) {
     if (null != inst) {
       StaticEventLogger.begin("BytebuddyAgent");
@@ -732,7 +747,7 @@ public class Agent {
             AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
         final Method agentInstallerMethod =
             agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
-        agentInstallerMethod.invoke(null, inst);
+        return (Thread) agentInstallerMethod.invoke(null, inst);
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
         initTelemetry.onFatalError(ex);
@@ -740,6 +755,7 @@ public class Agent {
         StaticEventLogger.end("BytebuddyAgent");
       }
     }
+    return null;
   }
 
   private static synchronized void installDatadogTracer(
