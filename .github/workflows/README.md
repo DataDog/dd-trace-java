@@ -28,6 +28,14 @@ _Action:_ Check the pull request complies with [the contribution guidelines](htt
 
 _Recovery:_ Manually verify the guideline compliance.
 
+### check-pull-request-labels [🔗](check-pull-request-labels.yaml)
+
+_Trigger:_ When creating or updating a pull request.
+
+_Action:_ Check the pull request did not introduce unexpected label.
+
+_Recovery:_ Update the pull request or add a comment to trigger the action again.
+
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
 _Trigger:_ When creating a tag, or manually (providing a tag)
