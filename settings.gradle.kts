@@ -445,7 +445,7 @@ include(
   ":dd-java-agent:instrumentation:log4j1",
   ":dd-java-agent:instrumentation:log4j2",
   ":dd-java-agent:instrumentation:log4j2:logs-intake",
-  ":dd-java-agent:instrumentation:logback-1",
+  ":dd-java-agent:instrumentation:logback-1.0",
   ":dd-java-agent:instrumentation:maven-3.2.1",
   ":dd-java-agent:instrumentation:maven-surefire",
   ":dd-java-agent:instrumentation:micronaut",
