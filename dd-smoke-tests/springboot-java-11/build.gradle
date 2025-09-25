@@ -29,7 +29,7 @@ tasks.named("compileJava", JavaCompile) {
   targetCompatibility = JavaVersion.VERSION_11
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 

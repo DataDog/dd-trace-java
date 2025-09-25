@@ -10,7 +10,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Crashtracking Integration Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.crashtracking.CrashtrackingTestApplication')
   }

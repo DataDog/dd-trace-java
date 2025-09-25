@@ -15,7 +15,7 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 }
 
-test {
+tasks.named("test", Test) {
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }
