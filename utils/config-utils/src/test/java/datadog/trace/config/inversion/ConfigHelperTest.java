@@ -19,12 +19,12 @@ import org.junit.jupiter.api.Test;
 
 public class ConfigHelperTest {
   // Test environment variables
-  private static final String TEST_DD_VAR = "DD_TEST_CONFIG";
-  private static final String TEST_DD_VAR_VAL = "test_dd_var";
-  private static final String TEST_OTEL_VAR = "OTEL_TEST_CONFIG";
-  private static final String TEST_OTEL_VAR_VAL = "test_otel_var";
-  private static final String TEST_REGULAR_VAR = "REGULAR_TEST_CONFIG";
-  private static final String TEST_REGULAR_VAR_VAL = "test_regular_var";
+  private static final String DD_VAR = "DD_TEST_CONFIG";
+  private static final String DD_VAR_VAL = "test_dd_var";
+  private static final String OTEL_VAR = "OTEL_TEST_CONFIG";
+  private static final String OTEL_VAR_VAL = "test_otel_var";
+  private static final String REGULAR_VAR = "REGULAR_TEST_CONFIG";
+  private static final String REGULAR_VAR_VAL = "test_regular_var";
 
   private static final String ALIAS_DD_VAR = "DD_TEST_CONFIG_ALIAS";
   private static final String ALIAS_DD_VAL = "test_alias_val";
@@ -45,16 +45,15 @@ public class ConfigHelperTest {
     env = ControllableEnvironmentVariables.setup();
 
     // Set up test configurations using SupportedConfigurationSource
-    Set<String> testSupported =
-        new HashSet<>(Arrays.asList(TEST_DD_VAR, TEST_OTEL_VAR, TEST_REGULAR_VAR));
+    Set<String> testSupported = new HashSet<>(Arrays.asList(DD_VAR, OTEL_VAR, REGULAR_VAR));
 
     Map<String, List<String>> testAliases = new HashMap<>();
-    testAliases.put(TEST_DD_VAR, Arrays.asList(ALIAS_DD_VAR, NON_DD_ALIAS_VAR));
+    testAliases.put(DD_VAR, Arrays.asList(ALIAS_DD_VAR, NON_DD_ALIAS_VAR));
     testAliases.put(NEW_ALIAS_TARGET, Arrays.asList(NEW_ALIAS_KEY_1));
 
     Map<String, String> testAliasMapping = new HashMap<>();
-    testAliasMapping.put(ALIAS_DD_VAR, TEST_DD_VAR);
-    testAliasMapping.put(NON_DD_ALIAS_VAR, TEST_DD_VAR);
+    testAliasMapping.put(ALIAS_DD_VAR, DD_VAR);
+    testAliasMapping.put(NON_DD_ALIAS_VAR, DD_VAR);
     testAliasMapping.put(NEW_ALIAS_KEY_2, NEW_ALIAS_TARGET);
 
     // Create and set test configuration source
@@ -80,39 +79,39 @@ public class ConfigHelperTest {
 
   @Test
   void testBasicConfigHelper() {
-    env.set(TEST_DD_VAR, TEST_DD_VAR_VAL);
-    env.set(TEST_OTEL_VAR, TEST_OTEL_VAR_VAL);
-    env.set(TEST_REGULAR_VAR, TEST_REGULAR_VAR_VAL);
+    env.set(DD_VAR, DD_VAR_VAL);
+    env.set(OTEL_VAR, OTEL_VAR_VAL);
+    env.set(REGULAR_VAR, REGULAR_VAR_VAL);
 
-    assertEquals(TEST_DD_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(TEST_DD_VAR));
-    assertEquals(TEST_OTEL_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(TEST_OTEL_VAR));
-    assertEquals(TEST_REGULAR_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(TEST_REGULAR_VAR));
+    assertEquals(DD_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(DD_VAR));
+    assertEquals(OTEL_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(OTEL_VAR));
+    assertEquals(REGULAR_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(REGULAR_VAR));
 
     Map<String, String> result = ConfigHelper.get().getEnvironmentVariables();
-    assertEquals(TEST_DD_VAR_VAL, result.get(TEST_DD_VAR));
-    assertEquals(TEST_OTEL_VAR_VAL, result.get(TEST_OTEL_VAR));
-    assertEquals(TEST_REGULAR_VAR_VAL, result.get(TEST_REGULAR_VAR));
+    assertEquals(DD_VAR_VAL, result.get(DD_VAR));
+    assertEquals(OTEL_VAR_VAL, result.get(OTEL_VAR));
+    assertEquals(REGULAR_VAR_VAL, result.get(REGULAR_VAR));
   }
 
   @Test
   void testAliasSupport() {
     env.set(ALIAS_DD_VAR, ALIAS_DD_VAL);
 
-    assertEquals(ALIAS_DD_VAL, ConfigHelper.get().getEnvironmentVariable(TEST_DD_VAR));
+    assertEquals(ALIAS_DD_VAL, ConfigHelper.get().getEnvironmentVariable(DD_VAR));
     Map<String, String> result = ConfigHelper.get().getEnvironmentVariables();
-    assertEquals(ALIAS_DD_VAL, result.get(TEST_DD_VAR));
+    assertEquals(ALIAS_DD_VAL, result.get(DD_VAR));
     assertFalse(result.containsKey(ALIAS_DD_VAR));
   }
 
   @Test
   void testMainConfigPrecedence() {
     // When both main variable and alias are set, main should take precedence
-    env.set(TEST_DD_VAR, TEST_DD_VAR_VAL);
+    env.set(DD_VAR, DD_VAR_VAL);
     env.set(ALIAS_DD_VAR, ALIAS_DD_VAL);
 
-    assertEquals(TEST_DD_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(TEST_DD_VAR));
+    assertEquals(DD_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(DD_VAR));
     Map<String, String> result = ConfigHelper.get().getEnvironmentVariables();
-    assertEquals(TEST_DD_VAR_VAL, result.get(TEST_DD_VAR));
+    assertEquals(DD_VAR_VAL, result.get(DD_VAR));
     assertFalse(result.containsKey(ALIAS_DD_VAR));
   }
 
@@ -120,9 +119,9 @@ public class ConfigHelperTest {
   void testNonDDAliases() {
     env.set(NON_DD_ALIAS_VAR, NON_DD_ALIAS_VAL);
 
-    assertEquals(NON_DD_ALIAS_VAL, ConfigHelper.get().getEnvironmentVariable(TEST_DD_VAR));
+    assertEquals(NON_DD_ALIAS_VAL, ConfigHelper.get().getEnvironmentVariable(DD_VAR));
     Map<String, String> result = ConfigHelper.get().getEnvironmentVariables();
-    assertEquals(NON_DD_ALIAS_VAL, result.get(TEST_DD_VAR));
+    assertEquals(NON_DD_ALIAS_VAL, result.get(DD_VAR));
     assertFalse(result.containsKey(NON_DD_ALIAS_VAR));
   }
 
@@ -150,11 +149,11 @@ public class ConfigHelperTest {
 
   @Test
   void testAliasSkippedWhenBaseAlreadyPresent() {
-    env.set(TEST_DD_VAR, TEST_DD_VAR_VAL);
+    env.set(DD_VAR, DD_VAR_VAL);
     env.set(NON_DD_ALIAS_VAR, NON_DD_ALIAS_VAL);
 
     Map<String, String> result = ConfigHelper.get().getEnvironmentVariables();
-    assertEquals(TEST_DD_VAR_VAL, result.get(TEST_DD_VAR));
+    assertEquals(DD_VAR_VAL, result.get(DD_VAR));
     assertFalse(result.containsKey(NON_DD_ALIAS_VAR));
   }
 
@@ -179,5 +178,18 @@ public class ConfigHelperTest {
 
     // Cleanup
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
+  }
+
+  @Test
+  void testCache() {
+    env.set(DD_VAR, DD_VAR_VAL);
+
+    Map<String, String> result = ConfigHelper.get().getEnvironmentVariables();
+    assertEquals(DD_VAR_VAL, result.get(DD_VAR));
+
+    // Ensure that the cached value is returned
+    env.set(DD_VAR, ALIAS_DD_VAL);
+    assertEquals(DD_VAR_VAL, result.get(DD_VAR));
+    assertEquals(DD_VAR_VAL, ConfigHelper.get().getEnvironmentVariable(DD_VAR));
   }
 }

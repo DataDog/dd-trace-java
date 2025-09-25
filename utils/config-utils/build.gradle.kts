@@ -37,6 +37,8 @@ val excludedClassesCoverage by extra(
 val excludedClassesBranchCoverage by extra(
   listOf(
     "datadog.trace.bootstrap.config.provider.AgentArgsInjector",
+    // Enum
+    "datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy",
     "datadog.trace.util.ConfigStrings"
   )
 )
