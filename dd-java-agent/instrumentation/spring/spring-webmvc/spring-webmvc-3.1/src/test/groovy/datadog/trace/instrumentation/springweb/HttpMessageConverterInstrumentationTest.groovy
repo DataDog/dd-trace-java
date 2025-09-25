@@ -14,7 +14,6 @@ import org.springframework.mock.http.MockHttpInputMessage
 import org.springframework.util.MultiValueMap
 
 import java.nio.charset.StandardCharsets
-import java.util.Arrays
 import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
