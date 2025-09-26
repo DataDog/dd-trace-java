@@ -108,6 +108,11 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
 
       // CharSequence or byte[] cannot be treated as parsed body content, as they may lead to false
       // positives in the WAF rules.
+      // TODO: These types (CharSequence, byte[]) are candidates to being deserialized before being
+      // sent to the WAF once we implement that feature.
+      // Possible types received by this method include: String, byte[], various DTOs/POJOs,
+      // Collections (List, Map), Jackson JsonNode objects, XML objects, etc.
+      // We may need to add more types to this block list in the future.
       if (obj instanceof CharSequence || obj instanceof byte[]) {
         return;
       }
