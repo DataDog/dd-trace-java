@@ -12,7 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 
-tasks.named("compileMain_java11Java").configure {
+tasks.named("compileMain_java11Java") {
   it.sourceCompatibility = JavaVersion.VERSION_11
   it.targetCompatibility = JavaVersion.VERSION_11
   setJavaVersion(it, 11)

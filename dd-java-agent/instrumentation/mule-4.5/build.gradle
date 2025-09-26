@@ -71,7 +71,7 @@ configurations {
   latestMuleServices
 }
 
-configurations.all {
+configurations.configureEach {
   exclude group: 'pull-parser', module: 'pull-parser'
 
   resolutionStrategy {
@@ -114,20 +114,20 @@ forbiddenApisMain_java11 {
   failOnMissingClasses = false
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   dependsOn 'mvnPackage', 'extractMuleServices'
 }
 
-tasks.named("compileMule46ForkedTestGroovy").configure {
+tasks.named("compileMule46ForkedTestGroovy") {
   dependsOn 'mvnPackage', 'extractMule46Services'
 }
 
-tasks.named("compileLatestDepForkedTestGroovy").configure {
+tasks.named("compileLatestDepForkedTestGroovy") {
   dependsOn 'mvnPackage', 'extractLatestMuleServices'
   setJavaVersion(it, 17)
 }
 
-tasks.named("compileLatestDepForkedTestJava").configure {
+tasks.named("compileLatestDepForkedTestJava") {
   setJavaVersion(it, 17)
 }
 

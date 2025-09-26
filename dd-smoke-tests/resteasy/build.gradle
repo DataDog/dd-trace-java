@@ -6,7 +6,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'RestEasy Smoke Test.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes "Main-Class": "smoketest.resteasy.Main"
   }

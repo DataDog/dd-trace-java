@@ -17,7 +17,6 @@ scala211 = "2.11.12"
 scala212 = "2.12.18"
 scala213 = "2.13.11"
 scala33 = "3.3.0"
-truth = "1.1.3"
 kotlin = "1.6.21"
 coroutines = "1.3.0"
 dogstatsd = "4.4.3"
@@ -30,11 +29,12 @@ moshi = '1.11.0'
 testcontainers = '1.20.1'
 jmc = "8.1.0"
 autoservice = "1.1.1"
-ddprof = "1.31.0"
+ddprof = "1.32.0"
 asm = "9.8"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
 jmh = "1.37"
+jackson = "2.20.0"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -93,12 +93,13 @@ scala211 = { module = "org.scala-lang:scala-library", version.ref = "scala211" }
 scala212 = { module = "org.scala-lang:scala-library", version.ref = "scala212" }
 scala213 = { module = "org.scala-lang:scala-library", version.ref = "scala213" }
 scala33 = { module = "org.scala-lang:scala3-library_3", version.ref = "scala33" }
-truth = { module = "com.google.truth:truth", version.ref = "truth" }
 kotlin = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
+
+jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
 
 [bundles]
 asm = ["asm", "asmcommons"]

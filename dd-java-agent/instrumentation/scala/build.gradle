@@ -66,7 +66,7 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
   }
 }
 
-tasks.named('test', Test).configure {
+tasks.named('test', Test) {
   systemProperty('uses.java.concat', false) // version 2.10.7 does not use java concatenation
   finalizedBy(testTasks)
 }

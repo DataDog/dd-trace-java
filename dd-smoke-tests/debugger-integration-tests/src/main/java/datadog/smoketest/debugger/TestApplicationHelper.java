@@ -20,7 +20,7 @@ public class TestApplicationHelper {
   private static final String INSTRUMENTATION_DONE_TASK_THREAD =
       "[dd-task-scheduler] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
   private static final String RENTRANSFORMATION_CLASS =
-      "[dd-remote-config] INFO com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
+      "[dd-remote-config] DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
       "com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done";
   private static final long SLEEP_MS = 100;

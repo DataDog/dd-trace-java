@@ -1,7 +1,10 @@
 package datadog.trace.util.stacktrace;
 
-import static com.google.common.truth.Truth.assertThat;
 import static datadog.trace.util.stacktrace.StackUtils.META_STRUCT_KEY;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -29,7 +32,7 @@ public class StackUtilsTest {
     final StackTraceElement[] expected = source.getStackTrace();
 
     final Throwable updated = StackUtils.update(withStack(expected), Function.identity());
-    assertThat(updated.getStackTrace()).isEqualTo(expected);
+    assertArrayEquals(expected, updated.getStackTrace());
   }
 
   @Test
@@ -40,17 +43,17 @@ public class StackUtilsTest {
           stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
           stack().className("java.util.function.Function").build(),
           stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
-          stack().className("com.google.common.truth.Truth").build()
+          stack().className("org.junit.jupiter.api.Assertions").build()
         };
     final StackTraceElement[] expected = new StackTraceElement[] {stack[0], stack[2], stack[4]};
 
     final Throwable filtered =
         StackUtils.filter(
             withStack(stack), item -> !item.getClassName().startsWith("datadog.trace"));
-    assertThat(filtered.getStackTrace()).isEqualTo(expected);
+    assertArrayEquals(expected, filtered.getStackTrace());
 
     final Throwable filtered2 = StackUtils.filterDatadog(withStack(stack));
-    assertThat(filtered2.getStackTrace()).isEqualTo(expected);
+    assertArrayEquals(expected, filtered2.getStackTrace());
   }
 
   @Test
@@ -61,7 +64,7 @@ public class StackUtilsTest {
           stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
           stack().className("java.util.function.Function").build(),
           stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
-          stack().className("com.google.common.truth.Truth").build()
+          stack().className("org.junit.jupiter.api.Assertions").build()
         };
     final StackTraceElement[] expected =
         new StackTraceElement[] {stack[0], stack[2], stack[3], stack[4]};
@@ -69,10 +72,10 @@ public class StackUtilsTest {
     final Throwable filtered =
         StackUtils.filterFirst(
             withStack(stack), item -> !item.getClassName().startsWith("datadog.trace"));
-    assertThat(filtered.getStackTrace()).isEqualTo(expected);
+    assertArrayEquals(expected, filtered.getStackTrace());
 
     final Throwable filtered2 = StackUtils.filterFirstDatadog(withStack(stack));
-    assertThat(filtered2.getStackTrace()).isEqualTo(expected);
+    assertArrayEquals(expected, filtered2.getStackTrace());
   }
 
   @Test
@@ -83,7 +86,7 @@ public class StackUtilsTest {
           stack().className("datadog.trace.util.stacktrace.StackUtilsTest").build(),
           stack().className("java.util.function.Function").build(),
           stack().className("datadog.trace.util.stacktrace.StackUtils").build(),
-          stack().className("com.google.common.truth.Truth").build()
+          stack().className("org.junit.jupiter.api.Assertions").build()
         };
 
     final StackTraceElement[] expected = new StackTraceElement[] {stack[4]};
@@ -91,10 +94,10 @@ public class StackUtilsTest {
         StackUtils.filterUntil(
             withStack(stack),
             entry -> entry.getClassName().equals("datadog.trace.util.stacktrace.StackUtils"));
-    assertThat(removed.getStackTrace()).isEqualTo(expected);
+    assertArrayEquals(expected, removed.getStackTrace());
 
     final Throwable noRemoval = StackUtils.filterUntil(withStack(stack), entry -> false);
-    assertThat(noRemoval.getStackTrace()).isEqualTo(stack);
+    assertArrayEquals(stack, noRemoval.getStackTrace());
   }
 
   private static Stream<Arguments> test_generateUserCodeStackTrace_Params() {
@@ -110,7 +113,7 @@ public class StackUtilsTest {
   public void test_generateUserCodeStackTrace(
       final Predicate<StackTraceElement> filter, final boolean expected) {
     List<StackTraceFrame> userCodeStack = StackUtils.generateUserCodeStackTrace(filter);
-    assertThat(userCodeStack).isNotNull();
+    assertNotNull(userCodeStack);
     int junitFramesCounter = 0;
     for (StackTraceFrame frame : userCodeStack) {
       if (frame.getClass_name() != null && frame.getClass_name().startsWith("org.junit")) {
@@ -118,9 +121,9 @@ public class StackUtilsTest {
       }
     }
     if (expected) {
-      assertThat(junitFramesCounter).isEqualTo(0);
+      assertEquals(0, junitFramesCounter);
     } else {
-      assertThat(junitFramesCounter).isGreaterThan(0);
+      assertTrue(junitFramesCounter > 0);
     }
   }
 
@@ -133,8 +136,8 @@ public class StackUtilsTest {
     final StackTraceEvent event = new StackTraceEvent(new ArrayList<>(0), "java", "id", "message");
     StackUtils.addStacktraceEventsToMetaStruct(
         reqCtx, productTest, Collections.singletonList(event));
-    assertThat(batch).containsKey(productTest);
-    assertThat(batch.get(productTest)).containsExactly(event);
+    assertTrue(batch.containsKey(productTest));
+    assertTrue(batch.get(productTest).contains(event));
   }
 
   private static Throwable withStack(final StackTraceElement... stack) {

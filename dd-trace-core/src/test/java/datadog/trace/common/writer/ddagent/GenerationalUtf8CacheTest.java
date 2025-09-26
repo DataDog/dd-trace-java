@@ -1,15 +1,15 @@
 package datadog.trace.common.writer.ddagent;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -148,7 +148,7 @@ public class GenerationalUtf8CacheTest {
   @Test
   public void bigString_dont_cache() {
     String lorem = "Lorem ipsum dolor sit amet";
-    while (lorem.length() < 500) {
+    while (lorem.length() <= GenerationalUtf8Cache.MAX_ENTRY_LEN) {
       lorem += lorem;
     }
     byte[] expected = lorem.getBytes(StandardCharsets.UTF_8);

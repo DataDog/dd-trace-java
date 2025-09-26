@@ -440,8 +440,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_TELEMETRY_PROXY_RESPONSE) }
     features.supportsTelemetryProxy()
     features.supportsDebugger()
-    features.getDebuggerSnapshotEndpoint() == "debugger/v1/input"
-    !features.supportsDebuggerDiagnostics()
+    features.getDebuggerSnapshotEndpoint() == "debugger/v1/diagnostics"
+    features.supportsDebuggerDiagnostics()
     0 * _
   }
 

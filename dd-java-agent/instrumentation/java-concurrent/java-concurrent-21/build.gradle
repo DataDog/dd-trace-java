@@ -42,7 +42,7 @@ previewTest.configure {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check
-tasks.named("check").configure {
+tasks.named("check") {
   dependsOn "previewTest"
 }
 

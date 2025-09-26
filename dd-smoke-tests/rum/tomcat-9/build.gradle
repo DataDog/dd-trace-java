@@ -13,7 +13,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests:rum')
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'com.example.Main')
   }

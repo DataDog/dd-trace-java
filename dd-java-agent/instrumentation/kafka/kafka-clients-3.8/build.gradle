@@ -55,20 +55,13 @@ dependencies {
   testImplementation 'org.apache.kafka:kafka_2.13:3.8.0:test'
 
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
-  testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
 
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
-  //latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
   latestDepTestImplementation group: 'io.dropwizard.metrics', name: 'metrics-core', version: '+'
 
   latestDepTestImplementation libs.guava
 
-}
-
-configurations.testRuntimeClasspath {
-  // spock-core depends on assertj version that is not compatible with kafka-clients
-  resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }

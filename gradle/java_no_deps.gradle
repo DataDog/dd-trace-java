@@ -21,7 +21,7 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 
 // Task for tests that want to run forked in their own separate JVM
 if (tasks.matching({ it.name == 'forkedTest' }).empty) {
-  tasks.register('forkedTest', Test).configure {
+  tasks.register('forkedTest', Test) {
     useJUnitPlatform()
   }
 }
@@ -58,7 +58,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
     }
   }
 
-  "compileMain_${name}Java" {
+  tasks.named("compileMain_${name}Java", JavaCompile).configure {
     sourceCompatibility = version
     targetCompatibility = version
   }
@@ -74,7 +74,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
     }
   }
 
-  jar {
+  tasks.named("jar", Jar) {
     from sourceSets."main_$name".output
   }
 
@@ -98,7 +98,7 @@ java {
   withSourcesJar()
 }
 
-jar {
+tasks.named("jar", Jar) {
   /**
    Make Jar build fail on duplicate files
    By default Gradle Jar task can put multiple files with the same name
@@ -136,7 +136,7 @@ tasks.withType(Javadoc).configureEach {
   }
 }
 
-javadoc {
+tasks.named("javadoc", Javadoc) {
   source = sourceSets.main.java.srcDirs
   classpath = configurations.compileClasspath
 
@@ -252,7 +252,7 @@ project.afterEvaluate {
 
   if (project.plugins.hasPlugin('kotlin')) {
     ['compileKotlin', 'compileTestKotlin'].each { type ->
-      tasks.named(type).configure {
+      tasks.named(type) {
         kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
       }
     }

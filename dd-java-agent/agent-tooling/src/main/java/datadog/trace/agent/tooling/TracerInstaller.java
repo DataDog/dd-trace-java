@@ -21,7 +21,7 @@ public class TracerInstaller {
             CoreTracer.builder()
                 .sharedCommunicationObjects(sharedCommunicationObjects)
                 .profilingContextIntegration(profilingContextIntegration)
-                .pollForTracerFlareRequests()
+                .reportInTracerFlare()
                 .pollForTracingConfiguration()
                 .build();
         installGlobalTracer(tracer);

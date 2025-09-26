@@ -13,7 +13,7 @@ dependencies {
   testImplementation('org.junit.jupiter:junit-jupiter')
 }
 
-test {
+tasks.named("test", Test) {
   useJUnitPlatform()
   testLogging {
     events "passed", "skipped", "failed"

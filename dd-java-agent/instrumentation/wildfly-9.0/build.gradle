@@ -67,7 +67,6 @@ dependencies {
   latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
 }
 
-
 def extractWildfly(config, zipFileNamePrefix, sync) {
   delete(fileTree(buildDir).include("wildfly-*/standalone/deployments/**"))
 
@@ -84,7 +83,6 @@ def extractWildfly(config, zipFileNamePrefix, sync) {
     throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
   }
 }
-
 
 tasks.register("extractWildfly", Copy) {
   dependsOn configurations.wildflyTest
@@ -107,21 +105,22 @@ tasks.register("extractLatestWildfly", Copy) {
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
-
-tasks.named("test").configure {
+tasks.named("test") {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("forkedTest").configure {
+tasks.named("forkedTest") {
   dependsOn 'extractWildfly'
 }
-tasks.named("latestDepForkedTest").configure {
+
+tasks.named("latestDepForkedTest") {
   dependsOn 'extractLatestWildfly'
 }
 
-tasks.named("latestDepTest").configure {
+tasks.named("latestDepTest") {
   dependsOn 'extractLatestWildfly'
 }
+
 compileTestGroovy.configure {
   javaLauncher = getJavaLauncherFor(11)
 }
@@ -131,6 +130,7 @@ compileTestGroovy.configure {
     javaLauncher = getJavaLauncherFor(17)
   }
 }
+
 compileTestJava.configure {
   it.configure {
     setJavaVersion(it, 11)
@@ -154,6 +154,7 @@ processTestResources {
       )
   }
 }
+
 [processLatestDepTestResources, processLatestDepForkedTestResources].each {
   it.filesMatching('**/WEB-INF/web.xml') {
     expand(

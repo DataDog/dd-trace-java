@@ -1,11 +1,11 @@
 package datadog.smoketest.loginjection;
 
-import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
-
-import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Trace;
+import datadog.trace.api.TraceConfig;
+import datadog.trace.api.Tracer;
+import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -23,13 +23,13 @@ public abstract class BaseApplication {
 
     secondTracedMethod();
 
-    if (!waitForCondition(() -> Boolean.FALSE.equals(getLogInjectionEnabled()))) {
+    if (!waitForCondition(() -> !getLogInjectionEnabled())) {
       throw new RuntimeException("Logs injection config was never updated");
     }
 
     thirdTracedMethod();
 
-    if (!waitForCondition(() -> Boolean.TRUE.equals(getLogInjectionEnabled()))) {
+    if (!waitForCondition(() -> getLogInjectionEnabled())) {
       throw new RuntimeException("Logs injection config was never updated a second time");
     }
 
@@ -43,12 +43,14 @@ public abstract class BaseApplication {
     Thread.sleep(400);
   }
 
-  private static Object getLogInjectionEnabled() {
-    ConfigSetting configSetting = ConfigCollector.get().collect().get(LOGS_INJECTION_ENABLED);
-    if (configSetting == null) {
-      return null;
+  private static boolean getLogInjectionEnabled() {
+    try {
+      Tracer tracer = GlobalTracer.get();
+      Method captureTraceConfig = tracer.getClass().getMethod("captureTraceConfig");
+      return ((TraceConfig) captureTraceConfig.invoke(tracer)).isLogsInjectionEnabled();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
     }
-    return configSetting.value;
   }
 
   @Trace

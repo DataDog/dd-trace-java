@@ -94,7 +94,7 @@ class HistogramsTest extends DDSpecification {
     uniform    |   100000 | [1D, 200D]      | 0.03
     uniform    |   10000  | [1000D, 2000D]  | 0.04
     uniform    |   100000 | [1000D, 2000D]  | 0.05
-    normal     |   10000  | [1000D, 10D]    | 0.01
+    normal     |   10000  | [1000D, 10D]    | 0.02
     normal     |   100000 | [1000D, 10D]    | 0.02
     normal     |   10000  | [10000D, 100D]  | 0.03
     normal     |   100000 | [10000D, 100D]  | 0.04

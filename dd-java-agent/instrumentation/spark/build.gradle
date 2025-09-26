@@ -3,7 +3,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 dependencies {

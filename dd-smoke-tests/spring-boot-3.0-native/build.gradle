@@ -64,7 +64,7 @@ if (version >= 17) {
     dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
   }
 
-  tasks.named('compileTestGroovy').configure {
+  tasks.named('compileTestGroovy') {
     dependsOn 'springNativeBuild'
     outputs.upToDateWhen {
       !springNativeBuild.didWork

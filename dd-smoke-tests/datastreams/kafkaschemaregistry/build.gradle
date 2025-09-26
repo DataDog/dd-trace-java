@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'Kafka Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.datastreams.kafkaschemaregistry.KafkaProducerWithSchemaRegistry')
   }

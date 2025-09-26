@@ -77,12 +77,12 @@ dependencies {
   latestDepJava11TestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
 }
 
-tasks.named("check").configure {
+tasks.named("check") {
   dependsOn "oldH2Test"
   dependsOn "oldPostgresTest"
 }
 
-tasks.named("latestDepJava11Test").configure {
+tasks.named("latestDepJava11Test") {
   javaLauncher = getJavaLauncherFor(11)
 }
 

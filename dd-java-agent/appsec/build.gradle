@@ -20,10 +20,9 @@ dependencies {
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
-  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
+  testImplementation libs.jackson.databind
 }
 
 shadowJar {

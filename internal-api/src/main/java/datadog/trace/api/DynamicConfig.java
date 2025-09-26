@@ -294,7 +294,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(TRACE_SAMPLING_RULES, newSnapshot.traceSamplingRulesJson);
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
 
-    ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
+    ConfigCollector.get().putRemote(update);
   }
 
   @SuppressWarnings("SameParameterValue")

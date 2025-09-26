@@ -27,7 +27,7 @@ fun AbstractCompile.setJavaVersion(javaVersionInteger: Int) {
 }
 
 listOf("compileMain_java17Java", "compileTestJava").forEach {
-  tasks.named<JavaCompile>(it).configure {
+  tasks.named<JavaCompile>(it) {
     setJavaVersion(17)
     sourceCompatibility = JavaVersion.VERSION_1_8.toString()
     targetCompatibility = JavaVersion.VERSION_1_8.toString()

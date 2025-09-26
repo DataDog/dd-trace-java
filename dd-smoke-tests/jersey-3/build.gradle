@@ -6,7 +6,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Jersey 3 Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes "Main-Class": "smoketest.MainApp"
   }

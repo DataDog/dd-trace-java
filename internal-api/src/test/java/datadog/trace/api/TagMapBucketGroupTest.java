@@ -1,11 +1,11 @@
 package datadog.trace.api;
 
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -172,7 +172,7 @@ public class TagMapBucketGroupTest {
       assertChainContainsTag(tag(20, offset), headGroup);
     }
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2, headGroup.sizeInChain());
 
     String firstRemovedTag = tag(10, 1);
     int firstRemovedHash = TagMap.Entry._hash(firstRemovedTag);
@@ -184,7 +184,7 @@ public class TagMapBucketGroupTest {
 
     assertChainDoesntContainTag(firstRemovedTag, headGroup);
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2 - 1);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2 - 1, headGroup.sizeInChain());
 
     String secondRemovedTag = tag(20, 2);
     int secondRemovedHash = TagMap.Entry._hash(secondRemovedTag);
@@ -196,7 +196,7 @@ public class TagMapBucketGroupTest {
 
     assertChainDoesntContainTag(secondRemovedTag, headGroup);
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2 - 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2 - 2, headGroup.sizeInChain());
   }
 
   @Test
@@ -204,17 +204,17 @@ public class TagMapBucketGroupTest {
     OptimizedTagMap.BucketGroup firstGroup = fullGroup(10);
     OptimizedTagMap.BucketGroup headGroup = fullGroup(20, firstGroup);
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2, headGroup.sizeInChain());
 
     TagMap.Entry firstReplacementEntry = TagMap.Entry.newObjectEntry(tag(10, 1), "replaced");
     assertNotNull(headGroup.replaceInChain(firstReplacementEntry.hash(), firstReplacementEntry));
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2, headGroup.sizeInChain());
 
     TagMap.Entry secondReplacementEntry = TagMap.Entry.newObjectEntry(tag(20, 2), "replaced");
     assertNotNull(headGroup.replaceInChain(secondReplacementEntry.hash(), secondReplacementEntry));
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2, headGroup.sizeInChain());
   }
 
   @Test
@@ -223,7 +223,7 @@ public class TagMapBucketGroupTest {
     OptimizedTagMap.BucketGroup firstGroup = fullGroup(10);
     OptimizedTagMap.BucketGroup headGroup = fullGroup(20, firstGroup);
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2, headGroup.sizeInChain());
 
     String firstHoleTag = tag(10, 1);
     int firstHoleHash = TagMap.Entry._hash(firstHoleTag);
@@ -233,7 +233,7 @@ public class TagMapBucketGroupTest {
     int secondHoleHash = TagMap.Entry._hash(secondHoleTag);
     headGroup._remove(secondHoleHash, secondHoleTag);
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2 - 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2 - 2, headGroup.sizeInChain());
 
     String firstNewTag = "new-tag-0";
     TagMap.Entry firstNewEntry = TagMap.Entry.newObjectEntry(firstNewTag, "new");
@@ -256,7 +256,7 @@ public class TagMapBucketGroupTest {
     assertFalse(headGroup.insertInChain(thirdNewHash, thirdNewEntry));
     assertChainDoesntContainTag(thirdNewTag, headGroup);
 
-    assertEquals(headGroup.sizeInChain(), OptimizedTagMap.BucketGroup.LEN * 2);
+    assertEquals(OptimizedTagMap.BucketGroup.LEN * 2, headGroup.sizeInChain());
   }
 
   @Test
@@ -329,12 +329,8 @@ public class TagMapBucketGroupTest {
     return "tag-" + i;
   }
 
-  static final String value(int startingIndex, int offset) {
-    return value(startingIndex + offset);
-  }
-
   static final String value(int i) {
-    return "value-i";
+    return "value-" + i;
   }
 
   static void assertContainsDirectly(TagMap.Entry entry, OptimizedTagMap.BucketGroup group) {

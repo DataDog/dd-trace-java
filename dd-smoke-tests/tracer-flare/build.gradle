@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Tracer Flare Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.flare.SimpleApp')
   }

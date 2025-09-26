@@ -48,7 +48,7 @@ jobs:
           GH_ADD_ARGS=""
           COUNT=0
           BRANCH_HEAD=$(git rev-parse HEAD)
-          for lockfile in $(git status --porcelain=v1 | awk '{ print $NF }'); do
+          for lockfile in $(git status --porcelain=v1 -- ':(glob)**/gradle.lockfile' | awk '{ print $NF }'); do
             echo "Found lockfile: $lockfile"
             GH_ADD_ARGS="$GH_ADD_ARGS --add $lockfile"
             COUNT=$((COUNT+1))

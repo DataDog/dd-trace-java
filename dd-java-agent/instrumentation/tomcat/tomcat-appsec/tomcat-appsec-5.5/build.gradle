@@ -55,7 +55,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 }
 
-configurations.all {
+configurations.configureEach {
   // shut up about broken xml-api pom relocation
   resolutionStrategy {
     force 'xml-apis:xml-apis:1.4.01'

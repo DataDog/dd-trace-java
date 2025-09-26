@@ -1,7 +1,10 @@
 package datadog.trace.test.agent.decoder;
 
-import static com.google.common.truth.Truth.assertThat;
+import static datadog.trace.test.util.AssertionsUtils.assertMapContainsKeyValues;
 import static java.util.Collections.singletonMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,9 +23,9 @@ public class DecoderTest {
     byte[] buffer = readResourceFile(resourceName);
     DecodedMessage message = Decoder.decode(buffer);
     List<DecodedTrace> traces = message.getTraces();
-    assertThat(traces).hasSize(1);
+    assertEquals(1, traces.size());
     List<DecodedSpan> spans = traces.get(0).getSpans();
-    assertThat(spans).hasSize(2);
+    assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);
     DecodedSpan first = sorted.get(0);
     long traceId = first.getTraceId();
@@ -55,9 +58,9 @@ public class DecoderTest {
 
     DecodedMessage message = Decoder.decodeV04(buffer);
     List<DecodedTrace> traces = message.getTraces();
-    assertThat(traces).hasSize(1);
+    assertEquals(1, traces.size());
     List<DecodedSpan> spans = traces.get(0).getSpans();
-    assertThat(spans).hasSize(2);
+    assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);
 
     DecodedSpan first = sorted.get(0);
@@ -91,19 +94,19 @@ public class DecoderTest {
     byte[] buffer = readResourceFile("/greeting.msgpack");
     DecodedMessage message = Decoder.decode(buffer);
     List<DecodedTrace> traces = message.getTraces();
-    assertThat(traces).hasSize(1);
+    assertEquals(1, traces.size());
     final List<DecodedSpan> spans = traces.get(0).getSpans();
-    assertThat(spans).hasSize(2);
+    assertEquals(2, spans.size());
     final List<DecodedSpan> sorted = Decoder.sortByStart(spans);
-    assertThat(sorted.get(0).getStart()).isLessThan(sorted.get(1).getStart());
+    assertTrue(sorted.get(0).getStart() < sorted.get(1).getStart());
     // Ensure that we cover all the branches
     List<DecodedSpan> tmp = Decoder.sortByStart(sorted);
-    assertThat(tmp).containsExactlyElementsIn(sorted);
+    assertIterableEquals(sorted, tmp);
     Collections.reverse(tmp);
     tmp = Decoder.sortByStart(tmp);
-    assertThat(tmp).containsExactlyElementsIn(sorted);
+    assertIterableEquals(sorted, tmp);
     tmp.set(1, tmp.get(0));
-    assertThat(Decoder.sortByStart(tmp)).containsExactlyElementsIn(tmp);
+    assertIterableEquals(tmp, Decoder.sortByStart(tmp));
   }
 
   private byte[] readResourceFile(String resourceName) throws IOException {
@@ -121,15 +124,15 @@ public class DecoderTest {
       String type,
       Map<String, String> meta,
       Map<String, ? extends Number> metrics) {
-    assertThat(span.getTraceId()).isEqualTo(traceId);
-    assertThat(span.getParentId()).isEqualTo(parentId);
-    assertThat(span.getName()).isEqualTo(name);
-    assertThat(span.getResource()).isEqualTo(resource);
-    assertThat(span.getService()).isEqualTo(service);
-    assertThat(span.getDuration()).isGreaterThan(0);
-    assertThat(span.getError()).isEqualTo(0);
-    assertThat(span.getType()).isEqualTo(type);
-    assertThat(span.getMeta()).containsAtLeastEntriesIn(meta);
-    assertThat(span.getMetrics()).containsAtLeastEntriesIn(metrics);
+    assertEquals(traceId, span.getTraceId());
+    assertEquals(parentId, span.getParentId());
+    assertEquals(name, span.getName());
+    assertEquals(resource, span.getResource());
+    assertEquals(service, span.getService());
+    assertTrue(span.getDuration() > 0);
+    assertEquals(0, span.getError());
+    assertEquals(type, span.getType());
+    assertMapContainsKeyValues(span.getMeta(), meta);
+    assertMapContainsKeyValues(span.getMetrics(), metrics);
   }
 }

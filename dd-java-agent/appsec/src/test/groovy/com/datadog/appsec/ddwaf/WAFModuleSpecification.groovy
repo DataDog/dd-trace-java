@@ -55,7 +55,6 @@ import java.util.concurrent.atomic.AtomicLong
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
-import static org.hamcrest.Matchers.hasSize
 
 class WAFModuleSpecification extends DDSpecification {
   @Shared
@@ -508,7 +507,7 @@ class WAFModuleSpecification extends DDSpecification {
     then:
     1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
-    1 * ctx.reportEvents(hasSize(1))
+    1 * ctx.reportEvents({ it.size() == 1 })
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()

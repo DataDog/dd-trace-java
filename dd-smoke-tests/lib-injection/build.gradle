@@ -10,7 +10,7 @@ application {
   mainClass = 'datadog.smoketest.Application'
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes(
       'Premain-Class': 'datadog.smoketest.Agent',
