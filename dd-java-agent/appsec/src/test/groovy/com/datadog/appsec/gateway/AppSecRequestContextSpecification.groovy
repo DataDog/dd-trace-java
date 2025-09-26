@@ -10,6 +10,7 @@ import com.datadog.ddwaf.WafContext
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import datadog.trace.api.Config
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
 import datadog.trace.test.util.DDSpecification
@@ -432,5 +433,22 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     then:
     keys.size() == 0 // No attributes should be added for invalid key paths
+  }
+
+  void 'test sampling of requests'() {
+    given:
+    final maxRequests = Config.get().apiSecurityMaxDownstreamRequestBodyAnalysis
+    final context = new AppSecRequestContext()
+    final random = new Random()
+    final requestIds = (0..maxRequests).collect { random.nextLong() }
+
+    when:
+    final map = requestIds.collectEntries{ [(it) : context.sampleHttpClientRequest(it)] }
+
+    then:
+    map.values().count { it } == maxRequests
+    map.each { requestId, sampled ->
+      assert context.isHttpClientRequestSampled(requestId) == sampled
+    }
   }
 }
