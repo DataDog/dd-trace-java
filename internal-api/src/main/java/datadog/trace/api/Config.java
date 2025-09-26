@@ -121,6 +121,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOURCE_RENAMING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -623,6 +625,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT;
+import static datadog.trace.api.config.TracerConfig.TRACE_RESOURCE_RENAMING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
@@ -814,6 +818,10 @@ public class Config {
   private final Map<String, String> httpServerPathResourceNameMapping;
   private final Map<String, String> httpClientPathResourceNameMapping;
   private final boolean httpResourceRemoveTrailingSlash;
+
+  // HTTP Endpoint Tagging feature flags
+  private final boolean resourceRenamingEnabled;
+  private final boolean resourceRenamingAlwaysSimplifiedEndpoint;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientTagHeaders;
   private final boolean httpClientSplitByDomain;
@@ -1546,6 +1554,15 @@ public class Config {
         configProvider.getBoolean(
             TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH,
             DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH);
+
+    // HTTP Endpoint Tagging feature flags
+    resourceRenamingEnabled =
+        configProvider.getBoolean(
+            TRACE_RESOURCE_RENAMING_ENABLED, DEFAULT_RESOURCE_RENAMING_ENABLED);
+    resourceRenamingAlwaysSimplifiedEndpoint =
+        configProvider.getBoolean(
+            TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT,
+            DEFAULT_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT);
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
@@ -3070,6 +3087,14 @@ public class Config {
 
   public boolean isHttpServerRouteBasedNaming() {
     return httpServerRouteBasedNaming;
+  }
+
+  public boolean isResourceRenamingEnabled() {
+    return resourceRenamingEnabled;
+  }
+
+  public boolean isResourceRenamingAlwaysSimplifiedEndpoint() {
+    return resourceRenamingAlwaysSimplifiedEndpoint;
   }
 
   public boolean isHttpClientTagQueryString() {
