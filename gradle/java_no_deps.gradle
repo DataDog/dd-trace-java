@@ -1,8 +1,7 @@
-import org.gradle.api.internal.provider.PropertyFactory
-import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
-
 import java.nio.file.Files
 import java.nio.file.Paths
+import org.gradle.api.internal.provider.PropertyFactory
+import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
 
@@ -139,87 +138,126 @@ tasks.named("javadoc", Javadoc) {
   }
 }
 
-def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
+class ProvideJvmArgsOnJvmLauncherVersion implements CommandLineArgumentProvider {
+  @Internal
+  Test test
+  @Input
+  JavaVersion applyFromVersion
+  @Input
+  List<String> jvmArgsToApply
+  @Input
+  Provider<Boolean> additionalCondition
 
-project.afterEvaluate {
-  def testJvm = gradle.startParameter.projectProperties["testJvm"]
-  def javaTestLauncher = null as Provider<JavaLauncher>
+  ProvideJvmArgsOnJvmLauncherVersion(Test test, JavaVersion applyFromVersion, List<String> jvmArgsToApply, Provider<Boolean> additionalCondition) {
+    this.test = test
+    this.applyFromVersion = applyFromVersion
+    this.jvmArgsToApply = jvmArgsToApply
+    this.additionalCondition = additionalCondition
+  }
 
-  // "stable" is calculated as the largest X found in JAVA_X_HOME
-  if (testJvm == "stable") {
-    def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
-      javaHomes
+  @Override
+  Iterable<String> asArguments() {
+    def launcherVersion = test.javaLauncher.map { JavaVersion.toVersion(it.metadata.languageVersion.asInt()) }
+    .orElse(JavaVersion.current())
+    .get()
+
+    if (launcherVersion.isCompatibleWith(applyFromVersion) && additionalCondition.getOrElse(true)) {
+      jvmArgsToApply
+    } else {
+      []
+    }
+  }
+}
+ext.configureJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<String> jvmArgsToApply, Provider<Boolean> additionalCondition = null) -> {
+  testTask.jvmArgumentProviders.add(new ProvideJvmArgsOnJvmLauncherVersion(
+  testTask,
+  applyFromVersion,
+  jvmArgsToApply,
+  additionalCondition ?: testTask.project.providers.provider { true }
+  ))
+}
+
+
+def configureTestJvm(Project project, boolean applyCodeCoverage) {
+  def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
+  def normalizedTestJvm = project.providers.gradleProperty("testJvm").map { testJvm ->
+    // "stable" is calculated as the largest X found in JAVA_X_HOME
+    if (testJvm == "stable") {
+      def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
+        javaHomes
         .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
         .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
-    }.get()
+      }.get()
 
-    if (javaVersions.isEmpty()) {
-      throw new GradleException("No valid JAVA_X_HOME environment variables found.")
-    }
+      if (javaVersions.isEmpty()) {
+        throw new GradleException("No valid JAVA_X_HOME environment variables found.")
+      }
 
-    testJvm = javaVersions.max().toString()
-  }
-
-  if (testJvm) {
-    def testJvmHomePath
-    if (Files.exists(Paths.get(testJvm))) {
-      testJvmHomePath = getJavaHomePath(testJvm)
+      javaVersions.max().toString()
     } else {
-      def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
+      testJvm
+    }
+  }.map { logger.info("normalized testJvm: " + it); it }
+
+  def testJvmHomePath = normalizedTestJvm.map {
+    if (Files.exists(Paths.get(it))) {
+      getJavaHomePath(it)
+    } else {
+      def matcher = it =~ /([a-zA-Z]*)([0-9]+)/
       if (!matcher.matches()) {
-        throw new GradleException("Unable to find launcher for Java '$testJvm'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
+        throw new GradleException("Unable to find launcher for Java '$it'. It needs to match '([a-zA-Z]*)([0-9]+)'.")
       }
       def testJvmLanguageVersion = matcher.group(2) as Integer
-      def testJvmEnv = "JAVA_${testJvm}_HOME"
+      def testJvmEnv = "JAVA_${it}_HOME"
       def testJvmHome = providers.environmentVariable(testJvmEnv).orNull
       if (!testJvmHome) {
-        throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
+        throw new GradleException("Unable to find launcher for Java '$it'. Have you set '$testJvmEnv'?")
       }
-      testJvmHomePath = getJavaHomePath(testJvmHome)
-    }
-    // Only change test JVM if it's not the one we are running the gradle build with
-    if (currentJavaHomePath != testJvmHomePath) {
-      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))
-      // The provider always says that a value is present so we need to wrap it for proper error messages
-      Provider<JavaLauncher> launcher = providers.provider {
-        try {
-          return javaToolchains.launcherFor(jvmSpec).get()
-        } catch (NoSuchElementException ignored) {
-          throw new GradleException("Unable to find launcher for Java $testJvm. Does '$testJvmHome' point to a JDK?")
-        }
-      }
-      javaTestLauncher = launcher
-    }
-  }
 
-  tasks.withType(Test).configureEach {
-    def allowReflectiveAccessToJdk = true
-    if (project.hasProperty('allowReflectiveAccessToJdk')) {
-      allowReflectiveAccessToJdk = project.getProperty('allowReflectiveAccessToJdk')
+      getJavaHomePath(testJvmHome)
     }
-    if (javaTestLauncher) {
-      def metadata = javaTestLauncher.get().metadata
-      def allowedOrForced = !isJdkExcluded(testJvm) &&
-        (isJavaLanguageVersionAllowed(metadata.languageVersion, it.name) || isJdkForced(testJvm))
+  }.map { logger.info("testJvm home path: " + it); it }
+
+  def javaTestLauncher = testJvmHomePath.zip(normalizedTestJvm) { testJvmHome, testJvm ->
+    // Only change test JVM if it's not the one we are running the gradle build with
+    if (currentJavaHomePath == testJvmHome) {
+      null
+    } else {
+      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHome))
+      // The provider always says that a value is present so we need to wrap it for proper error messages
+
+      javaToolchains.launcherFor(jvmSpec).orElse(providers.provider {
+        throw new GradleException("Unable to find launcher for Java $testJvm. Does '$testJvmHome' point to a JDK?")
+      })
+    }
+  }.flatMap { it }.map { logger.info("testJvm launcher: " + it.executablePath); it }
+
+  // Apply the launcher
+  tasks.withType(Test).configureEach { Test testTask ->
+    if (javaTestLauncher.isPresent()) {
       javaLauncher = javaTestLauncher
-      onlyIf { allowedOrForced }
+      onlyIf("Allowed or forced JDK") {
+        !isJdkExcluded(normalizedTestJvm.get()) &&
+        (isJavaLanguageVersionAllowed(javaTestLauncher.get().metadata.languageVersion, it.name) || isJdkForced(normalizedTestJvm.get()))
+      }
+
+      // Disable jacoco for additional 'testJvm' tests to speed things up a bit
       if (applyCodeCoverage) {
         jacoco {
-          // Disable jacoco for additional JVM tests to speed things up a bit
           enabled = false
         }
       }
-      if (metadata.languageVersion.asInt() >= 16 && allowReflectiveAccessToJdk) {
-        // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
-        jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
-      }
     } else {
-      def name = it.name
-      onlyIf { isJavaVersionAllowed(JavaVersion.current(), name) }
-      if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16) && allowReflectiveAccessToJdk) {
-        jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
-      }
+      onlyIf("is current Daemon JVM  allowed") { isJavaVersionAllowed(JavaVersion.current(), testTask.name) }
     }
+
+    // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
+    configureJvmArgs(
+    testTask,
+    JavaVersion.VERSION_16,
+    ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED'],
+    project.providers.provider { project.properties['allowReflectiveAccessToJdk'] as Boolean }.orElse(true)
+    )
 
     if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
       doFirst {
@@ -229,29 +267,31 @@ project.afterEvaluate {
       }
     }
   }
+}
+configureTestJvm(project, applyCodeCoverage)
 
-  [JavaCompile, ScalaCompile, GroovyCompile].each { type ->
-    tasks.withType(type).configureEach {
-      if (options.fork) {
-        options.forkOptions.with {
-          memoryMaximumSize = "256M"
-        }
+
+[JavaCompile, ScalaCompile, GroovyCompile].each { type ->
+  tasks.withType(type).configureEach {
+    if (options.fork) {
+      options.forkOptions.with {
+        memoryMaximumSize = "256M"
       }
     }
   }
+}
 
-  if (project.plugins.hasPlugin('kotlin')) {
-    ['compileKotlin', 'compileTestKotlin'].each { type ->
-      tasks.named(type) {
-        kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
-      }
+if (project.plugins.hasPlugin('kotlin')) {
+  ['compileKotlin', 'compileTestKotlin'].each { type ->
+    tasks.named(type) {
+      kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
   }
+}
 
-  tasks.withType(JavaExec).configureEach {
-    if (!it.maxHeapSize) {
-      it.maxHeapSize = '256M'
-    }
+tasks.withType(JavaExec).configureEach {
+  if (!it.maxHeapSize) {
+    it.maxHeapSize = '256M'
   }
 }
 
@@ -295,7 +335,7 @@ tasks.withType(JavaCompile).configureEach {
     def releaseFlagValue = options.release.getOrNull()
     if (releaseFlagValue != null && !JavaVersion.toVersion(targetCompatibility).isCompatibleWith(JavaVersion.toVersion(releaseFlagValue))) {
       logger.warn('⚠️ The release flag and targetCompatibility have different values **release will win**, targetCompatibility: ' + targetCompatibility.toString() + ', release: ' + releaseFlagValue + '\n' +
-        '  compiler: ' + javaCompiler.get().executablePath.asFile)
+      '  compiler: ' + javaCompiler.get().executablePath.asFile)
     }
   }
 }
