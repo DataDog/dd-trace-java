@@ -324,13 +324,14 @@ class TraceTaggingSmokeTest extends AbstractAppSecServerSmokeTest {
     assert rootSpan.meta['_dd.appsec.trace.agent'].startsWith("TraceTagging/v4")
     assert rootSpan.metrics['_dd.appsec.trace.integer'] == 1729
 
-    // Should NOT have USER_KEEP sampling priority since keep: false
-    assert rootSpan.metrics.get('_sampling_priority_v1') < 2, "Should not have USER_KEEP sampling priority when keep: false"
-
     // Check for WAF attack event (should exist since event: true)
     assert rootSpan.meta['_dd.appsec.json'] != null, "Missing WAF attack event"
     def appsecJson = new JsonSlurper().parseText(rootSpan.meta['_dd.appsec.json'])
     assert appsecJson.triggers != null, "Missing triggers in WAF attack event"
+
+    // Should NOT have USER_KEEP sampling priority since keep: false
+    assert rootSpan.metrics.get('_sampling_priority_v1') < 2, "Should not have USER_KEEP sampling priority when keep: false"
+
   }
 
 }
