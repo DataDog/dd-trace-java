@@ -522,11 +522,16 @@ public class DDSpanContext
   }
 
   private void forceKeepThisSpan(byte samplingMechanism) {
+    // two ways to force keep, sample or manual
+    int priority = PrioritySampling.SAMPLER_KEEP;
+    if (samplingMechanism == SamplingMechanism.MANUAL
+        || samplingMechanism == SamplingMechanism.APPSEC) {
+      priority = PrioritySampling.USER_KEEP;
+    }
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated
-    if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
-        == PrioritySampling.UNSET) {
-      propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
+    if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, priority) == PrioritySampling.UNSET) {
+      propagationTags.updateTraceSamplingPriority(priority, samplingMechanism);
     }
   }
 

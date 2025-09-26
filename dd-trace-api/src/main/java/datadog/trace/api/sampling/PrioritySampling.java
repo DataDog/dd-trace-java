@@ -5,6 +5,7 @@ public class PrioritySampling {
    * Implementation detail of the client. will not be sent to the agent or propagated.
    *
    * <p>Internal value used when the priority sampling flag has not been set on the span context.
+   * For more information, see the documentation on trace ingestion mechanisms
    */
   public static final byte UNSET = (byte) 0x80;
   /** The sampler has decided to drop the trace. */
