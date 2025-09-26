@@ -2,12 +2,16 @@ package datadog.gradle.plugin.dump
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.logging.Logging
+import org.gradle.api.provider.Provider
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.withType
 import java.io.File
 import java.lang.ProcessBuilder.Redirect
+import java.time.Duration
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
@@ -15,19 +19,31 @@ import java.util.concurrent.TimeUnit
  * Plugin to collect thread and heap dumps for hanged tests.
  */
 class DumpHangedTestPlugin : Plugin<Project> {
-  private val logger = Logging.getLogger(DumpHangedTestPlugin::class.java)
+  companion object {
+    private const val DUMP_FUTURE_KEY = "dumping_future"
+  }
 
-  private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
-    val thread = Thread(r, "hanged-test-dump")
-    thread.isDaemon = true
-    thread
+  /** Executor wrapped with proper Gradle lifecycle. */
+  abstract class DumpSchedulerService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    private val executor: ScheduledExecutorService =
+      Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hanged-test-dump").apply { isDaemon = true } }
+
+    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> =
+      executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
+
+    override fun close() {
+      executor.shutdownNow()
+    }
   }
 
   override fun apply(project: Project) {
+    val scheduler = project.gradle.sharedServices
+      .registerIfAbsent("dumpHangedTestScheduler", DumpSchedulerService::class.java)
+
     fun configure(p: Project) {
       p.tasks.withType<Test>().configureEach {
         val t = this
-        t.doFirst { schedule(t) }
+        t.doFirst { schedule(t, scheduler) }
         t.doLast { cleanup(t) }
       }
     }
@@ -39,32 +55,31 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
   }
 
-  private fun schedule(t: Test) {
+  private fun schedule(t: Test, scheduler: Provider<DumpSchedulerService>) {
     val taskName = t.path
-    val key = "dumping_future_$taskName"
 
-    if (t.extensions.extraProperties.has(key)) {
-      logger.warn("Taking dumps for: $taskName already scheduled.")
+    if (t.extensions.extraProperties.has(DUMP_FUTURE_KEY)) {
+      t.logger.lifecycle("Taking dumps already scheduled for: $taskName")
       return
     }
 
     if (!t.timeout.isPresent) {
-      logger.warn("No timeout for: $taskName; skipping dumps scheduler")
+      t.logger.lifecycle("Taking dumps has no timeout configured for: $taskName")
       return
     }
 
-    logger.warn("Taking dumps for: $taskName scheduled.")
+    t.logger.lifecycle("Taking dumps scheduled for: $taskName")
 
-    // Calculate delay for taking dumps as test timeout minus 1 minutes, but no less than 1 minute.
-    val delayMinutes = 1L.coerceAtLeast(t.timeout.get().minusMinutes(1).toMinutes())
+    // Calculate delay for taking dumps as test timeout minus 1 minute, but no less than 1 minute.
+    val delay = t.timeout.get().minusMinutes(1).coerceAtLeast(Duration.ofMinutes(1))
 
-    val future = scheduler.schedule({
-      logger.warn("Taking dumps for: $taskName after $delayMinutes minutes.")
+    val future = scheduler.get().schedule({
+      t.logger.lifecycle("Taking dumps after ${delay.toMinutes()} minutes delay for: $taskName")
 
       takeDump(t)
-    }, delayMinutes, TimeUnit.MINUTES)
+    }, delay)
 
-    t.extensions.extraProperties.set(key, future)
+    t.extensions.extraProperties.set(DUMP_FUTURE_KEY, future)
   }
 
   private fun takeDump(t: Test) {
@@ -117,15 +132,17 @@ class DumpHangedTestPlugin : Plugin<Project> {
         runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
       }
     } catch (e: Throwable) {
-      logger.warn("Taking dumps for: ${t.path} failed with error: ${e.message}.")
+      t.logger.warn("Taking dumps failed with error: ${e.message}, for: ${t.path}")
     }
   }
 
   private fun cleanup(t: Test) {
-    val future = t.extensions.extraProperties.get("dumping_future_${t.path}") as ScheduledFuture<*>?
+    val future = t.extensions.extraProperties
+      .takeIf { it.has(DUMP_FUTURE_KEY) }
+      ?.get(DUMP_FUTURE_KEY) as? ScheduledFuture<*>
 
     if (future != null && !future.isDone) {
-      logger.warn("Taking dump for: ${t.path} canceled with remaining delay of: ${future.getDelay(TimeUnit.SECONDS)} seconds")
+      t.logger.lifecycle("Taking dump canceled with remaining delay of ${future.getDelay(TimeUnit.SECONDS)} seconds for: ${t.path}")
       future.cancel(false)
     }
   }
