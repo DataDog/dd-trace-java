@@ -1,9 +1,9 @@
 package datadog.trace.util;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.trace.config.inversion.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -80,13 +80,13 @@ public final class PidHelper {
         return "/tmp";
       } else if (OperatingSystem.isWindows()) {
         return Stream.of("TMP", "TEMP", "USERPROFILE")
-            .map(EnvironmentVariables::get)
+            .map(ConfigHelper.get()::getEnvironmentVariable)
             .filter(Objects::nonNull)
             .filter(((Predicate<String>) String::isEmpty).negate())
             .findFirst()
             .orElse("C:\\Windows");
       } else if (OperatingSystem.isMacOs()) {
-        return EnvironmentVariables.get("TMPDIR");
+        return ConfigHelper.get().getEnvironmentVariable("TMPDIR");
       } else {
         return SystemProperties.get("java.io.tmpdir");
       }
