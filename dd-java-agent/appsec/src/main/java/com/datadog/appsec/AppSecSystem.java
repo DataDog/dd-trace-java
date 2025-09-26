@@ -1,7 +1,5 @@
 package com.datadog.appsec;
 
-import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
-import com.datadog.appsec.api.security.ApiSecurityDownstreamSamplerImpl;
 import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.api.security.ApiSecuritySamplerImpl;
 import com.datadog.appsec.api.security.AppSecSpanPostProcessor;
@@ -47,8 +45,6 @@ public class AppSecSystem {
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
   private static final AtomicBoolean API_SECURITY_INITIALIZED = new AtomicBoolean(false);
   private static volatile ApiSecuritySampler API_SECURITY_SAMPLER = new ApiSecuritySampler.NoOp();
-  private static volatile ApiSecurityDownstreamSampler API_SECURITY_DOWNSTREAM_SAMPLER =
-      new ApiSecurityDownstreamSampler.NoOp();
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -90,7 +86,6 @@ public class AppSecSystem {
             gw,
             REPLACEABLE_EVENT_PRODUCER,
             () -> API_SECURITY_SAMPLER,
-            () -> API_SECURITY_DOWNSTREAM_SAMPLER,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(
@@ -217,9 +212,6 @@ public class AppSecSystem {
         SpanPostProcessor.Holder.INSTANCE =
             new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
         API_SECURITY_SAMPLER = requestSampler;
-
-        final double rate = Config.get().getApiSecurityDownstreamRequestAnalysisSampleRate();
-        API_SECURITY_DOWNSTREAM_SAMPLER = new ApiSecurityDownstreamSamplerImpl(rate);
       }
     }
   }

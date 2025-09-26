@@ -847,7 +847,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
 
-  @IgnoreIf({ !instance.testAppSecAnalysis() })
+  @IgnoreIf({ !instance.testAppSecClientRequest() })
   void 'test appsec client request analysis'() {
     given:
     final url = server.address.resolve(endpoint)
@@ -992,7 +992,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     true
   }
 
-  boolean testAppSecAnalysis() {
+  boolean testAppSecClientRequest() {
     false
   }
 

@@ -92,7 +92,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   TraceSegmentPostProcessor pp = Mock()
   ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
   ApiSecurityDownstreamSampler downstreamSampler = Mock(ApiSecurityDownstreamSampler)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, () -> requestSampler, () -> downstreamSampler, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, () -> requestSampler, [pp]).tap {
+    it.downstreamSampler = downstreamSampler
+  }
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB

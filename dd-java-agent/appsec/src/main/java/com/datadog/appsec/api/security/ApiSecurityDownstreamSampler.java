@@ -10,6 +10,8 @@ public interface ApiSecurityDownstreamSampler {
 
   class NoOp implements ApiSecurityDownstreamSampler {
 
+    public static final NoOp INSTANCE = new NoOp();
+
     @Override
     public boolean sampleHttpClientRequest(AppSecRequestContext ctx, long requestId) {
       return false;

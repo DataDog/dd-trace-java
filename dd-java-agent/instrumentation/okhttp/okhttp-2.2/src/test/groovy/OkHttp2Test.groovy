@@ -50,7 +50,7 @@ abstract class OkHttp2Test extends HttpClientTest {
   }
 
   @Override
-  boolean testAppSecAnalysis() {
+  boolean testAppSecClientRequest() {
     true
   }
 }

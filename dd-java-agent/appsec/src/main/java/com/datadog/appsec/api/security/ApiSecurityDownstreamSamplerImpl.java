@@ -1,6 +1,7 @@
 package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import datadog.trace.api.Config;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ApiSecurityDownstreamSamplerImpl implements ApiSecurityDownstreamSampler {
@@ -9,12 +10,16 @@ public class ApiSecurityDownstreamSamplerImpl implements ApiSecurityDownstreamSa
   private final AtomicLong globalRequestCount;
   private final double threshold;
 
-  public ApiSecurityDownstreamSamplerImpl(double rate) {
+  public ApiSecurityDownstreamSamplerImpl() {
+    this(Config.get().getApiSecurityDownstreamRequestAnalysisSampleRate());
+  }
+
+  public ApiSecurityDownstreamSamplerImpl(final double rate) {
     threshold = samplingCutoff(rate < 0.0 ? 0 : (rate > 1.0 ? 1 : rate));
     globalRequestCount = new AtomicLong(0);
   }
 
-  private static double samplingCutoff(double rate) {
+  private static double samplingCutoff(final double rate) {
     final double max = Math.pow(2, 64) - 1;
     if (rate < 0.5) {
       return (long) (rate * max) + Long.MIN_VALUE;
