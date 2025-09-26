@@ -7,6 +7,7 @@ import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
 import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
@@ -86,7 +87,7 @@ class RetryTest extends InstrumentationSpecification {
     false           | true
   }
 
-  def "decorateCompletionStage retry twice on error"() {
+  def "decorateCompletionStage retry Flux on error"() {
     setup:
     ConnectableFlux<String> connection = Flux.just("abc")
       .map({ serviceCallErr(it, new IllegalStateException("error"))})
@@ -102,6 +103,49 @@ class RetryTest extends InstrumentationSpecification {
 
     runnableUnderTrace("parent") {
       connection.connect()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(4) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          parent()
+          errored false
+        }
+        span(1) {
+          operationName "resilience4j"
+          childOf span(0)
+          errored false
+        }
+        span(2) {
+          operationName "serviceCallErr/abc"
+          childOf span(1)
+          errored false
+        }
+        // second attempt span under the retry span
+        span(3) {
+          operationName "serviceCallErr/abc"
+          childOf span(1)
+          errored false
+        }
+      }
+    }
+  }
+
+  def "decorateCompletionStage retry Mono on error"() {
+    setup:
+    Mono<String> mono = Mono.just("abc")
+      .map({ serviceCallErr(it, new IllegalStateException("error"))})
+      .transformDeferred(RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(2).build())))
+
+    when:
+    runnableUnderTrace("parent") {
+      mono.subscribe {
+        // won't show up because of errors upstream
+        runnableUnderTrace("child-" + it) {}
+      }
     }
 
     then:
