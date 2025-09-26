@@ -36,7 +36,7 @@ public final class FileBasedPathLocator implements PathLocator {
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.libDirs);
+    return Arrays.hashCode(this.libDirs);
   }
 
   @Override
