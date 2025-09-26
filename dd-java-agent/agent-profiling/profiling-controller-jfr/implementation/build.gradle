@@ -56,9 +56,11 @@ idea {
 }
 
 tasks.withType(Test).configureEach {
-  if (javaLauncher.get().metadata.languageVersion.asInt() >= 9) {
-    jvmArgs += [
+  configureJvmArgs(
+    it,
+    JavaVersion.VERSION_1_9,
+    [
       '--add-opens',
       'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
-  }
+    )
 }
