@@ -4,7 +4,6 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
-import java.util.Objects;
 
 public final class FileBasedPathLocator implements PathLocator {
   private final File[] libDirs;
