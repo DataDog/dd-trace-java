@@ -32,14 +32,14 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'
-  implementation project(':dd-java-agent:instrumentation:servlet-common')
+  implementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')
 
   testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6') // See if there's any conflicts.
-  testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common')
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.0.0.v20091005'

@@ -19,7 +19,7 @@ configurations {
   testLogging
 }
 
-evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-5'
+evaluationDependsOn ':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'
 
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '22.0.0.1', ext: 'zip'
@@ -29,30 +29,30 @@ dependencies {
   compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
   testImplementation files({ tasks.installOpenLibertyDeps.extractedJars })
 
-  implementation project(':dd-java-agent:instrumentation:servlet:request-5')
+  implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:liberty-20')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly files({ tasks.shadowJar.archiveFile })
 
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
-  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
   webappImplementation files(
-    project(':dd-java-agent:instrumentation:servlet:request-5')
+    project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
     .getTasksByName('testFixturesJar', false).archiveFile
     )
   // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly libs.groovy
 }
-compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
+compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0:testFixturesJar'
 
 configurations.testRuntimeOnly {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -106,7 +106,7 @@ tasks.register('installOpenLibertyDeps', Copy) {
 tasks.register('webappCopyJars', Sync) {
   from configurations.webappRuntimeClasspath.findAll { it.name.endsWith('.jar') }
   into project.layout.buildDirectory.dir("$relAppDir/WEB-INF/lib")
-  dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
+  dependsOn ':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0:testFixturesJar'
 }
 [test, forkedTest]*.dependsOn webappCopyJars
 

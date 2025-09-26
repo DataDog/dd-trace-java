@@ -52,9 +52,9 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-beans-3.1')
 
   // Include servlet instrumentation for verifying the tomcat requests
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
-  testImplementation project(':dd-java-agent:instrumentation:servlet-common')
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
   // include also tomcat instrumentation
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
