@@ -22,7 +22,7 @@ dependencies {
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
 
   // servlet request instrumentation required for linking request to response.
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
 
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:instrumentation-testing')) {
