@@ -2,6 +2,7 @@ package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +42,19 @@ public class NativeLoaderBuilderTest {
     NativeLoader.Builder builder = NativeLoader.builder().nestedLayout();
 
     assertEquals(LibraryResolvers.nestedDirs(), builder.libResolver());
+  }
+
+  @Test
+  public void preloaded() {
+    PlatformSpec platformSpec =
+        TestPlatformSpec.of(TestPlatformSpec.LINUX, TestPlatformSpec.ARM32, TestPlatformSpec.GLIBC);
+
+    NativeLoader.Builder builder =
+        NativeLoader.builder().platformSpec(platformSpec).preloaded("foo", "bar");
+
+    LibraryResolver libResolver = builder.libResolver();
+    assertTrue(libResolver.isPreloaded(platformSpec, "foo"));
+    assertTrue(libResolver.isPreloaded(platformSpec, "bar"));
   }
 
   @Test
