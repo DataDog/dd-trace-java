@@ -3,10 +3,8 @@ package datadog.nativeloader;
 import java.net.URL;
 
 /**
-/**
  * FlatDirLibraryResolver - uses flat directories to provide more specific libraries to load
  * {os}-{arch}-{libc/musl}
- */
  */
 public final class FlatDirLibraryResolver implements LibraryResolver {
   public static final LibraryResolver INSTANCE = new FlatDirLibraryResolver();
