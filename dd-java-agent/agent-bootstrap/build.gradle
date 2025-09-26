@@ -67,7 +67,10 @@ jmh {
 }
 
 tasks.withType(Test).configureEach {
-  if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-    jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
-  }
+  configureJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
+    )
+
 }
