@@ -85,7 +85,6 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.flare.TracerFlarePoller;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -131,7 +130,7 @@ import org.slf4j.LoggerFactory;
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
  * reporting, and propagating traces
  */
-public class CoreTracer implements AgentTracer.TracerAPI {
+public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
@@ -164,8 +163,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
-
-  private final TracerFlarePoller tracerFlarePoller;
 
   private final TracingConfigPoller tracingConfigPoller;
 
@@ -328,7 +325,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
-    private boolean pollForTracerFlareRequests;
+    private boolean reportInTracerFlare;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
     private boolean flushOnClose;
@@ -455,8 +452,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder pollForTracerFlareRequests() {
-      this.pollForTracerFlareRequests = true;
+    public CoreTracerBuilder reportInTracerFlare() {
+      this.reportInTracerFlare = true;
       return this;
     }
 
@@ -534,7 +531,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
-          pollForTracerFlareRequests,
+          reportInTracerFlare,
           pollForTracingConfiguration,
           injectBaggageAsTags,
           flushOnClose);
@@ -566,7 +563,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean pollForTracerFlareRequests,
+      final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
       final boolean flushOnClose) {
@@ -594,7 +591,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         timeSource,
         dataStreamsMonitoring,
         profilingContextIntegration,
-        pollForTracerFlareRequests,
+        reportInTracerFlare,
         pollForTracingConfiguration,
         injectBaggageAsTags,
         flushOnClose);
@@ -625,7 +622,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean pollForTracerFlareRequests,
+      final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
       final boolean flushOnClose) {
@@ -636,6 +633,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
     assert baggageMapping != null;
 
+    if (reportInTracerFlare) {
+      TracerFlare.addReporter(this);
+    }
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     startTimeNano = this.timeSource.getCurrentTimeNanos();
     startNanoTicks = this.timeSource.getNanoTicks();
@@ -739,11 +739,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
-
-    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
-    if (pollForTracerFlareRequests) {
-      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
-    }
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
@@ -1288,7 +1283,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
-    tracerFlarePoller.stop();
     healthMetrics.close();
   }
 
@@ -1342,7 +1336,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return null;
   }
 
-  public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {
+  @Override
+  public void addReportToFlare(ZipOutputStream zip) throws IOException {
+    TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
     TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }
