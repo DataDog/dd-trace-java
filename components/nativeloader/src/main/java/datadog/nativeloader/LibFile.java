@@ -4,20 +4,21 @@ import java.io.File;
 
 /**
  * Represents a resolved library
+ *
  * <ul>
- * <li>library may be preloaded - with no backing file</li>
- * <li>regular file - that doesn't require clean-up</li>
- * <li>temporary file - copying from another source - that does require clean-up</li>
+ *   <li>library may be preloaded - with no backing file
+ *   <li>regular file - that doesn't require clean-up
+ *   <li>temporary file - copying from another source - that does require clean-up
  * </ul>
  */
 public final class LibFile implements AutoCloseable {
   static final boolean NO_CLEAN_UP = false;
   static final boolean CLEAN_UP = true;
-  
+
   static final LibFile preloaded(String libName) {
-	return new LibFile(libName, null, NO_CLEAN_UP);
+    return new LibFile(libName, null, NO_CLEAN_UP);
   }
-  
+
   static final LibFile fromFile(String libName, File file) {
     return new LibFile(libName, file, NO_CLEAN_UP);
   }
@@ -25,40 +26,40 @@ public final class LibFile implements AutoCloseable {
   static final LibFile fromTempFile(String libName, File file) {
     return new LibFile(libName, file, CLEAN_UP);
   }
-  
+
   final String libName;
-  
+
   final File file;
   final boolean needsCleanup;
-  
+
   LibFile(String libName, File file, boolean needsCleanup) {
     this.libName = libName;
-    
+
     this.file = file;
     this.needsCleanup = needsCleanup;
   }
-  
+
   public boolean isPreloaded() {
     return (this.file == null);
   }
-  
+
   public void load() throws LibraryLoadException {
-    if ( this.isPreloaded() ) return;
-    
+    if (this.isPreloaded()) return;
+
     try {
       Runtime.getRuntime().load(this.getAbsolutePath());
-    } catch ( Throwable t ) {
+    } catch (Throwable t) {
       throw new LibraryLoadException(this.libName, t);
     }
   }
-  
+
   public final String getAbsolutePath() {
     return this.file.getAbsolutePath();
   }
 
   @Override
   public void close() {
-    if ( this.needsCleanup ) {
+    if (this.needsCleanup) {
       NativeLoader.delete(this.file);
     }
   }
