@@ -85,7 +85,9 @@ tasks.named("forbiddenApisTest_java11") {
   failOnMissingClasses = false
 }
 
-tasks.named("compileTestJava") { dependsOn('generateTestClassNameTries') }
+tasks.named("compileTestJava") {
+  dependsOn('generateTestClassNameTries')
+}
 tasks.named("compileTest_java11Java") {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
