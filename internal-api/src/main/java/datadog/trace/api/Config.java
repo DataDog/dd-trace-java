@@ -535,6 +535,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HT
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -1123,6 +1125,9 @@ public class Config {
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
+
+  private final boolean resilience4jMeasuredEnabled;
+  private final boolean resilience4jTagMetricsEnabled;
 
   private final boolean igniteCacheIncludeKeys;
 
@@ -2549,6 +2554,10 @@ public class Config {
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
+
+    resilience4jMeasuredEnabled = configProvider.getBoolean(RESILIENCE4J_MEASURED_ENABLED, false);
+    resilience4jTagMetricsEnabled =
+        configProvider.getBoolean(RESILIENCE4J_TAG_METRICS_ENABLED, false);
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
@@ -4284,6 +4293,14 @@ public class Config {
     return hystrixMeasuredEnabled;
   }
 
+  public boolean isResilience4jMeasuredEnabled() {
+    return resilience4jMeasuredEnabled;
+  }
+
+  public boolean isResilience4jTagMetricsEnabled() {
+    return resilience4jTagMetricsEnabled;
+  }
+
   public boolean isIgniteCacheIncludeKeys() {
     return igniteCacheIncludeKeys;
   }
@@ -5696,6 +5713,10 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", resilience4jMeasuredEnable="
+        + resilience4jMeasuredEnabled
+        + ", resilience4jTagMetricsEnabled="
+        + resilience4jTagMetricsEnabled
         + ", igniteCacheIncludeKeys="
         + igniteCacheIncludeKeys
         + ", servletPrincipalEnabled="
