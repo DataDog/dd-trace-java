@@ -6,7 +6,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 
 public final class CircuitBreakerDecorator extends Resilience4jSpanDecorator<CircuitBreaker> {
   public static final CircuitBreakerDecorator DECORATE = new CircuitBreakerDecorator();
-  public static final String TAG_PREFIX = "resilience4j.circuit-breaker.";
+  public static final String TAG_PREFIX = "resilience4j.circuit_breaker.";
   public static final String TAG_METRICS_PREFIX = TAG_PREFIX + "metrics.";
 
   private CircuitBreakerDecorator() {
@@ -15,8 +15,8 @@ public final class CircuitBreakerDecorator extends Resilience4jSpanDecorator<Cir
 
   @Override
   public void decorate(AgentSpan span, CircuitBreaker data) {
-    span.setTag("resilience4j.circuit_breaker.name", data.getName());
-    span.setTag("resilience4j.circuit_breaker.state", data.getState().toString());
+    span.setTag(TAG_PREFIX + "name", data.getName());
+    span.setTag(TAG_PREFIX + "state", data.getState().toString());
     if (Config.get().isResilience4jTagMetricsEnabled()) {
       CircuitBreaker.Metrics ms = data.getMetrics();
       span.setTag(TAG_METRICS_PREFIX + "failure_rate", ms.getFailureRate());

@@ -68,15 +68,15 @@ class CircuitBreakerTest extends InstrumentationSpecification {
             "resilience4j.circuit_breaker.name" "cb1"
             "resilience4j.circuit_breaker.state" "CLOSED"
             if (tagMetricsEnabled) {
-              "resilience4j.circuit-breaker.metrics.failure_rate" 0.1f
-              "resilience4j.circuit-breaker.metrics.slow_call_rate" 0.2f
-              "resilience4j.circuit-breaker.metrics.buffered_calls" 12
-              "resilience4j.circuit-breaker.metrics.failed_calls" 13
-              "resilience4j.circuit-breaker.metrics.not_permitted_calls" 2
-              "resilience4j.circuit-breaker.metrics.slow_calls" 23
-              "resilience4j.circuit-breaker.metrics.slow_failed_calls" 3
-              "resilience4j.circuit-breaker.metrics.slow_successful_calls" 33
-              "resilience4j.circuit-breaker.metrics.successful_calls" 50
+              "resilience4j.circuit_breaker.metrics.failure_rate" 0.1f
+              "resilience4j.circuit_breaker.metrics.slow_call_rate" 0.2f
+              "resilience4j.circuit_breaker.metrics.buffered_calls" 12
+              "resilience4j.circuit_breaker.metrics.failed_calls" 13
+              "resilience4j.circuit_breaker.metrics.not_permitted_calls" 2
+              "resilience4j.circuit_breaker.metrics.slow_calls" 23
+              "resilience4j.circuit_breaker.metrics.slow_failed_calls" 3
+              "resilience4j.circuit_breaker.metrics.slow_successful_calls" 33
+              "resilience4j.circuit_breaker.metrics.successful_calls" 50
             }
             defaultTags()
           }
