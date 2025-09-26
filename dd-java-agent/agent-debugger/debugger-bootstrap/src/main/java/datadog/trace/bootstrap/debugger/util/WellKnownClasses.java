@@ -1,6 +1,12 @@
 package datadog.trace.bootstrap.debugger.util;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+import static java.lang.invoke.MethodType.methodType;
+
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -14,6 +20,7 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import org.slf4j.Logger;
@@ -144,12 +151,18 @@ public class WellKnownClasses {
       OPTIONALDOUBLE_SPECIAL_FIELDS = new HashMap<>();
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
       OPTIONALLONG_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      COMPLETABLEFUTURE_SPECIAL_FIELDS = new HashMap<>();
 
   static {
     OPTIONAL_SPECIAL_FIELDS.put("value", OptionalFields::value);
     OPTIONALINT_SPECIAL_FIELDS.put("value", OptionalFields::valueInt);
     OPTIONALDOUBLE_SPECIAL_FIELDS.put("value", OptionalFields::valueDouble);
     OPTIONALLONG_SPECIAL_FIELDS.put("value", OptionalFields::valueLong);
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      // Future::resultNow method is available since JDK 19
+      COMPLETABLEFUTURE_SPECIAL_FIELDS.put("result", CompletableFutureFields::result);
+    }
   }
 
   static {
@@ -158,6 +171,10 @@ public class WellKnownClasses {
     SPECIAL_TYPE_ACCESS.put(OptionalInt.class, OPTIONALINT_SPECIAL_FIELDS);
     SPECIAL_TYPE_ACCESS.put(OptionalDouble.class, OPTIONALDOUBLE_SPECIAL_FIELDS);
     SPECIAL_TYPE_ACCESS.put(OptionalLong.class, OPTIONALLONG_SPECIAL_FIELDS);
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      // Future::resultNow method is available since JDK 19
+      SPECIAL_TYPE_ACCESS.put(CompletableFuture.class, COMPLETABLEFUTURE_SPECIAL_FIELDS);
+    }
   }
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
@@ -403,6 +420,38 @@ public class WellKnownClasses {
     public static CapturedContext.CapturedValue valueLong(Object o) {
       return CapturedContext.CapturedValue.of(
           "value", Long.TYPE.getTypeName(), ((OptionalLong) o).orElse(0L));
+    }
+  }
+
+  private static class CompletableFutureFields {
+    private static final MethodHandle RESULT_NOW;
+
+    static {
+      MethodHandle methodHandle = null;
+      try {
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        methodHandle =
+            lookup.findVirtual(CompletableFuture.class, "resultNow", methodType(Object.class));
+      } catch (Exception e) {
+        LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up CompletableFuture::resultNow failed: ", e);
+      }
+      RESULT_NOW = methodHandle;
+    }
+
+    public static CapturedContext.CapturedValue result(Object o) {
+      if (RESULT_NOW == null) {
+        throw new UnsupportedOperationException("CompletableFuture::resultNow not available");
+      }
+      try {
+        CompletableFuture<?> future = (CompletableFuture<?>) o;
+        // need to check with isDone() to avoid getting exception if null.
+        // Known benign rare race condition result != null => result == null
+        // between isDone() and resultNow()
+        Object result = future.isDone() ? RESULT_NOW.invokeExact((future)) : null;
+        return CapturedContext.CapturedValue.of("result", Object.class.getTypeName(), result);
+      } catch (Throwable t) {
+        throw new RuntimeException(t);
+      }
     }
   }
 }

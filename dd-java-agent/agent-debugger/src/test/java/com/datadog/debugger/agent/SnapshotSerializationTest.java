@@ -30,6 +30,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -63,6 +64,7 @@ import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
@@ -306,6 +308,7 @@ public class SnapshotSerializationTest {
     StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
     File file = new File("/tmp/foo");
     Path path = file.toPath();
+    CompletableFuture<String> future = CompletableFuture.completedFuture("FutureCompleted!");
   }
 
   @Test
@@ -385,6 +388,12 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(objLocalFields, "file", File.class.getTypeName(), "/tmp/foo");
     // path
     assertPrimitiveValue(objLocalFields, "path", "sun.nio.fs.UnixPath", "/tmp/foo");
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      Map<String, Object> future = (Map<String, Object>) objLocalFields.get("future");
+      assertComplexClass(future, CompletableFuture.class.getTypeName());
+      Map<String, Object> futureFields = (Map<String, Object>) future.get(FIELDS);
+      assertPrimitiveValue(futureFields, "result", String.class.getTypeName(), "FutureCompleted!");
+    }
   }
 
   @Test
