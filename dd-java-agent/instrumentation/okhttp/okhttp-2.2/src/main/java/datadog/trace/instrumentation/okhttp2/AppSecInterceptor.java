@@ -67,8 +67,7 @@ public class AppSecInterceptor implements Interceptor {
         new HttpClientRequest(requestId, url, request.method(), mapHeaders(request.headers()));
     if (sampled && requestBody != null) {
       // we are going to effectively read all the request body in memory to be analyzed by the WAF,
-      // we also
-      // modify the outbound request accordingly
+      // we also modify the outbound request accordingly
       final MediaType mediaType = contentType(requestBody);
       try {
         final long contentLength = requestBody.contentLength();
