@@ -16,6 +16,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.function.BiFunction;
 import javax.ws.rs.core.MediaType;
@@ -60,7 +61,10 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
         @Advice.Argument(4) MediaType mediaType,
         @ActiveRequestContext RequestContext reqCtx) {
 
-      if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
+      // Handle both JSON and XML response bodies
+      if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)
+          && !MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
+          && !MediaType.TEXT_XML_TYPE.isCompatible(mediaType)) {
         return;
       }
 
@@ -71,7 +75,17 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      Flow<Void> flow = callback.apply(reqCtx, entity);
+      // Process XML entities for WAF compatibility
+      Object processedEntity = entity;
+      if ((MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
+              || MediaType.TEXT_XML_TYPE.isCompatible(mediaType))
+          && entity instanceof String) {
+        Object xmlProcessed =
+            XmlDomUtils.processXmlForWaf(entity, XmlDomUtils.DEFAULT_MAX_CONVERSION_DEPTH);
+        processedEntity = xmlProcessed != null ? xmlProcessed : entity;
+      }
+
+      Flow<Void> flow = callback.apply(reqCtx, processedEntity);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
