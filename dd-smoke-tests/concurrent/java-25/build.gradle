@@ -42,9 +42,10 @@ tasks.named('compileTestGroovy') {
 // * forbiddenApis is missing classes
 // * spotless as the google-java-format version does not support Java 25 and can't be changed once applied
 // * spotbugs failed to read class using newer bytecode versions
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
+
 ['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
   tasks.named(it) { enabled = false }
 }
