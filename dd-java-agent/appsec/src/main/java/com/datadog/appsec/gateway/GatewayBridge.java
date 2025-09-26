@@ -131,9 +131,24 @@ public class GatewayBridge {
       EventProducerService producerService,
       @Nonnull Supplier<ApiSecuritySampler> requestSamplerSupplier,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
+    this(
+        subscriptionService,
+        producerService,
+        requestSamplerSupplier,
+        null,
+        traceSegmentPostProcessors);
+  }
+
+  GatewayBridge(
+      SubscriptionService subscriptionService,
+      EventProducerService producerService,
+      @Nonnull Supplier<ApiSecuritySampler> requestSamplerSupplier,
+      ApiSecurityDownstreamSampler downstreamSampler,
+      List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.requestSamplerSupplier = requestSamplerSupplier;
+    this.downstreamSampler = downstreamSampler;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -1207,7 +1222,6 @@ public class GatewayBridge {
 
   private ApiSecurityDownstreamSampler downstreamSampler() {
     if (downstreamSampler == null) {
-      // we don't care about concurrency too much
       downstreamSampler = new ApiSecurityDownstreamSamplerImpl();
     }
     return downstreamSampler;
