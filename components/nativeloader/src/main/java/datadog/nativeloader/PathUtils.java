@@ -2,13 +2,18 @@ package datadog.nativeloader;
 
 /** Utilities for generating library file paths to be requested from a {@link PathLocator} */
 public final class PathUtils {
+  static final String UNSUPPORTED_OS = "Unsupported OS";
+  static final String UNSUPPORTED_ARCH = "Unsupported arch";
+  
   private PathUtils() {}
 
   public static final String libPrefix(PlatformSpec platformSpec) {
     if (platformSpec.isMac() || platformSpec.isLinux()) {
       return "lib";
-    } else {
+    } else if (platformSpec.isWindows()) {
       return "";
+    } else {
+      throw new IllegalArgumentException(UNSUPPORTED_OS);
     }
   }
 
@@ -24,7 +29,7 @@ public final class PathUtils {
     } else if (platformSpec.isMac()) {
       return "dylib";
     } else {
-      throw new IllegalArgumentException("Unsupported OS");
+      throw new IllegalArgumentException(UNSUPPORTED_OS);
     }
   }
 
@@ -36,7 +41,7 @@ public final class PathUtils {
     } else if (platformSpec.isMac()) {
       return "macos";
     } else {
-      throw new IllegalArgumentException("Unsupported OS");
+      throw new IllegalArgumentException(UNSUPPORTED_OS);
     }
   }
 
@@ -50,7 +55,7 @@ public final class PathUtils {
     } else if (platformSpec.isArm32()) {
       return "arm32";
     } else {
-      return "";
+      throw new IllegalArgumentException(UNSUPPORTED_ARCH);
     }
   }
 

@@ -3,7 +3,7 @@ package datadog.nativeloader;
 import datadog.environment.OperatingSystem;
 
 /**
- * Class that describes a native library "platform" -- including operating system, architecture, and
+ * PlatformSpec describes a native library "platform" -- including operating system, architecture, and
  * libc variation
  */
 public abstract class PlatformSpec {

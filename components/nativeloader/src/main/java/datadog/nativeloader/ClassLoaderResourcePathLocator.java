@@ -3,6 +3,9 @@ package datadog.nativeloader;
 import java.net.URL;
 import java.util.Objects;
 
+/**
+ * ClassLoaderResourcePathLocator locates library paths inside a {@link ClassLoader}
+ */
 public final class ClassLoaderResourcePathLocator implements PathLocator {
   private final ClassLoader classLoader;
   private final String baseResource;

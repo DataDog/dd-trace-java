@@ -39,10 +39,16 @@ public final class LibFile implements AutoCloseable {
     this.needsCleanup = needsCleanup;
   }
 
+  /**
+   * Indicates if this library was "preloaded"
+   */
   public boolean isPreloaded() {
     return (this.file == null);
   }
 
+  /**
+   * Loads the underlying library into the JVM
+   */
   public void load() throws LibraryLoadException {
     if (this.isPreloaded()) return;
 
@@ -53,10 +59,16 @@ public final class LibFile implements AutoCloseable {
     }
   }
 
+  /**
+   * Provides the an absolute path to the library -- returns null for pre-loaded libraries
+   */
   public final String getAbsolutePath() {
-    return this.file.getAbsolutePath();
+	return this.file == null ? null : this.file.getAbsolutePath();
   }
 
+  /**
+   * Schedules clean-up of underlying file -- if the file is a temp file
+   */
   @Override
   public void close() {
     if (this.needsCleanup) {

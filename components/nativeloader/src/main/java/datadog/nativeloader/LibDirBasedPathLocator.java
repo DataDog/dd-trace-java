@@ -5,10 +5,13 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 
-public final class FileBasedPathLocator implements PathLocator {
+/**
+ * LibDirBasedPathLocator locates libraries inside a list of library directories
+ */
+public final class LibDirBasedPathLocator implements PathLocator {
   private final File[] libDirs;
 
-  public FileBasedPathLocator(File... libDirs) {
+  public LibDirBasedPathLocator(File... libDirs) {
     this.libDirs = libDirs;
   }
 
@@ -40,9 +43,9 @@ public final class FileBasedPathLocator implements PathLocator {
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof FileBasedPathLocator)) return false;
+    if (!(obj instanceof LibDirBasedPathLocator)) return false;
 
-    FileBasedPathLocator that = (FileBasedPathLocator) obj;
+    LibDirBasedPathLocator that = (LibDirBasedPathLocator) obj;
     return Arrays.equals(this.libDirs, that.libDirs);
   }
 }

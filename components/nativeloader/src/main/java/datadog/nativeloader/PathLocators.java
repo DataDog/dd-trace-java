@@ -28,7 +28,7 @@ public final class PathLocators {
   }
 
   public static final PathLocator fromLibDirs(File... libDirs) {
-    return new FileBasedPathLocator(libDirs);
+    return new LibDirBasedPathLocator(libDirs);
   }
 
   public static final PathLocator fromJavaLibraryPath() {
@@ -36,7 +36,7 @@ public final class PathLocators {
     try {
       libPaths = System.getProperty("java.library.path");
     } catch (SecurityException e) {
-      return new FileBasedPathLocator();
+      return new LibDirBasedPathLocator();
     }
     return fromLibDirs(libPaths.split("\\:"));
   }
