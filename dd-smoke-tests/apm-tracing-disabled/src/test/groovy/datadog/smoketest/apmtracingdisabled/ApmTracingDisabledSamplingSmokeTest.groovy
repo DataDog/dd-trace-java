@@ -33,11 +33,11 @@ class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmok
     when: "firs request with ASM events"
     final vulnerableResponse = client.newCall(vulnerableRequest).execute()
 
-    then: "First trace should have a root span with USER_KEEP sampling priority due to ASM events"
+    then: "First trace should have a root span with SAMPLE_KEEP sampling priority due to ASM events"
     vulnerableResponse.successful
     waitForTraceCount(1)
     assert traces.size() == 1
-    checkRootSpanPrioritySampling(traces[0], PrioritySampling.USER_KEEP)
+    checkRootSpanPrioritySampling(traces[0], PrioritySampling.SAMPLER_KEEP)
     hasAppsecPropagationTag(traces[0])
 
     when: "Request without ASM events and  no force kept span"
@@ -94,7 +94,7 @@ class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmok
 
     and: 'ASM events, resulting in force keep and appsec propagation'
     def standAloneBillingTrace = getServiceTraceFromUrl("http://localhost:${httpPorts[0]}/rest-api/iast?injection=vulnerable&url=http://localhost:${httpPorts[0]}/rest-api/greetings")
-    checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
+    checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.SAMPLER_KEEP)
     hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
     def standAloneBillingTraceId = standAloneBillingTrace.spans[0].traceId
@@ -102,7 +102,7 @@ class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmok
 
     and: 'Default APM distributed tracing behavior with'
     def downstreamTrace = getServiceTraceFromUrl(downstreamUrl)
-    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
+    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.SAMPLER_KEEP)
     hasAppsecPropagationTag (downstreamTrace)
     hasApmDisabledTag (downstreamTrace)
     def downstreamTraceId = downstreamTrace.spans[0].traceId
@@ -130,7 +130,7 @@ class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmok
     response.successful
     waitForTraceCount(2)
     def downstreamTrace = getServiceTraceFromUrl("http://localhost:${httpPorts[0]}/rest-api/returnheaders")
-    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
+    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.SAMPLER_KEEP)
     def downstreamHeaders = jsonSlurper.parseText(response.body().string())
     downstreamHeaders["x-datadog-sampling-priority"] == "2"
   }

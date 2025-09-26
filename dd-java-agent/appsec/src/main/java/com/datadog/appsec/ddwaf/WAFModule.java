@@ -31,6 +31,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
@@ -403,7 +404,7 @@ public class WAFModule implements AppSecModule {
               log.debug("Setting force-keep tag and manual keep tag on the current span");
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
-              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+              activeSpan.getLocalRootSpan().setTag(DDTags.MANUAL_KEEP, true);
               // If APM is disabled, inform downstream services that the current
               // distributed trace contains at least one ASM event and must inherit
               // the given force-keep priority
@@ -430,6 +431,17 @@ public class WAFModule implements AppSecModule {
         // report is still done even without keep, in case sampler_keep is desired
         if (resultWithData.events) {
           reqCtx.reportEvents(events);
+          if (!reqCtx.isManuallyKept()) { // Then keep the sample keep behavior
+            if (!isThrottled) {
+              AgentSpan activeSpan = AgentTracer.get().activeSpan();
+              if (activeSpan != null) {
+                activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+                activeSpan
+                    .getLocalRootSpan()
+                    .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+              }
+            }
+          }
         }
       }
 

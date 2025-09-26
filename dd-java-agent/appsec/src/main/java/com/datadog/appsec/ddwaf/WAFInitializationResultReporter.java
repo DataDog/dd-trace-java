@@ -9,7 +9,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,5 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
     segment.setTagTop(RULES_LOADED, report.getNumConfigOK());
     segment.setTagTop(RULE_ERROR_COUNT, report.getNumConfigError());
     segment.setTagTop(WAF_VERSION, Waf.LIB_VERSION);
-
-    segment.setTagTop(Tags.ASM_KEEP, true);
   }
 }

@@ -730,7 +730,11 @@ public class GatewayBridge {
 
     if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
       if (!Config.get().isApmTracingEnabled()) {
-        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        if (ctx.isManuallyKept()) {
+          traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
+        } else {
+          traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        }
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
       }
     } else {
