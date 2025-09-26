@@ -13,17 +13,19 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
-[compileMain_java11Java, compileTestJava].each {
-  it.sourceCompatibility = JavaVersion.VERSION_11
-  it.targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
-  it.options.compilerArgs.addAll([
-    '-Xlint:all,-processing,-options,-path',
-    '--add-modules',
-    'jdk.internal.vm.ci',
-    '--add-exports',
-    'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
-  ])
+["compileMain_java11Java", "compileTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
+    it.sourceCompatibility = JavaVersion.VERSION_11
+    it.targetCompatibility = JavaVersion.VERSION_11
+    setJavaVersion(it, 11)
+    it.options.compilerArgs.addAll([
+      '-Xlint:all,-processing,-options,-path',
+      '--add-modules',
+      'jdk.internal.vm.ci',
+      '--add-exports',
+      'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
+    ])
+  }
 }
 
 dependencies {

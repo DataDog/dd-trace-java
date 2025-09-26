@@ -16,8 +16,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-[compileTestGroovy, compileLatestDepTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(17)
+  }
 }
 
 dependencies {

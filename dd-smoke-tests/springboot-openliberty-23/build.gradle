@@ -20,7 +20,7 @@ tasks.register('mvnStage', Exec) {
   outputs.file jarPath
 }
 
-tasks.named("compileTestGroovy") {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'mvnStage'
   outputs.upToDateWhen {
     !mvnStage.didWork

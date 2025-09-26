@@ -23,32 +23,32 @@ apply from: "${rootDir}/gradle/java.gradle"
 addTestSuite('latestDepTest')
 addTestSuiteForDir('cxf3LatestDepTest', 'test')
 
-[compileCxf3LatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.named("compileCxf3LatestDepTestJava", JavaCompile) {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-[compileLatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  setJavaVersion(it, 17)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-[compileLatestDepTestGroovy, latestDepTest].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(17)
-  }
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  javaLauncher = getJavaLauncherFor(17)
 }
 
-[compileCxf3LatestDepTestGroovy, cxf3LatestDepTest].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(11)
-  }
+tasks.named("latestDepTest", Test) {
+  javaLauncher = getJavaLauncherFor(17)
+}
+
+tasks.named("compileCxf3LatestDepTestGroovy", GroovyCompile) {
+  javaLauncher = getJavaLauncherFor(11)
+}
+
+tasks.named("cxf3LatestDepTest", Test) {
+  javaLauncher = getJavaLauncherFor(11)
 }
 
 dependencies {

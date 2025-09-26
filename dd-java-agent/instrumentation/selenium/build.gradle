@@ -42,7 +42,7 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('late
   }
 })
 
-tasks.named("compileLatestDepTestJava") {
+tasks.named("compileLatestDepTestJava", JavaCompile) {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8

@@ -72,12 +72,16 @@ configurations.configureEach {
   }
 }
 
-[compileLatest10TestGroovy, compileLatest10ForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
+["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(11)
+  }
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(17)
+  }
 }
 
 dependencies {

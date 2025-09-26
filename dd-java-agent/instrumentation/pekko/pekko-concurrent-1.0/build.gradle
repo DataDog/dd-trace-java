@@ -23,7 +23,7 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileLatestDepTestGroovy") {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 

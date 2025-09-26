@@ -18,7 +18,7 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 addTestSuite('akka23Test')
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileAkka23TestGroovy") {
+tasks.named("compileAkka23TestGroovy", GroovyCompile) {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
@@ -41,7 +41,7 @@ sourceSets {
     }
   }
 }
-tasks.named("compileLatestDepTestGroovy") {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 

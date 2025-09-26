@@ -31,8 +31,10 @@ addTestSuiteExtendingForDir("boot2LatestDepForkedTest", "boot2LatestDepTest", "t
 addTestSuiteExtendingForDir("boot3ForkedTest", "boot3Test", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
-[compileLatestDepTestGroovy, compileBoot3TestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+["compileLatestDepTestGroovy", "compileBoot3TestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(17)
+  }
 }
 
 dependencies {

@@ -10,12 +10,12 @@ apply plugin: 'scala'
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileTestGroovy") {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn "compileTestScala"
   classpath += files(compileTestScala.destinationDirectory)
 }
 
-tasks.named("compileLatestDepTestGroovy") {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   dependsOn "compileLatestDepTestScala"
   classpath += files(compileLatestDepTestScala.destinationDirectory)
 }

@@ -67,7 +67,7 @@ tasks.named("earBuild", Exec) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy") {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn tasks.earBuild
   outputs.upToDateWhen {
     !earBuild.didWork
