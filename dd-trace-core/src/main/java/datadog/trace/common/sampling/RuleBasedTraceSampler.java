@@ -5,8 +5,11 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.slf4j.Logger;
@@ -15,6 +18,13 @@ import org.slf4j.LoggerFactory;
 public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, PrioritySampler {
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedTraceSampler.class);
+  private static final DecimalFormat DECIMAL_FORMAT;
+
+  static {
+    DECIMAL_FORMAT = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    DECIMAL_FORMAT.setMaximumFractionDigits(6);
+  }
+
   private final List<RateSamplingRule> samplingRules;
   private final PrioritySampler fallbackSampler;
   private final SimpleRateLimiter rateLimiter;
@@ -22,6 +32,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
 
   public static final String SAMPLING_RULE_RATE = "_dd.rule_psr";
   public static final String SAMPLING_LIMIT_RATE = "_dd.limit_psr";
+  public static final String KNUTH_SAMPLING_RATE = "_dd.p.ksr";
 
   public RuleBasedTraceSampler(
       final List<RateSamplingRule> samplingRules,
@@ -168,6 +179,15 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
             matchedRule.getSampler().getSampleRate(),
             matchedRule.getMechanism());
       }
+
+      // Set Knuth sampling rate tag
+      String ksrRate = formatKnuthSamplingRate(matchedRule.getSampler().getSampleRate());
+      span.setTag(KNUTH_SAMPLING_RATE, ksrRate);
     }
+  }
+
+  private String formatKnuthSamplingRate(double rate) {
+    // Format to up to 6 decimal places, removing trailing zeros
+    return DECIMAL_FORMAT.format(rate);
   }
 }
