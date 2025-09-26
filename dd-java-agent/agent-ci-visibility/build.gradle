@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 buildscript {
   repositories {
     mavenLocal()
@@ -57,10 +59,10 @@ dependencies {
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }

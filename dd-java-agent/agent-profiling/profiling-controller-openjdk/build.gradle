@@ -48,7 +48,7 @@ dependencies {
   }
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 
