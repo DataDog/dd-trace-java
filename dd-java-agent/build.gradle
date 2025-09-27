@@ -218,7 +218,7 @@ tasks.named("shadowJar", ShadowJar) {
       "Premain-Class": "datadog.trace.bootstrap.AgentPreCheck",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
-    )
+      )
   }
 }
 
