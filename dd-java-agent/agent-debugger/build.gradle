@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -62,7 +64,7 @@ dependencies {
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
   dependencies {
     exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
