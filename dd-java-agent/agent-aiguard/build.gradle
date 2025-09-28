@@ -1,0 +1,46 @@
+plugins {
+  id 'com.gradleup.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+  api libs.slf4j
+  implementation libs.moshi
+  implementation libs.okhttp
+
+  api project(':dd-trace-api')
+  implementation project(':internal-api')
+  implementation project(':communication')
+
+  testImplementation project(':utils:test-utils')
+  testImplementation('org.skyscreamer:jsonassert:1.5.1')
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = []
+  excludedClassesBranchCoverage = []
+  excludedClassesInstructionCoverage = []
+}
+
+spotless {
+  java {
+    target 'src/**/*.java'
+  }
+}
