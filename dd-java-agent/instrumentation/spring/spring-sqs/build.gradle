@@ -1,0 +1,25 @@
+muzzle {
+  pass {
+    group = 'io.awspring.cloud'
+    module = 'spring-cloud-aws-sqs'
+    versions = "[3.0.0,)"
+    assertInverse = true
+  }
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+[compileTestGroovy, compileLatestDepTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(17)
+}
+
+dependencies {
+  compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.20.162'
+  compileOnly group: 'org.springframework', name: 'spring-messaging', version: '5.3.23'
+}
