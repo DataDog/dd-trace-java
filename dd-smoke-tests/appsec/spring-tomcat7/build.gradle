@@ -30,4 +30,7 @@ task testRuntimeActivation(type: Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
     "-Ddatadog.smoketest.appsec.springtomcat7.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+
+tasks.named('check') {
+  dependsOn(testRuntimeActivation)
+}

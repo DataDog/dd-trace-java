@@ -10,6 +10,7 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Java 11 Smoke Tests.'
 
 dependencies {
@@ -22,13 +23,13 @@ dependencies {
   implementation project(':dd-smoke-tests:iast-util:iast-util-11')
 }
 
-tasks.named("compileJava", JavaCompile).configure {
+tasks.named("compileJava", JavaCompile) {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 

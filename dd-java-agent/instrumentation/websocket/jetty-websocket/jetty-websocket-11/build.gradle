@@ -29,7 +29,7 @@ dependencies {
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0")
 
-  configurations.all {
+  configurations.configureEach {
     it.resolutionStrategy {
       force libs.slf4j
     }

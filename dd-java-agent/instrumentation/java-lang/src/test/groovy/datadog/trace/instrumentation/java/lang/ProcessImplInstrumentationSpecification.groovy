@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.SpanAssert
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.ActiveSubsystems
 
 import java.util.concurrent.TimeUnit
 
-class ProcessImplInstrumentationSpecification extends AgentTestRunner {
+class ProcessImplInstrumentationSpecification extends InstrumentationSpecification {
 
   boolean previousAppsecState = false
 

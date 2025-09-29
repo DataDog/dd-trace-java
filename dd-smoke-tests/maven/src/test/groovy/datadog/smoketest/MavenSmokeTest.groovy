@@ -1,6 +1,5 @@
 package datadog.smoketest
 
-import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
@@ -9,23 +8,27 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.apache.maven.wrapper.MavenWrapperMain
-import org.junit.jupiter.api.Assumptions
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
-import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
 
 import javax.xml.parsers.DocumentBuilder
 import javax.xml.parsers.DocumentBuilderFactory
-import java.nio.file.*
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
@@ -50,12 +53,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.reset()
   }
 
-  @IgnoreIf(reason = "TODO: Fix for Java 25. test_successful_maven_run_junit_platform_runner jacoco coverage is failing, possibly due to lack of jacoco support for Java 25. Recommended fix is to update DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION when support is added: https://github.com/jacoco/jacoco/releases", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(25)
-  })
   def "test #projectName, v#mavenVersion"() {
     println "Starting: ${projectName} ${mavenVersion}"
-    Assumptions.assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
+    assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
       "Current JVM " + Jvm.current.javaVersion + " is not compatible with minimum required version " + minSupportedJavaVersion)
 
     givenWrapperPropertiesFile(mavenVersion)
@@ -161,7 +161,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder)
 
     where:
-    testcaseName                       | projectName                                                | mavenVersion | surefireVersion                 | flakyTests                                           | knownTests | expectedOrder                                                                       | eventsNumber
+    testcaseName                       | projectName                                                | mavenVersion | surefireVersion                 | flakyTests                                           | knownTests | expectedOrder | eventsNumber
     "junit4-provider"                  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | "3.0.0"                         | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
@@ -177,7 +177,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                                                                                                                                                                                                                                          | 15
+    ]                                                                                                                                                                                                                                    | 15
     "junit47-provider"                 | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | "3.0.0"                         | [test("datadog.smoke.TestSucceedC", "test_succeed")] | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
@@ -185,7 +185,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                                                                                                                                                                                                                                          | 12
+    ]                                                                                                                                                                                                                                    | 12
     "junit4-provider-latest-surefire"  | "test_successful_maven_run_junit4_class_ordering"          | "3.9.9"      | getLatestMavenSurefireVersion() | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
@@ -201,7 +201,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                                                                                                                                                                                                                                          | 15
+    ]                                                                                                                                                                                                                                    | 15
     "junit47-provider-latest-surefire" | "test_successful_maven_run_junit4_class_ordering_parallel" | "3.9.9"      | getLatestMavenSurefireVersion() | [test("datadog.smoke.TestSucceedC", "test_succeed")] | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
@@ -209,7 +209,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                                                                                                                                                                                                                                                          | 12
+    ]                                                                                                                                                                                                                                    | 12
   }
 
   def "test service name is propagated to child processes"() {

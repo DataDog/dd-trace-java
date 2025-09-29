@@ -26,15 +26,15 @@ apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 addTestSuite('latestDepTest')
 
-tasks.named("compileTestFixturesGroovy").configure {
+tasks.named("compileTestFixturesGroovy") {
   classpath += files(compileTestFixturesKotlin.destinationDirectory)
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   classpath += files(compileTestKotlin.destinationDirectory)
 }
 
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy") {
   classpath += files(compileLatestDepTestKotlin.destinationDirectory)
 }
 
@@ -47,7 +47,7 @@ dependencies {
   testFixturesImplementation libs.coroutines
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
-  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
   testFixturesApi 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 
   testImplementation libs.kotlin

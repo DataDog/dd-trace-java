@@ -55,6 +55,11 @@ public class WebController {
     return obj.v;
   }
 
+  @PostMapping("/api_security/request-body-string")
+  public String requestBodyString(@RequestBody String body) {
+    return body;
+  }
+
   @GetMapping("/sqli/query")
   public String sqliQuery(@RequestParam("id") String id) throws Exception {
     Connection conn = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");

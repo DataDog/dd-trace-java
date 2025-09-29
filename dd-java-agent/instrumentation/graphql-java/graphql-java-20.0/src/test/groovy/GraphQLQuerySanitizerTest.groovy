@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.graphqljava.GraphQLQuerySanitizer
 import graphql.parser.Parser
 
-class GraphQLQuerySanitizerTest extends AgentTestRunner {
+class GraphQLQuerySanitizerTest extends InstrumentationSpecification {
   private Parser parser = new Parser()
 
   def "sanitizes the use of a String literal in query"() {

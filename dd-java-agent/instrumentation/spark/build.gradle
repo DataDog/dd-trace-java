@@ -3,7 +3,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 dependencies {
@@ -15,7 +15,7 @@ dependencies {
 
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
-  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
 
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'

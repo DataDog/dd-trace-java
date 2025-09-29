@@ -50,7 +50,9 @@ class IastAkkaTest extends IastRequestTestRunner {
       value 'myValue'
       range 0, 7, source(SourceTypes.REQUEST_PATH_PARAMETER, null, 'myValue')
     }
-    toc.size() == 1
+    // After migrating from JUnit 4 to 5, the IAST instrumentation scope has expanded so that the following are tainted:
+    // - Accept-Encoding, Connection, Host, HttpRequest, User-Agent, RequestContext, Timeout-Access, Remote-Address, myValue
+    toc.size() == 9
   }
 
   void 'cookie — #variant variant'() {

@@ -1,6 +1,6 @@
 package test
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.WeakCipherModule
 import foo.bar.TestSuite
@@ -11,7 +11,7 @@ import java.security.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class WeakCipherTest extends AgentTestRunner {
+class WeakCipherTest extends InstrumentationSpecification {
 
   def "unavailable cipher algorithm"() {
 

@@ -17,7 +17,7 @@ tasks.withType(GroovyCompile).configureEach {
 
 dependencies {
 
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0')
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: springBootVersion
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
@@ -27,6 +27,6 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
 }

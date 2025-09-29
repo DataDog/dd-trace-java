@@ -13,7 +13,7 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final path = newFile('test.txt').toString()
+    final path = newFile('test_iast_1.txt').toString()
 
     when:
     TestFileOutputStreamSuite.newFileOutputStream(path)
@@ -26,7 +26,7 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final path = newFile('test.txt').toString()
+    final path = newFile('test_iast_2.txt').toString()
 
     when:
     TestFileOutputStreamSuite.newFileOutputStream(path, false)
@@ -39,7 +39,7 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     final helper = Mock(FileLoadedRaspHelper)
     FileLoadedRaspHelper.INSTANCE = helper
-    final path = newFile('test.txt').toString()
+    final path = newFile('test_rasp_1.txt').toString()
 
     when:
     TestFileOutputStreamSuite.newFileOutputStream(path)
@@ -52,7 +52,7 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     setup:
     final helper = Mock(FileLoadedRaspHelper)
     FileLoadedRaspHelper.INSTANCE = helper
-    final path = newFile('test.txt').toString()
+    final path = newFile('test_rasp_2.txt').toString()
 
     when:
     TestFileOutputStreamSuite.newFileOutputStream(path, false)

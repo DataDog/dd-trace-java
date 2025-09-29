@@ -36,15 +36,15 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:span-origin')
   main_java17Implementation project(':dd-java-agent:instrumentation:span-origin')
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude(module: 'jetty-server') // incompatible servlet api
   }
 
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1')
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-5.3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-5.5')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-5')

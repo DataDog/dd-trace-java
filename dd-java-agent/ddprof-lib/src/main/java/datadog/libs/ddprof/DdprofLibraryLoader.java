@@ -2,6 +2,7 @@ package datadog.libs.ddprof;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.datadoghq.profiler.JavaProfiler;
+import com.datadoghq.profiler.OTelContext;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.TempLocationManager;
@@ -91,11 +92,24 @@ public final class DdprofLibraryLoader {
     }
   }
 
+  public static final class OTelContextHolder extends ComponentHolder<OTelContext> {
+    public OTelContextHolder(Supplier<? extends ComponentHolder<OTelContext>> initializer) {
+      super(initializer);
+    }
+
+    OTelContextHolder(OTelContext component, Throwable reasonNotLoaded) {
+      super(component, reasonNotLoaded);
+    }
+  }
+
   private static final JavaProfilerHolder PROFILER_HOLDER =
       new JavaProfilerHolder(DdprofLibraryLoader::initJavaProfiler);
 
   private static final JVMAccessHolder JVM_ACCESS_HOLDER =
       new JVMAccessHolder(DdprofLibraryLoader::initJVMAccess);
+
+  private static final OTelContextHolder OTEL_CONTEXT_HOLDER =
+      new OTelContextHolder(DdprofLibraryLoader::initOtelContext);
 
   public static JavaProfilerHolder javaProfiler() {
     return PROFILER_HOLDER;
@@ -103,6 +117,10 @@ public final class DdprofLibraryLoader {
 
   public static JVMAccessHolder jvmAccess() {
     return JVM_ACCESS_HOLDER;
+  }
+
+  public static OTelContextHolder otelContext() {
+    return OTEL_CONTEXT_HOLDER;
   }
 
   private static JavaProfilerHolder initJavaProfiler() {
@@ -142,6 +160,26 @@ public final class DdprofLibraryLoader {
       jvmAccess = null;
     }
     return new JVMAccessHolder(jvmAccess, reasonNotLoaded.get());
+  }
+
+  private static OTelContextHolder initOtelContext() {
+    ConfigProvider configProvider = ConfigProvider.getInstance();
+    AtomicReference<Throwable> reasonNotLoaded = new AtomicReference<>();
+    OTelContext otelContext = null;
+    try {
+      String scratchDir = getScratchDir(configProvider);
+      otelContext = new OTelContext(null, scratchDir, reasonNotLoaded::set);
+    } catch (Throwable t) {
+      if (reasonNotLoaded.get() == null) {
+        reasonNotLoaded.set(t);
+      } else {
+        // if we already have a reason, don't overwrite it
+        // this can happen if the OTelContext constructor throws an exception
+        // and then the execute method throws another one
+      }
+      otelContext = null;
+    }
+    return new OTelContextHolder(otelContext, reasonNotLoaded.get());
   }
 
   private static String getScratchDir(ConfigProvider configProvider) throws IOException {

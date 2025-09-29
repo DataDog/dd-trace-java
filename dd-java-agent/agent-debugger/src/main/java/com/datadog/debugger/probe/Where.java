@@ -127,27 +127,38 @@ public class Where {
     return methodName == null || methodName.equals("*") || methodName.equals(targetMethod);
   }
 
-  public boolean isMethodMatching(MethodNode methodNode, ClassFileLines classFileLines) {
+  public enum MethodMatching {
+    MATCH,
+    SKIP,
+    FAIL
+  }
+
+  public MethodMatching isMethodMatching(MethodNode methodNode, ClassFileLines classFileLines) {
     String targetName = methodNode.name;
     String targetMethodDescriptor = methodNode.desc;
     // try exact matching: name + FQN signature
-    if (!isMethodNameMatching(targetName)
-        || ((methodNode.access & Opcodes.ACC_BRIDGE) == Opcodes.ACC_BRIDGE)) {
-      return false;
+    if (!isMethodNameMatching(targetName)) {
+      return MethodMatching.FAIL;
+    }
+    if ((methodNode.access & Opcodes.ACC_BRIDGE) == Opcodes.ACC_BRIDGE) {
+      // name is matching but method is a bridge method
+      return MethodMatching.SKIP;
     }
     if (signature == null) {
       if (lines == null || lines.length == 0) {
-        return true;
+        return MethodMatching.MATCH;
       }
       // try matching by line
       List<MethodNode> methodsByLine = classFileLines.getMethodsByLine(lines[0].getFrom());
       if (methodsByLine == null || methodsByLine.isEmpty()) {
-        return false;
+        return MethodMatching.FAIL;
       }
-      return methodsByLine.stream().anyMatch(m -> m == methodNode);
+      return methodsByLine.stream().anyMatch(m -> m == methodNode)
+          ? MethodMatching.MATCH
+          : MethodMatching.FAIL;
     }
     if (signature.equals("*") || signature.equals(targetMethodDescriptor)) {
-      return true;
+      return MethodMatching.MATCH;
     }
     // try full JVM signature: "(Ljava.lang.String;Ljava.util.Map;I)V"
     if (probeMethodDescriptor == null) {
@@ -160,20 +171,22 @@ public class Where {
       }
     }
     if (probeMethodDescriptor.isEmpty()) {
-      return true;
+      return MethodMatching.MATCH;
     }
     if (probeMethodDescriptor.equals(targetMethodDescriptor)) {
-      return true;
+      return MethodMatching.MATCH;
     }
     // fallback to signature without return type: "Ljava.lang.String;Ljava.util.Map;I"
     String noRetTypeDescriptor = removeReturnType(probeMethodDescriptor);
     targetMethodDescriptor = removeReturnType(targetMethodDescriptor);
     if (noRetTypeDescriptor.equals(targetMethodDescriptor)) {
-      return true;
+      return MethodMatching.MATCH;
     }
     // Fallback to signature without Fully Qualified Name: "LString;LMap;I"
     String simplifiedSignature = removeFQN(targetMethodDescriptor);
-    return noRetTypeDescriptor.equals(simplifiedSignature);
+    return noRetTypeDescriptor.equals(simplifiedSignature)
+        ? MethodMatching.MATCH
+        : MethodMatching.FAIL;
   }
 
   private static boolean isMissingReturnType(String probeMethodDescriptor) {

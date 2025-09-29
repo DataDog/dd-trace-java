@@ -49,8 +49,14 @@ public class BackendApiFactory {
       String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
       String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
       HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
+      String subdomain = intake.getUrlPrefix();
       return new EvpProxyApi(
-          traceId, evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient, true);
+          traceId,
+          evpProxyUrl,
+          subdomain,
+          retryPolicyFactory,
+          sharedCommunicationObjects.okHttpClient,
+          true);
     }
 
     log.warn(

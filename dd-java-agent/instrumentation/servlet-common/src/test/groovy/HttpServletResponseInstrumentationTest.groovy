@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule
@@ -10,7 +10,7 @@ import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletResponse
 import javax.servlet.http.HttpServletResponseWrapper
 
-class HttpServletResponseInstrumentationTest extends AgentTestRunner {
+class HttpServletResponseInstrumentationTest extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')

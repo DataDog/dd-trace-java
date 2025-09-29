@@ -1,0 +1,8 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api project(':dd-java-agent:instrumentation-testing')
+  api project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
+}
+

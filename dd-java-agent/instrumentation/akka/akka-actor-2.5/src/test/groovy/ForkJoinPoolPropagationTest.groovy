@@ -1,8 +1,8 @@
 import akka.dispatch.forkjoin.ForkJoinPool
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 
-class ForkJoinPoolPropagationTest extends AgentTestRunner {
+class ForkJoinPoolPropagationTest extends InstrumentationSpecification {
   def "test imbalanced recursive task propagation #parallelism FJP threads" () {
     when:
     ForkJoinPool fjp = new ForkJoinPool(parallelism)

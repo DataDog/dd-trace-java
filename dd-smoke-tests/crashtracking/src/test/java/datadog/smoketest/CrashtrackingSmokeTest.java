@@ -1,7 +1,5 @@
 package datadog.smoketest;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -333,8 +331,8 @@ public class CrashtrackingSmokeTest {
   private void assertCrashData() throws InterruptedException {
     CrashTelemetryData crashData = crashEvents.poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     assertNotNull(crashData, "Crash data not uploaded");
-    assertThat(crashData.payload.get(0).message, containsString("OutOfMemory"));
-    assertThat(crashData.payload.get(0).tags, containsString("severity:crash"));
+    assertTrue(crashData.payload.get(0).message.contains("OutOfMemory"));
+    assertTrue(crashData.payload.get(0).tags.contains("severity:crash"));
   }
 
   private void assertOOMEvent() throws InterruptedException {
@@ -345,8 +343,8 @@ public class CrashtrackingSmokeTest {
 
     assertNotNull(event, "OOM Event not received");
 
-    assertThat(event, containsString(":OutOfMemoryError"));
-    assertThat(event, containsString("t:error"));
-    assertThat(event, containsString("s:java"));
+    assertTrue(event.contains(":OutOfMemoryError"));
+    assertTrue(event.contains("t:error"));
+    assertTrue(event.contains("s:java"));
   }
 }

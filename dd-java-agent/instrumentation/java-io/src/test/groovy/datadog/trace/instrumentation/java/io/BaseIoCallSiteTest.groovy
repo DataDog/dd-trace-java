@@ -1,13 +1,16 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+import datadog.trace.agent.test.InstrumentationSpecification
+import spock.lang.Shared
+import spock.lang.TempDir
 
-abstract class BaseIoCallSiteTest extends AgentTestRunner {
+import java.nio.file.Files
+import java.nio.file.Path
 
-  @Rule
-  TemporaryFolder temporaryFolder = new TemporaryFolder(parentFolder())
+abstract class BaseIoCallSiteTest extends InstrumentationSpecification {
+  @Shared
+  @TempDir
+  Path temporaryFolder
 
   @Override
   protected void configurePreAgent() {
@@ -15,28 +18,12 @@ abstract class BaseIoCallSiteTest extends AgentTestRunner {
   }
 
   protected File newFile(final String name) {
-    return temporaryFolder.newFile(name)
+    Path p = temporaryFolder.resolve(name)
+    Files.createDirectories(p.getParent())
+    return Files.createFile(p).toFile()
   }
 
-  protected File getRootFolder() {
+  protected Path getRootFolder() {
     return temporaryFolder.getRoot()
-  }
-
-  /**
-   * We cannot use @TempDir from spock due to dependencies, this method tries to write to the build folder to prevent
-   * permissions with /tmp
-   */
-  private static File parentFolder() {
-    def folder = new File(BaseIoCallSiteTest.getResource('.').toURI())
-    while (folder.name != 'build') {
-      folder = folder.parentFile
-    }
-    folder = new File(folder, 'tmp')
-    if (!folder.exists()) {
-      if (!folder.mkdirs()) {
-        throw new RuntimeException('Cannot create folder ' + folder)
-      }
-    }
-    return folder
   }
 }
