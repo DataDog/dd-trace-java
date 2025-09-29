@@ -600,7 +600,7 @@ include(
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12",
-  ":dd-java-agent:instrumentation:websphere-jmx",
+  ":dd-java-agent:instrumentation:websphere-jmx-8.5",
   ":dd-java-agent:instrumentation:wildfly-9.0",
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
