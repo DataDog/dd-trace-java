@@ -7,8 +7,8 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
-
 String testWebAppDir = 'wlp/usr/servers/defaultServer/dropins/war/testapp'
+
 sourceSets {
   register("webapp") {
     java {
@@ -69,6 +69,18 @@ configurations.named("testRuntimeOnly") {
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
+}
+
+tasks.named("compileJava") {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Since JDK 18/19 (https://bugs.openjdk.org/browse/JDK-8272715) javac compiler use `INVOKEINTERFACE` bytecode to " +
+    "call Object's class like `getClass` on \"com/ibm/wsspi/http/HttpRequest\", rather than, `INVOKEVIRTUAL` byte " +
+    "code to call `getClass` on \"java/lang/Object\", this code perfectly legal according to JLS 9.2, " +
+    "however this fails in Muzzle checks."
+    )
 }
 
 // unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
