@@ -64,6 +64,16 @@ configurations.webappRuntimeClasspath {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
 
+tasks.named("compileJava") {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Modern javac compiler use `INVOKEINTERFACE` bytecode to call `getClass` on \"com/ibm/wsspi/http/HttpRequest\", rather than," +
+    "`INVOKEVIRTUAL` byte code to call `getClass` on \"java/lang/Object\", this fails in Muzzle."
+    )
+}
+
 //unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
 tasks.register('installOpenLibertyDeps', Copy) {
   def extractDir = "${buildDir}/openliberty-jars"
