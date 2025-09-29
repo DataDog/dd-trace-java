@@ -18,7 +18,11 @@ public final class UnionMap<K, V> extends AbstractMap<K, V> implements Serializa
   private Map<K, V> secondaryMap;
   private transient Set<Map.Entry<K, V>> entrySet;
   private transient volatile boolean deduped;
-  private static final ThreadLocal<UnionMap<?, ?>> TL = new ThreadLocal<>();
+  private static final ThreadLocal<UnionMap<?, ?>> TL = ThreadLocal.withInitial(UnionMap::new);
+
+  private UnionMap() {
+    this(null, null);
+  }
 
   public UnionMap(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
     this.primaryMap = primaryMap;
@@ -26,16 +30,11 @@ public final class UnionMap<K, V> extends AbstractMap<K, V> implements Serializa
   }
 
   @SuppressWarnings({"unchecked"})
-  public static <K, V> UnionMap<K, V> create(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
+  public static <K, V> UnionMap<K, V> obtain(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
     UnionMap ret = TL.get();
-    if (ret == null) {
-      ret = new UnionMap(primaryMap, secondaryMap);
-      TL.set(ret);
-    } else {
-      ret.primaryMap = primaryMap;
-      ret.secondaryMap = secondaryMap;
-      ret.deduped = false;
-    }
+    ret.primaryMap = primaryMap;
+    ret.secondaryMap = secondaryMap;
+    ret.deduped = false;
     return ret;
   }
 

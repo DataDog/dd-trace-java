@@ -103,7 +103,7 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
         correlationValues.put(Tags.DD_VERSION, version);
       }
 
-      mdc = null != mdc ? UnionMap.create(mdc, correlationValues) : correlationValues;
+      mdc = null != mdc ? UnionMap.obtain(mdc, correlationValues) : correlationValues;
     }
   }
 }
