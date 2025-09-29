@@ -69,4 +69,9 @@ public final class IastServlet2Instrumentation extends InstrumenterModule.Iast
   protected boolean isOptOutEnabled() {
     return true;
   }
+
+  @Override
+  public int order() {
+    return 1;
+  }
 }

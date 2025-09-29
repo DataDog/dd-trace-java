@@ -75,4 +75,9 @@ public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppS
       "datadog.trace.instrumentation.servlet3.Servlet31InputStreamWrapper"
     };
   }
+
+  @Override
+  public int order() {
+    return 1;
+  }
 }

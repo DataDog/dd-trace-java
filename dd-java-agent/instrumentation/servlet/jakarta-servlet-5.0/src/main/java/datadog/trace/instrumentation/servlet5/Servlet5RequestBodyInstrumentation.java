@@ -59,4 +59,9 @@ public class Servlet5RequestBodyInstrumentation extends InstrumenterModule.AppSe
       "datadog.trace.instrumentation.servlet5.Servlet31InputStreamWrapper"
     };
   }
+
+  @Override
+  public int order() {
+    return 1;
+  }
 }

@@ -96,6 +96,11 @@ public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
     };
   }
 
+  @Override
+  public int order() {
+    return 1;
+  }
+
   @SuppressWarnings("Duplicates")
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class HttpServletGetInputStreamAdvice {

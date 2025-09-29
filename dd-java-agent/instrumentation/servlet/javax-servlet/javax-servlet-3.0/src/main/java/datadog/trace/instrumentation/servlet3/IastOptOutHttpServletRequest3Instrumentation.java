@@ -107,4 +107,9 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
       }
     }
   }
+
+  @Override
+  public int order() {
+    return 1;
+  }
 }
