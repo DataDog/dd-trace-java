@@ -48,7 +48,7 @@ public class FlatResolverTest {
   }
 
   static final void test(PlatformSpec platformSpec, String expectedPath) {
-    CapturingPathResolver locator = new CapturingPathResolver();
+    CapturingPathLocator locator = new CapturingPathLocator();
     try {
       FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
     } catch (Exception e) {
@@ -60,7 +60,7 @@ public class FlatResolverTest {
 
   static final void testFallback(
       int fallbackLevel, PlatformSpec platformSpec, String expectedPath) {
-    CapturingPathResolver locator = new CapturingPathResolver(fallbackLevel);
+    CapturingPathLocator locator = new CapturingPathLocator(fallbackLevel);
     try {
       FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
     } catch (Exception e) {

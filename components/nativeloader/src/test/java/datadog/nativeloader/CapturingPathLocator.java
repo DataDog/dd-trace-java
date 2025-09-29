@@ -5,18 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-public final class CapturingPathResolver implements PathLocator {
+public final class CapturingPathLocator implements PathLocator {
   final int simulateNotFoundCount;
   int numRequests;
 
   String requestedComponent;
   String requestedPath;
 
-  public CapturingPathResolver() {
+  public CapturingPathLocator() {
     this(0);
   }
 
-  public CapturingPathResolver(int simulateNotFoundCount) {
+  public CapturingPathLocator(int simulateNotFoundCount) {
     this.numRequests = 0;
     this.simulateNotFoundCount = simulateNotFoundCount;
   }
