@@ -89,6 +89,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
         DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
         AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
+        System.out.println("Setting a checkpoint in thread" + Thread.currentThread().getId());
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
