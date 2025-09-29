@@ -88,6 +88,14 @@ tasks.named("forbiddenApisTest_java11") {
 tasks.named("compileTestJava") {
   dependsOn('generateTestClassNameTries')
 }
+tasks.named("compileTestGroovy") {
+  configureCompiler(it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Groovy generates synthetic accessors methods from superclass, we don't want that for `URLClassLoader`," +
+    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
+    )
+}
 tasks.named("compileTest_java11Java") {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
 }

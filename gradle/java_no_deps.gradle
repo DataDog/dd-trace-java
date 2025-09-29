@@ -384,6 +384,9 @@ ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion c
         it.sourceCompatibility = compatibilityVersion
         it.targetCompatibility = compatibilityVersion
       }
+      if (unsetReleaseFlagReason != null) {
+        logger.info("Using specific toolchain because: {}", unsetReleaseFlagReason)
+      }
     } else if (it instanceof ScalaCompile) {
       ScalaCompile sc = (ScalaCompile) it
       sc.javaLauncher = launcher
