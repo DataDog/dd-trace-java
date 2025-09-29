@@ -4,7 +4,7 @@ package datadog.nativeloader;
 public final class PathUtils {
   static final String UNSUPPORTED_OS = "Unsupported OS";
   static final String UNSUPPORTED_ARCH = "Unsupported arch";
-  
+
   private PathUtils() {}
 
   public static final String libPrefix(PlatformSpec platformSpec) {

@@ -185,53 +185,42 @@ public final class NativeLoader {
     this.tempDir = builder.tempDir();
   }
 
-  /**
-   * Indicates if a library is considered "pre-loaded"
-   */
+  /** Indicates if a library is considered "pre-loaded" */
   public boolean isPreloaded(String libName) {
     return this.libResolver.isPreloaded(this.defaultPlatformSpec, libName);
   }
 
-  /**
-   * Indicates if a library is considered "pre-loaded" for the specified {@link PlatformSpec}
-   */
+  /** Indicates if a library is considered "pre-loaded" for the specified {@link PlatformSpec} */
   public boolean isPreloaded(PlatformSpec platformSpec, String libName) {
     return this.libResolver.isPreloaded(platformSpec, libName);
   }
 
-  /**
-   * Loads a library
-   */
+  /** Loads a library */
   public void load(String libName) throws LibraryLoadException {
     this.load(null, libName);
   }
 
-  /**
-   * Loads a library associated with an associated component
-   */
+  /** Loads a library associated with an associated component */
   public final void load(String component, String libName) throws LibraryLoadException {
     try (LibFile libFile = this.resolveDynamic(component, libName)) {
       libFile.load();
     }
   }
 
-  /**
-   * Resolves a library to a LibFile - creating a temporary file if necessary
-   */
+  /** Resolves a library to a LibFile - creating a temporary file if necessary */
   public final LibFile resolveDynamic(String libName) throws LibraryLoadException {
     return this.resolveDynamic((String) null, libName);
   }
 
-  /**
-   * Resolves a library with an associated component
-   */
+  /** Resolves a library with an associated component */
   public final LibFile resolveDynamic(String component, String libName)
       throws LibraryLoadException {
     return this.resolveDynamic(component, this.defaultPlatformSpec, libName);
   }
 
   /**
-   * Resolves a library using a different {@link PlatformSpec} than the default for this {@link NativeLoader}
+   * Resolves a library using a different {@link PlatformSpec} than the default for this {@link
+   * NativeLoader}
    */
   public LibFile resolveDynamic(PlatformSpec platformSpec, String libName)
       throws LibraryLoadException {
@@ -239,7 +228,8 @@ public final class NativeLoader {
   }
 
   /**
-   * Resolves a library with an associated component with a different {@link PlatformSpec} than the default
+   * Resolves a library with an associated component with a different {@link PlatformSpec} than the
+   * default
    */
   public LibFile resolveDynamic(String component, PlatformSpec platformSpec, String libName)
       throws LibraryLoadException {
