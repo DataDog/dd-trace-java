@@ -1,14 +1,12 @@
-package datadog.trace.core.flare;
+package datadog.flare;
 
+import static datadog.common.version.VersionInfo.VERSION;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACER_FLARE;
 
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
-import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeUtils;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.util.AgentTaskScheduler;
@@ -54,27 +52,18 @@ final class TracerFlareService {
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
   private final Config config;
-  private final DynamicConfig<?> dynamicConfig;
   private final OkHttpClient okHttpClient;
   private final HttpUrl flareUrl;
-  private final CoreTracer tracer;
 
   private boolean logLevelOverridden;
   private volatile long flareStartMillis;
 
   private Scheduled<Runnable> scheduledCleanup;
 
-  TracerFlareService(
-      Config config,
-      DynamicConfig<?> dynamicConfig,
-      OkHttpClient okHttpClient,
-      HttpUrl agentUrl,
-      CoreTracer tracer) {
+  TracerFlareService(Config config, OkHttpClient okHttpClient, HttpUrl agentUrl) {
     this.config = config;
-    this.dynamicConfig = dynamicConfig;
     this.okHttpClient = okHttpClient;
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
-    this.tracer = tracer;
 
     applyTriageReportTrigger(config.getTriageReportTrigger());
   }
@@ -213,7 +202,6 @@ final class TracerFlareService {
       addPrelude(zip, startMillis, endMillis);
       addConfig(zip);
       addRuntime(zip);
-      tracer.addTracerReportToFlare(zip);
       TracerFlare.addReportsToFlare(zip);
       if (dumpThreads) {
         addThreadDump(zip);
@@ -227,12 +215,11 @@ final class TracerFlareService {
   private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
       throws IOException {
     TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
-    TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
+    TracerFlare.addText(zip, "tracer_version.txt", VERSION);
   }
 
   private void addConfig(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
-    TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
   }
 
   private void addRuntime(ZipOutputStream zip) throws IOException {

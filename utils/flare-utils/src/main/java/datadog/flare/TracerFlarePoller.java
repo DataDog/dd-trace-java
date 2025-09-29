@@ -1,4 +1,4 @@
-package datadog.trace.core.flare;
+package datadog.flare;
 
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -10,8 +10,6 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
-import datadog.trace.api.DynamicConfig;
-import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
@@ -20,7 +18,6 @@ import okio.Okio;
 
 public final class TracerFlarePoller {
   private static final String FLARE_LOG_LEVEL = "flare-log-level";
-  private final DynamicConfig<?> dynamicConfig;
 
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
@@ -28,20 +25,29 @@ public final class TracerFlarePoller {
   private TracerFlareService tracerFlareService;
 
   private final Map<String, String> configAction = new HashMap<>();
+  private static TracerFlarePoller INSTANCE;
 
-  public TracerFlarePoller(DynamicConfig<?> dynamicConfig) {
-    this.dynamicConfig = dynamicConfig;
+  public static void start(SharedCommunicationObjects sco) {
+    if (null == INSTANCE) {
+      INSTANCE = new TracerFlarePoller();
+    }
+    INSTANCE.doStart(sco);
   }
 
-  public void start(Config config, SharedCommunicationObjects sco, CoreTracer tracer) {
+  public static void stop() {
+    if (null != INSTANCE) {
+      INSTANCE.doStop();
+    }
+  }
+
+  private void doStart(SharedCommunicationObjects sco) {
+    Config config = Config.get();
     stopPreparer = new Preparer().register(config, sco);
     stopSubmitter = new Submitter().register(config, sco);
-
-    tracerFlareService =
-        new TracerFlareService(config, dynamicConfig, sco.okHttpClient, sco.agentUrl, tracer);
+    tracerFlareService = new TracerFlareService(config, sco.okHttpClient, sco.agentUrl);
   }
 
-  public void stop() {
+  private void doStop() {
     if (null != stopPreparer) {
       stopPreparer.run();
     }
