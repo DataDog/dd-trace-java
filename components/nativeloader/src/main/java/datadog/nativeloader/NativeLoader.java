@@ -233,8 +233,9 @@ public final class NativeLoader {
    */
   public LibFile resolveDynamic(String component, PlatformSpec platformSpec, String libName)
       throws LibraryLoadException {
-    if (platformSpec.isUnknownOs()) return null;
-    if (platformSpec.isUnknownArch()) return null;
+    if (platformSpec.isUnknownOs() || platformSpec.isUnknownArch()) {
+      throw new LibraryLoadException(libName, "Unsupported platform");
+    }
 
     if (this.isPreloaded(platformSpec, libName)) {
       return LibFile.preloaded(libName);
@@ -243,6 +244,9 @@ public final class NativeLoader {
     URL url;
     try {
       url = this.libResolver.resolve(this.pathResolver, component, platformSpec, libName);
+    } catch (LibraryLoadException e) {
+      // don't wrap if it is already a LibraryLoadException
+      throw e;
     } catch (Throwable t) {
       throw new LibraryLoadException(libName, t);
     }

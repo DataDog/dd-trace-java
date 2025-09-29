@@ -7,6 +7,7 @@ import static datadog.nativeloader.TestPlatformSpec.MAC;
 import static datadog.nativeloader.TestPlatformSpec.MUSL;
 import static datadog.nativeloader.TestPlatformSpec.WINDOWS;
 import static datadog.nativeloader.TestPlatformSpec.X86_64;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +49,11 @@ public class FlatResolverTest {
 
   static final void test(PlatformSpec platformSpec, String expectedPath) {
     CapturingPathResolver locator = new CapturingPathResolver();
-    FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+    try {
+      FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+    } catch (Exception e) {
+      fail("Exception raised: " + e);
+    }
 
     locator.assertRequested(null, expectedPath);
   }
@@ -56,7 +61,11 @@ public class FlatResolverTest {
   static final void testFallback(
       int fallbackLevel, PlatformSpec platformSpec, String expectedPath) {
     CapturingPathResolver locator = new CapturingPathResolver(fallbackLevel);
-    FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+    try {
+      FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+    } catch (Exception e) {
+      fail("Exception raised: " + e);
+    }
 
     locator.assertRequested(null, expectedPath);
   }

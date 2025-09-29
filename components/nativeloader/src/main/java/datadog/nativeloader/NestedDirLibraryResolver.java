@@ -11,7 +11,10 @@ public final class NestedDirLibraryResolver implements LibraryResolver {
 
   @Override
   public final URL resolve(
-      PathLocator pathResolver, String component, PlatformSpec platformSpec, String libName) {
+      PathLocator pathLocator, String component, PlatformSpec platformSpec, String libName)
+      throws Exception {
+    PathLocatorHelper pathLocatorHelper = new PathLocatorHelper(libName, pathLocator);
+
     String libFileName = PathUtils.libFileName(platformSpec, libName);
 
     String osPath = PathUtils.osPartOf(platformSpec);
@@ -24,22 +27,24 @@ public final class NestedDirLibraryResolver implements LibraryResolver {
 
     if (libcPath != null) {
       String specializedPath = regularPath + "/" + libcPath;
-      url = pathResolver.locate(component, specializedPath + "/" + libFileName);
+      url = pathLocatorHelper.locate(component, specializedPath + "/" + libFileName);
       if (url != null) return url;
     }
 
-    url = pathResolver.locate(component, regularPath + "/" + libFileName);
+    url = pathLocatorHelper.locate(component, regularPath + "/" + libFileName);
     if (url != null) return url;
 
     // fallback to searching at top-level, mostly concession to good out-of-box behavior
     // with java.library.path
-    url = pathResolver.locate(component, libFileName);
+    url = pathLocatorHelper.locate(component, libFileName);
     if (url != null) return url;
 
     if (component != null) {
-      url = pathResolver.locate(null, libFileName);
+      url = pathLocatorHelper.locate(null, libFileName);
       if (url != null) return url;
     }
+
+    pathLocatorHelper.tryThrow();
 
     return null;
   }

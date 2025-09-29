@@ -2,6 +2,9 @@ package datadog.nativeloader;
 
 /** Exception raised when NativeLoader fails to resolve or load a library */
 public class LibraryLoadException extends Exception {
+  static final String UNSUPPORTED_OS = "Unsupported OS";
+  static final String UNSUPPORTED_ARCH = "Unsupported arch";
+
   private static final long serialVersionUID = 1L;
 
   public LibraryLoadException(String libName) {

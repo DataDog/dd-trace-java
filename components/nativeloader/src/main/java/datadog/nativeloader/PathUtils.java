@@ -1,10 +1,10 @@
 package datadog.nativeloader;
 
+import static datadog.nativeloader.LibraryLoadException.UNSUPPORTED_ARCH;
+import static datadog.nativeloader.LibraryLoadException.UNSUPPORTED_OS;
+
 /** Utilities for generating library file paths to be requested from a {@link PathLocator} */
 public final class PathUtils {
-  static final String UNSUPPORTED_OS = "Unsupported OS";
-  static final String UNSUPPORTED_ARCH = "Unsupported arch";
-
   private PathUtils() {}
 
   public static final String libPrefix(PlatformSpec platformSpec) {

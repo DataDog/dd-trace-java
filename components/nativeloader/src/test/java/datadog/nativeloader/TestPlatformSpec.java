@@ -5,11 +5,15 @@ public class TestPlatformSpec extends PlatformSpec {
   public static final String WINDOWS = "win";
   public static final String LINUX = "linux";
 
+  public static final String UNSUPPORTED_OS = "unsupported";
+
   public static final String X86_32 = "x86_32";
   public static final String X86_64 = "x86_64";
 
   public static final String ARM32 = "arm32";
   public static final String AARCH64 = "aarch64";
+
+  public static final String UNSUPPORTED_ARCH = "unsupported";
 
   public static final boolean GLIBC = false;
   public static final boolean MUSL = true;
@@ -18,7 +22,7 @@ public class TestPlatformSpec extends PlatformSpec {
     return new TestPlatformSpec(os, arch, false);
   }
 
-  public static final PlatformSpec of(String os, String arch, boolean isMusl) {
+  public static final TestPlatformSpec of(String os, String arch, boolean isMusl) {
     return new TestPlatformSpec(os, arch, isMusl);
   }
 

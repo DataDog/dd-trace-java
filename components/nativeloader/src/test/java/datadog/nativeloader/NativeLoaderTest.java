@@ -1,5 +1,9 @@
 package datadog.nativeloader;
 
+import static datadog.nativeloader.TestPlatformSpec.AARCH64;
+import static datadog.nativeloader.TestPlatformSpec.LINUX;
+import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
+import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,6 +32,22 @@ public class NativeLoaderTest {
 
     // already considered loaded -- so this is a nop
     loader.load("dne2");
+  }
+
+  @Test
+  public void unsupportedPlatform() {
+    PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
+    NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
+
+    assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+  }
+
+  @Test
+  public void unsupportArch() {
+    PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(LINUX, UNSUPPORTED_ARCH);
+    NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
+
+    assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
   }
 
   @Test

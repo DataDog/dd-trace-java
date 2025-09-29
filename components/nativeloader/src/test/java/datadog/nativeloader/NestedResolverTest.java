@@ -7,6 +7,7 @@ import static datadog.nativeloader.TestPlatformSpec.MAC;
 import static datadog.nativeloader.TestPlatformSpec.MUSL;
 import static datadog.nativeloader.TestPlatformSpec.WINDOWS;
 import static datadog.nativeloader.TestPlatformSpec.X86_64;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,16 +49,22 @@ public class NestedResolverTest {
 
   static final void test(PlatformSpec platformSpec, String expectedPath) {
     CapturingPathResolver locator = new CapturingPathResolver();
-    NestedDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
-
+    try {
+      NestedDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+    } catch (Exception e) {
+      fail("Exception raised: " + e);
+    }
     locator.assertRequested(null, expectedPath);
   }
 
   static final void testFallback(
       int fallbackLevel, PlatformSpec platformSpec, String expectedPath) {
     CapturingPathResolver locator = new CapturingPathResolver(fallbackLevel);
-    NestedDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
-
+    try {
+      NestedDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+    } catch (Exception e) {
+      fail("Exception raised: " + e);
+    }
     locator.assertRequested(null, expectedPath);
   }
 }
