@@ -324,7 +324,7 @@ include(
   ":dd-java-agent:instrumentation:finatra-2.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
-  ":dd-java-agent:instrumentation:glassfish",
+  ":dd-java-agent:instrumentation:glassfish-3.0",
   ":dd-java-agent:instrumentation:google-http-client",
   ":dd-java-agent:instrumentation:google-pubsub",
   ":dd-java-agent:instrumentation:graal:native-image",
