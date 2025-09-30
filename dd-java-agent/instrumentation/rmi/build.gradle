@@ -30,6 +30,6 @@ def rmic = tasks.register('rmic', Exec) {
     )
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn rmic
 }

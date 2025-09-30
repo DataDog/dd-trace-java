@@ -26,15 +26,15 @@ apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 addTestSuite('latestDepTest')
 
-tasks.named("compileTestFixturesGroovy") {
+tasks.named("compileTestFixturesGroovy", GroovyCompile) {
   classpath += files(compileTestFixturesKotlin.destinationDirectory)
 }
 
-tasks.named("compileTestGroovy") {
+tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(compileTestKotlin.destinationDirectory)
 }
 
-tasks.named("compileLatestDepTestGroovy") {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(compileLatestDepTestKotlin.destinationDirectory)
 }
 

@@ -58,9 +58,13 @@ dependencies {
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
 }
 
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  setJavaVersion(it, 11)
+["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
+    setJavaVersion(it, 11)
+  }
 }
-[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
+["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(11)
+  }
 }

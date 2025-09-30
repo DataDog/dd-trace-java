@@ -103,49 +103,47 @@ def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("forkedTest") {
+tasks.named("forkedTest", Test) {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("latestDepForkedTest") {
+tasks.named("latestDepForkedTest", Test) {
   dependsOn 'extractLatestWildfly'
 }
 
-tasks.named("latestDepTest") {
+tasks.named("latestDepTest", Test) {
   dependsOn 'extractLatestWildfly'
 }
 
-compileTestGroovy.configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   javaLauncher = getJavaLauncherFor(11)
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.configure {
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
     javaLauncher = getJavaLauncherFor(17)
   }
 }
 
-compileTestJava.configure {
-  it.configure {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.named("compileTestJava", JavaCompile) {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  it.configure {
+["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
-processTestResources {
+tasks.named("processTestResources", ProcessResources) {
   filesMatching('**/WEB-INF/web.xml') {
     expand(
       'servletClass': 'test.TestServlet',
@@ -153,11 +151,13 @@ processTestResources {
   }
 }
 
-[processLatestDepTestResources, processLatestDepForkedTestResources].each {
-  it.filesMatching('**/WEB-INF/web.xml') {
-    expand(
-      'servletClass': 'test.JakartaTestServlet',
-      )
+["processLatestDepTestResources", "processLatestDepForkedTestResources"].each { name ->
+  tasks.named(name, ProcessResources) {
+    filesMatching('**/WEB-INF/web.xml') {
+      expand(
+        'servletClass': 'test.JakartaTestServlet',
+        )
+    }
   }
 }
 

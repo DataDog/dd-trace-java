@@ -100,34 +100,34 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
+tasks.named("compileMain_java11Java", JavaCompile) {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 
-tasks.named("compileTestGroovy") {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractMuleServices'
 }
 
-tasks.named("compileMule46ForkedTestGroovy") {
+tasks.named("compileMule46ForkedTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractMule46Services'
 }
 
-tasks.named("compileLatestDepForkedTestGroovy") {
+tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractLatestMuleServices'
   setJavaVersion(it, 17)
 }
 
-tasks.named("compileLatestDepForkedTestJava") {
+tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
   setJavaVersion(it, 17)
 }
 

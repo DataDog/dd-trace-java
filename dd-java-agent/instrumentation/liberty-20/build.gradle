@@ -48,7 +48,10 @@ dependencies {
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly libs.groovy
 }
-compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-3:testFixturesJar'
+
+tasks.named("compileWebappJava", JavaCompile) {
+  dependsOn(":dd-java-agent:instrumentation:servlet:request-3:testFixturesJar")
+}
 
 configurations.testRuntimeOnly {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -86,19 +89,12 @@ tasks.register('installOpenLibertyDeps', Copy) {
   into extractDir
   outputs.file ext.serverXmlFile
 }
-[test, forkedTest]*.dependsOn webappClasses, installOpenLibertyDeps
-[test, forkedTest].each {
-  it.configure {
-    jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
-  }
-}
 
 tasks.register('webappCopyJars', Sync) {
   from configurations.webappRuntimeClasspath.findAll { it.name.endsWith('.jar') }
   into project.layout.buildDirectory.dir("$relAppDir/WEB-INF/lib")
   dependsOn ':dd-java-agent:instrumentation:servlet:request-3:testFixturesJar'
 }
-[test, forkedTest]*.dependsOn webappCopyJars
 
 tasks.register('filterLogbackClassic', Sync) {
   ext.filteredLogbackDir = project.layout.buildDirectory.dir('filteredLogback')
@@ -108,4 +104,13 @@ tasks.register('filterLogbackClassic', Sync) {
   exclude 'META-INF/**'
   into ext.filteredLogbackDir
 }
-[test, forkedTest]*.dependsOn filterLogbackClassic
+
+tasks.named("test", Test) {
+  dependsOn(webappClasses, installOpenLibertyDeps, webappCopyJars, filterLogbackClassic)
+  jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
+}
+
+tasks.named("forkedTest", Test) {
+  dependsOn(webappClasses, installOpenLibertyDeps, webappCopyJars, filterLogbackClassic)
+  jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
+}
