@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 // this project will run in isolation under the agent's classloader
 buildscript {
 
@@ -177,4 +179,6 @@ tasks.register('generateKnownTypesIndex', JavaExec) {
   dependsOn 'processResources'
 }
 
-shadowJar.dependsOn 'generateInstrumenterIndex', 'generateKnownTypesIndex'
+tasks.named("shadowJar", ShadowJar) {
+  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
+}
