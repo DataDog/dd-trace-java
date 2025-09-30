@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 public final class ConfigInversionMetricCollectorProvider {
   private static final Logger log =
-      LoggerFactory.getLogger(NoOpConfigInversionMetricCollector.class);
+      LoggerFactory.getLogger(ConfigInversionMetricCollectorProvider.class);
   private static ConfigInversionMetricCollector INSTANCE = null;
 
   private ConfigInversionMetricCollectorProvider() {}
