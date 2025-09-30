@@ -47,7 +47,7 @@ class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmok
     noForceKeepResponse.successful
     waitForTraceCount(2)
     assert traces.size() == 2
-    checkRootSpanPrioritySampling(traces[1], PrioritySampling.USER_KEEP)
+    checkRootSpanPrioritySampling(traces[1], PrioritySampling.SAMPLER_KEEP)
     !hasAppsecPropagationTag(traces[1])
 
     when: "Request without ASM events and force kept span"

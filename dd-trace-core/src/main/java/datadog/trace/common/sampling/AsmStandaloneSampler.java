@@ -3,11 +3,8 @@ package datadog.trace.common.sampling;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 
-import datadog.trace.api.ProductTraceSource;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.DDSpan;
 import java.time.Clock;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -42,13 +39,7 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
-    if (span.samplingPriority() == PrioritySampling.USER_KEEP && hasAsmTraceSource(span)) {
-      log.debug(
-          "Preserving USER_KEEP priority for span {} with ASM trace source", span.getSpanId());
-      return; // Keep existing USER_KEEP priority
-    }
 
-    // Apply normal sampling logic (either for non-USER_KEEP spans or downgraded USER_KEEP spans)
     if (shouldSample()) {
       log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
       span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
@@ -56,20 +47,6 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
       log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
       span.setSamplingPriority(SAMPLER_DROP, SamplingMechanism.APPSEC);
     }
-  }
-
-  /**
-   * Check if the trace has ASM source marking. Only USER_KEEP from ASM traces should be preserved
-   * in ASM standalone mode.
-   */
-  private <T extends CoreSpan<T>> boolean hasAsmTraceSource(final T span) {
-    // Check if the trace source is marked as ASM
-    if (span instanceof DDSpan) {
-      DDSpan ddSpan = (DDSpan) span;
-      int traceSource = ddSpan.context().getPropagationTags().getTraceSource();
-      return ProductTraceSource.isProductMarked(traceSource, ProductTraceSource.ASM);
-    }
-    return false;
   }
 
   private boolean shouldSample() {
