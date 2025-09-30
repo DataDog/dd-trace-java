@@ -27,6 +27,7 @@ public final class Constants {
     "datadog.trace.instrumentation.api",
     "datadog.trace.logging",
     "datadog.trace.util",
+    "datadog.trace.config.inversion", // Add this line
   };
 
   private Constants() {}
