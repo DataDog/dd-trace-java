@@ -76,7 +76,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJa
 
   // In some cases we would like to avoid setting java version to `minJavaVersionForTests`.
   // For example we would like to be able to run profiling tests with ZULU8, but we cannot run it with other JDK8 implementations at the moment
-  def skipSettingTestJavaVersion = project.hasProperty('skipSettingTestJavaVersion') && project.getProperty('skipSettingTestJavaVersion')
+  def skipSettingTestJavaVersion = project.hasProperty('skipSettingTestJavaVersion') && project.findProperty('skipSettingTestJavaVersion')
   if (!skipSettingTestJavaVersion) {
     tasks.withType(JavaCompile).configureEach {
       if (it.name.toLowerCase().contains("test")) {
@@ -413,21 +413,21 @@ def isJavaVersionAllowedForProperty(JavaVersion version, String propertyPrefix =
   def maxProp = propertyPrefix.isEmpty() ? 'maxJavaVersionForTests' : "${propertyPrefix}MaxJavaVersionForTests"
   def definedMin = project.hasProperty(minProp)
   def definedMax = project.hasProperty(maxProp)
-  if (definedMin && project.getProperty(minProp).compareTo(version) > 0) {
+  if (definedMin && project.findProperty(minProp).compareTo(version) > 0) {
     logger.info("isJavaVersionAllowedForProperty is false b/o minProp=${minProp} is defined and greater than version=${version}")
     return false
   }
   //default to the general min if defined and specific one is was not defined
-  if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests').compareTo(version) > 0) {
-    logger.info("isJavaVersionAllowedForProperty is false b/o minJavaVersionForTests=${project.getProperty('minJavaVersionForTests')} is defined and greater than version=${version}")
+  if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests').compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minJavaVersionForTests=${project.findProperty('minJavaVersionForTests')} is defined and greater than version=${version}")
     return false
   }
-  if (definedMax && project.getProperty(maxProp).compareTo(version) < 0) {
-    logger.info("isJavaVersionAllowedForProperty is false b/o maxProp=${project.getProperty(maxProp)} is defined and lower than version=${version}")
+  if (definedMax && project.findProperty(maxProp).compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxProp=${project.findProperty(maxProp)} is defined and lower than version=${version}")
     return false
   }
-  if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.getProperty('maxJavaVersionForTests').compareTo(version) < 0) {
-    logger.info("isJavaVersionAllowedForProperty is false b/o maxJavaVersionForTests=${project.getProperty('maxJavaVersionForTests')} is defined and lower than version=${version}")
+  if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.findProperty('maxJavaVersionForTests').compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxJavaVersionForTests=${project.findProperty('maxJavaVersionForTests')} is defined and lower than version=${version}")
     return false
   }
   return true
@@ -443,11 +443,11 @@ def isJavaLanguageVersionAllowed(JavaLanguageVersion languageVersion, String tes
 }
 
 def isJdkForced(String javaName) {
-  return (project.hasProperty('forceJdk') && project.getProperty('forceJdk').any { it.equalsIgnoreCase(javaName) })
+  return (project.hasProperty('forceJdk') && project.findProperty('forceJdk').any { it.equalsIgnoreCase(javaName) })
 }
 
 def isJdkExcluded(String javaName) {
-  return (project.hasProperty('excludeJdk') && project.getProperty('excludeJdk').any { it.equalsIgnoreCase(javaName) })
+  return (project.hasProperty('excludeJdk') && project.findProperty('excludeJdk').any { it.equalsIgnoreCase(javaName) })
 }
 
 def getJavaHomePath(String path) {
