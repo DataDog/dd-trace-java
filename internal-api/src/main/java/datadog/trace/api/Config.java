@@ -5837,6 +5837,10 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", dataJobsOpenLineageEnabled="
+        + dataJobsOpenLineageEnabled
+        + ", dataJobsOpenLineageTimeoutEnabled="
+        + dataJobsOpenLineageTimeoutEnabled
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="
