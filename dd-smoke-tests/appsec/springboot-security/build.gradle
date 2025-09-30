@@ -46,7 +46,7 @@ tasks.withType(Test).configureEach {
 
 tasks.register('testRuntimeActivation', Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-      "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+    "-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
 tasks.named('check') {
