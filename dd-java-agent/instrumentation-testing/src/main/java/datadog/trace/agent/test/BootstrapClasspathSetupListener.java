@@ -74,6 +74,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     "datadog.trace.instrumentation.api",
     "datadog.trace.logging",
     "datadog.trace.util",
+    "datadog.trace.config.inversion", // Add this line
   };
 
   public static final ClassPath TEST_CLASSPATH = computeTestClasspath();
