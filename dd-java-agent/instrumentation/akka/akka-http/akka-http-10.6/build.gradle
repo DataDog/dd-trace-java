@@ -5,7 +5,8 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-// csi generated sources seems empty
+// temporary workaround to avoid early resolution of test classpath
+// ( Akka instrumentation doesn't require call-site instrumentation )
 // apply plugin: 'call-site-instrumentation'
 
 
