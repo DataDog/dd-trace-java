@@ -8,7 +8,7 @@ muzzle {
 }
 
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -16,10 +16,28 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 [compileTestGroovy, compileLatestDepTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+  it.javaLauncher = getJavaLauncherFor(8)
 }
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.20.162'
   compileOnly group: 'org.springframework', name: 'spring-messaging', version: '5.3.23'
+  
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
+  
+  // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
+  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2')
+  
+  // SQS testing:
+  testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.4.7'
+  testImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.20.33'
+  
+  // Spring dependencies for testing:
+  testImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.5.15') {
+    exclude group: 'net.bytebuddy', module: 'byte-buddy'
+    exclude group: 'net.bytebuddy', module: 'byte-buddy-agent'
+  }
+  testImplementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-aws-messaging', version: '2.2.6.RELEASE'
+  testImplementation group: 'org.springframework.cloud', name: 'spring-cloud-aws-autoconfigure', version: '2.2.6.RELEASE'
 }
