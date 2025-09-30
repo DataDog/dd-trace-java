@@ -14,9 +14,13 @@ import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.jar.asm.Opcodes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Provides an outline of a type; i.e. the named elements making up its structure. */
 final class TypeOutline extends WithName {
+  private static final Logger log = LoggerFactory.getLogger(TypeOutline.class);
+
   private static final int ALLOWED_TYPE_MODIFIERS = 0x0000ffdf; // excludes ACC_SUPER
 
   static final TypeList.Generic NO_TYPES = new TypeList.Generic.Empty();
@@ -27,12 +31,9 @@ final class TypeOutline extends WithName {
   private static final MethodList<MethodDescription.InDefinedShape> NO_METHODS =
       new MethodList.Empty<>();
 
-  private final int classFileVersion;
   private final int modifiers;
   private final String superName;
   private final String[] interfaces;
-  private String declaringName;
-  private boolean anonymousType;
 
   private List<AnnotationDescription> declaredAnnotations;
 
@@ -41,7 +42,6 @@ final class TypeOutline extends WithName {
 
   TypeOutline(int version, int access, String internalName, String superName, String[] interfaces) {
     super(internalName.replace('/', '.'));
-    this.classFileVersion = version;
     this.modifiers = access & ALLOWED_TYPE_MODIFIERS;
     this.superName = superName;
     this.interfaces = interfaces;
@@ -74,15 +74,16 @@ final class TypeOutline extends WithName {
 
   @Override
   public TypeDescription getDeclaringType() {
-    if (null != declaringName) {
-      return findType(declaringName.replace('/', '.'));
-    }
-    return null;
+    log.error("======== getDeclaringType not supported here ========", new Throwable());
+    throw new UnsupportedOperationException(
+        "======== getDeclaringType not supported here ========");
   }
 
   @Override
   public TypeDescription getEnclosingType() {
-    return getDeclaringType(); // equivalent for outline purposes
+    log.error("======== getEnclosingType not supported here ========", new Throwable());
+    throw new UnsupportedOperationException(
+        "======== getEnclosingType not supported here ========");
   }
 
   @Override
@@ -116,7 +117,9 @@ final class TypeOutline extends WithName {
 
   @Override
   public ClassFileVersion getClassFileVersion() {
-    return ClassFileVersion.ofMinorMajor(classFileVersion);
+    log.error("======== getClassFileVersion not supported here ========");
+    throw new UnsupportedOperationException(
+        "======== getClassFileVersion not supported here ========");
   }
 
   @Override
@@ -138,11 +141,15 @@ final class TypeOutline extends WithName {
 
   @Override
   public boolean isAnonymousType() {
-    return anonymousType;
-  }
-
-  void declaredBy(String declaringName) {
-    this.declaringName = declaringName;
+    for (int i = name.length() - 1; i > 0; i--) {
+      char c = name.charAt(i);
+      if (c == '$') {
+        return true;
+      } else if (c < '0' || c > '9') {
+        break;
+      }
+    }
+    return false;
   }
 
   void declare(AnnotationDescription annotation) {
@@ -164,9 +171,5 @@ final class TypeOutline extends WithName {
     if (null != method) {
       declaredMethods.add(method);
     }
-  }
-
-  void anonymousType() {
-    anonymousType = true;
   }
 }
