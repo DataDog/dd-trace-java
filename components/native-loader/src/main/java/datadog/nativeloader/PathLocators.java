@@ -2,6 +2,7 @@ package datadog.nativeloader;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 /** Helper factory class for common {@link PathLocator} */
 public final class PathLocators {
@@ -38,7 +39,7 @@ public final class PathLocators {
     } catch (SecurityException e) {
       return new LibDirBasedPathLocator();
     }
-    return fromLibDirs(libPaths.split("\\:"));
+    return fromLibDirs(Pattern.compile("\\:").split(libPaths));
   }
 
   public static final PathLocator fromClassLoader(ClassLoader classLoader) {
