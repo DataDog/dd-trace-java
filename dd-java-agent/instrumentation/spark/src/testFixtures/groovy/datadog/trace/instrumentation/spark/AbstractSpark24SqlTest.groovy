@@ -137,7 +137,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
 
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","nodeId":-1909876497,"metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":1128016273,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293,"children":[{"node":"LocalTableScan","nodeId":1632930767,"metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}]}"""
+    def firstStagePlan = """{"node":"Exchange","nodeId":-1909876497,"nodeDetailsString":"","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":1128016273,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293,"children":[{"node":"LocalTableScan","nodeId":1632930767,"metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}]}"""
     def secondStagePlan = """{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":126020943,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"avg hash probe (min, med, max)":"any","type":"average"},{"number of output rows":2,"type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}"""
 
     expect:
@@ -162,6 +162,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
         }
         span {
@@ -169,6 +170,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
@@ -221,6 +223,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanSubset(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[2]"
         }
         span {
@@ -228,6 +231,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert ["[0, 1]", "[1, 0]"].contains(span.tags["_dd.spark.sql_parent_stage_ids"])
         }
         span {
@@ -235,6 +239,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
         span {
@@ -242,6 +247,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
