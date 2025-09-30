@@ -1,3 +1,5 @@
+import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
+
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
@@ -41,7 +43,7 @@ dependencies {
   testImplementation group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-api', version: '1.2.6'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jboss-modules')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jboss:jboss-modules-1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.2')
   testRuntimeOnly group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-spi', version: '1.2.6'
@@ -53,53 +55,49 @@ dependencies {
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '+'
   wildflyLatestDepTest "org.wildfly:wildfly-dist:+@zip"
 
-  configurations.wildflyLatestDepTest.resolve()
-  def latestWildflyVersion = configurations.wildflyLatestDepTest.resolvedConfiguration.getResolvedArtifacts().find {
-    it.name == "wildfly-dist"
-  }.moduleVersion.id.version
-
-  latestDepForkedTest {
-    configure {
-      jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-${latestWildflyVersion}"]
-    }
-  }
-
   latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
 }
 
-def extractWildfly(config, zipFileNamePrefix, sync) {
-  delete(fileTree(buildDir).include("wildfly-*/standalone/deployments/**"))
+def extractWildfly(NamedDomainObjectProvider<Configuration> config, String zipFileNamePrefix, Copy sync) {
+  def zipPath = config.map { Configuration c ->
+    c.filter { File file ->
+      file.name.startsWith(zipFileNamePrefix)
+    }.singleFile
+  }.orElse(providers.provider { throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix) })
 
-  def zipPath = config.find {
-    it.name.startsWith(zipFileNamePrefix)
+  sync.from(zipTree(zipPath)) {
+    // Strip the first path segment
+    eachFile { FileCopyDetails f ->
+      def segments = f.relativePath.segments
+      if (segments.length > 1) {
+        f.relativePath = new RelativePath(!f.directory, segments[1..-1] as String[])
+      } else {
+        f.exclude()
+      }
+    }
   }
-  if (zipPath != null) {
-    def zipFile = file(zipPath)
-    def outputDir = file("${buildDir}")
-
-    sync.from zipTree(zipFile)
-    sync.into outputDir
-  } else {
-    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+  sync.into(layout.buildDirectory.dir("tmp/wildfly-dist-${config.name}"))
+  sync.doFirst {
+    delete(sync.destinationDir)
   }
 }
 
-tasks.register("extractWildfly", Copy) {
+def extractWildflyTask = tasks.register("extractWildfly", Copy) {
   dependsOn configurations.wildflyTest
   mustRunAfter tasks.compileTestGroovy
-  extractWildfly(configurations.wildflyTest, "wildfly-dist", it)
+  extractWildfly(configurations.named("wildflyTest"), "wildfly-dist", it)
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
-tasks.register("extractLatestWildfly", Copy) {
+def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
   mustRunAfter tasks.compileLatestDepTestGroovy
   mustRunAfter tasks.compileLatestDepForkedTestGroovy
   mustRunAfter tasks.compileLatestDepTestJava
   mustRunAfter tasks.compileLatestDepForkedTestJava
   mustRunAfter tasks.compileJava
-  extractWildfly(configurations.wildflyLatestDepTest, "wildfly", it)
+  extractWildfly(configurations.named("wildflyLatestDepTest"), "wildfly", it)
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
@@ -163,10 +161,31 @@ processTestResources {
   }
 }
 
-forkedTest {
-  configure {
-    jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-21.0.0.Final"]
+abstract class DistributionLocationProvider implements CommandLineArgumentProvider {
+  @InputDirectory
+  @PathSensitive(PathSensitivity.RELATIVE)
+  abstract Property<File> getDistribution()
+
+  @Override
+  Iterable<String> asArguments() {
+    ["-Dtest.jboss.home=${distribution.get()}"]
   }
+}
+
+tasks.named("forkedTest", Test) {
+  jvmArgumentProviders.add(
+    objects.newInstance(DistributionLocationProvider).tap {
+      distribution = extractWildflyTask.map { it.destinationDir }
+    }
+    )
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  jvmArgumentProviders.add(
+    objects.newInstance(DistributionLocationProvider).tap {
+      distribution = extractLatestWildfly.map { it.destinationDir }
+    }
+    )
 }
 
 
