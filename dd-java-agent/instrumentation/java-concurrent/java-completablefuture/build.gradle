@@ -10,7 +10,7 @@ ext {
 }
 apply from: "${rootDir}/gradle/java.gradle"
 
-compileJava {
+tasks.named("compileJava", JavaCompile) {
   javaCompiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(8)
   }

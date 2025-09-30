@@ -19,19 +19,19 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 
-compileJersey3JettyTestGroovy {
+tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
   javaLauncher = getJavaLauncherFor(11)
 }
-compileTestJava.configure {
+tasks.named("compileTestJava", JavaCompile) {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 }
 
-jersey3JettyTest {
+tasks.named("jersey3JettyTest", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
-test {
+tasks.named("test", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
 

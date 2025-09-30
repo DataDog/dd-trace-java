@@ -31,11 +31,12 @@ dependencies {
   latestDepTestImplementation group: 'org.scalameta', name: 'munit_2.13', version: '+'
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn compileTestScala
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
-compileLatestDepTestGroovy {
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   dependsOn compileLatestDepTestScala
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }

@@ -24,7 +24,7 @@ repositories {
   }
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy", GroovyCompile) {
   it.javaLauncher = getJavaLauncherFor(17)
 }
 

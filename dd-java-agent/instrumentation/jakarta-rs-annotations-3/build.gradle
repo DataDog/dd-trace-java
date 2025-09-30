@@ -12,13 +12,15 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
-tasks.named("compileLatestDepJava11TestJava") {
+tasks.named("compileLatestDepJava11TestJava", JavaCompile) {
   setJavaVersion(it, 11)
 }
-tasks.named("compileLatestDepJava11TestGroovy") {
+
+tasks.named("compileLatestDepJava11TestGroovy", GroovyCompile) {
   javaLauncher = getJavaLauncherFor(11)
 }
-tasks.named("latestDepJava11Test") {
+
+tasks.named("latestDepJava11Test", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
 
