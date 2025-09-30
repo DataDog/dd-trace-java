@@ -37,18 +37,18 @@ repositories {
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
-      allowInsecureProtocol true
+      allowInsecureProtocol = true
     }
   }
   mavenCentral()
   maven {
-    name "lightbend-maven-releases"
-    url "https://repo.lightbend.com/lightbend/maven-release"
+    name = "lightbend-maven-releases"
+    url = "https://repo.lightbend.com/lightbend/maven-release"
   }
   ivy {
-    name "lightbend-ivy-release"
-    url "https://repo.lightbend.com/lightbend/ivy-releases"
-    layout "ivy"
+    name = "lightbend-ivy-release"
+    url = "https://repo.lightbend.com/lightbend/ivy-releases"
+    layout("ivy")
   }
 }
 
@@ -74,7 +74,7 @@ configurations.testImplementation {
   exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   dependsOn 'stageMainDist'
   outputs.upToDateWhen {
     !stageMainDist.didWork

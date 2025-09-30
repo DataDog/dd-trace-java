@@ -310,6 +310,9 @@ class TraceGenerator {
     }
 
     @Override
+    void processServiceTags() {}
+
+    @Override
     void processTagsAndBaggage(MetadataConsumer consumer) {
       consumer.accept(metadata)
     }
@@ -397,6 +400,11 @@ class TraceGenerator {
     @Override
     PojoSpan setMetaStruct(String field, Object value) {
       return this
+    }
+
+    @Override
+    int getLongRunningVersion() {
+      return 0
     }
   }
 }

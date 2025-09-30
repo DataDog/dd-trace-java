@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,7 +44,8 @@ public class SnapshotSinkTest {
       new ProbeLocation("java.lang.String", "indexOf", null, null);
 
   @Mock private Config config;
-  @Mock private BatchUploader batchUploader;
+  @Mock private BatchUploader snapshotUploader;
+  @Mock private BatchUploader logUploader;
   @Captor private ArgumentCaptor<byte[]> payloadCaptor;
   private ProbeStatusSink probeStatusSink;
   private String EXPECTED_SNAPSHOT_TAGS;
@@ -78,7 +80,7 @@ public class SnapshotSinkTest {
     Snapshot snapshot = createSnapshot();
     snapshotSink.addHighRate(snapshot);
     snapshotSink.highRateFlush(null);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(logUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
@@ -156,9 +158,22 @@ public class SnapshotSinkTest {
     assertEquals(previousInterval + SnapshotSink.HIGH_RATE_STEP_SIZE, currentInterval);
   }
 
+  @Test
+  public void differentiateSnapshotLog() {
+    SnapshotSink snapshotSink = createSnapshotSink();
+    Snapshot snapshot = createSnapshot();
+    snapshotSink.addLowRate(snapshot);
+    snapshotSink.lowRateFlush(DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config));
+    Snapshot logSnapshot = createSnapshot();
+    snapshotSink.addHighRate(logSnapshot);
+    snapshotSink.highRateFlush(null);
+    verify(snapshotUploader).upload(any(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(logUploader).upload(any(), matches(EXPECTED_SNAPSHOT_TAGS));
+  }
+
   private SnapshotSink createSnapshotSink() {
     String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
-    return new SnapshotSink(config, tags, batchUploader);
+    return new SnapshotSink(config, tags, snapshotUploader, logUploader);
   }
 
   private Snapshot createSnapshot() {

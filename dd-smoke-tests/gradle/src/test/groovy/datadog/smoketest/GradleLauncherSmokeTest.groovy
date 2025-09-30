@@ -2,7 +2,9 @@ package datadog.smoketest
 
 import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.utils.ShellCommandExecutor
-import spock.util.environment.Jvm
+import org.opentest4j.AssertionFailedError
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 /**
  * This test runs Gradle Launcher with the Java Tracer injected
@@ -10,9 +12,11 @@ import spock.util.environment.Jvm
  */
 class GradleLauncherSmokeTest extends AbstractGradleTest {
 
-  private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
+  private static final Logger LOGGER = LoggerFactory.getLogger(GradleLauncherSmokeTest)
 
-  private static final String AGENT_JAR = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
+  private static final int GRADLE_WRAPPER_RETRIES = 3
+
   private static final String JAVA_HOME = buildJavaHome()
 
   def "test Gradle Launcher injects tracer into Gradle Daemon: v#gradleVersion, cmd line - #gradleDaemonCmdLineParams"() {
@@ -48,7 +52,16 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private void givenGradleWrapper(String gradleVersion) {
     def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, ["JAVA_HOME": JAVA_HOME])
-    shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
+    for (int attempt = 0; attempt < GRADLE_WRAPPER_RETRIES; attempt++) {
+      try {
+        shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
+        return
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        LOGGER.warn("Failed gradle wrapper resolution with exception: ", e)
+        Thread.sleep(2000) // small delay for rapid retries on network issues
+      }
+    }
+    throw new AssertionError((Object) "Tried $GRADLE_WRAPPER_RETRIES times to execute gradle wrapper command and failed")
   }
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams) {
@@ -72,17 +85,9 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     def daemonStartCommandLog = buildOutput.split("\n").find { it.contains("Starting process 'Gradle build daemon'") }
     for (String token : tokens) {
       if (!daemonStartCommandLog.contains(token)) {
-        throw new org.opentest4j.AssertionFailedError("Gradle Daemon start command does not contain " + token, token, daemonStartCommandLog)
+        throw new AssertionFailedError("Gradle Daemon start command does not contain " + token, token, daemonStartCommandLog)
       }
     }
     return true
-  }
-
-  private static String buildJavaHome() {
-    if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
-    } else {
-      return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
-    }
   }
 }

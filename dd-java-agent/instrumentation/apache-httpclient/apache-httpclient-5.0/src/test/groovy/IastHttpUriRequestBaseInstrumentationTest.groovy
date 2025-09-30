@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase
 
-class IastHttpUriRequestBaseInstrumentationTest extends AgentTestRunner {
+class IastHttpUriRequestBaseInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

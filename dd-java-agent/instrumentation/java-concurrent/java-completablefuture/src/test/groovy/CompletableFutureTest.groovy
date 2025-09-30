@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 
@@ -16,7 +16,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
  * Note: ideally this should live with the rest of ExecutorInstrumentationTest,
  * but this code needs java8 so we put it here for now.
  */
-class CompletableFutureTest extends AgentTestRunner {
+class CompletableFutureTest extends InstrumentationSpecification {
 
   def "CompletableFuture test"() {
     setup:

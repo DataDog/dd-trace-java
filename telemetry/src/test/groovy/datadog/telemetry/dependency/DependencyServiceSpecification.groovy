@@ -7,9 +7,6 @@ import java.security.CodeSigner
 import java.security.CodeSource
 import java.security.ProtectionDomain
 
-import static org.hamcrest.Matchers.is
-import static org.junit.Assert.assertThat
-
 class DependencyServiceSpecification extends DepSpecification {
   DependencyService depService = new DependencyService()
 
@@ -68,10 +65,9 @@ class DependencyServiceSpecification extends DepSpecification {
 
     then:
     def set = depService.drainDeterminedDependencies() as Set
-    assertThat(set.size(), is(1))
-
-    assertThat(set.first().name, is('junit'))
-    assertThat(set.first().version, is('4.12'))
+    set.size() ==  1
+    set.first().name == 'junit'
+    set.first().version == '4.12'
   }
 
   void 'convertToURI works with a spaced URL'() {
@@ -99,7 +95,7 @@ class DependencyServiceSpecification extends DepSpecification {
 
     then:
     def set = depService.drainDeterminedDependencies() as Set
-    assertThat(set.size(), is(105))
+    set.size() ==  105
   }
 
   void 'build dependency set from a small fat jar'() {

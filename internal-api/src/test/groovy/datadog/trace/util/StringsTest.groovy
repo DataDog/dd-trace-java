@@ -63,7 +63,7 @@ class StringsTest extends DDSpecification {
 
   def "test envvar from property"() {
     expect:
-    "FOO_BAR_QUX" == Strings.toEnvVar("foo.bar-qux")
+    "FOO_BAR_QUX" == ConfigStrings.toEnvVar("foo.bar-qux")
   }
 
   def "test replace strings"() {

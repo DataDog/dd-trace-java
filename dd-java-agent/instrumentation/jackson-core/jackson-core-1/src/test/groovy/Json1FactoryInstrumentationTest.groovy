@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
@@ -11,7 +11,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class Json1FactoryInstrumentationTest extends AgentTestRunner {
+class Json1FactoryInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   @AutoCleanup

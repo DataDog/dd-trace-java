@@ -267,6 +267,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL, "http://somehost:123/debugger/v1/input")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
@@ -2332,27 +2333,64 @@ class ConfigTest extends DDSpecification {
     !hostname.trim().isEmpty()
   }
 
-  def "config instantiation should fail if llm obs is enabled via sys prop and ml app is not set"() {
+  def "config instantiation should NOT fail if llm obs is enabled via sys prop and ml app is not set"() {
     setup:
     Properties properties = new Properties()
     properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(SERVICE, "test-service")
 
     when:
-    new Config(ConfigProvider.withPropertiesOverride(properties))
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    thrown IllegalArgumentException
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
   }
 
-  def "config instantiation should fail if llm obs is enabled via env var and ml app is not set"() {
+  def "config instantiation should NOT fail if llm obs is enabled via sys prop and ml app is empty"() {
     setup:
-    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    Properties properties = new Properties()
+    properties.setProperty(LLMOBS_ENABLED, "true")
+    properties.setProperty(SERVICE, "test-service")
+    properties.setProperty(LLMOBS_ML_APP, "")
 
     when:
-    new Config()
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
-    thrown IllegalArgumentException
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled via env var and ml app is not set"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "test-service")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled via env var and ml app is empty"() {
+    setup:
+    environmentVariables.set(DD_LLMOBS_ENABLED_ENV, "true")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "test-service")
+    environmentVariables.set(DD_LLMOBS_ML_APP_ENV, "")
+
+    when:
+    def config = new Config()
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.llmObsMlApp == "test-service"
   }
 
 
@@ -2748,7 +2786,6 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
   }
 

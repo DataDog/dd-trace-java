@@ -1,4 +1,3 @@
-
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Spring Boot 2.7 Webflux Smoke Tests.'
@@ -31,11 +30,11 @@ tasks.register('webfluxBuild', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-webfluxBuild {
+tasks.named("webfluxBuild", Exec) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy") {
   dependsOn 'webfluxBuild'
   outputs.upToDateWhen {
     !webfluxBuild.didWork

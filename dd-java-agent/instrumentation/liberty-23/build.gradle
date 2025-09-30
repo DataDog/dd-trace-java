@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'java-test-fixtures'
   id 'com.gradleup.shadow'
@@ -31,7 +33,7 @@ dependencies {
 
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
   testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:liberty-20')
@@ -110,7 +112,7 @@ tasks.register('webappCopyJars', Sync) {
 }
 [test, forkedTest]*.dependsOn webappCopyJars
 
-tasks.register('filterLogbackClassic', Sync) {
+def filterLogbackClassicTask = tasks.register('filterLogbackClassic', Sync) {
   ext.filteredLogbackDir = project.layout.buildDirectory.dir('filteredLogback')
   from configurations.testLogging
     .findAll { it.name.contains('logback-') }
@@ -118,11 +120,10 @@ tasks.register('filterLogbackClassic', Sync) {
   exclude 'META-INF/**'
   into ext.filteredLogbackDir
 }
-[test, forkedTest]*.dependsOn filterLogbackClassic
 
-shadowJar {
+def shadowJarTask = tasks.named("shadowJar", ShadowJar) {
   configurations = [project.configurations.shadow]
-  zip64 true
+  zip64 = true
 
   archiveFileName = 'openliberty-shadow.jar'
 
@@ -146,4 +147,8 @@ shadowJar {
     include "wlp/dev/*.jar"
   }
 }
-[test, forkedTest]*.dependsOn shadowJar
+["test", "forkedTest"].each {
+  tasks.named(it) {
+    dependsOn(filterLogbackClassicTask, shadowJarTask)
+  }
+}

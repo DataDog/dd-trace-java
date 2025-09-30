@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 buildscript {
   repositories {
     mavenCentral()
@@ -10,7 +12,6 @@ buildscript {
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -28,14 +29,10 @@ dependencies {
   implementation project(':components:json')
   implementation project(':internal-api')
 
-  testImplementation project(":utils:test-utils")
-  testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.0'
-
-  testFixturesApi project(':dd-java-agent:testing')
-  testFixturesApi project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:testing')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 

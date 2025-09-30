@@ -6,6 +6,8 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
 apply plugin: 'idea'
 
 muzzle {
@@ -40,7 +42,7 @@ previewTest.configure {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check
-tasks.named("check").configure {
+tasks.named("check") {
   dependsOn "previewTest"
 }
 

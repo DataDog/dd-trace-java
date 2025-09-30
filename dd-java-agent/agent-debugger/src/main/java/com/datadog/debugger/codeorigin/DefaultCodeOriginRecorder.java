@@ -48,7 +48,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   private AgentTaskScheduler scheduler;
 
   public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
-    this(config, configurationUpdater, AgentTaskScheduler.INSTANCE);
+    this(config, configurationUpdater, AgentTaskScheduler.get());
   }
 
   public DefaultCodeOriginRecorder(
@@ -60,6 +60,10 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   @Override
   public String captureCodeOrigin(boolean entry) {
+    if (!entry) {
+      LOG.debug("Not capturing code origin for exit");
+      return null;
+    }
     StackTraceElement element = findPlaceInStack();
     String fingerprint = Fingerprinter.fingerprint(element);
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);

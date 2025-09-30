@@ -5,9 +5,10 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'Kafka Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.datastreams.kafkaschemaregistry.KafkaProducerWithSchemaRegistry')
   }
@@ -33,4 +34,7 @@ tasks.withType(Test).configureEach {
 task testRuntimeActivation(type: Test) {
   jvmArgs "-Ddatadog.smoketest.datastreams.kafkaschemaregistry.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+
+tasks.named('check') {
+  dependsOn(testRuntimeActivation)
+}

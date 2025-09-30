@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.CommandInjectionModule
 import foo.bar.TestRuntimeSuite
 
 import static org.mockito.Mockito.mock
 
-class RuntimeCallSiteTest extends AgentTestRunner {
+class RuntimeCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

@@ -54,9 +54,9 @@ abstract class AbstractIast11SpringBootTest extends AbstractIastServerSmokeTest 
       if (parameter == 'url') {
         return parts.size() == 1
         && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
-      } else {
-        throw new IllegalArgumentException("Parameter $parameter not supported")
       }
+
+      throw new IllegalArgumentException("Parameter $parameter not supported")
     }
 
     where:

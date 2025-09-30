@@ -8,6 +8,8 @@ import datadog.communication.monitor.Monitoring
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.Config
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -137,7 +139,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(1L, "service.name", "my-service", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"] +
+        (Config.get().isExperimentalPropagateProcessTagsEnabled() ? ["_dd.tags.process" : ProcessTags.getTagsForSerialization().toString()] : []),
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)          : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String)   : 1,
@@ -157,7 +160,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(100L, "resource.name", "my-resource", PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"] +
+        (Config.get().isExperimentalPropagateProcessTagsEnabled() ? ["_dd.tags.process" : ProcessTags.getTagsForSerialization().toString()] : []),
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)          : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String)   : 1,

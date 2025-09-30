@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
@@ -22,7 +22,7 @@ import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-abstract class AbstractPayloadTaggingTest extends AgentTestRunner {
+abstract class AbstractPayloadTaggingTest extends InstrumentationSpecification {
   static final Object NA = {}
 
   static final int DEFAULT_PORT = 4566

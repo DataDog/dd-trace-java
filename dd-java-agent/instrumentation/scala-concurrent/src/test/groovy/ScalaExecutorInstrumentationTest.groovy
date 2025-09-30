@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import scala.concurrent.forkjoin.ForkJoinPool
@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * Test executor instrumentation for Scala specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
  */
-class ScalaExecutorInstrumentationTest extends AgentTestRunner {
+class ScalaExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }

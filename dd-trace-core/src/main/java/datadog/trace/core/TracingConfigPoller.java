@@ -8,6 +8,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_CO
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RATE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TRACING_ENABLED;
@@ -27,13 +28,15 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.sampling.SamplingRule;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -74,7 +77,8 @@ final class TracingConfigPoller {
               | CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION
               | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
               | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
-              | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING);
+              | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
+              | CAPABILITY_APM_TRACING_MULTICONFIG);
     }
     stopPolling = new Updater().register(config, configPoller);
   }
@@ -87,14 +91,17 @@ final class TracingConfigPoller {
 
   final class Updater implements ProductListener {
     private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER;
+    private final JsonAdapter<LibConfig> LIB_CONFIG_ADAPTER;
     private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
       Moshi MOSHI = new Moshi.Builder().add(new TracingSamplingRulesAdapter()).build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
+      LIB_CONFIG_ADAPTER = MOSHI.adapter(LibConfig.class);
       TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
     }
 
+    private final Map<String, ConfigOverrides> configs = new HashMap<>();
     private boolean receivedOverrides = false;
 
     public Runnable register(Config config, ConfigurationPoller poller) {
@@ -115,11 +122,12 @@ final class TracingConfigPoller {
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
       if (null != overrides && null != overrides.libConfig) {
-        receivedOverrides = true;
-        applyConfigOverrides(checkConfig(overrides.libConfig));
+        configs.put(configKey.getConfigId(), overrides);
         if (log.isDebugEnabled()) {
           log.debug(
-              "Applied APM_TRACING overrides: {}", CONFIG_OVERRIDES_ADAPTER.toJson(overrides));
+              "Applied APM_TRACING overrides: {} - priority: {}",
+              CONFIG_OVERRIDES_ADAPTER.toJson(overrides),
+              overrides.getOverridePriority());
         }
       } else {
         log.debug("No APM_TRACING overrides");
@@ -127,15 +135,33 @@ final class TracingConfigPoller {
     }
 
     @Override
-    public void remove(ConfigKey configKey, PollingRateHinter hinter) {}
+    public void remove(ConfigKey configKey, PollingRateHinter hinter) {
+      configs.remove(configKey.getConfigId());
+    }
 
     @Override
     public void commit(PollingRateHinter hinter) {
-      if (!receivedOverrides) {
+      // sort configs by override priority
+      List<LibConfig> sortedConfigs =
+          configs.values().stream()
+              .sorted(Comparator.comparingInt(ConfigOverrides::getOverridePriority).reversed())
+              .map(config -> config.libConfig)
+              .collect(Collectors.toList());
+
+      LibConfig mergedConfig = LibConfig.mergeLibConfigs(sortedConfigs);
+
+      if (mergedConfig != null) {
+        // apply merged config
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Applying merged APM_TRACING config: {}", LIB_CONFIG_ADAPTER.toJson(mergedConfig));
+        }
+        applyConfigOverrides(checkConfig(mergedConfig));
+      }
+
+      if (sortedConfigs.isEmpty()) {
         removeConfigOverrides();
         log.debug("Removed APM_TRACING overrides");
-      } else {
-        receivedOverrides = false;
       }
     }
 
@@ -220,11 +246,12 @@ final class TracingConfigPoller {
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
-    DebuggerContext.updateConfig(
-        libConfig.dynamicInstrumentationEnabled,
-        libConfig.exceptionReplayEnabled,
-        libConfig.codeOriginEnabled,
-        libConfig.liveDebuggingEnabled);
+    DebuggerConfigBridge.updateConfig(
+        new DebuggerConfigUpdate(
+            libConfig.dynamicInstrumentationEnabled,
+            libConfig.exceptionReplayEnabled,
+            libConfig.codeOriginEnabled,
+            libConfig.liveDebuggingEnabled));
     builder.apply();
   }
 
@@ -263,6 +290,77 @@ final class TracingConfigPoller {
   static final class ConfigOverrides {
     @Json(name = "lib_config")
     public LibConfig libConfig;
+
+    @Json(name = "service_target")
+    public ServiceTarget serviceTarget;
+
+    @Json(name = "k8s_target_v2")
+    public K8sTargetV2 k8sTargetV2;
+
+    public int getOverridePriority() {
+      boolean isSingleEnvironment = isSingleEnvironment();
+      boolean isSingleService = isSingleService();
+      boolean isClusterTarget = isClusterTarget();
+
+      // Service+ Environment level override - highest priority
+      if (isSingleEnvironment && isSingleService) {
+        return 5;
+      }
+
+      if (isSingleService) {
+        return 4;
+      }
+
+      if (isSingleEnvironment) {
+        return 3;
+      }
+
+      if (isClusterTarget) {
+        return 2;
+      }
+
+      // Org level override - lowest priority
+      return 1;
+    }
+
+    // allEnvironments = serviceTarget is null or serviceTarget.env is null or '*'
+    public boolean isSingleEnvironment() {
+      return serviceTarget != null && serviceTarget.env != null && !"*".equals(serviceTarget.env);
+    }
+
+    public boolean isSingleService() {
+      return serviceTarget != null
+          && serviceTarget.service != null
+          && !"*".equals(serviceTarget.service);
+    }
+
+    public boolean isClusterTarget() {
+      return k8sTargetV2 != null;
+    }
+  }
+
+  static final class ServiceTarget {
+    @Json(name = "service")
+    public String service;
+
+    @Json(name = "env")
+    public String env;
+  }
+
+  static final class K8sTargetV2 {
+    @Json(name = "cluster_targets")
+    public List<ClusterTarget> clusterTargets;
+  }
+
+  static final class ClusterTarget {
+    @Json(name = "cluster_name")
+    public String clusterName;
+
+    @Json(name = "enabled")
+    public Boolean enabled;
+
+    @Json(name = "enabled_namespaces")
+    public List<String> enabledNamespaces;
   }
 
   static final class LibConfig {
@@ -307,6 +405,71 @@ final class TracingConfigPoller {
 
     @Json(name = "live_debugging_enabled")
     public Boolean liveDebuggingEnabled;
+
+    /**
+     * Merges a list of LibConfig objects by taking the first non-null value for each field.
+     *
+     * @param configs the list of LibConfig objects to merge
+     * @return a merged LibConfig object, or null if the input list is null or empty
+     */
+    public static LibConfig mergeLibConfigs(List<LibConfig> configs) {
+      if (configs == null || configs.isEmpty()) {
+        return null;
+      }
+
+      LibConfig merged = new LibConfig();
+
+      for (LibConfig config : configs) {
+        if (config == null) {
+          continue;
+        }
+
+        if (merged.tracingEnabled == null) {
+          merged.tracingEnabled = config.tracingEnabled;
+        }
+        if (merged.debugEnabled == null) {
+          merged.debugEnabled = config.debugEnabled;
+        }
+        if (merged.runtimeMetricsEnabled == null) {
+          merged.runtimeMetricsEnabled = config.runtimeMetricsEnabled;
+        }
+        if (merged.logsInjectionEnabled == null) {
+          merged.logsInjectionEnabled = config.logsInjectionEnabled;
+        }
+        if (merged.dataStreamsEnabled == null) {
+          merged.dataStreamsEnabled = config.dataStreamsEnabled;
+        }
+        if (merged.serviceMapping == null) {
+          merged.serviceMapping = config.serviceMapping;
+        }
+        if (merged.headerTags == null) {
+          merged.headerTags = config.headerTags;
+        }
+        if (merged.traceSampleRate == null) {
+          merged.traceSampleRate = config.traceSampleRate;
+        }
+        if (merged.tracingTags == null) {
+          merged.tracingTags = config.tracingTags;
+        }
+        if (merged.tracingSamplingRules == null) {
+          merged.tracingSamplingRules = config.tracingSamplingRules;
+        }
+        if (merged.dynamicInstrumentationEnabled == null) {
+          merged.dynamicInstrumentationEnabled = config.dynamicInstrumentationEnabled;
+        }
+        if (merged.exceptionReplayEnabled == null) {
+          merged.exceptionReplayEnabled = config.exceptionReplayEnabled;
+        }
+        if (merged.codeOriginEnabled == null) {
+          merged.codeOriginEnabled = config.codeOriginEnabled;
+        }
+        if (merged.liveDebuggingEnabled == null) {
+          merged.liveDebuggingEnabled = config.liveDebuggingEnabled;
+        }
+      }
+
+      return merged;
+    }
   }
 
   /** Holds the raw JSON string and the parsed rule data. */
