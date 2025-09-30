@@ -9,6 +9,7 @@ import java.net.URL;
  * resources. The LibraryResolver may try multiple locations to find the best possible library to
  * use.
  */
+@FunctionalInterface
 public interface LibraryResolver {
   default boolean isPreloaded(PlatformSpec platform, String libName) {
     return false;
