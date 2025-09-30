@@ -31,6 +31,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
@@ -395,30 +396,28 @@ public class WAFModule implements AppSecModule {
         Collection<AppSecEvent> events = buildEvents(resultWithData);
         boolean isThrottled = reqCtx.isThrottled(rateLimiter);
 
-        if (resultWithData.keep) {
-          reqCtx.setManuallyKept(true);
-          if (!isThrottled) {
-            AgentSpan activeSpan = AgentTracer.get().activeSpan();
-            if (activeSpan != null) {
+        if (!isThrottled) {
+          AgentSpan activeSpan = AgentTracer.get().activeSpan();
+          if (activeSpan != null) {
+            if (resultWithData.keep) {
               log.debug("Setting force-keep tag and manual keep tag on the current span");
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
+              activeSpan.getLocalRootSpan().setTag(DDTags.MANUAL_KEEP, true);
+            } else if (resultWithData.events) {
               activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
-              // If APM is disabled, inform downstream services that the current
-              // distributed trace contains at least one ASM event and must inherit
-              // the given force-keep priority
-              activeSpan
-                  .getLocalRootSpan()
-                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
-            } else {
-              // If active span is not available then we need to set manual keep in GatewayBridge
-              log.debug("There is no active span available");
             }
+            activeSpan
+                .getLocalRootSpan()
+                .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
           } else {
-            log.debug("Rate limited WAF events");
-            if (!gwCtx.isRasp) {
-              reqCtx.setWafRateLimited();
-            }
+            // If active span is not available then we need to set manual keep in GatewayBridge
+            log.debug("There is no active span available");
+          }
+        } else {
+          log.debug("Rate limited WAF events");
+          if (!gwCtx.isRasp) {
+            reqCtx.setWafRateLimited();
           }
         }
 
