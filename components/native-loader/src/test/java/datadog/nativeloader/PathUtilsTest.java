@@ -12,6 +12,7 @@ import static datadog.nativeloader.TestPlatformSpec.unsupportedArch;
 import static datadog.nativeloader.TestPlatformSpec.unsupportedOs;
 import static datadog.nativeloader.TestPlatformSpec.windows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
@@ -119,12 +120,22 @@ public class PathUtilsTest {
   }
 
   @Test
-  public void libcPart_glibc() {
+  public void libcPart_linux_glibc() {
     assertEquals("libc", PathUtils.libcPartOf(linux_glibc()));
   }
 
   @Test
-  public void libcPart_musl() {
+  public void libcPart_linux_musl() {
     assertEquals("musl", PathUtils.libcPartOf(linux_musl()));
+  }
+
+  @Test
+  public void libcPart_mac() {
+    assertNull(PathUtils.libcPartOf(mac()));
+  }
+
+  @Test
+  public void libcPart_windows() {
+    assertNull(PathUtils.libcPartOf(windows()));
   }
 }
