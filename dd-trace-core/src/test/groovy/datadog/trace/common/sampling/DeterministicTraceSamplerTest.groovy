@@ -376,4 +376,62 @@ class DeterministicTraceSamplerTest extends DDSpecification {
     where:
     rate << (0..100)
   }
+
+  def "test getKnuthSampleRate formatting: #rate -> #expected"() {
+    given:
+    DeterministicSampler sampler = new DeterministicSampler.TraceSampler(rate)
+
+    when:
+    String formatted = sampler.getKnuthSampleRate()
+
+    then:
+    formatted == expected
+
+    where:
+    rate         | expected
+    0.0          | "0"
+    0.000001     | "0.000001"
+    0.000010     | "0.00001"
+    0.000100     | "0.0001"
+    0.001000     | "0.001"
+    0.010000     | "0.01"
+    0.100000     | "0.1"
+    0.123456     | "0.123456"
+    0.123450     | "0.12345"
+    0.123400     | "0.1234"
+    0.123000     | "0.123"
+    0.120000     | "0.12"
+    0.100000     | "0.1"
+    0.500000     | "0.5"
+    0.999999     | "0.999999"
+    1.0          | "1"
+    1.5          | "1"  // Values > 1 are clamped to 1
+    -0.5         | "0"  // Values < 0 are clamped to 0
+  }
+
+  def "test getKnuthSampleRate precision and rounding"() {
+    given:
+    // Test edge cases around rounding
+    DeterministicSampler sampler1 = new DeterministicSampler.TraceSampler(0.1234564)  // Should round down
+    DeterministicSampler sampler2 = new DeterministicSampler.TraceSampler(0.1234565)  // Should round up
+    DeterministicSampler sampler3 = new DeterministicSampler.TraceSampler(0.9999995)  // Should round up to 1
+
+    expect:
+    sampler1.getKnuthSampleRate() == "0.123456"
+    sampler2.getKnuthSampleRate() == "0.123457"
+    sampler3.getKnuthSampleRate() == "1"
+  }
+
+  def "test getKnuthSampleRate is consistent"() {
+    given:
+    DeterministicSampler sampler = new DeterministicSampler.TraceSampler(0.123456)
+
+    when:
+    String rate1 = sampler.getKnuthSampleRate()
+    String rate2 = sampler.getKnuthSampleRate()
+
+    then:
+    rate1 == rate2
+    rate1 == "0.123456"
+  }
 }
