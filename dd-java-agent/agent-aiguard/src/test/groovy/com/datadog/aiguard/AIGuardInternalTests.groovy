@@ -77,11 +77,28 @@ class AIGuardInternalTests extends DDSpecification {
   }
 
   void 'test missing api/app keys'() {
+    given:
+    if (apiKey) {
+      injectEnvConfig('API_KEY', apiKey)
+    }
+    if (appKey) {
+      injectEnvConfig('APP_KEY', appKey)
+    }
+
     when:
     AIGuardInternal.install()
 
     then:
-    thrown(RuntimeException)
+    thrown(AIGuardInternal.BadConfigurationException)
+
+    where:
+    apiKey   | appKey
+    'apiKey' | null
+    'apiKey' | ''
+    null     | 'appKey'
+    ''       | 'appKey'
+    null     | null
+    ''       | ''
   }
 
   void 'test endpoint discovery'() {
@@ -269,6 +286,30 @@ class AIGuardInternalTests extends DDSpecification {
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
   }
 
+  void 'test evaluate with empty response'() {
+    given:
+    Request request = null
+    final call = Mock(Call) {
+      execute() >> {
+        return mockResponse(request, 200, null)
+      }
+    }
+    final client = Mock(OkHttpClient) {
+      newCall(_ as Request) >> {
+        request = (Request) it[0]
+        return call
+      }
+    }
+    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    thrown(AIGuard.AIGuardClientError)
+    1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
+  }
+
   void 'test message length truncation'() {
     given:
     final maxMessages = Config.get().getAiGuardMaxMessagesLength()
@@ -331,6 +372,49 @@ class AIGuardInternalTests extends DDSpecification {
     }
   }
 
+  void 'test no messages'() {
+    given:
+    final aiguard = new AIGuardInternal(URL, HEADERS, Stub(OkHttpClient))
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    thrown(IllegalArgumentException)
+
+
+    where:
+    messages << [[], null]
+  }
+
+  void 'test missing tool name'() {
+    given:
+    def request
+    final call = Mock(Call) {
+      execute() >> {
+        return mockResponse(
+          request,
+          200,
+          [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]]
+          )
+      }
+    }
+    final client = Mock(OkHttpClient) {
+      newCall(_ as Request) >> {
+        request = (Request) it[0]
+        return call
+      }
+    }
+    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+
+    when:
+    aiguard.evaluate([AIGuard.Message.tool('call_1', 'Content')], AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setTag(AIGuardInternal.TARGET_TAG, 'tool')
+    0 * span.setTag(AIGuardInternal.TOOL_TAG, _)
+  }
+
   private static assertRequest(final Request request, final List<AIGuard.Message> messages) {
     assert request.url() == URL
     assert request.method() == 'POST'
@@ -358,7 +442,7 @@ class AIGuardInternalTests extends DDSpecification {
       .message('ok')
       .request(request)
       .code(status)
-      .body(ResponseBody.create(MediaType.parse('application/json'), MOSHI.adapter(Object).toJson(body)))
+      .body(body == null ? null : ResponseBody.create(MediaType.parse('application/json'), MOSHI.adapter(Object).toJson(body)))
       .build()
   }
 

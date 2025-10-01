@@ -31,14 +31,6 @@ jar {
   archiveClassifier = 'unbundled'
 }
 
-ext {
-  minimumBranchCoverage = 0.6
-  minimumInstructionCoverage = 0.8
-  excludedClassesCoverage = []
-  excludedClassesBranchCoverage = []
-  excludedClassesInstructionCoverage = []
-}
-
 spotless {
   java {
     target 'src/**/*.java'

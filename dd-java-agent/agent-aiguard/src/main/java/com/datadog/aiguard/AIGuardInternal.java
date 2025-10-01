@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,12 @@ import okio.BufferedSink;
 
 public class AIGuardInternal implements Evaluator {
 
+  public static class BadConfigurationException extends RuntimeException {
+    public BadConfigurationException(final String message) {
+      super(message);
+    }
+  }
+
   static final String SPAN_NAME = "ai_guard";
   static final String TARGET_TAG = "ai_guard.target";
   static final String TOOL_TAG = "ai_guard.tool";
@@ -51,7 +58,7 @@ public class AIGuardInternal implements Evaluator {
     final String apiKey = config.getApiKey();
     final String appKey = config.getApplicationKey();
     if (isEmpty(apiKey) || isEmpty(appKey)) {
-      throw new RuntimeException(
+      throw new BadConfigurationException(
           "AI Guard: Missing api and/or application key, use DD_API_KEY and DD_APP_KEY");
     }
     String endpoint = config.getAiGuardEndpoint();
@@ -98,11 +105,12 @@ public class AIGuardInternal implements Evaluator {
     final int maxContent = config.getAiGuardMaxContentSize();
     for (int i = 0; i < messages.size(); i++) {
       Message source = messages.get(i);
-      if (source.getContent() != null && source.getContent().length() > maxContent) {
+      final String content = source.getContent();
+      if (content != null && content.length() > maxContent) {
         source =
             new Message(
                 source.getRole(),
-                source.getContent().substring(0, maxContent),
+                content.substring(0, maxContent),
                 source.getToolCalls(),
                 source.getToolCallId());
         messages.set(i, source);
@@ -146,7 +154,7 @@ public class AIGuardInternal implements Evaluator {
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
     if (messages == null || messages.isEmpty()) {
-      throw new IllegalArgumentException("messages must not be empty");
+      throw new IllegalArgumentException("Messages must not be empty");
     }
     final AgentTracer.TracerAPI tracer = AgentTracer.get();
     final AgentSpan span = tracer.buildSpan(SPAN_NAME, SPAN_NAME).start();
@@ -161,8 +169,8 @@ public class AIGuardInternal implements Evaluator {
       } else {
         span.setTag(TARGET_TAG, "prompt");
       }
-      final Map<String, Object> metaStruct = new HashMap<>(1);
-      metaStruct.put(META_STRUCT_KEY, truncate(messages));
+      final Map<String, Object> metaStruct =
+          Collections.singletonMap(META_STRUCT_KEY, truncate(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
@@ -173,7 +181,7 @@ public class AIGuardInternal implements Evaluator {
         final Map<String, Object> result = parseResponseBody(response);
         final String actionStr = (String) result.get("action");
         if (actionStr == null) {
-          throw new IllegalArgumentException("action field is missing in the response");
+          throw new IllegalArgumentException("Action field is missing in the response");
         }
         final Action action = Action.valueOf(actionStr);
         final String reason = (String) result.get("reason");
@@ -214,7 +222,7 @@ public class AIGuardInternal implements Evaluator {
   }
 
   private AIGuardClientError fail(final int statusCode, final Object errors) {
-    return new AIGuardClientError("AI Guard service call failed, status" + statusCode, errors);
+    return new AIGuardClientError("AI Guard service call failed, status: " + statusCode, errors);
   }
 
   private static OkHttpClient buildClient(final HttpUrl url, final long timeout) {
