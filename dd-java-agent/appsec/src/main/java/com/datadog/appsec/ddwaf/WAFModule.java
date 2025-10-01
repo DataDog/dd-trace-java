@@ -31,7 +31,6 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
@@ -400,16 +399,16 @@ public class WAFModule implements AppSecModule {
           AgentSpan activeSpan = AgentTracer.get().activeSpan();
           if (activeSpan != null) {
             if (resultWithData.keep) {
+              reqCtx.setManuallyKept(true);
               log.debug("Setting force-keep tag and manual keep tag on the current span");
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
-              activeSpan.getLocalRootSpan().setTag(DDTags.MANUAL_KEEP, true);
-            } else if (resultWithData.events) { // sampler still might keep
-              activeSpan.getLocalRootSpan().setTag(DDTags.ASM_SAMPLER_KEEP, true);
+              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+
+              activeSpan
+                  .getLocalRootSpan()
+                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
             }
-            activeSpan
-                .getLocalRootSpan()
-                .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
           } else {
             // If active span is not available then we need to set manual keep in GatewayBridge
             log.debug("There is no active span available");
