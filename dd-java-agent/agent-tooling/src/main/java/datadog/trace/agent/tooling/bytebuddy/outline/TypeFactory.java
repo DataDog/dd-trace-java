@@ -384,8 +384,8 @@ final class TypeFactory {
     }
 
     @Override
-    public TypeDescription getDeclaringType() {
-      return outline().getDeclaringType();
+    public boolean isAnonymousType() {
+      return outline().isAnonymousType();
     }
 
     @Override
