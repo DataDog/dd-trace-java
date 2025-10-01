@@ -63,6 +63,7 @@ dependencies {
     setJavaVersion(it, 11)
   }
 }
+
 ["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
     javaLauncher = getJavaLauncherFor(11)

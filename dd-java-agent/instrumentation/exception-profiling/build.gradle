@@ -19,18 +19,13 @@ dependencies {
 }
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
-tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-  options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
-}
-
-tasks.named("compileTestJava", JavaCompile) {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-  options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+["compileMain_java11Java", "compileTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
+    setJavaVersion(it, 11)
+    it.sourceCompatibility = JavaVersion.VERSION_1_8
+    it.targetCompatibility = JavaVersion.VERSION_1_8
+    it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+  }
 }
 
 tasks.named("forbiddenApisMain_java11") {

@@ -41,7 +41,7 @@ sourceSets {
     }
   }
 }
-tasks.named("compileLatestDepTestGroovy") {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 

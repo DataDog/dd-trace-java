@@ -25,18 +25,16 @@ addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
 
-tasks.named("compileJetty11TestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("compileJetty11LatestDepTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(11)
+  }
 }
 
-tasks.named("jetty11Test", Test) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("jetty11LatestDepTest", Test) {
-  javaLauncher = getJavaLauncherFor(11)
+["jetty11Test", "jetty11LatestDepTest"].each { name ->
+  tasks.named(name, Test) {
+    javaLauncher = getJavaLauncherFor(11)
+  }
 }
 
 dependencies {

@@ -101,7 +101,7 @@ tasks.register('copyMetricConfigs', CopyMetricConfigsTask) {
   outputDirectory = file("$buildDir/integrations-core-resources")
 }
 
-processResources {
+tasks.named("processResources", ProcessResources) {
   dependsOn 'copyMetricConfigs'
   from("$buildDir/integrations-core-resources")
 }
