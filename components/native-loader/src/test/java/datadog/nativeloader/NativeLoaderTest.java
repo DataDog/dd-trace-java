@@ -64,8 +64,18 @@ public class NativeLoaderTest {
   }
 
   @Test
-  public void fromFile() throws LibraryLoadException {
+  public void fromDir() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    try (LibFile lib = loader.resolveDynamic("dummy")) {
+      // loaded directly from directory, so no clean-up required
+      assertFalse(lib.needsCleanup);
+    }
+  }
+
+  @Test
+  public void fromDirList() throws LibraryLoadException {
+    NativeLoader loader = NativeLoader.builder().fromDirs("dne1", "dne2", "test-data").build();
 
     try (LibFile lib = loader.resolveDynamic("dummy")) {
       // loaded directly from directory, so no clean-up required
