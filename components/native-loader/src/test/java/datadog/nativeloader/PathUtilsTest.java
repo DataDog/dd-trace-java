@@ -11,7 +11,6 @@ import static datadog.nativeloader.TestPlatformSpec.mac;
 import static datadog.nativeloader.TestPlatformSpec.unsupportedArch;
 import static datadog.nativeloader.TestPlatformSpec.unsupportedOs;
 import static datadog.nativeloader.TestPlatformSpec.windows;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -32,99 +31,100 @@ public class PathUtilsTest {
   public void libFileName_windows() {
     assertEquals("test.dll", PathUtils.libFileName(windows(), "test"));
   }
-  
+
   @Test
   public void libPrefix_mac() {
-	assertEquals("lib", PathUtils.libPrefix(mac()));
+    assertEquals("lib", PathUtils.libPrefix(mac()));
   }
-  
+
   @Test
   public void libPrefix_linux() {
-	assertEquals("lib", PathUtils.libPrefix(linux()));
+    assertEquals("lib", PathUtils.libPrefix(linux()));
   }
-  
+
   @Test
   public void libPrefix_windows() {
-	assertEquals("", PathUtils.libPrefix(windows()));
+    assertEquals("", PathUtils.libPrefix(windows()));
   }
-  
+
   @Test
   public void libPrefix_unsupportedOs() {
-	assertThrows(IllegalArgumentException.class, () -> PathUtils.libPrefix(unsupportedOs()));
+    assertThrows(IllegalArgumentException.class, () -> PathUtils.libPrefix(unsupportedOs()));
   }
-  
+
   @Test
   public void dynamicLibExtension_mac() {
-	assertEquals("dylib", PathUtils.dynamicLibExtension(mac()));
+    assertEquals("dylib", PathUtils.dynamicLibExtension(mac()));
   }
-  
+
   @Test
   public void dynamicLibExtension_linux() {
-	assertEquals("so", PathUtils.dynamicLibExtension(linux()));
+    assertEquals("so", PathUtils.dynamicLibExtension(linux()));
   }
-  
+
   @Test
   public void dynamicLibExtension_windows() {
-	assertEquals("dll", PathUtils.dynamicLibExtension(windows()));
+    assertEquals("dll", PathUtils.dynamicLibExtension(windows()));
   }
-  
+
   @Test
   public void dynamicLibExtension_unsupportedOs() {
-	assertThrows(IllegalArgumentException.class, () -> PathUtils.dynamicLibExtension(unsupportedOs()));
+    assertThrows(
+        IllegalArgumentException.class, () -> PathUtils.dynamicLibExtension(unsupportedOs()));
   }
-  
+
   @Test
   public void osPart_linux() {
-	assertEquals("linux", PathUtils.osPartOf(linux()));
+    assertEquals("linux", PathUtils.osPartOf(linux()));
   }
-  
+
   @Test
   public void osPart_mac() {
-	assertEquals("macos", PathUtils.osPartOf(mac()));
+    assertEquals("macos", PathUtils.osPartOf(mac()));
   }
-  
+
   @Test
   public void osPart_windows() {
-	assertEquals("win", PathUtils.osPartOf(windows()));
+    assertEquals("win", PathUtils.osPartOf(windows()));
   }
-  
+
   @Test
   public void osPart_unsupportedOs() {
-	assertThrows(IllegalArgumentException.class, () -> PathUtils.osPartOf(unsupportedOs()));
+    assertThrows(IllegalArgumentException.class, () -> PathUtils.osPartOf(unsupportedOs()));
   }
-  
+
   @Test
   public void archPart_x86_32() {
-	assertEquals("x86_32", PathUtils.archPartOf(linux_x86_32()));
+    assertEquals("x86_32", PathUtils.archPartOf(linux_x86_32()));
   }
-  
+
   @Test
   public void archPart_x86_64() {
-	assertEquals("x86_64", PathUtils.archPartOf(linux_x86_64()));
+    assertEquals("x86_64", PathUtils.archPartOf(linux_x86_64()));
   }
-  
+
   @Test
   public void archPart_arm32() {
-	assertEquals("arm32", PathUtils.archPartOf(linux_arm32()));
+    assertEquals("arm32", PathUtils.archPartOf(linux_arm32()));
   }
-  
+
   @Test
   public void archPart_arm64() {
-	assertEquals("aarch64", PathUtils.archPartOf(linux_arm64()));
+    assertEquals("aarch64", PathUtils.archPartOf(linux_arm64()));
   }
-  
+
   @Test
   public void archPart_unsupportedArch() {
-	assertThrows(IllegalArgumentException.class, () -> PathUtils.archPartOf(unsupportedArch()));
+    assertThrows(IllegalArgumentException.class, () -> PathUtils.archPartOf(unsupportedArch()));
   }
-  
+
   @Test
   public void libcPart_glibc() {
-	assertEquals("libc", PathUtils.libcPartOf(linux_glibc()));
+    assertEquals("libc", PathUtils.libcPartOf(linux_glibc()));
   }
-  
+
   @Test
   public void libcPart_musl() {
-	assertEquals("musl", PathUtils.libcPartOf(linux_musl()));
+    assertEquals("musl", PathUtils.libcPartOf(linux_musl()));
   }
 }
