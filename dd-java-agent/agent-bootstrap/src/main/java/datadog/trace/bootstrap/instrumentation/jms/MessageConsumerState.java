@@ -9,16 +9,19 @@ public final class MessageConsumerState {
   private final SessionState sessionState;
   private final CharSequence brokerResourceName;
   private final String brokerServiceName;
+  private final CharSequence consumerBaseResourceName;
   private final CharSequence consumerResourceName;
   private final boolean propagationDisabled;
 
   public MessageConsumerState(
       SessionState sessionState,
       CharSequence brokerResourceName,
+      CharSequence consumerBaseResourceName,
       CharSequence consumerResourceName,
       boolean propagationDisabled) {
     this.sessionState = sessionState;
     this.brokerResourceName = brokerResourceName;
+    this.consumerBaseResourceName = consumerBaseResourceName;
     this.consumerResourceName = consumerResourceName;
     this.propagationDisabled = propagationDisabled;
 
@@ -45,6 +48,10 @@ public final class MessageConsumerState {
 
   public String getBrokerServiceName() {
     return brokerServiceName;
+  }
+
+  public CharSequence getConsumerBaseResourceName() {
+    return consumerBaseResourceName;
   }
 
   public CharSequence getConsumerResourceName() {

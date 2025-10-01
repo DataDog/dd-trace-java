@@ -159,6 +159,12 @@ public final class JMSDecorator extends MessagingClientDecorator {
     if (null != resourceName) {
       span.setResourceName(resourceName);
     }
+    // span.setTag("roisinlhtest", 123);
+    // DataStreamsTags tags = create("jms", OUTBOUND, "jms-" + resourceName.toString());
+    // DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+    // AgentTracer.get()
+    //     .getDataStreamsMonitoring()
+    //     .setCheckpoint(span, dsmContext);
   }
 
   public static boolean canInject(Message message) {

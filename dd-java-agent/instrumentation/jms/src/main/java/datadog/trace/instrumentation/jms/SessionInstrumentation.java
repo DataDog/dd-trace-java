@@ -176,7 +176,11 @@ public class SessionInstrumentation
         consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                sessionState, brokerResourceName, consumerResourceName, propagationDisabled));
+                sessionState,
+                brokerResourceName,
+                destinationName,
+                consumerResourceName,
+                propagationDisabled));
       }
     }
   }
