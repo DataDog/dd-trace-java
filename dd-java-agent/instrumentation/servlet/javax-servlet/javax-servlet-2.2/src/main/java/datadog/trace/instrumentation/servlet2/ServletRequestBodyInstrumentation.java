@@ -98,6 +98,7 @@ public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public int order() {
+    // apply this instrumentation after the regular servlet one.
     return 1;
   }
 

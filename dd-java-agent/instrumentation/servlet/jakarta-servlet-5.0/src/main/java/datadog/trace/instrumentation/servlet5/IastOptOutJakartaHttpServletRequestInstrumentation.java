@@ -98,6 +98,7 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
 
   @Override
   public int order() {
+    // apply this instrumentation after the regular servlet one.
     return 1;
   }
 }

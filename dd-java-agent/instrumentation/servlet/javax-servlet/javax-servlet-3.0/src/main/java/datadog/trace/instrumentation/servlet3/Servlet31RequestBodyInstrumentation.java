@@ -78,6 +78,7 @@ public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppS
 
   @Override
   public int order() {
+    // apply this instrumentation after the regular servlet one.
     return 1;
   }
 }

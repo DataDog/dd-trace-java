@@ -110,6 +110,7 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
 
   @Override
   public int order() {
+    // apply this instrumentation after the regular servlet one.
     return 1;
   }
 }

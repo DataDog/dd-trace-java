@@ -62,6 +62,7 @@ public class Servlet5RequestBodyInstrumentation extends InstrumenterModule.AppSe
 
   @Override
   public int order() {
+    // apply this instrumentation after the regular servlet one.
     return 1;
   }
 }

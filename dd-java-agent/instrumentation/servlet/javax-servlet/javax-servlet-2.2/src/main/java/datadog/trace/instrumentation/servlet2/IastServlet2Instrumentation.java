@@ -72,6 +72,7 @@ public final class IastServlet2Instrumentation extends InstrumenterModule.Iast
 
   @Override
   public int order() {
+    // apply this instrumentation after the regular servlet one.
     return 1;
   }
 }
