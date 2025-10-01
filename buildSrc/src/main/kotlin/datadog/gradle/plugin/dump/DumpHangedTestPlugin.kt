@@ -89,7 +89,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
 
     val future = scheduler.get().schedule({
-      t.logger.lifecycle("Taking dumps after ${delay.seconds} seconds delay for $taskName")
+      t.logger.quiet("Taking dumps after ${delay.seconds} seconds delay for $taskName")
 
       takeDump(t)
     }, delay)
