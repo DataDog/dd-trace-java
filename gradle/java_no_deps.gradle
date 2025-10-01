@@ -181,6 +181,10 @@ ext.configureJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<String
 def configureTestJvm(Project project, boolean applyCodeCoverage) {
   def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
   def normalizedTestJvm = project.providers.gradleProperty("testJvm").map { testJvm ->
+    if (testJvm.isBlank()) {
+      throw new GradleException("testJvm property is blank")
+    }
+
     // "stable" is calculated as the largest X found in JAVA_X_HOME
     if (testJvm == "stable") {
       def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
