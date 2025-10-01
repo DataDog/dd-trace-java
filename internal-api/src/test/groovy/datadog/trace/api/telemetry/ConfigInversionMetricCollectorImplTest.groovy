@@ -11,19 +11,19 @@ class ConfigInversionMetricCollectorImplTest extends DDSpecification {
     def collector = ConfigInversionMetricCollectorImpl.getInstance()
 
     when:
-    ConfigInversionMetricCollectorTestHelper.checkAndEmitUnsupported("DD_UNKNOWN_FEATURE")
+    ConfigInversionMetricCollectorTestHelper.checkAndEmitUnsupported("FAKE_ENV_VAR")
     collector.prepareMetrics()
     def metrics = collector.drain()
 
     then:
-    metrics.size() == 1
+    assert metrics.size() == 1 : "The following Environment Variables need to be added to metadata/supported-configurations.json: ${metrics}"
     def metric = metrics[0]
     metric.type == 'count'
     metric.value == 1
     metric.namespace == 'tracers'
     metric.metricName == CONFIG_INVERSION_METRIC_NAME
     metric.tags.size() == 1
-    metric.tags[0] == 'config_name:DD_UNKNOWN_FEATURE'
+    metric.tags[0] == 'config_name:FAKE_ENV_VAR'
   }
 
   def "should not emit metric when supported env var is used"() {
@@ -36,6 +36,6 @@ class ConfigInversionMetricCollectorImplTest extends DDSpecification {
     def metrics = collector.drain()
 
     then:
-    metrics.isEmpty()
+    assert metrics.isEmpty() : "The following Environment Variables need to be added to metadata/supported-configurations.json: ${metrics}"
   }
 }
