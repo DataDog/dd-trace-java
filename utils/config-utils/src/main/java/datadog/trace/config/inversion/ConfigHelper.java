@@ -120,7 +120,7 @@ public class ConfigHelper {
     }
 
     if ((name.startsWith("DD_") || name.startsWith("OTEL_"))
-        && null != configSource.primaryEnvFromAlias(name)
+        && null == configSource.primaryEnvFromAlias(name)
         && !configSource.supported(name)) {
       if (configInversionStrict != StrictnessPolicy.TEST) {
         ConfigInversionMetricCollectorProvider.get().setUndocumentedEnvVarMetric(name);
