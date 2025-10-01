@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -10,7 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication')
   }
@@ -43,7 +45,7 @@ tasks.withType(Test).configureEach {
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   include {
     return it.directory || it.path.endsWith('.jar') ||
       it.path.startsWith('io/opentracing') ||

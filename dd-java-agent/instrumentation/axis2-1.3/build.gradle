@@ -14,7 +14,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
-configurations.all {
+configurations.configureEach {
   // the version used by axis2 isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.apache.woden', module: 'woden'
   // shut up about broken xml-api pom relocation
@@ -23,14 +23,14 @@ configurations.all {
   }
 }
 
-[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
-  it.configure {
+["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
     javaLauncher = getJavaLauncherFor(11)
   }
 }
 
-[compileLatestDepForkedTestJava, compileLatestDepTestJava].each {
-  it.configure {
+["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
     setJavaVersion(it, 11)
   }
 }
