@@ -72,12 +72,16 @@ configurations.configureEach {
   }
 }
 
-[compileLatest10TestGroovy, compileLatest10ForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
+["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(11)
+  }
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    javaLauncher = getJavaLauncherFor(17)
+  }
 }
 
 dependencies {
@@ -107,18 +111,18 @@ dependencies {
   testImplementation group: 'tomcat', name: 'naming-factory', version: tomcatVersion
   testImplementation group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-5.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
 
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
 
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '9.+'

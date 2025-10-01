@@ -57,7 +57,7 @@ configurations.configureEach {
   }
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 
