@@ -33,21 +33,24 @@ addTestSuiteExtendingForDir('ee10ForkedTest', 'ee10Test', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'test/ee10')
 
-[compileMain_java17Java, compileTestJava].each {
-  it.configure {
+["compileMain_java17Java", "compileTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
-[ee8LatestDepTest, ee9LatestDepTest, ee10LatestDepTest].each {
-  it.configure {
+
+["ee8LatestDepTest", "ee9LatestDepTest", "ee10LatestDepTest"].each { name ->
+  tasks.named(name, Test) {
     it.jvmArgs += ['-Dtest.dd.latestDepTest=true']
   }
 }
+
 forbiddenApisMain_java17 {
   failOnMissingClasses = false
 }
+
 tasks.withType(GroovyCompile).configureEach {
   javaLauncher = getJavaLauncherFor(17)
 }
