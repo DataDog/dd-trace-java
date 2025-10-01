@@ -32,6 +32,9 @@ public class NativeLoaderTest {
 
     // already considered loaded -- so this is a nop
     loader.load("dne2");
+
+    // not already loaded - so passes through to underlying resolver
+    assertThrows(LibraryLoadException.class, () -> loader.load("dne3"));
   }
 
   @Test
