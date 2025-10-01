@@ -245,31 +245,17 @@ test_all:
       for i in $(seq 1 $TOTAL_RUNS); do
         echo "=== Running iteration $i/$TOTAL_RUNS ==="
         
-        # Run base tests (non-forked) - use daemon for speed, compilation already done
-        if ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:baseTest -PtestJvm=$testJvm --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --offline --configure-on-demand; then
-          echo "Iteration $i: Base test PASSED" | tee -a flaky_test_results/iteration_${i}_base.log
-          BASE_RESULT="PASS"
-        else
-          echo "Iteration $i: Base test FAILED" | tee -a flaky_test_results/iteration_${i}_base.log
-          BASE_RESULT="FAIL"
-        fi
+        ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:baseTest -PtestJvm=$testJvm --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --offline --configure-on-demand --quiet > flaky_test_results/iteration_${i}_base.log 2>&1 &
+        BASE_PID=$!
+        ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:forkedTest -PtestJvm=$testJvm --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --offline --configure-on-demand --quiet > flaky_test_results/iteration_${i}_forked.log 2>&1 &
+        FORKED_PID=$!
         
-        # Run forked tests - use daemon for speed, compilation already done
-        if ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:forkedTest -PtestJvm=$testJvm --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --offline --configure-on-demand; then
-          echo "Iteration $i: Forked test PASSED" | tee -a flaky_test_results/iteration_${i}_forked.log
-          FORKED_RESULT="PASS"
-        else
-          echo "Iteration $i: Forked test FAILED" | tee -a flaky_test_results/iteration_${i}_forked.log
-          FORKED_RESULT="FAIL"
-        fi
-        
-        # Track overall results
-        if [[ "$BASE_RESULT" == "PASS" && "$FORKED_RESULT" == "PASS" ]]; then
+        if wait $BASE_PID && wait $FORKED_PID; then
           PASSED=$((PASSED + 1))
-          echo "Iteration $i: OVERALL PASSED" | tee -a flaky_test_results/summary.log
+          echo "Iteration $i: PASSED" | tee -a flaky_test_results/summary.log
         else
           FAILED=$((FAILED + 1))
-          echo "Iteration $i: OVERALL FAILED (Base: $BASE_RESULT, Forked: $FORKED_RESULT)" | tee -a flaky_test_results/summary.log
+          echo "Iteration $i: FAILED" | tee -a flaky_test_results/summary.log
         fi
         
         echo "Progress: $PASSED passed, $FAILED failed out of $i total runs"
@@ -279,12 +265,7 @@ test_all:
       echo "Total runs: $TOTAL_RUNS" | tee -a flaky_test_results/summary.log
       echo "Passed: $PASSED" | tee -a flaky_test_results/summary.log
       echo "Failed: $FAILED" | tee -a flaky_test_results/summary.log
-      if command -v bc >/dev/null 2>&1; then
-        echo "Success rate: $(echo "scale=2; $PASSED * 100 / $TOTAL_RUNS" | bc)%" | tee -a flaky_test_results/summary.log
-      else
-        echo "Success rate: $(( $PASSED * 100 / $TOTAL_RUNS ))%" | tee -a flaky_test_results/summary.log
-      fi
-      
+
       # Exit with error code if there were any failures - this helps quickly identify problematic JVMs
       if [ $FAILED -gt 0 ]; then
         exit 1
