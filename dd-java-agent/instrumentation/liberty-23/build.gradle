@@ -23,7 +23,7 @@ configurations {
   register("testLogging")
 }
 
-evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-5'
+evaluationDependsOn ':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'
 
 // Since these tasks output are used in dependencies they have to be declared before, they can be configured later
 def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
@@ -38,7 +38,7 @@ dependencies {
 
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
-  implementation project(':dd-java-agent:instrumentation:servlet:request-5')
+  implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
   testImplementation files(unpackOpenLiberty.map {it.extractedJars.get() })
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
@@ -46,19 +46,19 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files(filterLogbackClassic.map { it.destinationDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:liberty-20')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly files(shadowJar.map { it.archiveFile })
 
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
-  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
-  add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))) {
+  add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))) {
     transitive = false
   }
   // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly libs.groovy
 }
