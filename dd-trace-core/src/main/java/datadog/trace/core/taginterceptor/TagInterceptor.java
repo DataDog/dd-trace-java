@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
@@ -108,6 +109,7 @@ public class TagInterceptor {
       case DDTags.MANUAL_KEEP:
       case DDTags.MANUAL_DROP:
       case Tags.ASM_KEEP:
+      case DDTags.ASM_SAMPLER_KEEP:
       case Tags.SAMPLING_PRIORITY:
       case Tags.PROPAGATED_TRACE_SOURCE:
       case Tags.PROPAGATED_DEBUG:
@@ -152,6 +154,12 @@ public class TagInterceptor {
       case Tags.ASM_KEEP:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.APPSEC);
+          return true;
+        }
+        return false;
+      case DDTags.ASM_SAMPLER_KEEP:
+        if (asBoolean(value)) {
+          span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
           return true;
         }
         return false;

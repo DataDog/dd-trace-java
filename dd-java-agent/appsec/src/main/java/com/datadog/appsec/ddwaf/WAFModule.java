@@ -404,8 +404,8 @@ public class WAFModule implements AppSecModule {
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
               activeSpan.getLocalRootSpan().setTag(DDTags.MANUAL_KEEP, true);
-            } else if (resultWithData.events) {
-              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+            } else if (resultWithData.events) { // sampler still might keep
+              activeSpan.getLocalRootSpan().setTag(DDTags.ASM_SAMPLER_KEEP, true);
             }
             activeSpan
                 .getLocalRootSpan()

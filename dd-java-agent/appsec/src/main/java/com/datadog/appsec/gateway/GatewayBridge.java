@@ -754,7 +754,7 @@ public class GatewayBridge {
           traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
         } else {
           // Set asm keep in case that root span was not available when events are detected
-          traceSeg.setTagTop(Tags.ASM_KEEP, true);
+          traceSeg.setTagTop(DDTags.ASM_SAMPLER_KEEP, true);
         }
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         traceSeg.setTagTop("appsec.event", true);

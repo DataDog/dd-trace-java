@@ -330,7 +330,8 @@ class TraceTaggingSmokeTest extends AbstractAppSecServerSmokeTest {
     assert appsecJson.triggers != null, "Missing triggers in WAF attack event"
 
     // Should NOT have USER_KEEP sampling priority since keep: false
-    assert rootSpan.metrics.get('_sampling_priority_v1') < 2, "Should not have USER_KEEP sampling priority when keep: false"
+    assert rootSpan.metrics.get('_sampling_priority_v1') < 2,
+    "Should not have USER_KEEP sampling priority when keep: false"
 
   }
 
