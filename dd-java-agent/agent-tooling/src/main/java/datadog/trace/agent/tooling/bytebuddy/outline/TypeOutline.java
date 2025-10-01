@@ -113,21 +113,6 @@ final class TypeOutline extends WithName {
     return declaredMethods.isEmpty() ? NO_METHODS : new MethodList.Explicit<>(declaredMethods);
   }
 
-  @Override
-  public boolean isAnonymousType() {
-    // this method is only used when dd.iast.anonymous-classes.enabled=false
-    // so take simple approach and look for '$number' at the end of the name
-    for (int end = name.length() - 1, i = end; i > 0; i--) {
-      char c = name.charAt(i);
-      if (c == '$' && i < end) {
-        return true; // only seen digits so far, assume anonymous
-      } else if (c < '0' || c > '9') {
-        break; // non-digit character found, assume not anonymous
-      }
-    }
-    return false;
-  }
-
   void declare(AnnotationDescription annotation) {
     if (null != annotation) {
       if (null == declaredAnnotations) {

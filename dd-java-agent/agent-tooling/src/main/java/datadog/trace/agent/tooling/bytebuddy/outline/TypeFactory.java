@@ -384,11 +384,6 @@ final class TypeFactory {
     }
 
     @Override
-    public boolean isAnonymousType() {
-      return outline().isAnonymousType();
-    }
-
-    @Override
     public boolean isPublic() {
       return isPublicFilter.contains(name) || super.isPublic();
     }
