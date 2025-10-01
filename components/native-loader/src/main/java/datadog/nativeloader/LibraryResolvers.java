@@ -14,11 +14,15 @@ public final class LibraryResolvers {
 
   public static final LibraryResolver withPreloaded(
       LibraryResolver baseResolver, String... preloadedLibNames) {
-    Set<String> preloadedSet = new HashSet<>(Arrays.asList(preloadedLibNames));
+    return withPreloaded(baseResolver, new HashSet<>(Arrays.asList(preloadedLibNames)));
+  }
+
+  public static final LibraryResolver withPreloaded(
+      LibraryResolver baseResolver, Set<String> preloadedLibNames) {
     return new LibraryResolver() {
       @Override
       public boolean isPreloaded(PlatformSpec platform, String libName) {
-        return preloadedSet.contains(libName);
+        return preloadedLibNames.contains(libName);
       }
 
       @Override
