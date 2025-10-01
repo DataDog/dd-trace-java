@@ -65,9 +65,7 @@ public class AIGuardInternal implements Evaluator {
     if (isEmpty(endpoint)) {
       endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
-    final Map<String, String> headers = new HashMap<>(2);
-    headers.put("DD-API-KEY", apiKey);
-    headers.put("DD-APP-KEY", appKey);
+    final Map<String, String> headers = mapOf("DD-API-KEY", apiKey, "DD-APP-KEY", appKey);
     final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
     final int timeout = config.getAiGuardTimeout();
     final OkHttpClient client = buildClient(url, timeout);
@@ -91,9 +89,7 @@ public class AIGuardInternal implements Evaluator {
     this.client = client;
     this.moshi = new Moshi.Builder().build();
     final Config config = Config.get();
-    this.meta = new HashMap<>(2);
-    this.meta.put("service", config.getServiceName());
-    this.meta.put("env", config.getEnv());
+    this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
   }
 
   private static List<Message> truncate(List<Message> messages) {
@@ -231,6 +227,14 @@ public class AIGuardInternal implements Evaluator {
 
   private static boolean isEmpty(final String value) {
     return value == null || value.isEmpty();
+  }
+
+  private static Map<String, String> mapOf(
+      final String key1, final String prop1, final String key2, final String prop2) {
+    final Map<String, String> map = new HashMap<>(2);
+    map.put(key1, prop1);
+    map.put(key2, prop2);
+    return map;
   }
 
   private static class Installer extends AIGuard {
