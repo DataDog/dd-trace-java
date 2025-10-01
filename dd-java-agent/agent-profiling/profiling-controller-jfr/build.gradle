@@ -43,7 +43,7 @@ tasks.named("compileTestJava", JavaCompile) {
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 

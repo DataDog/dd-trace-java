@@ -48,11 +48,11 @@ dependencies {
   main_java11CompileOnly sourceSets.main.output
 }
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 

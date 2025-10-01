@@ -33,6 +33,7 @@ forbiddenApis {
   failOnMissingClasses = false
   ignoreFailures = true
 }
+
 spotbugs {
   onlyAnalyze = ['none']
 }
@@ -63,6 +64,7 @@ tasks.register('unpackJars', Copy) {
   }
   into compileJava.destinationDirectory
 }
+
 tasks.named('compileJava') {
   dependsOn 'unpackJars'
 }
@@ -106,6 +108,6 @@ tasks.named("shadowJar", ShadowJar) {
   relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
