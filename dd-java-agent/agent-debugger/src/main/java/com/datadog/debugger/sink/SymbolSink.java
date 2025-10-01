@@ -152,36 +152,6 @@ public class SymbolSink {
         "", event, new BatchUploader.MultiPartContent(payload, "file", fileName, mediaType));
   }
 
-  private void doUpload(List<Scope> scopesToSerialize, String json) {
-    byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
-    byte[] payload = null;
-    if (isCompressed) {
-      payload = compressPayload(jsonBytes);
-    }
-    if (payload == null) {
-      if (json.length() > maxPayloadSize) {
-        LOGGER.warn("Payload is too big: {}/{}", json.length(), maxPayloadSize);
-        splitAndSend(scopesToSerialize);
-        return;
-      }
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(jsonBytes, "file", "file.json", APPLICATION_JSON));
-    } else {
-      if (payload.length > maxPayloadSize) {
-        LOGGER.warn("Compressed payload is too big: {}/{}", payload.length, maxPayloadSize);
-        splitAndSend(scopesToSerialize);
-        return;
-      }
-      LOGGER.debug("Sending {} jar scopes size={}", scopesToSerialize.size(), payload.length);
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(payload, "file", "file.gz", APPLICATION_GZIP));
-    }
-  }
-
   private static byte[] compressPayload(byte[] jsonBytes) {
     // usual compression factor 40:1 for those json payload, so we are preallocating 1/40
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(jsonBytes.length / 40);
