@@ -31,4 +31,6 @@ tasks.named("shadowJar", ShadowJar) {
   }
 }
 
-build.dependsOn shadowJar
+tasks.named("build") {
+  dependsOn tasks.named("shadowJar")
+}
