@@ -21,7 +21,7 @@ shadowJar {
 
 // Use Java 11 to build application
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(delegate, 11)
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 dependencies {
