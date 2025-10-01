@@ -105,8 +105,3 @@ spotless {
     target 'src/**/*.java'
   }
 }
-
-pitest {
-  targetClasses = ['com.datadog.appsec.*']
-  jvmArgs = ['-Ddd.appsec.enabled=true']
-}
