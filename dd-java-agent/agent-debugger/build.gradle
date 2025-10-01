@@ -54,7 +54,7 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
   testImplementation group: 'org.jooq', name: 'joor-java-8', version: '0.9.13'
-  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "1.9.25"
+  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "2.1.21"
   testImplementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: "1.0.0"
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-builder')
