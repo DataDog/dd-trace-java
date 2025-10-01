@@ -47,6 +47,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
@@ -331,6 +332,7 @@ import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
@@ -535,6 +537,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HT
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -1124,6 +1128,9 @@ public class Config {
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
 
+  private final boolean resilience4jMeasuredEnabled;
+  private final boolean resilience4jTagMetricsEnabled;
+
   private final boolean igniteCacheIncludeKeys;
 
   private final String obfuscationQueryRegexp;
@@ -1167,6 +1174,7 @@ public class Config {
 
   private final boolean dataJobsEnabled;
   private final boolean dataJobsOpenLineageEnabled;
+  private final boolean dataJobsOpenLineageTimeoutEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -2550,6 +2558,10 @@ public class Config {
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
+    resilience4jMeasuredEnabled = configProvider.getBoolean(RESILIENCE4J_MEASURED_ENABLED, false);
+    resilience4jTagMetricsEnabled =
+        configProvider.getBoolean(RESILIENCE4J_TAG_METRICS_ENABLED, false);
+
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
     obfuscationQueryRegexp =
@@ -2586,6 +2598,9 @@ public class Config {
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
             DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
+    dataJobsOpenLineageTimeoutEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -4284,6 +4299,14 @@ public class Config {
     return hystrixMeasuredEnabled;
   }
 
+  public boolean isResilience4jMeasuredEnabled() {
+    return resilience4jMeasuredEnabled;
+  }
+
+  public boolean isResilience4jTagMetricsEnabled() {
+    return resilience4jTagMetricsEnabled;
+  }
+
   public boolean isIgniteCacheIncludeKeys() {
     return igniteCacheIncludeKeys;
   }
@@ -4480,6 +4503,10 @@ public class Config {
 
   public boolean isDataJobsOpenLineageEnabled() {
     return dataJobsOpenLineageEnabled;
+  }
+
+  public boolean isDataJobsOpenLineageTimeoutEnabled() {
+    return dataJobsOpenLineageTimeoutEnabled;
   }
 
   public boolean isApmTracingEnabled() {
@@ -5696,6 +5723,10 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", resilience4jMeasuredEnable="
+        + resilience4jMeasuredEnabled
+        + ", resilience4jTagMetricsEnabled="
+        + resilience4jTagMetricsEnabled
         + ", igniteCacheIncludeKeys="
         + igniteCacheIncludeKeys
         + ", servletPrincipalEnabled="
@@ -5806,6 +5837,10 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", dataJobsOpenLineageEnabled="
+        + dataJobsOpenLineageEnabled
+        + ", dataJobsOpenLineageTimeoutEnabled="
+        + dataJobsOpenLineageTimeoutEnabled
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="
