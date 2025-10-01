@@ -4,21 +4,27 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.jms.JMSDecorator.messageTechnology;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import javax.jms.Destination;
 import javax.jms.Message;
@@ -73,24 +79,35 @@ public final class JMSMessageProducerInstrumentation
               .get(producer);
 
       CharSequence resourceName;
-
-      if (null != producerState) {
-        resourceName = producerState.getResourceName();
-      } else {
-        try {
-          // fall-back when producer wasn't created via standard Session.createProducer API
-          Destination destination = producer.getDestination();
-          boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
-          String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+      String destinationName;
+      try {
+        // fall-back when producer wasn't created via standard Session.createProducer API
+        Destination destination = producer.getDestination();
+        boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
+        destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+        if (null != producerState) {
+          resourceName = producerState.getResourceName();
+        } else {
           resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
-        } catch (Exception ignored) {
-          resourceName = "Unknown Destination";
         }
+      } catch (Exception ignored) {
+        resourceName = "Unknown Destination";
+        destinationName = "";
       }
 
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
+
+      if (!destinationName.isEmpty() && Config.get().isDataStreamsEnabled()) {
+        final String tech = messageTechnology(message);
+        if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
+          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+        }
+      }
+
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
             && (null == producerState || !producerState.isPropagationDisabled())) {
@@ -138,6 +155,16 @@ public final class JMSMessageProducerInstrumentation
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
+
+      if (!destinationName.isEmpty() && Config.get().isDataStreamsEnabled()) {
+        final String tech = messageTechnology(message);
+        if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
+          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+        }
+      }
+
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
             && !Config.get().isJmsPropagationDisabledForDestination(destinationName))
