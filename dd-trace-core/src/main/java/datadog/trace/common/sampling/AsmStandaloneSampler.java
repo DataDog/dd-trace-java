@@ -41,7 +41,7 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
 
     if (shouldSample()) {
-      log.debug("Set USER_KEEP for span {}", span.getSpanId());
+      log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
       span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
     } else {
       log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
