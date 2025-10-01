@@ -25,6 +25,50 @@ public class TestPlatformSpec extends PlatformSpec {
   public static final TestPlatformSpec of(String os, String arch, boolean isMusl) {
     return new TestPlatformSpec(os, arch, isMusl);
   }
+  
+  public static final PlatformSpec mac() {
+	return TestPlatformSpec.of(MAC, AARCH64);
+  }
+	  
+  public static final PlatformSpec linux() {
+	return TestPlatformSpec.of(LINUX, X86_64);
+  }
+  
+  public static final PlatformSpec windows() {
+	return TestPlatformSpec.of(WINDOWS, X86_64);
+  }
+  
+  public static final PlatformSpec unsupportedOs() {
+	return TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
+  }
+	  
+  public static final PlatformSpec linux_x86_32() {
+	return TestPlatformSpec.of(WINDOWS, X86_32);
+  }
+  
+  public static final PlatformSpec linux_x86_64() {
+	return TestPlatformSpec.of(MAC, X86_64);
+  }
+	  
+  public static final PlatformSpec linux_arm32() {
+	return TestPlatformSpec.of(LINUX, ARM32);
+  }
+	  
+  public static final PlatformSpec linux_arm64() {
+	return TestPlatformSpec.of(LINUX, AARCH64);
+  }
+  
+  public static final PlatformSpec linux_glibc() {
+	return TestPlatformSpec.of(LINUX, AARCH64, GLIBC);
+  }
+  
+  public static final PlatformSpec linux_musl() {
+	return TestPlatformSpec.of(LINUX, AARCH64, MUSL);
+  }
+  
+  public static final PlatformSpec unsupportedArch() {
+	return TestPlatformSpec.of(LINUX, UNSUPPORTED_ARCH);
+  }
 
   private final String os;
   private final String arch;
