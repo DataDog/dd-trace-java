@@ -7,66 +7,62 @@ import static datadog.nativeloader.TestPlatformSpec.MAC;
 import static datadog.nativeloader.TestPlatformSpec.MUSL;
 import static datadog.nativeloader.TestPlatformSpec.WINDOWS;
 import static datadog.nativeloader.TestPlatformSpec.X86_64;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import org.junit.jupiter.api.Test;
 
 public class FlatResolverTest {
   @Test
   public void linux_x86_64_libc() {
-    test(TestPlatformSpec.of(LINUX, X86_64, GLIBC), "linux-x86_64-libc/libtest.so");
+    test(
+        TestPlatformSpec.of(LINUX, X86_64, GLIBC),
+        "linux-x86_64-libc/libtest.so",
+        "linux-x86_64/libtest.so",
+        "linux/libtest.so",
+        "libtest.so");
   }
 
   @Test
   public void linux_x86_64_musl() {
-    test(TestPlatformSpec.of(LINUX, X86_64, MUSL), "linux-x86_64-musl/libtest.so");
-  }
-
-  @Test
-  public void linux_x86_64_no_libc_flavor_fallback() {
-    testFallback(1, TestPlatformSpec.of(LINUX, X86_64, GLIBC), "linux-x86_64/libtest.so");
-  }
-
-  @Test
-  public void full_fallback() {
-    testFallback(2, TestPlatformSpec.of(LINUX, X86_64, GLIBC), "libtest.so");
+    test(
+        TestPlatformSpec.of(LINUX, X86_64, MUSL),
+        "linux-x86_64-musl/libtest.so",
+        "linux-x86_64/libtest.so",
+        "linux/libtest.so",
+        "libtest.so");
   }
 
   @Test
   public void osx_x86_64() {
-    test(TestPlatformSpec.of(MAC, X86_64), "macos-x86_64/libtest.dylib");
+    test(
+        TestPlatformSpec.of(MAC, X86_64),
+        "macos-x86_64/libtest.dylib",
+        "macos/libtest.dylib",
+        "libtest.dylib");
   }
 
   @Test
-  public void osx_aarch() {
-    test(TestPlatformSpec.of(MAC, AARCH64), "macos-aarch64/libtest.dylib");
+  public void osx_aarch64() {
+    test(
+        TestPlatformSpec.of(MAC, AARCH64),
+        "macos-aarch64/libtest.dylib",
+        "macos/libtest.dylib",
+        "libtest.dylib");
   }
 
   @Test
   public void windows_x86_64() {
-    test(TestPlatformSpec.of(WINDOWS, X86_64), "win-x86_64/test.dll");
+    test(TestPlatformSpec.of(WINDOWS, X86_64), "win-x86_64/test.dll", "win/test.dll", "test.dll");
   }
 
-  static final void test(PlatformSpec platformSpec, String expectedPath) {
-    CapturingPathLocator locator = new CapturingPathLocator();
+  static final void test(PlatformSpec platformSpec, String... expectedPaths) {
     try {
-      FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
+      CapturingPathLocator.test(
+          FlatDirLibraryResolver.INSTANCE,
+          platformSpec,
+          CapturingPathLocator.WITH_OMIT_COMP_FALLBACK,
+          expectedPaths);
     } catch (Exception e) {
-      fail("Exception raised: " + e);
+      throw new RuntimeException(e);
     }
-
-    locator.assertRequested(null, expectedPath);
-  }
-
-  static final void testFallback(
-      int fallbackLevel, PlatformSpec platformSpec, String expectedPath) {
-    CapturingPathLocator locator = new CapturingPathLocator(fallbackLevel);
-    try {
-      FlatDirLibraryResolver.INSTANCE.resolve(locator, null, platformSpec, "test");
-    } catch (Exception e) {
-      fail("Exception raised: " + e);
-    }
-
-    locator.assertRequested(null, expectedPath);
   }
 }

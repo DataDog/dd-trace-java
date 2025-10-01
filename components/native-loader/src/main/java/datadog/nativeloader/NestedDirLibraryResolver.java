@@ -34,6 +34,9 @@ public final class NestedDirLibraryResolver implements LibraryResolver {
     url = pathLocatorHelper.locate(component, regularPath + "/" + libFileName);
     if (url != null) return url;
 
+    url = pathLocatorHelper.locate(component, osPath + "/" + libFileName);
+    if (url != null) return url;
+
     // fallback to searching at top-level, mostly concession to good out-of-box behavior
     // with java.library.path
     url = pathLocatorHelper.locate(component, libFileName);
