@@ -54,7 +54,7 @@ gh --version 1>/dev/null 2>&1 || { echo "❌ gh is not installed. Please install
 # Check jq is installed
 jq --version 1>/dev/null 2>&1 || { echo "❌ jq is not installed. Please install jq."; exit 1; }
 # Check there are no local changes
-git diff --exit-code || { echo "❌ There are local changes. Please commit or stash them."; exit 1; }
+git diff --quiet --exit-code || { echo "❌ There are local changes. Please commit or stash them."; exit 1; }
 
 #
 # Fetch PR information.
@@ -67,7 +67,7 @@ if [ -z "$PR_DATA" ]; then
     exit 1
 fi
 # Parse PR details
-FORK_REPO=$(echo "$PR_DATA" | jq -r '(.headRepository.nameWithOwner // (.headRepositoryOwner.login + "/" + .headRepository.name)) // empty')
+FORK_REPO=$(echo "$PR_DATA" | jq -r '(.headRepository.nameWithOwner | select(. != "" and . != null)) // (.headRepositoryOwner.login + "/" + .headRepository.name) // empty')
 FORK_BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName // empty')
 PR_TITLE=$(echo "$PR_DATA" | jq -r '.title // empty')
 PR_AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login // empty')
@@ -127,12 +127,12 @@ echo "- Cherry-picking and signing commits from PR"
 for COMMIT in $PR_COMMITS; do
     echo "  - Cherry-picking $COMMIT"
     # Check if this is a merge commit
-    CHERRY_PICK_ARGS="-S"
+    CHERRY_PICK_ARGS=("-S")
     PARENT_COUNT=$(git rev-list --parents -n 1 "$COMMIT" 2>/dev/null | wc -w)
     if [ "$PARENT_COUNT" -gt 2 ]; then
-        CHERRY_PICK_ARGS="$CHERRY_PICK_ARGS -m 1"
+        CHERRY_PICK_ARGS+=("-m" "1")
     fi
-    if ! git cherry-pick "$CHERRY_PICK_ARGS" "$COMMIT"; then
+    if ! git cherry-pick "${CHERRY_PICK_ARGS[@]}" "$COMMIT"; then
         # Check if it's an empty commit
         if ! git diff --cached --quiet || ! git diff --quiet; then
             echo "❌ Failed to cherry-pick merge commit $COMMIT"

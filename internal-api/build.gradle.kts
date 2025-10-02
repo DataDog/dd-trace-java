@@ -65,6 +65,10 @@ val excludedClassesCoverage by extra(
     // These are almost fully abstract classes so nothing to test
     "datadog.trace.api.profiling.RecordingData",
     "datadog.trace.api.appsec.AppSecEventTracker",
+    // POJOs
+    "datadog.trace.api.appsec.HttpClientPayload",
+    "datadog.trace.api.appsec.HttpClientRequest",
+    "datadog.trace.api.appsec.HttpClientResponse",
     // A plain enum
     "datadog.trace.api.profiling.RecordingType",
     // Data Streams Monitoring
