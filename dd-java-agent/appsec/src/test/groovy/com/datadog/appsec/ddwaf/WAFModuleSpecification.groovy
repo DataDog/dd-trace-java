@@ -594,6 +594,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
     0 * ctx._(*_)
     flow.blocking
     flow.action instanceof Flow.Action.RequestBlockingAction
@@ -657,6 +658,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
     0 * ctx._(*_)
     flow.blocking
     flow.action.statusCode == 418
@@ -684,6 +686,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
     0 * ctx._(*_)
     metrics == null
   }
@@ -734,6 +737,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(*_)
     1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
     1 * ctx.isWafContextClosed() >> false
     0 * ctx._(*_)
     flow.blocking
@@ -1899,6 +1903,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v2', '_dd.appsec.trace.integer': 987654321])
     1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
     1 * ctx.reportEvents([])
     0 * ctx._(*_)
     !flow2.blocking
@@ -1918,6 +1923,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v3', '_dd.appsec.trace.integer': 555666777])
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
     0 * ctx._(*_)
     !flow3.blocking
   }
