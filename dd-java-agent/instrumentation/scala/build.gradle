@@ -49,7 +49,7 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
 
   tasks.named(customSourceSet.getCompileTaskName("scala"), ScalaCompile) {
     // Despite the compatibility matrix, scala compiler doesn't properly
-    // ger the right compiler flags with JDK11 toolchain. Using 8 works.
+    // get the right compiler flags with JDK11 toolchain. Using 8 works.
     // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
     // * https://github.com/gradle/gradle/issues/19456
     configureCompiler(it, 8)
