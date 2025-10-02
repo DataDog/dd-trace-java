@@ -136,11 +136,7 @@ object PekkoHttpTestWebServer {
   private val exceptionHandler = ExceptionHandler {
     case e: Exception =>
       val span = activeSpan()
-      if (span != null) {
-        // The exception handler is bypassing the normal instrumentation flow, so we need to handle things here
-        TraceUtils.handleException(span, e)
-        span.finish()
-      }
+      TraceUtils.handleException(span, e)
       complete(
         HttpResponse(status = EXCEPTION.getStatus, entity = e.getMessage)
       )
