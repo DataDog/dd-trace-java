@@ -68,4 +68,15 @@ public final class PathUtils {
       return "libc";
     }
   }
+  
+  public static final String concatPath(String... pathParts) {
+	StringBuilder builder = new StringBuilder();
+	for ( String pathPart: pathParts ) {
+	  if ( pathPart == null || pathPart.isEmpty() ) continue;
+	  
+	  if ( builder.length() != 0 ) builder.append('/');
+	  builder.append(pathPart);
+	}
+	return builder.toString();
+  }
 }

@@ -4,7 +4,9 @@ import static datadog.nativeloader.TestPlatformSpec.AARCH64;
 import static datadog.nativeloader.TestPlatformSpec.LINUX;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -108,6 +110,57 @@ public class NativeLoaderTest {
       try (LibFile lib = loader.resolveDynamic("dummy")) {
         // since there's a normal file, no need to copy to a temp file and clean-up
         assertNonTempFile(lib);
+      }
+    }
+  }
+  
+  @Test
+  public void fromDirBackedClassLoader_with_component() throws IOException, LibraryLoadException {
+    // ClassLoader pulling from a directory, so there's still a normal file
+    URL[] urls = {new File("test-data").toURL()};
+
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
+      
+      try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
+        assertNonTempFile(lib);
+        assertTrue(lib.getAbsolutePath().contains("comp1"));
+      }
+
+      try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
+        assertNonTempFile(lib);
+        assertTrue(lib.getAbsolutePath().contains("comp2"));
+      }
+    }
+  }
+  
+  @Test
+  public void fromDirBackedClassLoader_with_subResource() throws IOException, LibraryLoadException {
+    // ClassLoader pulling from a directory, so there's still a normal file
+    URL[] urls = {new File("test-data").toURL()};
+
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader, "resource").build();
+      try (LibFile lib = loader.resolveDynamic("dummy")) {
+        // since there's a normal file, no need to copy to a temp file and clean-up
+        assertNonTempFile(lib);
+        assertTrue(lib.getAbsolutePath().contains("resource"));
+      }
+    }
+  }
+  
+  @Test
+  public void fromDirBackedClassLoader_with_subResource_and_comp() throws IOException, LibraryLoadException {
+    // ClassLoader pulling from a directory, so there's still a normal file
+    URL[] urls = {new File("test-data").toURL()};
+
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader, "resource").build();
+      try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
+        // since there's a normal file, no need to copy to a temp file and clean-up
+        assertNonTempFile(lib);
+        assertTrue(lib.getAbsolutePath().contains("comp1"));
+        assertTrue(lib.getAbsolutePath().contains("resource"));
       }
     }
   }
