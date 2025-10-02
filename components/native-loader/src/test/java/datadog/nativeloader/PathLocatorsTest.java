@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
 
@@ -49,5 +51,58 @@ public class PathLocatorsTest {
 
     assertEquals(dirLocator1.hashCode(), dirLocator2.hashCode());
     assertEquals(dirLocator1, dirLocator2);
+  }
+
+  @Test
+  public void classLoaderBased_equals() {
+    ClassLoader loader = ClassLoader.getSystemClassLoader();
+
+    PathLocator locator1 = PathLocators.fromClassLoader(loader);
+    PathLocator locator2 = PathLocators.fromClassLoader(loader);
+
+    assertEquals(locator1.hashCode(), locator2.hashCode());
+    assertEquals(locator1, locator2);
+  }
+
+  @Test
+  public void classLoaderBased_with_resource_equals() {
+    ClassLoader loader = ClassLoader.getSystemClassLoader();
+
+    PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource");
+    PathLocator locator2 = PathLocators.fromClassLoader(loader, "resource");
+
+    assertEquals(locator1.hashCode(), locator2.hashCode());
+    assertEquals(locator1, locator2);
+  }
+
+  @Test
+  public void classLoaderBased_notEequals_loader() {
+    ClassLoader loader1 = ClassLoader.getSystemClassLoader();
+    ClassLoader loader2 = new URLClassLoader(new URL[0]);
+
+    PathLocator locator1 = PathLocators.fromClassLoader(loader1);
+    PathLocator locator2 = PathLocators.fromClassLoader(loader2);
+
+    assertNotEquals(locator1, locator2);
+  }
+
+  @Test
+  public void classLoaderBased_notEequals_resource() {
+    ClassLoader loader = ClassLoader.getSystemClassLoader();
+
+    PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource1");
+    PathLocator locator2 = PathLocators.fromClassLoader(loader, "resource2");
+
+    assertNotEquals(locator1, locator2);
+  }
+
+  @Test
+  public void classLoaderBased_diffType_notEequals() {
+    ClassLoader loader = ClassLoader.getSystemClassLoader();
+
+    PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource1");
+    PathLocator locator2 = (comp, path) -> null;
+
+    assertNotEquals(locator1, locator2);
   }
 }
