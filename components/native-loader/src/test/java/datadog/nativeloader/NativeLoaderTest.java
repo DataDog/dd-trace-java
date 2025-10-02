@@ -69,7 +69,7 @@ public class NativeLoaderTest {
 
     try (LibFile lib = loader.resolveDynamic("dummy")) {
       // loaded directly from directory, so no clean-up required
-      assertFalse(lib.needsCleanup);
+      assertNonTempFile(lib);
     }
   }
 
@@ -79,7 +79,22 @@ public class NativeLoaderTest {
 
     try (LibFile lib = loader.resolveDynamic("dummy")) {
       // loaded directly from directory, so no clean-up required
-      assertFalse(lib.needsCleanup);
+      assertNonTempFile(lib);
+    }
+  }
+
+  @Test
+  public void fromDir_with_component() throws LibraryLoadException {
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
+      assertNonTempFile(lib);
+      assertTrue(lib.getAbsolutePath().contains("comp1"));
+    }
+
+    try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
+      assertNonTempFile(lib);
+      assertTrue(lib.getAbsolutePath().contains("comp2"));
     }
   }
 
@@ -92,7 +107,7 @@ public class NativeLoaderTest {
       NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
       try (LibFile lib = loader.resolveDynamic("dummy")) {
         // since there's a normal file, no need to copy to a temp file and clean-up
-        assertFalse(lib.needsCleanup);
+        assertNonTempFile(lib);
       }
     }
   }
@@ -105,8 +120,16 @@ public class NativeLoaderTest {
 
     NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
     try (LibFile lib = loader.resolveDynamic("dummy")) {
-      // loaded from a jar, so copied to temp file and requires clean-up
-      assertTrue(lib.needsCleanup);
+      // loaded from a jar, so copied to temp file
+      assertTempFile(lib);
     }
+  }
+
+  void assertNonTempFile(LibFile file) {
+    assertFalse(file.needsCleanup);
+  }
+
+  void assertTempFile(LibFile file) {
+    assertTrue(file.needsCleanup);
   }
 }

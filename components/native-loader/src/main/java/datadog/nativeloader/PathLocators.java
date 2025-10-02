@@ -39,7 +39,11 @@ public final class PathLocators {
     } catch (SecurityException e) {
       return new LibDirBasedPathLocator();
     }
-    return fromLibDirs(Pattern.compile("\\:").split(libPaths));
+    return fromLibPathString(libPaths);
+  }
+
+  public static final PathLocator fromLibPathString(String javaLibPath) {
+    return fromLibDirs(Pattern.compile("\\:").split(javaLibPath));
   }
 
   public static final PathLocator fromClassLoader(ClassLoader classLoader) {
