@@ -8,7 +8,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HE
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SAMPLING_PRIORITY;
+
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSamplerImpl;
