@@ -9,6 +9,7 @@ import static datadog.nativeloader.TestPlatformSpec.mac;
 import static datadog.nativeloader.TestPlatformSpec.unsupportedArch;
 import static datadog.nativeloader.TestPlatformSpec.unsupportedOs;
 import static datadog.nativeloader.TestPlatformSpec.windows;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
