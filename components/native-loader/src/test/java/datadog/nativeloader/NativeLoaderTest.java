@@ -15,6 +15,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermissions;
+
 import org.junit.jupiter.api.Test;
 
 public class NativeLoaderTest {
@@ -208,49 +214,105 @@ public class NativeLoaderTest {
   public void fromJarBackedClassLoader() throws IOException, LibraryLoadException {
     URL[] urls = {new File("test-data/libdummy.jar").toURL()};
 
-    URLClassLoader classLoader = new URLClassLoader(urls);
-
-    NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
-    try (LibFile lib = loader.resolveDynamic("dummy")) {
-      // loaded from a jar, so copied to temp file
-      assertTempFile(lib);
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
+      try (LibFile lib = loader.resolveDynamic("dummy")) {
+        // loaded from a jar, so copied to temp file
+        assertTempFile(lib);
+      }
     }
   }
 
   @Test
   public void fromJarBackedClassLoader_with_tempDir() throws IOException, LibraryLoadException {
     URL[] urls = {new File("test-data/libdummy.jar").toURL()};
+    
+    Path tempDir = Paths.get("temp");
+    deleteHelper(tempDir);
 
-    URLClassLoader classLoader = new URLClassLoader(urls);
-
-    NativeLoader loader =
-        NativeLoader.builder().fromClassLoader(classLoader).tempDir("temp").build();
-    try (LibFile lib = loader.resolveDynamic("dummy")) {
-      // loaded from a jar, so copied to temp file
-      assertTempFile(lib);
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader =
+        NativeLoader.builder().fromClassLoader(classLoader).tempDir(tempDir).build();
+      try (LibFile lib = loader.resolveDynamic("dummy")) {
+        // loaded from a jar, so copied to temp file
+        assertTempFile(lib);
+      }
+    } finally {    
+      deleteHelper(tempDir);
     }
+  }
+  
+  @Test
+  public void fromJarBackedClassLoader_with_unwritable_tempDir() throws IOException, LibraryLoadException {
+    URL[] urls = {new File("test-data/libdummy.jar").toURL()};
+    
+    Path noWriteDir = Paths.get("no-write-temp");
+    deleteHelper(noWriteDir);
+    Files.createDirectories(noWriteDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
+
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).tempDir(noWriteDir).build();
+      
+      // unable to resolve to a File because tempDir isn't writable
+      assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+    } finally {
+      deleteHelper(noWriteDir);
+    }
+  }
+  
+  @Test
+  public void fromJarBackedClassLoader_with_locked_file() throws IOException, LibraryLoadException {
+    URL[] urls = {new File("test-data/libdummy.jar").toURL()};
+    
+    Path tempDir = Paths.get("temp");
+    deleteHelper(tempDir);
+
+    try (URLClassLoader classLoader = new URLClassLoader(urls)) {
+      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).tempDir(tempDir).build();
+      try (LibFile lib = loader.resolveDynamic("dummy")) {
+        // loaded from a jar, so copied to temp file
+        assertTempFile(lib);
+      
+        // simulating lock - by blocking ability to delete from parent dir
+        // forces fallback to deleteOnExit
+        Files.setPosixFilePermissions(lib.toPath().getParent(), PosixFilePermissions.fromString("r-x------"));
+      }
+    } finally {
+      deleteHelper(tempDir);
+    }
+  }
+  
+  void deleteHelper(Path dir) {
+	try {
+	  Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+      Files.delete(dir);
+	} catch (IOException e) {
+	}
   }
 
   void assertPreloaded(LibFile lib) {
     assertTrue(lib.isPreloaded());
-    assertNull(lib.file);
+    assertNull(lib.toFile());
+    assertNull(lib.toPath());
     assertNull(lib.getAbsolutePath());
     assertFalse(lib.needsCleanup);
   }
 
   void assertRegularFile(LibFile lib) {
     assertFalse(lib.isPreloaded());
-    assertNotNull(lib.file);
-    assertTrue(lib.file.exists());
-    assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
+    assertNotNull(lib.toFile());
+    assertNotNull(lib.toPath());
+    assertTrue(lib.toFile().exists());
+    assertNotNull(lib.getAbsolutePath());
     assertFalse(lib.needsCleanup);
   }
 
   void assertTempFile(LibFile lib) {
     assertFalse(lib.isPreloaded());
-    assertNotNull(lib.file);
-    assertTrue(lib.file.exists());
-    assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
+    assertNotNull(lib.toFile());
+    assertNotNull(lib.toPath());
+    assertTrue(lib.toFile().exists());
+    assertNotNull(lib.getAbsolutePath());
     assertTrue(lib.needsCleanup);
   }
 }
