@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
+  public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
+
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
   // request headers that will always be set when appsec is enabled
@@ -76,6 +78,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
 
+  // headers related with authorization
+  public static final Set<String> AUTHORIZATION_HEADERS =
+      new TreeSet<>(
+          Arrays.asList(
+              "authorization",
+              "proxy-authorization",
+              "www-authenticate",
+              "proxy-authenticate",
+              "authentication-info",
+              "proxy-authentication-info",
+              "cookie",
+              "set-cookie"));
+
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
   }
@@ -97,6 +112,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String peerAddress;
   private int peerPort;
   private String inferredClientIp;
+
+  private boolean extendedDataCollection = false;
+  private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
@@ -132,6 +150,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile boolean processedResponseBodySizeExceeded;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -146,6 +165,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
+
+  private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
+  private final Set<Long> sampledHttpClientRequests = new HashSet<>();
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
@@ -234,12 +256,48 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
+  public boolean sampleHttpClientRequest(final long id) {
+    httpClientRequestCount.incrementAndGet();
+    synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.size()
+          < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
+        sampledHttpClientRequests.add(id);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean isHttpClientRequestSampled(final long id) {
+    return sampledHttpClientRequests.contains(id);
+  }
+
+  public int getHttpClientRequestCount() {
+    return httpClientRequestCount.get();
+  }
+
   public int getWafTimeouts() {
     return wafTimeouts;
   }
 
   public int getRaspTimeouts() {
     return raspTimeouts;
+  }
+
+  public boolean isExtendedDataCollection() {
+    return extendedDataCollection;
+  }
+
+  public void setExtendedDataCollection(boolean extendedDataCollection) {
+    this.extendedDataCollection = extendedDataCollection;
+  }
+
+  public int getExtendedDataCollectionMaxHeaders() {
+    return extendedDataCollectionMaxHeaders;
+  }
+
+  public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
+    this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
   public WafContext getOrCreateWafContext(
@@ -930,6 +988,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Object getProcessedRequestBody() {
     return processedRequestBody;
+  }
+
+  public boolean isProcessedResponseBodySizeExceeded() {
+    return processedResponseBodySizeExceeded;
+  }
+
+  public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
+    this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
   }
 
   public boolean isRaspMatched() {

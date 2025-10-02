@@ -7,11 +7,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_COLLECTED_HEADERS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
@@ -183,26 +185,25 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_COLLECT_ALL_HEADERS;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_HEADER_COLLECTION_REDACTION_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_COLLECTED_HEADERS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACES_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_COLLECT_REQUEST_BODY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
@@ -946,14 +947,13 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecCollectAllHeaders;
-  private final boolean appSecHeaderCollectionRedactionEnabled;
-  private final int appSecMaxCollectedHeaders;
-  private final boolean appSecRaspCollectRequestBody;
+  private final int appSecBodyParsingSizeLimit;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final boolean apiSecurityEndpointCollectionEnabled;
   private final int apiSecurityEndpointCollectionMessageLimit;
+  private final int apiSecurityMaxDownstreamRequestBodyAnalysis;
+  private final double apiSecurityDownstreamRequestAnalysisSampleRate;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -2096,14 +2096,9 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
-    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
-    appSecHeaderCollectionRedactionEnabled =
-        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
-    appSecMaxCollectedHeaders =
+    appSecBodyParsingSizeLimit =
         configProvider.getInteger(
-            APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
-    appSecRaspCollectRequestBody =
-        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
+            APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -2117,6 +2112,14 @@ public class Config {
         configProvider.getInteger(
             API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
             DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
+    apiSecurityMaxDownstreamRequestBodyAnalysis =
+        configProvider.getInteger(
+            API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS,
+            DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
+    apiSecurityDownstreamRequestAnalysisSampleRate =
+        configProvider.getDouble(
+            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+            DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -3606,6 +3609,14 @@ public class Config {
 
   public int getApiSecurityEndpointCollectionMessageLimit() {
     return apiSecurityEndpointCollectionMessageLimit;
+  }
+
+  public int getApiSecurityMaxDownstreamRequestBodyAnalysis() {
+    return apiSecurityMaxDownstreamRequestBodyAnalysis;
+  }
+
+  public double getApiSecurityDownstreamRequestAnalysisSampleRate() {
+    return apiSecurityDownstreamRequestAnalysisSampleRate;
   }
 
   public boolean isApiSecurityEndpointCollectionEnabled() {
@@ -5103,20 +5114,8 @@ public class Config {
     return appSecMaxStackTraceDepth;
   }
 
-  public boolean isAppSecCollectAllHeaders() {
-    return appSecCollectAllHeaders;
-  }
-
-  public boolean isAppSecHeaderCollectionRedactionEnabled() {
-    return appSecHeaderCollectionRedactionEnabled;
-  }
-
-  public int getAppsecMaxCollectedHeaders() {
-    return appSecMaxCollectedHeaders;
-  }
-
-  public boolean isAppSecRaspCollectRequestBody() {
-    return appSecRaspCollectRequestBody;
+  public int getAppSecBodyParsingSizeLimit() {
+    return appSecBodyParsingSizeLimit;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {

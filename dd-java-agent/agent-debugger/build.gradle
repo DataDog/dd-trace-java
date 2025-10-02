@@ -71,7 +71,7 @@ tasks.named("shadowJar", ShadowJar) {
   }
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
   from sourceSets.main.output
 }

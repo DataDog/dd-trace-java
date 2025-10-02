@@ -27,8 +27,12 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
-      id = "tracer-version"
+      id = "datadog.tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
+    create("dump-hanged-test-plugin") {
+      id = "datadog.dump-hanged-test"
+      implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
     create("supported-config-generation") {
       id = "supported-config-generator"

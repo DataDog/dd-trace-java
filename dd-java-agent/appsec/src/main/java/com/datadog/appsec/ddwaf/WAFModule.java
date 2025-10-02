@@ -385,6 +385,26 @@ public class WAFModule implements AppSecModule {
             } else {
               log.debug("Ignoring action with type generate_stack (disabled by config)");
             }
+          } else if ("extended_data_collection".equals(actionInfo.type)) {
+            // Extended data collection is handled by the GatewayBridge
+            reqCtx.setExtendedDataCollection(true);
+            // Handle max_collected_headers parameter which can come as Number or String
+            // representation of a number
+            int maxHeaders = AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
+            Object maxHeadersParam =
+                actionInfo.parameters.getOrDefault(
+                    "max_collected_headers",
+                    AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS);
+            if (maxHeadersParam instanceof Number) {
+              maxHeaders = ((Number) maxHeadersParam).intValue();
+            } else if (maxHeadersParam instanceof String) {
+              try {
+                maxHeaders = Integer.parseInt((String) maxHeadersParam);
+              } catch (NumberFormatException e) {
+                log.debug("Failed to parse max_collected_headers value: {}", maxHeadersParam);
+              }
+            }
+            reqCtx.setExtendedDataCollectionMaxHeaders(maxHeaders);
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
             if (!gwCtx.isRasp) {

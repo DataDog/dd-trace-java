@@ -42,7 +42,7 @@ dependencies {
   testImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '21.1.0.Final'
   testImplementation group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-api', version: '1.2.6'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jboss:jboss-modules-1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.2')
@@ -55,7 +55,7 @@ dependencies {
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '+'
   wildflyLatestDepTest "org.wildfly:wildfly-dist:+@zip"
 
-  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 }
 
 def extractWildfly(NamedDomainObjectProvider<Configuration> config, String zipFileNamePrefix, Copy sync) {
@@ -119,26 +119,24 @@ tasks.named("latestDepTest") {
   dependsOn 'extractLatestWildfly'
 }
 
-compileTestGroovy.configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   javaLauncher = getJavaLauncherFor(11)
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.configure {
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
     javaLauncher = getJavaLauncherFor(17)
   }
 }
 
-compileTestJava.configure {
-  it.configure {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
+tasks.named("compileTestJava", JavaCompile) {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  it.configure {
+["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8

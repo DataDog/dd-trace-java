@@ -9,6 +9,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
@@ -150,7 +151,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
             | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES;
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES
+            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -533,7 +535,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
             | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES);
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES
+            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);

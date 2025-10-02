@@ -53,6 +53,23 @@ class ReferenceCreatorTest extends DDSpecification {
     aFieldRefs.size() == 2
   }
 
+  def "ignore invocation of object methods on interface after JDK-8272715"() {
+    // After JDK 18/19 javac compiles differently Object methods, while there is a ignore mechanism on java.* packages
+    // after the key change is described in https://bugs.openjdk.org/browse/JDK-827271, object's methods
+    // are applied to interfaces which may belong to another package.
+    //
+    // Key change
+    // "invocations of java.lang.Object methods on interfaces in the classfile will use invokeinterface referring
+    // to the interface, which is consistent with JLS 9.2. This will be done regardless of whether the interface
+    // declares the method explicitly or not."
+
+    setup:
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(CompiledWithInvokeinterfaceForObjectMethods.name, this.class.classLoader)
+
+    expect:
+    references.get(CompiledWithInvokeinterfaceForObjectMethods.DatadogInterface.name) == null
+  }
+
   def "protected ref test"() {
     setup:
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.B2.name, this.class.classLoader)
