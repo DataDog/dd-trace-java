@@ -19,7 +19,7 @@ dependencies {
   testImplementation('org.junit.jupiter:junit-jupiter')
 }
 
-test {
+tasks.named("test", Test) {
   dependsOn('jar')
   useJUnitPlatform()
   testLogging {
@@ -29,7 +29,7 @@ test {
   jvmArgs "-Dtest.published.dependencies.jar=${tasks.jar.archiveFile.get()}"
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'test.published.dependencies.App')
   }
@@ -39,7 +39,7 @@ application {
   mainClass = 'test.published.dependencies.App'
 }
 
-compileTestJava {
+tasks.named("compileTestJava", JavaCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }

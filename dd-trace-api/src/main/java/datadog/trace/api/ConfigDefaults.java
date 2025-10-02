@@ -120,11 +120,14 @@ public final class ConfigDefaults {
   // TODO: change to true once the RFC is approved
   static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = false;
   static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
+  static final double DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE = 0.5D;
+  static final int DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS = 1;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final int DEFAULT_APPSEC_MAX_COLLECTED_HEADERS = 50;
+  static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -228,6 +231,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds

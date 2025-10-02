@@ -41,7 +41,7 @@ dependencies {
 }
 
 
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
@@ -57,7 +57,7 @@ configurations.all {
   }
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 
