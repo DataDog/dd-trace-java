@@ -234,7 +234,7 @@ test_all:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
     - echo "=== SETUP, Pre-compiling all test dependencies ==="
-    - ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:testClasses :dd-java-agent:instrumentation:pekko-http-1.0:baseTestClasses -PtestJvm=$testJvm --no-daemon --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --configure-on-demand
+      - ./gradlew :dd-java-agent:instrumentation:pekko:pekko-http-1.0:testClasses :dd-java-agent:instrumentation:pekko:pekko-http-1.0:baseTestClasses -PtestJvm=$testJvm --no-daemon --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --configure-on-demand
     - echo "=== SETUP COMPLETE, Starting ${TEST_ITERATIONS} test iterations ==="
     - |
       TOTAL_RUNS=${TEST_ITERATIONS}
@@ -245,9 +245,9 @@ test_all:
       for i in $(seq 1 $TOTAL_RUNS); do
         echo "=== Running iteration $i/$TOTAL_RUNS ==="
         
-        ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:baseTest -PtestJvm=$testJvm --no-daemon --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --offline --configure-on-demand --quiet > flaky_test_results/iteration_${i}_base.log 2>&1 &
+        ./gradlew :dd-java-agent:instrumentation:pekko:pekko-http-1.0:baseTest -PtestJvm=$testJvm --no-daemon --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --configure-on-demand --quiet > flaky_test_results/iteration_${i}_base.log 2>&1 &
         BASE_PID=$!
-        ./gradlew :dd-java-agent:instrumentation:pekko-http-1.0:forkedTest -PtestJvm=$testJvm --no-daemon --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --offline --configure-on-demand --quiet > flaky_test_results/iteration_${i}_forked.log 2>&1 &
+        ./gradlew :dd-java-agent:instrumentation:pekko:pekko-http-1.0:forkedTest -PtestJvm=$testJvm --no-daemon --build-cache --stacktrace --parallel --max-workers=$GRADLE_WORKERS --configure-on-demand --quiet > flaky_test_results/iteration_${i}_forked.log 2>&1 &
         FORKED_PID=$!
         
         if wait $BASE_PID && wait $FORKED_PID; then
