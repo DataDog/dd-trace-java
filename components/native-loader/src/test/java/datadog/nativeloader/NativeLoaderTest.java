@@ -4,7 +4,12 @@ import static datadog.nativeloader.TestPlatformSpec.AARCH64;
 import static datadog.nativeloader.TestPlatformSpec.LINUX;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
+
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,11 +31,7 @@ public class NativeLoaderTest {
     assertFalse(loader.isPreloaded("dne3"));
 
     try (LibFile lib = loader.resolveDynamic("dne1")) {
-      assertTrue(lib.isPreloaded());
-
-      assertNull(lib.file);
-      assertNull(lib.getAbsolutePath());
-      assertFalse(lib.needsCleanup);
+      assertPreloaded(lib);
 
       // already considered loaded -- so this is a nop
       lib.load();
@@ -75,7 +76,10 @@ public class NativeLoaderTest {
 
     try (LibFile lib = loader.resolveDynamic("dummy")) {
       // loaded directly from directory, so no clean-up required
-      assertNonTempFile(lib);
+      assertRegularFile(lib);
+      
+      // file isn't actually a dynamic library
+      assertThrows(LibraryLoadException.class, () -> lib.load());
     }
   }
 
@@ -85,7 +89,7 @@ public class NativeLoaderTest {
 
     try (LibFile lib = loader.resolveDynamic("dummy")) {
       // loaded directly from directory, so no clean-up required
-      assertNonTempFile(lib);
+      assertRegularFile(lib);
     }
   }
 
@@ -94,12 +98,12 @@ public class NativeLoaderTest {
     NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
 
     try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
-      assertNonTempFile(lib);
+      assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp1"));
     }
 
     try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
-      assertNonTempFile(lib);
+      assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp2"));
     }
   }
@@ -113,7 +117,7 @@ public class NativeLoaderTest {
       NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
       try (LibFile lib = loader.resolveDynamic("dummy")) {
         // since there's a normal file, no need to copy to a temp file and clean-up
-        assertNonTempFile(lib);
+        assertRegularFile(lib);
       }
     }
   }
@@ -127,12 +131,12 @@ public class NativeLoaderTest {
       NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
 
       try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
-        assertNonTempFile(lib);
+        assertRegularFile(lib);
         assertTrue(lib.getAbsolutePath().contains("comp1"));
       }
 
       try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
-        assertNonTempFile(lib);
+        assertRegularFile(lib);
         assertTrue(lib.getAbsolutePath().contains("comp2"));
       }
     }
@@ -147,7 +151,7 @@ public class NativeLoaderTest {
       NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader, "resource").build();
       try (LibFile lib = loader.resolveDynamic("dummy")) {
         // since there's a normal file, no need to copy to a temp file and clean-up
-        assertNonTempFile(lib);
+        assertRegularFile(lib);
         assertTrue(lib.getAbsolutePath().contains("resource"));
       }
     }
@@ -163,7 +167,7 @@ public class NativeLoaderTest {
       NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader, "resource").build();
       try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
         // since there's a normal file, no need to copy to a temp file and clean-up
-        assertNonTempFile(lib);
+        assertRegularFile(lib);
         assertTrue(lib.getAbsolutePath().contains("comp1"));
         assertTrue(lib.getAbsolutePath().contains("resource"));
       }
@@ -182,12 +186,27 @@ public class NativeLoaderTest {
       assertTempFile(lib);
     }
   }
-
-  void assertNonTempFile(LibFile file) {
-    assertFalse(file.needsCleanup);
+  
+  void assertPreloaded(LibFile lib) {
+	assertTrue(lib.isPreloaded());
+	assertNull(lib.file);
+	assertNull(lib.getAbsolutePath());
+	assertFalse(lib.needsCleanup);
   }
 
-  void assertTempFile(LibFile file) {
-    assertTrue(file.needsCleanup);
+  void assertRegularFile(LibFile lib) {
+	assertFalse(lib.isPreloaded());
+	assertNotNull(lib.file);
+	assertTrue(lib.file.exists());
+	assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
+    assertFalse(lib.needsCleanup);
+  }
+
+  void assertTempFile(LibFile lib) {
+	assertFalse(lib.isPreloaded());
+	assertNotNull(lib.file);
+	assertTrue(lib.file.exists());
+	assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
+	assertTrue(lib.needsCleanup);
   }
 }
