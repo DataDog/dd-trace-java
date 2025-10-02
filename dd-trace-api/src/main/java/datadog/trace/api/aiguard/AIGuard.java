@@ -191,8 +191,8 @@ public abstract class AIGuard {
 
     private final String role;
     private final String content;
-    private final List<ToolCall> tool_calls;
-    private final String tool_call_id;
+    private final List<ToolCall> toolCalls;
+    private final String toolCallId;
 
     /**
      * Creates a new message with the specified parameters.
@@ -211,8 +211,8 @@ public abstract class AIGuard {
         final String toolCallId) {
       this.role = role;
       this.content = content;
-      this.tool_calls = toolCalls;
-      this.tool_call_id = toolCallId;
+      this.toolCalls = toolCalls;
+      this.toolCallId = toolCallId;
     }
 
     /**
@@ -239,7 +239,7 @@ public abstract class AIGuard {
      * @return list of tool calls, or null if this message has no tool calls
      */
     public List<ToolCall> getToolCalls() {
-      return tool_calls;
+      return toolCalls;
     }
 
     /**
@@ -248,7 +248,7 @@ public abstract class AIGuard {
      * @return the tool call ID, or null if this is not a tool response message
      */
     public String getToolCallId() {
-      return tool_call_id;
+      return toolCallId;
     }
 
     /**

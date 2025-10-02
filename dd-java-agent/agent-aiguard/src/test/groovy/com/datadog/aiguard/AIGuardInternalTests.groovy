@@ -1,5 +1,8 @@
 package com.datadog.aiguard
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
 import datadog.trace.api.Config
 import datadog.trace.api.aiguard.AIGuard
@@ -39,6 +42,13 @@ class AIGuardInternalTests extends DDSpecification {
 
   @Shared
   protected static final MOSHI = new Moshi.Builder().build()
+
+  @Shared
+  protected static final MAPPER = new ObjectMapper()
+  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+  .setDefaultPropertyInclusion(
+  JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.NON_NULL)
+  )
 
   @Shared
   protected static final TOOL_CALL = [
@@ -423,9 +433,13 @@ class AIGuardInternalTests extends DDSpecification {
     }
     assert request.body().contentType().toString().contains('application/json')
     final receivedBody = readRequestBody(request.body())
-    final expectedBody = MOSHI.adapter(Map).toJson([data: [attributes: [messages: messages, meta: [service: 'ai_guard_test', env: 'test']]]])
-    JSONAssert.assertEquals(expectedBody, receivedBody, JSONCompareMode.LENIENT)
+    final expectedBody = snakeCaseJson([data: [attributes: [messages: messages, meta: [service: 'ai_guard_test', env: 'test']]]])
+    JSONAssert.assertEquals(expectedBody, receivedBody, JSONCompareMode.NON_EXTENSIBLE)
     return true
+  }
+
+  private static String snakeCaseJson(final Object value) {
+    MAPPER.writeValueAsString(value)
   }
 
   private static String readRequestBody(final RequestBody body) {

@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -20,19 +22,15 @@ dependencies {
   implementation project(':communication')
 
   testImplementation project(':utils:test-utils')
-  testImplementation('org.skyscreamer:jsonassert:1.5.1')
+  testImplementation('org.skyscreamer:jsonassert:1.5.3')
+  testImplementation('com.fasterxml.jackson.core:jackson-databind:2.20.0')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
-spotless {
-  java {
-    target 'src/**/*.java'
-  }
-}

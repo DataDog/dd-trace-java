@@ -1,8 +1,12 @@
 package com.datadog.aiguard;
 
+import static java.util.Collections.singletonMap;
+
+import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.aiguard.AIGuard;
@@ -20,11 +24,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -36,6 +42,12 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okio.BufferedSink;
 
+/**
+ * Concrete implementation of the SDK used to interact with the AIGuard REST API.
+ *
+ * <p>An instance of this class is initialized and configured automatically during agent startup
+ * through {@link AIGuardSystem#start()}.
+ */
 public class AIGuardInternal implements Evaluator {
 
   public static class BadConfigurationException extends RuntimeException {
@@ -87,7 +99,7 @@ public class AIGuardInternal implements Evaluator {
     this.url = url;
     this.headers = headers;
     this.client = client;
-    this.moshi = new Moshi.Builder().build();
+    this.moshi = new Moshi.Builder().add(new AIGuardFactory()).build();
     final Config config = Config.get();
     this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
   }
@@ -126,21 +138,20 @@ public class AIGuardInternal implements Evaluator {
           .map(ToolCall::getFunction)
           .map(Function::getName)
           .collect(Collectors.joining(","));
-    } else {
-      // assistant message with tool output (search the linked tool call in reverse order)
-      final String id = current.getToolCallId();
-      for (int i = messages.size() - 1; i >= 0; i--) {
-        final Message message = messages.get(i);
-        if (message.getToolCalls() != null) {
-          for (final ToolCall toolCall : message.getToolCalls()) {
-            if (toolCall.getId().equals(id)) {
-              return toolCall.getFunction() == null ? null : toolCall.getFunction().getName();
-            }
+    }
+    // assistant message with tool output (search the linked tool call in reverse order)
+    final String id = current.getToolCallId();
+    for (int i = messages.size() - 1; i >= 0; i--) {
+      final Message message = messages.get(i);
+      if (message.getToolCalls() != null) {
+        for (final ToolCall toolCall : message.getToolCalls()) {
+          if (toolCall.getId().equals(id)) {
+            return toolCall.getFunction() == null ? null : toolCall.getFunction().getName();
           }
         }
       }
-      return null;
     }
+    return null;
   }
 
   private boolean isBlockingEnabled(final Object isBlockingEnabled) {
@@ -155,18 +166,17 @@ public class AIGuardInternal implements Evaluator {
     final AgentTracer.TracerAPI tracer = AgentTracer.get();
     final AgentSpan span = tracer.buildSpan(SPAN_NAME, SPAN_NAME).start();
     try (final AgentScope scope = tracer.activateSpan(span)) {
-      final Message current = messages.get(messages.size() - 1);
-      if (isToolCall(current)) {
+      final Message last = messages.get(messages.size() - 1);
+      if (isToolCall(last)) {
         span.setTag(TARGET_TAG, "tool");
-        final String toolName = getToolName(current, messages);
+        final String toolName = getToolName(last, messages);
         if (toolName != null) {
           span.setTag(TOOL_TAG, toolName);
         }
       } else {
         span.setTag(TARGET_TAG, "prompt");
       }
-      final Map<String, Object> metaStruct =
-          Collections.singletonMap(META_STRUCT_KEY, truncate(messages));
+      final Map<String, Object> metaStruct = singletonMap(META_STRUCT_KEY, truncate(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
@@ -240,6 +250,69 @@ public class AIGuardInternal implements Evaluator {
   private static class Installer extends AIGuard {
     public static void install(final Evaluator evaluator) {
       AIGuard.EVALUATOR = evaluator;
+    }
+  }
+
+  static class AIGuardFactory implements JsonAdapter.Factory {
+
+    @Nullable
+    @Override
+    public JsonAdapter<?> create(
+        final Type type, final Set<? extends Annotation> annotations, final Moshi moshi) {
+      final Class<?> rawType = Types.getRawType(type);
+      if (rawType != AIGuard.Message.class) {
+        return null;
+      }
+      return new MessageAdapter(moshi.adapter(AIGuard.ToolCall.class));
+    }
+  }
+
+  static class MessageAdapter extends JsonAdapter<Message> {
+
+    private final JsonAdapter<AIGuard.ToolCall> toolCallAdapter;
+
+    MessageAdapter(final JsonAdapter<ToolCall> toolCallAdapter) {
+      this.toolCallAdapter = toolCallAdapter;
+    }
+
+    @Nullable
+    @Override
+    public Message fromJson(JsonReader reader) throws IOException {
+      throw new UnsupportedOperationException("Serializing only adapter");
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, @Nullable final Message value) throws IOException {
+      if (value == null) {
+        writer.nullValue();
+        return;
+      }
+      writer.beginObject();
+      writeValue(writer, "role", value.getRole());
+      writeValue(writer, "content", value.getContent());
+      writeArray(writer, "tool_calls", value.getToolCalls());
+      writeValue(writer, "tool_call_id", value.getToolCallId());
+      writer.endObject();
+    }
+
+    private void writeValue(final JsonWriter writer, final String name, final Object value)
+        throws IOException {
+      if (value != null) {
+        writer.name(name);
+        writer.jsonValue(value);
+      }
+    }
+
+    private void writeArray(final JsonWriter writer, final String name, final List<ToolCall> value)
+        throws IOException {
+      if (value != null) {
+        writer.name(name);
+        writer.beginArray();
+        for (final ToolCall toolCall : value) {
+          toolCallAdapter.toJson(writer, toolCall);
+        }
+        writer.endArray();
+      }
     }
   }
 
