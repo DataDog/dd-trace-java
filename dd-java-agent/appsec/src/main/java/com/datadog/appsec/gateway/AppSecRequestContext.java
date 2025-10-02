@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
+  public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
+
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
   // request headers that will always be set when appsec is enabled
@@ -113,7 +115,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private boolean extendedDataCollection = false;
-  private int extendedDataCollectionMaxHeaders = 50;
+  private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
