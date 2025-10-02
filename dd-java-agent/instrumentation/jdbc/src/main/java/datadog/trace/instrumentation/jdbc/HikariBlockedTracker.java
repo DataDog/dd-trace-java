@@ -15,6 +15,6 @@ public class HikariBlockedTracker {
   }
 
   public static boolean wasBlocked() {
-    return TRUE == tracker.get();
+    return TRUE.equals(tracker.get());
   }
 }
