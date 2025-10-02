@@ -7,10 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
-import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -20,11 +18,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Pattern;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -63,22 +61,29 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
                 "(HttpServletRequest, HttpServletResponse)")
             .captureSnapshot(true)
             .build();
-    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe, processTagsEnabled);
-    Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
-    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
-    assertFalse(
-        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
-    if (processTagsEnabled) {
-      assertNotNull(request.getProcessTags());
-      assertTrue(
-          request
-              .getProcessTags()
-              .contains("entrypoint.name:" + TagsHelper.sanitize(DEBUGGER_TEST_APP_CLASS)));
-    } else {
-      assertNull(request.getProcessTags());
-    }
+    AtomicBoolean requestReceived = new AtomicBoolean(false);
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          assertEquals(
+              PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+          assertFalse(
+              logHasErrors(
+                  logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+          if (processTagsEnabled) {
+            assertNotNull(intakeRequest.getProcessTags());
+            assertTrue(
+                intakeRequest
+                    .getProcessTags()
+                    .contains("entrypoint.name:" + TagsHelper.sanitize(DEBUGGER_TEST_APP_CLASS)));
+          } else {
+            assertNull(intakeRequest.getProcessTags());
+          }
+          requestReceived.set(true);
+        });
+    doTestTracer(logProbe, processTagsEnabled);
+    processRequests(requestReceived::get);
   }
 
   @Test
@@ -97,13 +102,20 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .captureSnapshot(false)
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
-    Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
-    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
-    assertFalse(
-        logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+    AtomicBoolean requestReceived = new AtomicBoolean(false);
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+          assertFalse(
+              logHasErrors(
+                  logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+          requestReceived.set(true);
+        });
+    doTestTracer(logProbe);
+    processRequests(requestReceived::get);
   }
 
   @Test
@@ -118,14 +130,21 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .where("datadog.smoketest.debugger.controller.WebController", "processWithArg", null)
             .captureSnapshot(true)
             .build();
-    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
-    Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertEquals(42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
-    // no locals captured
-    assertNull(snapshot.getCaptures().getEntry().getLocals());
-    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
-    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    AtomicBoolean requestReceived = new AtomicBoolean(false);
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertEquals(
+              42, snapshot.getCaptures().getEntry().getArguments().get("argInt").getValue());
+          // no locals captured
+          assertNull(snapshot.getCaptures().getEntry().getLocals());
+          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+          requestReceived.set(true);
+        });
+    doTestTracer(logProbe);
+    processRequests(requestReceived::get);
   }
 
   @Test
@@ -141,13 +160,20 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .where("WebController.java", 15)
             .captureSnapshot(true)
             .build();
-    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
-    Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertEquals(
-        42, snapshot.getCaptures().getLines().get(15).getArguments().get("argInt").getValue());
-    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
-    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    AtomicBoolean requestReceived = new AtomicBoolean(false);
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertEquals(
+              42,
+              snapshot.getCaptures().getLines().get(15).getArguments().get("argInt").getValue());
+          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+          requestReceived.set(true);
+        });
+    doTestTracer(logProbe);
+    processRequests(requestReceived::get);
   }
 
   @Test
@@ -165,25 +191,30 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .where("WebController.java", 15)
             .captureSnapshot(false)
             .build();
-    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
-    Snapshot snapshot = request.getDebugger().getSnapshot();
-    assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    assertEquals("processWithArg 42", request.getMessage());
-    assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
-    assertTrue(Pattern.matches("\\d+", request.getSpanId()));
+    AtomicBoolean requestReceived = new AtomicBoolean(false);
+    registerIntakeRequestListener(
+        intakeRequest -> {
+          Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertEquals("processWithArg 42", intakeRequest.getMessage());
+          assertTrue(Pattern.matches("[0-9a-f]+", intakeRequest.getTraceId()));
+          assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
+          requestReceived.set(true);
+        });
+    doTestTracer(logProbe);
+    processRequests(requestReceived::get);
   }
 
-  private JsonSnapshotSerializer.IntakeRequest doTestTracer(LogProbe logProbe) throws Exception {
-    return doTestTracer(logProbe, false);
+  private void doTestTracer(LogProbe logProbe) throws Exception {
+    doTestTracer(logProbe, false);
   }
 
-  private JsonSnapshotSerializer.IntakeRequest doTestTracer(
-      LogProbe logProbe, boolean enableProcessTags) throws Exception {
+  private void doTestTracer(LogProbe logProbe, boolean enableProcessTags) throws Exception {
     setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
     ProcessBuilder processBuilder = createProcessBuilder(logFilePath, "--server.port=" + httpPort);
-    if (enableProcessTags) {
-      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "true");
+    if (!enableProcessTags) {
+      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "false");
     }
     targetProcess = processBuilder.start();
     // assert in logs app started
@@ -193,6 +224,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
         Duration.ofMillis(100),
         Duration.ofSeconds(30));
     sendRequest("http://localhost:" + httpPort + "/greeting");
+    /*
     RecordedRequest snapshotRequest = retrieveSnapshotRequest();
     if (snapshotRequest == null) {
       System.out.println("retry instrumentation because probable race with Tracer...");
@@ -209,10 +241,12 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
       snapshotRequest = retrieveSnapshotRequest();
     }
     assertNotNull(snapshotRequest);
+
     String bodyStr = snapshotRequest.getBody().readUtf8();
     JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     System.out.println(bodyStr);
     return adapter.fromJson(bodyStr).get(0);
+     */
   }
 
   @Override

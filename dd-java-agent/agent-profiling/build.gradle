@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -10,7 +12,8 @@ excludedClassesCoverage += [
   'com.datadog.profiling.agent.CompositeController.CompositeOngoingRecording',
   'com.datadog.profiling.agent.ProfilingAgent',
   'com.datadog.profiling.agent.ProfilingAgent.ShutdownHook',
-  'com.datadog.profiling.agent.ProfilingAgent.DataDumper'
+  'com.datadog.profiling.agent.ProfilingAgent.DataDumper',
+  'com.datadog.profiling.agent.ProfilerFlare'
 ]
 
 dependencies {
@@ -37,10 +40,10 @@ configurations {
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }

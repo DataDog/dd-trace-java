@@ -23,10 +23,10 @@ addTestSuite('latestDepTest')
 dependencies {
   compileOnly group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
 
-  testFixturesApi testFixtures(project(':dd-java-agent:agent-ci-visibility'))
-  testFixturesApi project(':dd-java-agent:instrumentation:junit-5.3')
-  testFixturesApi group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.8.2'
-  testFixturesApi group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
+  testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
+  testFixturesApi project(':dd-java-agent:instrumentation:junit:junit-5.3')
+  testFixturesApi group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
+  testFixturesApi group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
 
   testImplementation group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
   testImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '2.70.0'
@@ -42,7 +42,7 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('late
   }
 })
 
-tasks.named("compileLatestDepTestJava").configure {
+tasks.named("compileLatestDepTestJava", JavaCompile) {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8

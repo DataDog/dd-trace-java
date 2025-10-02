@@ -4,10 +4,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
   // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 

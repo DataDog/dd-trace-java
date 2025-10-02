@@ -1,4 +1,3 @@
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Open Liberty Smoke Tests'
 
@@ -21,7 +20,7 @@ tasks.register('mvnStage', Exec) {
   outputs.file jarPath
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'mvnStage'
   outputs.upToDateWhen {
     !mvnStage.didWork

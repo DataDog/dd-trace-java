@@ -1,9 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'java-test-fixtures'
   id 'com.google.protobuf' version '0.8.18'
   id 'net.ltgt.errorprone' version '3.1.0'
 }
@@ -52,8 +52,8 @@ dependencies {
   implementation libs.moshi
   implementation libs.bundles.asm
 
-  testFixturesApi project(':dd-java-agent:testing')
-  testFixturesApi project(':utils:test-utils')
+  testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation libs.groovy.yaml
@@ -75,11 +75,11 @@ dependencies {
   errorprone('com.google.errorprone:error_prone_core:2.23.0')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
@@ -114,11 +114,6 @@ spotless {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-pitest {
-  targetClasses = ['com.datadog.iast.*']
-  jvmArgs = ['-Ddd.iast.enabled=true']
 }
 
 sourceSets {

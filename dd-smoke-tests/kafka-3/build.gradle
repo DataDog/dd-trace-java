@@ -41,7 +41,7 @@ tasks.register('bootJar', Exec) {
   group('build')
 }
 
-tasks.named('compileTestGroovy').configure {
+tasks.named('compileTestGroovy') {
   dependsOn 'bootJar'
   outputs.upToDateWhen {
     !bootJar.didWork

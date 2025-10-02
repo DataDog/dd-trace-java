@@ -1,0 +1,18 @@
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Tracer Flare Smoke Tests.'
+
+tasks.named("jar", Jar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.flare.SimpleApp')
+  }
+}
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "jar"
+
+  jvmArgs "-Ddatadog.smoketest.tracer-flare.jar.path=${tasks.jar.archiveFile.get()}"
+}

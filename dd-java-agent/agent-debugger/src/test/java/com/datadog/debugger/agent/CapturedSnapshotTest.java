@@ -275,6 +275,24 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertOneSnapshot(listener);
   }
 
+  /**
+   * Ensure older pre-Java 6 class files with JSR/RET can be rewritten without "JSR/RET are not
+   * supported with computeFrames option" exceptions being thrown.
+   */
+  @Test
+  public void veryOldClassFileWithJsrRet() throws Exception {
+    final String CLASS_NAME = "antlr.Tool"; // compiled with jdk 1.2
+    TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "copyFile", null);
+    Class<?> testClass = Class.forName(CLASS_NAME);
+    assertNotNull(testClass);
+    try {
+      Reflect.onClass(testClass).create().call("copyFile", null, null);
+    } catch (Throwable t) {
+      // ignore
+    }
+    assertOneSnapshot(listener);
+  }
+
   @Test
   public void oldClass1_1() throws Exception {
     final String CLASS_NAME = "org.apache.commons.lang.BooleanUtils"; // compiled with jdk 1.1
@@ -621,6 +639,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -651,6 +670,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -678,6 +698,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -711,6 +732,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")

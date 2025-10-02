@@ -51,7 +51,7 @@ public class ThirdPartyLibraries {
       excludes.addAll(defaults.getPrefixes());
       return excludes;
     } catch (Exception e) {
-      LOGGER.error("Failed reading " + FILE_NAME + ". Treating all classes as third party.", e);
+      LOGGER.error("Failed reading {}. Treating all classes as third party.", FILE_NAME, e);
       return getExcludeAll();
     }
   }

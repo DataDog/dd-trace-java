@@ -103,7 +103,7 @@ public final class Initializer {
       initializeOOMENotifier(access);
       return true;
     } catch (Throwable t) {
-      LOG.debug(SEND_TELEMETRY, "Failed to initialize crash tracking: " + t.getMessage(), t);
+      LOG.debug("Failed to initialize crash tracking: {}", t.getMessage(), t);
     }
     return false;
   }
@@ -175,12 +175,12 @@ public final class Initializer {
                       LOG.debug("Deleting config file: {}", cfgPath);
                       Files.deleteIfExists(cfgPath);
                     } catch (IOException e) {
-                      LOG.warn(SEND_TELEMETRY, "Failed deleting config file: " + cfgPath, e);
+                      LOG.warn(SEND_TELEMETRY, "Failed deleting config file: {}", cfgPath, e);
                     }
                   }));
       LOG.debug("Config file written: {}", cfgPath);
     } catch (IOException e) {
-      LOG.warn(SEND_TELEMETRY, "Failed writing config file: " + cfgPath);
+      LOG.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgPath);
       try {
         Files.deleteIfExists(cfgPath);
       } catch (IOException ignored) {
@@ -216,8 +216,7 @@ public final class Initializer {
     if (arg == null || arg.isEmpty()) {
       return null;
     }
-    arg = arg.toLowerCase();
-    int idx = arg.indexOf(scriptNamePrefix);
+    int idx = arg.toLowerCase().indexOf(scriptNamePrefix);
     if (idx < 0) {
       // the script name is not present in the value, so we cannot extract the path
       return null;
@@ -349,10 +348,8 @@ public final class Initializer {
     } else {
       LOG.warn(
           SEND_TELEMETRY,
-          msg
-              + " ["
-              + t.getMessage()
-              + "] (Change the logging level to debug to see the full stacktrace)");
+          msg + " [{}] (Change the logging level to debug to see the full stacktrace)",
+          t.getMessage());
     }
   }
 }

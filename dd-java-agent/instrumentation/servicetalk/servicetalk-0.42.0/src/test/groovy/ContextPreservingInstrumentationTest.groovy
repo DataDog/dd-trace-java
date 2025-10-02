@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.servicetalk.concurrent.api.AsyncContext
@@ -8,7 +8,7 @@ import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ContextPreservingInstrumentationTest extends AgentTestRunner {
+class ContextPreservingInstrumentationTest extends InstrumentationSpecification {
 
   def "wrapBiConsumer"() {
     setup:

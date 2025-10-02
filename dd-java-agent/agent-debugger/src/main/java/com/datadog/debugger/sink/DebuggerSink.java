@@ -36,7 +36,7 @@ public class DebuggerSink {
   private final String tags;
   private final AtomicLong highRateDropped = new AtomicLong();
   private final int uploadFlushInterval;
-  private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.INSTANCE;
+  private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.get();
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> lowRateScheduled;
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentLowRateFlushInterval = LOW_RATE_INITIAL_FLUSH_INTERVAL;
@@ -51,7 +51,12 @@ public class DebuggerSink {
             config,
             null,
             new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
+                "Snapshots",
+                config,
+                config.getFinalDebuggerSnapshotUrl(),
+                SnapshotSink.RETRY_POLICY),
+            new BatchUploader(
+                "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
         new SymbolSink(config));
   }
 
@@ -86,6 +91,8 @@ public class DebuggerSink {
   }
 
   public void stop() {
+    lowRateFlush(this);
+    snapshotSink.highRateFlush(null);
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
     probeStatusSink.stop();

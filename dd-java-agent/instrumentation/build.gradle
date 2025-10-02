@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 // this project will run in isolation under the agent's classloader
 buildscript {
 
@@ -6,13 +8,13 @@ buildscript {
     if (project.rootProject.hasProperty("gradlePluginProxy")) {
       maven {
         url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
       maven {
         url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
@@ -87,37 +89,14 @@ subprojects { Project subProj ->
       //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
       testImplementation project(':dd-java-agent:instrumentation:classloading')
 
-      testImplementation project(':dd-java-agent:testing')
+      testImplementation project(':dd-java-agent:instrumentation-testing')
       testAnnotationProcessor libs.autoservice.processor
       testCompileOnly libs.autoservice.annotation
 
       instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
     }
 
-    subProj.testing {
-      suites.configureEach {
-        // SpockRunner that we use to run agent tests cannot be properly ported to JUnit 5,
-        // since the framework does not provide the hooks / extension points
-        // that can be used to shadow the tested class.
-
-        // In order to mitigate this, SpockRunner extends JUnitPlatform,
-        // which is a JUnit 4 runner that allows executing JUnit 5 tests in a JUnit 4 environment
-        // (i.e. running them as JUnit 4 tests).
-
-        // So even though Spock 2 tests run on top of JUnit 5,
-        // we execute them in "compatibility mode" so that SpockRunner could shadow the test class
-        // See https://junit.org/junit5/docs/current/user-guide/#running-tests-junit-platform-runner for more details.
-        useJUnit()
-      }
-    }
-
     subProj.tasks.withType(Test).configureEach { subTask ->
-      // The `forkedTest` task is not a proper test suite, so it has to be configured directly
-      if (subTask.name == 'forkedTest') {
-        // See SpockRunner comment above
-        useJUnit()
-      }
-
       if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }
@@ -126,7 +105,7 @@ subprojects { Project subProj ->
 
   def path = subProj.getPath()
   subProj.plugins.withId("java") {
-    if (!path.equals(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')) {
+    if (!path.equals(':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs')) {
       // don't include the redis RequestImpl stub
       parent_project.dependencies {
         implementation project(path)
@@ -151,7 +130,7 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 }
 
 
-tasks.named('shadowJar').configure {
+tasks.named('shadowJar') {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar
@@ -200,4 +179,6 @@ tasks.register('generateKnownTypesIndex', JavaExec) {
   dependsOn 'processResources'
 }
 
-shadowJar.dependsOn 'generateInstrumenterIndex', 'generateKnownTypesIndex'
+tasks.named("shadowJar", ShadowJar) {
+  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
+}

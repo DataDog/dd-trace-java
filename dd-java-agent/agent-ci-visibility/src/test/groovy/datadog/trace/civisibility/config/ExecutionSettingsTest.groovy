@@ -26,6 +26,8 @@ class ExecutionSettingsTest extends DDSpecification {
       false,
       false,
       false,
+      false,
+      false,
       EarlyFlakeDetectionSettings.DEFAULT,
       TestManagementSettings.DEFAULT,
       null,
@@ -44,6 +46,8 @@ class ExecutionSettingsTest extends DDSpecification {
       false,
       true,
       true,
+      true,
+      false,
       new EarlyFlakeDetectionSettings(true, [], 10),
       new TestManagementSettings(true, 20),
       "",
@@ -59,6 +63,8 @@ class ExecutionSettingsTest extends DDSpecification {
 
       new ExecutionSettings(
       false,
+      false,
+      true,
       false,
       true,
       false,
@@ -81,6 +87,8 @@ class ExecutionSettingsTest extends DDSpecification {
       ),
 
       new ExecutionSettings(
+      true,
+      true,
       true,
       true,
       true,

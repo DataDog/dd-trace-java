@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable.Source
@@ -8,7 +8,7 @@ import org.codehaus.jackson.map.ObjectMapper
 
 import java.nio.charset.Charset
 
-class Json1ParserInstrumentationTest extends AgentTestRunner {
+class Json1ParserInstrumentationTest extends InstrumentationSpecification {
 
   private final static String JSON_STRING = '{"root":"root_value","nested":{"nested_array":["array_0","array_1"]}}'
 

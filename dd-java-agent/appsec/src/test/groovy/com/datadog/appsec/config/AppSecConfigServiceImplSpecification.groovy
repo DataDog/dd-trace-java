@@ -2,6 +2,7 @@ package com.datadog.appsec.config
 
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.util.AbortStartupException
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COLLECTION
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
@@ -40,6 +41,8 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES
 import static datadog.remoteconfig.PollingHinterNoop.NOOP
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
 import static datadog.trace.api.UserIdCollectionMode.DISABLED
@@ -270,6 +273,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addListener(Product.ASM_DATA, _)
     1 * poller.addListener(Product.ASM, _)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_DD_MULTICONFIG
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
       | CAPABILITY_ASM_EXCLUSION_DATA
@@ -285,8 +289,21 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
+      | CAPABILITY_ASM_HEADER_FINGERPRINT
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES
+      | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
     0 * poller._
+
+    when:
+    listeners.savedFeaturesListener.accept(
+      'asm_features_activation',
+      listeners.savedFeaturesDeserializer.deserialize(
+      '{"asm":{"enabled": true}}'.bytes), null)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    1 * subconfigListener.onNewSubconfig(_ as String, _)
+    AppSecSystem.active
 
     when:
     // AppSec is ACTIVE - rules trigger subscriptions
@@ -416,6 +433,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addListener(Product.ASM_DATA, _)
     1 * poller.addListener(Product.ASM, _)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_DD_MULTICONFIG
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
       | CAPABILITY_ASM_EXCLUSION_DATA
@@ -427,7 +445,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
+      | CAPABILITY_ASM_HEADER_FINGERPRINT
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES
+      | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
     0 * poller._
 
     when:
@@ -504,6 +524,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * poller.removeCapabilities(CAPABILITY_ASM_ACTIVATION
       | CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_DD_MULTICONFIG
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
       | CAPABILITY_ASM_EXCLUSION_DATA
@@ -521,7 +542,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
-      | CAPABILITY_ASM_HEADER_FINGERPRINT)
+      | CAPABILITY_ASM_HEADER_FINGERPRINT
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES
+      | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()

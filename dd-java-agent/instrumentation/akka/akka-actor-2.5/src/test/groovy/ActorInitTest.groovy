@@ -1,10 +1,10 @@
 import akka.actor.ActorSystem
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class ActorInitTest extends AgentTestRunner {
+class ActorInitTest extends InstrumentationSpecification {
   def "actor init doesn't block trace"() {
     when:
     runUnderTrace("parent") {

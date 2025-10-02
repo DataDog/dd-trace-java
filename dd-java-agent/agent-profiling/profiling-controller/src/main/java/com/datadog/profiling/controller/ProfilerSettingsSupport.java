@@ -189,10 +189,6 @@ public abstract class ProfilerSettingsSupport {
         // usually set via DD_INSTRUMENTATION_INSTALL_TYPE env var
         configProvider.getString("instrumentation.install.type");
     this.profilerActivationSetting = getProfilerActivation(configProvider);
-
-    logger.debug(
-        SEND_TELEMETRY,
-        "Profiler settings: " + this); // telemetry receiver does not recognize formatting
   }
 
   private static int getStackDepth() {
@@ -212,7 +208,7 @@ public abstract class ProfilerSettingsSupport {
         try {
           return Integer.parseInt(value.substring(start, end));
         } catch (NumberFormatException e) {
-          logger.debug(SEND_TELEMETRY, "Failed to parse stack depth from JFR options: " + value, e);
+          logger.debug(SEND_TELEMETRY, "Failed to parse stack depth from JFR options");
         }
       }
     }

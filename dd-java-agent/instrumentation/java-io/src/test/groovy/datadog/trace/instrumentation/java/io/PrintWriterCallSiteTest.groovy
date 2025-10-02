@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
 import foo.bar.TestPrintWriterSuite
 import org.apache.catalina.connector.CoyoteWriter
 
-class PrintWriterCallSiteTest extends AgentTestRunner {
+class PrintWriterCallSiteTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

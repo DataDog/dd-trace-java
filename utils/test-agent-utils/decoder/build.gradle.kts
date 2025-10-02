@@ -14,6 +14,7 @@ val excludedClassesCoverage by extra(
 
 dependencies {
   implementation(group = "org.msgpack", name = "msgpack-core", version = "0.8.24")
+
   testImplementation(libs.bundles.junit5)
-  testImplementation(libs.truth)
+  testImplementation(project(":utils:test-utils"))
 }

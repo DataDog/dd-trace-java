@@ -10,6 +10,7 @@ import com.datadog.ddwaf.WafContext
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import datadog.trace.api.Config
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
 import datadog.trace.test.util.DDSpecification
@@ -311,5 +312,143 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     cleanup:
     TestLogCollector.disable()
+  }
+  void 'test that processed attributes are cleared on close'() {
+    setup:
+    def derivatives = [
+      'numeric': '42',
+      'string': 'value'
+    ]
+
+    when:
+    ctx.reportDerivatives(derivatives)
+    ctx.close()
+
+    then:
+    ctx.getDerivativeKeys().isEmpty()
+  }
+
+  def "test attribute handling with literal values and request data extraction"() {
+    given:
+    def context = new AppSecRequestContext()
+    context.setMethod("POST")
+    context.setScheme("https")
+    context.setRawURI("/api/test")
+    context.setRoute("/api/{param}")
+    context.setResponseStatus(200)
+    context.addRequestHeader("user-agent", "TestAgent/1.0")
+    context.addRequestHeader("content-type", "application/json")
+
+    // Test data for attributes
+    def attributes = [
+      "_dd.appsec.s.res.headers": [
+        "value": "literal-header-value"
+      ],
+      "_dd.appsec.s.res.method": [
+        "address": "server.request.method"
+      ],
+      "_dd.appsec.s.res.scheme": [
+        "address": "server.request.scheme"
+      ],
+      "_dd.appsec.s.res.uri": [
+        "address": "server.request.uri.raw"
+      ],
+      "_dd.appsec.s.res.route": [
+        "address": "server.request.route"
+      ],
+      "_dd.appsec.s.res.status": [
+        "address": "server.response.status"
+      ],
+      "_dd.appsec.s.res.user_agent": [
+        "address": "server.request.headers",
+        "key_path": ["user-agent"]
+      ],
+      "_dd.appsec.s.res.content_type": [
+        "address": "server.request.headers",
+        "key_path": ["content-type"]
+      ],
+      "_dd.appsec.s.res.user_agent_lower": [
+        "address": "server.request.headers",
+        "key_path": ["user-agent"],
+        "transformers": ["lowercase"]
+      ],
+      "_dd.appsec.s.res.content_type_upper": [
+        "address": "server.request.headers",
+        "key_path": ["content-type"],
+        "transformers": ["uppercase"]
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(attributes)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 10
+    keys.contains("_dd.appsec.s.res.headers")
+    keys.contains("_dd.appsec.s.res.method")
+    keys.contains("_dd.appsec.s.res.scheme")
+    keys.contains("_dd.appsec.s.res.uri")
+    keys.contains("_dd.appsec.s.res.route")
+    keys.contains("_dd.appsec.s.res.status")
+    keys.contains("_dd.appsec.s.res.user_agent")
+    keys.contains("_dd.appsec.s.res.content_type")
+    keys.contains("_dd.appsec.s.res.user_agent_lower")
+    keys.contains("_dd.appsec.s.res.content_type_upper")
+  }
+
+  def "test attribute handling with unknown address"() {
+    given:
+    def context = new AppSecRequestContext()
+
+    def attributes = [
+      "_dd.appsec.s.res.unknown": [
+        "address": "server.request.unknown"
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(attributes)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 0 // No attributes should be added for unknown addresses
+  }
+
+  def "test attribute handling with invalid key path"() {
+    given:
+    def context = new AppSecRequestContext()
+    context.addRequestHeader("user-agent", "TestAgent/1.0")
+
+    def attributes = [
+      "_dd.appsec.s.res.invalid": [
+        "address": "server.request.headers",
+        "key_path": ["non-existent-header"]
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(attributes)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 0 // No attributes should be added for invalid key paths
+  }
+
+  void 'test sampling of requests'() {
+    given:
+    final maxRequests = Config.get().apiSecurityMaxDownstreamRequestBodyAnalysis
+    final context = new AppSecRequestContext()
+    final random = new Random()
+    final requestIds = (0..maxRequests).collect { random.nextLong() }
+
+    when:
+    final map = requestIds.collectEntries{ [(it) : context.sampleHttpClientRequest(it)] }
+
+    then:
+    map.values().count { it } == maxRequests
+    map.each { requestId, sampled ->
+      assert context.isHttpClientRequestSampled(requestId) == sampled
+    }
   }
 }

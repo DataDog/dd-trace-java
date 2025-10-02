@@ -20,15 +20,27 @@ gradlePlugin {
     }
     create("muzzle-plugin") {
       id = "muzzle"
-      implementationClass = "MuzzlePlugin"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
-      id = "tracer-version"
+      id = "datadog.tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
+    create("dump-hanged-test-plugin") {
+      id = "datadog.dump-hanged-test"
+      implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
+    }
+    create("supported-config-generation") {
+      id = "supported-config-generator"
+      implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
+    }
+    create("supported-config-linter") {
+      id = "config-inversion-linter"
+      implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
     }
   }
 }
@@ -52,6 +64,11 @@ dependencies {
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.8")
   implementation("org.ow2.asm", "asm-tree", "9.8")
+
+  implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
+  implementation("com.fasterxml.jackson.core:jackson-databind")
+  implementation("com.fasterxml.jackson.core:jackson-annotations")
+  implementation("com.fasterxml.jackson.core:jackson-core")
 }
 
 tasks.compileKotlin {
@@ -76,7 +93,6 @@ testing {
     val integTest by registering(JvmTestSuite::class) {
       dependencies {
         implementation(gradleTestKit())
-        implementation("org.assertj:assertj-core:3.25.3")
       }
       // Makes the gradle plugin publish its declared plugins to this source set
       gradlePlugin.testSourceSet(sources)

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.net
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.gateway.CallbackProvider
@@ -18,7 +19,7 @@ import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class URLSinkCallSiteTest extends AgentTestRunner {
+class URLSinkCallSiteTest extends InstrumentationSpecification {
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()
@@ -85,8 +86,8 @@ class URLSinkCallSiteTest extends AgentTestRunner {
     TestURLCallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.networkConnection()) >> listener
-    1 * listener.apply(reqCtx, URL.toString())
+    1 * callbackProvider.getCallback(EVENTS.httpClientRequest()) >> listener
+    1 * listener.apply(reqCtx, _ as HttpClientRequest)
 
     where:
     suite << tests()
