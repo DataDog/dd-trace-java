@@ -396,10 +396,10 @@ public class WAFModule implements AppSecModule {
         boolean isThrottled = reqCtx.isThrottled(rateLimiter);
 
         if (!isThrottled) {
-          AgentSpan activeSpan = AgentTracer.get().activeSpan();
-          if (activeSpan != null) {
-            if (resultWithData.keep) {
-              reqCtx.setManuallyKept(true);
+          if (resultWithData.keep) {
+            reqCtx.setManuallyKept(true);
+            AgentSpan activeSpan = AgentTracer.get().activeSpan();
+            if (activeSpan != null) {
               log.debug("Setting force-keep tag and manual keep tag on the current span");
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
