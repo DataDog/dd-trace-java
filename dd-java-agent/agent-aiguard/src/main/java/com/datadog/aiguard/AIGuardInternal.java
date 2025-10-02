@@ -164,7 +164,12 @@ public class AIGuardInternal implements Evaluator {
       throw new IllegalArgumentException("Messages must not be empty");
     }
     final AgentTracer.TracerAPI tracer = AgentTracer.get();
-    final AgentSpan span = tracer.buildSpan(SPAN_NAME, SPAN_NAME).start();
+    final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
+    final AgentSpan parent = AgentTracer.activeSpan();
+    if (parent != null) {
+      builder.asChildOf(parent.context());
+    }
+    final AgentSpan span = builder.start();
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
@@ -208,6 +213,8 @@ public class AIGuardInternal implements Evaluator {
           new AIGuardClientError("AI Guard service returned unexpected response", e);
       span.addThrowable(error);
       throw error;
+    } finally {
+      span.finish();
     }
   }
 
@@ -263,7 +270,7 @@ public class AIGuardInternal implements Evaluator {
       if (rawType != AIGuard.Message.class) {
         return null;
       }
-      return new MessageAdapter(moshi.adapter(AIGuard.ToolCall.class));
+      return new MessageAdapter(moshi.adapter(AIGuard.ToolCall.class)).nullSafe();
     }
   }
 
@@ -282,11 +289,7 @@ public class AIGuardInternal implements Evaluator {
     }
 
     @Override
-    public void toJson(final JsonWriter writer, @Nullable final Message value) throws IOException {
-      if (value == null) {
-        writer.nullValue();
-        return;
-      }
+    public void toJson(final JsonWriter writer, final Message value) throws IOException {
       writer.beginObject();
       writeValue(writer, "role", value.getRole());
       writeValue(writer, "content", value.getContent());

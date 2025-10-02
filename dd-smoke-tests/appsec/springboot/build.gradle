@@ -14,6 +14,7 @@ tasks.named("jar", Jar) {
 }
 
 dependencies {
+  implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0'
   implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.6.0')
   implementation group: 'com.h2database', name: 'h2', version: '2.1.212'
