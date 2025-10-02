@@ -17,13 +17,17 @@ final class AnnotationOutline extends WithName implements AnnotationDescription 
   private static final Map<String, AnnotationDescription> annotationOutlines = new HashMap<>();
 
   static void prepareAnnotationOutline(String name) {
-    String descriptor = 'L' + name.replace('.', '/') + ';';
-    annotationOutlines.put(descriptor, new AnnotationOutline(name));
+    // only a few annotation outlines get prepared - we register them under
+    // both their internal name and descriptor to support different callers
+    AnnotationOutline annotationOutline = new AnnotationOutline(name);
+    String internalName = name.replace('.', '/');
+    annotationOutlines.put('L' + internalName + ';', annotationOutline);
+    annotationOutlines.put(internalName, annotationOutline);
   }
 
   /** Only provide outlines of annotations of interest used for matching. */
-  static AnnotationDescription annotationOutline(String descriptor) {
-    return annotationOutlines.get(descriptor);
+  static AnnotationDescription annotationOutline(String internalNameOrDescriptor) {
+    return annotationOutlines.get(internalNameOrDescriptor);
   }
 
   private AnnotationOutline(String name) {
