@@ -126,7 +126,7 @@ configurations.matching({ it.name.startsWith('latestDepTest') }).each({
     force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
   }
 })
-tasks.named("compileLatestDepTestJava").configure {
+tasks.named("compileLatestDepTestJava", JavaCompile) {
   it.sourceCompatibility = JavaVersion.VERSION_11
   it.targetCompatibility = JavaVersion.VERSION_11
   setJavaVersion(it, 11)

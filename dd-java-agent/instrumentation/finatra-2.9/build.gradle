@@ -35,16 +35,16 @@ dependencies {
   latestDepTestImplementation group: 'com.twitter', name: 'finatra-http_2.11', version: '+'
 }
 
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
   dependsOn "compileLatestDepTestScala"
 }
 
-tasks.named("compileLatestPre207TestGroovy").configure {
+tasks.named("compileLatestPre207TestGroovy", GroovyCompile) {
   classpath = classpath.plus(files(compileLatestPre207TestScala.destinationDirectory))
   dependsOn "compileLatestPre207TestScala"
 }
 
-tasks.named("latestDepTest").configure {
+tasks.named("latestDepTest") {
   finalizedBy latestPre207Test
 }

@@ -7,7 +7,7 @@ description = 'SpringBoot Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.appsec.springboot.SpringbootApplication')
   }

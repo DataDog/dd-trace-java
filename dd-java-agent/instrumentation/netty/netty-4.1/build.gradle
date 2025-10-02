@@ -49,7 +49,11 @@ dependencies {
   testImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0'
 
   // latest async-http-client incompatable with 5.0+ netty
-  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '(,5.0)'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http2', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-socks', version: '4.+'
+
   latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.+'
 }
 
