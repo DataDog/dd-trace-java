@@ -162,6 +162,7 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
 
   public static final String UNSAFE_CLASS_INJECTION = "unsafe.class.injection";
+  public static final String VISITOR_CLASS_PARSING = "visitor.class.parsing";
 
   public static final String CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED =
       "trace.cassandra.keyspace.statement.extraction.enabled";
