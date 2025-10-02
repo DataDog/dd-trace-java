@@ -117,4 +117,22 @@ public class NativeLoaderBuilderTest {
 
     assertEquals(PathLocators.fromClassLoader(sysClassLoader), builder.pathLocator());
   }
+
+  @Test
+  public void tempDir_string() {
+    NativeLoader.Builder builder = NativeLoader.builder().tempDir("tmp");
+    assertEquals(builder.tempDir(), Paths.get("tmp"));
+  }
+
+  @Test
+  public void tempDir_file() {
+    NativeLoader.Builder builder = NativeLoader.builder().tempDir(new File("tmp"));
+    assertEquals(builder.tempDir(), Paths.get("tmp"));
+  }
+
+  @Test
+  public void tempDir_path() {
+    NativeLoader.Builder builder = NativeLoader.builder().tempDir(Paths.get("tmp"));
+    assertEquals(builder.tempDir(), Paths.get("tmp"));
+  }
 }
