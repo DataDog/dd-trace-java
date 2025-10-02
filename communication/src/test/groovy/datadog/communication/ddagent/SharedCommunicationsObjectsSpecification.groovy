@@ -24,7 +24,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
     sco.agentUrl as String == 'http://example.com/'
-    sco.okHttpClient != null
+    sco.agentHttpClient != null
     sco.monitoring.is(Monitoring.DISABLED)
 
     when:
@@ -78,7 +78,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     DDAgentFeaturesDiscovery agentFeaturesDiscovery = Mock()
 
     sco.agentUrl = url
-    sco.okHttpClient = okHttpClient
+    sco.agentHttpClient = okHttpClient
     sco.monitoring = monitoring
     sco.featuresDiscovery = agentFeaturesDiscovery
 
@@ -88,7 +88,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     then:
     0 * _
     sco.agentUrl.is(url)
-    sco.okHttpClient.is(okHttpClient)
+    sco.agentHttpClient.is(okHttpClient)
     sco.monitoring.is(monitoring)
     sco.featuresDiscovery.is(agentFeaturesDiscovery)
   }

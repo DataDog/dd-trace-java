@@ -69,7 +69,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def sharedCommObjects = new SharedCommunicationObjects()
     sharedCommObjects.featuresDiscovery = features
-    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.agentHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)
 
     def timeSource = new ControllableTimeSource()
@@ -129,7 +129,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def sharedCommObjects = new SharedCommunicationObjects()
     sharedCommObjects.featuresDiscovery = features
-    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.agentHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)
 
     def timeSource = new ControllableTimeSource()

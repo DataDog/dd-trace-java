@@ -27,11 +27,23 @@ public class SharedCommunicationObjects {
   private final List<Runnable> pausedComponents = new ArrayList<>();
   private volatile boolean paused;
 
-  public OkHttpClient okHttpClient;
+  /**
+   * HTTP client for making requests to Datadog agent. Depending on configuration, this client may
+   * use regular HTTP, UDS or named pipe.
+   */
+  public OkHttpClient agentHttpClient;
+
   public HttpUrl agentUrl;
   public Monitoring monitoring;
   private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
+
+  /**
+   * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
+   * this client is not configured to use UDS or named pipe, and will not force the use of
+   * clear-text HTTP.
+   */
+  private volatile OkHttpClient intakeHttpClient;
 
   public SharedCommunicationObjects() {
     this(false);
@@ -51,12 +63,15 @@ public class SharedCommunicationObjects {
         throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
       }
     }
-    if (okHttpClient == null) {
+    if (agentHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
-      okHttpClient =
+      agentHttpClient =
           OkHttpUtils.buildHttpClient(
-              agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
+              agentUrl != null && "http".equals(agentUrl.scheme()),
+              unixDomainSocket,
+              namedPipe,
+              getHttpClientTimeout(config));
     }
   }
 
@@ -130,7 +145,7 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, okHttpClient);
+        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
   }
 
   // for testing
@@ -146,7 +161,7 @@ public class SharedCommunicationObjects {
           createRemaining(config);
           ret =
               new DDAgentFeaturesDiscovery(
-                  okHttpClient,
+                  agentHttpClient,
                   monitoring,
                   agentUrl,
                   config.isTraceAgentV05Enabled(),
@@ -207,6 +222,21 @@ public class SharedCommunicationObjects {
       this.configUrl = discovery.buildUrl(configEndpoint).toString();
       log.debug("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
+    }
+  }
+
+  public OkHttpClient getIntakeHttpClient(Config config) {
+    OkHttpClient intakeHttpClient = this.intakeHttpClient;
+    if (intakeHttpClient != null) {
+      return intakeHttpClient;
+    }
+
+    synchronized (this) {
+      if (this.intakeHttpClient == null) {
+        this.intakeHttpClient =
+            OkHttpUtils.buildHttpClient(false, null, null, getHttpClientTimeout(config));
+      }
+      return this.intakeHttpClient;
     }
   }
 }
