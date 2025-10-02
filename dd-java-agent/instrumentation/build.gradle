@@ -57,6 +57,9 @@ subprojects { Project subProj ->
       annotationProcessor libs.autoservice.processor
       compileOnly libs.autoservice.annotation
 
+      // Some frameworks use an old copy of ASM, test with '-all' variant to mimic the agent's class-loader isolation
+      testImplementation variantOf(libs.instrumentjava) { classifier("all") }
+
       // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
       testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
       // FIXME: we should enable this, but currently this fails tests for google http client
