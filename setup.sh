@@ -36,7 +36,7 @@ check-jvm "JAVA_8_HOME" "1.8"
 check-jvm "JAVA_11_HOME" "11"
 check-jvm "JAVA_17_HOME" "17"
 check-jvm "JAVA_21_HOME" "21"
-check-jvm "JAVA_24_HOME" "24"
+check-jvm "JAVA_25_HOME" "25"
 check-jvm "JAVA_GRAALVM17_HOME" "17"
 
 

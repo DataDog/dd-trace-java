@@ -33,21 +33,24 @@ addTestSuiteExtendingForDir('ee10ForkedTest', 'ee10Test', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'test/ee10')
 
-[compileMain_java17Java, compileTestJava].each {
-  it.configure {
+["compileMain_java17Java", "compileTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
-[ee8LatestDepTest, ee9LatestDepTest, ee10LatestDepTest].each {
-  it.configure {
+
+["ee8LatestDepTest", "ee9LatestDepTest", "ee10LatestDepTest"].each { name ->
+  tasks.named(name, Test) {
     it.jvmArgs += ['-Dtest.dd.latestDepTest=true']
   }
 }
+
 forbiddenApisMain_java17 {
   failOnMissingClasses = false
 }
+
 tasks.withType(GroovyCompile).configureEach {
   javaLauncher = getJavaLauncherFor(17)
 }
@@ -71,8 +74,8 @@ dependencies {
   }
 
   testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3'))
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
@@ -80,7 +83,7 @@ dependencies {
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12")
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0'))
   testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31'))
 

@@ -43,6 +43,7 @@ dependencies {
   }
   compileOnly project(':dd-java-agent:agent-jmxfetch')
   compileOnly project(':dd-java-agent:agent-profiling')
+  compileOnly project(':dd-java-agent:agent-profiling:profiling-controller')
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
   api libs.bytebuddy
   api libs.bytebuddyagent
@@ -69,11 +70,11 @@ jmh {
 compileJmhJava.dependsOn compileTestJava
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
-forbiddenApisJmh {
+tasks.named("forbiddenApisJmh") {
   ignoreFailures = true
 }
 
-forbiddenApisTest_java11 {
+tasks.named("forbiddenApisTest_java11") {
   // it will fail due to missing JDK >= 9 classes
   // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
   failOnMissingClasses = false

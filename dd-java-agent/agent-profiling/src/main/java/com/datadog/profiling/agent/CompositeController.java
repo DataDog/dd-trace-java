@@ -11,13 +11,13 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.ddprof.DatadogProfilerController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import com.datadog.profiling.controller.oracle.OracleJdkController;
-import com.datadog.profiling.ddprof.Arch;
-import com.datadog.profiling.ddprof.OperatingSystem;
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
@@ -156,7 +156,7 @@ public class CompositeController implements Controller {
           Class.forName("com.oracle.jrockit.jfr.Producer");
           controllers.add(OracleJdkController.instance(provider));
         } catch (Throwable t) {
-          log.debug(SEND_TELEMETRY, "Failed to load oracle profiler: {}", t.getMessage(), t);
+          ProfilerFlareLogger.getInstance().log("Failed to load oracle profiler", t);
         }
       }
       if (!isOracleJDK8) {
@@ -164,15 +164,14 @@ public class CompositeController implements Controller {
           if (Platform.hasJfr()) {
             controllers.add(OpenJdkController.instance(provider));
           } else {
-            log.debug(
-                SEND_TELEMETRY,
-                "JFR is not available on this platform: "
-                    + OperatingSystem.current()
-                    + ", "
-                    + Arch.current());
+            ProfilerFlareLogger.getInstance()
+                .log(
+                    "JFR is not available on this platform: {}, {}",
+                    OperatingSystem.type(),
+                    OperatingSystem.architecture());
           }
         } catch (Throwable t) {
-          log.debug(SEND_TELEMETRY, "Failed to load openjdk profiler: " + t.getMessage(), t);
+          ProfilerFlareLogger.getInstance().log("Failed to load openjdk profiler", t);
         }
       }
     }
@@ -186,22 +185,16 @@ public class CompositeController implements Controller {
       } catch (Throwable error) {
         Throwable rootCause = error.getCause() == null ? error : error.getCause();
         context.setDatadogProfilerUnavailableReason(rootCause.getMessage());
-        OperatingSystem os = OperatingSystem.current();
-        if (os != OperatingSystem.linux) {
-          log.debug(SEND_TELEMETRY, "Datadog profiler only supported on Linux", rootCause);
-        } else if (!log.isDebugEnabled()) {
-          log.warn(
-              "failed to instantiate Datadog profiler on {} {} because: {}",
-              os,
-              Arch.current(),
-              rootCause.getMessage());
+        if (!isLinux()) {
+          ProfilerFlareLogger.getInstance()
+              .log("Datadog profiler only supported on Linux", rootCause);
         } else {
-          log.debug(
-              SEND_TELEMETRY,
-              "failed to instantiate Datadog profiler on {} {}",
-              os,
-              Arch.current(),
-              rootCause);
+          ProfilerFlareLogger.getInstance()
+              .log(
+                  "Failed to instantiate Datadog profiler on {} {}",
+                  OperatingSystem.type(),
+                  OperatingSystem.architecture(),
+                  rootCause);
         }
       }
     } else {
