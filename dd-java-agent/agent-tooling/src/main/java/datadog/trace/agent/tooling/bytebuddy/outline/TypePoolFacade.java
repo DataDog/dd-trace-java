@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDesc
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.typeFactory;
 
+import datadog.instrument.classmatch.ClassFile;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer;
 import datadog.trace.api.InstrumenterConfig;
@@ -36,6 +37,9 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   @Override
   public void annotationOfInterest(String name) {
+    if (!InstrumenterConfig.get().isVisitorClassParsing()) {
+      ClassFile.annotationOfInterest(name.replace('.', '/'));
+    }
     AnnotationOutline.prepareAnnotationOutline(name);
   }
 
