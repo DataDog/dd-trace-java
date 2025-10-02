@@ -289,6 +289,10 @@ public final class NativeLoader {
       if (tempDir == null) {
         return Files.createTempFile(libname, "." + libExt, permAttrs);
       } else {
+        Files.createDirectories(
+            tempDir,
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+
         return Files.createTempFile(tempDir, libname, "." + libExt, permAttrs);
       }
     }

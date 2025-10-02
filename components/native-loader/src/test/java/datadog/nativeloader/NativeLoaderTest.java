@@ -4,11 +4,8 @@ import static datadog.nativeloader.TestPlatformSpec.AARCH64;
 import static datadog.nativeloader.TestPlatformSpec.LINUX;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
-
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -77,7 +74,7 @@ public class NativeLoaderTest {
     try (LibFile lib = loader.resolveDynamic("dummy")) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
-      
+
       // file isn't actually a dynamic library
       assertThrows(LibraryLoadException.class, () -> lib.load());
     }
@@ -186,27 +183,41 @@ public class NativeLoaderTest {
       assertTempFile(lib);
     }
   }
-  
+
+  @Test
+  public void fromJarBackedClassLoader_with_tempDir() throws IOException, LibraryLoadException {
+    URL[] urls = {new File("test-data/libdummy.jar").toURL()};
+
+    URLClassLoader classLoader = new URLClassLoader(urls);
+
+    NativeLoader loader =
+        NativeLoader.builder().fromClassLoader(classLoader).tempDir("temp").build();
+    try (LibFile lib = loader.resolveDynamic("dummy")) {
+      // loaded from a jar, so copied to temp file
+      assertTempFile(lib);
+    }
+  }
+
   void assertPreloaded(LibFile lib) {
-	assertTrue(lib.isPreloaded());
-	assertNull(lib.file);
-	assertNull(lib.getAbsolutePath());
-	assertFalse(lib.needsCleanup);
+    assertTrue(lib.isPreloaded());
+    assertNull(lib.file);
+    assertNull(lib.getAbsolutePath());
+    assertFalse(lib.needsCleanup);
   }
 
   void assertRegularFile(LibFile lib) {
-	assertFalse(lib.isPreloaded());
-	assertNotNull(lib.file);
-	assertTrue(lib.file.exists());
-	assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
+    assertFalse(lib.isPreloaded());
+    assertNotNull(lib.file);
+    assertTrue(lib.file.exists());
+    assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
     assertFalse(lib.needsCleanup);
   }
 
   void assertTempFile(LibFile lib) {
-	assertFalse(lib.isPreloaded());
-	assertNotNull(lib.file);
-	assertTrue(lib.file.exists());
-	assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
-	assertTrue(lib.needsCleanup);
+    assertFalse(lib.isPreloaded());
+    assertNotNull(lib.file);
+    assertTrue(lib.file.exists());
+    assertEquals(lib.file.getAbsolutePath(), lib.getAbsolutePath());
+    assertTrue(lib.needsCleanup);
   }
 }
