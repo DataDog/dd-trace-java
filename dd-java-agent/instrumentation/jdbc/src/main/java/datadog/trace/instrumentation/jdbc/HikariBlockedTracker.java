@@ -1,18 +1,20 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static java.lang.Boolean.TRUE;
+
 /** Shared blocked getConnection() tracking {@link ThreadLocal} for Hikari. */
 public class HikariBlockedTracker {
-  private static final ThreadLocal<Boolean> tracker = ThreadLocal.withInitial(() -> false);
+  private static final ThreadLocal<Boolean> tracker = new ThreadLocal<>();
 
   public static void clearBlocked() {
-    tracker.set(false);
+    tracker.remove();
   }
 
   public static void setBlocked() {
-    tracker.set(true);
+    tracker.set(TRUE);
   }
 
   public static boolean wasBlocked() {
-    return tracker.get();
+    return TRUE == tracker.get();
   }
 }

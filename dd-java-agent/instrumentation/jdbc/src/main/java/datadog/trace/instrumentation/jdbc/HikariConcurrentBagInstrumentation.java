@@ -99,8 +99,9 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
         }
 
         span.finish();
+
+        HikariBlockedTracker.clearBlocked();
       }
-      HikariBlockedTracker.clearBlocked();
     }
   }
 }
