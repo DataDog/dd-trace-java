@@ -81,6 +81,39 @@ public class NativeLoaderTest {
   }
 
   @Test
+  public void fromDir_override_windows() throws LibraryLoadException {
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.windows(), "dummy")) {
+      // loaded directly from directory, so no clean-up required
+      assertRegularFile(lib);
+      assertTrue(lib.getAbsolutePath().endsWith("dummy.dll"));
+    }
+  }
+
+  @Test
+  public void fromDir_override_mac() throws LibraryLoadException {
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.mac(), "dummy")) {
+      // loaded directly from directory, so no clean-up required
+      assertRegularFile(lib);
+      assertTrue(lib.getAbsolutePath().endsWith("libdummy.dylib"));
+    }
+  }
+
+  @Test
+  public void fromDir_override_linux() throws LibraryLoadException {
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.linux(), "dummy")) {
+      // loaded directly from directory, so no clean-up required
+      assertRegularFile(lib);
+      assertTrue(lib.getAbsolutePath().endsWith("libdummy.so"));
+    }
+  }
+
+  @Test
   public void fromDirList() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().fromDirs("dne1", "dne2", "test-data").build();
 
