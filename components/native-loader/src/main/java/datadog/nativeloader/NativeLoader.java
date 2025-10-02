@@ -40,9 +40,7 @@ public final class NativeLoader {
       return this.libResolver(LibraryResolvers.nestedDirs());
     }
 
-    /**
-     * Uses a flat directory layout -- {@link LibraryResolvers#flatDirs()}
-     */
+    /** Uses a flat directory layout -- {@link LibraryResolvers#flatDirs()} */
     public Builder flatLayout() {
       return this.libResolver(LibraryResolvers.flatDirs());
     }

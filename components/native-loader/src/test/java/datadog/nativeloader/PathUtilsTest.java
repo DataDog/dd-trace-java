@@ -138,29 +138,29 @@ public class PathUtilsTest {
   public void libcPart_windows() {
     assertNull(PathUtils.libcPartOf(windows()));
   }
-  
+
   @Test
   public void concat_nonEmpty_nonEmpty() {
-	assertEquals("foo/bar", PathUtils.concatPath("foo", "bar"));
+    assertEquals("foo/bar", PathUtils.concatPath("foo", "bar"));
   }
-  
+
   @Test
   public void concat_null_nonEmpty() {
-	assertEquals("bar", PathUtils.concatPath(null, "bar"));
+    assertEquals("bar", PathUtils.concatPath(null, "bar"));
   }
-  
+
   @Test
   public void concat_nonEmpty_null() {
-	assertEquals("foo", PathUtils.concatPath("foo", null));
+    assertEquals("foo", PathUtils.concatPath("foo", null));
   }
-  
+
   @Test
   public void concat_empty_nonEmpty() {
-	assertEquals("bar", PathUtils.concatPath("", "bar"));
+    assertEquals("bar", PathUtils.concatPath("", "bar"));
   }
-  
+
   @Test
   public void concat_null_empty_nonEmpty() {
-	assertEquals("bar", PathUtils.concatPath(null, "", "bar"));
+    assertEquals("bar", PathUtils.concatPath(null, "", "bar"));
   }
 }

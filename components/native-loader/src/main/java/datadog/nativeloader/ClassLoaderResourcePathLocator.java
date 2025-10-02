@@ -17,7 +17,7 @@ public final class ClassLoaderResourcePathLocator implements PathLocator {
   public URL locate(String component, String path) {
     return this.classLoader.getResource(PathUtils.concatPath(component, this.baseResource, path));
   }
-  
+
   @Override
   public int hashCode() {
     return Objects.hash(this.classLoader, this.baseResource);

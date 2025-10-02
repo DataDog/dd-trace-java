@@ -1,15 +1,12 @@
 package datadog.nativeloader;
 
-import datadog.environment.OperatingSystem;
-import datadog.environment.OperatingSystem.Architecture;
-
 /**
  * PlatformSpec describes a native library "platform" -- including operating system, architecture,
  * and libc variation
  */
 public abstract class PlatformSpec {
   public static final PlatformSpec defaultPlatformSpec() {
-    return DefaultPlatformSpec.INSTANCE;
+    return IntrospectPlatformSpec.INSTANCE;
   }
 
   /** Is the target OS MacOS? */
@@ -45,65 +42,4 @@ public abstract class PlatformSpec {
 
   /** Is the target using MUSL libc? */
   public abstract boolean isMusl();
-}
-
-/*
- * Default PlatformSpec used in dd-trace-java -- wraps detection code in component:environment
- */
-final class DefaultPlatformSpec extends PlatformSpec {
-  static final PlatformSpec INSTANCE = new DefaultPlatformSpec();
-
-  @Override
-  public boolean isLinux() {
-    return OperatingSystem.isLinux();
-  }
-
-  @Override
-  public boolean isMac() {
-    return OperatingSystem.isMacOs();
-  }
-
-  @Override
-  public boolean isWindows() {
-    return OperatingSystem.isWindows();
-  }
-
-  @Override
-  public boolean isMusl() {
-    return OperatingSystem.isMusl();
-  }
-
-  @Override
-  public boolean isAarch64() {
-    return isArch(Architecture.ARM64);
-  }
-
-  @Override
-  public boolean isArm32() {
-    return isArch(Architecture.ARM);
-  }
-
-  @Override
-  public boolean isX86_32() {
-    return isArch(Architecture.X86);
-  }
-
-  @Override
-  public boolean isX86_64() {
-    return isArch(Architecture.X64);
-  }
-
-  static final boolean isArch(OperatingSystem.Architecture arch) {
-    return (OperatingSystem.architecture() == arch);
-  }
-
-  @Override
-  public int hashCode() {
-    return DefaultPlatformSpec.class.hashCode();
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    return (obj instanceof DefaultPlatformSpec);
-  }
 }
