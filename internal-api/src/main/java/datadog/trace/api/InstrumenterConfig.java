@@ -73,6 +73,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENA
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -161,6 +162,7 @@ public class InstrumenterConfig {
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
+  private final boolean visitorClassParsing;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
@@ -279,6 +281,8 @@ public class InstrumenterConfig {
         Platform.isNativeImageBuilder()
             ? 0
             : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+
+    visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, true);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -503,6 +507,10 @@ public class InstrumenterConfig {
 
   public String getResolverCacheDir() {
     return resolverCacheDir;
+  }
+
+  public boolean isVisitorClassParsing() {
+    return visitorClassParsing;
   }
 
   public String getInstrumentationConfigId() {
