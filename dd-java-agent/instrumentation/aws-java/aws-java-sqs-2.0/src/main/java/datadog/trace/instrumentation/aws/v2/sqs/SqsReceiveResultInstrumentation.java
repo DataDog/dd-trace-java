@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -44,8 +45,13 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
+    Map<String, String> contextStore = new java.util.HashMap<>(2);
+    contextStore.put(
         "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
+    contextStore.put(
+        "software.amazon.awssdk.services.sqs.model.Message",
+        "datadog.trace.bootstrap.instrumentation.java.concurrent.State");
+    return contextStore;
   }
 
   @Override
@@ -63,7 +69,11 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
         String queueUrl =
             InstrumentationContext.get(ReceiveMessageResponse.class, String.class).get(result);
         if (queueUrl != null) {
-          messages = new TracingList(messages, queueUrl, result.responseMetadata().requestId());
+          ContextStore<Message, State> messageStateStore =
+              InstrumentationContext.get(Message.class, State.class);
+          messages =
+              new TracingList(
+                  messageStateStore, messages, queueUrl, result.responseMetadata().requestId());
         }
       }
     }
