@@ -34,17 +34,6 @@ public final class XmlDomUtils {
   }
 
   /**
-   * Convert a W3C DOM Document to a WAF-compatible Map/List structure using the default recursion
-   * depth.
-   *
-   * @param document the XML document to convert
-   * @return converted structure wrapped in a list for consistency, or null if document is null
-   */
-  public static Object convertDocument(Document document) {
-    return convertDocument(document, DEFAULT_MAX_CONVERSION_DEPTH);
-  }
-
-  /**
    * Convert a W3C DOM Document to a WAF-compatible Map/List structure.
    *
    * @param document the XML document to convert
@@ -60,24 +49,13 @@ public final class XmlDomUtils {
   }
 
   /**
-   * Convert a W3C DOM Element to a WAF-compatible Map/List structure using the default recursion
-   * depth.
-   *
-   * @param element the XML element to convert
-   * @return converted structure wrapped in a list for consistency, or null if element is null
-   */
-  public static Object convertElement(Element element) {
-    return convertElement(element, DEFAULT_MAX_CONVERSION_DEPTH);
-  }
-
-  /**
    * Convert a W3C DOM Element to a WAF-compatible Map/List structure.
    *
    * @param element the XML element to convert
    * @param maxRecursion maximum recursion depth to prevent stack overflow
    * @return converted structure wrapped in a list for consistency, or null if element is null
    */
-  public static Object convertElement(Element element, int maxRecursion) {
+  private static Object convertElement(Element element, int maxRecursion) {
     if (element == null) {
       return null;
     }
@@ -96,7 +74,7 @@ public final class XmlDomUtils {
    * @param maxRecursion maximum recursion depth to prevent stack overflow
    * @return Map for elements, String for text nodes, null for other types or when maxRecursion <= 0
    */
-  public static Object convertW3cNode(Node node, int maxRecursion) {
+  private static Object convertW3cNode(Node node, int maxRecursion) {
     if (node == null || maxRecursion <= 0) {
       return null;
     }
@@ -156,52 +134,6 @@ public final class XmlDomUtils {
       }
     }
     return null;
-  }
-
-  /**
-   * Check if a string contains XML content by examining both strings and DOM objects.
-   *
-   * @param obj the object to check
-   * @return true if the object contains XML content, false otherwise
-   */
-  public static boolean isXmlContent(Object obj) {
-    if (obj == null) {
-      return false;
-    }
-
-    // Check for W3C DOM XML objects
-    if (obj instanceof Document || obj instanceof Element || obj instanceof Node) {
-      return true;
-    }
-
-    // Check for XML string content
-    if (obj instanceof String) {
-      String content = (String) obj;
-      if (content.trim().isEmpty()) {
-        return false;
-      }
-      String trimmed = content.trim();
-
-      // Explicitly exclude JSON content
-      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-        return false;
-      }
-
-      // Check for XML declaration
-      if (trimmed.startsWith("<?xml")) {
-        return true;
-      }
-
-      // Check for XML element (must start with < and end with >, and contain at least one closing
-      // tag or self-closing tag)
-      if (trimmed.startsWith("<")
-          && trimmed.endsWith(">")
-          && (trimmed.contains("</") || trimmed.contains("/>"))) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**
@@ -279,18 +211,6 @@ public final class XmlDomUtils {
   }
 
   /**
-   * Convert XML string to WAF-compatible format using the default recursion depth. This ensures XML
-   * attack payloads are properly detected by the WAF.
-   *
-   * @param xmlContent the XML string content to parse
-   * @return parsed XML structure compatible with WAF analysis
-   * @throws Exception if XML parsing fails
-   */
-  public static Object parseXmlStringToWafFormat(String xmlContent) throws Exception {
-    return parseXmlStringToWafFormat(xmlContent, DEFAULT_MAX_CONVERSION_DEPTH);
-  }
-
-  /**
    * Convert XML string to WAF-compatible format following Spring framework pattern. This ensures
    * XML attack payloads are properly detected by the WAF.
    *
@@ -299,7 +219,7 @@ public final class XmlDomUtils {
    * @return parsed XML structure compatible with WAF analysis
    * @throws Exception if XML parsing fails
    */
-  public static Object parseXmlStringToWafFormat(String xmlContent, int maxRecursion)
+  private static Object parseXmlStringToWafFormat(String xmlContent, int maxRecursion)
       throws Exception {
     if (xmlContent == null || xmlContent.trim().isEmpty()) {
       return null;
