@@ -292,6 +292,11 @@ public class WebController {
     headers.add("X-Test-Header-3", "value3");
     headers.add("X-Test-Header-4", "value4");
     headers.add("X-Test-Header-5", "value5");
+    headers.add("WWW-Authenticate", "value6");
+    headers.add("Proxy-Authenticate", "value7");
+    headers.add("Set-Cookie", "value8");
+    headers.add("Authentication-Info", "value9");
+    headers.add("Proxy-Authentication-Info", "value10");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
@@ -303,6 +308,11 @@ public class WebController {
     }
     headers.add("content-language", "en-US");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @PostMapping("/waf-event-with-body")
+  public String wafEventWithBody(@RequestBody String body) {
+    return "EXECUTED";
   }
 
   @PostMapping("/api_security/response")

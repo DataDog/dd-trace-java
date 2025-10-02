@@ -14,7 +14,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_COLLECTED_HEADERS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
@@ -196,19 +195,15 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_COLLECT_ALL_HEADERS;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_HEADER_COLLECTION_REDACTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_COLLECTED_HEADERS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACES_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_COLLECT_REQUEST_BODY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
@@ -952,10 +947,6 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecCollectAllHeaders;
-  private final boolean appSecHeaderCollectionRedactionEnabled;
-  private final int appSecMaxCollectedHeaders;
-  private final boolean appSecRaspCollectRequestBody;
   private final int appSecBodyParsingSizeLimit;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
@@ -2105,14 +2096,6 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
-    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
-    appSecHeaderCollectionRedactionEnabled =
-        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
-    appSecMaxCollectedHeaders =
-        configProvider.getInteger(
-            APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
-    appSecRaspCollectRequestBody =
-        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
     appSecBodyParsingSizeLimit =
         configProvider.getInteger(
             APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
@@ -5129,22 +5112,6 @@ public class Config {
 
   public int getAppSecMaxStackTraceDepth() {
     return appSecMaxStackTraceDepth;
-  }
-
-  public boolean isAppSecCollectAllHeaders() {
-    return appSecCollectAllHeaders;
-  }
-
-  public boolean isAppSecHeaderCollectionRedactionEnabled() {
-    return appSecHeaderCollectionRedactionEnabled;
-  }
-
-  public int getAppsecMaxCollectedHeaders() {
-    return appSecMaxCollectedHeaders;
-  }
-
-  public boolean isAppSecRaspCollectRequestBody() {
-    return appSecRaspCollectRequestBody;
   }
 
   public int getAppSecBodyParsingSizeLimit() {
