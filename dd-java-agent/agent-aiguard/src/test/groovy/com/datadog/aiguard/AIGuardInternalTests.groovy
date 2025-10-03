@@ -35,7 +35,7 @@ class AIGuardInternalTests extends DDSpecification {
   protected static final URL = HttpUrl.parse('https://app.datadoghq.com/api/v2/ai-guard/evaluate')
 
   @Shared
-  protected static final HEADERS = ['DD-API-KEY': 'api', 'DD-APP-KEY': 'app']
+  protected static final HEADERS = ['DD-API-KEY': 'api', 'DD-APPLICATION-KEY': 'app']
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()

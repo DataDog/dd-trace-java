@@ -77,7 +77,7 @@ public class AIGuardInternal implements Evaluator {
     if (isEmpty(endpoint)) {
       endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
-    final Map<String, String> headers = mapOf("DD-API-KEY", apiKey, "DD-APP-KEY", appKey);
+    final Map<String, String> headers = mapOf("DD-API-KEY", apiKey, "DD-APPLICATION-KEY", appKey);
     final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
     final int timeout = config.getAiGuardTimeout();
     final OkHttpClient client = buildClient(url, timeout);
