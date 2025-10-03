@@ -154,6 +154,7 @@ org.junit.platform:junit-platform-runner:1.12.2=latestDepTestRuntimeClasspath,te
 org.junit.platform:junit-platform-suite-api:1.12.2=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.12.2=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.12.2=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.junit:junit-bom:5.9.1=spotbugs
 org.latencyutils:LatencyUtils:2.0.3=latestDepTestRuntimeClasspath
 org.mockito:mockito-core:4.4.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.objenesis:objenesis:3.3=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
