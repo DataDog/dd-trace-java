@@ -284,8 +284,8 @@ public class InstrumenterConfig {
             ? 0
             : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
-    visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, true);
-    unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, true);
+    visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, false);
+    unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, false);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
