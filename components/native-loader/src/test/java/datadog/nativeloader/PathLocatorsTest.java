@@ -1,7 +1,9 @@
 package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.net.URL;
@@ -20,11 +22,8 @@ public class PathLocatorsTest {
     PathLocator dirLocator2 = PathLocators.fromLibDirs(new File("foo"));
     PathLocator dirLocator3 = PathLocators.fromLibDirs(Paths.get("foo"));
 
-    assertEquals(dirLocator1.hashCode(), dirLocator2.hashCode());
-    assertEquals(dirLocator1, dirLocator2);
-
-    assertEquals(dirLocator1.hashCode(), dirLocator3.hashCode());
-    assertEquals(dirLocator1, dirLocator3);
+    assertEqualsAndHashCode(dirLocator1, dirLocator2);
+    assertEqualsAndHashCode(dirLocator1, dirLocator3);
   }
 
   @Test
@@ -41,7 +40,9 @@ public class PathLocatorsTest {
   public void dirBased_diffType_notEquals() {
     PathLocator dirLocator = PathLocators.fromLibDirs("foo1");
     PathLocator otherLocator = (comp, path) -> null;
-    assertNotEquals(dirLocator, otherLocator);
+
+    // be explicit about which equals is being used
+    assertFalse(dirLocator.equals(otherLocator));
   }
 
   @Test
@@ -49,7 +50,6 @@ public class PathLocatorsTest {
     PathLocator dirLocator1 = PathLocators.fromLibPathString("foo:bar:baz");
     PathLocator dirLocator2 = PathLocators.fromLibDirs("foo", "bar", "baz");
 
-    assertEquals(dirLocator1.hashCode(), dirLocator2.hashCode());
     assertEquals(dirLocator1, dirLocator2);
   }
 
@@ -60,8 +60,7 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader);
     PathLocator locator2 = PathLocators.fromClassLoader(loader);
 
-    assertEquals(locator1.hashCode(), locator2.hashCode());
-    assertEquals(locator1, locator2);
+    assertEqualsAndHashCode(locator1, locator2);
   }
 
   @Test
@@ -71,8 +70,7 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource");
     PathLocator locator2 = PathLocators.fromClassLoader(loader, "resource");
 
-    assertEquals(locator1.hashCode(), locator2.hashCode());
-    assertEquals(locator1, locator2);
+    assertEqualsAndHashCode(locator1, locator2);
   }
 
   @Test
@@ -83,7 +81,8 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader1);
     PathLocator locator2 = PathLocators.fromClassLoader(loader2);
 
-    assertNotEquals(locator1, locator2);
+    // be explicit about which equals is being used
+    assertFalse(locator1.equals(locator2));
   }
 
   @Test
@@ -93,7 +92,8 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource1");
     PathLocator locator2 = PathLocators.fromClassLoader(loader, "resource2");
 
-    assertNotEquals(locator1, locator2);
+    // be explicit about which equals is being used
+    assertFalse(locator1.equals(locator2));
   }
 
   @Test
@@ -103,6 +103,12 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource1");
     PathLocator locator2 = (comp, path) -> null;
 
-    assertNotEquals(locator1, locator2);
+    // be explicit about which equals is being used
+    assertFalse(locator1.equals(locator2));
+  }
+
+  static final void assertEqualsAndHashCode(Object lhs, Object rhs) {
+    assertEquals(lhs.hashCode(), rhs.hashCode());
+    assertTrue(lhs.equals(rhs));
   }
 }
