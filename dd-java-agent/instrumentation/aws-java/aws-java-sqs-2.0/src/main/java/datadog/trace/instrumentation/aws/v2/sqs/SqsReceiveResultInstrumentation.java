@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -44,8 +45,16 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
+    Map<String, String> contextStore = new java.util.HashMap<>(3);
+    // Keep original String context for backward compatibility with TracingExecutionInterceptor
+    contextStore.put(
         "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
+    contextStore.put(
+        "software.amazon.awssdk.services.sqs.model.Message",
+        "datadog.trace.bootstrap.instrumentation.java.concurrent.State");
+    // Map queue URL to Spring management status (shared with SqsAsyncClientInstrumentation)
+    contextStore.put("java.lang.String", "java.lang.Boolean");
+    return contextStore;
   }
 
   @Override
@@ -63,7 +72,20 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
         String queueUrl =
             InstrumentationContext.get(ReceiveMessageResponse.class, String.class).get(result);
         if (queueUrl != null) {
-          messages = new TracingList(messages, queueUrl, result.responseMetadata().requestId());
+          // Check if this queue URL is from a Spring-managed client
+          Boolean isFromSpringClient =
+              InstrumentationContext.get(String.class, Boolean.class).get(queueUrl);
+
+          ContextStore<Message, State> messageStateStore = null;
+          if (Boolean.TRUE.equals(isFromSpringClient)) {
+            // Only continue span if message has been retrieved by spring-messaging.
+            // Only set messageStateStore for Spring clients
+            messageStateStore = InstrumentationContext.get(Message.class, State.class);
+          }
+
+          messages =
+              new TracingList(
+                  messageStateStore, messages, queueUrl, result.responseMetadata().requestId());
         }
       }
     }

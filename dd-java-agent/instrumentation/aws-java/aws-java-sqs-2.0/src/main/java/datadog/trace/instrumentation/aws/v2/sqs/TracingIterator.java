@@ -18,9 +18,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +31,18 @@ import software.amazon.awssdk.services.sqs.model.Message;
 public class TracingIterator<L extends Iterator<Message>> implements Iterator<Message> {
   private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
 
+  private final ContextStore<Message, State> messageStateStore;
   protected final L delegate;
   private final String queueUrl;
   private final String requestId;
   private AgentSpanContext batchContext;
 
-  public TracingIterator(L delegate, String queueUrl, String requestId) {
+  public TracingIterator(
+      ContextStore<Message, State> messageStateStore,
+      L delegate,
+      String queueUrl,
+      String requestId) {
+    this.messageStateStore = messageStateStore;
     this.delegate = delegate;
     this.queueUrl = queueUrl;
     this.requestId = requestId;
@@ -98,6 +106,13 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         if (queueSpan != null) {
           BROKER_DECORATE.beforeFinish(queueSpan);
           queueSpan.finish();
+        }
+
+        if (messageStateStore != null) {
+          // Capture state after data streams checkpoint is set for spring applications
+          State state = State.FACTORY.create();
+          state.captureAndSetContinuation(span);
+          messageStateStore.put(message, state);
         }
       }
     } catch (Exception e) {
