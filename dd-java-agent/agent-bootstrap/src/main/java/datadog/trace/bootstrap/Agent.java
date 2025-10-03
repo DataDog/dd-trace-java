@@ -21,6 +21,7 @@ import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -207,6 +208,15 @@ public class Agent {
 
     StaticEventLogger.begin("Agent");
     StaticEventLogger.begin("Agent.start");
+
+    try {
+      ClassInjector.enableClassInjection(inst);
+    } catch (Throwable e) {
+      log.debug("Instrumentation-based class injection is not available", e);
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION),
+          "true");
+    }
 
     createAgentClassloader(agentJarURL);
 
