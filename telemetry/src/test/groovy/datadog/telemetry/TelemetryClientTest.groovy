@@ -1,14 +1,11 @@
 package datadog.telemetry
 
 import datadog.communication.http.HttpRetryPolicy
-import datadog.communication.http.OkHttpUtils
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.Config
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import spock.lang.Specification
-
-import java.util.concurrent.TimeUnit
 
 class TelemetryClientTest extends Specification {
 
@@ -19,11 +16,8 @@ class TelemetryClientTest extends Specification {
     config.getAgentTimeout() >> 123
     config.getSite() >> site
 
-    long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout())
-    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(false, null, null, timeoutMillis)
-
     when:
-    def intakeClient = TelemetryClient.buildIntakeClient(config, httpClient, HttpRetryPolicy.Factory.NEVER_RETRY)
+    def intakeClient = TelemetryClient.buildIntakeClient(config, HttpRetryPolicy.Factory.NEVER_RETRY)
 
     then:
     intakeClient.getUrl().toString() == expectedUrl
@@ -48,11 +42,8 @@ class TelemetryClientTest extends Specification {
     config.isCiVisibilityAgentlessEnabled() >> ciVisAgentlessEnabled
     config.getCiVisibilityAgentlessUrl() >> ciVisAgentlessUrl
 
-    long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout())
-    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(false, null, null, timeoutMillis)
-
     when:
-    def intakeClient = TelemetryClient.buildIntakeClient(config, httpClient, HttpRetryPolicy.Factory.NEVER_RETRY)
+    def intakeClient = TelemetryClient.buildIntakeClient(config, HttpRetryPolicy.Factory.NEVER_RETRY)
 
     then:
     intakeClient.getUrl().toString() == expectedUrl

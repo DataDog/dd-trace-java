@@ -6,6 +6,7 @@ import datadog.trace.api.Config;
 import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -29,7 +30,7 @@ public class TelemetryClient {
   }
 
   public static TelemetryClient buildIntakeClient(
-      Config config, OkHttpClient okHttpClient, HttpRetryPolicy.Factory httpRetryPolicy) {
+      Config config, HttpRetryPolicy.Factory httpRetryPolicy) {
     String apiKey = config.getApiKey();
     if (apiKey == null) {
       log.debug("Cannot create Telemetry Intake because DD_API_KEY unspecified.");
@@ -45,7 +46,9 @@ public class TelemetryClient {
       return null;
     }
 
-    return new TelemetryClient(okHttpClient, httpRetryPolicy, url, apiKey);
+    long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(url, timeoutMillis);
+    return new TelemetryClient(httpClient, httpRetryPolicy, url, apiKey);
   }
 
   private static String buildIntakeTelemetryUrl(Config config) {
