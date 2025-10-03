@@ -50,7 +50,7 @@ public class PathLocatorsTest {
     PathLocator dirLocator1 = PathLocators.fromLibPathString("foo:bar:baz");
     PathLocator dirLocator2 = PathLocators.fromLibDirs("foo", "bar", "baz");
 
-    assertEquals(dirLocator1, dirLocator2);
+    assertEqualsAndHashCode(dirLocator1, dirLocator2);
   }
 
   @Test
@@ -81,8 +81,7 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader1);
     PathLocator locator2 = PathLocators.fromClassLoader(loader2);
 
-    // be explicit about which equals is being used
-    assertFalse(locator1.equals(locator2));
+    assertNotEquals(locator1, locator2);
   }
 
   @Test
@@ -92,8 +91,7 @@ public class PathLocatorsTest {
     PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource1");
     PathLocator locator2 = PathLocators.fromClassLoader(loader, "resource2");
 
-    // be explicit about which equals is being used
-    assertFalse(locator1.equals(locator2));
+    assertNotEquals(locator1, locator2);
   }
 
   @Test
