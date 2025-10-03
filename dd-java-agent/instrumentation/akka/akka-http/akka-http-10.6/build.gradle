@@ -36,7 +36,7 @@ repositories {
     }
   } else {
     maven {
-      url = "https://repo.akka.io/maven"
+      url = "https://doesnotexist/maven"
     }
   }
 }
