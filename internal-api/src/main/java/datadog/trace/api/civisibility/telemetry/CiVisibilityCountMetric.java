@@ -71,7 +71,8 @@ public enum CiVisibilityCountMetric {
       IsHeadless.class,
       HasCodeowner.class,
       IsUnsupportedCI.class,
-      EarlyFlakeDetectionAbortReason.class),
+      EarlyFlakeDetectionAbortReason.class,
+      FailedTestReplayEnabled.SessionMetric.class),
   /** The number of test events finished */
   TEST_EVENT_FINISHED(
       "event_finished",
