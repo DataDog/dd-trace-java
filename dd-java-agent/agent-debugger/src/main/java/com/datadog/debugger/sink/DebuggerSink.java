@@ -1,6 +1,7 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -123,7 +124,10 @@ public class DebuggerSink {
     if (!added) {
       debuggerMetrics.count(DROPPED_REQ_METRIC, 1);
     } else {
-      probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
+      if (!(snapshot.getProbe() instanceof ExceptionProbe)) {
+        // do not report emitting for exception probes
+        probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
+      }
     }
   }
 
