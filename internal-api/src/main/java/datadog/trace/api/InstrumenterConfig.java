@@ -73,6 +73,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENA
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -163,6 +164,7 @@ public class InstrumenterConfig {
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
   private final boolean visitorClassParsing;
+  private final boolean unsafeClassInjection;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
@@ -283,6 +285,7 @@ public class InstrumenterConfig {
             : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, true);
+    unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, true);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -511,6 +514,10 @@ public class InstrumenterConfig {
 
   public boolean isVisitorClassParsing() {
     return visitorClassParsing;
+  }
+
+  public boolean isUnsafeClassInjection() {
+    return unsafeClassInjection;
   }
 
   public String getInstrumentationConfigId() {

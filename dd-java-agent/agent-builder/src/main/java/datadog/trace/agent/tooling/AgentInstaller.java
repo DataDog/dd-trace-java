@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
+import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
@@ -107,6 +108,10 @@ public class AgentInstaller {
       final Set<InstrumenterModule.TargetSystem> enabledSystems,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
+
+    if (!InstrumenterConfig.get().isUnsafeClassInjection()) {
+      ClassInjector.enableClassInjection(inst);
+    }
 
     TypePoolFacade.registerAsSupplier();
 
