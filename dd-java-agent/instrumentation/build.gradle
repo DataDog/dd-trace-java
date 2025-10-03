@@ -35,38 +35,58 @@ tasks.register("latestDepTest")
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: 'instrument'
-  apply plugin: 'muzzle'
+  subProj.pluginManager.withPlugin("instrument") {
+    // val kotlin = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
+    // target.extensions.configure<LibraryExtension> {
 
-  configurations {
-    instrumentPluginClasspath {
-      visible = false
-      canBeConsumed = false
-      canBeResolved = true
+    subProj.extensions.configure(InstrumentExtension) {
+      plugins = [
+        'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+        'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
+        'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
+      ]
+
+      configurations {
+        // TODO register or named
+        instrumentPluginClasspath {
+          visible = false
+          canBeConsumed = false
+          canBeResolved = true
+        }
+      }
+
+      dependencies {
+        // TODO move to configuration configure, or maybe use addProvider
+        instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
+      }
     }
   }
 
-  instrument.plugins = [
-    'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
-  ]
+  subProj.pluginManager.withPlugin("muzzle") {
+    // TODO named
+    configurations.muzzleBootstrap {
+      exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
+    }
+  }
 
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+
+  subprojects {
+    apply plugin: 'instrument'
+    apply plugin: 'muzzle'
+  }
 
   subProj.afterEvaluate {
     if (!plugins.hasPlugin("java")) {
       return
     }
     String jdkCompile = null
-    if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
-      def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
+    if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
+      def version = JavaVersion.toVersion(project.findProperty('minJavaVersionForTests'))
       def name = "java$version.majorVersion"
       jdkCompile = "main_${name}Implementation"
     }
-    configurations.muzzleBootstrap {
-      exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
-    }
+
     dependencies {
       // Apply common dependencies for instrumentation.
       implementation project(':dd-trace-api')
@@ -92,8 +112,6 @@ subprojects { Project subProj ->
       testImplementation project(':dd-java-agent:instrumentation-testing')
       testAnnotationProcessor libs.autoservice.processor
       testCompileOnly libs.autoservice.annotation
-
-      instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->
@@ -105,7 +123,7 @@ subprojects { Project subProj ->
 
   def path = subProj.getPath()
   subProj.plugins.withId("java") {
-    if (!path.equals(':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs')) {
+    if (path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs') {
       // don't include the redis RequestImpl stub
       parent_project.dependencies {
         implementation project(path)
@@ -122,10 +140,8 @@ dependencies {
 }
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
-  apply plugin: 'muzzle'
-  task("muzzleInstrumentationReport") {
-    dependsOn(project.getAllTasks(true).values().flatten().findAll { it.name.endsWith("generateMuzzleReport") })
-    finalizedBy(tasks.named('mergeMuzzleReports'))
+  tasks.register("muzzleInstrumentationReport") {
+    dependsOn(providers.provider { subprojects.tasks.collect { it.named("generateMuzzleReport") } })
   }
 }
 
@@ -141,44 +157,60 @@ tasks.named('shadowJar') {
   dependencies deps.excludeShared
 }
 
-tasks.register('generateInstrumenterIndex', JavaExec) {
+def generateInstrumenterIndex = tasks.register('generateInstrumenterIndex', JavaExec) {
   // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
+  def slf4jSimple = project.configurations.register('slf4j-simple') {
+    it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
+  }
 
-  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${resourcesDir}/instrumenter.index"
+  def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
 
-  it.group = 'Build'
+  it.group = LifecycleBasePlugin.BUILD_GROUP
   it.description = "Generate instrumenter.index"
   it.mainClass = 'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator'
-  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
+  it.classpath = objects.fileCollection().tap {
+    it.from(project.configurations.named("runtimeClasspath"))
+    it.from(slf4jSimple)
+  }
   it.inputs.files(it.classpath)
-  it.outputs.files(indexFile)
-  it.args = [resourcesDir]
+  it.outputs.dir(destinationDir)
+  argumentProviders.add({
+    [destinationDir.get()]
+  })
 
   dependsOn 'processResources'
 }
+sourceSets.main.resources.srcDir(generateInstrumenterIndex)
 
-tasks.register('generateKnownTypesIndex', JavaExec) {
+
+def generateKnownTypesIndex = tasks.register('generateKnownTypesIndex', JavaExec) {
   // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
+  def slf4jSimple = project.configurations.register('slf4j-simple') {
+    it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
+  }
 
-  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${resourcesDir}/known-types.index"
+  def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
+//  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
+//  def indexFile = "${resourcesDir}/known-types.index"
 
-  it.group = 'Build'
+  it.group = LifecycleBasePlugin.BUILD_GROUP
   it.description = "Generate known-types.index"
   it.mainClass = 'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator'
-  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
+  it.classpath = objects.fileCollection().tap {
+    it.from(project.configurations.named("runtimeClasspath"))
+    it.from(slf4jSimple)
+  }
   it.inputs.files(it.classpath)
-  it.outputs.files(indexFile)
-  it.args = [resourcesDir]
+  it.outputs.dir(destinationDir)
+  argumentProviders.add({
+    [destinationDir.get()]
+  })
 
   dependsOn 'processResources'
 }
+sourceSets.main.resources.srcDir(generateKnownTypesIndex)
 
-tasks.named("shadowJar", ShadowJar) {
-  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
-}
+
+//tasks.named("shadowJar", ShadowJar) {
+//  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
+//}
