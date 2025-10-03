@@ -16,7 +16,8 @@ import net.bytebuddy.asm.Advice.This;
 // WARNING:
 // This instrumentation is tested using smoke tests as instrumented tests cannot run using Java 25.
 // Instrumented tests rely on Spock / Groovy which cannot run using Java 25 due to byte-code
-// compatibility. Check dd-java-agent/instrumentation/jdk/jdk-java-concurrent/jdk-ava-concurrent-25.0 for this
+// compatibility. Check
+// dd-java-agent/instrumentation/jdk/jdk-java-concurrent/jdk-ava-concurrent-25.0 for this
 // instrumentation test suite.
 
 /**
