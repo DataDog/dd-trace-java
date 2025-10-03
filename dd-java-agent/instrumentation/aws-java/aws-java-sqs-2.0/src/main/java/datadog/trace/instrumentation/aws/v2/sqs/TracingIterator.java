@@ -108,10 +108,12 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           queueSpan.finish();
         }
 
-        // Capture state after data streams checkpoint is set
-        State state = State.FACTORY.create();
-        state.captureAndSetContinuation(span);
-        messageStateStore.put(message, state);
+        if (messageStateStore != null) {
+          // Capture state after data streams checkpoint is set for spring applications
+          State state = State.FACTORY.create();
+          state.captureAndSetContinuation(span);
+          messageStateStore.put(message, state);
+        }
       }
     } catch (Exception e) {
       log.debug("Problem tracing new SQS message span", e);

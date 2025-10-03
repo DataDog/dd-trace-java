@@ -45,12 +45,15 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new java.util.HashMap<>(2);
+    Map<String, String> contextStore = new java.util.HashMap<>(3);
+    // Keep original String context for backward compatibility with TracingExecutionInterceptor
     contextStore.put(
         "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
     contextStore.put(
         "software.amazon.awssdk.services.sqs.model.Message",
         "datadog.trace.bootstrap.instrumentation.java.concurrent.State");
+    // Map queue URL to Spring management status (shared with SqsAsyncClientInstrumentation)
+    contextStore.put("java.lang.String", "java.lang.Boolean");
     return contextStore;
   }
 
@@ -69,8 +72,17 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
         String queueUrl =
             InstrumentationContext.get(ReceiveMessageResponse.class, String.class).get(result);
         if (queueUrl != null) {
-          ContextStore<Message, State> messageStateStore =
-              InstrumentationContext.get(Message.class, State.class);
+          // Check if this queue URL is from a Spring-managed client
+          Boolean isFromSpringClient =
+              InstrumentationContext.get(String.class, Boolean.class).get(queueUrl);
+
+          ContextStore<Message, State> messageStateStore = null;
+          if (Boolean.TRUE.equals(isFromSpringClient)) {
+            // Only continue span if message has been retrieved by spring-messaging.
+            // Only set messageStateStore for Spring clients
+            messageStateStore = InstrumentationContext.get(Message.class, State.class);
+          }
+
           messages =
               new TracingList(
                   messageStateStore, messages, queueUrl, result.responseMetadata().requestId());
