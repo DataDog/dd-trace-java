@@ -216,7 +216,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
-      def hasProcessTags = false
+      def processTagsCount = 0
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
@@ -268,7 +268,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
               } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
-                hasProcessTags = true
+                processTagsCount++
                 assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
                 assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
@@ -338,7 +338,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       } catch (IOException e) {
         Assert.fail(e.getMessage())
       } finally {
-        assert hasProcessTags == Config.get().isExperimentalPropagateProcessTagsEnabled()
+        assert processTagsCount == (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0)
         mapper.reset()
         captured.position(0)
         captured.limit(captured.capacity())
