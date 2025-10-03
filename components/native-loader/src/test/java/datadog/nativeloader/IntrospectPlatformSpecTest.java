@@ -2,7 +2,6 @@ package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.OperatingSystem;
@@ -42,7 +41,7 @@ public class IntrospectPlatformSpecTest {
     // just a sanity check, since assertEquals is used in other tests
     assertTrue(IntrospectPlatformSpec.INSTANCE.equals(IntrospectPlatformSpec.INSTANCE));
   }
-  
+
   @Test
   public void notEquals_diffType() {
     // just a sanity check, since assertEquals is used in other tests
