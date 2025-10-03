@@ -19,6 +19,8 @@ public final class EnvironmentVariables {
 
   public static class EnvironmentVariablesProvider {
 
+    // Environment Component has SecurityException handling, so it is safe to call System.getenv
+    // here
     @SuppressForbidden
     public String get(String name) {
       return System.getenv(name);

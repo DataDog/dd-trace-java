@@ -5386,7 +5386,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = ConfigHelper.get().getEnvironmentVariable(name);
+    String value = ConfigHelper.env(name);
     if (value != null) {
       // Report non-default sequence id for consistency
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV, NON_DEFAULT_SEQ_ID);

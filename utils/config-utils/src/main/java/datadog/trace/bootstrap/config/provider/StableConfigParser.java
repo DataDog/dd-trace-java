@@ -166,7 +166,7 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String envValue = ConfigHelper.get().getEnvironmentVariable(key.toUpperCase(Locale.ROOT));
+        String envValue = ConfigHelper.env(key.toUpperCase(Locale.ROOT));
         return matchOperator(envValue, operator, matches);
       case "process_arguments":
         if (key == null) {
@@ -242,7 +242,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = ConfigHelper.get().getEnvironmentVariable(envVar.toUpperCase(Locale.ROOT));
+      String value = ConfigHelper.env(envVar.toUpperCase(Locale.ROOT));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }
