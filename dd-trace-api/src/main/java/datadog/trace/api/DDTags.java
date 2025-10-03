@@ -59,9 +59,6 @@ public class DDTags {
   /** Manually force tracer to drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
 
-  /** ASM force tracer to keep the trace with sampler priority (SAMPLER_KEEP) */
-  public static final String ASM_SAMPLER_KEEP = "asm.sampler.keep";
-
   public static final String TRACE_START_TIME = "t0";
 
   /* Tags below are for internal use only. */

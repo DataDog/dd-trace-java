@@ -863,6 +863,7 @@ public class GatewayBridge {
       // If detected any events - mark span at appsec.event
       if (!collectedEvents.isEmpty()) {
         if (ctx.isManuallyKept()) {
+          // Set asm keep in case that root span was not available when events are detected
           traceSeg.setTagTop(Tags.ASM_KEEP, true);
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         }
