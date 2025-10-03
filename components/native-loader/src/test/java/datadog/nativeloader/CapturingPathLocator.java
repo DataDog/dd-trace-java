@@ -11,6 +11,18 @@ public final class CapturingPathLocator implements PathLocator {
   public static final boolean WITH_OMIT_COMP_FALLBACK = true;
   public static final boolean WITHOUT_OMIT_COMP_FALLBACK = false;
 
+  public static final void testFailOnExceptions(
+      LibraryResolver resolver,
+      PlatformSpec platformSpec,
+      boolean withSkipCompFallback,
+      String... expectedPaths) {
+    try {
+      test(resolver, platformSpec, withSkipCompFallback, expectedPaths);
+    } catch (Exception e) {
+      throw new IllegalStateException("unexpected exception", e);
+    }
+  }
+
   public static final void test(
       LibraryResolver resolver,
       PlatformSpec platformSpec,

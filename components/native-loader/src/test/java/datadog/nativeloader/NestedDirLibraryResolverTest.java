@@ -10,7 +10,7 @@ import static datadog.nativeloader.TestPlatformSpec.X86_64;
 
 import org.junit.jupiter.api.Test;
 
-public class NestedResolverTest {
+public class NestedDirLibraryResolverTest {
   @Test
   public void linux_x86_64_libc() {
     test(
@@ -55,14 +55,10 @@ public class NestedResolverTest {
   }
 
   static final void test(PlatformSpec platformSpec, String... expectedPaths) {
-    try {
-      CapturingPathLocator.test(
-          NestedDirLibraryResolver.INSTANCE,
-          platformSpec,
-          CapturingPathLocator.WITH_OMIT_COMP_FALLBACK,
-          expectedPaths);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    CapturingPathLocator.testFailOnExceptions(
+        NestedDirLibraryResolver.INSTANCE,
+        platformSpec,
+        CapturingPathLocator.WITH_OMIT_COMP_FALLBACK,
+        expectedPaths);
   }
 }
