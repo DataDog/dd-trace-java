@@ -4,7 +4,7 @@ import java.net.URL;
 
 /**
  * FlatDirLibraryResolver - uses flat directories to provide more specific libraries to load
- * {os}-{arch}-{libc/musl}
+ * <code>{os}-{arch}-{libc/musl}</code>
  */
 public final class FlatDirLibraryResolver implements LibraryResolver {
   public static final FlatDirLibraryResolver INSTANCE = new FlatDirLibraryResolver();

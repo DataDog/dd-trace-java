@@ -6,7 +6,7 @@ import java.net.URL;
 import java.util.Arrays;
 
 /** LibDirBasedPathLocator locates libraries inside a list of library directories */
-public final class LibDirBasedPathLocator implements PathLocator {
+final class LibDirBasedPathLocator implements PathLocator {
   private final File[] libDirs;
 
   public LibDirBasedPathLocator(File... libDirs) {
