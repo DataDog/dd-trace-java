@@ -56,18 +56,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       return this;
     }
 
-    MetaWriter forFirstSpanInTrace(final boolean firstSpanInTrace) {
-      this.firstSpanInTrace = firstSpanInTrace;
-      return this;
-    }
-
-    MetaWriter forLastSpanInTrace(final boolean lastSpanInTrace) {
-      this.lastSpanInTrace = lastSpanInTrace;
-      return this;
-    }
-
-    MetaWriter forFirstSpanInPayload(final boolean firstSpanInPayload) {
-      this.firstSpanInPayload = firstSpanInPayload;
+    MetaWriter forSpan(boolean firstInTrace, boolean lastInTrace, boolean firstInPayload) {
+      this.firstSpanInTrace = firstInTrace;
+      this.lastSpanInTrace = lastInTrace;
+      this.firstSpanInPayload = firstInPayload;
       return this;
     }
 
@@ -306,9 +298,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .forFirstSpanInPayload(!firstSpanWritten)
-              .forFirstSpanInTrace(i == 0)
-              .forLastSpanInTrace(i == trace.size() - 1));
+              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
       if (!metaStruct.isEmpty()) {
         /* 13 */
         metaStructWriter.withWritable(writable).write(metaStruct);

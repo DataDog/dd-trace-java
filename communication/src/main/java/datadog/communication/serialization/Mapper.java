@@ -1,6 +1,6 @@
 package datadog.communication.serialization;
 
-// TODO @FunctionalInterface
+@FunctionalInterface
 public interface Mapper<T> {
   void map(T data, Writable packer);
 
