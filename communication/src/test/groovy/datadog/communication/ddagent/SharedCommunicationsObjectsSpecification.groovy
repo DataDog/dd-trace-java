@@ -127,4 +127,12 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.agentUnixDomainSocket >> null
     sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
   }
+
+  void 'creates intake http client'() {
+    when:
+    def client = sco.getIntakeHttpClient()
+
+    then:
+    client != null
+  }
 }
