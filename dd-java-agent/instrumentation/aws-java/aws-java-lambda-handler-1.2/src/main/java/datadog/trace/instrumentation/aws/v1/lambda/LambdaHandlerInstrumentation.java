@@ -61,7 +61,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return ConfigHelper.get().getEnvironmentVariable(HANDLER_ENV_NAME) != null;
+    return ConfigHelper.env(HANDLER_ENV_NAME) != null;
   }
 
   @Override

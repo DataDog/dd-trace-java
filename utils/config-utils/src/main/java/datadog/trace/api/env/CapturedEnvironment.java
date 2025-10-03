@@ -75,8 +75,8 @@ public class CapturedEnvironment {
    * autodetection will return either the JAR filename or the java main class.
    */
   private String autodetectServiceName() {
-    String inAas = ConfigHelper.get().getEnvironmentVariable("DD_AZURE_APP_SERVICES");
-    String siteName = ConfigHelper.get().getEnvironmentVariable("WEBSITE_SITE_NAME");
+    String inAas = ConfigHelper.env("DD_AZURE_APP_SERVICES");
+    String siteName = ConfigHelper.env("WEBSITE_SITE_NAME");
 
     if (("true".equalsIgnoreCase(inAas) || "1".equals(inAas)) && siteName != null) {
       return siteName;

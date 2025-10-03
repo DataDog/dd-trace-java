@@ -108,7 +108,7 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     if ("false".equalsIgnoreCase(value)) {
       return false;
     }
-    value = ConfigHelper.get().getEnvironmentVariable(envVar);
+    value = ConfigHelper.env(envVar);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }

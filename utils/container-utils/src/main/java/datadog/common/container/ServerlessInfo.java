@@ -13,7 +13,7 @@ public class ServerlessInfo {
   private final boolean hasExtension;
 
   private ServerlessInfo(final String extensionPath) {
-    this.functionName = ConfigHelper.get().getEnvironmentVariable(AWS_FUNCTION_VARIABLE);
+    this.functionName = ConfigHelper.env(AWS_FUNCTION_VARIABLE);
     if (null == extensionPath) {
       this.hasExtension = false;
     } else {

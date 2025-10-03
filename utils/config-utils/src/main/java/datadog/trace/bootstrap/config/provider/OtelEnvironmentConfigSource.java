@@ -185,7 +185,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private static String getProperty(String sysProp) {
     String value = SystemProperties.get(sysProp);
     if (null == value) {
-      value = ConfigHelper.get().getEnvironmentVariable(toEnvVar(sysProp));
+      value = ConfigHelper.env(toEnvVar(sysProp));
     }
     return value;
   }

@@ -112,11 +112,9 @@ public class TelemetryRequest {
   }
 
   public void writeInstallSignature() {
-    String installId = ConfigHelper.get().getEnvironmentVariable("DD_INSTRUMENTATION_INSTALL_ID");
-    String installType =
-        ConfigHelper.get().getEnvironmentVariable("DD_INSTRUMENTATION_INSTALL_TYPE");
-    String installTime =
-        ConfigHelper.get().getEnvironmentVariable("DD_INSTRUMENTATION_INSTALL_TIME");
+    String installId = ConfigHelper.env("DD_INSTRUMENTATION_INSTALL_ID");
+    String installType = ConfigHelper.env("DD_INSTRUMENTATION_INSTALL_TYPE");
+    String installTime = ConfigHelper.env("DD_INSTRUMENTATION_INSTALL_TIME");
 
     try {
       requestBody.writeInstallSignature(installId, installType, installTime);

@@ -9,7 +9,7 @@ import datadog.trace.config.inversion.ConfigHelper;
 final class EnvironmentConfigSource extends ConfigProvider.Source {
   @Override
   protected String get(String key) {
-    return ConfigHelper.get().getEnvironmentVariable(propertyNameToEnvironmentVariableName(key));
+    return ConfigHelper.env(propertyNameToEnvironmentVariableName(key));
   }
 
   @Override

@@ -80,13 +80,13 @@ public final class PidHelper {
         return "/tmp";
       } else if (OperatingSystem.isWindows()) {
         return Stream.of("TMP", "TEMP", "USERPROFILE")
-            .map(ConfigHelper.get()::getEnvironmentVariable)
+            .map(ConfigHelper::env)
             .filter(Objects::nonNull)
             .filter(((Predicate<String>) String::isEmpty).negate())
             .findFirst()
             .orElse("C:\\Windows");
       } else if (OperatingSystem.isMacOs()) {
-        return ConfigHelper.get().getEnvironmentVariable("TMPDIR");
+        return ConfigHelper.env("TMPDIR");
       } else {
         return SystemProperties.get("java.io.tmpdir");
       }

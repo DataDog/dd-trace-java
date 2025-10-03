@@ -66,8 +66,7 @@ public abstract class MavenUtils {
    * of the request object
    */
   public static String getCommandLine(MavenSession session) {
-    String mavenCmdLineArgsEnvVar =
-        ConfigHelper.get().getEnvironmentVariable(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
+    String mavenCmdLineArgsEnvVar = ConfigHelper.env(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
     if (mavenCmdLineArgsEnvVar != null) {
       return MVN_CMD_LINE_INVOCATION + mavenCmdLineArgsEnvVar;
     }

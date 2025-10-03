@@ -12,8 +12,8 @@ public final class ConfigInversionMetricCollectorProvider {
 
   public static ConfigInversionMetricCollector get() {
     if (INSTANCE == null) {
-      log.info(
-          "ConfigInversionMetricCollector has not been registered. Defaulting to NoOp implementation."); // QUESTION: This log is very noisy during build. Is it necessary?
+      log.error(
+          "ConfigInversionMetricCollector has not been registered. Defaulting to NoOp implementation.");
       // Return NoOp implementation for build tasks like instrumentJava that run before
       // implementation is registered
       return NoOpConfigInversionMetricCollector.getInstance();

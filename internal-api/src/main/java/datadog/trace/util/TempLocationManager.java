@@ -300,7 +300,7 @@ public final class TempLocationManager {
   static String getBaseTempDirName() {
     String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
-    userName = userName == null ? ConfigHelper.get().getEnvironmentVariable("USER") : userName;
+    userName = userName == null ? ConfigHelper.env("USER") : userName;
     // make sure we do not have any illegal characters in the user name
     userName =
         userName != null ? userName.replace('.', '_').replace('/', '_').replace(' ', '_') : null;
