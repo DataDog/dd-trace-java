@@ -26,6 +26,7 @@ ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
 }
 
+addTestSuiteForDir('v513Test', 'test')
 addTestSuiteForDir('latest5Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -40,6 +41,10 @@ dependencies {
   testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: libs.versions.junit5.get()
+
+  v513TestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.0'
+  v513TestImplementation  group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.13.0'
+  v513TestImplementation  group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.13.0'
 
   latest5TestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.+'
   latest5TestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.+'
