@@ -18,7 +18,7 @@ public final class AgentPropagation {
   // TODO: remove this priority once we have a story for replacing TagContext with the Context API
   public static final Concern BAGGAGE_CONCERN = withPriority("baggage", 105);
   public static final Concern XRAY_TRACING_CONCERN = named("tracing-xray");
-
+  public static final Concern INFERRED_PROXY_CONCERN = named("inferred-proxy");
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   public static final Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);

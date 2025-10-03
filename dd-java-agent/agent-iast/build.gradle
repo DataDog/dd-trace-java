@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
@@ -74,11 +75,11 @@ dependencies {
   errorprone('com.google.errorprone:error_prone_core:2.23.0')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
@@ -113,11 +114,6 @@ spotless {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-pitest {
-  targetClasses = ['com.datadog.iast.*']
-  jvmArgs = ['-Ddd.iast.enabled=true']
 }
 
 sourceSets {

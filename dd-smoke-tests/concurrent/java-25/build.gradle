@@ -18,7 +18,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'JDK 25 Concurrent Integration Tests'
 
-tasks.named('compileJava').configure {
+tasks.named('compileJava') {
   setJavaVersion(it, 25)
   sourceCompatibility = JavaVersion.VERSION_25
   targetCompatibility = JavaVersion.VERSION_25
@@ -32,7 +32,7 @@ tasks.named('compileJava').configure {
   }
 }
 
-tasks.named('compileTestGroovy').configure {
+tasks.named('compileTestGroovy') {
   setJavaVersion(it, 8)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
@@ -42,11 +42,12 @@ tasks.named('compileTestGroovy').configure {
 // * forbiddenApis is missing classes
 // * spotless as the google-java-format version does not support Java 25 and can't be changed once applied
 // * spotbugs failed to read class using newer bytecode versions
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
+
 ['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
-  tasks.named(it).configure { enabled = false }
+  tasks.named(it) { enabled = false }
 }
 
 application {
