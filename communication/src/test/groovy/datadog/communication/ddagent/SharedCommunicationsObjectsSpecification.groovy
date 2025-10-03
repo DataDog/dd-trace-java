@@ -86,6 +86,9 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.createRemaining(config)
 
     then:
+    1 * config.isCiVisibilityEnabled()
+    1 * config.getAgentTimeout()
+    1 * config.isForceClearTextHttpForIntakeClient()
     0 * _
     sco.agentUrl.is(url)
     sco.agentHttpClient.is(okHttpClient)
