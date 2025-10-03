@@ -1,10 +1,12 @@
 package datadog.trace.agent.tooling.csi
 
+import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.MethodHandler
 import datadog.trace.api.function.TriFunction
 import groovy.transform.CompileDynamic
+import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.jar.asm.Opcodes
@@ -206,6 +208,7 @@ class CallSiteTransformerTest extends BaseCallSiteTest {
   @SuppressWarnings(['GroovyAccessibility', 'GroovyAssignabilityCheck'])
   void 'test call site transformer with helpers'() {
     setup:
+    ClassInjector.enableClassInjection(ByteBuddyAgent.getInstrumentation())
     final source = StringConcatExample
     final helper = InstrumentationHelper
     final customClassLoader = new ClassLoader() { }

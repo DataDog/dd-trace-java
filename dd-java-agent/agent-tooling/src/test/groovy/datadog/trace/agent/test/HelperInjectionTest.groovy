@@ -1,8 +1,10 @@
 package datadog.trace.agent.test
 
+import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.tooling.HelperInjector
 import datadog.trace.agent.tooling.Utils
 import datadog.trace.test.util.DDSpecification
+import net.bytebuddy.agent.ByteBuddyAgent
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
@@ -15,6 +17,7 @@ class HelperInjectionTest extends DDSpecification {
 
   def "helpers injected to non-delegating classloader"() {
     setup:
+    ClassInjector.enableClassInjection(ByteBuddyAgent.getInstrumentation())
     HelperInjector injector = new HelperInjector(false, "test", HELPER_CLASS_NAME)
     AtomicReference<URLClassLoader> emptyLoader = new AtomicReference<>(new URLClassLoader(new URL[0], (ClassLoader) null))
 
