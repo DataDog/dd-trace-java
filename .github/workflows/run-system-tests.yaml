@@ -39,6 +39,8 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build dd-trace-java
+        env:
+          ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
           GRADLE_OPTS="-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
