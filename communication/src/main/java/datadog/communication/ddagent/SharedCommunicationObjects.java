@@ -33,17 +33,18 @@ public class SharedCommunicationObjects {
    */
   public OkHttpClient agentHttpClient;
 
+  /**
+   * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
+   * this client is not configured to use UDS or named pipe.
+   */
+  private volatile OkHttpClient intakeHttpClient;
+
+  public long httpClientTimeout;
+  public boolean forceClearTextHttpForIntakeClient;
   public HttpUrl agentUrl;
   public Monitoring monitoring;
   private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
-
-  /**
-   * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
-   * this client is not configured to use UDS or named pipe, and will not force the use of
-   * clear-text HTTP.
-   */
-  private volatile OkHttpClient intakeHttpClient;
 
   public SharedCommunicationObjects() {
     this(false);
@@ -57,12 +58,21 @@ public class SharedCommunicationObjects {
     if (monitoring == null) {
       monitoring = Monitoring.DISABLED;
     }
+
+    httpClientTimeout =
+        !config.isCiVisibilityEnabled()
+            ? TimeUnit.SECONDS.toMillis(config.getAgentTimeout())
+            : config.getCiVisibilityBackendApiTimeoutMillis();
+
+    forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
+
     if (agentUrl == null) {
       agentUrl = parseAgentUrl(config);
       if (agentUrl == null) {
         throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
       }
     }
+
     if (agentHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
@@ -71,7 +81,7 @@ public class SharedCommunicationObjects {
               agentUrl != null && "http".equals(agentUrl.scheme()),
               unixDomainSocket,
               namedPipe,
-              getHttpClientTimeout(config));
+              httpClientTimeout);
     }
   }
 
@@ -116,14 +126,6 @@ public class SharedCommunicationObjects {
       agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
     }
     return HttpUrl.parse(agentUrl);
-  }
-
-  private static long getHttpClientTimeout(Config config) {
-    if (!config.isCiVisibilityEnabled()) {
-      return TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
-    } else {
-      return config.getCiVisibilityBackendApiTimeoutMillis();
-    }
   }
 
   public ConfigurationPoller configurationPoller(Config config) {
@@ -225,7 +227,7 @@ public class SharedCommunicationObjects {
     }
   }
 
-  public OkHttpClient getIntakeHttpClient(Config config) {
+  public OkHttpClient getIntakeHttpClient() {
     OkHttpClient intakeHttpClient = this.intakeHttpClient;
     if (intakeHttpClient != null) {
       return intakeHttpClient;
@@ -234,7 +236,8 @@ public class SharedCommunicationObjects {
     synchronized (this) {
       if (this.intakeHttpClient == null) {
         this.intakeHttpClient =
-            OkHttpUtils.buildHttpClient(false, null, null, getHttpClientTimeout(config));
+            OkHttpUtils.buildHttpClient(
+                forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
       }
       return this.intakeHttpClient;
     }

@@ -103,7 +103,7 @@ public class TelemetrySystem {
     TelemetryClient agentClient =
         TelemetryClient.buildAgentClient(sco.agentHttpClient, sco.agentUrl, httpRetryPolicy);
     TelemetryClient intakeClient =
-        TelemetryClient.buildIntakeClient(config, sco.getIntakeHttpClient(config), httpRetryPolicy);
+        TelemetryClient.buildIntakeClient(config, sco.getIntakeHttpClient(), httpRetryPolicy);
 
     boolean useIntakeClientByDefault =
         config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();

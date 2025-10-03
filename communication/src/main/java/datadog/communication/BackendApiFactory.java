@@ -39,7 +39,7 @@ public class BackendApiFactory {
           apiKey,
           traceId,
           retryPolicyFactory,
-          sharedCommunicationObjects.getIntakeHttpClient(config),
+          sharedCommunicationObjects.getIntakeHttpClient(),
           true);
     }
 
