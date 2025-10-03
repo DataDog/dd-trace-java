@@ -45,7 +45,7 @@ class UnknownCIInfoTest extends CITagsProviderTest {
     ]
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -62,9 +62,9 @@ class UnknownCIInfoTest extends CITagsProviderTest {
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(Config.get(), new CiEnvironmentImpl(System.getenv())))
+    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(Config.get(), new CiEnvironmentImpl(env.getAll())))
     gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(gitClientFactory, "this-target-folder-does-not-exist"))
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), "this-target-folder-does-not-exist", new CiEnvironmentImpl(System.getenv()))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), "this-target-folder-does-not-exist", new CiEnvironmentImpl(env.getAll()))
 
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(workspaceForTests)
     def ciInfo = ciProviderInfo.buildCIInfo()
