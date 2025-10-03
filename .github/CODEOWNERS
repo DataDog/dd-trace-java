@@ -117,7 +117,7 @@
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 /dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
 /dd-java-agent/instrumentation/exception-profiling/                                         @DataDog/profiling-java
-/dd-java-agent/instrumentation/java-directbytebuffer/                                       @DataDog/profiling-java
+/dd-java-agent/instrumentation/jdk/jdk-java-nio-1.8/                                        @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/jfr/   @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrumentation/jfr/ @DataDog/profiling-java
 /dd-trace-api/src/main/java/datadog/trace/api/profiling                                     @DataDog/profiling-java
