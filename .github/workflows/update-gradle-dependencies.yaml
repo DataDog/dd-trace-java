@@ -27,4 +27,4 @@ jobs:
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
           JAVA_17_HOME=$JAVA_HOME_17_X64 \
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+          ./gradlew :dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
