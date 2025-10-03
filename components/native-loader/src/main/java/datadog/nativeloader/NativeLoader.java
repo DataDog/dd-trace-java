@@ -143,15 +143,15 @@ public final class NativeLoader {
       return new NativeLoader(this);
     }
 
-    final PlatformSpec platformSpec() {
+    PlatformSpec platformSpec() {
       return (this.platformSpec == null) ? PlatformSpec.defaultPlatformSpec() : this.platformSpec;
     }
 
-    final PathLocator pathLocator() {
+    PathLocator pathLocator() {
       return (this.pathLocator == null) ? PathLocators.defaultPathLocator() : this.pathLocator;
     }
 
-    final LibraryResolver libResolver() {
+    LibraryResolver libResolver() {
       LibraryResolver baseResolver =
           (this.libResolver == null) ? LibraryResolvers.defaultLibraryResolver() : this.libResolver;
 
@@ -160,7 +160,7 @@ public final class NativeLoader {
           : LibraryResolvers.withPreloaded(baseResolver, this.preloadedLibNames);
     }
 
-    final Path tempDir() {
+    Path tempDir() {
       return this.tempDir;
     }
   }
@@ -197,19 +197,19 @@ public final class NativeLoader {
   }
 
   /** Loads a library associated with an associated component */
-  public final void load(String component, String libName) throws LibraryLoadException {
+  public void load(String component, String libName) throws LibraryLoadException {
     try (LibFile libFile = this.resolveDynamic(component, libName)) {
       libFile.load();
     }
   }
 
   /** Resolves a library to a LibFile - creating a temporary file if necessary */
-  public final LibFile resolveDynamic(String libName) throws LibraryLoadException {
+  public LibFile resolveDynamic(String libName) throws LibraryLoadException {
     return this.resolveDynamic((String) null, libName);
   }
 
   /** Resolves a library with an associated component */
-  public final LibFile resolveDynamic(String component, String libName)
+  public LibFile resolveDynamic(String component, String libName)
       throws LibraryLoadException {
     return this.resolveDynamic(component, this.defaultPlatformSpec, libName);
   }
@@ -253,7 +253,7 @@ public final class NativeLoader {
     return toLibFile(platformSpec, libName, url);
   }
 
-  private final LibFile toLibFile(PlatformSpec platformSpec, String libName, URL url)
+  private LibFile toLibFile(PlatformSpec platformSpec, String libName, URL url)
       throws LibraryLoadException {
     if (url.getProtocol().equals("file")) {
       return LibFile.fromFile(libName, new File(url.getPath()));
@@ -274,14 +274,14 @@ public final class NativeLoader {
     }
   }
 
-  static final void delete(File tempFile) {
+  static void delete(File tempFile) {
     TempFileHelper.delete(tempFile);
   }
 
   static final class TempFileHelper {
     private TempFileHelper() {}
 
-    static final Path createTempFile(Path tempDir, String libname, String libExt)
+    static Path createTempFile(Path tempDir, String libname, String libExt)
         throws IOException, SecurityException {
       FileAttribute<Set<PosixFilePermission>> permAttrs =
           PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
@@ -297,7 +297,7 @@ public final class NativeLoader {
       }
     }
 
-    static final void delete(File tempFile) {
+    static void delete(File tempFile) {
       boolean deleted = tempFile.delete();
       if (!deleted) tempFile.deleteOnExit();
     }
