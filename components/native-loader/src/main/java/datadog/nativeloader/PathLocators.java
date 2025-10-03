@@ -43,6 +43,8 @@ public final class PathLocators {
   }
 
   public static final PathLocator fromLibPathString(String javaLibPath) {
+    // Typically, this method will be called at most once per run,
+    // so not storing pattern in a static because we don't want memory consumed forever
     return fromLibDirs(Pattern.compile("\\:").split(javaLibPath));
   }
 
