@@ -143,7 +143,7 @@ public class WriterFactory {
 
       DDAgentApi ddAgentApi =
           new DDAgentApi(
-              commObjects.okHttpClient,
+              commObjects.agentHttpClient,
               commObjects.agentUrl,
               featuresDiscovery,
               commObjects.monitoring,
@@ -202,7 +202,7 @@ public class WriterFactory {
 
     if (useProxyApi) {
       return DDEvpProxyApi.builder()
-          .httpClient(commObjects.okHttpClient)
+          .httpClient(commObjects.agentHttpClient)
           .agentUrl(commObjects.agentUrl)
           .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
           .trackType(trackType)
@@ -224,6 +224,7 @@ public class WriterFactory {
       }
       return DDIntakeApi.builder()
           .hostUrl(hostUrl)
+          .httpClient(commObjects.getIntakeHttpClient())
           .apiKey(config.getApiKey())
           .trackType(trackType)
           .build();

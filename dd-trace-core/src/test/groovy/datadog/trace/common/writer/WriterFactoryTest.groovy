@@ -51,7 +51,7 @@ class WriterFactoryTest extends DDSpecification {
 
     // Create SharedCommunicationObjects with mocked HTTP client
     def sharedComm = new SharedCommunicationObjects()
-    sharedComm.okHttpClient = mockHttpClient
+    sharedComm.agentHttpClient = mockHttpClient
     sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
     sharedComm.createRemaining(config)
 
@@ -127,7 +127,7 @@ class WriterFactoryTest extends DDSpecification {
 
     // Create SharedCommunicationObjects with mocked HTTP client
     def sharedComm = new SharedCommunicationObjects()
-    sharedComm.okHttpClient = mockHttpClient
+    sharedComm.agentHttpClient = mockHttpClient
     sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
     sharedComm.createRemaining(config)
 
