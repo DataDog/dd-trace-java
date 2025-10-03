@@ -55,15 +55,15 @@ public final class LibFile implements AutoCloseable {
       throw new LibraryLoadException(this.libName, t);
     }
   }
-  
+
   /** Provides a File to the library -- returns null for pre-loaded libraries */
   public final File toFile() {
-	return this.file;
+    return this.file;
   }
-  
+
   /** Provides a Path to the library -- return null for pre-loaded libraries */
   public final Path toPath() {
-	return this.file == null ? null : this.file.toPath();
+    return this.file == null ? null : this.file.toPath();
   }
 
   /** Provides the an absolute path to the library -- returns null for pre-loaded libraries */

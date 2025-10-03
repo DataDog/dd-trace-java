@@ -4,7 +4,6 @@ import static datadog.nativeloader.TestPlatformSpec.AARCH64;
 import static datadog.nativeloader.TestPlatformSpec.LINUX;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -16,11 +15,9 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
-
 import org.junit.jupiter.api.Test;
 
 public class NativeLoaderTest {
@@ -226,68 +223,74 @@ public class NativeLoaderTest {
   @Test
   public void fromJarBackedClassLoader_with_tempDir() throws IOException, LibraryLoadException {
     URL[] urls = {new File("test-data/libdummy.jar").toURL()};
-    
+
     Path tempDir = Paths.get("temp");
     deleteHelper(tempDir);
 
     try (URLClassLoader classLoader = new URLClassLoader(urls)) {
       NativeLoader loader =
-        NativeLoader.builder().fromClassLoader(classLoader).tempDir(tempDir).build();
+          NativeLoader.builder().fromClassLoader(classLoader).tempDir(tempDir).build();
       try (LibFile lib = loader.resolveDynamic("dummy")) {
         // loaded from a jar, so copied to temp file
         assertTempFile(lib);
       }
-    } finally {    
+    } finally {
       deleteHelper(tempDir);
     }
   }
-  
+
   @Test
-  public void fromJarBackedClassLoader_with_unwritable_tempDir() throws IOException, LibraryLoadException {
+  public void fromJarBackedClassLoader_with_unwritable_tempDir()
+      throws IOException, LibraryLoadException {
     URL[] urls = {new File("test-data/libdummy.jar").toURL()};
-    
+
     Path noWriteDir = Paths.get("no-write-temp");
     deleteHelper(noWriteDir);
-    Files.createDirectories(noWriteDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
+    Files.createDirectories(
+        noWriteDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
 
     try (URLClassLoader classLoader = new URLClassLoader(urls)) {
-      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).tempDir(noWriteDir).build();
-      
+      NativeLoader loader =
+          NativeLoader.builder().fromClassLoader(classLoader).tempDir(noWriteDir).build();
+
       // unable to resolve to a File because tempDir isn't writable
       assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
     } finally {
       deleteHelper(noWriteDir);
     }
   }
-  
+
   @Test
   public void fromJarBackedClassLoader_with_locked_file() throws IOException, LibraryLoadException {
     URL[] urls = {new File("test-data/libdummy.jar").toURL()};
-    
+
     Path tempDir = Paths.get("temp");
     deleteHelper(tempDir);
 
     try (URLClassLoader classLoader = new URLClassLoader(urls)) {
-      NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).tempDir(tempDir).build();
+      NativeLoader loader =
+          NativeLoader.builder().fromClassLoader(classLoader).tempDir(tempDir).build();
       try (LibFile lib = loader.resolveDynamic("dummy")) {
         // loaded from a jar, so copied to temp file
         assertTempFile(lib);
-      
+
         // simulating lock - by blocking ability to delete from parent dir
         // forces fallback to deleteOnExit
-        Files.setPosixFilePermissions(lib.toPath().getParent(), PosixFilePermissions.fromString("r-x------"));
+        Files.setPosixFilePermissions(
+            lib.toPath().getParent(), PosixFilePermissions.fromString("r-x------"));
       }
     } finally {
       deleteHelper(tempDir);
     }
   }
-  
+
   void deleteHelper(Path dir) {
-	try {
-	  Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+    try {
+      Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
       Files.delete(dir);
-	} catch (IOException e) {
-	}
+    } catch (IOException e) {
+    }
   }
 
   void assertPreloaded(LibFile lib) {
