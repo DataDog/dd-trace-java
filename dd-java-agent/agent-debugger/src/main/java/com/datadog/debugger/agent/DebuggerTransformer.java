@@ -590,6 +590,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (listener != null) {
         listener.instrumentationResult(definition, result);
       }
+      if (definition instanceof ExceptionProbe) {
+        // do not report diagnostics for exception probes
+        continue;
+      }
       List<DiagnosticMessage> diagnosticMessages =
           result.getDiagnostics().get(definition.getProbeId());
       if (!result.getDiagnostics().isEmpty()) {
