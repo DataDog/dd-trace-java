@@ -250,7 +250,7 @@ class MavenProjectConfigurator {
       return;
     }
 
-    if (!runsWithJacoco(session, project)) {
+    if (runsWithJacoco(session, project)) {
       // Jacoco is already configured for this project
       return;
     }
