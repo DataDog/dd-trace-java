@@ -1,7 +1,9 @@
 package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.OperatingSystem;
 import datadog.environment.OperatingSystem.Architecture;
@@ -38,8 +40,12 @@ public class IntrospectPlatformSpecTest {
   @Test
   public void equals() {
     // just a sanity check, since assertEquals is used in other tests
-    assertNotEquals(TestPlatformSpec.unsupportedOs(), IntrospectPlatformSpec.INSTANCE);
-
-    assertEquals(IntrospectPlatformSpec.INSTANCE, IntrospectPlatformSpec.INSTANCE);
+    assertTrue(IntrospectPlatformSpec.INSTANCE.equals(IntrospectPlatformSpec.INSTANCE));
+  }
+  
+  @Test
+  public void notEquals_diffType() {
+    // just a sanity check, since assertEquals is used in other tests
+    assertFalse(IntrospectPlatformSpec.INSTANCE.equals(TestPlatformSpec.unsupportedOs()));
   }
 }
