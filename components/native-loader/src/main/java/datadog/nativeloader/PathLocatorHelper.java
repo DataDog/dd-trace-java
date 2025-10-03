@@ -18,7 +18,7 @@ public final class PathLocatorHelper implements PathLocator {
   }
 
   @Override
-  public final URL locate(String component, String path) {
+  public URL locate(String component, String path) {
     try {
       return this.locator.locate(component, path);
     } catch (Throwable t) {
@@ -28,7 +28,7 @@ public final class PathLocatorHelper implements PathLocator {
   }
 
   /** Raises a LibraryLoadException if an exception occurred during a prior call to locate */
-  public final void tryThrow() throws LibraryLoadException {
+  public void tryThrow() throws LibraryLoadException {
     if (this.firstCause instanceof LibraryLoadException) {
       throw (LibraryLoadException) this.firstCause;
     } else if (this.firstCause != null) {
