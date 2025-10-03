@@ -21,7 +21,7 @@ jobs:
           AKKA_REPO_TOKEN: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
           echo "REPO TOKEN LENGTH ${#AKKA_REPO_TOKEN}"
-          GRADLE_OPTS="-DakkaRepositoryToken=$AKKA_REPO_TOKEN -Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
