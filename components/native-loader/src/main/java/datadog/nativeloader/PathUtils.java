@@ -69,14 +69,30 @@ public final class PathUtils {
     }
   }
 
+  /** Helper for concatenating paths with / Handles null & empty for both parts */
+  public static final String concatPath(String pathPart1, String pathPart2) {
+    if (isEmpty(pathPart1)) {
+      return pathPart2;
+    } else if (isEmpty(pathPart2)) {
+      return pathPart1;
+    } else {
+      return pathPart1 + "/" + pathPart2;
+    }
+  }
+
+  /** Helper for concatenating parts with / Handles null & empty anywhere in the var-arg array */
   public static final String concatPath(String... pathParts) {
     StringBuilder builder = new StringBuilder();
     for (String pathPart : pathParts) {
-      if (pathPart == null || pathPart.isEmpty()) continue;
+      if (isEmpty(pathPart)) continue;
 
       if (builder.length() != 0) builder.append('/');
       builder.append(pathPart);
     }
     return builder.toString();
+  }
+
+  static final boolean isEmpty(String pathPart) {
+    return (pathPart == null) || pathPart.isEmpty();
   }
 }
