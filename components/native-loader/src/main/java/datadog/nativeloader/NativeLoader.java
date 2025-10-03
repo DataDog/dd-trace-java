@@ -209,8 +209,7 @@ public final class NativeLoader {
   }
 
   /** Resolves a library with an associated component */
-  public LibFile resolveDynamic(String component, String libName)
-      throws LibraryLoadException {
+  public LibFile resolveDynamic(String component, String libName) throws LibraryLoadException {
     return this.resolveDynamic(component, this.defaultPlatformSpec, libName);
   }
 
