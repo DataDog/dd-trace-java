@@ -1,10 +1,10 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;
+import datadog.trace.config.inversion.ConfigHelper;
 import datadog.yaml.YamlParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -166,7 +166,7 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String envValue = EnvironmentVariables.get(key.toUpperCase(Locale.ROOT));
+        String envValue = ConfigHelper.env(key.toUpperCase(Locale.ROOT));
         return matchOperator(envValue, operator, matches);
       case "process_arguments":
         if (key == null) {
@@ -242,7 +242,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = EnvironmentVariables.get(envVar.toUpperCase(Locale.ROOT));
+      String value = ConfigHelper.env(envVar.toUpperCase(Locale.ROOT));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }

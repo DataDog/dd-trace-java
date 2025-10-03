@@ -29,6 +29,11 @@ net.bytebuddy.matcher.ElementMatchers#isAbstract()
 java.lang.System#out
 java.lang.System#err
 
+# use ConfigHelper to access environment variables instead of using System.getenv() or System.getenv(String)
+@defaultMessage Use ConfigHelper to access environment variables instead of using System.getenv() or System.getenv(String)
+java.lang.System#getenv()
+java.lang.System#getenv(java.lang.String)
+
 #Use jdk LongAdder
 @defaultMessage use LongAdder instead of the legacy jctools FixedSizeStripedLongCounter
 org.jctools.counters.FixedSizeStripedLongCounter
