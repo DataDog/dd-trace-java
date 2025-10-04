@@ -10,6 +10,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -31,6 +32,12 @@ public class ContextParseAdvice {
     if (obj instanceof Form) {
       // handled by netty
       return;
+    }
+
+    // Process XML strings for WAF compatibility
+    Object processedObj = XmlDomUtils.processXmlForWaf(obj);
+    if (processedObj != null) {
+      obj = processedObj;
     }
 
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
