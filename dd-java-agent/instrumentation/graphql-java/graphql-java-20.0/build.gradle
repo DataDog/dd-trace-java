@@ -53,16 +53,23 @@ dependencies {
   latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '22.+'
 
   [
-    compileLatestDepTestJava,
-    compileLatestDepTestGroovy,
-    compileLatestDepForkedTestJava,
-    compileLatestDepForkedTestGroovy,
-    compileGraphql21LatestDepTestJava,
-    compileGraphql21LatestDepTestGroovy,
-    compileGraphql21LatestDepForkedTestJava,
-    compileGraphql21LatestDepForkedTestGroovy
-  ].each {
-    it.configure {
+    "compileLatestDepTestJava",
+    "compileLatestDepForkedTestJava",
+    "compileGraphql21LatestDepTestJava",
+    "compileGraphql21LatestDepForkedTestJava"
+  ].each { name ->
+    tasks.named(name, JavaCompile) {
+      setJavaVersion(it, 11)
+    }
+  }
+
+  [
+    "compileLatestDepTestGroovy",
+    "compileLatestDepForkedTestGroovy",
+    "compileGraphql21LatestDepTestGroovy",
+    "compileGraphql21LatestDepForkedTestGroovy"
+  ].each { name ->
+    tasks.named(name, GroovyCompile) {
       setJavaVersion(it, 11)
     }
   }

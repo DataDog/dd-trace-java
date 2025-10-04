@@ -12,6 +12,6 @@ dependencies {
   compileOnly project(":dd-java-agent:instrumentation:junit:junit-4.10")
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }

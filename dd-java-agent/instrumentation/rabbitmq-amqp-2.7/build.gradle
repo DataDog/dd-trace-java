@@ -40,6 +40,6 @@ tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
 
-tasks.named("latestDepTest") {
+tasks.named("latestDepTest", Test) {
   finalizedBy latestReactorTest
 }

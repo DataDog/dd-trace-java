@@ -27,18 +27,18 @@ idea {
  */
 addTestSuite('previewTest')
 // Configure groovy test file compilation
-compilePreviewTestGroovy.configure {
+tasks.named("compilePreviewTestGroovy", GroovyCompile) {
   javaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(21)
   }
   options.compilerArgs.add("--enable-preview")
 }
 // Configure Java test files compilation
-compilePreviewTestJava.configure {
+tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution
-previewTest.configure {
+tasks.named("previewTest", Test) {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check

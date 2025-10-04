@@ -72,6 +72,6 @@ dependencies {
   // tested on tomcat-5.5:latestDepTest
 }
 
-jar {
+tasks.named("jar", Jar) {
   from zipTree(relocatedJavaxJar.outputs.files.asPath)
 }

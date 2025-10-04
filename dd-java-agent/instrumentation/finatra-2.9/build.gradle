@@ -45,6 +45,6 @@ tasks.named("compileLatestPre207TestGroovy", GroovyCompile) {
   dependsOn "compileLatestPre207TestScala"
 }
 
-tasks.named("latestDepTest") {
+tasks.named("latestDepTest", Test) {
   finalizedBy latestPre207Test
 }

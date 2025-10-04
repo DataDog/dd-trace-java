@@ -54,7 +54,7 @@ dependencies {
   latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '+'
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn "resteasy31Test"
   dependsOn "nestedTest"
 }

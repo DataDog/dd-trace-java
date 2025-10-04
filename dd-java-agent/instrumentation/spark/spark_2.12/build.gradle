@@ -58,7 +58,7 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn "test_spark24"
   dependsOn "test_spark32"
 }

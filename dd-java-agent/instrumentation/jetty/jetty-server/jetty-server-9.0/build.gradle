@@ -78,7 +78,7 @@ sourceSets {
   }
 }
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_jetty904.output
   from sourceSets.main_jetty93.output
   from sourceSets.main_jetty9421.output
@@ -114,7 +114,7 @@ addTestSuiteForDir('jetty94ForkedTest', 'test')
 addTestSuiteForDir('latestDepJetty9ForkedTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
-tasks.named("latestDepForkedTest") {
+tasks.named("latestDepForkedTest", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
 tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {

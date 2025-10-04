@@ -25,7 +25,8 @@ idea {
 project.tasks.withType(AbstractCompile).configureEach {
   setJavaVersion(it, 17)
 }
-compileJava.configure {
+
+tasks.named("compileJava", JavaCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
