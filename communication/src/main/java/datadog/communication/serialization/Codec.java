@@ -1,7 +1,10 @@
 package datadog.communication.serialization;
 
+import datadog.communication.serialization.custom.aiguard.MessageWriter;
+import datadog.communication.serialization.custom.aiguard.ToolCallWriter;
 import datadog.communication.serialization.custom.stacktrace.StackTraceEventFrameWriter;
 import datadog.communication.serialization.custom.stacktrace.StackTraceEventWriter;
+import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.nio.ByteBuffer;
@@ -19,6 +22,8 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
               new Object[][] {
                 {StackTraceEvent.class, new StackTraceEventWriter()},
                 {StackTraceFrame.class, new StackTraceEventFrameWriter()},
+                {AIGuard.Message.class, new MessageWriter()},
+                {AIGuard.ToolCall.class, new ToolCallWriter()},
               })
           .collect(Collectors.toMap(data -> (Class<?>) data[0], data -> (ValueWriter<?>) data[1]));
 

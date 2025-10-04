@@ -43,10 +43,10 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     final action = test.action as String
     final reason = test.reason as String
     def request = new Request.Builder()
-      .url("http://localhost:${httpPort}/aiguard${test.endpoint}")
-      .header('X-Blocking-Enabled', "${blocking}")
-      .get()
-      .build()
+    .url("http://localhost:${httpPort}/aiguard${test.endpoint}")
+    .header('X-Blocking-Enabled', "${blocking}")
+    .get()
+    .build()
 
     when:
     final response = client.newCall(request).execute()
@@ -65,11 +65,21 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     and:
     waitForTraceCount(2) // default call + internal API mock
     final span = traces*.spans
-      ?.flatten()
-      ?.find { it.resource == 'ai_guard' } as DecodedSpan
+    ?.flatten()
+    ?.find { it.resource == 'ai_guard' } as DecodedSpan
     assert span.meta.get('ai_guard.action') == action
     assert span.meta.get('ai_guard.reason') == reason
     assert span.meta.get('ai_guard.target') == 'prompt'
+    final messages = span.metaStruct.get('ai_guard').messages as List<Map<String, Object>>
+    assert messages.size() == 2
+    messages[0].with {
+      assert role == 'system'
+      assert content == 'You are a beautiful AI'
+    }
+    messages[1].with {
+      assert role == 'user'
+      assert content != null
+    }
 
     where:
     test << testSuite()

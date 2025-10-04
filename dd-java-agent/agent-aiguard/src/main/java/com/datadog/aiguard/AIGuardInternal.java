@@ -26,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -104,14 +105,16 @@ public class AIGuardInternal implements Evaluator {
     this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
   }
 
-  private static List<Message> truncate(List<Message> messages) {
+  /**
+   * Creates a deep copy of the messages before storing them in the metastruct to avoid concurrent
+   * modifications prior to trace serialization.
+   */
+  private static List<Message> messagesForMetaStruct(List<Message> messages) {
     final Config config = Config.get();
-    final int maxMessages = config.getAiGuardMaxMessagesLength();
-    if (messages.size() > maxMessages) {
-      messages = messages.subList(messages.size() - maxMessages, messages.size());
-    }
+    final int size = Math.min(messages.size(), config.getAiGuardMaxMessagesLength());
+    final List<Message> result = new ArrayList<>(size);
     final int maxContent = config.getAiGuardMaxContentSize();
-    for (int i = 0; i < messages.size(); i++) {
+    for (int i = 0; i < size; i++) {
       Message source = messages.get(i);
       final String content = source.getContent();
       if (content != null && content.length() > maxContent) {
@@ -121,10 +124,10 @@ public class AIGuardInternal implements Evaluator {
                 content.substring(0, maxContent),
                 source.getToolCalls(),
                 source.getToolCallId());
-        messages.set(i, source);
       }
+      result.add(source);
     }
-    return messages;
+    return result;
   }
 
   private static boolean isToolCall(final Message message) {
@@ -181,7 +184,8 @@ public class AIGuardInternal implements Evaluator {
       } else {
         span.setTag(TARGET_TAG, "prompt");
       }
-      final Map<String, Object> metaStruct = singletonMap(META_STRUCT_KEY, truncate(messages));
+      final Map<String, Object> metaStruct =
+          singletonMap(META_STRUCT_KEY, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
