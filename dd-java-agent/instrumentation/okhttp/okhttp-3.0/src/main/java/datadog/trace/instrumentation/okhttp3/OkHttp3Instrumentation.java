@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -30,6 +31,7 @@ public class OkHttp3Instrumentation extends InstrumenterModule.Tracing
       packageName + ".RequestBuilderInjectAdapter",
       packageName + ".OkHttpClientDecorator",
       packageName + ".TracingInterceptor",
+      packageName + ".AppSecInterceptor",
     };
   }
 
@@ -51,6 +53,9 @@ public class OkHttp3Instrumentation extends InstrumenterModule.Tracing
       }
       final TracingInterceptor interceptor = new TracingInterceptor();
       builder.addInterceptor(interceptor);
+      if (ActiveSubsystems.APPSEC_ACTIVE) {
+        builder.addInterceptor(new AppSecInterceptor());
+      }
     }
   }
 }

@@ -1,13 +1,7 @@
-package datadog.trace.instrumentation.okhttp2;
+package datadog.trace.instrumentation.okhttp3;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
-import com.squareup.okhttp.Headers;
-import com.squareup.okhttp.Interceptor;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.RequestBody;
-import com.squareup.okhttp.Response;
-import com.squareup.okhttp.ResponseBody;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.appsec.HttpClientPayload;
@@ -30,6 +24,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import okhttp3.Headers;
+import okhttp3.Interceptor;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import okio.BufferedSink;
 import okio.BufferedSource;
 import okio.Okio;

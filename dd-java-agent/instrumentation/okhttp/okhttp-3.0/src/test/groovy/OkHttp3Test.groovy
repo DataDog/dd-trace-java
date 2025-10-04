@@ -23,26 +23,34 @@ abstract class OkHttp3Test extends HttpClientTest {
   }
 
   @Override
+  boolean testAppSecClientRequest() {
+    true
+  }
+
+  @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
   }
 
-  def client = new OkHttpClient.Builder()
-  .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-  .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-  .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-  .build()
+  OkHttpClient getClient() {
+    new OkHttpClient.Builder()
+      .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+      .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+      .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+      .build()
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
+    final contentType = headers.remove("Content-Type")
+    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse(contentType ?: "text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
       .method(method, reqBody)
       .headers(Headers.of(headers)).build()
     def response = client.newCall(request).execute()
-    callback?.call()
+    callback?.call(response.body().byteStream())
     return response.code()
   }
 

@@ -1021,12 +1021,14 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     { RequestContext rqCtxt, HttpClientRequest req ->
       if (req.headers?.containsKey('X-AppSec-Test')) {
         final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
-        context.hasAppSecData = true
-        activeSpan()
-        .setTag('downstream.request.url', req.url)
-        .setTag('downstream.request.method', req.method)
-        .setTag('downstream.request.headers', JsonOutput.toJson(req.headers))
-        .setTag('downstream.request.body', req.body?.text)
+        if (context != null) {
+          context.hasAppSecData = true
+          activeSpan()
+          .setTag('downstream.request.url', req.url)
+          .setTag('downstream.request.method', req.method)
+          .setTag('downstream.request.headers', JsonOutput.toJson(req.headers))
+          .setTag('downstream.request.body', req.body?.text)
+        }
 
       }
       Flow.ResultFlow.empty()
@@ -1035,7 +1037,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     final BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCb =
     { RequestContext rqCtxt, HttpClientResponse res ->
       final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
-      if (context.hasAppSecData) {
+      if (context?.hasAppSecData) {
         activeSpan()
         .setTag('downstream.response.status', res.status)
         .setTag('downstream.response.headers', JsonOutput.toJson(res.headers))
