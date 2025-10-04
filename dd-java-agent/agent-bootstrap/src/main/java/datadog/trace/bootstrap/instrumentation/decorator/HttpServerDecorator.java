@@ -542,7 +542,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     onRequestEndForInstrumentationGateway(span);
 
     // Close Serverless Gateway Inferred Span if any
-    // finishInferredProxySpan(context);
+    finishInferredProxySpan(context);
 
     return super.beforeFinish(context);
   }

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty10;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
@@ -60,11 +59,6 @@ class ServerHandleAdvice {
       @Advice.Thrown Throwable t) {
     if (scope == null) {
       return;
-    }
-
-    // Extract the span from the context if we didn't get it from @Local
-    if (span == null) {
-      span = spanFromContext(scope.context());
     }
 
     if (t != null) {
