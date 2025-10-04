@@ -97,8 +97,9 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     expect:
     RemoteApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
-    assert null == response.exception()
-    assert 200 == response.status()
+    assert !response.exception().present
+    assert response.status().present
+    assert 200 == response.status().asInt
     assert response.success()
     assert discovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "${Config.get().getAgentUrl()}/${version}/traces"
@@ -120,8 +121,9 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     expect:
     RemoteApi.Response response = api.sendSerializedTraces(prepareRequest([[span]], mapper))
     assert !response.response().isEmpty()
-    assert null == response.exception()
-    assert 200 == response.status()
+    assert !response.exception().present
+    assert response.status().present
+    assert 200 == response.status().asInt
     assert response.success()
     assert discovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "${Config.get().getAgentUrl()}/${version}/traces"
@@ -137,8 +139,9 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     expect:
     RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
-    assert null == response.exception()
-    assert 200 == response.status()
+    assert !response.exception().present
+    assert response.status().present
+    assert 200 == response.status().asInt
     assert response.success()
     assert udsDiscovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
@@ -158,8 +161,9 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     expect:
     RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest([[span]], mapper))
     assert !response.response().isEmpty()
-    assert null == response.exception()
-    assert 200 == response.status()
+    assert !response.exception().present
+    assert response.status().present
+    assert 200 == response.status().asInt
     assert response.success()
     assert udsDiscovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
