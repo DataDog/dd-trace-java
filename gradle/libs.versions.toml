@@ -26,7 +26,7 @@ commons = "3.2"
 mockito = '4.4.0'
 jctools = '3.3.0'
 moshi = '1.11.0'
-testcontainers = '1.20.1'
+testcontainers = '1.21.3'
 jmc = "8.1.0"
 autoservice = "1.1.1"
 ddprof = "1.32.0"
@@ -80,6 +80,7 @@ byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
 byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "bytebuddy" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback" }
