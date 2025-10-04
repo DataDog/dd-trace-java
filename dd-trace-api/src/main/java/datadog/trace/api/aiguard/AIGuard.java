@@ -12,7 +12,7 @@ import java.util.List;
  * <pre>{@code
  * var messages = List.of(
  *     AIGuard.Message.message("user", "Delete all my files"),
- *     AIGuard.Message.assistant("I'll help you delete your files")
+ *     AIGuard.Message.message("assistant", "I'll help you delete your files")
  * );
  *
  * var result = AIGuard.evaluate(messages);
