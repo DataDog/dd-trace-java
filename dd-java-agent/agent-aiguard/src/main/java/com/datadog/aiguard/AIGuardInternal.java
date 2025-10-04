@@ -1,5 +1,6 @@
 package com.datadog.aiguard;
 
+import static datadog.trace.util.Strings.isBlank;
 import static java.util.Collections.singletonMap;
 
 import com.squareup.moshi.JsonAdapter;
@@ -70,12 +71,12 @@ public class AIGuardInternal implements Evaluator {
     final Config config = Config.get();
     final String apiKey = config.getApiKey();
     final String appKey = config.getApplicationKey();
-    if (isEmpty(apiKey) || isEmpty(appKey)) {
+    if (isBlank(apiKey) || isBlank(appKey)) {
       throw new BadConfigurationException(
           "AI Guard: Missing api and/or application key, use DD_API_KEY and DD_APP_KEY");
     }
     String endpoint = config.getAiGuardEndpoint();
-    if (isEmpty(endpoint)) {
+    if (isBlank(endpoint)) {
       endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
     final Map<String, String> headers = mapOf("DD-API-KEY", apiKey, "DD-APPLICATION-KEY", appKey);
@@ -157,8 +158,8 @@ public class AIGuardInternal implements Evaluator {
     return null;
   }
 
-  private boolean isBlockingEnabled(final Object isBlockingEnabled) {
-    return isBlockingEnabled != null && isBlockingEnabled.toString().equalsIgnoreCase("true");
+  private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
+    return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
   }
 
   @Override
@@ -202,8 +203,9 @@ public class AIGuardInternal implements Evaluator {
         final String reason = (String) result.get("reason");
         span.setTag(ACTION_TAG, action);
         span.setTag(REASON_TAG, reason);
-        final boolean blockingEnabled = isBlockingEnabled(result.get("is_blocking_enabled"));
-        if (blockingEnabled && options.block() && action != Action.ALLOW) {
+        final boolean blockingEnabled =
+            isBlockingEnabled(options, result.get("is_blocking_enabled"));
+        if (blockingEnabled && action != Action.ALLOW) {
           span.setTag(BLOCKED_TAG, true);
           throw new AIGuardAbortError(action, reason);
         }
@@ -244,10 +246,6 @@ public class AIGuardInternal implements Evaluator {
 
   private static OkHttpClient buildClient(final HttpUrl url, final long timeout) {
     return OkHttpUtils.buildHttpClient(url, timeout).newBuilder().build();
-  }
-
-  private static boolean isEmpty(final String value) {
-    return value == null || value.isEmpty();
   }
 
   private static Map<String, String> mapOf(
