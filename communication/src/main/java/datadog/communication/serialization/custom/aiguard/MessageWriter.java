@@ -44,10 +44,7 @@ public class MessageWriter implements ValueWriter<AIGuard.Message> {
       final EncodingCache encodingCache) {
     if (present) {
       writable.writeString(key, encodingCache);
-      writable.startArray(values.size());
-      for (final AIGuard.ToolCall toolCall : values) {
-        writable.writeObject(toolCall, encodingCache);
-      }
+      writable.writeObject(values, encodingCache);
     }
   }
 
