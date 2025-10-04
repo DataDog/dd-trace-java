@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.cxf;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import net.bytebuddy.asm.Advice;
@@ -55,21 +55,22 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
 
   public static class PropagateSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beforeInvoke(@Advice.Argument(0) final Exchange exchange) {
+    public static ContextScope beforeInvoke(@Advice.Argument(0) final Exchange exchange) {
       if (exchange == null || exchange.getInMessage() == null || AgentTracer.activeSpan() != null) {
         return null;
       }
-      final Object span =
+      final Object contextObj =
           ServletHelper.getServletRequestAttribute(
-              exchange.getInMessage().get("HTTP.REQUEST"), HttpServerDecorator.DD_SPAN_ATTRIBUTE);
-      if (span instanceof AgentSpan) {
-        return AgentTracer.activateSpan((AgentSpan) span);
+              exchange.getInMessage().get("HTTP.REQUEST"),
+              HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        return ((Context) contextObj).attach();
       }
       return null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void afterInvoke(@Advice.Enter final AgentScope scope) {
+    public static void afterInvoke(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

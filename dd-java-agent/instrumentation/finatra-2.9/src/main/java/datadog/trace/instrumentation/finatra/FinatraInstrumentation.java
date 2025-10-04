@@ -92,7 +92,7 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan span = scope.span();
       if (throwable != null) {
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         span.finish();
         scope.close();
         return;
