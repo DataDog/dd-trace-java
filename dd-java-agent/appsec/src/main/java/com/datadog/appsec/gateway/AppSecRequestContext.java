@@ -13,7 +13,6 @@ import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.io.Closeable;
 import java.util.*;
@@ -166,7 +165,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
-  private volatile byte keepType = PrioritySampling.SAMPLER_KEEP;
 
   private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
   private final Set<Long> sampledHttpClientRequests = new HashSet<>();
@@ -175,6 +173,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+  private boolean manuallyKept = false;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -419,14 +418,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Long getApiSecurityEndpointHash() {
     return this.apiSecurityEndpointHash;
-  }
-
-  public void setKeepType(byte keepType) {
-    this.keepType = keepType;
-  }
-
-  public byte getKeepType() {
-    return this.keepType;
   }
 
   void addRequestHeader(String name, String value) {
@@ -1013,5 +1004,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRaspMatched(boolean raspMatched) {
     this.raspMatched = raspMatched;
+  }
+
+  public boolean isManuallyKept() {
+    return manuallyKept;
+  }
+
+  public void setManuallyKept(boolean manuallyKept) {
+    this.manuallyKept = manuallyKept;
   }
 }
