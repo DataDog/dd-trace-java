@@ -1,0 +1,36 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'com.gradleup.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+  api libs.slf4j
+  implementation libs.moshi
+  implementation libs.okhttp
+
+  api project(':dd-trace-api')
+  implementation project(':internal-api')
+  implementation project(':communication')
+
+  testImplementation project(':utils:test-utils')
+  testImplementation('org.skyscreamer:jsonassert:1.5.3')
+  testImplementation('com.fasterxml.jackson.core:jackson-databind:2.20.0')
+}
+
+tasks.named("shadowJar", ShadowJar) {
+  dependencies deps.excludeShared
+}
+
+tasks.named("jar", Jar) {
+  archiveClassifier = 'unbundled'
+}
+

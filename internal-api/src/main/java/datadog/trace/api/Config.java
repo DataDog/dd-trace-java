@@ -185,6 +185,15 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENABLED;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENDPOINT;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_CONTENT_SIZE;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_TIMEOUT;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
@@ -330,6 +339,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.APP_KEY;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
@@ -1255,6 +1265,12 @@ public class Config {
 
   private final RumInjectorConfig rumInjectorConfig;
 
+  private final boolean aiGuardEnabled;
+  private final String aiGuardEndpoint;
+  private final int aiGuardTimeout;
+  private final int aiGuardMaxMessagesLength;
+  private final int aiGuardMaxContentSize;
+
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
     OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
@@ -1298,7 +1314,7 @@ public class Config {
 
     String tmpApplicationKey =
         configProvider.getStringExcludingSource(
-            APPLICATION_KEY, null, SystemPropertiesConfigSource.class);
+            APPLICATION_KEY, null, SystemPropertiesConfigSource.class, APP_KEY);
     String applicationKeyFile = configProvider.getString(APPLICATION_KEY_FILE);
     if (applicationKeyFile != null) {
       try {
@@ -2796,6 +2812,15 @@ public class Config {
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
     this.rumInjectorConfig = parseRumConfig(configProvider);
+
+    this.aiGuardEnabled = configProvider.getBoolean(AI_GUARD_ENABLED, DEFAULT_AI_GUARD_ENABLED);
+    this.aiGuardEndpoint = configProvider.getString(AI_GUARD_ENDPOINT);
+    this.aiGuardTimeout = configProvider.getInteger(AI_GUARD_TIMEOUT, DEFAULT_AI_GUARD_TIMEOUT);
+    this.aiGuardMaxContentSize =
+        configProvider.getInteger(AI_GUARD_MAX_CONTENT_SIZE, DEFAULT_AI_GUARD_MAX_CONTENT_SIZE);
+    this.aiGuardMaxMessagesLength =
+        configProvider.getInteger(
+            AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
 
     log.debug("New instance: {}", this);
   }
@@ -5158,6 +5183,26 @@ public class Config {
     return this.rumInjectorConfig;
   }
 
+  public boolean isAiGuardEnabled() {
+    return aiGuardEnabled;
+  }
+
+  public String getAiGuardEndpoint() {
+    return aiGuardEndpoint;
+  }
+
+  public int getAiGuardMaxContentSize() {
+    return aiGuardMaxContentSize;
+  }
+
+  public int getAiGuardMaxMessagesLength() {
+    return aiGuardMaxMessagesLength;
+  }
+
+  public int getAiGuardTimeout() {
+    return aiGuardTimeout;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -5854,6 +5899,10 @@ public class Config {
         + experimentalPropagateProcessTagsEnabled
         + ", rumInjectorConfig="
         + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
+        + ", aiGuardEnabled="
+        + aiGuardEnabled
+        + ", aiGuardEndpoint="
+        + aiGuardEndpoint
         + '}';
   }
 }

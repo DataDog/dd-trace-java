@@ -643,6 +643,7 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
+      maybeStartAiGuard();
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -933,6 +934,20 @@ public class Agent {
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
+  }
+
+  private static void maybeStartAiGuard() {
+    if (!Config.get().isAiGuardEnabled()) {
+      return;
+    }
+    try {
+      final Class<?> aiGuardSystemClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.aiguard.AIGuardSystem");
+      final Method aiGuardInstallerMethod = aiGuardSystemClass.getMethod("start");
+      aiGuardInstallerMethod.invoke(null);
+    } catch (final Exception e) {
+      log.debug("Error initializing AI Guard", e);
+    }
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
