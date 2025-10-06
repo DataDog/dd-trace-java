@@ -60,9 +60,9 @@ public class SharedCommunicationObjects {
     }
 
     httpClientTimeout =
-        !config.isCiVisibilityEnabled()
-            ? TimeUnit.SECONDS.toMillis(config.getAgentTimeout())
-            : config.getCiVisibilityBackendApiTimeoutMillis();
+        config.isCiVisibilityEnabled()
+            ? config.getCiVisibilityBackendApiTimeoutMillis()
+            : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
 
     forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
 
@@ -78,10 +78,7 @@ public class SharedCommunicationObjects {
       String namedPipe = config.getAgentNamedPipe();
       agentHttpClient =
           OkHttpUtils.buildHttpClient(
-              agentUrl != null && "http".equals(agentUrl.scheme()),
-              unixDomainSocket,
-              namedPipe,
-              httpClientTimeout);
+              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
     }
   }
 
@@ -228,9 +225,9 @@ public class SharedCommunicationObjects {
   }
 
   public OkHttpClient getIntakeHttpClient() {
-    OkHttpClient intakeHttpClient = this.intakeHttpClient;
-    if (intakeHttpClient != null) {
-      return intakeHttpClient;
+    OkHttpClient client = this.intakeHttpClient;
+    if (client != null) {
+      return client;
     }
 
     synchronized (this) {

@@ -58,7 +58,7 @@ public final class OkHttpUtils {
       SystemProperties.getOrDefault("java.vm.vendor", "unknown");
 
   public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
-    return buildHttpClient(url != null && "http".equals(url.scheme()), null, null, timeoutMillis);
+    return buildHttpClient(isPlainHttp(url), null, null, timeoutMillis);
   }
 
   public static OkHttpClient buildHttpClient(
@@ -95,7 +95,7 @@ public final class OkHttpUtils {
         discoverApmSocket(config),
         config.getAgentNamedPipe(),
         dispatcher,
-        url != null && "http".equals(url.scheme()),
+        isPlainHttp(url),
         retryOnConnectionFailure,
         maxRunningRequests,
         proxyHost,
@@ -391,5 +391,9 @@ public final class OkHttpUtils {
     } catch (Exception e) {
       // ignore
     }
+  }
+
+  public static boolean isPlainHttp(final HttpUrl url) {
+    return url != null && "http".equalsIgnoreCase(url.scheme());
   }
 }
