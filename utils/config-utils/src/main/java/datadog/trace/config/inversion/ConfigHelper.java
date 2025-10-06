@@ -85,7 +85,7 @@ public class ConfigHelper {
     return get().getEnvironmentVariable(key);
   }
 
-  private Map<String, String> getEnvironmentVariables() {
+  public Map<String, String> getEnvironmentVariables() {
     if (configs != null) {
       return configs;
     }
@@ -129,7 +129,7 @@ public class ConfigHelper {
     return configs;
   }
 
-  private String getEnvironmentVariable(String name) {
+  public String getEnvironmentVariable(String name) {
     if (configs != null && configs.containsKey(name)) {
       return configs.get(name);
     }

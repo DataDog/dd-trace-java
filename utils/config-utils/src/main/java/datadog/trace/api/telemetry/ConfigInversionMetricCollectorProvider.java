@@ -12,7 +12,7 @@ public final class ConfigInversionMetricCollectorProvider {
 
   public static ConfigInversionMetricCollector get() {
     if (INSTANCE == null) {
-      log.error(
+      log.debug(
           "ConfigInversionMetricCollector has not been registered. Defaulting to NoOp implementation.");
       // Return NoOp implementation for build tasks like instrumentJava that run before
       // implementation is registered
