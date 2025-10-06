@@ -6,8 +6,10 @@ import java.util.Arrays;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.util.ClassLoaderUtils;
+import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
+import org.junit.platform.engine.TestDescriptor;
 
 public class ExecutionRequestFactory {
 
@@ -172,11 +174,16 @@ public class ExecutionRequestFactory {
 
   private static BiFunction<ExecutionRequest, EngineExecutionListener, ExecutionRequest>
       fallbackFactory() {
-    MethodHandle createMethod = findCreateMethod(PARAMETERS_FALLBACK);
+    MethodHandle constructor =
+        METHOD_HANDLES.constructor(
+            ExecutionRequest.class,
+            TestDescriptor.class,
+            EngineExecutionListener.class,
+            ConfigurationParameters.class);
 
     return (request, listener) ->
         METHOD_HANDLES.invoke(
-            createMethod,
+            constructor,
             request.getRootTestDescriptor(),
             listener,
             request.getConfigurationParameters());
