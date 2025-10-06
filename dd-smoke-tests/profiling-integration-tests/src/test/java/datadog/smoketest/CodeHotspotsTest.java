@@ -11,7 +11,6 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.OperatingSystem;
 import datadog.smoketest.profiling.CodeHotspotsApplication;
 import datadog.smoketest.profiling.GenerativeStackTraces;
@@ -66,7 +65,7 @@ public final class CodeHotspotsTest {
   @BeforeAll
   static void setupAll() throws Exception {
     assumeFalse(
-        OperatingSystem.isMacOs() || EnvironmentVariables.get("TEST_LIBDDPROF") == null,
+        OperatingSystem.isMacOs() || System.getenv("TEST_LIBDDPROF") == null,
         "Test skipped. Set TEST_LIBDDPROF env variable to point to MacOS version of libjavaProfiler.so, and rerun.");
     Files.createDirectories(LOG_FILE_BASE);
   }

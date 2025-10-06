@@ -27,7 +27,7 @@ public final class EnvironmentVariables {
   }
 
   // Make it accessible from tests.
-  public static volatile EnvironmentVariablesProvider provider = new EnvironmentVariablesProvider();
+  public static EnvironmentVariablesProvider provider = new EnvironmentVariablesProvider();
 
   /**
    * Gets an environment variable value.
