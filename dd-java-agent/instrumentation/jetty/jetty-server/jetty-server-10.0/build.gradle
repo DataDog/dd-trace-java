@@ -1,41 +1,5 @@
 muzzle {
   pass {
-    name = '9_full_series'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9,10)"
-    assertInverse = true
-  }
-  pass {
-    name = 'before_904'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9,9.0.4)"
-    assertInverse = true
-  }
-  pass {
-    name = 'between_904_and_930'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9.0.4,9.3.0.M1)"
-    assertInverse = true
-  }
-  pass {
-    name = 'between_930_and_9421'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9.3.0.M1,9.4.21)"
-    assertInverse = true
-  }
-  pass {
-    name = 'between_9421_and_10'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9.4.21,10)"
-    assertInverse = true
-  }
-  pass {
-    name = '10_series'
     group = "org.eclipse.jetty"
     module = 'jetty-server'
     versions = "[10,11)"
