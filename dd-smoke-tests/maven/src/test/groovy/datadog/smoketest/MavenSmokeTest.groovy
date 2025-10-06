@@ -247,7 +247,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.3.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(7), mockBackend.waitForCoverages(0), additionalDynamicTags)
-    verifySnapshotLogs(mockBackend.waitForLogs(5), 1, 2)
+    verifySnapshots(mockBackend.waitForLogs(2), 2)
 
     where:
     projectName                            | mavenVersion
