@@ -21,7 +21,6 @@ import org.msgpack.core.MessageUnpacker
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.jupiter.api.Assertions.assertEquals
@@ -180,8 +179,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
   void 'test process tags serialization'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    ProcessTags.reset()
     assertNotNull(ProcessTags.tagsForSerialization)
     def spans = (1..2).collect {
       new TraceGenerator.PojoSpan(
@@ -214,8 +211,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
     then:
     verifier.verifyTracesConsumed()
-    cleanup:
-    ProcessTags.empty()
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
