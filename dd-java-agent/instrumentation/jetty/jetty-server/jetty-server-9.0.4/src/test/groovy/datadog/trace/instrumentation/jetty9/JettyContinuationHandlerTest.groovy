@@ -25,8 +25,6 @@ import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOU
 
 abstract class JettyContinuationHandlerTest extends Jetty9Test {
 
-
-
   @Override
   AbstractHandler handler() {
     def ret = new SessionHandler()
