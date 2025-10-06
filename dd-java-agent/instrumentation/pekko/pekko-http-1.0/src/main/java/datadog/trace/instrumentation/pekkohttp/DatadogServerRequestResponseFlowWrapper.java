@@ -146,12 +146,19 @@ public class DatadogServerRequestResponseFlowWrapper
                   // Mark the span as failed
                   AgentSpan span = fromContext(scope.context());
                   DatadogWrapperHelper.finishSpan(span, ex);
+
+                  // Clean up the leaked scope like in the normal response path
+                  AgentSpan activeSpan = activeSpan();
+                  if (activeSpan == span) {
+                    scope.close();
+                  }
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
                   fromContext(scope.context()).finish();
+                  scope.close();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);
