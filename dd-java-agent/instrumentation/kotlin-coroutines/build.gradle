@@ -39,7 +39,7 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
 }
 
 dependencies {
-  api project(':dd-java-agent:instrumentation:jdk:jdk-java-concurrent:jdk-java-concurrent-1.8')
+  api project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   compileOnly libs.kotlin
   compileOnly libs.coroutines
 

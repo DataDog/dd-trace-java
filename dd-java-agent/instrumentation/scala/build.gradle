@@ -43,7 +43,7 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
     handler.add(implementationConfiguration.name, scalaLibrary)
     handler.add(implementationConfiguration.name, libs.slf4j)
     if (javaConcatenation) {
-      handler.add(implementationConfiguration.name, project(':dd-java-agent:instrumentation:jdk:jdk-java-lang:jdk-java-lang-1.8'))
+      handler.add(implementationConfiguration.name, project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8'))
     }
   }
 
