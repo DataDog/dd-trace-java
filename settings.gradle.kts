@@ -137,6 +137,9 @@ include(
   ":dd-java-agent:cws-tls",
 )
 
+// AI Guard
+include(":dd-java-agent:agent-aiguard")
+
 // misc
 include(
   ":dd-java-agent:testing",

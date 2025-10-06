@@ -21,7 +21,6 @@ import org.msgpack.core.MessageUnpacker
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.jupiter.api.Assertions.assertEquals
@@ -55,6 +54,9 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace()
         tracesFitInBuffer = false
+        // in the real like the mapper is always reset each trace.
+        // here we need to force it when we fail since the buffer will be reset as well
+        traceMapper.reset()
       }
     }
     packer.flush()
@@ -177,8 +179,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
   void 'test process tags serialization'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    ProcessTags.reset()
     assertNotNull(ProcessTags.tagsForSerialization)
     def spans = (1..2).collect {
       new TraceGenerator.PojoSpan(
@@ -211,8 +211,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
     then:
     verifier.verifyTracesConsumed()
-    cleanup:
-    ProcessTags.empty()
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
@@ -239,7 +237,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       if (expectedTraces.isEmpty() && messageCount == 0) {
         return
       }
-      boolean hasProcessTags = false
+      int processTagsCount = 0
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
@@ -351,7 +349,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
                 assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
-                hasProcessTags = true
+                processTagsCount++
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {
@@ -379,10 +377,10 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       } catch (IOException e) {
         Assertions.fail(e.getMessage())
       } finally {
-        assert hasProcessTags == Config.get().isExperimentalPropagateProcessTagsEnabled()
         mapper.reset()
         captured.position(0)
         captured.limit(captured.capacity())
+        assert processTagsCount == (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0)
       }
     }
 

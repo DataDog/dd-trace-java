@@ -5,10 +5,6 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-// temporary workaround to avoid early resolution of test classpath
-// ( Akka instrumentation doesn't require call-site instrumentation )
-// apply plugin: 'call-site-instrumentation'
-
 
 muzzle {
   pass {
@@ -71,10 +67,8 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
 
 dependencies {
   main_java11CompileOnly libs.scala213
-  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0-M1'
-  // should be 2.9.0 on compileOnly but this has been temporary downgraded for the CI
-  // for the advice compilation it should not change.
-  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.8.8'
+  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
+  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.9.0'
 
   //testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
