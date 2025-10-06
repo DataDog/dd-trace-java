@@ -3,6 +3,7 @@ package datadog.trace.config.inversion;
 import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class ConfigHelper {
   private static final String DD_PREFIX = "DD_";
   private static final String OTEL_PREFIX = "OTEL_";
 
-  // Cache for configs, init value is null
+  // Cache for configs, init value is EmptyMap
   private Map<String, String> configs = Collections.emptyMap();
 
   // Default to production source
@@ -66,20 +67,23 @@ public class ConfigHelper {
 
   /** Resetting config cache. Useful for cleaning up after tests. */
   void resetCache() {
-    configs = null;
+    configs = Collections.emptyMap();
   }
 
   /** Reset all configuration data to the generated defaults. Useful for cleaning up after tests. */
   void resetToDefaults() {
     configSource = new SupportedConfigurationSource();
     this.configInversionStrict = StrictnessPolicy.WARNING;
-    configs = Collections.emptyMap();
+    resetCache();
   }
 
   public Map<String, String> getEnvironmentVariables() {
     if (!configs.isEmpty()) {
       return configs;
     }
+
+    // Initial value is EmptyMap
+    configs = new HashMap<>();
 
     Map<String, String> env = EnvironmentVariables.getAll();
     for (Map.Entry<String, String> entry : env.entrySet()) {
