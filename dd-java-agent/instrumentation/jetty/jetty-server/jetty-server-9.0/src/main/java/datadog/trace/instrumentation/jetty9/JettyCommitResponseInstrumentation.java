@@ -69,7 +69,6 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
     return "before_904";
   }
 
-
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
