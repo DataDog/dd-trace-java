@@ -2,7 +2,7 @@ package datadog.trace.config.inversion;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,8 +38,11 @@ public class ConfigHelper {
 
   private StrictnessPolicy configInversionStrict = StrictnessPolicy.WARNING;
 
+  private static final String DD_PREFIX = "DD_";
+  private static final String OTEL_PREFIX = "OTEL_";
+
   // Cache for configs, init value is null
-  private Map<String, String> configs;
+  private Map<String, String> configs = Collections.emptyMap();
 
   // Default to production source
   private SupportedConfigurationSource configSource = new SupportedConfigurationSource();
@@ -70,25 +73,25 @@ public class ConfigHelper {
   void resetToDefaults() {
     configSource = new SupportedConfigurationSource();
     this.configInversionStrict = StrictnessPolicy.WARNING;
+    configs = Collections.emptyMap();
   }
 
   public Map<String, String> getEnvironmentVariables() {
-    if (configs != null) {
+    if (!configs.isEmpty()) {
       return configs;
     }
 
-    configs = new HashMap<>();
     Map<String, String> env = EnvironmentVariables.getAll();
     for (Map.Entry<String, String> entry : env.entrySet()) {
       String key = entry.getKey();
       String value = entry.getValue();
       String primaryEnv = configSource.primaryEnvFromAlias(key);
-      if (key.startsWith("DD_") || key.startsWith("OTEL_") || null != primaryEnv) {
+      if (key.startsWith(DD_PREFIX) || key.startsWith(OTEL_PREFIX) || primaryEnv != null) {
         if (configSource.supported(key)) {
           configs.put(key, value);
           // If this environment variable is the alias of another, and we haven't processed the
           // original environment variable yet, handle it here.
-        } else if (null != primaryEnv && !configs.containsKey(primaryEnv)) {
+        } else if (primaryEnv != null && !configs.containsKey(primaryEnv)) {
           List<String> aliases = configSource.getAliases(primaryEnv);
           for (String alias : aliases) {
             if (env.containsKey(alias)) {
@@ -97,8 +100,8 @@ public class ConfigHelper {
             }
           }
         }
-        String envFromDeprecated;
-        if ((envFromDeprecated = configSource.primaryEnvFromDeprecated(key)) != null) {
+        String envFromDeprecated = configSource.primaryEnvFromDeprecated(key);
+        if (envFromDeprecated != null) {
           String warning =
               "Environment variable "
                   + key
@@ -115,12 +118,12 @@ public class ConfigHelper {
   }
 
   public String getEnvironmentVariable(String name) {
-    if (configs != null && configs.containsKey(name)) {
+    if (configs.containsKey(name)) {
       return configs.get(name);
     }
 
-    if ((name.startsWith("DD_") || name.startsWith("OTEL_"))
-        && null == configSource.primaryEnvFromAlias(name)
+    if ((name.startsWith(DD_PREFIX) || name.startsWith(OTEL_PREFIX))
+        && configSource.primaryEnvFromAlias(name) == null
         && !configSource.supported(name)) {
       if (configInversionStrict != StrictnessPolicy.TEST) {
         ConfigInversionMetricCollectorProvider.get().setUndocumentedEnvVarMetric(name);
