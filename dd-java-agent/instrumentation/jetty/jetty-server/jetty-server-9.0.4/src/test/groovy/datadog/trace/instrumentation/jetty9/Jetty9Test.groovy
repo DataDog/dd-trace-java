@@ -30,6 +30,7 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 
   protected boolean useWebsocketPojoEndpoint() {
+    // only supported in jetty 10+
     false
   }
 

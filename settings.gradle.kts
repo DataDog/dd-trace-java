@@ -407,6 +407,7 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0",
+  ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-12.0",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0",

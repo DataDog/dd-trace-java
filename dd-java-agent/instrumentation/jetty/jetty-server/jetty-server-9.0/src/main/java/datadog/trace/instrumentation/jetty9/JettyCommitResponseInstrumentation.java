@@ -31,11 +31,6 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String muzzleDirective() {
-    return "before_904";
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {
       new Reference.Builder("org.eclipse.jetty.server.HttpChannel")
