@@ -34,20 +34,32 @@ import okio.BufferedSink;
 import okio.BufferedSource;
 import okio.Okio;
 import okio.Sink;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AppSecInterceptor implements Interceptor {
 
   private static final int BODY_PARSING_SIZE_LIMIT = Config.get().getAppSecBodyParsingSizeLimit();
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(AppSecInterceptor.class);
+
   @Override
   public Response intercept(final Chain chain) throws IOException {
-    final AgentSpan span = AgentTracer.activeSpan();
-    final RequestContext ctx = span.getRequestContext();
-    final long requestId = span.getSpanId();
-    final boolean sampled = sampleRequest(ctx, requestId);
-    final Request request = onRequest(span, sampled, chain.request());
-    final Response response = chain.proceed(request);
-    return onResponse(span, sampled, response);
+    try {
+      final AgentSpan span = AgentTracer.activeSpan();
+      final RequestContext ctx = span == null ? null : span.getRequestContext();
+      if (ctx == null) {
+        return chain.proceed(chain.request());
+      }
+      final long requestId = span.getSpanId();
+      final boolean sampled = sampleRequest(ctx, requestId);
+      final Request request = onRequest(span, sampled, chain.request());
+      final Response response = chain.proceed(request);
+      return onResponse(span, sampled, response);
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to intercept request", e);
+      return chain.proceed(chain.request());
+    }
   }
 
   private Request onRequest(final AgentSpan span, final boolean sampled, final Request request) {
