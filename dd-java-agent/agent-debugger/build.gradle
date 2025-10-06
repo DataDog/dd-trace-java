@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -52,7 +54,7 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
   testImplementation group: 'org.jooq', name: 'joor-java-8', version: '0.9.13'
-  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "1.9.25"
+  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "2.1.21"
   testImplementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: "1.0.0"
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-builder')
@@ -62,14 +64,14 @@ dependencies {
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
   dependencies {
     exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
   }
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
   from sourceSets.main.output
 }

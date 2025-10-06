@@ -7,6 +7,7 @@ import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PRO
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Sampled;
@@ -176,6 +177,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   private void reportReceived(ConfigurationComparer changes) {
     for (ProbeDefinition def : changes.getAddedDefinitions()) {
+      if (def instanceof ExceptionProbe) {
+        // do not report received for exception probes
+        continue;
+      }
       sink.addReceived(def.getProbeId());
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {

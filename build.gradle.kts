@@ -3,18 +3,16 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 plugins {
   id("datadog.gradle-debug")
   id("datadog.dependency-locking")
+  id("datadog.tracer-version")
+  id("datadog.dump-hanged-test")
 
   id("com.diffplug.spotless") version "6.13.0"
   id("com.github.spotbugs") version "5.0.14"
   id("de.thetaphi.forbiddenapis") version "3.8"
-
-  id("tracer-version")
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-
   id("com.gradleup.shadow") version "8.3.6" apply false
   id("me.champeau.jmh") version "0.7.3" apply false
   id("org.gradle.playframework") version "0.13" apply false
-  id("info.solidsoft.pitest") version "1.9.11" apply false
 }
 
 description = "dd-trace-java"

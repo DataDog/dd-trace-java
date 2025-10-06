@@ -436,29 +436,11 @@ public class CapturingTestBase {
       String compilerOutputDir = "/tmp/" + CapturedSnapshotTest.class.getSimpleName() + "-kotlin";
       args.setDestination(compilerOutputDir);
       args.setClasspath(System.getProperty("java.class.path"));
-      // We are currently testing JDK 25-ea, which is not yet generally available. This is causing
-      // Kotlin compilation issues for "25-ea" and "25". Temporarily override java.version "25-ea"
-      // to be the latest generally available JDK version "24".
-      // TODO: Revert this change once JDK 25 is generally available and tested.
-      String originalJavaVersion = System.getProperty("java.version");
-      boolean overrideEAJavaVersion =
-          originalJavaVersion != null && originalJavaVersion.contains("-ea");
-      ExitCode exitCode;
-      try {
-        if (overrideEAJavaVersion) {
-          System.setProperty("java.version", "24");
-        }
-        exitCode =
-            compiler.execImpl(
-                new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
-                Services.EMPTY,
-                args);
-      } finally {
-        // Restore the original java.version if it was overridden (25-ea)
-        if (overrideEAJavaVersion) {
-          System.setProperty("java.version", originalJavaVersion);
-        }
-      }
+      ExitCode exitCode =
+          compiler.exec(
+              new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
+              Services.EMPTY,
+              args);
 
       if (exitCode.getCode() != 0) {
         throw new RuntimeException("Kotlin compilation failed");

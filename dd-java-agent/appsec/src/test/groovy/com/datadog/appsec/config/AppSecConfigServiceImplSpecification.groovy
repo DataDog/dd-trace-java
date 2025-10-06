@@ -2,6 +2,7 @@ package com.datadog.appsec.config
 
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.util.AbortStartupException
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COLLECTION
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
@@ -289,7 +290,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT
-      | CAPABILITY_ASM_TRACE_TAGGING_RULES)
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES
+      | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
     0 * poller._
 
     when:
@@ -444,7 +446,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT
-      | CAPABILITY_ASM_TRACE_TAGGING_RULES)
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES
+      | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
     0 * poller._
 
     when:
@@ -540,7 +543,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT
-      | CAPABILITY_ASM_TRACE_TAGGING_RULES)
+      | CAPABILITY_ASM_TRACE_TAGGING_RULES
+      | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()

@@ -20,7 +20,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.1"
+  id("com.gradle.develocity") version "4.2.1"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -137,11 +137,15 @@ include(
   ":dd-java-agent:cws-tls",
 )
 
+// AI Guard
+include(":dd-java-agent:agent-aiguard")
+
 // misc
 include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
+  ":utils:flare-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
   ":utils:test-utils",
@@ -323,12 +327,12 @@ include(
   ":dd-java-agent:instrumentation:finatra-2.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
-  ":dd-java-agent:instrumentation:glassfish",
+  ":dd-java-agent:instrumentation:glassfish-3.0",
   ":dd-java-agent:instrumentation:google-http-client",
   ":dd-java-agent:instrumentation:google-pubsub",
   ":dd-java-agent:instrumentation:graal:native-image",
-  ":dd-java-agent:instrumentation:gradle-3.0",
-  ":dd-java-agent:instrumentation:gradle-8.3",
+  ":dd-java-agent:instrumentation:gradle:gradle-3.0",
+  ":dd-java-agent:instrumentation:gradle:gradle-8.3",
   ":dd-java-agent:instrumentation:gradle-testing",
   ":dd-java-agent:instrumentation:graphql-java:graphql-java-14.0",
   ":dd-java-agent:instrumentation:graphql-java:graphql-java-20.0",
@@ -392,8 +396,8 @@ include(
   ":dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handling-resteasy",
   ":dd-java-agent:instrumentation:jax-ws-annotations-1",
   ":dd-java-agent:instrumentation:jax-ws-annotations-2",
-  ":dd-java-agent:instrumentation:jboss-logmanager",
-  ":dd-java-agent:instrumentation:jboss-modules",
+  ":dd-java-agent:instrumentation:jboss:jboss-logmanager-1.1",
+  ":dd-java-agent:instrumentation:jboss:jboss-modules-1.3",
   ":dd-java-agent:instrumentation:jdbc",
   ":dd-java-agent:instrumentation:jdbc:scalikejdbc",
   ":dd-java-agent:instrumentation:jedis:jedis-1.4",
@@ -421,14 +425,14 @@ include(
   ":dd-java-agent:instrumentation:jose-jwt",
   ":dd-java-agent:instrumentation:org-json",
   ":dd-java-agent:instrumentation:jsp-2.3",
-  ":dd-java-agent:instrumentation:junit-4.10",
-  ":dd-java-agent:instrumentation:junit-4.10:cucumber-junit-4",
-  ":dd-java-agent:instrumentation:junit-4.10:junit-4.13",
-  ":dd-java-agent:instrumentation:junit-4.10:munit-junit-4",
-  ":dd-java-agent:instrumentation:junit-5.3",
-  ":dd-java-agent:instrumentation:junit-5.3:junit-5.8",
-  ":dd-java-agent:instrumentation:junit-5.3:cucumber-junit-5",
-  ":dd-java-agent:instrumentation:junit-5.3:spock-junit-5",
+  ":dd-java-agent:instrumentation:junit:junit-4.10",
+  ":dd-java-agent:instrumentation:junit:junit-4.10:cucumber-junit-4",
+  ":dd-java-agent:instrumentation:junit:junit-4.10:junit-4.13",
+  ":dd-java-agent:instrumentation:junit:junit-4.10:munit-junit-4",
+  ":dd-java-agent:instrumentation:junit:junit-5.3",
+  ":dd-java-agent:instrumentation:junit:junit-5.3:junit-5.8",
+  ":dd-java-agent:instrumentation:junit:junit-5.3:cucumber-junit-5",
+  ":dd-java-agent:instrumentation:junit:junit-5.3:spock-junit-5",
   ":dd-java-agent:instrumentation:kafka:kafka-clients-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-clients-3.8",
   ":dd-java-agent:instrumentation:kafka:kafka-common",
@@ -445,8 +449,8 @@ include(
   ":dd-java-agent:instrumentation:log4j:log4j-1.2.4",
   ":dd-java-agent:instrumentation:log4j:log4j-2.0",
   ":dd-java-agent:instrumentation:logback-1.0",
-  ":dd-java-agent:instrumentation:maven-3.2.1",
-  ":dd-java-agent:instrumentation:maven-surefire",
+  ":dd-java-agent:instrumentation:maven:maven-3.2.1",
+  ":dd-java-agent:instrumentation:maven:maven-surefire-3.0",
   ":dd-java-agent:instrumentation:micronaut",
   ":dd-java-agent:instrumentation:micronaut:http-server-netty-2.0",
   ":dd-java-agent:instrumentation:micronaut:http-server-netty-3.0",
@@ -502,6 +506,8 @@ include(
   ":dd-java-agent:instrumentation:reactor-netty-1",
   ":dd-java-agent:instrumentation:rediscala-1.8",
   ":dd-java-agent:instrumentation:renaissance",
+  ":dd-java-agent:instrumentation:resilience4j:resilience4j-2.0",
+  ":dd-java-agent:instrumentation:resilience4j:resilience4j-reactor-2.0",
   ":dd-java-agent:instrumentation:resteasy-appsec",
   ":dd-java-agent:instrumentation:restlet-2.2",
   ":dd-java-agent:instrumentation:rmi",
@@ -517,11 +523,11 @@ include(
   ":dd-java-agent:instrumentation:servicetalk",
   ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.0",
   ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.56",
-  ":dd-java-agent:instrumentation:servlet",
-  ":dd-java-agent:instrumentation:servlet-common",
-  ":dd-java-agent:instrumentation:servlet:request-2",
-  ":dd-java-agent:instrumentation:servlet:request-3",
-  ":dd-java-agent:instrumentation:servlet:request-5",
+  ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common",
+  ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast",
+  ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2",
+  ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0",
+  ":dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0",
   ":dd-java-agent:instrumentation:shutdown",
   ":dd-java-agent:instrumentation:slick",
   ":dd-java-agent:instrumentation:snakeyaml",
@@ -599,7 +605,7 @@ include(
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12",
-  ":dd-java-agent:instrumentation:websphere-jmx",
+  ":dd-java-agent:instrumentation:websphere-jmx-8.5",
   ":dd-java-agent:instrumentation:wildfly-9.0",
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )

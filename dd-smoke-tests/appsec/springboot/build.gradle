@@ -7,13 +7,14 @@ description = 'SpringBoot Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.appsec.springboot.SpringbootApplication')
   }
 }
 
 dependencies {
+  implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0'
   implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.6.0')
   implementation group: 'com.h2database', name: 'h2', version: '2.1.212'

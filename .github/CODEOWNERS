@@ -46,6 +46,7 @@
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java
+/dd-java-agent/agent-aiguard/                                   @DataDog/asm-java
 /dd-java-agent/agent-iast/                                      @DataDog/asm-java
 /dd-java-agent/appsec/appsec-test-fixtures/                     @DataDog/asm-java
 /dd-java-agent/instrumentation/*iast*                           @DataDog/asm-java
@@ -58,6 +59,7 @@
 /dd-smoke-tests/spring-security/                                @DataDog/asm-java
 /dd-java-agent/instrumentation/commons-fileupload/              @DataDog/asm-java
 /dd-java-agent/instrumentation/spring/spring-security/          @DataDog/asm-java
+/dd-trace-api/src/main/java/datadog/trace/api/aiguard/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
@@ -77,16 +79,14 @@
 /dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/cucumber/            @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/jacoco/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/junit-4.10/          @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/junit-5.3/           @DataDog/ci-app-libraries-java
+/dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/karate/              @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/scalatest/           @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/selenium/            @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/gradle-3.0/          @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/gradle-8.3/          @DataDog/ci-app-libraries-java
+/dd-java-agent/instrumentation/gradle/              @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/gradle-testing/      @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/maven-3.2.1/         @DataDog/ci-app-libraries-java
+/dd-java-agent/instrumentation/maven                @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/maven-surefire/      @DataDog/ci-app-libraries-java
 /dd-java-agent/instrumentation/weaver/              @DataDog/ci-app-libraries-java
 /dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries-java
