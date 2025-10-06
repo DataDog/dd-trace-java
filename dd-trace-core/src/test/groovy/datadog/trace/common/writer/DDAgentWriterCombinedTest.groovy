@@ -228,6 +228,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     0 * _
 
     cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
     writer.close()
 
     where:
