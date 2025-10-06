@@ -68,7 +68,7 @@ dependencies {
   jmh project(':dd-trace-core')
   jmh project(':dd-java-agent:agent-builder')
   jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
-  jmh project(':dd-java-agent:instrumentation:java-lang')
+  jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 
   compileOnly('org.jetbrains:annotations:24.0.0')
   errorprone('com.uber.nullaway:nullaway:0.10.15')

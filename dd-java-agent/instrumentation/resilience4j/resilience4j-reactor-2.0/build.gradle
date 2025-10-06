@@ -46,5 +46,5 @@ dependencies {
   // Include other instruments that we rely on and that must not conflict with each other
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
-  testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
 }
