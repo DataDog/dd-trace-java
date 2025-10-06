@@ -304,20 +304,20 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
    */
   private void givenMavenDependenciesAreLoaded(String projectName, String mavenVersion, Map<String, String> additionalEnvVars = [:]) {
     if (LOADED_DEPENDENCIES.add("$projectName:$mavenVersion")) {
-      retryUntilSuccessfulOrNoAttemptsLeft(["org.apache.maven.plugins:maven-dependency-plugin:3.7.0:go-offline"], additionalEnvVars)
+      retryUntilSuccessfulOrNoAttemptsLeft(["org.apache.maven.plugins:maven-dependency-plugin:3.6.1:go-offline"], additionalEnvVars)
     }
     // dependencies below are download separately
     // because they are not declared in the project,
     // but are added at runtime by the tracer
     if (LOADED_DEPENDENCIES.add("com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION")) {
       retryUntilSuccessfulOrNoAttemptsLeft([
-        "org.apache.maven.plugins:maven-dependency-plugin:3.7.0:get",
+        "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get",
         "-Dartifact=com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION".toString()
       ], additionalEnvVars)
     }
     if (LOADED_DEPENDENCIES.add("org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION")) {
       retryUntilSuccessfulOrNoAttemptsLeft([
-        "org.apache.maven.plugins:maven-dependency-plugin:3.7.0:get",
+        "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get",
         "-Dartifact=org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION".toString()
       ], additionalEnvVars)
     }
