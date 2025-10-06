@@ -54,8 +54,6 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     "-DPOWERWAF_EXIT_ON_LEAK=true",
     // disable AppSec rate limit
     "-Ddd.appsec.trace.rate.limit=-1",
-    // enable DBM propagation for RASP SQL injection detection
-    "-Ddd.dbm.propagation.mode=service"
   ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?
   // enable remote config so that appsec is partially enabled (rc is now enabled by default)
   [
