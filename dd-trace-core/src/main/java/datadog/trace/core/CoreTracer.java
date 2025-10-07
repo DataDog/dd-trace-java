@@ -1974,9 +1974,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
     // Used to track whether the ReusableSingleSpanBuilder is actively being used
-    // ReusableSingleSpanBuilder becomes "inUse" after a succesful reset and remains "inUse"
+    // ReusableSingleSpanBuilder becomes "inUse" after a succesful init/reset and remains "inUse"
     // until "buildSpan" is called
-    protected boolean inUse;
+    boolean inUse;
 
     ReusableSingleSpanBuilder(CoreTracer tracer) {
       super(tracer);
