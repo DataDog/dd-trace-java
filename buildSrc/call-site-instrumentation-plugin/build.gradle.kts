@@ -36,7 +36,7 @@ dependencies {
   implementation(libs.asm.tree)
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
-  testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
+  testImplementation("net.bytebuddy", "byte-buddy", "1.17.7")
   testImplementation(libs.spock.core)
   testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation(libs.groovy)
