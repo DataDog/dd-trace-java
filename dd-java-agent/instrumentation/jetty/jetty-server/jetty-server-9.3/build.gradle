@@ -26,9 +26,9 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.M1'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.3.0.M1'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.3.0.M1'
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 
   // Include all jetty-server instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")

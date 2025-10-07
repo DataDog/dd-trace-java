@@ -16,7 +16,6 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 dependencies {
   implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
   implementation project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")
-
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.21.v20190926'
 
   // Don't want to conflict with jetty from the test server.
@@ -38,6 +37,7 @@ dependencies {
   testRuntimeOnly project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.3")
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   // Include all appsec instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
