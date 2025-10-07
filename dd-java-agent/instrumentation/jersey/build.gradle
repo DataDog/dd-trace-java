@@ -53,6 +53,7 @@ dependencies {
   jersey2JettyTestRuntimeOnly group: 'javax.activation', name: 'javax.activation-api', version: '1.2.0'
   jersey2JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
 
@@ -68,6 +69,7 @@ dependencies {
   jersey3JettyTestRuntimeOnly group: 'javax.activation', name: 'javax.activation-api', version: '1.2.0'
   jersey3JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-3-appsec')
