@@ -3,7 +3,7 @@ package org.example
 import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 
-object MyTag extends Tag("a-custom-tag")
+object MyTag      extends Tag("a-custom-tag")
 object MyOtherTag extends Tag("another-custom-tag")
 
 class TestSucceedFlatSpec extends AnyFlatSpec {

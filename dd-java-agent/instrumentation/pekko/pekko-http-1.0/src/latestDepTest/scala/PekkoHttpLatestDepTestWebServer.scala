@@ -10,8 +10,8 @@ import scala.concurrent.Future
 object PekkoHttpLatestDepTestWebServer {
   val ServerBuilderBindFlow: Binder = new Binder {
     override def name: String = "server-builder-bind-flow"
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -24,8 +24,8 @@ object PekkoHttpLatestDepTestWebServer {
 
   val ServerBuilderBind: Binder = new Binder {
     override def name: String = "server-builder-bind"
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -38,8 +38,8 @@ object PekkoHttpLatestDepTestWebServer {
 
   val ServerBuilderBindSync: Binder = new Binder {
     override def name: String = "server-builder-bind-sync"
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -52,8 +52,8 @@ object PekkoHttpLatestDepTestWebServer {
 
   val ServerBuilderBindHttp2: Binder = new Binder {
     override def name: String = "server-builder-bind-http2"
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext

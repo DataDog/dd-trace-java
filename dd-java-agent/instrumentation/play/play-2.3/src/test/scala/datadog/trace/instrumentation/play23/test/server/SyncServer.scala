@@ -80,17 +80,23 @@ class SyncServer extends HttpServer {
       }
     case ("GET", "/exception") =>
       Action {
-        HttpServerTest.controller(EXCEPTION, BlockClosureAdapter {
-          throw new Exception(EXCEPTION.getBody)
-        })
+        HttpServerTest.controller(
+          EXCEPTION,
+          BlockClosureAdapter {
+            throw new Exception(EXCEPTION.getBody)
+          }
+        )
       }
 
     case ("GET", "/user-block") =>
       Action {
-        HttpServerTest.controller(USER_BLOCK, BlockClosureAdapter {
-          Blocking.forUser("user-to-block").blockIfMatch()
-          Results.Ok("should never be reached")
-        })
+        HttpServerTest.controller(
+          USER_BLOCK,
+          BlockClosureAdapter {
+            Blocking.forUser("user-to-block").blockIfMatch()
+            Results.Ok("should never be reached")
+          }
+        )
       }
   }
 
