@@ -62,8 +62,8 @@ dependencies {
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
   implementation("com.google.guava", "guava", "20.0")
-  implementation("org.ow2.asm", "asm", "9.8")
-  implementation("org.ow2.asm", "asm-tree", "9.8")
+  implementation("org.ow2.asm", "asm", "9.9")
+  implementation("org.ow2.asm", "asm-tree", "9.9")
 
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
