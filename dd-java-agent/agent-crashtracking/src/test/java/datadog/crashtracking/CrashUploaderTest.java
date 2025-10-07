@@ -169,6 +169,7 @@ public class CrashUploaderTest {
 
     assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
     assertEquals("logs", event.get("request_type").asText());
+    assertEquals("crashtracker", event.get("origin").asText());
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
 
