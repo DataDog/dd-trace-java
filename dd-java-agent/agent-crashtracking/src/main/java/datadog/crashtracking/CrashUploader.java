@@ -298,6 +298,7 @@ public final class CrashUploader {
         writer.name("level").value("ERROR");
         writer.name("tags").value("severity:crash");
         writer.name("is_sensitive").value(true);
+        writer.name("is_crash").value(true);
         writer.endObject();
         writer.endArray();
         writer.name("application");
