@@ -86,6 +86,11 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "10_series";
+  }
+
+  @Override
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
   }

@@ -20,6 +20,10 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     return "org.eclipse.jetty.server.Request";
   }
 
+  public String muzzleDirective() {
+    return "10_series";
+  }
+
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
