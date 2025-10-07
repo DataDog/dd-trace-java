@@ -1,8 +1,6 @@
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
-apply from: "$rootDir/gradle/dump_hanging_test.gradle"
-
 def isTestingInstrumentation(Project project) {
   return [
     "junit-4.10",
@@ -75,8 +73,8 @@ tasks.withType(Test).configureEach {
     exclude("**/*ForkedTest*")
   }
 
-  // Set test timeout for 15 minutes. Default job timeout is 1h (configured on CI level).
-  timeout = Duration.of(15, ChronoUnit.MINUTES)
+  // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
+  timeout = Duration.of(20, ChronoUnit.MINUTES)
 
   check.dependsOn(it)
 }

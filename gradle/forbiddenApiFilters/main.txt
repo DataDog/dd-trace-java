@@ -28,3 +28,7 @@ net.bytebuddy.matcher.ElementMatchers#isAbstract()
 @defaultMessage Avoid using System.out/err to prevent excess logging. To override, add @SuppressForbidden.
 java.lang.System#out
 java.lang.System#err
+
+#Use jdk LongAdder
+@defaultMessage use LongAdder instead of the legacy jctools FixedSizeStripedLongCounter
+org.jctools.counters.FixedSizeStripedLongCounter

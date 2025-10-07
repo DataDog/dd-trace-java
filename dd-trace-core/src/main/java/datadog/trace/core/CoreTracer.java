@@ -7,6 +7,7 @@ import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.INFERRED_PROXY_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
@@ -72,6 +73,7 @@ import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
+import datadog.trace.common.metrics.NoOpMetricsAggregator;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.sampling.SpanSamplingRules;
@@ -84,13 +86,13 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.flare.TracerFlarePoller;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.propagation.InferredProxyPropagator;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
@@ -129,7 +131,7 @@ import org.slf4j.LoggerFactory;
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
  * reporting, and propagating traces
  */
-public class CoreTracer implements AgentTracer.TracerAPI {
+public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
@@ -163,8 +165,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Nanosecond offset to counter clock drift */
   private volatile long counterDrift;
 
-  private final TracerFlarePoller tracerFlarePoller;
-
   private final TracingConfigPoller tracingConfigPoller;
 
   private final PendingTraceBuffer pendingTraceBuffer;
@@ -181,7 +181,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
 
-  final MetricsAggregator metricsAggregator;
+  volatile MetricsAggregator metricsAggregator;
 
   /** Initial static configuration associated with the tracer. */
   final Config initialConfig;
@@ -335,7 +335,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
-    private boolean pollForTracerFlareRequests;
+    private boolean reportInTracerFlare;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
     private boolean flushOnClose;
@@ -462,8 +462,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder pollForTracerFlareRequests() {
-      this.pollForTracerFlareRequests = true;
+    public CoreTracerBuilder reportInTracerFlare() {
+      this.reportInTracerFlare = true;
       return this;
     }
 
@@ -541,7 +541,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
-          pollForTracerFlareRequests,
+          reportInTracerFlare,
           pollForTracingConfiguration,
           injectBaggageAsTags,
           flushOnClose);
@@ -573,7 +573,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean pollForTracerFlareRequests,
+      final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
       final boolean flushOnClose) {
@@ -601,7 +601,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         timeSource,
         dataStreamsMonitoring,
         profilingContextIntegration,
-        pollForTracerFlareRequests,
+        reportInTracerFlare,
         pollForTracingConfiguration,
         injectBaggageAsTags,
         flushOnClose);
@@ -632,7 +632,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean pollForTracerFlareRequests,
+      final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
       final boolean flushOnClose) {
@@ -643,6 +643,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
     assert baggageMapping != null;
 
+    if (reportInTracerFlare) {
+      TracerFlare.addReporter(this);
+    }
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     startTimeNano = this.timeSource.getCurrentTimeNanos();
     startNanoTicks = this.timeSource.getNanoTicks();
@@ -747,11 +750,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     sharedCommunicationObjects.monitoring = monitoring;
     sharedCommunicationObjects.createRemaining(config);
 
-    tracerFlarePoller = new TracerFlarePoller(dynamicConfig);
-    if (pollForTracerFlareRequests) {
-      tracerFlarePoller.start(config, sharedCommunicationObjects, this);
-    }
-
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
     if (pollForTracingConfiguration) {
       tracingConfigPoller.start(config, sharedCommunicationObjects);
@@ -791,14 +789,26 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceBuffer.start();
 
     sharedCommunicationObjects.whenReady(this.writer::start);
-
-    metricsAggregator =
-        createMetricsAggregator(config, sharedCommunicationObjects, this.healthMetrics);
-    // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
-    // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
-    // same time from sending metrics in sync.
-    AgentTaskScheduler.get()
-        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+    // temporary assign a no-op instance. The final one will be resolved when the discovery will be
+    // allowed
+    metricsAggregator = NoOpMetricsAggregator.INSTANCE;
+    final SharedCommunicationObjects sco = sharedCommunicationObjects;
+    // asynchronously create the aggregator to avoid triggering expensive classloading during the
+    // tracer initialisation.
+    sharedCommunicationObjects.whenReady(
+        () ->
+            AgentTaskScheduler.get()
+                .execute(
+                    () -> {
+                      metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
+                      // Schedule the metrics aggregator to begin reporting after a random delay of
+                      // 1 to 10 seconds (using milliseconds granularity.)
+                      // This avoids a fleet of traced applications starting at the same time from
+                      // sending metrics in sync.
+                      AgentTaskScheduler.get()
+                          .scheduleWithJitter(
+                              MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+                    }));
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
@@ -823,6 +833,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (config.isBaggagePropagationEnabled()
         && config.getTracePropagationBehaviorExtract() != IGNORE) {
       Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
+    }
+    if (config.isInferredProxyPropagationEnabled()) {
+      Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
     }
 
     if (config.isCiVisibilityEnabled()) {
@@ -1345,7 +1358,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
-    tracerFlarePoller.stop();
     healthMetrics.close();
   }
 
@@ -1399,7 +1411,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return null;
   }
 
-  public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {
+  @Override
+  public void addReportToFlare(ZipOutputStream zip) throws IOException {
+    TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
     TracerFlare.addText(zip, "tracer_health.txt", healthMetrics.summary());
     TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }

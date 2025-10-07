@@ -1,4 +1,3 @@
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Open Liberty Smoke Tests'
 
@@ -15,13 +14,14 @@ def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 // compile the Open liberty spring boot server
 tasks.register('mvnStage', Exec) {
   workingDir "$appDir"
+  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
   commandLine "$rootDir/${mvnwCommand}", 'package', "-Dtarget.dir=${buildDir}/application/target"
   inputs.dir "$appDir/src"
   inputs.file "$appDir/pom.xml"
   outputs.file jarPath
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'mvnStage'
   outputs.upToDateWhen {
     !mvnStage.didWork

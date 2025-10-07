@@ -17,7 +17,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests:rum')
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'com.example.Main')
   }
@@ -29,9 +29,7 @@ java {
   }
 }
 tasks.withType(JavaCompile).configureEach {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
 tasks.withType(Test).configureEach {

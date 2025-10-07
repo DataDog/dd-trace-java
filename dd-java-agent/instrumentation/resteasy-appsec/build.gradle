@@ -22,7 +22,7 @@ addTestSuite('jettyAsyncTest')
 //check.dependsOn nettyTest, jettyAsyncTest
 // CI invocations are only for test/latestDepTest
 test.finalizedBy nettyTest, jettyAsyncTest
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 dependencies {

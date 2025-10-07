@@ -26,6 +26,8 @@ public final class TracerConfig {
   public static final String AGENT_UNIX_DOMAIN_SOCKET = "trace.agent.unix.domain.socket";
   public static final String AGENT_NAMED_PIPE = "trace.pipe.name";
   public static final String AGENT_TIMEOUT = "trace.agent.timeout";
+  public static final String FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT =
+      "force.clear.text.http.for.intake.client";
   public static final String PROXY_NO_PROXY = "proxy.no_proxy";
   public static final String TRACE_AGENT_PATH = "trace.agent.path";
   public static final String TRACE_AGENT_ARGS = "trace.agent.args";
@@ -99,6 +101,9 @@ public final class TracerConfig {
   public static final String TRACE_BAGGAGE_MAX_ITEMS = "trace.baggage.max.items";
   public static final String TRACE_BAGGAGE_MAX_BYTES = "trace.baggage.max.bytes";
   public static final String TRACE_BAGGAGE_TAG_KEYS = "trace.baggage.tag.keys";
+
+  public static final String TRACE_INFERRED_PROXY_SERVICES_ENABLED =
+      "trace.inferred.proxy.services.enabled";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 

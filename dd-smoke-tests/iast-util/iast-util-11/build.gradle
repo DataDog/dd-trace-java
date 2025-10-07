@@ -21,12 +21,10 @@ dependencies {
   testFixturesImplementation testFixtures(project(":dd-smoke-tests:iast-util"))
 }
 
-tasks.named("compileJava", JavaCompile).configure {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }

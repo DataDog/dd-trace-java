@@ -102,7 +102,7 @@ public class ClassesToRetransformFinder {
   }
 
   private static boolean lookupClass(Trie changedClasses, Class<?> clazz) {
-    String reversedTypeName = reverseStr(clazz.getName());
+    String reversedTypeName = reverseStr(clazz.getTypeName());
     // try first with FQN (java.lang.String)
     if (changedClasses.containsPrefix(reversedTypeName)) {
       return true;

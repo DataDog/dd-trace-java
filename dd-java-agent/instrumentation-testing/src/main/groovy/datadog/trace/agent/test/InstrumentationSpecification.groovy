@@ -80,6 +80,7 @@ import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
@@ -308,6 +309,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
     injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
+    injectSysConfig(DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL, "http://localhost:1234/debugger/v1/input", true)
     rebuildConfig()
 
     def configuration = Configuration.builder()
@@ -369,7 +371,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
       HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
-      OkHttpClient client = buildHttpClient(agentUrl, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
+      OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
       DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, Config.get().isTraceAgentV05Enabled(), Config.get().isTracerMetricsEnabled())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, Config.get().isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()

@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 buildscript {
   repositories {
     mavenLocal()
@@ -57,10 +59,20 @@ dependencies {
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
+}
+
+tasks.named("compileTestGroovy") {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Groovy generates synthetic accessors methods from superclass, we don't want that for `MisbehavingClassLoader`," +
+    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
+    )
 }

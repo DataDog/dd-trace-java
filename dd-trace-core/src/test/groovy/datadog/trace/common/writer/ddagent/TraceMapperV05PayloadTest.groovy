@@ -26,18 +26,28 @@ import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertFalse
-import static org.junit.Assert.assertNotNull
-import static org.junit.Assert.assertTrue
-import static org.msgpack.core.MessageFormat.*
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.junit.jupiter.api.Assertions.assertNotNull
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.msgpack.core.MessageFormat.FLOAT32
+import static org.msgpack.core.MessageFormat.FLOAT64
+import static org.msgpack.core.MessageFormat.INT16
+import static org.msgpack.core.MessageFormat.INT32
+import static org.msgpack.core.MessageFormat.INT64
+import static org.msgpack.core.MessageFormat.INT8
+import static org.msgpack.core.MessageFormat.NEGFIXINT
+import static org.msgpack.core.MessageFormat.POSFIXINT
+import static org.msgpack.core.MessageFormat.UINT16
+import static org.msgpack.core.MessageFormat.UINT32
+import static org.msgpack.core.MessageFormat.UINT64
+import static org.msgpack.core.MessageFormat.UINT8
 
 class TraceMapperV05PayloadTest extends DDSpecification {
 
   def "body overflow causes a flush"() {
     setup:
     // disable process tags since they are only on the first span of the chunk otherwise the calculation woes
-    def hadProcessTags = Config.get().isExperimentalPropagateProcessTagsEnabled()
     injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     ProcessTags.reset()
     // 4x 36 ASCII characters and 2 bytes of msgpack string prefix
@@ -83,7 +93,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     then:
     verifier.verifyTracesConsumed()
     cleanup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, Boolean.toString(hadProcessTags))
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
   }
 
@@ -143,8 +153,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   void 'test process tags serialization'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    ProcessTags.reset()
     assertNotNull(ProcessTags.tagsForSerialization)
     def spans = (1..2).collect {
       new TraceGenerator.PojoSpan(
@@ -177,8 +185,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
     then:
     verifier.verifyTracesConsumed()
-    cleanup:
-    ProcessTags.empty()
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
@@ -205,7 +211,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
-      def hasProcessTags = false
+      def processTagsCount = 0
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
@@ -257,7 +263,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
               } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
-                hasProcessTags = true
+                processTagsCount++
                 assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
                 assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
@@ -315,9 +321,9 @@ class TraceMapperV05PayloadTest extends DDSpecification {
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               if (metric.getValue() instanceof Double || metric.getValue() instanceof Float) {
-                assertEquals(metric.getKey(), ((Number)expectedSpan.getTag(metric.getKey())).doubleValue(), metric.getValue().doubleValue(), 0.001)
+                assertEquals(((Number)expectedSpan.getTag(metric.getKey())).doubleValue(), metric.getValue().doubleValue(), 0.001, metric.getKey())
               } else {
-                assertEquals(metric.getKey(), expectedSpan.getTag(metric.getKey()), metric.getValue())
+                assertEquals(expectedSpan.getTag(metric.getKey()), metric.getValue(), metric.getKey())
               }
             }
             String type = dictionary[unpacker.unpackInt()]
@@ -327,7 +333,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       } catch (IOException e) {
         Assert.fail(e.getMessage())
       } finally {
-        assert hasProcessTags == Config.get().isExperimentalPropagateProcessTagsEnabled()
+        assert processTagsCount == (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0)
         mapper.reset()
         captured.position(0)
         captured.limit(captured.capacity())

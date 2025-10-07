@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 // this project will run in isolation under the agent's classloader
 buildscript {
 
@@ -81,8 +83,7 @@ subprojects { Project subProj ->
       compileOnly libs.autoservice.annotation
 
       // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
-      testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
-      testImplementation project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
+      testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
       // FIXME: we should enable this, but currently this fails tests for google http client
       //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
       testImplementation project(':dd-java-agent:instrumentation:classloading')
@@ -128,7 +129,7 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 }
 
 
-tasks.named('shadowJar').configure {
+tasks.named('shadowJar') {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar
@@ -177,4 +178,6 @@ tasks.register('generateKnownTypesIndex', JavaExec) {
   dependsOn 'processResources'
 }
 
-shadowJar.dependsOn 'generateInstrumenterIndex', 'generateKnownTypesIndex'
+tasks.named("shadowJar", ShadowJar) {
+  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
+}

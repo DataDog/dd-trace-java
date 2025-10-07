@@ -5,6 +5,7 @@
 	logallrefupdates = true
 	ignorecase = true
 	precomposeunicode = true
+	sshCommand = ssh -o ConnectTimeout=2
 [remote "origin"]
 	url = git@git.com:datadog/non_existing_repo.git
 	fetch = +refs/heads/*:refs/remotes/origin/*
