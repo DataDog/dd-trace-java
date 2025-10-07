@@ -23,6 +23,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
+import datadog.environment.ThreadUtils;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -998,6 +999,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final ReusableSingleSpanBuilderThreadLocalCache tlCache,
       final String instrumentationName,
       final CharSequence operationName) {
+    if (ThreadUtils.isCurrentThreadVirtual()) {
+      // Since virtual threads are created and destroyed often,
+      // cautiously decided not to create a thread local for the virtual threads.
+
+      // TODO: This could probably be improved by having a single thread local that
+      // holds the core things that we need for tracing.  e.g. context, etc
+      ReusableSingleSpanBuilder newSpanBuilder = new ReusableSingleSpanBuilder(tracer);
+      newSpanBuilder.init(instrumentationName, operationName);
+      return newSpanBuilder;
+    }
+
     // retrieve the thread's typical SpanBuilder and try to reset it
     // reset will fail if the ReusableSingleSpanBuilder is still "in-use"
     ReusableSingleSpanBuilder tlSpanBuilder = tlCache.get();
@@ -1947,9 +1959,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
-    // Used to track whether the CoreSpanBuilder is actively being used
-    // CoreSpanBuilder becomes "inUse" after a succesful reset and remains "inUse" until "build" is
-    // called
+    // Used to track whether the ReusableSingleSpanBuilder is actively being used
+    // ReusableSingleSpanBuilder becomes "inUse" after a succesful reset and remains "inUse"
+    // until "buildSpan" is called
     protected boolean inUse;
 
     ReusableSingleSpanBuilder(CoreTracer tracer) {
