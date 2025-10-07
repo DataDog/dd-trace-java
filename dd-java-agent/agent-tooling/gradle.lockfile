@@ -200,4 +200,4 @@ org.webjars:jquery:3.5.1=jmhRuntimeClasspath,testRuntimeClasspath,test_java11Run
 org.xmlresolver:xmlresolver:4.4.3=spotbugs
 org.yaml:snakeyaml:1.26=jmhCompileClasspath,jmhRuntimeClasspath
 xml-apis:xml-apis:1.4.01=spotbugs
-empty=annotationProcessor,jmhAnnotationProcessor,spotbugsPlugins,testAnnotationProcessor,testFixturesAnnotationProcessor,test_java11AnnotationProcessor
+empty=annotationProcessor,jmhAnnotationProcessor,spotbugsPlugins,testAnnotationProcessor,testFixturesAnnotationProcessor,test_java11AnnotationProcessor,test_java21AnnotationProcessor,test_java21CompileClasspath,test_java21RuntimeClasspath

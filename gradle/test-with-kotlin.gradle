@@ -2,7 +2,7 @@
 apply plugin: 'kotlin'
 apply from: "$rootDir/gradle/spotless/spotless-kotlin.gradle"
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   //Note: look like it should be `classpath += files(sourceSets.test.kotlin.classesDirectory)`
   //instead, but kotlin plugin doesn't support it (yet?)
   classpath += files(compileTestKotlin.destinationDirectory)

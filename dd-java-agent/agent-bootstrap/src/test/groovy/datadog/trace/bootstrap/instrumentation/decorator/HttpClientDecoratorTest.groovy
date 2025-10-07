@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.gateway.CallbackProvider
 import static datadog.trace.api.gateway.Events.EVENTS
@@ -249,8 +250,8 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     decorator.onRequest(span2,  req)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.networkConnection()) >> listener
-    1 * listener.apply(reqCtx, _ as String)
+    1 * callbackProvider.getCallback(EVENTS.httpClientRequest()) >> listener
+    1 * listener.apply(reqCtx, _ as HttpClientRequest)
   }
 
   @Override

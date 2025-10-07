@@ -16,7 +16,7 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.maven.MavenRunner')
   }

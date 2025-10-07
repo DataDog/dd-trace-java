@@ -98,8 +98,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final Aggregator aggregator;
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
-  private final SharedCommunicationObjects sharedCommunicationObjects;
-  private volatile DDAgentFeaturesDiscovery features;
+  private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
@@ -111,10 +110,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
-        sharedCommunicationObjects,
+        sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
-            sharedCommunicationObjects.okHttpClient,
+            sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
             V6_METRICS_ENDPOINT,
             config.isTracerMetricsBufferingEnabled(),
@@ -127,7 +126,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      SharedCommunicationObjects sharedCommunicationObjects,
+      DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
@@ -135,7 +134,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         wellKnownTags,
         ignoredResources,
-        sharedCommunicationObjects,
+        features,
         healthMetric,
         sink,
         maxAggregates,
@@ -147,7 +146,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      SharedCommunicationObjects sharedCommunicationObjects,
+      DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
@@ -156,7 +155,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit) {
     this(
         ignoredResources,
-        sharedCommunicationObjects,
+        features,
         healthMetric,
         sink,
         new SerializingMetricWriter(wellKnownTags, sink),
@@ -168,7 +167,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
-      SharedCommunicationObjects sharedCommunicationObjects,
+      DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
       MetricWriter metricWriter,
@@ -181,7 +180,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
     this.keys = new NonBlockingHashMap<>();
-    this.sharedCommunicationObjects = sharedCommunicationObjects;
+    this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
     this.aggregator =
@@ -199,18 +198,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.reportingIntervalTimeUnit = timeUnit;
   }
 
-  private DDAgentFeaturesDiscovery featuresDiscovery() {
-    DDAgentFeaturesDiscovery ret = features;
-    if (ret != null) {
-      return ret;
-    }
-    // no need to synchronise here since it's already done in sharedCommunicationObject.
-    // At worst, we'll assign multiple time the variable but it will be the same object
-    ret = sharedCommunicationObjects.featuresDiscovery(Config.get());
-    features = ret;
-    return ret;
-  }
-
   @Override
   public void start() {
     sink.register(this);
@@ -224,6 +211,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                 reportingInterval,
                 reportingIntervalTimeUnit);
     log.debug("started metrics aggregator");
+  }
+
+  private boolean isMetricsEnabled() {
+    if (features.getMetricsEndpoint() == null) {
+      features.discoverIfOutdated();
+    }
+    return features.supportsMetrics();
   }
 
   @Override
@@ -242,7 +236,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public Future<Boolean> forceReport() {
-    if (!featuresDiscovery().supportsMetrics()) {
+    // Ensure the feature is enabled
+    if (!isMetricsEnabled()) {
       return CompletableFuture.completedFuture(false);
     }
     // Wait for the thread to start
@@ -278,7 +273,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    final DDAgentFeaturesDiscovery features = featuresDiscovery();
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
@@ -289,7 +283,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel, features);
+          forceKeep |= publish(span, isTopLevel);
         }
       }
       healthMetrics.onClientStatTraceComputed(
@@ -311,7 +305,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return spanKind != null && ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel, DDAgentFeaturesDiscovery features) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
     final CharSequence spanKind = span.getTag(SPAN_KIND, "");
     MetricKey newKey =
         new MetricKey(
@@ -324,7 +318,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString(), features));
+            getPeerTags(span, spanKind.toString()));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
@@ -359,8 +353,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return isNewKey || span.getError() > 0;
   }
 
-  private List<UTF8BytesString> getPeerTags(
-      CoreSpan<?> span, String spanKind, DDAgentFeaturesDiscovery features) {
+  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
     if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
       List<UTF8BytesString> peerTags = new ArrayList<>();
       for (String peerTag : features.peerTags()) {
@@ -424,7 +417,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     switch (eventType) {
       case DOWNGRADED:
         log.debug("Agent downgrade was detected");
-        AgentTaskScheduler.get().execute(this::disable);
+        disable();
+        healthMetrics.onClientStatDowngraded();
         break;
       case BAD_PAYLOAD:
         log.debug("bad metrics payload sent to trace agent: {}", message);
@@ -440,11 +434,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private void disable() {
-    final DDAgentFeaturesDiscovery features = featuresDiscovery();
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      healthMetrics.onClientStatDowngraded();
       this.pending.clear();
       this.batchPool.clear();
       this.inbox.clear();

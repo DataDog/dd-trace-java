@@ -65,7 +65,7 @@ public class CoverageReportUploader {
             .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
             .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
             .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
+            .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
             .build();
 
     backendApi.post("cicovreprt", multipartBody, responseStream -> null, telemetryListener, false);

@@ -26,6 +26,8 @@ jobs:
         id: define-branch
         run: echo "branch=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
       - name: Update Gradle dependencies
+        env:
+          ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \

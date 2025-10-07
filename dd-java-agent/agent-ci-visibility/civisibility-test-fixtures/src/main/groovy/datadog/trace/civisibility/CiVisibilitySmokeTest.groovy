@@ -149,7 +149,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
     assert logs.findAll { log -> ((String) log.message).endsWith("is emitting.") }.size() == expectedCount
   }
 
-  private static verifySnapshots(List<Map<String, Object>> logs, expectedCount) {
+  protected static verifySnapshots(List<Map<String, Object>> logs, expectedCount) {
     assert logs.size() == expectedCount
 
     def requiredLogFields = ["logger.name", "logger.method", "dd.spanid", "dd.traceid"]

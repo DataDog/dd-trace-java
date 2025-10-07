@@ -9,6 +9,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
@@ -50,7 +51,6 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.telemetry.LogCollector;
@@ -169,7 +169,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
             | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES;
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES
+            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -555,7 +556,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
             | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES);
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES
+            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
@@ -589,7 +591,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       newState = asm.enabled;
       // Report AppSec activation change via telemetry when modified via remote config
-      ConfigCollector.get().put(APPSEC_ENABLED, asm.enabled, ConfigOrigin.REMOTE);
+      ConfigCollector.get().putRemote(APPSEC_ENABLED, asm.enabled);
     }
     if (AppSecSystem.isActive() != newState) {
       log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
