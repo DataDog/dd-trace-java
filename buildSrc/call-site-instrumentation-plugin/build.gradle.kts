@@ -32,8 +32,8 @@ dependencies {
   compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
 
   implementation("org.freemarker", "freemarker", "2.3.30")
-  implementation("org.ow2.asm", "asm", "9.8")
-  implementation("org.ow2.asm", "asm-tree", "9.8")
+  implementation("org.ow2.asm", "asm", "9.9")
+  implementation("org.ow2.asm", "asm-tree", "9.9")
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
   testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
