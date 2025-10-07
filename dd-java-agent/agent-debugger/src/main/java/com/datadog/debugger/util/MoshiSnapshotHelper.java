@@ -546,7 +546,7 @@ public class MoshiSnapshotHelper {
       jsonWriter.value(value.getType());
       jsonWriter.name(MESSAGE);
       String msg = value.getMessage();
-      if (msg.length() > MAX_EXCEPTION_MESSAGE_LENGTH) {
+      if (msg != null && msg.length() > MAX_EXCEPTION_MESSAGE_LENGTH) {
         msg = msg.substring(0, MAX_EXCEPTION_MESSAGE_LENGTH);
       }
       jsonWriter.value(msg);
