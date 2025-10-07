@@ -7,6 +7,7 @@ import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PRO
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Sampled;
@@ -18,6 +19,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.Collection;
@@ -26,6 +28,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -48,6 +51,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
   private final Instrumentation instrumentation;
   private final TransformerSupplier transformerSupplier;
@@ -62,6 +66,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private final String serviceName;
   private final Map<String, InstrumentationResult> instrumentationResults =
       new ConcurrentHashMap<>();
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
 
   public ConfigurationUpdater(
       Instrumentation instrumentation,
@@ -176,6 +182,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   private void reportReceived(ConfigurationComparer changes) {
     for (ProbeDefinition def : changes.getAddedDefinitions()) {
+      if (def instanceof ExceptionProbe) {
+        // do not report received for exception probes
+        continue;
+      }
       sink.addReceived(def.getProbeId());
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {
@@ -233,7 +243,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   public ProbeImplementation resolve(String encodedProbeId) {
     ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
     if (definition == null) {
-      LOGGER.warn(SEND_TELEMETRY, "Cannot resolve probe id={}", encodedProbeId);
+      ratelimitedLogger.warn(SEND_TELEMETRY, "Cannot resolve probe id={}", encodedProbeId);
     }
     return definition;
   }

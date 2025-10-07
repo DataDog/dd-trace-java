@@ -33,6 +33,8 @@ jobs:
           git checkout -b $BRANCH_NAME
           git push -u origin $BRANCH_NAME --force
       - name: Update Gradle dependencies
+        env:
+          ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \

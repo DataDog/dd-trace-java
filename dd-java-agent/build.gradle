@@ -25,13 +25,13 @@ sourceSets {
   }
 }
 
-compileMain_java6Java.configure {
-  setJavaVersion(it, 8)
-  sourceCompatibility = JavaVersion.VERSION_1_6
-  targetCompatibility = JavaVersion.VERSION_1_6
+def java6CompileTask = tasks.named("compileMain_java6Java") {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_6)
 }
 
-tasks.compileJava.dependsOn compileMain_java6Java
+tasks.named("compileJava") {
+  dependsOn(java6CompileTask)
+}
 
 dependencies {
   main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
@@ -167,6 +167,7 @@ includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst')
 includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics')
 includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling')
 includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec')
+includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard')
 includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast')
 includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger')
 includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility')

@@ -101,9 +101,7 @@ sourceSets {
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 tasks.named("jar", Jar) {
@@ -124,11 +122,11 @@ tasks.named("compileMule46ForkedTestGroovy", GroovyCompile) {
 
 tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractLatestMuleServices'
-  setJavaVersion(it, 17)
+  configureCompiler(it, 17)
 }
 
 tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
-  setJavaVersion(it, 17)
+  configureCompiler(it, 17)
 }
 
 dependencies {
@@ -224,6 +222,7 @@ tasks.register('extractLatestMuleServices', Sync) {
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
   workingDir "$appDir"
+  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
   commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")

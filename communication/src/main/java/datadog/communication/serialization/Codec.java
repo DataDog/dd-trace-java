@@ -1,28 +1,36 @@
 package datadog.communication.serialization;
 
+import datadog.communication.serialization.custom.aiguard.FunctionWriter;
+import datadog.communication.serialization.custom.aiguard.MessageWriter;
+import datadog.communication.serialization.custom.aiguard.ToolCallWriter;
 import datadog.communication.serialization.custom.stacktrace.StackTraceEventFrameWriter;
 import datadog.communication.serialization.custom.stacktrace.StackTraceEventWriter;
+import datadog.trace.api.Config;
+import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public final class Codec extends ClassValue<ValueWriter<?>> {
 
-  private static final Map<Class<?>, ValueWriter<?>> defaultConfig =
-      Stream.of(
-              new Object[][] {
-                {StackTraceEvent.class, new StackTraceEventWriter()},
-                {StackTraceFrame.class, new StackTraceEventFrameWriter()},
-              })
-          .collect(Collectors.toMap(data -> (Class<?>) data[0], data -> (ValueWriter<?>) data[1]));
+  public static final Codec INSTANCE;
 
-  public static final Codec INSTANCE = new Codec(defaultConfig);
+  static {
+    final Map<Class<?>, ValueWriter<?>> writers = new HashMap<>(1 << 3);
+    writers.put(StackTraceEvent.class, new StackTraceEventWriter());
+    writers.put(StackTraceFrame.class, new StackTraceEventFrameWriter());
+    if (Config.get().isAiGuardEnabled()) {
+      writers.put(AIGuard.Message.class, new MessageWriter());
+      writers.put(AIGuard.ToolCall.class, new ToolCallWriter());
+      writers.put(AIGuard.ToolCall.Function.class, new FunctionWriter());
+    }
+    INSTANCE = new Codec(writers);
+  }
 
   private final Map<Class<?>, ValueWriter<?>> config;
 

@@ -303,7 +303,11 @@ class ObjectIntrospectionSpecification extends DDSpecification {
   void 'conversion of an element throws'() {
     setup:
     def cs = new CharSequence() {
-      @Delegate String s = ''
+      // When run on JDK8 this prevents `NoClassDefFoundError` of `java.lang.constant.Constable`.
+      // Since JDK12 types like Integer, String implement Constable, and groovy capture this
+      // in the enclosing class, which fails on JDK8 when it is loaded,
+      // see https://github.com/groovy/groovy-eclipse/issues/1436
+      @Delegate(interfaces = false) String s = ''
 
       @Override
       String toString() {

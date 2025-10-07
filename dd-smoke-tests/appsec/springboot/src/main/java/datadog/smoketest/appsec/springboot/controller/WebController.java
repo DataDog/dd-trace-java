@@ -241,6 +241,11 @@ public class WebController {
     headers.add("X-Test-Header-3", "value3");
     headers.add("X-Test-Header-4", "value4");
     headers.add("X-Test-Header-5", "value5");
+    headers.add("WWW-Authenticate", "value6");
+    headers.add("Proxy-Authenticate", "value7");
+    headers.add("Set-Cookie", "value8");
+    headers.add("Authentication-Info", "value9");
+    headers.add("Proxy-Authentication-Info", "value10");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
@@ -252,6 +257,11 @@ public class WebController {
     }
     headers.add("content-language", "en-US");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @PostMapping("/waf-event-with-body")
+  public String wafEventWithBody(@RequestBody String body) {
+    return "EXECUTED";
   }
 
   @PostMapping("/api_security/response")
@@ -268,17 +278,14 @@ public class WebController {
   public ResponseEntity<String> apiSecurityHttpClientOkHttp2(final HttpServletRequest request)
       throws IOException {
     // create an internal http request to the echo endpoint to validate the http client library
-    final String url =
-        ServletUriComponentsBuilder.fromRequestUri(request)
-            .replacePath("/echo")
-            .build()
-            .toUriString();
+    final String url = getEchoUrl(request);
     Request.Builder clientRequest = new Request.Builder().url(url);
-    if (request.getMethod().equalsIgnoreCase("POST")) {
+    if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
       clientRequest =
-          clientRequest.post(
+          clientRequest.method(
+              request.getMethod(),
               com.squareup.okhttp.RequestBody.create(
                   com.squareup.okhttp.MediaType.parse(contentType), data));
     } else {
@@ -301,6 +308,41 @@ public class WebController {
   }
 
   @RequestMapping(
+      value = "/api_security/http_client/okHttp3",
+      method = {POST, GET, PUT})
+  public ResponseEntity<String> apiSecurityHttpClientOkHttp3(final HttpServletRequest request)
+      throws IOException {
+    // create an internal http request to the echo endpoint to validate the http client library
+    final String url = getEchoUrl(request);
+    okhttp3.Request.Builder clientRequest = new okhttp3.Request.Builder().url(url);
+    if (requiresBody(request.getMethod())) {
+      final String contentType = request.getContentType();
+      final byte[] data = readFully(request.getInputStream());
+      clientRequest =
+          clientRequest.method(
+              request.getMethod(),
+              okhttp3.RequestBody.create(okhttp3.MediaType.parse(contentType), data));
+    } else {
+      clientRequest.method(request.getMethod(), null);
+    }
+    final String statusCode = request.getHeader("Status");
+    if (statusCode != null) {
+      clientRequest = clientRequest.header("Status", statusCode);
+    }
+    final String witness = request.getHeader("Witness");
+    if (witness != null) {
+      clientRequest = clientRequest.header("Witness", witness);
+    }
+    final String echoHeaders = request.getHeader("echo-headers");
+    if (echoHeaders != null) {
+      clientRequest = clientRequest.header("echo-headers", echoHeaders);
+    }
+    final okhttp3.Response clientResponse =
+        new okhttp3.OkHttpClient().newCall(clientRequest.build()).execute();
+    return ResponseEntity.status(200).body(clientResponse.body().string());
+  }
+
+  @RequestMapping(
       value = "/echo",
       method = {POST, GET, PUT})
   public ResponseEntity<String> echo(final HttpServletRequest request) throws IOException {
@@ -311,13 +353,24 @@ public class WebController {
     if (echoHeaders != null) {
       response = response.header("echo-headers", echoHeaders);
     }
-    if (request.getMethod().equalsIgnoreCase("POST")) {
+    if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
       return response.contentType(MediaType.parseMediaType(contentType)).body(new String(data));
     } else {
       return response.body("OK");
     }
+  }
+
+  private static boolean requiresBody(final String method) {
+    return method.equalsIgnoreCase("POST") || method.equalsIgnoreCase("PUT");
+  }
+
+  private static String getEchoUrl(final HttpServletRequest request) {
+    return ServletUriComponentsBuilder.fromRequestUri(request)
+        .replacePath("/echo")
+        .build()
+        .toUriString();
   }
 
   private static byte[] readFully(final InputStream in) throws IOException {

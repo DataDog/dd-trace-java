@@ -32,14 +32,13 @@ dependencies {
 
 }
 
-["compileLatestDepTestGroovy", "compileVersion40TestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    setJavaVersion(it, 11)
-  }
-}
-
-["compileLatestDepTestJava", "compileVersion40TestJava"].each {
-  tasks.named(it, JavaCompile) {
-    setJavaVersion(it, 11)
+[
+  "compileLatestDepTestGroovy",
+  "compileLatestDepTestJava",
+  "compileVersion40TestGroovy",
+  "compileVersion40TestJava"
+].each {
+  tasks.named(it, AbstractCompile) {
+    configureCompiler(it, 11)
   }
 }

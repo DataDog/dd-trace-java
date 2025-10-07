@@ -31,7 +31,7 @@ dependencies {
   testImplementation group: 'org.json', name: 'json', version: '20230227'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-io') //Needed for Reader
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8') //Needed for Reader
 
   latestDepTestImplementation group: 'org.json', name: 'json', version: '20250107' // TODO replace with + when APPSEC-58007 solved
 }
