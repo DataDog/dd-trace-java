@@ -78,7 +78,7 @@ jobs:
   check:
     name: Check system tests success
     runs-on: ubuntu-latest
-    needs:
-    - main
+    if: ${{ always() }}
+    needs: [build, main]
     steps:
     - run: exit 0
