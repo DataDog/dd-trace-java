@@ -111,18 +111,18 @@ dependencies {
   testImplementation group: 'tomcat', name: 'naming-factory', version: tomcatVersion
   testImplementation group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-5.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
 
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
 
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '9.+'
@@ -146,13 +146,13 @@ dependencies {
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-      // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
-      jvmArgs += ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
-    }
-  }
+tasks.withType(Test).configureEach {
+  // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
+  configureJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
+    )
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.

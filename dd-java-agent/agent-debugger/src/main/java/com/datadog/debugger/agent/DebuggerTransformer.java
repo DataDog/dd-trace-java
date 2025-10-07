@@ -24,7 +24,6 @@ import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
-import com.datadog.debugger.util.ExceptionHelper;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -590,6 +589,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (listener != null) {
         listener.instrumentationResult(definition, result);
       }
+      if (definition instanceof ExceptionProbe) {
+        // do not report diagnostics for exception probes
+        continue;
+      }
       List<DiagnosticMessage> diagnosticMessages =
           result.getDiagnostics().get(definition.getProbeId());
       if (!result.getDiagnostics().isEmpty()) {
@@ -1005,7 +1008,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         }
         return common.getInternalName();
       } catch (Exception ex) {
-        ExceptionHelper.logException(LOGGER, ex, "getCommonSuperClass failed: ");
+        LOGGER.debug("getCommonSuperClass failed: ", ex);
         return tpDatadogClassLoader.describe("java.lang.Object").resolve().getInternalName();
       }
     }

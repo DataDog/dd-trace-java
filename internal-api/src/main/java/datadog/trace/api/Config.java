@@ -7,11 +7,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_COLLECTED_HEADERS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
@@ -183,26 +185,34 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENABLED;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENDPOINT;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_CONTENT_SIZE;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_TIMEOUT;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_COLLECT_ALL_HEADERS;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_HEADER_COLLECTION_REDACTION_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_COLLECTED_HEADERS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACES_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_COLLECT_REQUEST_BODY;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
@@ -329,6 +339,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.APP_KEY;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
@@ -560,6 +571,7 @@ import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
+import static datadog.trace.api.config.TracerConfig.FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
@@ -789,6 +801,9 @@ public class Config {
   private final String agentUnixDomainSocket;
   private final String agentNamedPipe;
   private final int agentTimeout;
+  /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
+  private final boolean forceClearTextHttpForIntakeClient;
+
   private final Set<String> noProxyHosts;
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
@@ -946,14 +961,13 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecCollectAllHeaders;
-  private final boolean appSecHeaderCollectionRedactionEnabled;
-  private final int appSecMaxCollectedHeaders;
-  private final boolean appSecRaspCollectRequestBody;
+  private final int appSecBodyParsingSizeLimit;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final boolean apiSecurityEndpointCollectionEnabled;
   private final int apiSecurityEndpointCollectionMessageLimit;
+  private final int apiSecurityMaxDownstreamRequestBodyAnalysis;
+  private final double apiSecurityDownstreamRequestAnalysisSampleRate;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1255,6 +1269,12 @@ public class Config {
 
   private final RumInjectorConfig rumInjectorConfig;
 
+  private final boolean aiGuardEnabled;
+  private final String aiGuardEndpoint;
+  private final int aiGuardTimeout;
+  private final int aiGuardMaxMessagesLength;
+  private final int aiGuardMaxContentSize;
+
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
     OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
@@ -1298,7 +1318,7 @@ public class Config {
 
     String tmpApplicationKey =
         configProvider.getStringExcludingSource(
-            APPLICATION_KEY, null, SystemPropertiesConfigSource.class);
+            APPLICATION_KEY, null, SystemPropertiesConfigSource.class, APP_KEY);
     String applicationKeyFile = configProvider.getString(APPLICATION_KEY_FILE);
     if (applicationKeyFile != null) {
       try {
@@ -1467,6 +1487,9 @@ public class Config {
             && agentNamedPipe == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
+
+    forceClearTextHttpForIntakeClient =
+        configProvider.getBoolean(FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT, false);
 
     // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
     noProxyHosts = tryMakeImmutableSet(configProvider.getSpacedList(PROXY_NO_PROXY));
@@ -2096,14 +2119,9 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
-    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
-    appSecHeaderCollectionRedactionEnabled =
-        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
-    appSecMaxCollectedHeaders =
+    appSecBodyParsingSizeLimit =
         configProvider.getInteger(
-            APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
-    appSecRaspCollectRequestBody =
-        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
+            APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -2117,6 +2135,14 @@ public class Config {
         configProvider.getInteger(
             API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
             DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
+    apiSecurityMaxDownstreamRequestBodyAnalysis =
+        configProvider.getInteger(
+            API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS,
+            DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
+    apiSecurityDownstreamRequestAnalysisSampleRate =
+        configProvider.getDouble(
+            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+            DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2794,6 +2820,15 @@ public class Config {
 
     this.rumInjectorConfig = parseRumConfig(configProvider);
 
+    this.aiGuardEnabled = configProvider.getBoolean(AI_GUARD_ENABLED, DEFAULT_AI_GUARD_ENABLED);
+    this.aiGuardEndpoint = configProvider.getString(AI_GUARD_ENDPOINT);
+    this.aiGuardTimeout = configProvider.getInteger(AI_GUARD_TIMEOUT, DEFAULT_AI_GUARD_TIMEOUT);
+    this.aiGuardMaxContentSize =
+        configProvider.getInteger(AI_GUARD_MAX_CONTENT_SIZE, DEFAULT_AI_GUARD_MAX_CONTENT_SIZE);
+    this.aiGuardMaxMessagesLength =
+        configProvider.getInteger(
+            AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
+
     log.debug("New instance: {}", this);
   }
 
@@ -2969,6 +3004,10 @@ public class Config {
 
   public int getAgentTimeout() {
     return agentTimeout;
+  }
+
+  public boolean isForceClearTextHttpForIntakeClient() {
+    return forceClearTextHttpForIntakeClient;
   }
 
   public Set<String> getNoProxyHosts() {
@@ -3606,6 +3645,14 @@ public class Config {
 
   public int getApiSecurityEndpointCollectionMessageLimit() {
     return apiSecurityEndpointCollectionMessageLimit;
+  }
+
+  public int getApiSecurityMaxDownstreamRequestBodyAnalysis() {
+    return apiSecurityMaxDownstreamRequestBodyAnalysis;
+  }
+
+  public double getApiSecurityDownstreamRequestAnalysisSampleRate() {
+    return apiSecurityDownstreamRequestAnalysisSampleRate;
   }
 
   public boolean isApiSecurityEndpointCollectionEnabled() {
@@ -5103,20 +5150,8 @@ public class Config {
     return appSecMaxStackTraceDepth;
   }
 
-  public boolean isAppSecCollectAllHeaders() {
-    return appSecCollectAllHeaders;
-  }
-
-  public boolean isAppSecHeaderCollectionRedactionEnabled() {
-    return appSecHeaderCollectionRedactionEnabled;
-  }
-
-  public int getAppsecMaxCollectedHeaders() {
-    return appSecMaxCollectedHeaders;
-  }
-
-  public boolean isAppSecRaspCollectRequestBody() {
-    return appSecRaspCollectRequestBody;
+  public int getAppSecBodyParsingSizeLimit() {
+    return appSecBodyParsingSizeLimit;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
@@ -5157,6 +5192,26 @@ public class Config {
 
   public RumInjectorConfig getRumInjectorConfig() {
     return this.rumInjectorConfig;
+  }
+
+  public boolean isAiGuardEnabled() {
+    return aiGuardEnabled;
+  }
+
+  public String getAiGuardEndpoint() {
+    return aiGuardEndpoint;
+  }
+
+  public int getAiGuardMaxContentSize() {
+    return aiGuardMaxContentSize;
+  }
+
+  public int getAiGuardMaxMessagesLength() {
+    return aiGuardMaxMessagesLength;
+  }
+
+  public int getAiGuardTimeout() {
+    return aiGuardTimeout;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(
@@ -5855,6 +5910,10 @@ public class Config {
         + experimentalPropagateProcessTagsEnabled
         + ", rumInjectorConfig="
         + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
+        + ", aiGuardEnabled="
+        + aiGuardEnabled
+        + ", aiGuardEndpoint="
+        + aiGuardEndpoint
         + '}';
   }
 }

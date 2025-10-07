@@ -27,8 +27,12 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
-      id = "tracer-version"
+      id = "datadog.tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
+    create("dump-hanged-test-plugin") {
+      id = "datadog.dump-hanged-test"
+      implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
     create("supported-config-generation") {
       id = "supported-config-generator"
@@ -58,8 +62,8 @@ dependencies {
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
   implementation("com.google.guava", "guava", "20.0")
-  implementation("org.ow2.asm", "asm", "9.8")
-  implementation("org.ow2.asm", "asm-tree", "9.8")
+  implementation(libs.asm)
+  implementation(libs.asm.tree)
 
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")

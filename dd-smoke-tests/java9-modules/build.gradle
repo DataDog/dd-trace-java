@@ -10,11 +10,8 @@ tasks.named("jar", Jar) {
   }
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 tasks.withType(JavaCompile).configureEach { JavaCompile jc ->
-  setJavaVersion(jc, 11)
+  configureCompiler(jc, 11, JavaVersion.VERSION_1_9, "Need Java module support")
   // read up classpath lazily to avoid early locking of gradle settings
   jc.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
@@ -28,7 +25,7 @@ tasks.withType(Test).configureEach {
   dependsOn "jar"
 }
 
-tasks.withType(Test).forEach {
+tasks.withType(Test).configureEach {
   it.doFirst {
     JavaInstallationMetadata metadata = it.getJavaLauncher().get().metadata
     // We can safely assume that the general configuration has disabled this test if
