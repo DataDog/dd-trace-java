@@ -87,6 +87,10 @@ final class JavaVersion {
     return this.major == major && this.minor == minor && this.update == update;
   }
 
+  public boolean isAtLeast(int major) {
+    return isAtLeast(major, 0, 0);
+  }
+
   public boolean isAtLeast(int major, int minor, int update) {
     return isAtLeast(this.major, this.minor, this.update, major, minor, update);
   }
