@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle
 
+import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.workers.WorkAction
 import java.lang.reflect.Method
@@ -42,6 +43,12 @@ abstract class MuzzleAction : WorkAction<MuzzleWorkParameters> {
               Boolean::class.java,
               String::class.java
             )
+      try {
         assertionMethod.invoke(null, instCL, testCL, assertPass, muzzleDirective)
+        parameters.resultFile.get().asFile.writeText("PASSING")
+      } catch (e: Exception) {
+        parameters.resultFile.get().asFile.writeText(e.stackTraceToString())
+        throw GradleException("Muzzle validation failed", e)
+      }
     }
 }
