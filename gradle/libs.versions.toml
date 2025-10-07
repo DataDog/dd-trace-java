@@ -50,6 +50,8 @@ autoservice-annotation = { module = "com.google.auto.service:auto-service-annota
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons" }
 ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
+asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
+asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
 asmcommons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
 dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
 jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
