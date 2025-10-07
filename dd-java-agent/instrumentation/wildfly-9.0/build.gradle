@@ -144,8 +144,8 @@ tasks.named("processTestResources", ProcessResources) {
   }
 }
 
-["processLatestDepTestResources", "processLatestDepForkedTestResources"].each { name ->
-  tasks.named(name, ProcessResources) {
+["processLatestDepTestResources", "processLatestDepForkedTestResources"].each {
+  tasks.named(it, ProcessResources) {
     filesMatching('**/WEB-INF/web.xml') {
       expand(
         'servletClass': 'test.JakartaTestServlet',
