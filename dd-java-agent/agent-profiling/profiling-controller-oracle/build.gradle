@@ -5,8 +5,6 @@ ext {
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ORACLE8
   skipSettingTestJavaVersion = true
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"

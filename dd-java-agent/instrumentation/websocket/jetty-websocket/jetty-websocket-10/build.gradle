@@ -18,14 +18,11 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuite("latestDepTest")
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
-
-["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+["compileTestGroovy", "compileLatestDepTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, 11)
   }
 }
 

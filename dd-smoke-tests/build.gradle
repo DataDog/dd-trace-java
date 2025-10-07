@@ -9,6 +9,15 @@ dependencies {
   api project(':utils:test-agent-utils:decoder')
 }
 
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "CharBuffer#flip() signature needs to be ()Ljava.nio.Buffer (to run on JDK8)."
+    )
+}
+
 // Disable forbiddenApis for all smoke-test modules
 allprojects {
   tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
