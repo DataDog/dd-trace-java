@@ -6,14 +6,13 @@ def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfig
 boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? groovySkipJavaExclude : false
 
 spotless {
-
   if (rootProject.hasProperty('skipSpotless')) {
     // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
     // We disable it in CI, since we have a job dedicated to spotless anyway.
     enforceCheck false
   }
 
-  if (project.plugins.hasPlugin('java')) {
+  project.pluginManager.withPlugin('java') {
     java {
       toggleOffOn()
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
@@ -25,10 +24,11 @@ spotless {
     }
   }
 
+  def isRootProject = project == project.rootProject
   groovyGradle {
     toggleOffOn()
     // same as groovy, but for .gradle (defaults to '*.gradle')
-    if (project == project.rootProject) {
+    if (isRootProject) {
       // only do this for the root project since the instrumentation project has a subproject and directory named gradle
       // that will confuse task dependencies
       target '*.gradle', 'gradle/**/*.gradle'
@@ -47,7 +47,7 @@ spotless {
     ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
   }
 
-  if (project.plugins.hasPlugin('groovy')) {
+  project.pluginManager.withPlugin('groovy') {
     groovy {
       toggleOffOn()
       if (!groovySkipJavaExclude) {
@@ -59,7 +59,7 @@ spotless {
     }
   }
 
-  if (project.plugins.hasPlugin('scala')) {
+  project.pluginManager.withPlugin('scala') {
     scala {
       toggleOffOn()
       scalafmt('2.7.5').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
@@ -80,13 +80,21 @@ spotless {
     trimTrailingWhitespace()
     endWithNewline()
   }
+
+  project.pluginManager.withPlugin('kotlin') {
+    kotlin {
+      toggleOffOn()
+      // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
+      // Newer versions do not work well with the older version of kotlin in this build
+      ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    }
+  }
 }
 
-apply from: "$configPath/spotless/spotless-kotlin.gradle"
 
 tasks.register('formatCode') {
   dependsOn 'spotlessApply'
 }
-check.configure {
+tasks.named("check") {
   dependsOn 'spotlessCheck'
 }
