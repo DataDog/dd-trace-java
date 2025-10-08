@@ -51,7 +51,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
     execute(appUrl, "topLevelMethod", "");
-    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel");
+    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel", true);
     // disable DI
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
@@ -81,7 +81,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     setConfigOverrides(createConfigOverrides(false, true));
     waitForFeatureStarted(appUrl, "Exception Replay");
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
-    waitForInstrumentation(appUrl);
+    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
     // disable ER
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Exception Replay");

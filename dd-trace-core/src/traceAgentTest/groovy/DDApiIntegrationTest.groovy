@@ -83,7 +83,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false)
     api.addResponseListener(responseListener)
     HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
-    OkHttpClient udsClient = OkHttpUtils.buildHttpClient(udsAgentUrl, socketPath.toString(), null, 5000)
+    OkHttpClient udsClient = OkHttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000)
     udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, enableV05, true)
     unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false)
     unixDomainSocketApi.addResponseListener(responseListener)
