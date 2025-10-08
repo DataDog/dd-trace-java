@@ -437,7 +437,7 @@ public class CapturingTestBase {
       args.setDestination(compilerOutputDir);
       args.setClasspath(System.getProperty("java.class.path"));
       ExitCode exitCode =
-          compiler.execImpl(
+          compiler.exec(
               new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
               Services.EMPTY,
               args);

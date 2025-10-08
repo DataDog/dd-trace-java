@@ -31,14 +31,20 @@ dependencies {
   testImplementation(project(':dd-java-agent:instrumentation:redisson:redisson-2.3.0'))
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-      jvmArgs += ['--add-opens', 'java.base/java.math=ALL-UNNAMED']
-      jvmArgs += ['--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED']
-      jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED']
-      jvmArgs += ['--add-opens', 'java.base/java.text=ALL-UNNAMED']
-    }
-    usesService(testcontainersLimit)
-  }
+tasks.withType(Test).configureEach {
+  configureJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    [
+      '--add-opens',
+      'java.base/java.math=ALL-UNNAMED',
+      '--add-opens',
+      'java.base/java.util.concurrent=ALL-UNNAMED',
+      '--add-opens',
+      'java.base/java.net=ALL-UNNAMED',
+      '--add-opens',
+      'java.base/java.text=ALL-UNNAMED'
+    ]
+    )
+  usesService(testcontainersLimit)
 }
