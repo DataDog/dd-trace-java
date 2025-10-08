@@ -102,16 +102,20 @@ notify-ci-visibility-tests-triggered:
       
       echo "Posting comment to PR #${PR_NUMBER}"
       
-      COMMENT_BODY="🔬 **CI Visibility Test Environment Triggered**
-
-The test environment pipeline has been automatically triggered for this PR.
-
-- **GitLab Pipeline**: ${CI_PIPELINE_URL}
-- **Test Environment Project**: [DataDog/apm-reliability/test-environment](https://gitlab.ddbuild.io/DataDog/apm-reliability/test-environment)
-
-_Note: The downstream pipeline results will be available in the GitLab UI. Check the pipeline link above for details._
-
-<!-- ci-visibility-auto-trigger-comment -->"
+      cat > comment.md <<EOF
+      🔬 **CI Visibility Test Environment Triggered**
+      
+      The test environment pipeline has been automatically triggered for this PR.
+      
+      - **GitLab Pipeline**: ${CI_PIPELINE_URL}
+      - **Test Environment Project**: [DataDog/apm-reliability/test-environment](https://gitlab.ddbuild.io/DataDog/apm-reliability/test-environment)
+      
+      _Note: The downstream pipeline results will be available in the GitLab UI. Check the pipeline link above for details._
+      
+      <!-- ci-visibility-auto-trigger-comment -->
+      EOF
+      
+      COMMENT_BODY=$(cat comment.md)
       
       # Check if comment already exists
       EXISTING_COMMENT=$(gh api repos/DataDog/dd-trace-java/issues/${PR_NUMBER}/comments --jq '.[] | select(.body | contains("ci-visibility-auto-trigger-comment")) | .id' | head -1)
