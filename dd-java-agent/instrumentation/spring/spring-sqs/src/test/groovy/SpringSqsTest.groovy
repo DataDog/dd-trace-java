@@ -28,7 +28,7 @@ class SpringSqsTest extends InstrumentationSpecification {
   static final String QUEUE_NAME = "test-queue"
 
   @Shared
-  LocalStackContainer localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
+  LocalStackContainer localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withServices(SQS)
 
   @Override
