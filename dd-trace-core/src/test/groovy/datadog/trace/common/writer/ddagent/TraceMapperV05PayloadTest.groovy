@@ -48,7 +48,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
   def "body overflow causes a flush"() {
     setup:
     // disable process tags since they are only on the first span of the chunk otherwise the calculation woes
-    def hadProcessTags = Config.get().isExperimentalPropagateProcessTagsEnabled()
     injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     ProcessTags.reset()
     // 4x 36 ASCII characters and 2 bytes of msgpack string prefix
@@ -94,7 +93,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     then:
     verifier.verifyTracesConsumed()
     cleanup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, Boolean.toString(hadProcessTags))
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
   }
 
@@ -154,8 +153,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   void 'test process tags serialization'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
-    ProcessTags.reset()
     assertNotNull(ProcessTags.tagsForSerialization)
     def spans = (1..2).collect {
       new TraceGenerator.PojoSpan(
@@ -188,8 +185,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
     then:
     verifier.verifyTracesConsumed()
-    cleanup:
-    ProcessTags.empty()
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {

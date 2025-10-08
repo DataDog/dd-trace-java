@@ -4,7 +4,6 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
-
 String testWebAppDir = 'wlp/usr/servers/defaultServer/dropins/war/testapp'
 
 sourceSets {
@@ -63,6 +62,14 @@ configurations.named("testRuntimeOnly") {
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
+}
+
+tasks.named('compileJava', JavaCompile) {
+  // If using higher toolchain for compilation the following failure happens :
+  // > import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
+  // >                  ^
+  // >   Invalid CEN header (invalid extra data field size for tag: 0xbfef size: 445)
+  configureCompiler(it, 8)
 }
 
 // unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
