@@ -5,6 +5,8 @@ def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfig
 // This is necessary for some projects that set a special groovy target which can't coexist with excludeJava
 boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? groovySkipJavaExclude : false
 
+def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
+
 spotless {
   if (rootProject.hasProperty('skipSpotless')) {
     // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
@@ -17,8 +19,8 @@ spotless {
       toggleOffOn()
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
-      // ignore embedded test projects
-      targetExclude 'src/test/resources/**'
+      // ignore embedded test projects and everything in build dir, e.g. generated sources
+      targetExclude('src/test/resources/**', buildDirectoryFiles)
       // This is the last Google Java Format version that supports Java 8
       googleJavaFormat('1.7')
     }
@@ -55,6 +57,7 @@ spotless {
         // the Groovy Eclipse formatter extends the Java Eclipse formatter,
         // so it formats Java files by default (unless `excludeJava` is used).
       }
+      targetExclude(buildDirectoryFiles)
       greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
     }
   }
@@ -62,6 +65,7 @@ spotless {
   project.pluginManager.withPlugin('scala') {
     scala {
       toggleOffOn()
+      targetExclude(buildDirectoryFiles)
       scalafmt('2.7.5').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
@@ -85,6 +89,7 @@ spotless {
     kotlin {
       toggleOffOn()
       // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
+      targetExclude(buildDirectoryFiles)
       // Newer versions do not work well with the older version of kotlin in this build
       ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
     }
