@@ -181,6 +181,7 @@ public class StoredCharBody implements StoredBodySupplier {
         blockResponseFunction.tryCommitBlockingResponse(
             httpContext.getTraceSegment(),
             rba.getStatusCode(),
+            rba.getBlockId(),
             rba.getBlockingContentType(),
             rba.getExtraHeaders());
       }

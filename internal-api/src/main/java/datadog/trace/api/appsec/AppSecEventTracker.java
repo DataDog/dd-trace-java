@@ -364,6 +364,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
         brf.tryCommitBlockingResponse(
             ctx.getTraceSegment(),
             rba.getStatusCode(),
+            rba.getBlockId(),
             rba.getBlockingContentType(),
             rba.getExtraHeaders());
       }

@@ -83,6 +83,7 @@ public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModu
           blockResponseFunction.tryCommitBlockingResponse(
               reqCtx.getTraceSegment(),
               rba.getStatusCode(),
+              rba.getBlockId(),
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
           t =

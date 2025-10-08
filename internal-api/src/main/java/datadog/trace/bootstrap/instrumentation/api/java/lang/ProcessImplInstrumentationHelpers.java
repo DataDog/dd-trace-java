@@ -246,6 +246,7 @@ public class ProcessImplInstrumentationHelpers {
           brf.tryCommitBlockingResponse(
               ctx.getTraceSegment(),
               rba.getStatusCode(),
+              rba.getBlockId(),
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
         }
@@ -301,6 +302,7 @@ public class ProcessImplInstrumentationHelpers {
           brf.tryCommitBlockingResponse(
               ctx.getTraceSegment(),
               rba.getStatusCode(),
+              rba.getBlockId(),
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
         }

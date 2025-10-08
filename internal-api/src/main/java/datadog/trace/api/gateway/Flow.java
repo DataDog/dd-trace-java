@@ -29,25 +29,33 @@ public interface Flow<T> {
 
     class RequestBlockingAction implements Action {
       private final int statusCode;
+      private final String blockId;
       private final BlockingContentType blockingContentType;
       private final Map<String, String> extraHeaders;
 
       public RequestBlockingAction(
           int statusCode,
+          String blockId,
           BlockingContentType blockingContentType,
           Map<String, String> extraHeaders) {
         this.statusCode = statusCode;
+        this.blockId = blockId;
         this.blockingContentType = blockingContentType;
         this.extraHeaders = extraHeaders;
       }
 
-      public RequestBlockingAction(int statusCode, BlockingContentType blockingContentType) {
-        this(statusCode, blockingContentType, Collections.emptyMap());
+      public RequestBlockingAction(
+          int statusCode, String blockId, BlockingContentType blockingContentType) {
+        this(statusCode, blockId, blockingContentType, Collections.emptyMap());
       }
 
-      public static RequestBlockingAction forRedirect(int statusCode, String location) {
+      public static RequestBlockingAction forRedirect(
+          int statusCode, String blockId, String location) {
         return new RequestBlockingAction(
-            statusCode, BlockingContentType.NONE, Collections.singletonMap("Location", location));
+            statusCode,
+            blockId,
+            BlockingContentType.NONE,
+            Collections.singletonMap("Location", location));
       }
 
       @Override
@@ -57,6 +65,10 @@ public interface Flow<T> {
 
       public int getStatusCode() {
         return statusCode;
+      }
+
+      public String getBlockId() {
+        return blockId;
       }
 
       public BlockingContentType getBlockingContentType() {

@@ -100,6 +100,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           blockResponseFunction.tryCommitBlockingResponse(
               reqCtx.getTraceSegment(),
               rba.getStatusCode(),
+              rba.getBlockId(),
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
           if (t == null) {

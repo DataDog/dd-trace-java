@@ -70,6 +70,7 @@ public class PathBindingPublishingHandler implements Handler {
       blockResponseFunction.tryCommitBlockingResponse(
           requestContext.getTraceSegment(),
           rba.getStatusCode(),
+          rba.getBlockId(),
           rba.getBlockingContentType(),
           rba.getExtraHeaders());
       return false;

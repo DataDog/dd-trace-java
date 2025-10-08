@@ -210,6 +210,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         brf.tryCommitBlockingResponse(
             ctx.getTraceSegment(),
             rba.getStatusCode(),
+            rba.getBlockId(),
             rba.getBlockingContentType(),
             rba.getExtraHeaders());
       }

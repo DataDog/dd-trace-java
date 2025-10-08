@@ -45,6 +45,7 @@ public class BlockingResponseHelper {
         brf.tryCommitBlockingResponse(
             requestContext.getTraceSegment(),
             rba.getStatusCode(),
+            rba.getBlockId(),
             rba.getBlockingContentType(),
             rba.getExtraHeaders());
         HttpResponse altResponse =

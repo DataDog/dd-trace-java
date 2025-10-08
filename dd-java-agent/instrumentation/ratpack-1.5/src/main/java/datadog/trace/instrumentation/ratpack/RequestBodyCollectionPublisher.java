@@ -85,6 +85,7 @@ public class RequestBodyCollectionPublisher implements TransformablePublisher<By
             blockResponseFunction.tryCommitBlockingResponse(
                 requestContext.getTraceSegment(),
                 rba.getStatusCode(),
+                rba.getBlockId(),
                 rba.getBlockingContentType(),
                 rba.getExtraHeaders());
 

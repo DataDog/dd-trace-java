@@ -39,6 +39,7 @@ public class RatpackRequestBodyGetTextCalledAdvice {
       blockResponseFunction.tryCommitBlockingResponse(
           reqCtx.getTraceSegment(),
           rba.getStatusCode(),
+          rba.getBlockId(),
           rba.getBlockingContentType(),
           rba.getExtraHeaders());
       if (throwable == null) {

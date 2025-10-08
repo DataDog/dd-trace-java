@@ -48,6 +48,7 @@ public class ContextParseAdvice {
         brf.tryCommitBlockingResponse(
             reqCtx.getTraceSegment(),
             rba.getStatusCode(),
+            rba.getBlockId(),
             rba.getBlockingContentType(),
             rba.getExtraHeaders());
 

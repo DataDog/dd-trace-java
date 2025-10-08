@@ -48,6 +48,7 @@ public class RatpackRequestBodyCallGetBufferAdvice {
       blockResponseFunction.tryCommitBlockingResponse(
           reqCtx.getTraceSegment(),
           rba.getStatusCode(),
+          rba.getBlockId(),
           rba.getBlockingContentType(),
           rba.getExtraHeaders());
       return new BlockingException("Blocked request (for ByteBufBackedTypedData/getBuffer)");

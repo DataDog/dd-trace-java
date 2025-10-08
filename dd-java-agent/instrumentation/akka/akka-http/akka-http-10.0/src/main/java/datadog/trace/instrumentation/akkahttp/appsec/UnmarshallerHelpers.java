@@ -131,6 +131,7 @@ public class UnmarshallerHelpers {
             blockResponseFunction.tryCommitBlockingResponse(
                 reqCtx.getTraceSegment(),
                 rba.getStatusCode(),
+                rba.getBlockId(),
                 rba.getBlockingContentType(),
                 rba.getExtraHeaders());
         if (success) {

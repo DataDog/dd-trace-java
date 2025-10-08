@@ -137,6 +137,7 @@ public class DecodedFormParametersInstrumentation extends InstrumenterModule.App
           blockResponseFunction.tryCommitBlockingResponse(
               reqCtx.getTraceSegment(),
               rba.getStatusCode(),
+              rba.getBlockId(),
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
           t = new BlockingException("Blocked request (for getDecodedFormParameters)");

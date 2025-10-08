@@ -16,6 +16,7 @@ public interface BlockResponseFunction {
   boolean tryCommitBlockingResponse(
       TraceSegment segment,
       int statusCode,
+      String blockId,
       BlockingContentType templateType,
       Map<String, String> extraHeaders);
 }

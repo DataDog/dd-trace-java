@@ -68,6 +68,7 @@ public class BlockingServiceImpl implements BlockingService {
   @Override
   public boolean tryCommitBlockingResponse(
       int statusCode,
+      String blockId,
       @Nonnull BlockingContentType templateType,
       @Nonnull Map<String, String> extraHeaders) {
     log.info(
@@ -89,7 +90,7 @@ public class BlockingServiceImpl implements BlockingService {
     log.debug("About to call block response function: {}", blockResponseFunction);
     boolean res =
         blockResponseFunction.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(), statusCode, templateType, extraHeaders);
+            reqCtx.getTraceSegment(), statusCode, blockId, templateType, extraHeaders);
     if (res) {
       TraceSegment traceSegment = reqCtx.getTraceSegment();
       if (traceSegment != null) {

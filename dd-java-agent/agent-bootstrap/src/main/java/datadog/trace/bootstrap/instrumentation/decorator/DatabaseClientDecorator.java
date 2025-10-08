@@ -140,6 +140,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
               brf.tryCommitBlockingResponse(
                   ctx.getTraceSegment(),
                   rba.getStatusCode(),
+                  rba.getBlockId(),
                   rba.getBlockingContentType(),
                   rba.getExtraHeaders());
             }
