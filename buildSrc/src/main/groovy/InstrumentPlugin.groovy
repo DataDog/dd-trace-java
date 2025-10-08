@@ -37,6 +37,7 @@ class InstrumentPlugin implements Plugin<Project> {
   @Override
   void apply(Project project) {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
+    project.configurations.register(INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION)
 
     project.pluginManager.withPlugin("java") { configurePostCompilationInstrumentation("java", project, extension) }
     project.pluginManager.withPlugin("kotlin") { configurePostCompilationInstrumentation("kotlin", project, extension) }
@@ -68,21 +69,12 @@ class InstrumentPlugin implements Plugin<Project> {
         // - compileKotlin,
         // - compileScala,
         // - compileGroovy,
-        def compileTasks = project.tasks.withType(AbstractCompile).matching {
+        project.tasks.withType(AbstractCompile).matching {
           it.name == compileTaskName && !it.source.isEmpty()
-        }
+        }.configureEach {
+          logger.info('[InstrumentPlugin] Applying instrumentPluginClasspath configuration as compile task input')
+          it.inputs.files(project.configurations.named(INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION))
 
-        // TODO eager config
-        project.configurations.configureEach { config ->
-          if (config.name == INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION) {
-            logger.info('[InstrumentPlugin] instrumentPluginClasspath configuration was created')
-            compileTasks.configureEach {
-              it.inputs.files(config)
-            }
-          }
-        }
-
-        compileTasks.configureEach {
           if (it.source.isEmpty()) {
             logger.debug("[InstrumentPlugin] Skipping $compileTaskName for source set $sourceSetName as it has no source files")
             return
@@ -192,8 +184,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
     workQueue().submit(InstrumentAction.class, parameters -> {
       parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
       parameters.pluginClassPath.from(
-        project.configurations.findByName(InstrumentPlugin.INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION)
-          ?: project.files()
+        project.configurations.named(InstrumentPlugin.INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION)
       )
       parameters.plugins.set(postCompileAction.plugins)
       parameters.instrumentingClassPath.setFrom(postCompileAction.instrumentingClassPath)

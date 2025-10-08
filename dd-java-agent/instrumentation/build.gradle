@@ -23,12 +23,15 @@ subprojects { Project subProj ->
         )
     }
 
-    subProj.configurations.register("instrumentPluginClasspath") {
+    subProj.configurations.named('instrumentPluginClasspath') {
       it.visible = false
       it.canBeConsumed = false
       it.canBeResolved = true
 
-      it.dependencies.add(subProj.dependencies.project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath'))
+      it.dependencies.add(subProj.dependencies.project(
+          path: ':dd-java-agent:agent-tooling',
+          configuration: 'instrumentPluginClasspath'
+      ))
     }
   }
 
