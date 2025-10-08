@@ -76,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.jetbrains.kotlin.com.intellij.util.lang.JavaVersion;
 import org.joor.Reflect;
 import org.joor.ReflectException;
 import org.junit.jupiter.api.Assertions;
@@ -83,7 +84,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -639,11 +639,12 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() throws IOException, URISyntaxException {
+    System.out.println(JavaVersion.class.getProtectionDomain().getCodeSource().getLocation());
+    System.out.println("Java version:" + JavaVersion.current().feature);
     final String CLASS_NAME = "CapturedSnapshot301";
     int line = getLineForLineProbe(CLASS_NAME, KOTLIN_EXT, LINE_PROBE_ID1);
     TestSnapshotListener listener =
@@ -670,7 +671,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -698,7 +698,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -732,7 +731,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(max = JRE.JAVA_24)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -2583,7 +2581,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
+  @EnabledForJreRange(min = JRE.JAVA_17)
   public void record() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
@@ -2603,7 +2601,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
+  @EnabledForJreRange(min = JRE.JAVA_17)
   public void lineRecord() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord2";

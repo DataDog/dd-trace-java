@@ -19,9 +19,7 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-  setJavaVersion(it, 21)
-  sourceCompatibility = JavaVersion.VERSION_21
-  targetCompatibility = JavaVersion.VERSION_21
+  configureCompiler(it, 21, JavaVersion.VERSION_21)
 }
 
 // Disable plugin tasks that do not support Java 21:

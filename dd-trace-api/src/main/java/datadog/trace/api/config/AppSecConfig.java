@@ -23,6 +23,7 @@ public final class AppSecConfig {
       "appsec.automated-user-events-tracking";
   public static final String APPSEC_AUTO_USER_INSTRUMENTATION_MODE =
       "appsec.auto-user-instrumentation-mode";
+  public static final String APPSEC_BODY_PARSING_SIZE_LIMIT = "appsec.body-parsing-size-limit";
   public static final String API_SECURITY_ENABLED = "api-security.enabled";
   public static final String API_SECURITY_ENABLED_EXPERIMENTAL =
       "experimental.api-security.enabled";
@@ -31,6 +32,10 @@ public final class AppSecConfig {
       "api-security.endpoint.collection.enabled";
   public static final String API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT =
       "api-security.endpoint.collection.message.limit";
+  public static final String API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE =
+      "api-security.downstream.request.analysis.sample_rate";
+  public static final String API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS =
+      "api-security.max.downstream.request.body.analysis";
 
   public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
   public static final String APPSEC_RASP_ENABLED = "appsec.rasp.enabled";
@@ -43,10 +48,16 @@ public final class AppSecConfig {
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stack-trace.depth";
   public static final String APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED =
       "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
-  public static final String APPSEC_COLLECT_ALL_HEADERS = "appsec.collect.all.headers";
+  @Deprecated public static final String APPSEC_COLLECT_ALL_HEADERS = "appsec.collect.all.headers";
+
+  @Deprecated
   public static final String APPSEC_MAX_COLLECTED_HEADERS = "appsec.max.collected.headers";
+
+  @Deprecated
   public static final String APPSEC_HEADER_COLLECTION_REDACTION_ENABLED =
       "appsec.header.collection.redaction.enabled";
+
+  @Deprecated
   public static final String APPSEC_RASP_COLLECT_REQUEST_BODY = "appsec.rasp.collect.request.body";
 
   private AppSecConfig() {}

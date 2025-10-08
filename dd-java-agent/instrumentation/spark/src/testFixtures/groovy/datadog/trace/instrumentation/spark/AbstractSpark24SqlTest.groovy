@@ -29,6 +29,23 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
     spark.createDataFrame(rows, structType)
   }
 
+  static assertStringSQLPlanIn(ArrayList<String> expectedStrings, String actualString) {
+    def jsonSlurper = new JsonSlurper()
+    def actual = jsonSlurper.parseText(actualString)
+
+    for (String expectedString : expectedStrings) {
+      try {
+        def expected = jsonSlurper.parseText(expectedString)
+        assertSQLPlanEquals(expected, actual)
+        return
+      } catch (AssertionError e) {
+        System.println("Failed to assert $expectedString, attempting next")
+      }
+    }
+
+    throw new AssertionError("No matching SQL Plan found for $actualString in $expectedStrings")
+  }
+
   static assertStringSQLPlanEquals(String expectedString, String actualString) {
     System.err.println("Checking if expected $expectedString SQL plan match actual $actualString")
 
@@ -137,8 +154,115 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
 
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","nodeId":-1909876497,"metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":1128016273,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293,"children":[{"node":"LocalTableScan","nodeId":1632930767,"metrics":[{"number of output rows":3,"type":"sum"}]}]}]}]}]}"""
-    def secondStagePlan = """{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":126020943,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"avg hash probe (min, med, max)":"any","type":"average"},{"number of output rows":2,"type":"sum"},{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}"""
+    def firstStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": -1909876497,
+        "nodeDetailString": "hashpartitioning(string_col#0, 2)",
+        "metrics": [
+          {
+            "data size total (min, med, max)": "any",
+            "type": "size"
+          }
+        ],
+        "children": [
+          {
+            "node": "WholeStageCodegen",
+            "nodeId": 724251804,
+            "metrics": [
+              {
+                "duration total (min, med, max)": "any",
+                "type": "timing"
+              }
+            ],
+            "children": [
+              {
+                "node": "HashAggregate",
+                "nodeId": 1128016273,
+                "nodeDetailString": "(keys=[string_col#0], functions=[partial_avg(double_col#1)])",
+                "metrics": [
+                  {
+                    "aggregate time total (min, med, max)": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "number of output rows": "any",
+                    "type": "sum"
+                  },
+                  {
+                    "peak memory total (min, med, max)": "any",
+                    "type": "size"
+                  }
+                ],
+                "children": [
+                  {
+                    "node": "InputAdapter",
+                    "nodeId": 180293,
+                    "children": [
+                      {
+                        "node": "LocalTableScan",
+                        "nodeId": 1632930767,
+                        "nodeDetailString": "[string_col#0, double_col#1]",
+                        "metrics": [
+                          {
+                            "number of output rows": 3,
+                            "type": "sum"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+
+    def secondStagePlan = """
+      {
+        "node": "WholeStageCodegen",
+        "nodeId": 724251804,
+        "metrics": [
+          {
+            "duration total (min, med, max)": "any",
+            "type": "timing"
+          }
+        ],
+        "children": [
+          {
+            "node": "HashAggregate",
+            "nodeId": 126020943,
+            "nodeDetailString": "(keys=[string_col#0], functions=[avg(double_col#1)])",
+            "metrics": [
+              {
+                "aggregate time total (min, med, max)": "any",
+                "type": "timing"
+              },
+              {
+                "avg hash probe (min, med, max)": "any",
+                "type": "average"
+              },
+              {
+                "number of output rows": 2,
+                "type": "sum"
+              },
+              {
+                "peak memory total (min, med, max)": "any",
+                "type": "size"
+              }
+            ],
+            "children": [
+              {
+                "node": "InputAdapter",
+                "nodeId": 180293
+              }
+            ]
+          }
+        ]
+      }
+    """
 
     expect:
     assertTraces(1) {
@@ -162,6 +286,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
         }
         span {
@@ -169,6 +294,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }
@@ -194,10 +320,226 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
 
     sparkSession.stop()
 
-    def firstStagePlan = """{"node":"Exchange","nodeId":"any","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"LocalTableScan","nodeId":"any","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
-    def secondStagePlan = """{"node":"Exchange","nodeId":"any","metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"LocalTableScan","nodeId":"any","metrics":[{"number of output rows":"any","type":"sum"}]}]}"""
-    def thirdStagePlan = """{"node":"Exchange","nodeId":-1350402171,"metrics":[{"data size total (min, med, max)":"any","type":"size"}],"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":-879128980,"metrics":[{"aggregate time total (min, med, max)":"any","type":"timing"},{"number of output rows":"any","type":"sum"}],"children":[{"node":"Project","nodeId":1355342585,"children":[{"node":"SortMergeJoin","nodeId":-1975876610,"metrics":[{"number of output rows":"any","type":"sum"}],"children":[{"node":"InputAdapter","nodeId":180293,"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"Sort","nodeId":66807398,"metrics":[{"peak memory total (min, med, max)":"any","type":"size"},{"sort time total (min, med, max)":"any","type":"timing"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}]},{"node":"InputAdapter","nodeId":180293,"children":[{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"Sort","nodeId":-952138782,"metrics":[{"peak memory total (min, med, max)":"any","type":"size"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}]}]}]}]}]}]}"""
-    def fourthStagePlan = """{"node":"WholeStageCodegen","nodeId":724251804,"metrics":[{"duration total (min, med, max)":"any","type":"timing"}],"children":[{"node":"HashAggregate","nodeId":724815342,"metrics":[{"number of output rows":1,"type":"sum"}],"children":[{"node":"InputAdapter","nodeId":180293}]}]}"""
+    def firstStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "any",
+        "nodeDetailString": "hashpartitioning(string_col#25, 2)",
+        "metrics": [
+          {
+            "data size total (min, med, max)": "any",
+            "type": "size"
+          }
+        ],
+        "children": [
+          {
+            "node": "LocalTableScan",
+            "nodeId": "any",
+            "nodeDetailString": "[string_col#25]", 
+            "metrics": [
+              {
+                "number of output rows": "any",
+                "type": "sum"
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def secondStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "any",
+        "nodeDetailString": "hashpartitioning(string_col#21, 2)",
+        "metrics": [
+          {
+            "data size total (min, med, max)": "any",
+            "type": "size"
+          }
+        ],
+        "children": [
+          {
+            "node": "LocalTableScan",
+            "nodeId": "any",
+            "nodeDetailString": "[string_col#21]", 
+            "metrics": [
+              {
+                "number of output rows": "any",
+                "type": "sum"
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def thirdStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": -1350402171,
+        "nodeDetailString": "SinglePartition",
+        "metrics": [
+          {
+            "data size total (min, med, max)": "any",
+            "type": "size"
+          }
+        ],
+        "children": [
+          {
+            "node": "WholeStageCodegen",
+            "nodeId": 724251804,
+            "metrics": [
+              {
+                "duration total (min, med, max)": "any",
+                "type": "timing"
+              }
+            ],
+            "children": [
+              {
+                "node": "HashAggregate",
+                "nodeId": -879128980,
+                "nodeDetailString": "(keys=[], functions=[partial_count(1)])",
+                "metrics": [
+                  {
+                    "aggregate time total (min, med, max)": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "number of output rows": "any",
+                    "type": "sum"
+                  }
+                ],
+                "children": [
+                  {
+                    "node": "Project",
+                    "nodeId": 1355342585,
+                    "children": [
+                      {
+                        "node": "SortMergeJoin",
+                        "nodeId": -1975876610,
+                        "nodeDetailString": "[string_col#21], [string_col#25], Inner",
+                        "metrics": [
+                          {
+                            "number of output rows": "any",
+                            "type": "sum"
+                          }
+                        ],
+                        "children": [
+                          {
+                            "node": "InputAdapter",
+                            "nodeId": 180293,
+                            "children": [
+                              {
+                                "node": "WholeStageCodegen",
+                                "nodeId": 724251804,
+                                "metrics": [
+                                  {
+                                    "duration total (min, med, max)": "any",
+                                    "type": "timing"
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "node": "Sort",
+                                    "nodeId": 66807398,
+                                    "nodeDetailString": "[string_col#21 ASC NULLS FIRST], false, 0",
+                                    "metrics": [
+                                      {
+                                        "peak memory total (min, med, max)": "any",
+                                        "type": "size"
+                                      },
+                                      {
+                                        "sort time total (min, med, max)": "any",
+                                        "type": "timing"
+                                      }
+                                    ],
+                                    "children": [
+                                      {
+                                        "node": "InputAdapter",
+                                        "nodeId": 180293
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "node": "InputAdapter",
+                            "nodeId": 180293,
+                            "children": [
+                              {
+                                "node": "WholeStageCodegen",
+                                "nodeId": 724251804,
+                                "metrics": [
+                                  {
+                                    "duration total (min, med, max)": "any",
+                                    "type": "timing"
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "node": "Sort",
+                                    "nodeId": -952138782,
+                                    "nodeDetailString": "[string_col#25 ASC NULLS FIRST], false, 0",
+                                    "metrics": [
+                                      {
+                                        "peak memory total (min, med, max)": "any",
+                                        "type": "size"
+                                      }
+                                    ],
+                                    "children": [
+                                      {
+                                        "node": "InputAdapter",
+                                        "nodeId": 180293
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def fourthStagePlan = """
+      {
+        "node": "WholeStageCodegen",
+        "nodeId": 724251804,
+        "metrics": [
+          {
+            "duration total (min, med, max)": "any",
+            "type": "timing"
+          }
+        ],
+        "children": [
+          {
+            "node": "HashAggregate",
+            "nodeId": 724815342,
+            "nodeDetailString": "(keys=[], functions=[count(1)])",
+            "metrics": [
+              {
+                "number of output rows": 1,
+                "type": "sum"
+              }
+            ],
+            "children": [
+              {
+                "node": "InputAdapter",
+                "nodeId": 180293
+              }
+            ]
+          }
+        ]
+      }
+    """
 
     expect:
     assertTraces(1) {
@@ -221,6 +563,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanSubset(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[2]"
         }
         span {
@@ -228,20 +571,23 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           spanType "spark"
           childOf(span(2))
           assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert ["[0, 1]", "[1, 0]"].contains(span.tags["_dd.spark.sql_parent_stage_ids"])
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
       }

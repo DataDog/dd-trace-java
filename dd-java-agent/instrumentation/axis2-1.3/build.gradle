@@ -23,15 +23,15 @@ configurations.configureEach {
   }
 }
 
-[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
-  it.configure {
+["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
     javaLauncher = getJavaLauncherFor(11)
   }
 }
 
-[compileLatestDepForkedTestJava, compileLatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 11)
+["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 11)
   }
 }
 

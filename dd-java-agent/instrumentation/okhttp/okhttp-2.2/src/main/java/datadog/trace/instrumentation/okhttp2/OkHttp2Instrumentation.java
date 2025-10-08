@@ -7,6 +7,7 @@ import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.OkHttpClient;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -27,6 +28,7 @@ public class OkHttp2Instrumentation extends InstrumenterModule.Tracing
       packageName + ".RequestBuilderInjectAdapter",
       packageName + ".OkHttpClientDecorator",
       packageName + ".TracingInterceptor",
+      packageName + ".AppSecInterceptor",
     };
   }
 
@@ -44,8 +46,10 @@ public class OkHttp2Instrumentation extends InstrumenterModule.Tracing
           return;
         }
       }
-
       client.interceptors().add(new TracingInterceptor());
+      if (ActiveSubsystems.APPSEC_ACTIVE) {
+        client.interceptors().add(new AppSecInterceptor());
+      }
     }
   }
 }

@@ -31,16 +31,16 @@ dependencies {
   testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude module: 'okhttp'
   }
-  testImplementation(project(':dd-java-agent:instrumentation:java-concurrent')) {
+  testImplementation(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')) {
     exclude module: 'okhttp'
   }
-  testImplementation(project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')) {
+  testImplementation(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')) {
     exclude module: 'okhttp'
   }
   testImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 
   testRuntimeOnly(project(':dd-java-agent:instrumentation:iast-instrumenter'))
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
 
   latestDepTestImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '[2.6,3)'
 }

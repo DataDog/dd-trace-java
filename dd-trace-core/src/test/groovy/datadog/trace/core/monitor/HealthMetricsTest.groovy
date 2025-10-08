@@ -172,7 +172,7 @@ class HealthMetricsTest extends Specification {
 
   def "test onSend #iterationIndex"() {
     setup:
-    def latch = new CountDownLatch(3 + (response.exception() ? 1 : 0) + (response.status() ? 1 : 0))
+    def latch = new CountDownLatch(3 + (response.exception().present ? 1 : 0) + (response.status().present ? 1 : 0))
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
@@ -184,11 +184,11 @@ class HealthMetricsTest extends Specification {
     1 * statsD.count('api.requests.total', 1)
     1 * statsD.count('flush.traces.total', traceCount)
     1 * statsD.count('flush.bytes.total', sendSize)
-    if (response.exception()) {
+    if (response.exception().present) {
       1 * statsD.count('api.errors.total', 1)
     }
-    if (response.status()) {
-      1 * statsD.incrementCounter('api.responses.total', ["status:${response.status()}"])
+    if (response.status().present) {
+      1 * statsD.incrementCounter('api.responses.total', ["status:${response.status().asInt}"])
     }
     0 * _
 
@@ -209,7 +209,7 @@ class HealthMetricsTest extends Specification {
 
   def "test onFailedSend #iterationIndex"() {
     setup:
-    def latch = new CountDownLatch(3 + (response.exception() ? 1 : 0) + (response.status() ? 1 : 0))
+    def latch = new CountDownLatch(3 + (response.exception().present ? 1 : 0) + (response.status().present ? 1 : 0))
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
@@ -221,11 +221,11 @@ class HealthMetricsTest extends Specification {
     1 * statsD.count('api.requests.total', 1)
     1 * statsD.count('flush.traces.total', traceCount)
     1 * statsD.count('flush.bytes.total', sendSize)
-    if (response.exception()) {
+    if (response.exception().present) {
       1 * statsD.count('api.errors.total', 1)
     }
-    if (response.status()) {
-      1 * statsD.incrementCounter('api.responses.total', ["status:${response.status()}"])
+    if (response.status().present) {
+      1 * statsD.incrementCounter('api.responses.total', ["status:${response.status().asInt}"])
     }
     0 * _
 

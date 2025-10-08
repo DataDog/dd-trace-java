@@ -126,10 +126,8 @@ configurations.matching({ it.name.startsWith('latestDepTest') }).each({
     force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
   }
 })
-tasks.named("compileLatestDepTestJava") {
-  it.sourceCompatibility = JavaVersion.VERSION_11
-  it.targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  configureCompiler(it, 11)
 }
 compileLatestDepTestScala {
   javaLauncher = getJavaLauncherFor(11)

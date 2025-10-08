@@ -290,6 +290,7 @@ public final class CrashUploader {
         writer.name("tracer_time").value(Instant.now().getEpochSecond());
         writer.name("seq_id").value(1);
         writer.name("debug").value(true);
+        writer.name("origin").value("crashtracker");
         writer.name("payload");
         writer.beginArray();
         writer.beginObject();
@@ -297,6 +298,7 @@ public final class CrashUploader {
         writer.name("level").value("ERROR");
         writer.name("tags").value("severity:crash");
         writer.name("is_sensitive").value(true);
+        writer.name("is_crash").value(true);
         writer.endObject();
         writer.endArray();
         writer.name("application");
