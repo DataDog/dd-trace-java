@@ -17,18 +17,6 @@ apply plugin: "idea"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
-tasks.withType(JavaCompile).configureEach {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-tasks.withType(GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.withType(Test) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-
 dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
@@ -40,8 +28,6 @@ dependencies {
   testFixturesCompileOnly "org.eclipse.jetty:jetty-servlet:11.0.0"
   testFixturesCompileOnly "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"
   testFixturesImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-client-api', version: '2.0.0'
-
-
 
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -63,6 +49,7 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
@@ -82,6 +69,14 @@ dependencies {
   // just to mix things up, see if there's no conflict
   latestDepTestRuntimeOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
   latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+}
+
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+tasks.withType(Test).configureEach {
+  javaLauncher = getJavaLauncherFor(11)
 }
 
 idea {

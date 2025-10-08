@@ -182,7 +182,7 @@ class AppSecSystemSpecification extends DDSpecification {
           poller
         }
       }
-    sco.okHttpClient = Stub(OkHttpClient)
+    sco.agentHttpClient = Stub(OkHttpClient)
     sco.monitoring = Mock(Monitoring)
     sco.featuresDiscovery = Stub(DDAgentFeaturesDiscovery)
     sco

@@ -59,7 +59,10 @@ class AssertBuilder<C extends CallSiteAssert> {
       return [null, null]
     }
     final isEnabled = type.getMethodsByName('isEnabled').first()
-    final returnStatement = isEnabled.body.get().statements.first.get().asReturnStmt()
+    // JavaParser's NodeList has method getFirst() returning an Optional, however with Java 21's
+    // SequencedCollection, Groovy picks the getFirst() that returns the object itself.
+    // Using `first()` rather than `first` picks the groovy method instead, fixing the situation.
+    final returnStatement = isEnabled.body.get().statements.first().asReturnStmt()
     final enabledMethodCall = returnStatement.expression.get().asMethodCallExpr()
     final enabled = resolveMethod(enabledMethodCall)
     final enabledArgs = enabledMethodCall.getArguments().collect { it.asStringLiteralExpr().asString() }.toSet()

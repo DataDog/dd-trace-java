@@ -53,7 +53,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.17.5")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.17.7")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -62,8 +62,8 @@ dependencies {
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
   implementation("com.google.guava", "guava", "20.0")
-  implementation("org.ow2.asm", "asm", "9.8")
-  implementation("org.ow2.asm", "asm-tree", "9.8")
+  implementation(libs.asm)
+  implementation(libs.asm.tree)
 
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
