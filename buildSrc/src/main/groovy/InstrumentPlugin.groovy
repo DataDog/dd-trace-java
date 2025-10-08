@@ -172,7 +172,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
     DirectoryProperty compilerOutputDirectory,
     DirectoryProperty tmpDirectory
   ) {
-    this.javaVersion = javaVersion
+    this.javaVersion = javaVersion != InstrumentPlugin.DEFAULT_JAVA_VERSION ? "8" : javaVersion
     this.plugins = plugins
     this.instrumentingClassPath = instrumentingClassPath
     this.compilerOutputDirectory = compilerOutputDirectory
@@ -203,9 +203,6 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
   }
 
   private workQueue() {
-    if (!this.javaVersion != InstrumentPlugin.DEFAULT_JAVA_VERSION) {
-      this.javaVersion = "8"
-    }
     def javaLauncher = this.javaToolchainService.launcherFor { spec ->
       spec.languageVersion.set(JavaLanguageVersion.of(this.javaVersion))
     }.get()
