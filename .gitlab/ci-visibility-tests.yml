@@ -42,7 +42,6 @@ check-ci-visibility-label:
       fi
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
-  allow_failure: true
   retry:
     max: 2
     when: always
