@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty9
+package datadog.trace.instrumentation.jetty10
 
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -8,7 +8,7 @@ import org.eclipse.jetty.server.handler.AbstractHandler
 import test.JettyServer
 import test.TestHandler
 
-abstract class Jetty9Test extends HttpServerTest<Server> {
+abstract class Jetty10Test extends HttpServerTest<Server> {
 
   @Override
   HttpServer server() {
@@ -30,7 +30,8 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 
   protected boolean useWebsocketPojoEndpoint() {
-    false
+    // only supported in jetty 10+
+    isLatestDepTest
   }
 
 
@@ -95,8 +96,12 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 }
 
-class Jetty9V0Test extends Jetty9Test implements TestingGenericHttpNamingConventions.ServerV0 {
+class Jetty10V0ForkedTest extends Jetty10Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
-class Jetty9V1ForkedTest extends Jetty9Test implements TestingGenericHttpNamingConventions.ServerV1 {
+class Jetty10V1ForkedTest extends Jetty10Test implements TestingGenericHttpNamingConventions.ServerV1 {
+  @Override
+  protected boolean useWebsocketPojoEndpoint() {
+    false
+  }
 }
