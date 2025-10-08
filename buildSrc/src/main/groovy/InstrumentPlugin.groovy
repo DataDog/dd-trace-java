@@ -72,11 +72,12 @@ class InstrumentPlugin implements Plugin<Project> {
           it.name == compileTaskName && !it.source.isEmpty()
         }
 
-        project.configurations.whenObjectAdded { pluginConfig ->
-          if (pluginConfig.name == INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION) {
+        // TODO eager config
+        project.configurations.configureEach { config ->
+          if (config.name == INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION) {
             logger.info('[InstrumentPlugin] instrumentPluginClasspath configuration was created')
             compileTasks.configureEach {
-              it.inputs.files(pluginConfig)
+              it.inputs.files(config)
             }
           }
         }
