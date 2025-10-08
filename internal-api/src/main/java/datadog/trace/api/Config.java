@@ -264,8 +264,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_FOLLOW_SYMLINKS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
@@ -1054,8 +1052,6 @@ public class Config {
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
   private final boolean ciVisibilityAutoInjected;
-  private final String ciVisibilityRemoteEnvVarsProviderUrl;
-  private final String ciVisibilityRemoteEnvVarsProviderKey;
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
@@ -2363,10 +2359,6 @@ public class Config {
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
     ciVisibilityAutoInjected =
         Strings.isNotBlank(configProvider.getString(CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER));
-    ciVisibilityRemoteEnvVarsProviderUrl =
-        configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
-    ciVisibilityRemoteEnvVarsProviderKey =
-        configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
@@ -4037,14 +4029,6 @@ public class Config {
 
   public boolean isCiVisibilityAutoInjected() {
     return ciVisibilityAutoInjected;
-  }
-
-  public String getCiVisibilityRemoteEnvVarsProviderUrl() {
-    return ciVisibilityRemoteEnvVarsProviderUrl;
-  }
-
-  public String getCiVisibilityRemoteEnvVarsProviderKey() {
-    return ciVisibilityRemoteEnvVarsProviderKey;
   }
 
   public String getCiVisibilityTestOrder() {
