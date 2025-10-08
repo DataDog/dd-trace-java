@@ -101,19 +101,19 @@ def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("forkedTest") {
+tasks.named("forkedTest", Test) {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("latestDepForkedTest") {
+tasks.named("latestDepForkedTest", Test) {
   dependsOn 'extractLatestWildfly'
 }
 
-tasks.named("latestDepTest") {
+tasks.named("latestDepTest", Test) {
   dependsOn 'extractLatestWildfly'
 }
 
@@ -136,7 +136,7 @@ tasks.named("compileTestJava", JavaCompile) {
   }
 }
 
-processTestResources {
+tasks.named("processTestResources", ProcessResources) {
   filesMatching('**/WEB-INF/web.xml') {
     expand(
       'servletClass': 'test.TestServlet',
@@ -144,11 +144,13 @@ processTestResources {
   }
 }
 
-[processLatestDepTestResources, processLatestDepForkedTestResources].each {
-  it.filesMatching('**/WEB-INF/web.xml') {
-    expand(
-      'servletClass': 'test.JakartaTestServlet',
-      )
+["processLatestDepTestResources", "processLatestDepForkedTestResources"].each {
+  tasks.named(it, ProcessResources) {
+    filesMatching('**/WEB-INF/web.xml') {
+      expand(
+        'servletClass': 'test.JakartaTestServlet',
+        )
+    }
   }
 }
 
