@@ -2,7 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin
+  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
 }
 
 apply from: "$rootDir/gradle/java.gradle"
