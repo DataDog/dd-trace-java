@@ -31,7 +31,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 
-tasks.register("latestDepTest")
+tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
@@ -129,7 +129,7 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 }
 
 
-tasks.named('shadowJar') {
+tasks.named('shadowJar', ShadowJar) {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar

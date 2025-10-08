@@ -15,7 +15,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileMain_java17Java") {
+tasks.named("compileMain_java17Java", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 

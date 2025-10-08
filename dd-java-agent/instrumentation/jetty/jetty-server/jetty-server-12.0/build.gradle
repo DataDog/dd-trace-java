@@ -44,7 +44,7 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
   }
 }
 
-forbiddenApisMain_java17 {
+tasks.named("forbiddenApisMain_java17") {
   failOnMissingClasses = false
 }
 
