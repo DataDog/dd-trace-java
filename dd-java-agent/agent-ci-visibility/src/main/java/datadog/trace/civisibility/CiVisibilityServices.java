@@ -1,14 +1,10 @@
 package datadog.trace.civisibility;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOUtils;
+import datadog.environment.CiEnvironmentVariables;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -33,21 +29,22 @@ import datadog.trace.civisibility.source.BestEffortLinesResolver;
 import datadog.trace.civisibility.source.ByteCodeLinesResolver;
 import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
 import datadog.trace.civisibility.source.LinesResolver;
-import datadog.trace.civisibility.source.index.*;
+import datadog.trace.civisibility.source.index.CachingRepoIndexBuilderFactory;
+import datadog.trace.civisibility.source.index.ConventionBasedResourceResolver;
+import datadog.trace.civisibility.source.index.PackageResolver;
+import datadog.trace.civisibility.source.index.PackageResolverImpl;
+import datadog.trace.civisibility.source.index.RepoIndexFetcher;
+import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.civisibility.source.index.ResourceResolver;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.File;
-import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,8 +57,6 @@ public class CiVisibilityServices {
   private static final Logger logger = LoggerFactory.getLogger(CiVisibilityServices.class);
 
   private static final String GIT_FOLDER_NAME = ".git";
-
-  static final String DD_ENV_VARS_PROVIDER_KEY_HEADER = "DD-Env-Vars-Provider-Key";
 
   final ProcessHierarchy processHierarchy;
   final Config config;
@@ -90,7 +85,7 @@ public class CiVisibilityServices {
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 
-    this.environment = buildCiEnvironment(config, sco);
+    this.environment = buildCiEnvironment();
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
     this.linesResolver =
         new BestEffortLinesResolver(new CompilerAidedLinesResolver(), new ByteCodeLinesResolver());
@@ -145,50 +140,13 @@ public class CiVisibilityServices {
   }
 
   @Nonnull
-  private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
-    CiEnvironment localEnvironment = CiEnvironmentImpl.local();
-    String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
-    if (remoteEnvVarsProviderUrl != null) {
-      String remoteEnvVarsProviderKey = config.getCiVisibilityRemoteEnvVarsProviderKey();
-      CiEnvironment remoteEnvironment =
-          new CiEnvironmentImpl(
-              getRemoteEnvironment(
-                  remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.agentHttpClient));
-      return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
+  private static CiEnvironment buildCiEnvironment() {
+    Map<String, String> remoteEnvironment = CiEnvironmentVariables.getAll();
+    if (remoteEnvironment != null) {
+      return new CompositeCiEnvironment(
+          new CiEnvironmentImpl(remoteEnvironment), CiEnvironmentImpl.local());
     } else {
-      return localEnvironment;
-    }
-  }
-
-  static Map<String, String> getRemoteEnvironment(String url, String key, OkHttpClient httpClient) {
-    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
-
-    HttpUrl httpUrl = HttpUrl.get(url);
-    Request request =
-        new Request.Builder()
-            .url(httpUrl)
-            .header(DD_ENV_VARS_PROVIDER_KEY_HEADER, key)
-            .get()
-            .build();
-    try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
-
-      if (response.isSuccessful()) {
-        Moshi moshi = new Moshi.Builder().build();
-        Type type = Types.newParameterizedType(Map.class, String.class, String.class);
-        JsonAdapter<Map<String, String>> adapter = moshi.adapter(type);
-        return adapter.fromJson(response.body().source());
-      } else {
-        logger.warn(
-            "Could not get remote CI environment (HTTP code {}) {}",
-            response.code(),
-            response.body() != null ? ": " + response.body().string() : "");
-        return Collections.emptyMap();
-      }
-
-    } catch (Exception e) {
-      logger.warn("Could not get remote CI environment", e);
-      return Collections.emptyMap();
+      return CiEnvironmentImpl.local();
     }
   }
 
