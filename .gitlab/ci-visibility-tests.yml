@@ -55,6 +55,7 @@ run-ci-visibility-test-environment:
   needs:
     - job: check-ci-visibility-label
       optional: true
+      artifacts: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
