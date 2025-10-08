@@ -68,6 +68,7 @@
 1 java.util.logging.LogManager$Cleaner
 # Need for IAST
 0 java.io.PushbackInputStream
+0 java.lang.VirtualThread
 1 jdk.*
 0 jdk.internal.net.http.*
 1 net.bytebuddy.*
