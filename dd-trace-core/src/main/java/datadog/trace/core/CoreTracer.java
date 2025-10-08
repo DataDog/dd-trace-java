@@ -887,7 +887,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     this.localRootSpanTagsNeedIntercept =
         this.tagInterceptor.needsIntercept(this.localRootSpanTags);
-    ServiceDiscovery.writeTracerMetadata();
+    ServiceDiscovery.writeTracerMetadata(config);
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
