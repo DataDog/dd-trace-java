@@ -1,7 +1,67 @@
+check-ci-visibility-label:
+  stage: publish
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  needs: [ publish-artifacts-to-s3 ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
+  before_script:
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
+    - gh auth login --with-token < github-token.txt
+  script:
+    - |
+      set +e
+      PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-java --head "${CI_COMMIT_BRANCH}" --state open --json number --jq '.[0].number')
+      EXIT_CODE=$?
+      set -e
+      
+      if [ $EXIT_CODE -ne 0 ] || [ -z "$PR_NUMBER" ]; then
+        echo "No open PR found for branch ${CI_COMMIT_BRANCH}"
+        echo "CI_VISIBILITY_LABEL_FOUND=false" > ci-visibility-label.env
+        exit 0
+      fi
+      
+      echo "Found PR #${PR_NUMBER}"
+      
+      LABELS=$(gh pr view "${PR_NUMBER}" --repo DataDog/dd-trace-java --json labels --jq '.labels[].name')
+      
+      if echo "$LABELS" | grep -q "comp: ci visibility"; then
+        echo "Label 'comp: ci visibility' found on PR #${PR_NUMBER}"
+        echo "CI_VISIBILITY_LABEL_FOUND=true" > ci-visibility-label.env
+      else
+        echo "Label 'comp: ci visibility' not found on PR #${PR_NUMBER}"
+        echo "CI_VISIBILITY_LABEL_FOUND=false" > ci-visibility-label.env
+      fi
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt)
+  artifacts:
+    reports:
+      dotenv: ci-visibility-label.env
+  retry:
+    max: 2
+    when: always
+
 run-ci-visibility-test-environment:
   stage: ci-visibility-tests
-  when: manual
-  needs: []
+  needs:
+    - job: check-ci-visibility-label
+      optional: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_VISIBILITY_LABEL_FOUND == "true"'
+      when: on_success
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/test-environment
     branch: main
