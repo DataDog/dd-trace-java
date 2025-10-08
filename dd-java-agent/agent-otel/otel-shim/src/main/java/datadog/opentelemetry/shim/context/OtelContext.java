@@ -51,7 +51,7 @@ public class OtelContext implements Context {
       // fall-through and check for non-datadog span data
     } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       AgentSpan span = AgentSpan.fromContext(delegate);
-      if (span != null) {
+      if (span != null && span.isValid()) {
         return (V) toOtelSpan(span.getLocalRootSpan());
       }
       // fall-through and check for non-datadog span data
