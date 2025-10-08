@@ -2,7 +2,6 @@ package com.datadog.profiling.controller.jfr.parser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * JFR Chunk metadata
@@ -17,10 +16,6 @@ public final class MetadataEvent {
   public final long duration;
   public final long metadataId;
 
-  private final ConcurrentHashMap<Long, String> eventTypeNameMapBacking =
-      new ConcurrentHashMap<>(256);
-  private final LongMapping<String> eventTypeMap;
-
   MetadataEvent(RecordingStream stream) throws IOException {
     size = (int) stream.readVarint();
     long typeId = stream.readVarint();
@@ -31,16 +26,6 @@ public final class MetadataEvent {
     duration = stream.readVarint();
     metadataId = stream.readVarint();
     readElements(stream, readStringTable(stream));
-    eventTypeMap = eventTypeNameMapBacking::get;
-  }
-
-  /**
-   * Lazily compute and return the mappings of event type ids to event type names
-   *
-   * @return mappings of event type ids to event type names
-   */
-  public LongMapping<String> getEventTypeNameMap() {
-    return eventTypeMap;
   }
 
   private String[] readStringTable(RecordingStream stream) throws IOException {
@@ -75,10 +60,6 @@ public final class MetadataEvent {
           id = stringConstants[valPtr];
         }
       }
-    }
-    // only event types are currently collected
-    if (name != null && id != null && "jdk.jfr.Event".equals(superType)) {
-      eventTypeNameMapBacking.put(Long.parseLong(id), name);
     }
     // now inspect all the enclosed elements
     int elemCount = (int) stream.readVarint();
