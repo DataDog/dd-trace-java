@@ -21,13 +21,13 @@ idea {
   }
 }
 
-// Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility
 project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 17)
-}
-compileJava.configure {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(
+    it,
+    17,
+    JavaVersion.VERSION_1_8,
+    "Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility"
+    )
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

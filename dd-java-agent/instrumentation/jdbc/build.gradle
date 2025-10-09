@@ -83,8 +83,17 @@ tasks.named("check") {
   dependsOn "oldPostgresTest"
 }
 
-tasks.named("latestDepJava11Test") {
+tasks.named("latestDepJava11Test", Test) {
   javaLauncher = getJavaLauncherFor(11)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Connection has new methods with new types introduced in Java 9 that are not available on Java 8."
+    )
 }
 
 tasks.withType(Test).configureEach {

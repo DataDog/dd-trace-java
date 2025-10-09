@@ -29,3 +29,7 @@ tasks.withType(Test).configureEach {
   dependsOn "bootWar"
   jvmArgs "-Ddatadog.smoketest.springboot.bootWar.path=${tasks.bootWar.archiveFile.get()}"
 }
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 8)
+}

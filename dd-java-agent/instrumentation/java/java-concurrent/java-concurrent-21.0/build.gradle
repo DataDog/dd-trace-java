@@ -26,19 +26,22 @@ idea {
  * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag
  */
 addTestSuite('previewTest')
+
+// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+}
+
 // Configure groovy test file compilation
-compilePreviewTestGroovy.configure {
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(21)
-  }
+tasks.named("compilePreviewTestGroovy", GroovyCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure Java test files compilation
-compilePreviewTestJava.configure {
+tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution
-previewTest.configure {
+tasks.named("previewTest", Test) {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check
@@ -48,13 +51,4 @@ tasks.named("check") {
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-}
-
-// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
-project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 21)
-}
-compileJava.configure {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
 }

@@ -571,6 +571,7 @@ import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
+import static datadog.trace.api.config.TracerConfig.FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
@@ -800,6 +801,9 @@ public class Config {
   private final String agentUnixDomainSocket;
   private final String agentNamedPipe;
   private final int agentTimeout;
+  /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
+  private final boolean forceClearTextHttpForIntakeClient;
+
   private final Set<String> noProxyHosts;
   private final boolean prioritySamplingEnabled;
   private final String prioritySamplingForce;
@@ -1483,6 +1487,9 @@ public class Config {
             && agentNamedPipe == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
+
+    forceClearTextHttpForIntakeClient =
+        configProvider.getBoolean(FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT, false);
 
     // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
     noProxyHosts = tryMakeImmutableSet(configProvider.getSpacedList(PROXY_NO_PROXY));
@@ -2997,6 +3004,10 @@ public class Config {
 
   public int getAgentTimeout() {
     return agentTimeout;
+  }
+
+  public boolean isForceClearTextHttpForIntakeClient() {
+    return forceClearTextHttpForIntakeClient;
   }
 
   public Set<String> getNoProxyHosts() {

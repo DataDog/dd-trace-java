@@ -15,7 +15,7 @@ jobs:
   update-docker-build-image:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to create and push branch
+      contents: read
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -58,26 +58,29 @@ jobs:
           else
             echo "commit_changes=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Download ghcommit CLI
-        if: steps.check-changes.outputs.commit_changes == 'true'
-        run: |
-          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
-          chmod +x /usr/local/bin/ghcommit
       - name: Pick a branch name
         if: steps.check-changes.outputs.commit_changes == 'true'
         id: define-branch
         run: echo "branch=ci/update-docker-build-image-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-      - name: Create branch
+      - name: Commit changes
         if: steps.check-changes.outputs.commit_changes == 'true'
+        id: create-commit
         run: |
-          git checkout -b ${{ steps.define-branch.outputs.branch }}
-          git push -u origin ${{ steps.define-branch.outputs.branch }} --force
-      - name: Commit and push changes
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(ci): Update Docker build image" .gitlab-ci.yml
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Push changes
+        uses: DataDog/commit-headless@1186485b788f57eedaaadb19919781698b4d262f # action/v1.0.0
         if: steps.check-changes.outputs.commit_changes == 'true'
-        env:
-          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
-        run: |
-          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add .gitlab-ci.yml --message "feat(ci): Update Docker build image"
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          # for scheduled runs, sha is the tip of the default branch
+          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          branch-from: "${{ github.sha }}"
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
       - name: Create pull request
         if: steps.check-changes.outputs.commit_changes == 'true'
         env:

@@ -106,7 +106,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     def serviceKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/service_config/config")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(OkHttpClient),
       monitoring: Mock(Monitoring),
       agentUrl: HttpUrl.get('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
@@ -216,7 +216,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     def orgConfig2Key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config2")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(OkHttpClient),
       monitoring: Mock(Monitoring),
       agentUrl: HttpUrl.get('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),

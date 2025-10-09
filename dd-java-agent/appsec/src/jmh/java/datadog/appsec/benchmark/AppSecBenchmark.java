@@ -70,9 +70,9 @@ public class AppSecBenchmark {
     ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
-    sharedCommunicationObjects.okHttpClient = new StubOkHttpClient();
+    sharedCommunicationObjects.agentHttpClient = new StubOkHttpClient();
     sharedCommunicationObjects.setFeaturesDiscovery(
-        new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.okHttpClient));
+        new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.agentHttpClient));
 
     AppSecSystem.start(ss, sharedCommunicationObjects);
     uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));
