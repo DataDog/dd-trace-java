@@ -130,7 +130,7 @@ dependencies {
   latestIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
 }
 
-tasks.named("latestDepTest") {
+tasks.named("latestDepTest", Test) {
   dependsOn "latestBoot20Test"
   dependsOn "latestBoot24Test"
   dependsOn "latestBoot2LatestTest"
