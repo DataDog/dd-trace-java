@@ -381,7 +381,7 @@ public class GatewayBridge {
       }
       try {
         final boolean raspActive = Config.get().isAppSecRaspEnabled();
-        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF : null);
+        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_REQUEST : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         httpClientRequestSubInfo = null;
@@ -420,7 +420,8 @@ public class GatewayBridge {
         httpClientResponseSubInfo = subInfo;
       }
       try {
-        GatewayContext gwCtx = new GatewayContext(true);
+        final boolean raspActive = Config.get().isAppSecRaspEnabled();
+        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_RESPONSE : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         httpClientResponseSubInfo = null;
