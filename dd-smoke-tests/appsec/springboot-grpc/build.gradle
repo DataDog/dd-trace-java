@@ -31,9 +31,9 @@ tasks.withType(Test).configureEach {
   def shadowJarTask = project(':dd-smoke-tests:springboot-grpc').tasks.named('shadowJar', ShadowJar)
 
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-    @Override
-    Iterable<String> asArguments() {
-      return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${it.archiveFile.get()}"] }.get()
-    }
-  })
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

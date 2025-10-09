@@ -37,7 +37,13 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.profiling.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 
   testLogging {
     events "started", "passed", "skipped", "failed"

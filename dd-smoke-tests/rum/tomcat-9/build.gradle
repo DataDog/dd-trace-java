@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -20,7 +22,13 @@ tasks.named("jar", Jar) {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
 
-  jvmArgs "-Ddatadog.smoketest.rum.tomcat9.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.rum.tomcat9.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
