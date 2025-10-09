@@ -121,7 +121,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
   }
 }
 
-def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, Provider<Directory> includedAgentDir, String agentDir) {
+def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agentDir, Provider<Directory> includedAgentDir) {
   project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Copy) {
 
     group = LifecycleBasePlugin.BUILD_GROUP
@@ -167,31 +167,31 @@ def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, Provider<Dir
   }
 }
 
-def includeSubprojShadowJar(Project includedProjectJar, Provider<Directory> includedAgentDir, String destinationDir) {
+def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, Provider<Directory> includedAgentDir) {
   evaluationDependsOn(includedProjectJar.path)
-  includeShadowJar(includedProjectJar.tasks.named("shadowJar", ShadowJar), includedAgentDir, destinationDir)
+  includeShadowJar(includedProjectJar.tasks.named("shadowJar", ShadowJar), destinationDir, includedAgentDir)
 }
 
-includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), includedAgentDir, 'inst')
-includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), includedAgentDir, 'metrics')
-includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), includedAgentDir, 'profiling')
-includeSubprojShadowJar(project(':dd-java-agent:appsec'), includedAgentDir, 'appsec')
-includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), includedAgentDir, 'aiguard')
-includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), includedAgentDir, 'iast')
-includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), includedAgentDir, 'debugger')
-includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), includedAgentDir, 'ci-visibility')
-includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), includedAgentDir, 'llm-obs')
-includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), includedAgentDir, 'logs-intake')
-includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), includedAgentDir, 'cws-tls')
+includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedAgentDir)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
-  configurations = [project.configurations.sharedShadowInclude]
+  it.configurations = [project.configurations.sharedShadowInclude]
   // Put the jar in a different directory so we don't overwrite the normal shadow jar and
   // break caching, and also to not interfere with CI scripts that copy everything in the
   // libs directory
   it.destinationDirectory.set(project.layout.buildDirectory.dir("shared-lib"))
   // Add a classifier so we don't confuse the jar file with the normal shadow jar
-  archiveClassifier = 'shared'
+  it.archiveClassifier = 'shared'
   it.dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
     exclude(project(':dd-java-agent:agent-logging'))
@@ -203,16 +203,16 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(dependency('org.slf4j::'))
   }
 }
-includeShadowJar(sharedShadowJar, includedAgentDir, 'shared')
+includeShadowJar(sharedShadowJar, 'shared', includedAgentDir)
 
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
-  configurations = [project.configurations.traceShadowInclude]
+  it.configurations = [project.configurations.traceShadowInclude]
   it.destinationDirectory.set(project.layout.buildDirectory.dir("trace-lib"))
-  archiveClassifier = 'trace'
+  it.archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
 }
-includeShadowJar(traceShadowJar, includedAgentDir, 'trace')
+includeShadowJar(traceShadowJar, 'trace', includedAgentDir)
 
 tasks.named("shadowJar", ShadowJar) {
   // Include AgentPreCheck compiled with Java 6.
