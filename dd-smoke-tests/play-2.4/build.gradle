@@ -87,11 +87,9 @@ tasks.withType(ScalaCompile).configureEach {
   configureCompiler(it, 8)
 }
 
-tasks.withType(AbstractCopyTask).each {
+tasks.withType(AbstractCopyTask).configureEach {
   // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
-  it.configure {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-  }
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 spotless {

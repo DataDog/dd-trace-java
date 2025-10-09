@@ -87,6 +87,6 @@ apply from: "$configPath/spotless/spotless-kotlin.gradle"
 tasks.register('formatCode') {
   dependsOn 'spotlessApply'
 }
-check.configure {
+tasks.named("check").configure {
   dependsOn 'spotlessCheck'
 }
