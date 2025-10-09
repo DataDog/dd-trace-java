@@ -4,7 +4,6 @@ import com.sun.jna.Library;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
-import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import org.slf4j.Logger;
@@ -35,11 +34,6 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
 
   @Override
   public void write(byte[] payload) {
-    if (!Platform.isLinux()) {
-      log.debug("memfd not supported: non-Linux platform");
-      return;
-    }
-
     final LibC libc = Native.load("c", LibC.class);
 
     int memFd = libc.memfd_create("datadog-tracer-info", MFD_CLOEXEC | MFD_ALLOW_SEALING);
