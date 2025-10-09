@@ -24,7 +24,6 @@ class SupportedConfigPlugin : Plugin<Project> {
       java.srcDir(generateTask)
     }
 
-    // Make javadoc depend on the generated configurations
     targetProject.tasks.named("javadoc") {
       dependsOn(generateTask)
     }
