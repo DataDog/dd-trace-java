@@ -13,11 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import org.slf4j.Logger;
@@ -102,6 +98,8 @@ public final class AgentJarIndex {
     private Path prefixRoot;
     private int prefixId;
 
+    private Map<Integer, String> prefixMappings = new HashMap<>();
+
     IndexGenerator(Path resourcesDir) {
       this.resourcesDir = resourcesDir;
 
@@ -125,6 +123,7 @@ public final class AgentJarIndex {
         prefixRoot = dir;
         prefixes.add(dir.getFileName() + "/");
         prefixId = prefixes.size();
+        prefixMappings.put(prefixId, dir.getFileName().toString());
       }
       return FileVisitResult.CONTINUE;
     }
@@ -145,8 +144,13 @@ public final class AgentJarIndex {
           int existingPrefixId = prefixTrie.apply(entryKey);
           if (-1 != existingPrefixId && prefixId != existingPrefixId) {
             log.warn(
-                "Detected duplicate content under '{}'. Ensure your content is under a distinct directory.",
-                entryKey);
+                "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your content is under a distinct directory.",
+                entryKey,
+                resourcesDir.relativize(file).getName(0), // prefix
+                existingPrefixId == 0
+                    ? "<root>"
+                    : prefixMappings.get(existingPrefixId) // previous prefix
+                );
           }
           prefixTrie.put(entryKey, prefixId);
           if (entryKey.endsWith("*")) {
@@ -185,10 +189,18 @@ public final class AgentJarIndex {
     }
 
     public static void main(String[] args) throws IOException {
+      if (args.length < 1) {
+        throw new IllegalArgumentException("Expected: resources-dir");
+      }
+
       Path resourcesDir = Paths.get(args[0]).toAbsolutePath();
+      Path indexDir = resourcesDir;
+      if (args.length == 2) {
+        indexDir = Paths.get(args[1]).toAbsolutePath();
+      }
       IndexGenerator indexGenerator = new IndexGenerator(resourcesDir);
       Files.walkFileTree(resourcesDir, indexGenerator);
-      indexGenerator.writeIndex(resourcesDir.resolve(AGENT_INDEX_FILE_NAME));
+      indexGenerator.writeIndex(indexDir.resolve(AGENT_INDEX_FILE_NAME));
     }
   }
 }
