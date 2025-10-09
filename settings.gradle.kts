@@ -104,6 +104,7 @@ include(
   ":components:context",
   ":components:environment",
   ":components:json",
+  ":components:native-loader",
   ":components:yaml",
   ":telemetry",
   ":remote-config:remote-config-api",
