@@ -1,14 +1,15 @@
 package datadog.trace.agent.tooling;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.environment.OperatingSystem;
 import datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
-import jnr.posix.util.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,11 +39,11 @@ public class TracerInstaller {
   }
 
   private static ServiceDiscovery getServiceDiscovery() {
-    if (System.getProperty("org.graalvm.home") != null) {
-      log.debug("service discovery not supported on graalvm");
+    if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
+      log.debug("service discovery not supported on native images");
       return null;
     }
-    if (!Platform.IS_LINUX) {
+    if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
       return null;
     }
