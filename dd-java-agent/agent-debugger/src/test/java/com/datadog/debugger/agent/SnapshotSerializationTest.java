@@ -202,6 +202,7 @@ public class SnapshotSerializationTest {
         });
     exitCapturedContext.addReturn(
         CapturedContext.CapturedValue.of(String.class.getTypeName(), "foo"));
+    exitCapturedContext.addThrowable(new RuntimeException("Illegal argument"));
     snapshot.setExit(exitCapturedContext);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -210,9 +211,40 @@ public class SnapshotSerializationTest {
     CapturedContext exit = deserializedSnapshot.getCaptures().getReturn();
     Assertions.assertEquals(1, entry.getLocals().size());
     Assertions.assertEquals(42, entry.getLocals().get("localInt").getValue());
-    Assertions.assertEquals(2, exit.getLocals().size());
+    Assertions.assertEquals(3, exit.getLocals().size());
     Assertions.assertEquals(42, exit.getLocals().get("localInt").getValue());
     Assertions.assertEquals("foo", exit.getLocals().get("@return").getValue());
+    Assertions.assertEquals(
+        "Illegal argument",
+        ((HashMap<String, CapturedContext.CapturedValue>)
+                exit.getLocals().get("@exception").getValue())
+            .get("detailMessage")
+            .getValue());
+    Assertions.assertEquals(
+        RuntimeException.class.getTypeName(), exit.getCapturedThrowable().getType());
+    Assertions.assertEquals("Illegal argument", exit.getCapturedThrowable().getMessage());
+  }
+
+  @Test
+  public void truncatedExceptionMessage() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext exitCapturedContext = new CapturedContext();
+    String oneKB =
+        "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123";
+    String largeErrorMessage = oneKB + oneKB + oneKB + oneKB;
+    exitCapturedContext.addThrowable(new RuntimeException(largeErrorMessage));
+    snapshot.setExit(exitCapturedContext);
+    String buffer = adapter.toJson(snapshot);
+    Snapshot deserializedSnapshot = adapter.fromJson(buffer);
+    Assertions.assertEquals(
+        2048,
+        deserializedSnapshot
+            .getCaptures()
+            .getReturn()
+            .getCapturedThrowable()
+            .getMessage()
+            .length());
   }
 
   @Test

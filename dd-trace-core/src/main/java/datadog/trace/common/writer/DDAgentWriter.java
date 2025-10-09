@@ -138,7 +138,7 @@ public class DDAgentWriter extends RemoteWriter {
       final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
       final OkHttpClient client =
           null == featureDiscovery || null == agentApi
-              ? buildHttpClient(agentUrl, unixDomainSocket, namedPipe, timeoutMillis)
+              ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
               : null;
       if (null == featureDiscovery) {
         featureDiscovery =

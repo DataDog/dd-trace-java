@@ -41,8 +41,8 @@ dependencies {
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore:apache-httpcore-4.0'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common'))
-  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-lang'))
-  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
   iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   v41IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.1'
