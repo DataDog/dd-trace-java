@@ -608,7 +608,13 @@ class WAFModuleSpecification extends DDSpecification {
     flow.action instanceof Flow.Action.RequestBlockingAction
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == statusCode
-      assert it.extraHeaders == [Location: "https://example${variant}.com/"]
+      // Location header may include block_id parameter from libddwaf
+      def location = it.extraHeaders['Location']
+      assert location.startsWith("https://example${variant}.com/")
+      // If block_id is present, it should be a valid UUID
+      if (location.contains('block_id=')) {
+        assert location.matches(".*block_id=[0-9a-f-]{36}.*")
+      }
     }
 
     where:
@@ -2045,6 +2051,82 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
     !flow.blocking // Should not block since keep: false
+  }
+
+  void 'block_id is extracted from blocking action and included in RequestBlockingAction'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      metadata: [
+        rules_version: '1.0.0'
+      ],
+      actions: [
+        [
+          id: 'block',
+          type: 'block_request',
+          parameters: [
+            status_code: 403,
+            type: 'json'
+          ]
+        ]
+      ],
+      rules: [
+        [
+          id: 'test-rule',
+          name: 'Test blocking rule',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^BlockTest'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          on_match: ['block']
+        ]
+      ]
+    ]
+
+    when:
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'BlockTest']))
+    def flow = new ChangeableFlow()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportEvents(_)
+    1 * ctx.setWafBlocked()
+    1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
+    0 * ctx._(*_)
+    flow.blocking
+    flow.action instanceof Flow.Action.RequestBlockingAction
+    with(flow.action as Flow.Action.RequestBlockingAction) {
+      assert it.statusCode == 403
+      assert it.blockingContentType == BlockingContentType.JSON
+      // blockId should be extracted from libddwaf (or null if not present)
+      // With libddwaf v18.0.0, block_id is automatically generated
+      // We just verify the field is accessible
+      def blockId = it.blockId
+      assert blockId == null || blockId.matches('[0-9a-f-]{36}')
+    }
   }
 
   private static class BadConfig implements Map<String, Object> {

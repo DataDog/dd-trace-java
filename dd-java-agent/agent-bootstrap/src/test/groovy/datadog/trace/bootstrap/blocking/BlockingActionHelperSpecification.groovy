@@ -167,4 +167,106 @@ class BlockingActionHelperSpecification extends DDSpecification {
     BlockingActionHelper.reset(Config.get())
     tempDir.deleteDir()
   }
+
+  void 'getTemplate with block_id replaces placeholder in HTML template'() {
+    given:
+    def blockId = '12345678-1234-1234-1234-123456789abc'
+
+    when:
+    def template = BlockingActionHelper.getTemplate(HTML, blockId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    templateStr.contains("Event ID: ${blockId}")
+    !templateStr.contains('{block_id}')
+  }
+
+  void 'getTemplate with block_id replaces placeholder in JSON template'() {
+    given:
+    def blockId = '12345678-1234-1234-1234-123456789abc'
+
+    when:
+    def template = BlockingActionHelper.getTemplate(JSON, blockId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    templateStr.contains("\"block_id\":\"${blockId}\"")
+    !templateStr.contains('{block_id}')
+  }
+
+  void 'getTemplate without block_id keeps placeholder in HTML template'() {
+    when:
+    def template = BlockingActionHelper.getTemplate(HTML, null)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    templateStr.contains('{block_id}')
+  }
+
+  void 'getTemplate without block_id keeps placeholder in JSON template'() {
+    when:
+    def template = BlockingActionHelper.getTemplate(JSON, null)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    templateStr.contains('{block_id}')
+  }
+
+  void 'getTemplate with empty block_id keeps placeholder'() {
+    when:
+    def htmlTemplate = BlockingActionHelper.getTemplate(HTML, '')
+    def jsonTemplate = BlockingActionHelper.getTemplate(JSON, '')
+
+    then:
+    new String(htmlTemplate, StandardCharsets.UTF_8).contains('{block_id}')
+    new String(jsonTemplate, StandardCharsets.UTF_8).contains('{block_id}')
+  }
+
+  void 'getTemplate with block_id works with custom HTML template'() {
+    setup:
+    File tempDir = File.createTempDir('testTempDir-', '')
+    Config config = Mock(Config)
+    File tempFile = new File(tempDir, 'template.html')
+    tempFile << '<body>Custom template with block_id: {block_id}</body>'
+    def blockId = 'test-block-id-123'
+
+    when:
+    BlockingActionHelper.reset(config)
+    def template = BlockingActionHelper.getTemplate(HTML, blockId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    1 * config.getAppSecHttpBlockedTemplateHtml() >> tempFile.toString()
+    1 * config.getAppSecHttpBlockedTemplateJson() >> null
+    templateStr.contains("Custom template with block_id: ${blockId}")
+    !templateStr.contains('{block_id}')
+
+    cleanup:
+    BlockingActionHelper.reset(Config.get())
+    tempDir.deleteDir()
+  }
+
+  void 'getTemplate with block_id works with custom JSON template'() {
+    setup:
+    File tempDir = File.createTempDir('testTempDir-', '')
+    Config config = Mock(Config)
+    File tempFile = new File(tempDir, 'template.json')
+    tempFile << '{"error":"blocked","id":"{block_id}"}'
+    def blockId = 'test-block-id-456'
+
+    when:
+    BlockingActionHelper.reset(config)
+    def template = BlockingActionHelper.getTemplate(JSON, blockId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    1 * config.getAppSecHttpBlockedTemplateHtml() >> null
+    1 * config.getAppSecHttpBlockedTemplateJson() >> tempFile.toString()
+    templateStr.contains("\"error\":\"blocked\",\"id\":\"${blockId}\"")
+    !templateStr.contains('{block_id}')
+
+    cleanup:
+    BlockingActionHelper.reset(Config.get())
+    tempDir.deleteDir()
+  }
 }

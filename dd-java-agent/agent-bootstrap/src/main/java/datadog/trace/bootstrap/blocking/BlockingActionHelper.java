@@ -118,12 +118,27 @@ public class BlockingActionHelper {
   }
 
   public static byte[] getTemplate(TemplateType type) {
+    return getTemplate(type, null);
+  }
+
+  public static byte[] getTemplate(TemplateType type, String blockId) {
+    byte[] template;
     if (type == TemplateType.JSON) {
-      return TEMPLATE_JSON;
+      template = TEMPLATE_JSON;
     } else if (type == TemplateType.HTML) {
-      return TEMPLATE_HTML;
+      template = TEMPLATE_HTML;
+    } else {
+      return null;
     }
-    return null;
+
+    if (blockId == null || blockId.isEmpty()) {
+      return template;
+    }
+
+    // Perform placeholder replacement for {block_id}
+    String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
+    String replacedTemplate = templateString.replace("{block_id}", blockId);
+    return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }
 
   public static String getContentType(TemplateType type) {

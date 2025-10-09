@@ -477,7 +477,9 @@ public class WAFModule implements AppSecModule {
         } catch (IllegalArgumentException iae) {
           log.warn("Unknown content type: {}; using auto", contentType);
         }
-        return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
+        String blockId = (String) actionInfo.parameters.get("block_id");
+        return new Flow.Action.RequestBlockingAction(
+            statusCode, blockingContentType, Collections.emptyMap(), blockId);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         if (!isRasp) {
@@ -506,7 +508,13 @@ public class WAFModule implements AppSecModule {
         if (location == null) {
           throw new RuntimeException("redirect_request action has no location");
         }
-        return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
+        String blockId = (String) actionInfo.parameters.get("block_id");
+        if (blockId != null) {
+          // Append block_id as URL parameter to redirect location
+          String separator = location.contains("?") ? "&" : "?";
+          location = location + separator + "block_id=" + blockId;
+        }
+        return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location, blockId);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         if (!isRasp) {
