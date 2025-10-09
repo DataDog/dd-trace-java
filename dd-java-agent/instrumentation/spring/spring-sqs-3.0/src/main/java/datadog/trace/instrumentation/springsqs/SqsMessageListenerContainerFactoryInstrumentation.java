@@ -49,7 +49,6 @@ public class SqsMessageListenerContainerFactoryInstrumentation extends Instrumen
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) SqsAsyncClient sqsAsyncClient) {
       if (sqsAsyncClient != null) {
-        System.out.println("Marked sqs client as spring");
         // Mark this SqsAsyncClient as being used for Spring SQS
         InstrumentationContext.get(SqsAsyncClient.class, Boolean.class)
             .put(sqsAsyncClient, Boolean.TRUE);

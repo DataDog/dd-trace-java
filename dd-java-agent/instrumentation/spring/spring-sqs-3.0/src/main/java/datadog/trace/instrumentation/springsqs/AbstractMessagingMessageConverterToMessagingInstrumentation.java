@@ -23,7 +23,7 @@ public class AbstractMessagingMessageConverterToMessagingInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public AbstractMessagingMessageConverterToMessagingInstrumentation() {
-    super("spring-sqs");
+    super("spring-sqs", "spring-sqs-3.0");
   }
 
   @Override
