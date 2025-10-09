@@ -19,25 +19,30 @@ check-ci-visibility-label:
     - gh auth login --with-token < github-token.txt
   script:
     - |
-      set +e
-      PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-java --head "${CI_COMMIT_BRANCH}" --state open --json number --jq '.[0].number')
-      EXIT_CODE=$?
-      set -e
+      # Install authanywhere
+      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
+      chmod +x authanywhere-linux-amd64
+
+      # Source utility functions
+      source .gitlab/ci_visibility_utils.sh
       
-      if [ $EXIT_CODE -ne 0 ] || [ -z "$PR_NUMBER" ]; then
+      # Get PR number
+      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
         echo "No open PR found for branch ${CI_COMMIT_BRANCH}"
         exit 1
       fi
       
       echo "Found PR #${PR_NUMBER}"
       
-      LABELS=$(gh pr view "${PR_NUMBER}" --repo DataDog/dd-trace-java --json labels --jq '.labels[].name')
-      
-      if echo "$LABELS" | grep -q "comp: ci visibility"; then
-        echo "Label 'comp: ci visibility' found on PR #${PR_NUMBER}"
+      # Check if PR has the CI visibility label
+      if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
+        echo "PR #${PR_NUMBER} detected as CI Visibility PR"
+
+        # Post comment
+        write_pr_comment "$PR_NUMBER" "Execution triggered, waiting for results..." "Test Environment Tests"
         exit 0
       else
-        echo "Label 'comp: ci visibility' not found on PR #${PR_NUMBER}"
+        echo "PR #${PR_NUMBER} not a CI Visibility PR, ignoring trigger"
         exit 1
       fi
   after_script:
@@ -58,7 +63,7 @@ run-ci-visibility-test-environment:
       when: on_success
   trigger:
     project: DataDog/apm-reliability/test-environment
-    branch: main
+    branch: daniel.mohedano/java-auto-trigger # TODO: set back to `main`
     strategy: depend
   variables:
     UPSTREAM_PACKAGE_JOB: build
@@ -72,12 +77,13 @@ run-ci-visibility-test-environment:
     TRACER_LANG: java
     JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
 
-notify-ci-visibility-tests-triggered:
+notify-ci-visibility-tests-environment:
   stage: ci-visibility-tests
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   needs:
     - job: check-ci-visibility-label
+    - job: run-ci-visibility-test-environment
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
@@ -92,40 +98,20 @@ notify-ci-visibility-tests-triggered:
     - gh auth login --with-token < github-token.txt
   script:
     - |
-      # Install authanywhere - but suppress output
-      wget binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64 > /dev/null 2>&1
+      # Install authanywhere
+      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
       chmod +x authanywhere-linux-amd64
-
-      # Obtain PR number
-      PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-java --head "${CI_COMMIT_BRANCH}" --state open --json number --jq '.[0].number')
       
-      if [ -z "$PR_NUMBER" ]; then
+      # Source utility functions
+      source .gitlab/ci_visibility_utils.sh
+      
+      # Get PR number
+      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
         echo "No PR found, skipping comment"
         exit 0
       fi
       
-      # Prepare comment message
-      COMMENT_MESSAGE="test message"
-      
-      # Create JSON payload (pr_num as integer, not string)
-      JSON_PAYLOAD=$(jq -n \
-        --argjson pr_num "$PR_NUMBER" \
-        --arg message "$COMMENT_MESSAGE" \
-        --arg header "Test Header" \
-        --arg org "DataDog" \
-        --arg repo "dd-trace-java" \
-        '{pr_num: $pr_num, message: $message, header: $header, org: $org, repo: $repo}')
-      
-      # Debug: Print the JSON payload
-      echo "JSON Payload:"
-      echo "$JSON_PAYLOAD" | jq .
-      
-      # Post comment to PR
-      echo "Posting comment to PR #${PR_NUMBER}"
-      curl -v 'https://pr-commenter.us1.ddbuild.io/internal/cit/pr-comment' \
-        -H "$(./authanywhere-linux-amd64)" \
-        -H "Content-Type: application/json" \
-        -X PATCH \
-        -d "$JSON_PAYLOAD" || echo "Curl failed with exit code: $?"
+      # Post comment
+      write_pr_comment "$PR_NUMBER" "Run finished" "Test Environment Tests"
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
