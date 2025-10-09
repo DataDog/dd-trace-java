@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.agent.tooling.servicediscovery;
 
 import com.sun.jna.Library;
 import com.sun.jna.Memory;
@@ -6,11 +6,12 @@ import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
+import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ServiceDiscoveryWriter {
-  private static final Logger log = LoggerFactory.getLogger(ServiceDiscoveryWriter.class);
+public class MemFDUnixWriter implements ForeignMemoryWriter {
+  private static final Logger log = LoggerFactory.getLogger(MemFDUnixWriter.class);
 
   private interface LibC extends Library {
     int memfd_create(String name, int flags);
@@ -32,7 +33,8 @@ public class ServiceDiscoveryWriter {
   private static final int F_SEAL_SHRINK = 0x0002;
   private static final int F_SEAL_GROW = 0x0004;
 
-  public static void writeMemFD(byte[] payload) {
+  @Override
+  public void write(byte[] payload) {
     if (!Platform.isLinux()) {
       log.debug("memfd not supported: non-Linux platform");
       return;

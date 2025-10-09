@@ -1,4 +1,4 @@
-package datadog.trace.core;
+package datadog.trace.core.servicediscovery;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
@@ -14,7 +14,7 @@ import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ServiceDiscovery {
+public class ServiceDiscovery {
   private static final Logger log = LoggerFactory.getLogger(ServiceDiscovery.class);
 
   private static final byte[] SCHEMA_VERSION = "schema_version".getBytes(ISO_8859_1);
@@ -29,7 +29,13 @@ class ServiceDiscovery {
   private static final byte[] CONTAINER_ID = "container_id".getBytes(ISO_8859_1);
   private static final byte[] JAVA_LANG = "java".getBytes(ISO_8859_1);
 
-  static void writeTracerMetadata(Config config) {
+  private final ForeignMemoryWriter foreignMemoryWriter;
+
+  public ServiceDiscovery(ForeignMemoryWriter foreignMemoryWriter) {
+    this.foreignMemoryWriter = foreignMemoryWriter;
+  }
+
+  public void writeTracerMetadata(Config config) {
     byte[] payload =
         ServiceDiscovery.encodePayload(
             TracerVersion.TRACER_VERSION,
@@ -42,8 +48,7 @@ class ServiceDiscovery {
             ContainerInfo.get().getContainerId());
 
     try {
-      Class<?> cls = Class.forName("datadog.trace.agent.tooling.ServiceDiscoveryWriter");
-      cls.getMethod("writeMemFD", byte[].class).invoke((Object) payload);
+      foreignMemoryWriter.write(payload);
     } catch (Throwable t) {
       log.debug("service discovery memfd write failed", t);
     }

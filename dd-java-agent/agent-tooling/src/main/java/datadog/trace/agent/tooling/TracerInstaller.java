@@ -1,11 +1,13 @@
 package datadog.trace.agent.tooling;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +25,7 @@ public class TracerInstaller {
                 .profilingContextIntegration(profilingContextIntegration)
                 .reportInTracerFlare()
                 .pollForTracingConfiguration()
+                .serviceDiscovery(new ServiceDiscovery(new MemFDUnixWriter()))
                 .build();
         installGlobalTracer(tracer);
       } else {
