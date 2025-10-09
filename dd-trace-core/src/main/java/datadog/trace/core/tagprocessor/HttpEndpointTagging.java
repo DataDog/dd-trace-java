@@ -1,19 +1,22 @@
-package datadog.trace.common.metrics;
+package datadog.trace.core.tagprocessor;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
+import datadog.trace.api.Config;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.DDSpanContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for HTTP endpoint tagging logic. Handles route eligibility checks and URL path
- * parameterization for trace metrics.
+ * parameterization for spans.
  *
  * <p>This implementation ensures: 1. Only applies to HTTP service entry spans (server spans) 2.
  * Limits cardinality through URL path parameterization 3. Uses http.route when available and
@@ -48,11 +51,15 @@ public final class HttpEndpointTagging {
    * @return true if route is eligible, false otherwise
    */
   public static boolean isRouteEligible(String route) {
-    if (route == null || route.trim().isEmpty()) {
+    if (route == null) {
       return false;
     }
 
     route = route.trim();
+
+    if (route.isEmpty()) {
+      return false;
+    }
 
     // Route must start with / to be a valid path
     if (!route.startsWith("/")) {
@@ -61,11 +68,6 @@ public final class HttpEndpointTagging {
 
     // Reject overly generic routes that don't provide meaningful endpoint information
     if ("/".equals(route) || "/*".equals(route) || "*".equals(route)) {
-      return false;
-    }
-
-    // Reject routes that are just wildcards
-    if (route.matches("^[*/]+$")) {
       return false;
     }
 
@@ -145,11 +147,16 @@ public final class HttpEndpointTagging {
    * @return parameterized endpoint path or '/'
    */
   public static String computeEndpointFromUrl(String url) {
-    if (url == null || url.trim().isEmpty()) {
+    if (url == null) {
       return "/";
     }
 
-    java.util.regex.Matcher matcher = URL_PATTERN.matcher(url.trim());
+    url = url.trim();
+    if (url.isEmpty()) {
+      return "/";
+    }
+
+    Matcher matcher = URL_PATTERN.matcher(url);
     if (!matcher.matches()) {
       log.debug("Failed to parse URL for endpoint computation: {}", url);
       return "/";
@@ -193,29 +200,22 @@ public final class HttpEndpointTagging {
 
   /**
    * Sets the HTTP endpoint tag on a span context based on configuration flags. This overload
-   * accepts DDSpanContext for use in TagInterceptor and other core components.
+   * accepts DDSpanContext for use in tag post-processors and other core components.
    *
    * @param spanContext The span context to potentially tag
    * @param config The tracer configuration containing feature flags
    */
-  public static void setEndpointTag(
-      datadog.trace.core.DDSpanContext spanContext, datadog.trace.api.Config config) {
+  public static void setEndpointTag(DDSpanContext spanContext, Config config) {
     if (!config.isResourceRenamingEnabled()) {
       return;
     }
 
     Object route = spanContext.unsafeGetTag(HTTP_ROUTE);
-    boolean shouldUseRoute = false;
 
     // Check if we should use route (when not forcing simplified endpoints)
     if (!config.isResourceRenamingAlwaysSimplifiedEndpoint()
         && route != null
         && isRouteEligible(route.toString())) {
-      shouldUseRoute = true;
-    }
-
-    // If we should use route and not set endpoint tag, return early
-    if (shouldUseRoute) {
       return;
     }
 
@@ -236,23 +236,17 @@ public final class HttpEndpointTagging {
    * @param span The span to potentially tag
    * @param config The tracer configuration containing feature flags
    */
-  public static void setEndpointTag(CoreSpan<?> span, datadog.trace.api.Config config) {
+  public static void setEndpointTag(CoreSpan<?> span, Config config) {
     if (!config.isResourceRenamingEnabled()) {
       return;
     }
 
     Object route = span.getTag(HTTP_ROUTE);
-    boolean shouldUseRoute = false;
 
     // Check if we should use route (when not forcing simplified endpoints)
     if (!config.isResourceRenamingAlwaysSimplifiedEndpoint()
         && route != null
         && isRouteEligible(route.toString())) {
-      shouldUseRoute = true;
-    }
-
-    // If we should use route and not set endpoint tag, return early
-    if (shouldUseRoute) {
       return;
     }
 

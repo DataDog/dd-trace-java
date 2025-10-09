@@ -61,8 +61,8 @@ public final class MetricKey {
             + 29791 * this.operationName.hashCode()
             + 961 * this.type.hashCode()
             + 31 * httpStatusCode
-            + 29 * this.httpMethod.hashCode()
-            + 27 * this.httpEndpoint.hashCode()
+            + -1796951359 * this.httpMethod.hashCode()
+            + 129082719 * this.httpEndpoint.hashCode()
             + (this.synthetics ? 1 : 0);
   }
 

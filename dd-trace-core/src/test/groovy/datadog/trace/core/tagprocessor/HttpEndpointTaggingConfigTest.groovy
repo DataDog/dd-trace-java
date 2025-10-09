@@ -1,4 +1,4 @@
-package datadog.trace.common.metrics
+package datadog.trace.core.tagprocessor
 
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
