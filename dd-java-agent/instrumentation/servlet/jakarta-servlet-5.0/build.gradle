@@ -30,7 +30,7 @@ configurations {
   javaxClassesToRelocate
 }
 
-task relocatedJavaxJar(type: ShadowJar) {
+tasks.register('relocatedJavaxJar', ShadowJar) {
   relocate 'javax.servlet', 'jakarta.servlet'
   relocate 'datadog.trace.instrumentation.servlet3', 'datadog.trace.instrumentation.servlet5'
   relocate 'datadog.trace.instrumentation.servlet', 'datadog.trace.instrumentation.servlet5'

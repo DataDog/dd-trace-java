@@ -15,7 +15,7 @@ def latestJdk = 17
 
 def latestJdkHome = providers.environmentVariable("JAVA_${latestJdk}_HOME").orNull
 if (latestJdkHome != null) {
-  tasks.withType(JavaCompile) {
+  tasks.withType(JavaCompile).configureEach {
     options.fork = true
     options.release = latestJdk
     compileJava.options.forkOptions.javaHome = file(latestJdkHome)

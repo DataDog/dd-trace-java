@@ -34,6 +34,6 @@ dependencies {
   latestDepTestImplementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.integration.grizzly-filterchain.enabled=true']
 }
