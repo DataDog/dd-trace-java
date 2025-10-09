@@ -124,7 +124,6 @@ public class SnapshotSerializationTest {
     context.addLocals(
         new CapturedContext.CapturedValue[] {normalValuedLocal, normalNullLocal, notCapturedLocal});
     context.evaluate(
-        PROBE_ID.getId(),
         new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
         String.class.getTypeName(),
         -1,

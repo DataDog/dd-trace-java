@@ -47,6 +47,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
         Config tracerConfig,
         Configuration configuration,
         DebuggerTransformer.InstrumentationListener listener,
+        ProbeMetadata probeMetadata,
         DebuggerSink debuggerSink);
   }
 
@@ -61,6 +62,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private volatile Configuration currentConfiguration;
   private DebuggerTransformer currentTransformer;
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
+  private final ProbeMetadata probeMetadata = new ProbeMetadata();
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
@@ -117,6 +119,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     LOGGER.warn("Error handling probe configuration: {}", configId, ex);
     sink.getProbeStatusSink().addError(probeId, ex);
+  }
+
+  ProbeMetadata getProbeMetadata() {
+    return probeMetadata;
   }
 
   private ProbeId extractPrefix(String prefix, String configId) {
@@ -201,7 +207,11 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     // install new probe definitions
     DebuggerTransformer newTransformer =
         transformerSupplier.supply(
-            Config.get(), newConfiguration, this::recordInstrumentationProgress, sink);
+            Config.get(),
+            newConfiguration,
+            this::recordInstrumentationProgress,
+            probeMetadata,
+            sink);
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
     LOGGER.debug("New transformer installed");
@@ -231,6 +241,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private void storeDebuggerDefinitions(ConfigurationComparer changes) {
     for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
       appliedDefinitions.remove(definition.getProbeId().getEncodedId());
+      probeMetadata.removeProbe(definition.getProbeId().getEncodedId());
     }
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
       appliedDefinitions.put(definition.getProbeId().getEncodedId(), definition);
@@ -240,12 +251,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public ProbeImplementation resolve(String encodedProbeId) {
-    ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
-    if (definition == null) {
-      ratelimitedLogger.warn(SEND_TELEMETRY, "Cannot resolve probe id={}", encodedProbeId);
+  public ProbeImplementation resolve(int probeIndex) {
+    ProbeImplementation probeImplementation = probeMetadata.getProbe(probeIndex);
+    if (probeImplementation == null) {
+      ratelimitedLogger.warn(SEND_TELEMETRY, "Cannot resolve probe index={}", probeIndex);
     }
-    return definition;
+    return probeImplementation;
   }
 
   private static void applyRateLimiter(

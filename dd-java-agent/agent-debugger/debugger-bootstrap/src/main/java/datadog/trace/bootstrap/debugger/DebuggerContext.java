@@ -51,7 +51,7 @@ public class DebuggerContext {
   }
 
   public interface ProbeResolver {
-    ProbeImplementation resolve(String encodedProbeId);
+    ProbeImplementation resolve(int probeIndex);
   }
 
   public interface ClassFilter {
@@ -144,16 +144,13 @@ public class DebuggerContext {
     DebuggerContext.codeOriginRecorder = codeOriginRecorder;
   }
 
-  /**
-   * Returns the probe details based on the probe id provided. If no probe is found, try to
-   * re-transform the class using the callingClass parameter No-op if no implementation available
-   */
-  public static ProbeImplementation resolveProbe(String id) {
+  /** Returns the probe details based on the probe idx provided. */
+  public static ProbeImplementation resolveProbe(int probeIndex) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
       return null;
     }
-    return resolver.resolve(id);
+    return resolver.resolve(probeIndex);
   }
 
   /**
@@ -253,7 +250,7 @@ public class DebuggerContext {
    *
    * @return true if can proceed to capture data
    */
-  public static boolean isReadyToCapture(Class<?> callingClass, String... encodedProbeIds) {
+  public static boolean isReadyToCapture(Class<?> callingClass, int... probeIndices) {
     try {
       return checkAndSetInProbe();
     } catch (Exception ex) {
@@ -287,21 +284,17 @@ public class DebuggerContext {
       Class<?> callingClass,
       long startTimestamp,
       MethodLocation methodLocation,
-      String... encodedProbeIds) {
+      int... probeIndices) {
     try {
       boolean needFreeze = false;
-      for (String encodedProbeId : encodedProbeIds) {
-        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId);
+      for (int probeIndex : probeIndices) {
+        ProbeImplementation probeImplementation = resolveProbe(probeIndex);
         if (probeImplementation == null) {
           continue;
         }
         CapturedContext.Status status =
             context.evaluate(
-                encodedProbeId,
-                probeImplementation,
-                callingClass.getTypeName(),
-                startTimestamp,
-                methodLocation);
+                probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation);
         needFreeze |= status.shouldFreezeContext();
       }
       // only freeze the context when we have at lest one snapshot probe, and we should send
@@ -321,20 +314,16 @@ public class DebuggerContext {
    * conditions and commit snapshot to send it if needed. This is for line probes.
    */
   public static void evalContextAndCommit(
-      CapturedContext context, Class<?> callingClass, int line, String... encodedProbeIds) {
+      CapturedContext context, Class<?> callingClass, int line, int... probeIndices) {
     try {
       List<ProbeImplementation> probeImplementations = new ArrayList<>();
-      for (String encodedProbeId : encodedProbeIds) {
-        ProbeImplementation probeImplementation = resolveProbe(encodedProbeId);
+      for (int probeIndex : probeIndices) {
+        ProbeImplementation probeImplementation = resolveProbe(probeIndex);
         if (probeImplementation == null) {
           continue;
         }
         context.evaluate(
-            encodedProbeId,
-            probeImplementation,
-            callingClass.getTypeName(),
-            -1,
-            MethodLocation.DEFAULT);
+            probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
         probeImplementations.add(probeImplementation);
       }
       for (ProbeImplementation probeImplementation : probeImplementations) {
@@ -345,9 +334,9 @@ public class DebuggerContext {
     }
   }
 
-  public static void codeOrigin(String probeId) {
+  public static void codeOrigin(int probeIndex) {
     try {
-      ProbeImplementation probe = probeResolver.resolve(probeId);
+      ProbeImplementation probe = probeResolver.resolve(probeIndex);
       if (probe != null) {
         probe.commit(
             CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
@@ -365,16 +354,16 @@ public class DebuggerContext {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
-      String... encodedProbeIds) {
+      int... probeIndices) {
     try {
       if (entryContext == CapturedContext.EMPTY_CONTEXT
           && exitContext == CapturedContext.EMPTY_CONTEXT) {
         // rate limited
         return;
       }
-      for (String encodedProbeId : encodedProbeIds) {
-        CapturedContext.Status entryStatus = entryContext.getStatus(encodedProbeId);
-        CapturedContext.Status exitStatus = exitContext.getStatus(encodedProbeId);
+      for (int probeIndex : probeIndices) {
+        CapturedContext.Status entryStatus = entryContext.getStatus(probeIndex);
+        CapturedContext.Status exitStatus = exitContext.getStatus(probeIndex);
         ProbeImplementation probeImplementation;
         if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
             && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
@@ -383,7 +372,7 @@ public class DebuggerContext {
         } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
           probeImplementation = exitStatus.probeImplementation;
         } else {
-          throw new IllegalStateException("no probe details for " + encodedProbeId);
+          throw new IllegalStateException("no probe details for " + probeIndex);
         }
         probeImplementation.commit(entryContext, exitContext, caughtExceptions);
       }

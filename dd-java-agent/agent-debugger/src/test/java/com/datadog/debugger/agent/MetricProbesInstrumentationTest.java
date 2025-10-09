@@ -1336,7 +1336,11 @@ public class MetricProbesInstrumentationTest {
     probeStatusSink = mock(ProbeStatusSink.class);
     currentTransformer =
         new DebuggerTransformer(
-            config, configuration, null, new DebuggerSink(config, probeStatusSink));
+            config,
+            configuration,
+            null,
+            new ProbeMetadata(),
+            new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     MetricForwarderListener listener = new MetricForwarderListener();
     DebuggerContext.initMetricForwarder(listener);
