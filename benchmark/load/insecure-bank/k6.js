@@ -28,7 +28,7 @@ export const options = function (variants) {
     scenarios[`load--insecure-bank--${variant}--warmup`] = {
       executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
       vus: 5,
-      duration: '120s',
+      duration: '60s',
       gracefulStop: '2s',
       env: {
         "APP_URL": variants[variant]["APP_URL"]
@@ -38,7 +38,7 @@ export const options = function (variants) {
     scenarios[`load--insecure-bank--${variant}--high_load`] = {
       executor: 'constant-vus',
       vus: 5,
-      startTime: '122s',
+      startTime: '62s',
       duration: '60s',
       gracefulStop: '2s',
       env: {
