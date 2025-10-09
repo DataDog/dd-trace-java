@@ -4,6 +4,7 @@ import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INV
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_DATA_SCANNERS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
@@ -13,6 +14,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COL
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_PROCESSOR_OVERRIDES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_CMDI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI;
@@ -147,6 +149,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -525,6 +529,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
             | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ASM_RASP_SSRF
             | CAPABILITY_ASM_RASP_LFI
