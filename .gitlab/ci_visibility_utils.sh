@@ -109,6 +109,7 @@ function write_pr_comment() {
 
 function get_downstream_pipeline_id() {
   local downstream_id
+  echo "DEBUG: curl --header \"JOB-TOKEN: ${CI_JOB_TOKEN}\" --url \"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/bridges\"" >&2
   downstream_id=$(curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --url "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/bridges")
   echo "$downstream_id"
   return 0
