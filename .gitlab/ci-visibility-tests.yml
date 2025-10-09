@@ -104,21 +104,24 @@ notify-ci-visibility-tests-triggered:
         exit 0
       fi
       
+      # Prepare comment message
+      COMMENT_MESSAGE="test message"
+      
+      # Create JSON payload
+      JSON_PAYLOAD=$(jq -n \
+        --arg pr_num "$PR_NUMBER" \
+        --arg message "$COMMENT_MESSAGE" \
+        --arg header "Test Header" \
+        --arg org "DataDog" \
+        --arg repo "dd-trace-java" \
+        '{pr_num: $pr_num, message: $message, header: $header, org: $org, repo: $repo}')
+      
       # Post comment to PR
       echo "Posting comment to PR #${PR_NUMBER}"
       curl -f -v 'https://pr-commenter.us1.ddbuild.io/internal/cit/pr-comment' \
         -H "$(./authanywhere-linux-amd64)" \
         -H "Content-Type: application/json" \
         -X PATCH \
-        -d @<(cat <<EOF | jq -c .
-      {
-        "pr_num": "${PR_NUM}",
-        "message": "test message",
-        "header": "Test Header",
-        "org": "Datadog",
-        "repo": "dd-trace-java"
-      }
-      EOF
-      )
+        -d "$JSON_PAYLOAD"
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
