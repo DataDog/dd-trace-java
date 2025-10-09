@@ -2,7 +2,7 @@ package datadog.trace.core.servicediscovery
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Timeout;
+import spock.lang.Timeout
 import org.msgpack.core.MessagePack
 import org.msgpack.value.MapValue
 
