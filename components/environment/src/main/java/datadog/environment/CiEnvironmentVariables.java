@@ -1,22 +1,19 @@
 package datadog.environment;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Type;
+import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import okio.BufferedSource;
-import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +27,7 @@ public class CiEnvironmentVariables {
       "dd.civisibility.remote.env.vars.provider.key";
 
   static final String DD_ENV_VARS_PROVIDER_KEY_HEADER = "DD-Env-Vars-Provider-Key";
+  static final String ACCEPT_HEADER = "Accept";
 
   private static final int CONNECT_TIMEOUT_MILLIS = 5000;
   private static final int READ_TIMEOUT_MILLIS = 10000;
@@ -40,7 +38,8 @@ public class CiEnvironmentVariables {
     String url = getConfigValue(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
     String key = getConfigValue(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     if (url != null && key != null) {
-      REMOTE_ENVIRONMENT = doWithBackoffRetries(() -> getRemoteEnvironment(url, key), null);
+      REMOTE_ENVIRONMENT =
+          getRemoteEnvironmentWithRetries(url, key, new RetryPolicy(500, 5, 2), null);
     } else {
       REMOTE_ENVIRONMENT = null;
     }
@@ -58,9 +57,27 @@ public class CiEnvironmentVariables {
     return string.replace('.', '_').replace('-', '_').toUpperCase();
   }
 
-  private static <T> T doWithBackoffRetries(Callable<T> action, T fallbackValue) {
-    long delayMillis = 500;
-    for (int i = 0; i < 5; i++) {
+  static Map<String, String> getRemoteEnvironmentWithRetries(
+      String url, String key, RetryPolicy retryPolicy, Map<String, String> fallbackValue) {
+    return doWithBackoffRetries(() -> getRemoteEnvironment(url, key), retryPolicy, fallbackValue);
+  }
+
+  static final class RetryPolicy {
+    long delayMillis;
+    int maxAttempts;
+    double backoffFactor;
+
+    public RetryPolicy(long delayMillis, int maxAttempts, double backoffFactor) {
+      this.delayMillis = delayMillis;
+      this.maxAttempts = maxAttempts;
+      this.backoffFactor = backoffFactor;
+    }
+  }
+
+  private static <T> T doWithBackoffRetries(
+      Callable<T> action, RetryPolicy retryPolicy, T fallbackValue) {
+    long delayMillis = retryPolicy.delayMillis;
+    for (int i = 0; i < retryPolicy.maxAttempts; i++) {
       if (Thread.currentThread().isInterrupted()) {
         logger.warn("Interrupted while trying to read remote environment");
         return fallbackValue;
@@ -71,7 +88,7 @@ public class CiEnvironmentVariables {
       } catch (Exception e) {
         logger.warn("Error while trying to read remote environment", e);
         sleep(delayMillis);
-        delayMillis *= 2;
+        delayMillis = Math.round(delayMillis * retryPolicy.backoffFactor);
       }
     }
     return fallbackValue;
@@ -92,17 +109,17 @@ public class CiEnvironmentVariables {
       conn = (HttpURLConnection) target.openConnection();
       conn.setRequestMethod("GET");
       conn.setRequestProperty(DD_ENV_VARS_PROVIDER_KEY_HEADER, key);
+      conn.setRequestProperty(ACCEPT_HEADER, "text/plain");
       conn.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
       conn.setReadTimeout(READ_TIMEOUT_MILLIS);
 
       int code = conn.getResponseCode();
       if (code >= 200 && code < 300) {
-        Moshi moshi = new Moshi.Builder().build();
-        Type type = Types.newParameterizedType(Map.class, String.class, String.class);
-        JsonAdapter<Map<String, String>> adapter = moshi.adapter(type);
-        try (BufferedSource source = Okio.buffer(Okio.source(conn.getInputStream()))) {
-          return adapter.fromJson(source);
+        Properties properties = new Properties();
+        try (Reader r = new InputStreamReader(conn.getInputStream(), StandardCharsets.ISO_8859_1)) {
+          properties.load(r);
         }
+        return asMap(properties);
 
       } else {
         try (BufferedReader r =
@@ -119,6 +136,14 @@ public class CiEnvironmentVariables {
         conn.disconnect();
       }
     }
+  }
+
+  private static Map<String, String> asMap(Properties properties) {
+    Map<String, String> map = new HashMap<>();
+    for (String name : properties.stringPropertyNames()) {
+      map.put(name, properties.getProperty(name));
+    }
+    return map;
   }
 
   @Nullable
