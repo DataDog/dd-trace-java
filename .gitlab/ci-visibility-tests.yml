@@ -19,10 +19,6 @@ check-ci-visibility-label:
     - gh auth login --with-token < github-token.txt
   script:
     - |
-      # Install authanywhere
-      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
-      chmod +x authanywhere-linux-amd64
-
       # Source utility functions
       source .gitlab/ci_visibility_utils.sh
       
@@ -37,9 +33,6 @@ check-ci-visibility-label:
       # Check if PR has the CI visibility label
       if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
         echo "PR #${PR_NUMBER} detected as CI Visibility PR"
-
-        # Post comment
-        write_pr_comment "$PR_NUMBER" "Execution triggered, waiting for results..." "Test Environment Tests"
         exit 0
       else
         echo "PR #${PR_NUMBER} not a CI Visibility PR, ignoring trigger"
@@ -77,13 +70,12 @@ run-ci-visibility-test-environment:
     TRACER_LANG: java
     JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
 
-notify-ci-visibility-tests-environment:
+report-ci-visibility-test-environment-results:
   stage: ci-visibility-tests
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   needs:
     - job: check-ci-visibility-label
-    - job: run-ci-visibility-test-environment
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
@@ -110,8 +102,10 @@ notify-ci-visibility-tests-environment:
         echo "No PR found, skipping comment"
         exit 0
       fi
+
+      echo $(get_downstream_pipeline_id)
       
       # Post comment
-      write_pr_comment "$PR_NUMBER" "Run finished" "Test Environment Tests"
+      write_pr_comment "$PR_NUMBER" "Test environment triggered." "Test Environment Tests"
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
