@@ -78,7 +78,6 @@ notify-ci-visibility-tests-triggered:
   tags: [ "arch:amd64" ]
   needs:
     - job: check-ci-visibility-label
-    - job: run-ci-visibility-test-environment
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
@@ -93,6 +92,11 @@ notify-ci-visibility-tests-triggered:
     - gh auth login --with-token < github-token.txt
   script:
     - |
+      # Install authanywhere - but suppress output
+      wget binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64 > /dev/null 2>&1
+      chmod +x authanywhere-linux-amd64
+
+      # Obtain PR number
       PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-java --head "${CI_COMMIT_BRANCH}" --state open --json number --jq '.[0].number')
       
       if [ -z "$PR_NUMBER" ]; then
@@ -100,33 +104,21 @@ notify-ci-visibility-tests-triggered:
         exit 0
       fi
       
+      # Post comment to PR
       echo "Posting comment to PR #${PR_NUMBER}"
-      
-      cat > comment.md <<EOF
-      🔬 **CI Visibility Test Environment Triggered**
-      
-      The test environment pipeline has been automatically triggered for this PR.
-      
-      - **GitLab Pipeline**: ${CI_PIPELINE_URL}
-      - **Test Environment Project**: [DataDog/apm-reliability/test-environment](https://gitlab.ddbuild.io/DataDog/apm-reliability/test-environment)
-      
-      _Note: The downstream pipeline results will be available in the GitLab UI. Check the pipeline link above for details._
-      
-      <!-- ci-visibility-auto-trigger-comment -->
+      curl -f -v 'https://pr-commenter.us1.ddbuild.io/internal/cit/pr-comment' \
+        -H "$(./authanywhere-linux-amd64)" \
+        -H "Content-Type: application/json" \
+        -X PATCH \
+        -d @<(cat <<EOF | jq -c .
+      {
+        "pr_num": "${PR_NUM}",
+        "message": "test message",
+        "header": "Test Header",
+        "org": "Datadog",
+        "repo": "dd-trace-java"
+      }
       EOF
-      
-      COMMENT_BODY=$(cat comment.md)
-      
-      # Check if comment already exists
-      EXISTING_COMMENT=$(gh api repos/DataDog/dd-trace-java/issues/${PR_NUMBER}/comments --jq '.[] | select(.body | contains("ci-visibility-auto-trigger-comment")) | .id' | head -1)
-      
-      if [ -n "$EXISTING_COMMENT" ]; then
-        echo "Updating existing comment ID: $EXISTING_COMMENT"
-        gh api -X PATCH "repos/DataDog/dd-trace-java/issues/comments/${EXISTING_COMMENT}" -f body="$COMMENT_BODY"
-      else
-        echo "Creating new comment"
-        gh api -X POST "repos/DataDog/dd-trace-java/issues/${PR_NUMBER}/comments" -f body="$COMMENT_BODY"
-      fi
+      )
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
-  allow_failure: true
