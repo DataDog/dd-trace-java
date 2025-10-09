@@ -32,8 +32,6 @@ val excludedClassesBranchCoverage by extra {
 
 dependencies {
   implementation(libs.slf4j)
-  implementation(libs.okio)
-  implementation(libs.moshi)
 
   testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
 }
