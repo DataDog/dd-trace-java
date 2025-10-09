@@ -93,9 +93,9 @@ public class CrashUploaderTest {
   @Test
   public void testLogsHappyPath() throws Exception {
     // Given
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(CRASH, new PrintStream(out));
 
@@ -112,7 +112,8 @@ public class CrashUploaderTest {
 
   @Test
   public void testExtractStackTraceFromRealCrashFile() throws IOException {
-    uploader = new CrashUploader(config);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
+    uploader = new CrashUploader(config, crashConfig);
     String msg = readFileAsString("sample-crash-redacted.txt");
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(msg, new PrintStream(out));
@@ -153,9 +154,9 @@ public class CrashUploaderTest {
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/" + log));
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.uploadToTelemetry(getResourcePath(log));
 
@@ -200,9 +201,9 @@ public class CrashUploaderTest {
   @Test
   public void testTelemetryUnrecognizedFile() throws Exception {
     // Given
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     assertFalse(uploader.uploadToTelemetry(getResourcePath("no-crash.txt")));
   }
@@ -211,8 +212,9 @@ public class CrashUploaderTest {
   public void testAgentlessRequest() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
@@ -225,8 +227,9 @@ public class CrashUploaderTest {
   public void test404() throws Exception {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
     uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
@@ -241,8 +244,9 @@ public class CrashUploaderTest {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
     uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
