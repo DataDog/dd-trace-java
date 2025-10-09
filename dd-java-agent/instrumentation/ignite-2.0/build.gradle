@@ -45,6 +45,6 @@ dependencies {
 
 for (task in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroovy']) {
   tasks.named(task, GroovyCompile) {
-    it.javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }

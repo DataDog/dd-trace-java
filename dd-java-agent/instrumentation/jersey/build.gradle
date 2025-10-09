@@ -20,7 +20,7 @@ addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 
 tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
 }
 
 compileTestJava.configure {

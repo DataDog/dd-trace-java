@@ -35,7 +35,7 @@ addTestSuiteForDir('latestSpring5Test', 'test')
 
 ["compileSpring6TestGroovy", "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(17)
+    configureCompiler(it, 17)
   }
 }
 
