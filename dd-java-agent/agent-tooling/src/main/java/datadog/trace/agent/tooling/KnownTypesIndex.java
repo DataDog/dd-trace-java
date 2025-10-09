@@ -154,10 +154,10 @@ public final class KnownTypesIndex {
      */
     public static void main(String[] args) throws IOException {
       if (args.length < 1) {
-        throw new IllegalArgumentException("Expected: resources-dir");
+        throw new IllegalArgumentException("Expected: index-dir");
       }
 
-      Path resourcesDir = Paths.get(args[0]).toAbsolutePath();
+      Path indexDir = Paths.get(args[0]).toAbsolutePath();
 
       // satisfy some instrumenters that cache matchers in initializers
       HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
@@ -165,7 +165,7 @@ public final class KnownTypesIndex {
 
       IndexGenerator indexGenerator = new IndexGenerator();
       indexGenerator.buildIndex();
-      indexGenerator.writeIndex(resourcesDir.resolve(KNOWN_TYPES_INDEX_NAME));
+      indexGenerator.writeIndex(indexDir.resolve(KNOWN_TYPES_INDEX_NAME));
     }
   }
 }
