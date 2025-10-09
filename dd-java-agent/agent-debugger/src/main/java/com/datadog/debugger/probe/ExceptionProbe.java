@@ -53,8 +53,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new ExceptionInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+    return new ExceptionInstrumentor(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
   @Override

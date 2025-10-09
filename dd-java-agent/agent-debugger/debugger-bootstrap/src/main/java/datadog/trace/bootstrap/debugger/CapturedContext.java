@@ -294,13 +294,14 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   public Status evaluate(
-      String encodedProbeId,
       ProbeImplementation probeImplementation,
       String thisClassName,
       long startTimestamp,
       MethodLocation methodLocation) {
     Status status =
-        statusByProbeId.computeIfAbsent(encodedProbeId, key -> probeImplementation.createStatus());
+        statusByProbeId.computeIfAbsent(
+            probeImplementation.getProbeId().getEncodedId(),
+            key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT && startTimestamp > 0) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
@@ -322,6 +323,18 @@ public class CapturedContext implements ValueReferenceResolver {
       if (result == null) {
         return Status.EMPTY_STATUS;
       }
+    }
+    return result;
+  }
+
+  public Status getStatus(int probeIndex) {
+    ProbeImplementation probeImplementation = DebuggerContext.resolveProbe(probeIndex);
+    if (probeImplementation != null) {
+      return getStatus(probeImplementation.getProbeId().getEncodedId());
+    }
+    Status result = statusByProbeId.get(ProbeImplementation.UNKNOWN.getProbeId().getEncodedId());
+    if (result == null) {
+      return Status.EMPTY_STATUS;
     }
     return result;
   }
