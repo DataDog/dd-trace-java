@@ -97,12 +97,11 @@ dependencies {
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
   apply plugin: 'muzzle'
-  task("muzzleInstrumentationReport") {
-    dependsOn(project.getAllTasks(true).values().flatten().findAll { it.name.endsWith("generateMuzzleReport") })
+  tasks.register('muzzleInstrumentationReport') {
+    dependsOn(subprojects.collect { p -> p.tasks.matching { it.name == "generateMuzzleReport" } })
     finalizedBy(tasks.named('mergeMuzzleReports'))
   }
 }
-
 
 tasks.named('shadowJar', ShadowJar) {
   duplicatesStrategy = DuplicatesStrategy.FAIL
