@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.StringReader;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
@@ -53,25 +52,12 @@ class XmlDomUtilsTest {
   }
 
   @Test
-  void testIsXmlContent_withObjects() {
-    // Test with null
-    assertFalse(XmlDomUtils.isXmlContent((Object) null));
-
-    // Test with non-XML objects
-    assertFalse(XmlDomUtils.isXmlContent(123));
-    assertFalse(XmlDomUtils.isXmlContent(Collections.emptyMap()));
-
-    // Test with XML string as object
-    assertTrue(XmlDomUtils.isXmlContent((Object) "<root><child>text</child></root>"));
-  }
-
-  @Test
   void testConvertW3cNode_withSimpleElement() throws Exception {
     String xmlContent = "<person><name>John</name><age>30</age></person>";
     Document doc = parseXmlString(xmlContent);
     Element root = doc.getDocumentElement();
 
-    Object result = XmlDomUtils.convertW3cNode(root, MAX_RECURSION);
+    Object result = XmlDomUtils.processXmlForWaf(root, MAX_RECURSION);
 
     assertNotNull(result);
     assertTrue(result instanceof Map);
@@ -91,7 +77,7 @@ class XmlDomUtilsTest {
     Document doc = parseXmlString(xmlContent);
     Element root = doc.getDocumentElement();
 
-    Object result = XmlDomUtils.convertW3cNode(root, MAX_RECURSION);
+    Object result = XmlDomUtils.processXmlForWaf(root, MAX_RECURSION);
 
     assertNotNull(result);
     assertTrue(result instanceof Map);
@@ -119,7 +105,7 @@ class XmlDomUtilsTest {
     Document doc = parseXmlString(xmlContent);
     Element root = doc.getDocumentElement();
 
-    Object result = XmlDomUtils.convertW3cNode(root, MAX_RECURSION);
+    Object result = XmlDomUtils.processXmlForWaf(root, MAX_RECURSION);
 
     assertNotNull(result);
     assertTrue(result instanceof Map);
@@ -141,15 +127,15 @@ class XmlDomUtilsTest {
     Element root = doc.getDocumentElement();
 
     // Test with very low recursion limit
-    Object result = XmlDomUtils.convertW3cNode(root, 1);
+    Object result = XmlDomUtils.processXmlForWaf(root, 1);
     assertNotNull(result);
 
     // Test with zero recursion
-    Object zeroResult = XmlDomUtils.convertW3cNode(root, 0);
+    Object zeroResult = XmlDomUtils.processXmlForWaf(root, 0);
     assertNull(zeroResult);
 
     // Test with null node
-    Object nullResult = XmlDomUtils.convertW3cNode(null, MAX_RECURSION);
+    Object nullResult = XmlDomUtils.processXmlForWaf(null, MAX_RECURSION);
     assertNull(nullResult);
   }
 
@@ -180,7 +166,7 @@ class XmlDomUtilsTest {
     Document doc = parseXmlString(xmlContent);
     Element element = doc.getDocumentElement();
 
-    Object result = XmlDomUtils.convertElement(element, MAX_RECURSION);
+    Object result = XmlDomUtils.processXmlForWaf(element, MAX_RECURSION);
 
     assertNotNull(result);
     assertTrue(result instanceof Map);
@@ -192,7 +178,7 @@ class XmlDomUtilsTest {
 
   @Test
   void testConvertElement_withNullElement() {
-    Object result = XmlDomUtils.convertElement(null, MAX_RECURSION);
+    Object result = XmlDomUtils.processXmlForWaf((Element) null, MAX_RECURSION);
     assertNull(result);
   }
 
@@ -252,7 +238,7 @@ class XmlDomUtilsTest {
   void testParseXmlStringToWafFormat_validXml() throws Exception {
     String xmlContent = "<book><title>Java Guide</title><author>John Doe</author></book>";
 
-    Object result = XmlDomUtils.parseXmlStringToWafFormat(xmlContent, MAX_RECURSION);
+    Object result = XmlDomUtils.processXmlForWaf(xmlContent, MAX_RECURSION);
 
     assertNotNull(result);
     assertTrue(result instanceof Map);
@@ -270,19 +256,17 @@ class XmlDomUtilsTest {
   void testParseXmlStringToWafFormat_invalidXml() {
     String invalidXml = "<root><unclosed>";
 
-    assertThrows(
-        Exception.class,
-        () -> {
-          XmlDomUtils.parseXmlStringToWafFormat(invalidXml, MAX_RECURSION);
-        });
+    // Public API returns null for invalid XML instead of throwing exception
+    Object result = XmlDomUtils.handleXmlString(invalidXml, MAX_RECURSION);
+    assertNull(result);
   }
 
   @Test
   void testParseXmlStringToWafFormat_emptyString() throws Exception {
-    Object result = XmlDomUtils.parseXmlStringToWafFormat("", MAX_RECURSION);
+    Object result = XmlDomUtils.handleXmlString("", MAX_RECURSION);
     assertNull(result);
 
-    Object nullResult = XmlDomUtils.parseXmlStringToWafFormat(null, MAX_RECURSION);
+    Object nullResult = XmlDomUtils.handleXmlString(null, MAX_RECURSION);
     assertNull(nullResult);
   }
 
@@ -386,9 +370,9 @@ class XmlDomUtilsTest {
             + "]>"
             + "<root>&test;</root>";
 
-    // This should either parse safely or throw an exception due to DTD restrictions
-    assertThrows(
-        Exception.class, () -> XmlDomUtils.parseXmlStringToWafFormat(xmlWithDTD, MAX_RECURSION));
+    // Public API returns null for XML with DTD due to security restrictions
+    Object result = XmlDomUtils.handleXmlString(xmlWithDTD, MAX_RECURSION);
+    assertNull(result);
   }
 
   // Helper method to parse XML string into Document
