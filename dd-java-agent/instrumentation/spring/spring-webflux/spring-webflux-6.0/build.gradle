@@ -19,7 +19,7 @@ tasks.withType(GroovyCompile).configureEach {
   it.javaLauncher = getJavaLauncherFor(17)
 }
 
-iastTest {
+tasks.named("iastTest", Test) {
   jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
 }
 

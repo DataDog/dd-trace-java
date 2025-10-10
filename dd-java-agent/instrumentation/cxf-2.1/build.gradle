@@ -60,6 +60,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-12.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:trace-annotation')

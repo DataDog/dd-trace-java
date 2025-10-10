@@ -8,8 +8,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscCompoundQueue;
 import org.slf4j.Logger;
@@ -24,7 +24,7 @@ final class Aggregator implements Runnable {
   private final Queue<Batch> batchPool;
   private final MpscCompoundQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
-  private final NonBlockingHashMap<MetricKey, Batch> pending;
+  private final ConcurrentMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
   private final MetricWriter writer;
   // the reporting interval controls how much history will be buffered
@@ -40,7 +40,7 @@ final class Aggregator implements Runnable {
       MetricWriter writer,
       Queue<Batch> batchPool,
       MpscCompoundQueue<InboxItem> inbox,
-      NonBlockingHashMap<MetricKey, Batch> pending,
+      ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
@@ -61,7 +61,7 @@ final class Aggregator implements Runnable {
       MetricWriter writer,
       Queue<Batch> batchPool,
       MpscCompoundQueue<InboxItem> inbox,
-      NonBlockingHashMap<MetricKey, Batch> pending,
+      ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,

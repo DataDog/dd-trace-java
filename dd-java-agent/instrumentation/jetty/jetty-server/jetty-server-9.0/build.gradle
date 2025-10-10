@@ -7,161 +7,21 @@ muzzle {
     assertInverse = true
   }
   pass {
-    name = 'before_904'
+    name = "before_904"
     group = "org.eclipse.jetty"
     module = 'jetty-server'
     versions = "[9,9.0.4)"
     assertInverse = true
-  }
-  pass {
-    name = 'between_904_and_930'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9.0.4,9.3.0.M1)"
-    assertInverse = true
-  }
-  pass {
-    name = 'between_930_and_9421'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9.3.0.M1,9.4.21)"
-    assertInverse = true
-  }
-  pass {
-    name = 'between_9421_and_10'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[9.4.21,10)"
-    assertInverse = true
-  }
-  pass {
-    name = '10_series'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[10,11)"
-    assertInverse = true
-    javaVersion = 11
-  }
-  pass {
-    name = 'named_dispatches'
-    group = 'org.eclipse.jetty'
-    module = 'jetty-server'
-    versions = "[10.0.16,11),[11.0.16,12)"
-    assertInverse = true
-    javaVersion = 11
-  }
-  pass {
-    name = 'between_10_and_12'
-    group = "org.eclipse.jetty"
-    module = 'jetty-server'
-    versions = "[10,12)"
-    assertInverse = true
-    javaVersion = 11
   }
 }
 
 apply plugin: 'java-test-fixtures'
 apply from: "$rootDir/gradle/java.gradle"
 
-sourceSets {
-  main_jetty904 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty904"
-  }
-  main_jetty93 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty93"
-  }
-  main_jetty9421 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty9421"
-  }
-  main_jetty10 {
-    java.srcDirs "${project.projectDir}/src/main/java_jetty10"
-  }
-}
-
-jar {
-  from sourceSets.main_jetty904.output
-  from sourceSets.main_jetty93.output
-  from sourceSets.main_jetty9421.output
-  from sourceSets.main_jetty10.output
-}
-
-List<DirectoryProperty> extraInstrumentJavaDirs = []
-['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each {
-  JavaCompile compileTask = tasks["compile${it.capitalize()}Java"]
-  extraInstrumentJavaDirs << compileTask.destinationDirectory
-  compileTask.dependsOn tasks['compileJava']
-  project.afterEvaluate { p ->
-    tasks['instrumentJava'].dependsOn compileTask
-    tasks["forbiddenApis${it.capitalize()}"].dependsOn("instrument${it.capitalize()}Java")
-  }
-}
-
-instrument {
-  // the instrumenters are in main, but helpers/advice in possibly other sourceSets
-  // The muzzle generator of references run as part of InstrumentJava needs access to
-  // these extra classes. The task dependencies for instrumentJava are added above
-  additionalClasspath = [
-    instrumentJava: extraInstrumentJavaDirs
-  ]
-}
-
-tasks.named("compileMain_jetty10Java", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
-}
-
-addTestSuiteForDir('jetty92ForkedTest', 'test')
-addTestSuiteForDir('jetty94ForkedTest', 'test')
-addTestSuiteForDir('latestDepJetty9ForkedTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
-
-tasks.named("latestDepForkedTest") {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
-}
-
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
 
   implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
-
-  main_jetty904CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.4.v20130625'
-  main_jetty904CompileOnly project(':internal-api')
-  main_jetty904CompileOnly project(':dd-java-agent:agent-tooling')
-  main_jetty904CompileOnly project(':dd-java-agent:agent-bootstrap')
-  // not pretty, but we can't depend on sourceSets.main.output;
-  // that would make a dependency on the classes task due to the
-  // intermediation of the InstrumentPlugin, creating a circular
-  // dependency (the instrument plugin needs all the sourceSets
-  // compiled to properly generate References)
-  main_jetty904CompileOnly files("$project.buildDir/classes/java/raw")
-
-  main_jetty93CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
-  main_jetty93CompileOnly project(':internal-api')
-  main_jetty93CompileOnly project(':dd-java-agent:agent-tooling')
-  main_jetty93CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_jetty93CompileOnly files("$project.buildDir/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
-
-  main_jetty9421CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.21.v20190926'
-  main_jetty9421CompileOnly project(':internal-api')
-  main_jetty9421CompileOnly project(':dd-java-agent:agent-tooling')
-  main_jetty9421CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_jetty9421CompileOnly files("$project.buildDir/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
-
-  main_jetty10CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
-
-  main_jetty10CompileOnly project(':internal-api')
-  main_jetty10CompileOnly project(':dd-java-agent:agent-tooling')
-  main_jetty10CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_jetty10Implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
-  main_jetty10CompileOnly files("$project.buildDir/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
 
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -183,40 +43,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testFixturesImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
-
-  jetty92TestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
-  jetty92TestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.2.30.v20200428'
-  jetty92TestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.2.30.v20200428'
-  jetty92TestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.2.30.v20200428'
-  jetty92TestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2')
-  jetty92TestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-
-  jetty94TestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.15.v20190215'
-  jetty94TestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.15.v20190215'
-  jetty94TestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.4.15.v20190215'
-  jetty94TestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.4.15.v20190215'
-  jetty94TestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
-  jetty94TestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-
-  latestDepJetty9TestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
-  latestDepJetty9TestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.+'
-  latestDepJetty9TestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.+'
-  latestDepJetty9TestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.+'
-
-  latestDepJetty9TestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
-  latestDepJetty9TestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-
-  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
-  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
-  latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
-  latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-}
-configurations.getByName('latestDepForkedTestRuntimeClasspath').resolutionStrategy {
-  force libs.slf4j
 }
