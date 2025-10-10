@@ -131,12 +131,22 @@ public class BlockingActionHelper {
       return null;
     }
 
+    String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
+
     if (blockId == null || blockId.isEmpty()) {
-      return template;
+      // Remove the block_id field/placeholder entirely when blockId is not present
+      if (type == TemplateType.JSON) {
+        // Remove the entire block_id field from JSON: ,"block_id":"{block_id}"
+        templateString = templateString.replaceAll(",\"block_id\":\"\\{block_id\\}\"", "");
+        templateString = templateString.replaceAll("\"block_id\":\"\\{block_id\\}\",?", "");
+      } else {
+        // For HTML, remove the entire block_id section including any attributes
+        templateString = templateString.replaceAll("<p[^>]*>Event ID: \\{block_id\\}</p>\\s*", "");
+      }
+      return templateString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     // Perform placeholder replacement for {block_id}
-    String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
     String replacedTemplate = templateString.replace("{block_id}", blockId);
     return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }

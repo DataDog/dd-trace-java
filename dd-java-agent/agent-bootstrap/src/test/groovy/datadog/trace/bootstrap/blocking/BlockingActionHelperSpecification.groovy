@@ -194,32 +194,36 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !templateStr.contains('{block_id}')
   }
 
-  void 'getTemplate without block_id keeps placeholder in HTML template'() {
+  void 'getTemplate without block_id removes block_id field from HTML template'() {
     when:
     def template = BlockingActionHelper.getTemplate(HTML, null)
     def templateStr = new String(template, StandardCharsets.UTF_8)
 
     then:
-    templateStr.contains('{block_id}')
+    !templateStr.contains('{block_id}')
+    !templateStr.contains('Event ID:')
   }
 
-  void 'getTemplate without block_id keeps placeholder in JSON template'() {
+  void 'getTemplate without block_id removes block_id field from JSON template'() {
     when:
     def template = BlockingActionHelper.getTemplate(JSON, null)
     def templateStr = new String(template, StandardCharsets.UTF_8)
 
     then:
-    templateStr.contains('{block_id}')
+    !templateStr.contains('{block_id}')
+    !templateStr.contains('"block_id"')
   }
 
-  void 'getTemplate with empty block_id keeps placeholder'() {
+  void 'getTemplate with empty block_id removes block_id field'() {
     when:
     def htmlTemplate = BlockingActionHelper.getTemplate(HTML, '')
     def jsonTemplate = BlockingActionHelper.getTemplate(JSON, '')
 
     then:
-    new String(htmlTemplate, StandardCharsets.UTF_8).contains('{block_id}')
-    new String(jsonTemplate, StandardCharsets.UTF_8).contains('{block_id}')
+    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('{block_id}')
+    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('Event ID:')
+    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('{block_id}')
+    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('"block_id"')
   }
 
   void 'getTemplate with block_id works with custom HTML template'() {
