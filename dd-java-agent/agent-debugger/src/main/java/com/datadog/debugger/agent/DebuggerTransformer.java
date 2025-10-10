@@ -52,7 +52,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
@@ -99,6 +98,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private final AllowListHelper allowListHelper;
   private final DenyListHelper denyListHelper;
   private final InstrumentationListener listener;
+  private final ProbeMetadata probeMetadata;
   private final DebuggerSink debuggerSink;
   private final boolean instrumentTheWorld;
   private final Set<String> excludeClasses;
@@ -107,7 +107,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private final Set<String> includeClasses;
   private final Set<String> includeMethods;
   private final Trie includeTrie;
-  private final Map<String, LogProbe> instrumentTheWorldProbes;
   private final BiConsumer<MethodInfo, List<ProbeDefinition>> probeCreator;
 
   public interface InstrumentationListener {
@@ -118,17 +117,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
       Config config,
       Configuration configuration,
       InstrumentationListener listener,
+      ProbeMetadata probeMetadata,
       DebuggerSink debuggerSink) {
     this.config = config;
     this.definitionMatcher = new TransformerDefinitionMatcher(configuration);
     this.allowListHelper = new AllowListHelper(configuration.getAllowList());
     this.denyListHelper = new DenyListHelper(configuration.getDenyList());
     this.listener = listener;
+    this.probeMetadata = probeMetadata;
     this.debuggerSink = debuggerSink;
     String itwType = config.getDynamicInstrumentationInstrumentTheWorld();
     this.instrumentTheWorld = itwType != null;
     if (this.instrumentTheWorld) {
-      instrumentTheWorldProbes = new ConcurrentHashMap<>();
       excludeTrie = new Trie();
       excludeClasses = new HashSet<>();
       excludeMethods = new HashSet<>();
@@ -157,7 +157,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
         probeCreator = null;
       }
     } else {
-      instrumentTheWorldProbes = null;
       excludeTrie = null;
       excludeClasses = null;
       excludeMethods = null;
@@ -169,11 +168,13 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   // Used only for tests
-  public DebuggerTransformer(Config config, Configuration configuration) {
+  public DebuggerTransformer(
+      Config config, ProbeMetadata probeMetadata, Configuration configuration) {
     this(
         config,
         configuration,
         null,
+        probeMetadata,
         new DebuggerSink(
             config,
             "",
@@ -370,7 +371,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
             .captureSnapshot(false)
             .build();
     probes.add(probe);
-    instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
   }
 
   private void createLineProbes(MethodInfo methodInfo, List<ProbeDefinition> probes) {
@@ -391,7 +391,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
               .captureSnapshot(false)
               .build();
       probes.add(probe);
-      instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
     }
   }
 
@@ -410,11 +409,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
   }
 
-  public ProbeImplementation instrumentTheWorldResolver(String id) {
-    if (instrumentTheWorldProbes == null) {
-      return null;
-    }
-    return instrumentTheWorldProbes.get(id);
+  public ProbeImplementation instrumentTheWorldResolver(int probeIndex) {
+    return probeMetadata.getProbe(probeIndex);
   }
 
   private boolean isExcludedFromTransformation(String classFilePath) {
@@ -662,7 +658,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         for (ToInstrumentInfo toInstrumentInfo : toInstruments) {
           ProbeDefinition definition = toInstrumentInfo.definition;
           List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
-          status = definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIds);
+          status =
+              definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIndices);
         }
       } catch (Throwable t) {
         LOGGER.warn("Exception during instrumentation: ", t);
@@ -676,11 +673,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   static class ToInstrumentInfo {
     final ProbeDefinition definition;
-    final List<ProbeId> probeIds;
+    final List<Integer> probeIndices;
 
-    ToInstrumentInfo(ProbeDefinition definition, List<ProbeId> probeIds) {
+    ToInstrumentInfo(ProbeDefinition definition, List<Integer> probeIndices) {
       this.definition = definition;
-      this.probeIds = probeIds;
+      this.probeIndices = probeIndices;
     }
   }
 
@@ -720,11 +717,13 @@ public class DebuggerTransformer implements ClassFileTransformer {
           capturedContextProbes.add(definition);
         }
       } else {
-        toInstrument.add(new ToInstrumentInfo(definition, singletonList(definition.getProbeId())));
+        int idx = probeMetadata.addProbe(definition);
+        toInstrument.add(new ToInstrumentInfo(definition, singletonList(idx)));
       }
     }
-    processCapturedContextLineProbes(capturedContextLineProbes, toInstrument);
-    processCapturedContextMethodProbes(classFileLines, capturedContextProbes, toInstrument);
+    processCapturedContextLineProbes(capturedContextLineProbes, probeMetadata, toInstrument);
+    processCapturedContextMethodProbes(
+        classFileLines, capturedContextProbes, probeMetadata, toInstrument);
     // ordering: metric < log < span decoration < span
     toInstrument.sort(
         (info1, info2) -> {
@@ -735,29 +734,36 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return toInstrument;
   }
 
-  private void processCapturedContextMethodProbes(
+  private static void processCapturedContextMethodProbes(
       ClassFileLines classFileLines,
       List<ProbeDefinition> capturedContextProbes,
+      ProbeMetadata probeMetadata,
       List<ToInstrumentInfo> toInstrument) {
     if (capturedContextProbes.isEmpty()) {
       return;
     }
-    List<ProbeId> probesIds =
-        capturedContextProbes.stream().map(ProbeDefinition::getProbeId).collect(toList());
+    List<Integer> probeIndices = new ArrayList<>();
+    for (ProbeDefinition definition : capturedContextProbes) {
+      probeIndices.add(probeMetadata.addProbe(definition));
+    }
     ProbeDefinition referenceDefinition =
         selectReferenceDefinition(capturedContextProbes, classFileLines);
-    toInstrument.add(new ToInstrumentInfo(referenceDefinition, probesIds));
+    toInstrument.add(new ToInstrumentInfo(referenceDefinition, probeIndices));
   }
 
   private static void processCapturedContextLineProbes(
-      Map<Where, List<ProbeDefinition>> lineProbes, List<ToInstrumentInfo> toInstrument) {
+      Map<Where, List<ProbeDefinition>> lineProbes,
+      ProbeMetadata probeMetadata,
+      List<ToInstrumentInfo> toInstrument) {
     for (Map.Entry<Where, List<ProbeDefinition>> entry : lineProbes.entrySet()) {
       if (entry.getValue().isEmpty()) {
         continue;
       }
-      List<ProbeId> probeIds =
-          entry.getValue().stream().map(ProbeDefinition::getProbeId).collect(toList());
-      toInstrument.add(new ToInstrumentInfo(entry.getValue().get(0), probeIds));
+      List<Integer> probeIndices = new ArrayList<>();
+      for (ProbeDefinition definition : entry.getValue()) {
+        probeIndices.add(probeMetadata.addProbe(definition));
+      }
+      toInstrument.add(new ToInstrumentInfo(entry.getValue().get(0), probeIndices));
     }
   }
 
@@ -766,7 +772,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   // match the type of the probe to instrument: if at least one probe is LogProbe then we are
   // creating a LogProbe definition. The synthetic definition contains the union of all the capture,
   // snapshot and evaluateAt parameters.
-  private ProbeDefinition selectReferenceDefinition(
+  private static ProbeDefinition selectReferenceDefinition(
       List<ProbeDefinition> capturedContextProbes, ClassFileLines classFileLines) {
     boolean hasLogProbe = false;
     boolean hasOnlyExceptionProbe =
@@ -816,7 +822,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         .build();
   }
 
-  private LogProbe.Capture mergeCapture(LogProbe.Capture current, LogProbe.Capture newCapture) {
+  private static LogProbe.Capture mergeCapture(
+      LogProbe.Capture current, LogProbe.Capture newCapture) {
     if (current == null) {
       return newCapture;
     }

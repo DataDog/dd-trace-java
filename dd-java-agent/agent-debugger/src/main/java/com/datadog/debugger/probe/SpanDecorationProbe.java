@@ -134,10 +134,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
     boolean captureEntry = evaluateAt != MethodLocation.EXIT;
     return new CapturedContextInstrumentor(
-            this, methodInfo, diagnostics, probeIds, false, captureEntry, Limits.DEFAULT)
+            this, methodInfo, diagnostics, probeIndices, false, captureEntry, Limits.DEFAULT)
         .instrument();
   }
 

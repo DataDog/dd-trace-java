@@ -13,10 +13,10 @@ import static com.datadog.debugger.instrumentation.Types.CAPTURED_VALUE;
 import static com.datadog.debugger.instrumentation.Types.CAPTURE_THROWABLE_TYPE;
 import static com.datadog.debugger.instrumentation.Types.CLASS_TYPE;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
+import static com.datadog.debugger.instrumentation.Types.INT_ARRAY_TYPE;
 import static com.datadog.debugger.instrumentation.Types.METHOD_LOCATION_TYPE;
 import static com.datadog.debugger.instrumentation.Types.OBJECT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
-import static com.datadog.debugger.instrumentation.Types.STRING_ARRAY_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static org.objectweb.asm.Type.BOOLEAN_TYPE;
@@ -33,7 +33,6 @@ import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
-import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -50,6 +49,7 @@ import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LocalVariableNode;
@@ -76,11 +76,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
       ProbeDefinition definition,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds,
+      List<Integer> probeIndices,
       boolean captureSnapshot,
       boolean captureEntry,
       Limits limits) {
-    super(definition, methodInfo, diagnostics, probeIds);
+    super(definition, methodInfo, diagnostics, probeIndices);
     this.captureSnapshot = captureSnapshot;
     this.captureEntry = captureEntry;
     this.limits = limits;
@@ -142,7 +142,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
         ldc(insnList, Type.getObjectType(classNode.name));
         // stack [class, array]
-        pushProbesIds(insnList);
+        pushProbeIndices(insnList);
         // stack [array]
         invokeStatic(
             insnList,
@@ -150,7 +150,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             "isReadyToCapture",
             Type.BOOLEAN_TYPE,
             CLASS_TYPE,
-            STRING_ARRAY_TYPE);
+            INT_ARRAY_TYPE);
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
         insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
@@ -163,7 +163,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         // stack [capturedcontext, class]
         ldc(insnList, sourceLine.getFrom());
         // stack [capturedcontext, class, int]
-        pushProbesIds(insnList);
+        pushProbeIndices(insnList);
         // stack [capturedcontext, class, int, array]
         invokeStatic(
             insnList,
@@ -173,7 +173,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
             CAPTURED_CONTEXT_TYPE,
             CLASS_TYPE,
             INT_TYPE,
-            STRING_ARRAY_TYPE);
+            INT_ARRAY_TYPE);
         // stack []
         invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
         LabelNode inProbeEndLabel = new LabelNode();
@@ -279,7 +279,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack [ret_value, capturedcontext, class, long]
     getStatic(insnList, METHOD_LOCATION_TYPE, "EXIT");
     // stack [ret_value, capturedcontext, class, long, methodlocation]
-    pushProbesIds(insnList);
+    pushProbeIndices(insnList);
     // stack [ret_value, capturedcontext, class, long, methodlocation, array]
     invokeStatic(
         insnList,
@@ -290,7 +290,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         CLASS_TYPE,
         LONG_TYPE,
         METHOD_LOCATION_TYPE,
-        STRING_ARRAY_TYPE);
+        INT_ARRAY_TYPE);
     // stack [ret_value]
     invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
@@ -325,7 +325,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
     }
     // stack [capturedcontext, capturedcontext, list]
-    pushProbesIds(insnList);
+    pushProbeIndices(insnList);
     // stack [capturedcontext, capturedcontext, array]
     invokeStatic(
         insnList,
@@ -335,7 +335,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         CAPTURED_CONTEXT_TYPE,
         CAPTURED_CONTEXT_TYPE,
         getType(List.class),
-        getType(String[].class));
+        INT_ARRAY_TYPE);
     // stack []
     return insnList;
   }
@@ -374,7 +374,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack [exception, capturedcontext, class, long]
     getStatic(handler, METHOD_LOCATION_TYPE, "EXIT");
     // stack [exception, capturedcontext, class, long, methodlocation]
-    pushProbesIds(handler);
+    pushProbeIndices(handler);
     // stack [exception, capturedcontext, class, long, methodlocation, array]
     invokeStatic(
         handler,
@@ -385,7 +385,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         CLASS_TYPE,
         LONG_TYPE,
         METHOD_LOCATION_TYPE,
-        STRING_ARRAY_TYPE);
+        INT_ARRAY_TYPE);
     // stack [exception]
     invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     // stack [exception]
@@ -418,7 +418,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
     ldc(insnList, Type.getObjectType(classNode.name));
     // stack [class]
-    pushProbesIds(insnList);
+    pushProbeIndices(insnList);
     // stack [class, array]
     invokeStatic(
         insnList,
@@ -426,7 +426,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         "isReadyToCapture",
         Type.BOOLEAN_TYPE,
         CLASS_TYPE,
-        STRING_ARRAY_TYPE);
+        INT_ARRAY_TYPE);
     // stack [boolean]
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
@@ -443,7 +443,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack [capturedcontext, class, long]
       getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
       // stack [capturedcontext, class, long, methodlocation]
-      pushProbesIds(insnList);
+      pushProbeIndices(insnList);
       // stack [capturedcontext, class, long, methodlocation, array]
       invokeStatic(
           insnList,
@@ -454,7 +454,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
           CLASS_TYPE,
           LONG_TYPE,
           METHOD_LOCATION_TYPE,
-          STRING_ARRAY_TYPE);
+          INT_ARRAY_TYPE);
       invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
       LabelNode inProbeEndLabel = new LabelNode();
       insnList.add(inProbeEndLabel);
@@ -501,19 +501,19 @@ public class CapturedContextInstrumentor extends Instrumentor {
     finallyBlocks.add(new FinallyBlock(inProbeStartLabel, inProbeEndLabel, handlerLabel));
   }
 
-  private void pushProbesIds(InsnList insnList) {
-    ldc(insnList, probeIds.size()); // array size
+  private void pushProbeIndices(InsnList insnList) {
+    ldc(insnList, probeIndices.size()); // array size
     // stack [int]
-    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName()));
+    insnList.add(new IntInsnNode(Opcodes.NEWARRAY, Opcodes.T_INT));
     // stack [array]
-    for (int i = 0; i < probeIds.size(); i++) {
+    for (int i = 0; i < probeIndices.size(); i++) {
       insnList.add(new InsnNode(Opcodes.DUP));
       // stack [array, array]
       ldc(insnList, i); // index
       // stack [array, array, int]
-      ldc(insnList, probeIds.get(i).getEncodedId());
-      // stack [array, array, int, string]
-      insnList.add(new InsnNode(Opcodes.AASTORE));
+      ldc(insnList, probeIndices.get(i).intValue());
+      // stack [array, array, int, int]
+      insnList.add(new InsnNode(Opcodes.IASTORE));
       // stack [array]
     }
   }

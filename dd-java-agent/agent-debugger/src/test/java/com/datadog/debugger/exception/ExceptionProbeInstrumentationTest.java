@@ -20,6 +20,7 @@ import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.agent.DebuggerTransformer;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.MockSampler;
+import com.datadog.debugger.agent.ProbeMetadata;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -113,6 +114,7 @@ public class ExceptionProbeInstrumentationTest {
       instr.removeTransformer(currentTransformer);
     }
     ProbeRateLimiter.setSamplerSupplier(null);
+    ProbeRateLimiter.resetAll();
   }
 
   @Test
@@ -406,9 +408,10 @@ public class ExceptionProbeInstrumentationTest {
       Config config,
       Configuration configuration,
       DebuggerTransformer.InstrumentationListener listener,
+      ProbeMetadata probeMetadata,
       DebuggerSink debuggerSink) {
     DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(config, configuration, listener, debuggerSink);
+        new DebuggerTransformer(config, configuration, listener, probeMetadata, debuggerSink);
     currentTransformer = debuggerTransformer;
     return debuggerTransformer;
   }
