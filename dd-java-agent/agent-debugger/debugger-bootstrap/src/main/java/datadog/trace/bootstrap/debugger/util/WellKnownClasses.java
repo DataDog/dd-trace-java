@@ -215,6 +215,14 @@ public class WellKnownClasses {
       // All Collection implementations from Google ProtoBuf are considered as safe
       return true;
     }
+    if (className.startsWith("com.google.common.collect.")) {
+      // All Collection implementations from Google Guava are considered as safe
+      return true;
+    }
+    if (className.startsWith("it.unimi.dsi.fastutil.")) {
+      // All Collection implementations from fastutil are considered as safe
+      return true;
+    }
     return false;
   }
 
@@ -227,6 +235,14 @@ public class WellKnownClasses {
     }
     if (className.startsWith("com.google.protobuf.")) {
       // All Map implementations from Google ProtoBuf are considered as safe
+      return true;
+    }
+    if (className.startsWith("com.google.common.collect.")) {
+      // All Map implementations from Google Guava are considered as safe
+      return true;
+    }
+    if (className.startsWith("it.unimi.dsi.fastutil.")) {
+      // All Map implementations from fastutil are considered as safe
       return true;
     }
     return false;
