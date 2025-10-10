@@ -5,7 +5,8 @@ import javax.annotation.Nullable;
 public enum RuleType {
   LFI(Type.LFI),
   SQL_INJECTION(Type.SQL_INJECTION),
-  SSRF(Type.SSRF),
+  SSRF_REQUEST(Type.SSRF, Variant.REQUEST),
+  SSRF_RESPONSE(Type.SSRF, Variant.RESPONSE),
   SHELL_INJECTION(Type.COMMAND_INJECTION, Variant.SHELL),
   COMMAND_INJECTION(Type.COMMAND_INJECTION, Variant.EXEC);
 
@@ -46,7 +47,9 @@ public enum RuleType {
 
   public enum Variant {
     SHELL("shell"),
-    EXEC("exec");
+    EXEC("exec"),
+    REQUEST("request"),
+    RESPONSE("response");
 
     public final String name;
 
