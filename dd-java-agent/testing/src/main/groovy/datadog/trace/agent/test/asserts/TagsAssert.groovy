@@ -86,6 +86,7 @@ class TagsAssert {
     assertedTags.add(RateByServiceTraceSampler.SAMPLING_AGENT_RATE)
     assertedTags.add(TraceMapper.SAMPLING_PRIORITY_KEY.toString())
     assertedTags.add("_sample_rate")
+    assertedTags.add(RateByServiceTraceSampler.KNUTH_SAMPLING_RATE)
     assertedTags.add(DDTags.PID_TAG)
     assertedTags.add(DDTags.SCHEMA_VERSION_TAG_KEY)
     assertedTags.add(DDTags.PROFILING_ENABLED)
