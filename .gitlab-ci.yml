@@ -638,7 +638,7 @@ test_inst_latest:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_TARGET: ":instrumentationLatestDepTest"
-    CACHE_TYPE: "latestDep"
+    CACHE_TYPE: "latestdep"
   parallel:
     matrix:
       - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
