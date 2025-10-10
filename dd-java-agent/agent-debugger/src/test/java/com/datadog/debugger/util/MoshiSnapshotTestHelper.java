@@ -1,6 +1,7 @@
 package com.datadog.debugger.util;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ARGUMENTS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.CAPTURE_EXPRESSIONS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.CAUGHT_EXCEPTIONS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRIES;
@@ -51,6 +52,16 @@ public class MoshiSnapshotTestHelper {
 
   public static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotTestHelper.CapturedValueAdapter();
+
+  public static CapturedContext.CapturedValue deserializeCapturedValue(
+      CapturedContext.CapturedValue capturedValue) {
+    try {
+      return VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
 
   public static String getValue(CapturedContext.CapturedValue capturedValue) {
     CapturedContext.CapturedValue valued = null;
@@ -218,6 +229,11 @@ public class MoshiSnapshotTestHelper {
             break;
           case THROWABLE:
             capturedContext.addThrowable(throwableAdapter.fromJson(jsonReader));
+            break;
+          case CAPTURE_EXPRESSIONS:
+            for (CapturedContext.CapturedValue value : fromJsonCapturedValues(jsonReader)) {
+              capturedContext.addCaptureExpression(value);
+            }
             break;
           default:
             throw new IllegalArgumentException("Unknown field name for Captures object: " + name);
