@@ -23,6 +23,10 @@ public class BlockingActionHelper {
   private static final int DEFAULT_HTTP_CODE = 403;
   private static final int MAX_ALLOWED_TEMPLATE_SIZE = 1024 * 500; // 500 kiB
 
+  // Pattern for removing block_id from HTML template when blockId is null/empty
+  private static final Pattern HTML_BLOCK_ID_PATTERN =
+      Pattern.compile("<p[^>]*>Event ID: \\{block_id\\}</p>\\s*");
+
   private static volatile byte[] TEMPLATE_HTML;
   private static volatile byte[] TEMPLATE_JSON;
 
@@ -118,12 +122,39 @@ public class BlockingActionHelper {
   }
 
   public static byte[] getTemplate(TemplateType type) {
+    return getTemplate(type, null);
+  }
+
+  public static byte[] getTemplate(TemplateType type, String blockId) {
+    byte[] template;
     if (type == TemplateType.JSON) {
-      return TEMPLATE_JSON;
+      template = TEMPLATE_JSON;
     } else if (type == TemplateType.HTML) {
-      return TEMPLATE_HTML;
+      template = TEMPLATE_HTML;
+    } else {
+      return null;
     }
-    return null;
+
+    String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
+
+    if (blockId == null || blockId.isEmpty()) {
+      // Remove the block_id field/placeholder entirely when blockId is not present
+      if (type == TemplateType.JSON) {
+        // Remove the entire block_id field from JSON: ,"block_id":"{block_id}"
+        // Try both variants: with comma before and with comma after
+        templateString = templateString.replace(",\"block_id\":\"{block_id}\"", "");
+        templateString = templateString.replace("\"block_id\":\"{block_id}\",", "");
+      } else {
+        // For HTML, remove the entire block_id section including any attributes
+        Matcher matcher = HTML_BLOCK_ID_PATTERN.matcher(templateString);
+        templateString = matcher.replaceFirst("");
+      }
+      return templateString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    // Perform placeholder replacement for {block_id}
+    String replacedTemplate = templateString.replace("{block_id}", blockId);
+    return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }
 
   public static String getContentType(TemplateType type) {
