@@ -23,6 +23,10 @@ public class BlockingActionHelper {
   private static final int DEFAULT_HTTP_CODE = 403;
   private static final int MAX_ALLOWED_TEMPLATE_SIZE = 1024 * 500; // 500 kiB
 
+  // Pattern for removing block_id from HTML template when blockId is null/empty
+  private static final Pattern HTML_BLOCK_ID_PATTERN =
+      Pattern.compile("<p[^>]*>Event ID: \\{block_id\\}</p>\\s*");
+
   private static volatile byte[] TEMPLATE_HTML;
   private static volatile byte[] TEMPLATE_JSON;
 
@@ -137,11 +141,13 @@ public class BlockingActionHelper {
       // Remove the block_id field/placeholder entirely when blockId is not present
       if (type == TemplateType.JSON) {
         // Remove the entire block_id field from JSON: ,"block_id":"{block_id}"
-        templateString = templateString.replaceAll(",\"block_id\":\"\\{block_id\\}\"", "");
-        templateString = templateString.replaceAll("\"block_id\":\"\\{block_id\\}\",?", "");
+        // Try both variants: with comma before and with comma after
+        templateString = templateString.replace(",\"block_id\":\"{block_id}\"", "");
+        templateString = templateString.replace("\"block_id\":\"{block_id}\",", "");
       } else {
         // For HTML, remove the entire block_id section including any attributes
-        templateString = templateString.replaceAll("<p[^>]*>Event ID: \\{block_id\\}</p>\\s*", "");
+        Matcher matcher = HTML_BLOCK_ID_PATTERN.matcher(templateString);
+        templateString = matcher.replaceFirst("");
       }
       return templateString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
