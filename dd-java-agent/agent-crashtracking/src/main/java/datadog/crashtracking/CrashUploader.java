@@ -308,6 +308,9 @@ public final class CrashUploader {
         writer.name("service_name").value(storedConfig.service);
         writer.name("service_version").value(storedConfig.version);
         writer.name("tracer_version").value(VersionInfo.VERSION);
+        if (storedConfig.processTags != null) {
+          writer.name("process_tags").value(storedConfig.processTags);
+        }
         writer.endObject();
         writer.name("host");
         writer.beginObject();
