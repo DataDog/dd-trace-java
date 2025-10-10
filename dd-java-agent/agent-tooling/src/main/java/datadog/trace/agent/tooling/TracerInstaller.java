@@ -39,15 +39,16 @@ public class TracerInstaller {
   }
 
   private static ServiceDiscovery getServiceDiscovery() {
-    if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
-      log.debug("service discovery not supported on native images");
-      return null;
-    }
     if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
       return null;
     }
-    return new ServiceDiscovery(new MemFDUnixWriter());
+    // make sure this branch is not considered possible for graalvm artifact
+    if (!Platform.isNativeImageBuilder() && !Platform.isNativeImage()) {
+      return new ServiceDiscovery(new MemFDUnixWriter());
+    }
+    log.debug("service discovery not supported on native images");
+    return null;
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {
