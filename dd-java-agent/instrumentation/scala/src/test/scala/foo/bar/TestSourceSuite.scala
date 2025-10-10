@@ -17,7 +17,7 @@ class TestSourceSuite {
   }
 
   def fromFile(name: String, enc: String): BufferedSource = {
-    LOGGER.debug("Before fromFile {} {}", Array(name, enc):_*)
+    LOGGER.debug("Before fromFile {} {}", Array(name, enc): _*)
     val result = Source.fromFile(name, enc)
     LOGGER.debug("After fromFile {}", result)
     result
@@ -31,7 +31,7 @@ class TestSourceSuite {
   }
 
   def fromFile(uri: URI, enc: String): BufferedSource = {
-    LOGGER.debug("Before fromFile {} {}", Array(uri, enc):_*)
+    LOGGER.debug("Before fromFile {} {}", Array(uri, enc): _*)
     val result = Source.fromFile(uri, enc)
     LOGGER.debug("After fromFile {}", result)
     result
@@ -45,7 +45,7 @@ class TestSourceSuite {
   }
 
   def fromURL(name: String, enc: String): BufferedSource = {
-    LOGGER.debug("Before fromURL {} {}", Array(name, enc):_*)
+    LOGGER.debug("Before fromURL {} {}", Array(name, enc): _*)
     val result = Source.fromURL(name, enc)
     LOGGER.debug("After fromURL {}", result)
     result

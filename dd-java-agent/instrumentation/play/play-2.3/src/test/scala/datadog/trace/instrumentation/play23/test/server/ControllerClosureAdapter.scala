@@ -33,8 +33,7 @@ class AsyncControllerClosureAdapter(response: Future[Result])
     )
 }
 
-class AsyncBlockClosureAdapter(block: => Future[Result])
-    extends Closure[Future[Result]]((): Unit) {
+class AsyncBlockClosureAdapter(block: => Future[Result]) extends Closure[Future[Result]]((): Unit) {
   import scala.concurrent.ExecutionContext.Implicits.global
   override def call(): Future[Result] =
     block.map(
@@ -45,5 +44,7 @@ class AsyncBlockClosureAdapter(block: => Future[Result])
 }
 
 object AsyncBlockClosureAdapter {
-  def apply(block: => Future[Result]): AsyncBlockClosureAdapter = new AsyncBlockClosureAdapter(block)
+  def apply(block: => Future[Result]): AsyncBlockClosureAdapter = new AsyncBlockClosureAdapter(
+    block
+  )
 }
