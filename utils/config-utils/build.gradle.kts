@@ -25,6 +25,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Source",
     "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
+    "datadog.trace.bootstrap.config.provider.MapConfigSource",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
