@@ -15,7 +15,7 @@ import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE
 
 @WebAppConfiguration // TODO this doesn't exist in 3.1.0 so will need rework if we want to test that version
 // https://mvnrepository.com/artifact/org.springframework/spring-test-mvc?repo=springio-plugins-release
@@ -39,12 +39,12 @@ class HandlerMappingResourceNameFilterForkedTest extends InstrumentationSpecific
 
     when:
     runUnderTrace("test-servlet", {
-      request.setAttribute(DD_SPAN_ATTRIBUTE, activeSpan())
+      request.setAttribute(DD_CONTEXT_ATTRIBUTE, activeSpan().context())
       filter.doFilterInternal(request, response, filterChain)
     })
 
     then:
-    assert request.getAttributeNames().toList() == [DD_SPAN_ATTRIBUTE]
+    assert request.getAttributeNames().toList() == [DD_CONTEXT_ATTRIBUTE]
     0 * response._
 
     where:

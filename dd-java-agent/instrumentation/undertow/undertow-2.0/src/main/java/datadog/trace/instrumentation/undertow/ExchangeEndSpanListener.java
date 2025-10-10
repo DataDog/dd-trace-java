@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.undertow;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.DefaultResponseListener;
@@ -21,7 +23,8 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
       return;
     }
 
-    AgentSpan span = continuation.span();
+    Context context = continuation.context();
+    AgentSpan span = fromContext(context);
 
     Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
     if (throwable != null) {
@@ -29,7 +32,7 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
     }
 
     DECORATE.onResponse(span, exchange);
-    DECORATE.beforeFinish(span);
+    DECORATE.beforeFinish(context);
     continuation.cancel();
     span.finish();
     nextListener.proceed();
