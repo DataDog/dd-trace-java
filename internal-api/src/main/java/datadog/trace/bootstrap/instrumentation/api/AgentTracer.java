@@ -375,6 +375,12 @@ public class AgentTracer {
 
     SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
 
+    /**
+     * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
+     * single span creation limitation, this method is more efficient than {@link buildSpan}
+     */
+    SpanBuilder singleSpanBuilder(String instrumentationName, CharSequence spanName);
+
     void close();
 
     /**
@@ -540,6 +546,12 @@ public class AgentTracer {
 
     @Override
     public SpanBuilder buildSpan(final String instrumentationName, final CharSequence spanName) {
+      return null;
+    }
+
+    @Override
+    public SpanBuilder singleSpanBuilder(
+        final String instrumentationName, final CharSequence spanName) {
       return null;
     }
 
