@@ -23,5 +23,9 @@ class SupportedConfigPlugin : Plugin<Project> {
     sourceset.configure {
       java.srcDir(generateTask)
     }
+
+    targetProject.tasks.named("javadoc") {
+      dependsOn(generateTask)
+    }
   }
 }
