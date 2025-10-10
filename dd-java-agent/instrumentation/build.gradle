@@ -1,30 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-// this project will run in isolation under the agent's classloader
-buildscript {
-
-  repositories {
-    mavenLocal()
-    if (project.rootProject.hasProperty("gradlePluginProxy")) {
-      maven {
-        url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
-      maven {
-        url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    gradlePluginPortal()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -122,12 +97,11 @@ dependencies {
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
   apply plugin: 'muzzle'
-  task("muzzleInstrumentationReport") {
-    dependsOn(project.getAllTasks(true).values().flatten().findAll { it.name.endsWith("generateMuzzleReport") })
+  tasks.register('muzzleInstrumentationReport') {
+    dependsOn(subprojects.collect { p -> p.tasks.matching { it.name == "generateMuzzleReport" } })
     finalizedBy(tasks.named('mergeMuzzleReports'))
   }
 }
-
 
 tasks.named('shadowJar', ShadowJar) {
   duplicatesStrategy = DuplicatesStrategy.FAIL

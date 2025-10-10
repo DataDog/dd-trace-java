@@ -1,5 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
   id 'java-test-fixtures'
+  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
 }
 
 muzzle {
@@ -23,6 +27,14 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
+}
 
 addTestSuite('latestDepTest')
 

@@ -74,13 +74,13 @@ configurations.configureEach {
 
 ["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }
 
 ["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(17)
+    configureCompiler(it, 17)
   }
 }
 
