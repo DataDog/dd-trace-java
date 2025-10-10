@@ -128,7 +128,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [],
+      null,
+      null
       ), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
       }
@@ -170,7 +172,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       kind,
-      []
+      [],
+      null,
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -224,7 +228,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "client",
-      [UTF8BytesString.create("country:france")]
+      [UTF8BytesString.create("country:france")],
+      null,
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -238,7 +244,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "client",
-      [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")]
+      [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")],
+      null,
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -281,7 +289,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       kind,
-      expectedPeerTags
+      expectedPeerTags,
+      null,
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -329,7 +339,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [],
+      null,
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
       })
@@ -384,7 +396,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [],
+      null,
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration
       })
@@ -397,7 +411,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [],
+      null,
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration * 2
       })
@@ -446,7 +462,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         false,
         "baz",
-        []
+        [],
+        null,
+        null
         ), _) >> { MetricKey key, AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         }
@@ -460,7 +478,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [],
+      null,
+      null
       ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -505,7 +525,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         false,
         "baz",
-        []
+        [],
+        null,
+        null
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -536,7 +558,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         false,
         "baz",
-        []
+        [],
+        null,
+        null
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -550,7 +574,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [],
+      null,
+      null
       ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -595,7 +621,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         false,
         "quux",
-        []
+        [],
+        null,
+        null
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -650,7 +678,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         true,
         "garply",
-        []
+        [],
+        null,
+        null
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -852,7 +882,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       true,
       "",
-      []
+      [],
+      null,
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
       })

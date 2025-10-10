@@ -57,7 +57,9 @@ class SerializingMetricWriterTest extends DDSpecification {
           UTF8BytesString.create("country:canada"),
           UTF8BytesString.create("georegion:amer"),
           UTF8BytesString.create("peer.service:remote-service")
-        ]
+        ],
+        null,
+        null
         ),
         new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
         ),
@@ -76,6 +78,8 @@ class SerializingMetricWriterTest extends DDSpecification {
           UTF8BytesString.create("georegion:amer"),
           UTF8BytesString.create("peer.service:remote-service")
         ],
+        null,
+        null
         ),
         new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
         )
@@ -91,7 +95,9 @@ class SerializingMetricWriterTest extends DDSpecification {
           false,
           false,
           "producer",
-          [UTF8BytesString.create("messaging.destination:dest" + i)]
+          [UTF8BytesString.create("messaging.destination:dest" + i)],
+          null,
+          null
           ),
           new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
           )
