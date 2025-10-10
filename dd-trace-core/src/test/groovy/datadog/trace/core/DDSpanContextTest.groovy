@@ -312,6 +312,37 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.toString().contains("id=-") == false
   }
 
+  def "toString includes top_level flag"() {
+    setup:
+    def parent = tracer.buildSpan("parentOperation")
+      .withServiceName("parentService")
+      .withResourceName("parentResource")
+      .start()
+
+    // Child span with different service name should be top-level
+    def topLevelSpan = tracer.buildSpan("childOperation")
+      .withServiceName("childService")
+      .withResourceName("childResource")
+      .asChildOf(parent.context())
+      .start()
+
+    // Child span with same service name should not be top-level
+    def nonTopLevelSpan = tracer.buildSpan("childOperation2")
+      .withServiceName("parentService")
+      .withResourceName("childResource2")
+      .asChildOf(parent.context())
+      .start()
+
+    def topLevelContext = topLevelSpan.context() as DDSpanContext
+    def nonTopLevelContext = nonTopLevelSpan.context() as DDSpanContext
+
+    expect:
+    topLevelContext.isTopLevel() == true
+    topLevelContext.toString().contains("*top_level*") == true
+    nonTopLevelContext.isTopLevel() == false
+    nonTopLevelContext.toString().contains("*top_level*") == false
+  }
+
   static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {
     def sourceWithoutCommonTags = new HashMap(source)
     sourceWithoutCommonTags.remove("runtime-id")
