@@ -15,7 +15,7 @@ import java.util.regex.Pattern
  * - block_id is extracted from libddwaf action parameters
  * - block_id is included in JSON blocking responses as "block_id" field
  * - block_id is included in HTML blocking responses as placeholder replacement
- * - block_id is appended as URL parameter in redirect responses
+ * - block_id placeholder {block_id} is replaced in custom redirect URLs
  */
 class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -53,10 +53,10 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
         on_match: ['block_action']
       ],
       [
-        id: '__test_block_id_redirect',
-        name: 'Block ID Redirect Test Rule',
+        id: '__test_block_id_redirect_no_placeholder',
+        name: 'Block ID Redirect Test Rule Without Placeholder',
         tags: [
-          type: 'redirect_test',
+          type: 'redirect_test_no_placeholder',
           category: 'attack_attempt'
         ],
         conditions: [
@@ -70,7 +70,7 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
           ]
         ],
         transformers: ['lowercase'],
-        on_match: ['redirect_action']
+        on_match: ['redirect_action_no_placeholder']
       ]
     ]
 
@@ -84,11 +84,11 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
         ]
       ],
       [
-        id: 'redirect_action',
+        id: 'redirect_action_no_placeholder',
         type: 'redirect_request',
         parameters: [
           status_code: 303,
-          location: 'https://blocked.example.com/blocked'
+          location: 'https://custom.example.com/redirect'
         ]
       ]
     ]
@@ -179,8 +179,8 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     body.contains('<html')
   }
 
-  void 'test block_id is appended to redirect URL'() {
-    given: 'a request that triggers redirect'
+  void 'test redirect without placeholder does not add block_id'() {
+    given: 'a request that triggers redirect without placeholder'
     def url = "http://localhost:${httpPort}/greeting"
     def client = OkHttpUtils.clientBuilder()
       .followRedirects(false) // Don't follow redirects automatically
@@ -197,19 +197,13 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     then: 'the request is redirected with 303'
     response.code() == 303
 
-    and: 'the Location header contains the redirect URL with block_id parameter'
+    and: 'the Location header contains the unmodified redirect URL without block_id'
     def location = response.header('Location')
     assert location != null, 'Location header not present in redirect response'
-    assert location.startsWith('https://blocked.example.com/blocked'), "Unexpected redirect location: ${location}"
-    assert location.contains('block_id='), "block_id parameter not found in redirect URL: ${location}"
+    assert location == 'https://custom.example.com/redirect', "URL should not be modified: ${location}"
 
-    // Verify block_id is a valid UUID
-    def matcher = UUID_PATTERN.matcher(location)
-    assert matcher.find(), "block_id with valid UUID format not found in redirect URL: ${location}"
-
-    // Verify the block_id is properly appended as a query parameter
-    assert location.contains('?block_id=') || location.contains('&block_id='),
-    "block_id not properly appended as query parameter in: ${location}"
+    // Verify block_id was NOT added to the URL
+    assert !location.contains('block_id'), "block_id should not be added when placeholder is not present: ${location}"
   }
 
   void 'test block_id format is consistent across requests'() {
