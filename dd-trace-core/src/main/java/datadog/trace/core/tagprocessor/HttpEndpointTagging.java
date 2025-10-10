@@ -36,6 +36,7 @@ public final class HttpEndpointTagging {
   private static final Pattern PARAM_HEX_ID_PATTERN =
       Pattern.compile("(?=.*[0-9].*)[A-Fa-f0-9._-]{6,}");
   private static final Pattern PARAM_STR_PATTERN = Pattern.compile(".{20,}|.*[%&'()*+,:=@].*");
+  private static final Pattern SLASH_PATTERN = Pattern.compile("/", Pattern.LITERAL);
 
   private static final int MAX_PATH_ELEMENTS = 8;
 
@@ -101,7 +102,7 @@ public final class HttpEndpointTagging {
       path = path.substring(0, fragmentIndex);
     }
 
-    String[] allSegments = path.split("/");
+    String[] allSegments = SLASH_PATTERN.split(path);
     List<String> nonEmptySegments = new ArrayList<>();
 
     for (String segment : allSegments) {
