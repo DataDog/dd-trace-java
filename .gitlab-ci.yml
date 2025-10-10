@@ -318,14 +318,12 @@ populate_dep_cache:
         CACHE_TYPE: "base"
       - GRADLE_TARGET: ":profilingTest"
         CACHE_TYPE: "profiling"
-#      FIXME: Gitlab doesn't support s3 based caches >5GB. Fixed in Gitlab 17.5
-#      See: https://gitlab.com/gitlab-org/gitlab-runner/-/issues/26921#note_2132307223
-#      - GRADLE_TARGET: ":instrumentationTest"
-#        CACHE_TYPE: "inst"
-#      - GRADLE_TARGET: ":instrumentationLatestDepTest"
-#        CACHE_TYPE: "latestdep"
-#      - GRADLE_TARGET: ":smokeTest"
-#        CACHE_TYPE: "smoke"
+      - GRADLE_TARGET: ":instrumentationTest"
+        CACHE_TYPE: "inst"
+      - GRADLE_TARGET: ":instrumentationLatestDepTest"
+        CACHE_TYPE: "latestdep"
+      - GRADLE_TARGET: ":smokeTest"
+        CACHE_TYPE: "smoke"
 
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
@@ -640,7 +638,7 @@ test_inst_latest:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_TARGET: ":instrumentationLatestDepTest"
-    CACHE_TYPE: "latestDep"
+    CACHE_TYPE: "latestdep"
   parallel:
     matrix:
       - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
