@@ -8,8 +8,12 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
+import org.apache.spark.sql.execution.SparkPlan;
+import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
+import scala.collection.immutable.HashMap;
 
 @AutoService(InstrumenterModule.class)
 public class Spark212Instrumentation extends AbstractSparkInstrumentation {
@@ -27,7 +31,20 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
+      packageName + ".Spark212PlanUtils",
     };
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    String[] res = new String[super.knownMatchingTypes().length + 1];
+    int idx = 0;
+    for (String match : super.knownMatchingTypes()) {
+      res[idx] = match;
+      idx++;
+    }
+    res[idx] = "org.apache.spark.sql.execution.SparkPlanInfo$";
+    return res;
   }
 
   @Override
@@ -40,6 +57,13 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
             .and(isDeclaredBy(named("org.apache.spark.SparkContext")))
             .and(takesNoArguments()),
         Spark212Instrumentation.class.getName() + "$InjectListener");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("fromSparkPlan"))
+            .and(takesArgument(0, named("org.apache.spark.sql.execution.SparkPlan")))
+            .and(isDeclaredBy(named("org.apache.spark.sql.execution.SparkPlanInfo$"))),
+        Spark212Instrumentation.class.getName() + "$SparkPlanInfoAdvice");
   }
 
   public static class InjectListener {
@@ -76,6 +100,25 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
           new DatadogSpark212Listener(
               sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
+    }
+  }
+
+  public static class SparkPlanInfoAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit(
+        @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
+        @Advice.Argument(0) SparkPlan plan) {
+      if (planInfo.metadata().size() == 0) {
+        HashMap<String, String> args = new HashMap<>();
+        planInfo =
+            new SparkPlanInfo(
+                planInfo.nodeName(),
+                planInfo.simpleString(),
+                planInfo.children(),
+                args.$plus$plus(
+                    JavaConverters.mapAsScalaMap(Spark212PlanUtils.extractPlanProduct(plan))),
+                planInfo.metrics());
+      }
     }
   }
 }

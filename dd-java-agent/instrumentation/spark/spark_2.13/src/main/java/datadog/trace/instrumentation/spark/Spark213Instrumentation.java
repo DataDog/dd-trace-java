@@ -31,7 +31,8 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
-      packageName + ".SparkPlanUtils",
+      packageName + ".Spark213PlanUtils",
+      packageName + ".CommonSparkPlanUtils",
     };
   }
 
@@ -116,7 +117,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
                 planInfo.simpleString(),
                 planInfo.children(),
                 HashMap.from(
-                    JavaConverters.asScala(SparkPlanUtils.extractPlanProduct(plan)).toList()),
+                    JavaConverters.asScala(Spark213PlanUtils.extractPlanProduct(plan)).toList()),
                 planInfo.metrics());
       }
     }

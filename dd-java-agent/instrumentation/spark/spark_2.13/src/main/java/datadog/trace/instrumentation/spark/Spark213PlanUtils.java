@@ -1,26 +1,20 @@
 package datadog.trace.instrumentation.spark;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import org.apache.spark.sql.catalyst.trees.TreeNode;
 import org.apache.spark.sql.execution.ReusedSubqueryExec;
 import org.apache.spark.sql.execution.SparkPlan;
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec;
 import org.apache.spark.sql.execution.adaptive.QueryStageExec;
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec;
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec;
-import scala.None$;
 import scala.collection.JavaConverters;
-import scala.collection.immutable.$colon$colon;
-import scala.collection.immutable.Iterable;
-import scala.collection.immutable.Nil$;
 
 // An extension of how Spark translates `SparkPlan`s to `SparkPlanInfo`, see here:
 // https://github.com/apache/spark/blob/v3.5.0/sql/core/src/main/scala/org/apache/spark/sql/execution/SparkPlanInfo.scala#L54
-public class SparkPlanUtils {
+public class Spark213PlanUtils {
   public static ArrayList<SparkPlan> extractChildren(SparkPlan plan) {
     /*
     Get children of this node. Logic in Spark:
@@ -35,6 +29,8 @@ public class SparkPlanUtils {
       case _ => plan.children ++ plan.subqueries
     }
      */
+    // TODO: How does this interact with different versions of Spark? (specifically an older version
+    // that does not have those types)
     ArrayList<SparkPlan> children = new ArrayList<>();
     if (plan instanceof ReusedExchangeExec) {
       children.add(((ReusedExchangeExec) plan).child());
@@ -71,32 +67,13 @@ public class SparkPlanUtils {
     for (Iterator<Object> it = JavaConverters.asJavaIterator(plan.productIterator());
         it.hasNext(); ) {
       Object obj = it.next();
+      String key = plan.productElementName(i);
 
-      // TODO: improve parsing of certain types
-      //  1. Some() should be unwrapped
-      //  2. requiredSchema on Scan * (currently showing StructType)
-
-      // TODO: support a few more common types?
-      // condition=org.apache.spark.sql.catalyst.expressions.objects.Invoke
-      // joinType=org.apache.spark.sql.catalyst.plans.Inner$
-      // buildSide=org.apache.spark.sql.catalyst.optimizer.BuildRight$
-      // shuffleOrigin=org.apache.spark.sql.execution.exchange.ENSURE_REQUIREMENTS$
-      // outputPartitioning=org.apache.spark.sql.catalyst.plans.physical.SinglePartition$
-      if (obj instanceof String
-          || obj instanceof Boolean
-          || obj instanceof Collection
-          || obj instanceof None$
-          || obj instanceof Integer) {
-        args.put(plan.productElementName(i), obj.toString());
-      } else if (obj instanceof $colon$colon || obj instanceof Nil$) {
-        args.put(plan.productElementName(i), JavaConverters.asJava(((Iterable) obj)).toString());
-      } else if (obj instanceof TreeNode) {
-        // Filter out any potential child nodes
-        // TODO: Exempt conditions from this branch
-        // e.g. condition=class org.apache.spark.sql.catalyst.expressions.objects.Invoke
-        unparsed.put(plan.productElementName(i), obj.getClass().getName());
+      String val = CommonSparkPlanUtils.parsePlanProduct(obj);
+      if (val != null) {
+        args.put(key, val);
       } else {
-        args.put(plan.productElementName(i), obj.toString());
+        unparsed.put(key, obj.getClass().getName());
       }
 
       i++;
