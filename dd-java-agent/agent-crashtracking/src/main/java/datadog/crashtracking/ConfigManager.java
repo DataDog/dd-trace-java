@@ -14,6 +14,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 public class ConfigManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigManager.class);
+  private static final Pattern EQUALS_SPLITTER = Pattern.compile("=");
 
   public static class StoredConfig {
     final String service;
@@ -180,7 +182,7 @@ public class ConfigManager {
         if (line.isEmpty()) {
           continue;
         }
-        String[] parts = line.split("=", 2);
+        String[] parts = EQUALS_SPLITTER.split(line, 2);
         if (parts.length != 2) {
           continue;
         }
