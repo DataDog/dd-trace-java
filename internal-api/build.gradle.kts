@@ -1,5 +1,8 @@
 import groovy.lang.Closure
 
+var localJavaNativeDir = System.getenv("LOCAL_DD_TRACE_JAVA_NATIVE_DIR")
+var localLibConfigJar = "$localJavaNativeDir/libconfig/build/libs/dd-libconfig.jar"
+
 plugins {
   `java-library`
   id("me.champeau.jmh")
@@ -267,9 +270,11 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
+  api(project(":components:native-loader"))
   api(project(":components:yaml"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
+  api(files(localLibConfigJar))
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
