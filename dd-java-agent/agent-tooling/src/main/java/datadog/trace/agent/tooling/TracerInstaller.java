@@ -1,11 +1,15 @@
 package datadog.trace.agent.tooling;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.environment.OperatingSystem;
+import datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +27,7 @@ public class TracerInstaller {
                 .profilingContextIntegration(profilingContextIntegration)
                 .reportInTracerFlare()
                 .pollForTracingConfiguration()
+                .serviceDiscovery(getServiceDiscovery())
                 .build();
         installGlobalTracer(tracer);
       } else {
@@ -31,6 +36,19 @@ public class TracerInstaller {
     } else {
       log.debug("Tracing is disabled, not installing GlobalTracer.");
     }
+  }
+
+  private static ServiceDiscovery getServiceDiscovery() {
+    if (!OperatingSystem.isLinux()) {
+      log.debug("service discovery not supported outside linux");
+      return null;
+    }
+    // make sure this branch is not considered possible for graalvm artifact
+    if (!Platform.isNativeImageBuilder() && !Platform.isNativeImage()) {
+      return new ServiceDiscovery(new MemFDUnixWriter());
+    }
+    log.debug("service discovery not supported on native images");
+    return null;
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {
