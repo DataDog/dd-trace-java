@@ -46,8 +46,8 @@ repositories {
   }
 }
 
-tasks.withType(org.gradle.api.tasks.scala.ScalaCompile) {
-  it.javaLauncher = getJavaLauncherFor(8)
+tasks.withType(ScalaCompile).configureEach {
+  configureCompiler(it, 8)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

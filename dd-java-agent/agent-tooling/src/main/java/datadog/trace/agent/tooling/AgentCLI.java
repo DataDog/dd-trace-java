@@ -1,10 +1,14 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.crashtracking.ConfigManager.readConfig;
+
+import datadog.crashtracking.ConfigManager;
 import datadog.crashtracking.CrashUploader;
 import datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.profiler.EnvironmentChecker;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.InitializationTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -78,18 +82,33 @@ public final class AgentCLI {
     }
   }
 
-  public static void uploadCrash(final String[] args) throws Exception {
-    CrashUploader uploader = new CrashUploader();
-    List<Path> files = new ArrayList<>(args.length);
-    for (String arg : args) {
-      Path path = Paths.get(arg);
-      if (!Files.exists(path)) {
-        log.error("Crash log {} does not exist", arg);
+  public static void uploadCrash(final String configFile, final String... files) throws Exception {
+    ConfigManager.StoredConfig storedConfig = null;
+    if (configFile != null) {
+      Path configPath = Paths.get(configFile);
+      if (!Files.exists(configPath)) {
+        log.error("Config file {} does not exist", configFile);
         System.exit(1);
       }
-      files.add(Paths.get(arg));
+      storedConfig = readConfig(Config.get(), configPath);
+      if (storedConfig == null) {
+        log.error("Unable to parse config file {}", configFile);
+        System.exit(1);
+      }
+    } else {
+      // if the PID is not provided, the config file will be null
+      storedConfig = new ConfigManager.StoredConfig.Builder(Config.get()).build();
     }
-    uploader.upload(files);
+    List<Path> paths = new ArrayList<>(files.length);
+    for (String file : files) {
+      final Path path = Paths.get(file);
+      if (!Files.exists(path)) {
+        log.error("Crash log {} does not exist", file);
+        System.exit(1);
+      }
+      paths.add(path);
+    }
+    new CrashUploader(storedConfig).upload(paths);
   }
 
   public static void sendOomeEvent(String taglist) throws Exception {

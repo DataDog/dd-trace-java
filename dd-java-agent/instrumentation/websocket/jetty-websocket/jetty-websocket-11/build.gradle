@@ -19,7 +19,7 @@ addTestSuite("latestDepTest")
 
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }
 

@@ -10,7 +10,7 @@ object ZioTestFixtures {
       childSpan("fiber_1_span_1") {
         for {
           child <- childSpan("fiber_2_span_1")(ZIO.unit).fork
-          _ <- child.join
+          _     <- child.join
         } yield ()
       }
     }
@@ -48,7 +48,7 @@ object ZioTestFixtures {
     run {
       for {
         fiber1Started <- Promise.make[Nothing, Unit]
-        fiber2Done <- Promise.make[Nothing, Unit]
+        fiber2Done    <- Promise.make[Nothing, Unit]
 
         fiber1 <- runFiber(
           fiberNumber = 1,
@@ -83,12 +83,12 @@ object ZioTestFixtures {
 
     run {
       for {
-        start <- Promise.make[Nothing, Unit]
+        start  <- Promise.make[Nothing, Unit]
         fiber1 <- runFiber(1, start).fork
         fiber2 <- runFiber(2, start).fork
         fiber3 <- runFiber(3, start).fork
-        _ <- start.succeed(())
-        _ <- Fiber.joinAll(List(fiber1, fiber2, fiber3))
+        _      <- start.succeed(())
+        _      <- Fiber.joinAll(List(fiber1, fiber2, fiber3))
       } yield ()
     }
   }
@@ -105,11 +105,11 @@ object ZioTestFixtures {
     run {
       for {
         fiber1 <- runFiber(1).fork
-        _ <- fiber1.join
+        _      <- fiber1.join
         fiber2 <- runFiber(2).fork
-        _ <- fiber2.join
+        _      <- fiber2.join
         fiber3 <- runFiber(3).fork
-        _ <- fiber3.join
+        _      <- fiber3.join
       } yield ()
     }
   }
@@ -135,7 +135,7 @@ object ZioTestFixtures {
     }
 
   private def run[A](zio: ZIO[Any, Nothing, A]): Unit = {
-    val executor = Executors.newSingleThreadExecutor()
+    val executor    = Executors.newSingleThreadExecutor()
     val zioExecutor = Executor.fromJavaExecutor(executor)
     val layer =
       Runtime.setExecutor(zioExecutor) >>>

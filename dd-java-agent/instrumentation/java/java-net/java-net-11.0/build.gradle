@@ -17,7 +17,7 @@ tasks.named("compileMain_java11Java", JavaCompile) {
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
 }
 
 tasks.named("forbiddenApisMain_java11") {

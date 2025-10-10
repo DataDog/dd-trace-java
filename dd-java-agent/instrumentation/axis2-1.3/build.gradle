@@ -25,7 +25,7 @@ configurations.configureEach {
 
 ["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }
 
