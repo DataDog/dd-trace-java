@@ -13,10 +13,9 @@ import java.util.regex.Pattern
  * Per RFC-1070, libddwaf v18.0.0+ generates a UUIDv4 as block_id in action
  * parameters. This test verifies that:
  * - block_id is extracted from libddwaf action parameters
+ * - block_id is included in JSON blocking responses as "block_id" field
+ * - block_id is included in HTML blocking responses as placeholder replacement
  * - block_id is appended as URL parameter in redirect responses
- *
- * NOTE: Currently libddwaf 18.0.0 only generates block_id for redirect_request actions.
- * Tests for block_request actions (JSON/HTML) are commented out until libddwaf supports them.
  */
 class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -27,12 +26,32 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
   // UUID v4 pattern: 8-4-4-4-12 hexadecimal characters
   private static final Pattern UUID_PATTERN = Pattern.compile(
-    '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
   )
 
   def prepareCustomConfiguration() {
-    // Create custom rule for redirect action to test block_id in redirect URLs
+    // Create custom rules with custom actions to test block_id
     def customRules = [
+      [
+        id: '__test_block_id_trigger',
+        name: 'Block ID Test Rule',
+        tags: [
+          type: 'block_test',
+          category: 'attack_attempt'
+        ],
+        conditions: [
+          [
+            parameters: [
+              inputs: [[address: 'server.request.headers.no_cookies']],
+              key_path: ['user-agent'],
+              regex: 'BlockIdTestAgent.*'
+            ],
+            operator: 'match_regex'
+          ]
+        ],
+        transformers: ['lowercase'],
+        on_match: ['block_action']
+      ],
       [
         id: '__test_block_id_redirect',
         name: 'Block ID Redirect Test Rule',
@@ -43,9 +62,7 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
         conditions: [
           [
             parameters: [
-              inputs: [
-                [address: 'server.request.headers.no_cookies']
-              ],
+              inputs: [[address: 'server.request.headers.no_cookies']],
               key_path: ['user-agent'],
               regex: 'RedirectTestAgent.*'
             ],
@@ -58,6 +75,14 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     ]
 
     def customActions = [
+      [
+        id: 'block_action',
+        type: 'block_request',
+        parameters: [
+          status_code: 403,
+          type: 'auto'
+        ]
+      ],
       [
         id: 'redirect_action',
         type: 'redirect_request',
@@ -89,9 +114,6 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  // TODO: Uncomment when libddwaf generates block_id for block_request actions
-  // Currently libddwaf 18.0.0 only generates block_id for redirect_request actions
-  /*
   void 'test block_id is present in JSON blocking response'() {
     given: 'a request that triggers blocking'
     def url = "http://localhost:${httpPort}/greeting"
@@ -156,7 +178,6 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     body.contains('You\'ve been blocked')
     body.contains('<html')
   }
-  */
 
   void 'test block_id is appended to redirect URL'() {
     given: 'a request that triggers redirect'
@@ -188,11 +209,9 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
     // Verify the block_id is properly appended as a query parameter
     assert location.contains('?block_id=') || location.contains('&block_id='),
-      "block_id not properly appended as query parameter in: ${location}"
+    "block_id not properly appended as query parameter in: ${location}"
   }
 
-  // TODO: Uncomment when libddwaf generates block_id for block_request actions
-  /*
   void 'test block_id format is consistent across requests'() {
     given: 'multiple blocking requests'
     def url = "http://localhost:${httpPort}/greeting"
@@ -231,5 +250,4 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     UUID_PATTERN.matcher(blockId1).matches()
     UUID_PATTERN.matcher(blockId2).matches()
   }
-  */
 }

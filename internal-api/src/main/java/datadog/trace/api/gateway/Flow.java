@@ -57,13 +57,19 @@ public interface Flow<T> {
 
       public static RequestBlockingAction forRedirect(int statusCode, String location) {
         return new RequestBlockingAction(
-            statusCode, BlockingContentType.NONE, Collections.singletonMap("Location", location), null);
+            statusCode,
+            BlockingContentType.NONE,
+            Collections.singletonMap("Location", location),
+            null);
       }
 
       public static RequestBlockingAction forRedirect(
           int statusCode, String location, String blockId) {
         return new RequestBlockingAction(
-            statusCode, BlockingContentType.NONE, Collections.singletonMap("Location", location), blockId);
+            statusCode,
+            BlockingContentType.NONE,
+            Collections.singletonMap("Location", location),
+            blockId);
       }
 
       @Override
