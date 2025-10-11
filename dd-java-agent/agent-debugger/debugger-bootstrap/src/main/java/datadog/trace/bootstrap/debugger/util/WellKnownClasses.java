@@ -204,7 +204,9 @@ public class WellKnownClasses {
     return SAFE_TO_STRING_FUNCTIONS.containsKey(concreteType);
   }
 
-  /** @return true if collection implementation is safe to call (only in-memory) */
+  /**
+   * @return true if collection implementation is safe to call (only in-memory)
+   */
   public static boolean isSafe(Collection<?> collection) {
     String className = collection.getClass().getTypeName();
     if (className.startsWith("java.")) {
@@ -218,7 +220,9 @@ public class WellKnownClasses {
     return false;
   }
 
-  /** @return true if map implementation is safe to call (only in-memory) */
+  /**
+   * @return true if map implementation is safe to call (only in-memory)
+   */
   public static boolean isSafe(Map<?, ?> map) {
     String className = map.getClass().getTypeName();
     if (className.startsWith("java.")) {

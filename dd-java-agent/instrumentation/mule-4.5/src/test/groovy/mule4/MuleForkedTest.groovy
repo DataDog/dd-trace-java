@@ -258,5 +258,4 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
   String operation() {
     return "grizzly.request"
   }
-
 }

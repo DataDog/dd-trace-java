@@ -55,7 +55,9 @@ public interface TraceScope extends Closeable {
     return GlobalTracer.get().captureActiveSpan();
   }
 
-  /** @deprecated Replaced by {@code capture().hold()}. */
+  /**
+   * @deprecated Replaced by {@code capture().hold()}.
+   */
   @Deprecated
   default Continuation captureConcurrent() {
     return capture().hold();

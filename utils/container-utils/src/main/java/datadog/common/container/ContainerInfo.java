@@ -147,7 +147,9 @@ public class ContainerInfo {
     return null;
   }
 
-  /** @return 0 - if it couldn't read inode */
+  /**
+   * @return 0 - if it couldn't read inode
+   */
   static long readInode(Path path) {
     try {
       return (long) Files.getAttribute(path, "unix:ino");

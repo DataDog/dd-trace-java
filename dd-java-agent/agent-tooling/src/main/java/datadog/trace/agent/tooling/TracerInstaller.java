@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 public class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
+
   /** Register a global tracer if no global tracer is already registered. */
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects,

@@ -18,7 +18,11 @@ tasks.withType<JavaCompile>().configureEach {
   configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+fun AbstractCompile.configureCompiler(
+  javaVersionInteger: Int,
+  compatibilityVersion: JavaVersion? = null,
+  unsetReleaseFlagReason: String? = null,
+) {
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
@@ -234,7 +238,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
-  )
+  ),
 )
 
 val excludedClassesBranchCoverage by extra(
@@ -247,13 +251,13 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.util.TempLocationManager.*",
     // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
     "datadog.trace.api.rum.RumInjectorMetrics",
-  )
+  ),
 )
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.util.stacktrace.StackWalkerFactory"
-  )
+    "datadog.trace.util.stacktrace.StackWalkerFactory",
+  ),
 )
 
 tasks.compileTestJava {

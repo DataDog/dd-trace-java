@@ -278,6 +278,7 @@ public class DebuggerContext {
     IN_PROBE.set(Boolean.TRUE);
     return true;
   }
+
   /**
    * resolve probe details based on probe ids and evaluate the captured context regarding summary &
    * conditions This is for method probes

@@ -60,7 +60,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     and:
     def visited = []
-    fsCache.visit { k, v -> k as String + "_value" == v && visited.add(k as String) }
+    fsCache.visit {
+      k, v -> k as String + "_value" == v && visited.add(k as String)
+    }
     visited == keys
 
     where:
@@ -94,7 +96,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     and:
     def visited = []
-    fsCache.visit { k, v -> k[0] as String + "_value" == v && visited.add(k[0] as String) }
+    fsCache.visit {
+      k, v -> k[0] as String + "_value" == v && visited.add(k[0] as String)
+    }
     visited == keys
 
     where:
@@ -127,7 +131,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     and:
     def visited = []
-    fsCache.visit { k, v -> k as String + "_value" == v && visited.add(k as String) }
+    fsCache.visit {
+      k, v -> k as String + "_value" == v && visited.add(k as String)
+    }
     visited.sort() == keys.sort()
 
     where:
@@ -155,7 +161,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     and:
     def visited = []
-    fsCache.visit { k, v -> k as String + "_value" == v && visited.add(k as String) }
+    fsCache.visit {
+      k, v -> k as String + "_value" == v && visited.add(k as String)
+    }
     visited.sort() == keys.sort()
 
     where:
@@ -201,7 +209,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     and:
     def visited = []
-    fsCache.visit { k, v -> k as String + "_value" == v && visited.add(k as String) }
+    fsCache.visit {
+      k, v -> k as String + "_value" == v && visited.add(k as String)
+    }
     visited.sort() == keys.sort()
 
     where:
@@ -251,17 +261,20 @@ class FixedSizeCacheTest extends DDSpecification {
       [
         'fixed size',
         { capacity ->
-          DDCaches.newFixedSizeCache(capacity) }
+          DDCaches.newFixedSizeCache(capacity)
+        }
       ],
       [
         'unbounded',
         { capacity ->
-          DDCaches.newUnboundedCache(capacity) }
+          DDCaches.newUnboundedCache(capacity)
+        }
       ],
       [
         'fixed size weighted',
         { capacity ->
-          DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)}
+          DDCaches.newFixedSizeWeightedCache(capacity, String.&length, 1000)
+        }
       ]
     ]
   }
@@ -323,7 +336,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     and:
     def visited = []
-    fsCache.visit { k, v -> k as String + "_value" == v && visited.add(k as String) }
+    fsCache.visit {
+      k, v -> k as String + "_value" == v && visited.add(k as String)
+    }
     visited == keys
 
     where:

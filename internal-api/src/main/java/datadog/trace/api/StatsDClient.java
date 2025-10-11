@@ -37,7 +37,8 @@ public interface StatsDClient extends Closeable {
    * @param tags the tags to attach to the event
    */
   default void recordEvent(
-      String type, String source, String eventName, String message, String... tags) {};
+      String type, String source, String eventName, String message, String... tags) {}
+  ;
 
   @Override
   void close();

@@ -213,7 +213,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition
       //TODO
       TEST_DATA_STREAMS_WRITER.waitForBacklogs(2)
-
     }
 
     then:
@@ -512,7 +511,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
-
   }
 
   def "test records(TopicPartition) kafka consume"() {
@@ -567,8 +565,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
-
   }
 
   def "test records(TopicPartition).subList kafka consume"() {
@@ -626,7 +622,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).forEach kafka consume"() {
@@ -684,7 +679,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test iteration backwards over ConsumerRecords"() {
@@ -795,7 +789,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test kafka client header propagation manual config"() {
@@ -1005,7 +998,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     return clusterId
   }
-
 }
 
 abstract class KafkaClientForkedTest extends KafkaClientTestBase {
@@ -1122,8 +1114,6 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
 }
 
 class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest{
-
-
 }
 
 class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest{

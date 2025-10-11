@@ -9,16 +9,16 @@ import org.junit.runners.Parameterized
 class TestSucceedParameterizedKotlin(
   private val param1: ParamObject,
   private val param2: String,
-  private val param3: Int
+  private val param3: Int,
 ) {
-
   companion object {
     @JvmStatic
     @Parameterized.Parameters(name = "{1}")
-    fun data(): Collection<Array<Any>> = listOf(
-      arrayOf(ParamObject(), "str1", 0),
-      arrayOf(ParamObject(), "str2", 1)
-    )
+    fun data(): Collection<Array<Any>> =
+      listOf(
+        arrayOf(ParamObject(), "str1", 0),
+        arrayOf(ParamObject(), "str2", 1),
+      )
   }
 
   @Test

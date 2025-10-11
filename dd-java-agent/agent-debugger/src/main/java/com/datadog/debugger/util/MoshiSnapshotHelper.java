@@ -243,7 +243,9 @@ public class MoshiSnapshotHelper {
       TIMEOUT
     }
 
-    /** @return true if all items where serialized or whether we reach the max field count */
+    /**
+     * @return true if all items where serialized or whether we reach the max field count
+     */
     private SerializationResult toJsonCapturedValues(
         JsonWriter jsonWriter,
         Map<String, CapturedContext.CapturedValue> map,

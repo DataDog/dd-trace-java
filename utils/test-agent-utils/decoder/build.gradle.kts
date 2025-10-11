@@ -9,7 +9,7 @@ val excludedClassesCoverage by extra(
   listOf(
     "datadog.trace.test.agent.decoder.v04.raw.*",
     "datadog.trace.test.agent.decoder.v05.raw.*",
-  )
+  ),
 )
 
 dependencies {
