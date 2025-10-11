@@ -766,5 +766,4 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   def buildIntakePath(TrackType trackType, String apiVersion) {
     return String.format("/api/%s/%s", apiVersion, trackType.name().toLowerCase())
   }
-
 }

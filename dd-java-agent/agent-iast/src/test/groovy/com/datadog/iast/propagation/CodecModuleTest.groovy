@@ -405,5 +405,4 @@ class CodecModuleTest extends IastModuleImplTestBase {
         '}'
     }
   }
-
 }

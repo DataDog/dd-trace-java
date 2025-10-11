@@ -10,27 +10,37 @@ import datadog.context.Context;
  * were not supported prior to Java 8 and will lead to a class verification error.
  */
 public class Java8BytecodeBridge {
-  /** @see Context#root() */
+  /**
+   * @see Context#root()
+   */
   public static Context getRootContext() {
     return Context.root();
   }
 
-  /** @see Context#current() */
+  /**
+   * @see Context#current()
+   */
   public static Context getCurrentContext() {
     return Context.current();
   }
 
-  /** @see Context#from(Object) */
+  /**
+   * @see Context#from(Object)
+   */
   public static Context getContextFrom(Object carrier) {
     return Context.from(carrier);
   }
 
-  /** @see Context#detachFrom(Object) */
+  /**
+   * @see Context#detachFrom(Object)
+   */
   public static Context detachContextFrom(Object carrier) {
     return Context.detachFrom(carrier);
   }
 
-  /** @see AgentSpan#fromContext(Context) */
+  /**
+   * @see AgentSpan#fromContext(Context)
+   */
   public static AgentSpan spanFromContext(Context context) {
     return AgentSpan.fromContext(context);
   }

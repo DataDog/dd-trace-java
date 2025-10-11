@@ -181,6 +181,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -200,6 +201,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -219,6 +221,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -237,6 +240,7 @@ public class InstrumentationGateway {
                   log.warn("Callback for {} threw.", eventType, t);
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -257,6 +261,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -276,6 +281,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -295,6 +301,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -314,6 +321,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {

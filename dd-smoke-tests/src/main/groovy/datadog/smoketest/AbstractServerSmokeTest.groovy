@@ -172,7 +172,8 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     def dependencies = []
     dependenciesLoaded.each {
       def payload = it.get('payload') as Map<String, Object>
-      dependencies.addAll(payload.get('dependencies')) }
+      dependencies.addAll(payload.get('dependencies'))
+    }
     dependencies.size() > 0
 
     Set<String> dependencyNames = dependencies.collect {

@@ -12,7 +12,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
-/** @see play.api.mvc.BodyParsers.parse$#tolerantText(long) */
+/**
+ * @see play.api.mvc.BodyParsers.parse$#tolerantText(long)
+ */
 @AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {

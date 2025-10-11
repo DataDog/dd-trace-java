@@ -259,7 +259,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
             for (Map.Entry<String, String> entry : meta.entrySet()) {
               if (Tags.HTTP_STATUS.equals(entry.getKey())) {
                 assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
-
               } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {

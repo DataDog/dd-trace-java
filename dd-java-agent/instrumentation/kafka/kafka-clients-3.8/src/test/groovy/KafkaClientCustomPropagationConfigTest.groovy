@@ -295,5 +295,4 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     where:
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
-
 }

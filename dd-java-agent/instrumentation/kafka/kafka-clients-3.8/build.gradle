@@ -59,5 +59,4 @@ dependencies {
   latestDepTestImplementation group: 'io.dropwizard.metrics', name: 'metrics-core', version: '+'
 
   latestDepTestImplementation libs.guava
-
 }

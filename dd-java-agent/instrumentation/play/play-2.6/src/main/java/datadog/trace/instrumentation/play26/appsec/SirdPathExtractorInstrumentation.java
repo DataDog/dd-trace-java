@@ -19,7 +19,9 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.collection.immutable.List;
 
-/** @see play.api.routing.sird.PathExtractor */
+/**
+ * @see play.api.routing.sird.PathExtractor
+ */
 @AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

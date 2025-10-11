@@ -30,7 +30,9 @@ class W3cPropagatorTracestateTest extends InstrumentationSpecification {
     if (tracestate) {
       headers['tracestate'] = tracestate
       members = Arrays.stream(tracestate.split(','))
-      .filter { !it.startsWith("dd=")}
+      .filter {
+        !it.startsWith("dd=")
+      }
       .toArray(String[]::new)
     }
 
@@ -42,8 +44,8 @@ class W3cPropagatorTracestateTest extends InstrumentationSpecification {
 
     when:
     def localSpan = tracer.spanBuilder("some-name")
-      .setParent(context)
-      .startSpan()
+    .setParent(context)
+    .startSpan()
     def scope = localSpan.makeCurrent()
     Map<String, String> injectedHeaders = [:]
     propagator.inject(current(), injectedHeaders, TextMap.INSTANCE)

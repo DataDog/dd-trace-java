@@ -9,10 +9,6 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.build.event.BuildEventsListenerRegistry
-import org.gradle.tooling.events.FinishEvent
-import org.gradle.tooling.events.OperationCompletionListener
-import org.gradle.tooling.events.task.TaskFinishEvent
-import org.gradle.tooling.events.task.TaskSuccessResult
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.lang.reflect.Method

@@ -95,8 +95,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         handleDistributedRequest()
         String msg = "Hello."
         response.status(200)
-        .addHeader('x-datadog-test-response-header', 'baz')
-        .send(msg)
+          .addHeader('x-datadog-test-response-header', 'baz')
+          .send(msg)
       }
       prefix("/timeout") {
         Thread.sleep(10_000)
@@ -107,10 +107,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           response.status(400).send('Bad content type')
         } else {
           response
-          .status(200)
-          .addHeader('Content-Type', 'application/json')
-          .addHeader('X-AppSec-Test', 'true')
-          .sendWithType('application/json', request.body)
+            .status(200)
+            .addHeader('Content-Type', 'application/json')
+            .addHeader('X-AppSec-Test', 'true')
+            .sendWithType('application/json', request.body)
         }
       }
     }
@@ -146,19 +146,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def setupSpec() {
     List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
     proxySelector = new ProxySelector() {
-      @Override
-      List<Proxy> select(URI uri) {
-        if (uri.fragment == "proxy") {
-          return proxyList
+        @Override
+        List<Proxy> select(URI uri) {
+          if (uri.fragment == "proxy") {
+            return proxyList
+          }
+          return getDefault().select(uri)
         }
-        return getDefault().select(uri)
-      }
 
-      @Override
-      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-        getDefault().connectFailed(uri, sa, ioe)
+        @Override
+        void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+          getDefault().connectFailed(uri, sa, ioe)
+        }
       }
-    }
 
     // Register the Instrumentation Gateway callbacks
     def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)
@@ -230,8 +230,12 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   // IBM JVM has different protocol support for TLS
-  @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
-  @IgnoreIf({ !instance.testSecure() })
+  @Requires({
+    !System.getProperty("java.vm.name").contains("IBM J9 VM")
+  })
+  @IgnoreIf({
+    !instance.testSecure()
+  })
   def "basic secure #method request"() {
     when:
     def status = doRequest(method, url)
@@ -250,7 +254,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -266,8 +272,12 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   // IBM JVM has different protocol support for TLS
-  @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
-  @IgnoreIf({ !(instance.testSecure() && instance.testProxy()) })
+  @Requires({
+    !System.getProperty("java.vm.name").contains("IBM J9 VM")
+  })
+  @IgnoreIf({
+    !(instance.testSecure() && instance.testProxy())
+  })
   def "secure #method proxied request"() {
     when:
     def status = runUnderTrace("parent") {
@@ -295,7 +305,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -330,7 +342,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -367,7 +381,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -405,7 +421,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -438,7 +456,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -471,7 +491,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -483,7 +505,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   @Flaky(value = 'Futures timed out after [1 second]', suites = ['PlayWSClientTest'])
-  @IgnoreIf({ !instance.testCallbackWithParent() })
+  @IgnoreIf({
+    !instance.testCallbackWithParent()
+  })
   def "trace request with callback and parent"() {
     given:
     def method = 'GET'
@@ -515,7 +539,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -538,7 +564,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     // Java 7 CopyOnWrite lists cannot be sorted in place
     List<List<DDSpan>> traces = TEST_WRITER.toList()
-    traces.sort({ t1, t2 ->
+    traces.sort({
+      t1, t2 ->
       return t1[0].startTimeNano <=> t2[0].startTimeNano
     })
     for (int i = 0; i < traces.size(); i++) {
@@ -562,7 +589,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -572,7 +601,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRedirects() })
+  @IgnoreIf({
+    !instance.testRedirects()
+  })
   def "basic #method request with 1 redirect"() {
     // TODO quite a few clients create an extra span for the redirect
     // This test should handle both types or we should unify how the clients work
@@ -598,7 +629,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -608,7 +641,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRedirects() })
+  @IgnoreIf({
+    !instance.testRedirects()
+  })
   def "basic #method request with 2 redirects"() {
     given:
     def uri = server.address.resolve("/another-redirect")
@@ -632,7 +667,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -642,7 +679,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !(instance.testRedirects() && instance.testCircularRedirects()) })
+  @IgnoreIf({
+    !(instance.testRedirects() && instance.testCircularRedirects())
+  })
   def "basic #method request with circular redirects"() {
     given:
     def uri = server.address.resolve("/circular-redirect")
@@ -667,7 +706,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRedirects() })
+  @IgnoreIf({
+    !instance.testRedirects()
+  })
   def "redirect #method to secured endpoint copies auth header"() {
     given:
     def uri = server.address.resolve("/to-secured")
@@ -690,7 +731,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -700,7 +743,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testConnectionFailure() })
+  @IgnoreIf({
+    !instance.testConnectionFailure()
+  })
   def "connection error (unopened port)"() {
     given:
     def uri = new URI("http://localhost:$UNUSABLE_PORT/")
@@ -726,7 +771,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     method = "GET"
   }
 
-  @IgnoreIf({ !instance.testRemoteConnection() })
+  @IgnoreIf({
+    !instance.testRemoteConnection()
+  })
   def "connection error non routable address"() {
     given:
     def uri = new URI("https://192.0.2.1/")
@@ -752,8 +799,12 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   // IBM JVM has different protocol support for TLS
-  @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
-  @IgnoreIf({ !instance.testRemoteConnection() })
+  @Requires({
+    !System.getProperty("java.vm.name").contains("IBM J9 VM")
+  })
+  @IgnoreIf({
+    !instance.testRemoteConnection()
+  })
   def "test https request"() {
     given:
     def uri = new URI("https://www.google.com/")
@@ -774,7 +825,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -802,7 +855,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -835,7 +890,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -847,7 +904,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
 
-  @IgnoreIf({ !instance.testAppSecClientRequest() })
+  @IgnoreIf({
+    !instance.testAppSecClientRequest()
+  })
   void 'test appsec client request analysis'() {
     given:
     final url = server.address.resolve(endpoint)
@@ -861,7 +920,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     when:
     final status = runUnderAppSecTrace {
-      doRequest(method, url, ['Content-Type': contentType] + headers, body) { InputStream response ->
+      doRequest(method, url, ['Content-Type': contentType] + headers, body) {
+        InputStream response ->
         assert response.text == body
       }
     }
@@ -869,7 +929,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     then:
     status == 200
     TEST_WRITER.waitForTraces(1)
-    final span = TEST_WRITER.get(0).find { it.spanType == 'http'}
+    final span = TEST_WRITER.get(0).find {
+      it.spanType == 'http'
+    }
     tags.each {
       assert span.getTag(it.key) == it.value
     }
@@ -921,9 +983,15 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" { it == uri.host || ignorePeer }
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" || ignorePeer } // Optional
-        "$Tags.PEER_PORT" { it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer }
+        "$Tags.PEER_HOSTNAME" {
+          it == uri.host || ignorePeer
+        }
+        "$Tags.PEER_HOST_IPV4" {
+          it == null || it == "127.0.0.1" || ignorePeer
+        } // Optional
+        "$Tags.PEER_PORT" {
+          it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer
+        }
         "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method
         if (status) {
@@ -931,10 +999,16 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         }
         if (tagQueryString) {
           "$DDTags.HTTP_QUERY" expectedQuery
-          "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
+          "$DDTags.HTTP_FRAGMENT" {
+            it == null || it == uri.fragment
+          } // Optional
         }
-        if ({ isDataStreamsEnabled() }) {
-          "$DDTags.PATHWAY_HASH" { String }
+        if ({
+          isDataStreamsEnabled()
+        }) {
+          "$DDTags.PATHWAY_HASH" {
+            String
+          }
         }
         if (exception) {
           this.assertErrorTags(it, exception)
@@ -1012,13 +1086,13 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       boolean hasAppSecData
     }
 
-    final BiFunction<RequestContext, Long, Flow<Boolean>> httpClientBodySamplingCb =
-    { RequestContext rqCtxt, final long requestId ->
+    final BiFunction<RequestContext, Long, Flow<Boolean>> httpClientBodySamplingCb = {
+      RequestContext rqCtxt, final long requestId ->
       return new Flow.ResultFlow<>(true)
     } as BiFunction<RequestContext, Long, Flow<Boolean>>
 
-    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCb =
-    { RequestContext rqCtxt, HttpClientRequest req ->
+    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCb = {
+      RequestContext rqCtxt, HttpClientRequest req ->
       if (req.headers?.containsKey('X-AppSec-Test')) {
         final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
         if (context != null) {
@@ -1029,13 +1103,12 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           .setTag('downstream.request.headers', JsonOutput.toJson(req.headers))
           .setTag('downstream.request.body', req.body?.text)
         }
-
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, HttpClientRequest, Flow<Void>>
 
-    final BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCb =
-    { RequestContext rqCtxt, HttpClientResponse res ->
+    final BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCb = {
+      RequestContext rqCtxt, HttpClientResponse res ->
       final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
       if (context?.hasAppSecData) {
         activeSpan()
@@ -1045,7 +1118,5 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, HttpClientResponse, Flow<Void>>
-
-
   }
 }

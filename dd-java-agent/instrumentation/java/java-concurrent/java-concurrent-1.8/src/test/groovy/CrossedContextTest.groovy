@@ -138,5 +138,4 @@ class CrossedContextTest extends InstrumentationSpecification {
       // new UnorderedThreadPoolEventExecutor(10)
     ]
   }
-
 }

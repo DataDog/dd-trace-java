@@ -44,7 +44,6 @@ abstract class CliApplicationSmokeTest extends AbstractSmokeTest {
 }
 
 class BasicCLITest extends CliApplicationSmokeTest {
-
 }
 
 class NoKeystoreTest extends CliApplicationSmokeTest {

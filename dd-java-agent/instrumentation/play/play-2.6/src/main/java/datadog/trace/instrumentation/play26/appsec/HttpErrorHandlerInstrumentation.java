@@ -22,7 +22,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 import play.api.http.HttpErrorHandler;
 import play.api.mvc.RequestHeader;
 
-/** @see HttpErrorHandler#onServerError(RequestHeader, Throwable) */
+/**
+ * @see HttpErrorHandler#onServerError(RequestHeader, Throwable)
+ */
 @AutoService(InstrumenterModule.class)
 public class HttpErrorHandlerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {

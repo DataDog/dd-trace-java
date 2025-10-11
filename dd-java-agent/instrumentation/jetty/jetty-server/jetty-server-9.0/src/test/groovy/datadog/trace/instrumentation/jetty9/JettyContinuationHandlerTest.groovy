@@ -90,9 +90,7 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
 }
 
 class JettyContinuationHandlerV0ForkedTest extends JettyContinuationHandlerTest implements TestingGenericHttpNamingConventions.ServerV0 {
-
 }
 
 class JettyContinuationHandlerV1ForkedTest extends JettyContinuationHandlerTest implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }

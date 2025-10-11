@@ -10,7 +10,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import play.routing.RoutingDsl;
 
-/** @see RoutingDsl.Route */
+/**
+ * @see RoutingDsl.Route
+ */
 @AutoService(InstrumenterModule.class)
 public class RoutingDsl27Instrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

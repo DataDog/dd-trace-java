@@ -25,7 +25,9 @@ public final class AgentPropagation {
 
   private AgentPropagation() {}
 
-  /** @deprecated Use {@link Propagators} API instead. */
+  /**
+   * @deprecated Use {@link Propagators} API instead.
+   */
   @Deprecated
   public static <C> AgentSpanContext.Extracted extractContextAndGetSpanContext(
       final C carrier, final ContextVisitor<C> getter) {

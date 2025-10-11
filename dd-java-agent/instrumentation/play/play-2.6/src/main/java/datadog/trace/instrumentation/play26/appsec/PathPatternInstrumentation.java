@@ -22,7 +22,9 @@ import scala.Tuple2;
 import scala.collection.Iterator;
 import scala.util.Either;
 
-/** @see play.core.routing.PathPattern#apply(String) */
+/**
+ * @see play.core.routing.PathPattern#apply(String)
+ */
 @AutoService(InstrumenterModule.class)
 public class PathPatternInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

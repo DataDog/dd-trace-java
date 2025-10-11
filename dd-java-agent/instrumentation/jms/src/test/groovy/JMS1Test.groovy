@@ -1014,7 +1014,6 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   @Trace(operationName = "do.stuff")
   def doStuff() {
-
   }
 }
 

@@ -660,7 +660,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       return converter.toSpan(agentSpan);
     }
 
-    /** @deprecated use {@link #start()} instead. */
+    /**
+     * @deprecated use {@link #start()} instead.
+     */
     @Deprecated
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {

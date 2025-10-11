@@ -35,6 +35,7 @@ public class OtelSpan implements Span, WithAgentSpan {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
+
   /** Span events ({@code null} until an event is added). */
   private List<OtelSpanEvent> events;
 

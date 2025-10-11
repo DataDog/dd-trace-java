@@ -18,7 +18,9 @@ public interface ContextStore<K, C> {
    */
   interface Factory<C> extends KeyAwareFactory<Object, C> {
 
-    /** @return new context instance */
+    /**
+     * @return new context instance
+     */
     C create();
 
     default C create(Object key) {
@@ -34,7 +36,9 @@ public interface ContextStore<K, C> {
    */
   interface KeyAwareFactory<K, C> {
 
-    /** @return new context instance */
+    /**
+     * @return new context instance
+     */
     C create(K key);
   }
 

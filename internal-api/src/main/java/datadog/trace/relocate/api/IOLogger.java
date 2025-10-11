@@ -19,7 +19,9 @@ public class IOLogger {
     this.ratelimitedLogger = ratelimitedLogger;
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean success(final String format, final Object... arguments) {
     if (log.isDebugEnabled()) {
       log.debug(format, arguments);
@@ -37,22 +39,30 @@ public class IOLogger {
     return false;
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message) {
     return error(message, null, null);
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message, Exception exception) {
     return error(message, null, exception);
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message, Response response) {
     return error(message, response, null);
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message, Response response, Exception exception) {
     if (log.isDebugEnabled()) {
       if (response != null) {

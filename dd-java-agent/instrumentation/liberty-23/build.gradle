@@ -103,7 +103,11 @@ abstract class UnpackOpenLiberty extends Copy {
   final Provider<File> serverXmlFile = project.providers.provider { extractDir.get().file("wlp/usr/servers/defaultServer/server.xml").asFile }
 
   UnpackOpenLiberty() {
-    from project.zipTree(configurationName.map {project.configurations.named(it).map { it.singleFile } })
+    from project.zipTree(configurationName.map {
+      project.configurations.named(it).map {
+        it.singleFile
+      }
+    })
     eachFile { FileCopyDetails fcd ->
       fcd.path = fcd.path.replaceAll(/\/templates\/(servers\/defaultServer\/.+)/, '/usr/$1')
     }

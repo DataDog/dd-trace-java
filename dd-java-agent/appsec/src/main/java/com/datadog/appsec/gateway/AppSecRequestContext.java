@@ -15,8 +15,21 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.io.Closeable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -643,7 +656,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  /** @return the portion of the body read so far, if any */
+  /**
+   * @return the portion of the body read so far, if any
+   */
   public CharSequence getStoredRequestBody() {
     StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
     if (storedRequestBodySupplier == null) {

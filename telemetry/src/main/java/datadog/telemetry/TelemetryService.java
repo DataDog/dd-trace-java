@@ -152,7 +152,9 @@ public class TelemetryService {
   // keeps track of unsent events from the previous attempt
   private BufferedEvents bufferedEvents;
 
-  /** @return true - if an app-started event has been successfully sent, false - otherwise */
+  /**
+   * @return true - if an app-started event has been successfully sent, false - otherwise
+   */
   public boolean sendAppStartedEvent() {
     EventSource eventSource;
     EventSink eventSink;
@@ -241,7 +243,9 @@ public class TelemetryService {
     return false;
   }
 
-  /** @return true - if extended heartbeat request sent successfully, otherwise false */
+  /**
+   * @return true - if extended heartbeat request sent successfully, otherwise false
+   */
   public boolean sendExtendedHeartbeat() {
     log.debug("Preparing message-batch request");
     EventSource extendedHeartbeatDataSnapshot = extendedHeartbeatData.snapshot();

@@ -160,5 +160,4 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     'Location'               | 1
     'headerName'             | 0
   }
-
 }

@@ -15,7 +15,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.duration.FiniteDuration;
 
-/** @see akka.http.scaladsl.model.Multipart.FormData#toStrict(FiniteDuration, Materializer) */
+/**
+ * @see akka.http.scaladsl.model.Multipart.FormData#toStrict(FiniteDuration, Materializer)
+ */
 @AutoService(InstrumenterModule.class)
 public class FormDataToStrictInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType,

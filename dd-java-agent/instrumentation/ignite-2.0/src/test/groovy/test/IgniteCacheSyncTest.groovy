@@ -305,7 +305,6 @@ abstract class IgniteCacheSyncTest extends AbstractIgniteTest {
     farCache?.close()
     nearCache?.close()
   }
-
 }
 
 class IgniteCacheSyncV0ForkedTest extends IgniteCacheSyncTest {

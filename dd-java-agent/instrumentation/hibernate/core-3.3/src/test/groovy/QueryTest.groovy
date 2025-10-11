@@ -219,5 +219,4 @@ class QueryTest extends AbstractHibernateTest {
       }
     }
   }
-
 }

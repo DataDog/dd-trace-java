@@ -29,6 +29,7 @@ public final class Batch implements InboxItem {
    * </ol>
    */
   private volatile int count = 0;
+
   /** incremented when a duration has been added. */
   private volatile int committed = 0;
 

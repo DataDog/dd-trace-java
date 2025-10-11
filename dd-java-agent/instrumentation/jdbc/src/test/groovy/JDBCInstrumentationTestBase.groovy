@@ -648,7 +648,11 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     datasource.getConnection().close()
 
     then:
-    !TEST_WRITER.any { it.any { it.operationName.toString() == "database.connection" } }
+    !TEST_WRITER.any {
+      it.any {
+        it.operationName.toString() == "database.connection"
+      }
+    }
     TEST_WRITER.clear()
 
     when:
@@ -1000,12 +1004,12 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
   Driver newDriver(String driverClass) {
     return ((Driver) Class.forName(driverClass)
-      .getDeclaredConstructor().newInstance())
+    .getDeclaredConstructor().newInstance())
   }
 
   Connection connect(String driverClass, String url, Properties properties) {
     return newDriver(driverClass)
-      .connect(url, properties)
+    .connect(url, properties)
   }
 
   @Override

@@ -50,6 +50,7 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_SERVER_DECODED_RESOURCE_PRESERVE_SPACES =
       "http.server.decoded.resource.preserve-spaces";
   public static final String HTTP_SERVER_ROUTE_BASED_NAMING = "http.server.route-based-naming";
+
   // Use TRACE_HTTP_CLIENT_TAG_QUERY_STRING instead
   @Deprecated
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
@@ -183,6 +184,7 @@ public final class TraceInstrumentationConfig {
   public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
       "trace.jax-rs.exception-as-error.enabled";
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
+
   /** If set, the instrumentation will set its resource name on the local root too. */
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 

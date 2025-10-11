@@ -188,7 +188,9 @@ abstract class CiVisibilityTestUtils {
   }
 
   static List<TestFQN> getTestIdentifiers(List<Map<?,?>> events) {
-    events.sort(Comparator.comparing { it['content']['start'] as Long })
+    events.sort(Comparator.comparing {
+      it['content']['start'] as Long
+    })
     def testIdentifiers = []
     for (Map event : events) {
       if (event['content']['meta']['test.name']) {
@@ -275,7 +277,6 @@ abstract class CiVisibilityTestUtils {
       StringWriter coveragesOut = new StringWriter()
       coveragesTemplate.process(replacements, coveragesOut)
       return coveragesOut.toString()
-
     } catch (Exception e) {
       throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
     }
@@ -304,7 +305,6 @@ abstract class CiVisibilityTestUtils {
             return label.forTemplateKey(dynamicPath.rawPath)
           })
         }
-
       }
       return JSON_MAPPER
       .writeValueAsString(objects)

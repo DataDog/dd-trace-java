@@ -134,5 +134,4 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
     //hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'MD2'}
     //hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'SHA-1' }
   }
-
 }

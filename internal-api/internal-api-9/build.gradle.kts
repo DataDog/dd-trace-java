@@ -18,11 +18,15 @@ java {
   }
 }
 
-tasks.withType<Javadoc>().configureEach() {
+tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+fun AbstractCompile.configureCompiler(
+  javaVersionInteger: Int,
+  compatibilityVersion: JavaVersion? = null,
+  unsetReleaseFlagReason: String? = null,
+) {
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 

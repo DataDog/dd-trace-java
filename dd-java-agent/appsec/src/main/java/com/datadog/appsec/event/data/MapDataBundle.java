@@ -72,7 +72,9 @@ public class MapDataBundle implements DataBundle {
     public static final int CAPACITY_11_21 = 32;
     public static final int CAPACITY_22_42 = 64;
 
-    /** @param capacity 2^ceil(log2(ceil(expected_elements 3/2))) */
+    /**
+     * @param capacity 2^ceil(log2(ceil(expected_elements 3/2)))
+     */
     public Builder(int capacity) {
       map = new IdentityHashMap<>(capacity);
     }

@@ -199,7 +199,9 @@ public final class Ranges {
     return true;
   }
 
-  /** @see #allRangesFromHeader(String, Range[]) */
+  /**
+   * @see #allRangesFromHeader(String, Range[])
+   */
   public static boolean allRangesFromHeader(
       @Nonnull final HttpHeader header, @Nonnull final Range[] ranges) {
     return allRangesFromHeader(header.name, ranges);

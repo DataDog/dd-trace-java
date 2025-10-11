@@ -15,7 +15,9 @@ import net.bytebuddy.asm.Advice;
 import play.libs.F;
 import play.routing.RoutingDsl;
 
-/** @see RoutingDsl.Route */
+/**
+ * @see RoutingDsl.Route
+ */
 @AutoService(InstrumenterModule.class)
 public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

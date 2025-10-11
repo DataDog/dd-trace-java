@@ -539,7 +539,8 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.COMPONENT" "spring-webflux-controller"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "request.predicate" "(GET && /double-greet-redirect)"
-            "handler.type" { String tagVal ->
+            "handler.type" {
+              String tagVal ->
               return (tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
               || tagVal.contains("Lambda"))
             }
@@ -583,7 +584,8 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.COMPONENT" "spring-webflux-controller"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "request.predicate" "(GET && /double-greet)"
-            "handler.type" { String tagVal ->
+            "handler.type" {
+              String tagVal ->
               return tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
             }
             defaultTags()
@@ -684,7 +686,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       sortSpansByStart()
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, null, false,
-          ["message": "The subscription was cancelled", "event": "cancelled"])
+        ["message": "The subscription was cancelled", "event": "cancelled"])
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
       }
       trace(2) {
@@ -792,17 +794,17 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
 
 
   def clientSpan(
-    TraceAssert trace,
-    Object parentSpan,
-    String operation,
-    String component,
-    String method = "GET",
-    URI uri,
-    Integer status = 200,
-    boolean error = false,
-    Throwable exception = null,
-    boolean tagQueryString = false,
-    Map<String, Serializable> extraTags = null) {
+  TraceAssert trace,
+  Object parentSpan,
+  String operation,
+  String component,
+  String method = "GET",
+  URI uri,
+  Integer status = 200,
+  boolean error = false,
+  Throwable exception = null,
+  boolean tagQueryString = false,
+  Map<String, Serializable> extraTags = null) {
     def ret
 
     def expectedQuery = tagQueryString ? uri.query : null

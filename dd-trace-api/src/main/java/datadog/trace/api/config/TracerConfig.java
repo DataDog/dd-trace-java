@@ -47,6 +47,7 @@ public final class TracerConfig {
 
   @Deprecated
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
+
   // JSON rules
   public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
   public static final String SPAN_SAMPLING_RULES = "span.sampling.rules";

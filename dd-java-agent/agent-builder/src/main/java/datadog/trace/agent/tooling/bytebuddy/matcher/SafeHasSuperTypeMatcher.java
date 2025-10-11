@@ -41,6 +41,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   private final boolean interfacesOnly;
   private final boolean rejectInterfaceTargets;
   private final boolean checkInterfaces;
+
   /**
    * Creates a new matcher for a super type.
    *

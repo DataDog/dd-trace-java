@@ -309,6 +309,7 @@ public class HttpCodec {
           AgentPropagation.ContextVisitor<ExtractionCache<?>> {
     /** Cached context key-values (even indexes are header names, odd indexes are header values). */
     private final List<String> keysAndValues;
+
     /**
      * The parent span identifier from {@link DatadogHttpCodec#SPAN_ID_KEY} header formatted as 16
      * hexadecimal characters, {@code null} if absent or invalid.

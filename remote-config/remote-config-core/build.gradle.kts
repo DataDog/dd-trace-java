@@ -15,18 +15,18 @@ val excludedClassesCoverage by extra(
     // idem
     "datadog.remoteconfig.tuf.RawJsonAdapter",
     "datadog.remoteconfig.ExceptionHelper",
-  )
+  ),
 )
 val excludedClassesBranchCoverage by extra(
   listOf(
     "datadog.remoteconfig.tuf.FeaturesConfig",
     "datadog.remoteconfig.PollerRequestFactory",
-  )
+  ),
 )
 val excludedClassesInstructionCoverage by extra(
   listOf(
     "datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop",
-  )
+  ),
 )
 
 dependencies {

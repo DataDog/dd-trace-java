@@ -22,7 +22,11 @@ tasks.named<CheckForbiddenApis>("forbiddenApisMain_java17") {
   failOnMissingClasses = false
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+fun AbstractCompile.configureCompiler(
+  javaVersionInteger: Int,
+  compatibilityVersion: JavaVersion? = null,
+  unsetReleaseFlagReason: String? = null,
+) {
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 

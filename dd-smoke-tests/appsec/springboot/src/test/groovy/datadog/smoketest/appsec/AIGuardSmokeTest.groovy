@@ -66,7 +66,9 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(2) // default call + internal API mock
     final span = traces*.spans
     ?.flatten()
-    ?.find { it.resource == 'ai_guard' } as DecodedSpan
+    ?.find {
+      it.resource == 'ai_guard'
+    } as DecodedSpan
     assert span.meta.get('ai_guard.action') == action
     assert span.meta.get('ai_guard.reason') == reason
     assert span.meta.get('ai_guard.target') == 'prompt'

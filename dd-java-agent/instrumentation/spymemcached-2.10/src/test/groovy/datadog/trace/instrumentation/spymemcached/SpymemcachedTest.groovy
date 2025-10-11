@@ -714,7 +714,6 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
         } else {
           defaultTagsNoPeerService()
         }
-
       }
     }
   }

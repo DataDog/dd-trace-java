@@ -286,7 +286,6 @@ abstract class HazelcastTest extends VersionedNamingTestBase {
       hazelcastTrace(it, "Set.add $randomName")
       hazelcastTrace(it, "Set.add $randomName")
     }
-
   }
 
   def "list"() {

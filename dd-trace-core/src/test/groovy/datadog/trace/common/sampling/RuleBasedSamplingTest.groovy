@@ -289,7 +289,6 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
 
     // Select matching service + resource + operation + tag rules
     "[{\"service\": \"service\", \"resource\": \"xxx\", \"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"    | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
-
   }
 
   def "tag types test"() {

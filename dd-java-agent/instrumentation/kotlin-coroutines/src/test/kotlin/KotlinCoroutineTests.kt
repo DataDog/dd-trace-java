@@ -1,5 +1,4 @@
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CoroutineDispatcher
@@ -11,69 +10,57 @@ import kotlinx.coroutines.channels.toChannel
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
-class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutineTests(dispatcher) {
-
+class KotlinCoroutineTests(
+  dispatcher: CoroutineDispatcher,
+) : CoreKotlinCoroutineTests(dispatcher) {
   @Trace
-  fun tracedAcrossChannels(): Int = runTest {
-    val producer = produce(jobName("producer")) {
-      repeat(3) {
-        tracedChild("produce_$it")
-        send(it)
-      }
+  fun tracedAcrossChannels(): Int =
+    runTest {
+      val producer =
+        produce(jobName("producer")) {
+          repeat(3) {
+            tracedChild("produce_$it")
+            send(it)
+          }
+        }
+
+      val actor =
+        actor<Int>(jobName("consumer")) {
+          consumeEach {
+            tracedChild("consume_$it")
+          }
+        }
+
+      @Suppress("DEPRECATION_ERROR")
+      producer.toChannel(actor)
+      actor.close()
+
+      7
     }
 
-    val actor = actor<Int>(jobName("consumer")) {
-      consumeEach {
-        tracedChild("consume_$it")
-      }
-    }
-
-    @Suppress("DEPRECATION_ERROR")
-    producer.toChannel(actor)
-    actor.close()
-
-    7
-  }
+  @Trace
+  override fun tracePreventedByCancellation(): Int = super.tracePreventedByCancellation()
 
   @Trace
-  override fun tracePreventedByCancellation(): Int {
-    return super.tracePreventedByCancellation()
-  }
+  override fun tracedAcrossThreadsWithNested(): Int = super.tracedAcrossThreadsWithNested()
 
   @Trace
-  override fun tracedAcrossThreadsWithNested(): Int {
-    return super.tracedAcrossThreadsWithNested()
-  }
+  override fun traceWithDeferred(): Int = super.traceWithDeferred()
 
   @Trace
-  override fun traceWithDeferred(): Int {
-    return super.traceWithDeferred()
-  }
+  override fun tracedWithDeferredFirstCompletions(): Int = super.tracedWithDeferredFirstCompletions()
 
   @Trace
-  override fun tracedWithDeferredFirstCompletions(): Int {
-    return super.tracedWithDeferredFirstCompletions()
-  }
+  override fun tracedWithSuspendingCoroutines(): Int = super.tracedWithSuspendingCoroutines()
 
   @Trace
-  override fun tracedWithSuspendingCoroutines(): Int {
-    return super.tracedWithSuspendingCoroutines()
-  }
+  override fun tracedWithLazyStarting(): Int = super.tracedWithLazyStarting()
 
   @Trace
-  override fun tracedWithLazyStarting(): Int {
-    return super.tracedWithLazyStarting()
-  }
+  override fun traceAfterTimeout(): Int = super.traceAfterTimeout()
 
   @Trace
-  override fun traceAfterTimeout(): Int {
-    return super.traceAfterTimeout()
-  }
-
-  @Trace
-  override fun traceAfterDelay(): Int {
-    return super.traceAfterDelay()
-  }
+  override fun traceAfterDelay(): Int = super.traceAfterDelay()
 
   @Trace
   override fun tracedChild(opName: String) {

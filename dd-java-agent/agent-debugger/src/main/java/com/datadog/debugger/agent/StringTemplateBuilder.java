@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class StringTemplateBuilder {
   private static final Logger LOGGER = LoggerFactory.getLogger(StringTemplateBuilder.class);
+
   /**
    * Serialization limits for log messages. Most values are lower than snapshot because you can
    * directly reference values that are in your interest with Expression Language:

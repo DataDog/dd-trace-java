@@ -211,7 +211,6 @@ class JMS2Test extends InstrumentationSpecification {
     cleanup:
     producer.close()
     consumer.close()
-
   }
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {

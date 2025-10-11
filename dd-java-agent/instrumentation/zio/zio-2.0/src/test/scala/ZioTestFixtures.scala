@@ -19,7 +19,7 @@ object ZioTestFixtures {
     run {
       for {
         childStarted <- Promise.make[Nothing, Unit]
-        _ <- childSpan("fiber_1_span_1") {
+        _            <- childSpan("fiber_1_span_1") {
           for {
             child <- childSpan("fiber_2_span_1") {
               childStarted.succeed(()) *>
@@ -117,7 +117,7 @@ object ZioTestFixtures {
   private def childSpan(opName: String)(op: UIO[Unit]): UIO[Unit] =
     ZIO.scoped {
       for {
-        scope <- ZIO.scope
+        scope  <- ZIO.scope
         ddSpan <- ZIO.succeed(
           AgentTracer
             .get()
@@ -137,7 +137,7 @@ object ZioTestFixtures {
   private def run[A](zio: ZIO[Any, Nothing, A]): Unit = {
     val executor    = Executors.newSingleThreadExecutor()
     val zioExecutor = Executor.fromJavaExecutor(executor)
-    val layer =
+    val layer       =
       Runtime.setExecutor(zioExecutor) >>>
         Runtime.setBlockingExecutor(zioExecutor)
     try {

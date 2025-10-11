@@ -99,5 +99,4 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
       super.assertErrorTags(tagsAssert, exception)
     }
   }
-
 }

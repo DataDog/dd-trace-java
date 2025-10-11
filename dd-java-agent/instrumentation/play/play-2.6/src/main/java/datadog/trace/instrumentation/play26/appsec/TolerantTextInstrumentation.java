@@ -15,7 +15,9 @@ import datadog.trace.instrumentation.play26.MuzzleReferences;
 import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
 
-/** @see play.mvc.BodyParser.TolerantText#parse(Http.RequestHeader, ByteString) */
+/**
+ * @see play.mvc.BodyParser.TolerantText#parse(Http.RequestHeader, ByteString)
+ */
 @AutoService(InstrumenterModule.class)
 public class TolerantTextInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

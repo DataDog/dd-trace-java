@@ -13,6 +13,8 @@ public interface Codeowners {
   @Nullable
   Collection<String> getOwners(@Nonnull String path);
 
-  /** @return {@code true} if {@code CODEOWNERS} file could be located and parsed */
+  /**
+   * @return {@code true} if {@code CODEOWNERS} file could be located and parsed
+   */
   boolean exist();
 }

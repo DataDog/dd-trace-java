@@ -342,7 +342,6 @@ abstract class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
 }
 
 class KafkaStreamsV0ForkedTest extends KafkaStreamsForkedTest {
-
 }
 
 class KafkaStreamsV1ForkedTest extends KafkaStreamsForkedTest {

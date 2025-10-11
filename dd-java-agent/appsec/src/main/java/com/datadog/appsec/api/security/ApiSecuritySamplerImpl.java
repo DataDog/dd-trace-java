@@ -22,10 +22,13 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
    * should also prevent memory leaks.
    */
   private static final int MAX_POST_PROCESSING_TASKS = 4;
+
   /** Maximum number of entries in the access map. */
   private static final int MAX_SIZE = 4096;
+
   /** Mapping from endpoint hash to last access timestamp in millis. */
   private final ConcurrentHashMap<Long, Long> accessMap;
+
   /** Deque of endpoint hashes ordered by access time. Oldest is always first. */
   private final Deque<Long> accessDeque;
 

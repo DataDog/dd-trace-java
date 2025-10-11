@@ -97,15 +97,15 @@ public class TestSecurityManager extends CustomSecurityManager {
     if (isDatadogEnvVar(envVar)) return true;
 
     switch (envVar) {
-        // jboss sniffing?
+      // jboss sniffing?
       case "JBOSS_HOME":
         return true;
 
-        // environment capture?
+      // environment capture?
       case "WEBSITE_SITE_NAME":
         return true;
 
-        // AWS properties used during bootstrapping?
+      // AWS properties used during bootstrapping?
       case "AWS_LAMBDA_INITIALIZATION_TYPE":
       case "_HANDLER":
       case "AWS_LAMBDA_FUNCTION_NAME":
@@ -161,15 +161,15 @@ public class TestSecurityManager extends CustomSecurityManager {
   @Override
   protected boolean checkFileReadPermission(FilePermission perm, Object ctx, String filePath) {
     switch (filePath) {
-        // agent socket communication
+      // agent socket communication
       case "/var/run/datadog/apm.socket":
         return true;
 
-        // agent sniffing?
+      // agent sniffing?
       case "/opt/extensions/datadog-agent":
         return true;
 
-        // ContainerInfo
+      // ContainerInfo
       case "/proc/self/cgroup":
         return true;
     }

@@ -34,17 +34,23 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
     return {
       trace ->
       // Check for 'main' span
-      def mainSpan = trace.spans.find { it.name == 'main' }
+      def mainSpan = trace.spans.find {
+        it.name == 'main'
+      }
       if (!mainSpan) {
         return false
       }
       // Check that there are only 'main' and 'compute' spans
-      def otherSpans = trace.spans.findAll { it.name != 'main' && it.name != 'compute' }
+      def otherSpans = trace.spans.findAll {
+        it.name != 'main' && it.name != 'compute'
+      }
       if (!otherSpans.isEmpty()) {
         return false
       }
       // Check that every 'compute' span is in the same trace and is either a child of the 'main' span or another 'compute' span
-      def computeSpans = trace.spans.findAll { it.name == 'compute' }
+      def computeSpans = trace.spans.findAll {
+        it.name == 'compute'
+      }
       if (computeSpans.isEmpty()) {
         return false
       }

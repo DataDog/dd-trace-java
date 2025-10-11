@@ -18,7 +18,9 @@ import datadog.trace.instrumentation.play26.MuzzleReferences;
 import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
 
-/** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
+/**
+ * @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString)
+ */
 @AutoService(InstrumenterModule.class)
 public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

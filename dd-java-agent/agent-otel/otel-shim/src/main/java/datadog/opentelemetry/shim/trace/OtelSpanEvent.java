@@ -27,6 +27,7 @@ public class OtelSpanEvent {
 
   private final String name;
   private final String attributes;
+
   /** Event timestamp in nanoseconds. */
   private final long timestamp;
 
@@ -124,6 +125,7 @@ public class OtelSpanEvent {
       jsonBuilder.append('}');
       return jsonBuilder.toString();
     }
+
     /**
      * Recursively adds the value of an {@link Attributes} to the active StringBuilder in JSON
      * format, depending on the value's type.
