@@ -28,7 +28,6 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker
 import org.springframework.kafka.test.EmbeddedKafkaKraftBroker
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
@@ -44,15 +43,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPro
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
-  @Shared
   EmbeddedKafkaBroker embeddedKafka
 
-  def setupSpec() {
+  def setup() {
     embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, SHARED_TOPIC)
     embeddedKafka.afterPropertiesSet()
+
+    TEST_WRITER.setFilter(dropKafkaPoll)
   }
 
-  def cleanupSpec() {
+  def cleanup() {
     embeddedKafka.destroy()
   }
 
@@ -115,10 +115,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
     PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
     PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
-  }
-
-  def setup() {
-    TEST_WRITER.setFilter(dropKafkaPoll)
   }
 
   @Override
@@ -214,7 +210,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition
       //TODO
       TEST_DATA_STREAMS_WRITER.waitForBacklogs(2)
-
     }
 
     then:
@@ -513,7 +508,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
-
   }
 
   def "test records(TopicPartition) kafka consume"() {
@@ -545,7 +539,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     then:
-    recs.hasNext()
+    !recs.hasNext()
     first.value() == greeting
     first.key() == null
 
@@ -568,8 +562,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
-
   }
 
   def "test records(TopicPartition).subList kafka consume"() {
@@ -604,7 +596,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     then:
-    recs.hasNext()
+    !recs.hasNext()
     first.value() == greeting
     first.key() == null
 
@@ -627,7 +619,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).forEach kafka consume"() {
@@ -685,7 +676,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test iteration backwards over ConsumerRecords"() {
@@ -796,7 +786,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test kafka client header propagation manual config"() {
@@ -807,7 +796,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
-
 
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -1007,7 +995,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     return clusterId
   }
-
 }
 
 abstract class KafkaClientForkedTest extends KafkaClientTestBase {

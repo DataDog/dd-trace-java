@@ -299,9 +299,7 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3?.stop()
     container4?.stop()
 
-
     where:
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
-
 }
