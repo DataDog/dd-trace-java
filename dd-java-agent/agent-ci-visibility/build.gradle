@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
   id 'com.gradleup.shadow'
@@ -12,6 +13,12 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+  }
+}
 
 dependencies {
   api libs.slf4j
