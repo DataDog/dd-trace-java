@@ -1,7 +1,7 @@
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "8.0.0"
+  id("com.diffplug.spotless") version "7.2.1"
   id("com.gradleup.shadow") version "8.3.6"
 }
 
