@@ -52,16 +52,22 @@ public class TracerInstaller {
       log.debug("service discovery not supported on native images");
       return;
     }
-    try {
-      // use reflection to load MemFDUnixWriter so it doesn't get picked up when we transitively
-      // look for all tracer class dependencies to install in GraalVM via VMRuntimeInstrumentation
-      Class<?> memFdClass =
-          Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
-      ForeignMemoryWriter memFd = (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
-      tracerBuilder.serviceDiscovery(new ServiceDiscovery(memFd));
-    } catch (Throwable e) {
-      log.debug("service discovery not supported", e);
-    }
+    tracerBuilder.serviceDiscoveryFactory(
+        () -> {
+          try {
+            // use reflection to load MemFDUnixWriter so it doesn't get picked up when we
+            // transitively look for all tracer class dependencies to install in GraalVM via
+            // VMRuntimeInstrumentation
+            Class<?> memFdClass =
+                Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
+            ForeignMemoryWriter memFd =
+                (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
+            return new ServiceDiscovery(memFd);
+          } catch (Throwable e) {
+            log.debug("service discovery not supported", e);
+            return null;
+          }
+        });
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {

@@ -97,6 +97,7 @@ import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
+import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
@@ -322,7 +323,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private TagInterceptor tagInterceptor;
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
-    private ServiceDiscovery serviceDiscovery;
+    private ServiceDiscoveryFactory serviceDiscoveryFactory;
     private TimeSource timeSource;
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
@@ -438,8 +439,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
-    public CoreTracerBuilder serviceDiscovery(ServiceDiscovery serviceDiscovery) {
-      this.serviceDiscovery = serviceDiscovery;
+    public CoreTracerBuilder serviceDiscoveryFactory(
+        ServiceDiscoveryFactory serviceDiscoveryFactory) {
+      this.serviceDiscoveryFactory = serviceDiscoveryFactory;
       return this;
     }
 
@@ -535,7 +537,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           tagInterceptor,
           strictTraceWrites,
           instrumentationGateway,
-          serviceDiscovery,
+          serviceDiscoveryFactory,
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
@@ -628,7 +630,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
-      final ServiceDiscovery serviceDiscovery,
+      final ServiceDiscoveryFactory serviceDiscoveryFactory,
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
@@ -897,8 +899,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     this.localRootSpanTagsNeedIntercept =
         this.tagInterceptor.needsIntercept(this.localRootSpanTags);
-    if (serviceDiscovery != null) {
-      serviceDiscovery.writeTracerMetadata(config);
+    if (serviceDiscoveryFactory != null) {
+      AgentTaskScheduler.get()
+          .schedule(
+              () -> {
+                final ServiceDiscovery serviceDiscovery =
+                    serviceDiscoveryFactory.createServiceDiscovery();
+                if (serviceDiscovery != null) {
+                  serviceDiscovery.writeTracerMetadata(config);
+                }
+              },
+              1,
+              SECONDS);
     }
   }
 
