@@ -18,9 +18,8 @@ configurations {
 }
 
 def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
-def includedJarFileTree = fileTree(includedAgentDir) {
-  builtBy(project.tasks.withType(Copy).matching { it.name.startsWith("expandAgentShadowJar") })
-}
+def includedJarFileTree = fileTree(includedAgentDir)
+
 tasks.named("processResources") {
   dependsOn(includedJarFileTree)
 }
@@ -121,13 +120,13 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
   }
 }
 
-def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agentDir, Provider<Directory> includedAgentDir) {
-  project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Sync) {
-    group = LifecycleBasePlugin.BUILD_GROUP
-    description = "Expand the included shadow jar into the agent jar under ${agentDir}"
+def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agentDir, FileTree includedJarFileTree) {
+  def expandTask = project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Sync) {
+    it.group = LifecycleBasePlugin.BUILD_GROUP
+    it.description = "Expand the included shadow jar into the agent jar under ${agentDir}"
 
     def opentracingFound = new AtomicBoolean()
-    doFirst("detect-open-tracing") {
+    it.doFirst("detect-open-tracing") {
       eachFile {
         // We seem unlikely to use this name somewhere else.
         if (it.path.contains("opentracing") && it.name.contains("Format\$Builtin")) {
@@ -135,14 +134,14 @@ def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agent
         }
       }
     }
-    doLast("fail-on-detected-opentracing") {
+    it.doLast("fail-on-detected-opentracing") {
       if (opentracingFound.get()) {
         throw new GradleException("OpenTracing direct dependency found!")
       }
     }
 
-    into includedAgentDir.map { it.dir(agentDir) }
-    from(zipTree(includedShadowJarTask.map { it.archiveFile })) {
+    it.into providers.provider { new File(includedJarFileTree.dir, agentDir) }
+    it.from(zipTree(includedShadowJarTask.map { it.archiveFile })) {
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
@@ -158,30 +157,32 @@ def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agent
       }
     }
 
-    dependsOn includedShadowJarTask
+    it.dependsOn includedShadowJarTask
   }
+
+  includedJarFileTree.builtBy(expandTask)
 
   includedShadowJarTask.configure {
     generalShadowJarConfig(it as ShadowJar)
   }
 }
 
-def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, Provider<Directory> includedAgentDir) {
+def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, FileTree includedJarFileTree) {
   evaluationDependsOn(includedProjectJar.path)
-  includeShadowJar(includedProjectJar.tasks.named("shadowJar", ShadowJar), destinationDir, includedAgentDir)
+  includeShadowJar(includedProjectJar.tasks.named("shadowJar", ShadowJar), destinationDir, includedJarFileTree)
 }
 
-includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedAgentDir)
-includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedAgentDir)
+includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   it.configurations = [project.configurations.sharedShadowInclude]
@@ -202,7 +203,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(dependency('org.slf4j::'))
   }
 }
-includeShadowJar(sharedShadowJar, 'shared', includedAgentDir)
+includeShadowJar(sharedShadowJar, 'shared', includedJarFileTree)
 
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
@@ -211,7 +212,7 @@ def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
   it.archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
 }
-includeShadowJar(traceShadowJar, 'trace', includedAgentDir)
+includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 
 tasks.named("shadowJar", ShadowJar) {
   // Include AgentPreCheck compiled with Java 6.
