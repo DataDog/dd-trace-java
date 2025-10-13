@@ -6,8 +6,8 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
-spock = "2.4-M6-groovy-3.0"
-groovy = "3.0.24"
+spock = "2.4-M6-groovy-4.0"
+groovy = "4.0.28"
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 logback = "1.2.13"
@@ -70,8 +70,8 @@ spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spoc
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
 
-groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
-groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }
+groovy = { module = "org.apache.groovy:groovy-all", version.ref = "groovy" }
+groovy-yaml = { module = "org.apache.groovy:groovy-yaml", version.ref = "groovy" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }

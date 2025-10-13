@@ -1,6 +1,6 @@
 package datadog.communication.serialization;
 
-import static groovy.util.GroovyTestCase.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,13 +73,13 @@ public class GrowableBufferTest {
     gb.put(new byte[] {-128}, 0, 1);
 
     ByteBuffer slice = gb.slice();
-    assertEquals(slice.getShort(), (short) 1);
-    assertEquals(slice.getChar(), (char) 2);
-    assertEquals(slice.getInt(), 4);
-    assertEquals(slice.getLong(), 8L);
-    assertEquals(slice.getFloat(), 16.0f);
-    assertEquals(slice.getDouble(), 32.0);
-    assertEquals(slice.get(), (byte) 64);
-    assertEquals(slice.get(), (byte) -128);
+    assertEquals((short) 1, slice.getShort());
+    assertEquals((char) 2, slice.getChar());
+    assertEquals(4, slice.getInt());
+    assertEquals(8L, slice.getLong());
+    assertEquals(16.0f, slice.getFloat());
+    assertEquals(32.0, slice.getDouble());
+    assertEquals((byte) 64, slice.get());
+    assertEquals((byte) -128, slice.get());
   }
 }
