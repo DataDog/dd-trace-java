@@ -97,7 +97,6 @@ public final class AgentJarIndex {
 
     private Path prefixRoot;
     private int prefixId;
-
     private Map<Integer, String> prefixMappings = new HashMap<>();
 
     IndexGenerator(Path resourcesDir) {
@@ -142,14 +141,15 @@ public final class AgentJarIndex {
         String entryKey = computeEntryKey(prefixRoot.relativize(file));
         if (null != entryKey) {
           int existingPrefixId = prefixTrie.apply(entryKey);
-          if (-1 != existingPrefixId && prefixId != existingPrefixId) {
+          // warn if two subsections contain content under the same package prefix
+          // because we're then unable to redirect requests to the right submodule
+          // (ignore the two 'datadog.compiler' packages which allow duplication)
+          if (existingPrefixId > 0 && prefixId != existingPrefixId) {
             log.warn(
                 "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your content is under a distinct directory.",
                 entryKey,
                 resourcesDir.relativize(file).getName(0), // prefix
-                existingPrefixId == 0
-                    ? "<root>"
-                    : prefixMappings.get(existingPrefixId) // previous prefix
+                prefixMappings.get(existingPrefixId) // previous prefix
                 );
           }
           prefixTrie.put(entryKey, prefixId);
