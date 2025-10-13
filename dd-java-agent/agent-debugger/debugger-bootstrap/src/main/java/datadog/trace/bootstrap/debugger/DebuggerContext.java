@@ -246,13 +246,30 @@ public class DebuggerContext {
   }
 
   /**
-   * tests whether the provided probe Ids are ready for capturing data
+   * tests whether the provided probe Ids are ready for capturing data it allows to skip capture
+   * part if no condition and sampling is returns false
    *
    * @return true if can proceed to capture data
    */
   public static boolean isReadyToCapture(Class<?> callingClass, int... probeIndices) {
     try {
       return checkAndSetInProbe();
+    } catch (Exception ex) {
+      LOGGER.debug("Error in isReadyToCapture: ", ex);
+      return false;
+    }
+  }
+
+  public static boolean isReadyToCapture(Class<?> callingClass, int probeIndex) {
+    try {
+      ProbeImplementation probeImplementation = resolveProbe(probeIndex);
+      if (probeImplementation == null) {
+        return false;
+      }
+      if (((CapturedContextProbe) probeImplementation).isReadyToCapture()) {
+        return checkAndSetInProbe();
+      }
+      return false;
     } catch (Exception ex) {
       LOGGER.debug("Error in isReadyToCapture: ", ex);
       return false;
@@ -277,7 +294,7 @@ public class DebuggerContext {
   }
   /**
    * resolve probe details based on probe ids and evaluate the captured context regarding summary &
-   * conditions This is for method probes
+   * conditions. This is for method probes.
    */
   public static void evalContext(
       CapturedContext context,
@@ -310,7 +327,38 @@ public class DebuggerContext {
   }
 
   /**
-   * resolve probe details based on probe ids, evaluate the captured context regarding summary &
+   * Optimized version of {@link DebuggerContext#evalContext(CapturedContext, Class, long,
+   * MethodLocation, int...)} for single probe
+   */
+  public static void evalContext(
+      CapturedContext context,
+      Class<?> callingClass,
+      long startTimestamp,
+      MethodLocation methodLocation,
+      int probeIndex) {
+    try {
+      ProbeImplementation probeImplementation = resolveProbe(probeIndex);
+      if (probeImplementation == null) {
+        return;
+      }
+      CapturedContext.Status status =
+          context.evaluate(
+              probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation);
+      boolean needFreeze = status.shouldFreezeContext();
+      // only freeze the context when we have at lest one snapshot probe, and we should send
+      // snapshot
+      if (needFreeze) {
+        Duration timeout =
+            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
+        context.freeze(new TimeoutChecker(timeout));
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in evalContext: ", ex);
+    }
+  }
+
+  /**
+   * resolve probe details based on probe indices, evaluate the captured context regarding summary &
    * conditions and commit snapshot to send it if needed. This is for line probes.
    */
   public static void evalContextAndCommit(
@@ -329,6 +377,26 @@ public class DebuggerContext {
       for (ProbeImplementation probeImplementation : probeImplementations) {
         probeImplementation.commit(context, line);
       }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in evalContextAndCommit: ", ex);
+    }
+  }
+
+  /**
+   * Optimized version of {@link DebuggerContext#evalContextAndCommit(CapturedContext, Class, int,
+   * int...)} for single probe
+   */
+  public static void evalContextAndCommit(
+      CapturedContext context, Class<?> callingClass, int line, int probeIndex) {
+    // Cannot call the multi probe version here, because it will add a new level for stacktrace
+    // recording
+    try {
+      ProbeImplementation probeImplementation = resolveProbe(probeIndex);
+      if (probeImplementation == null) {
+        return;
+      }
+      context.evaluate(probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+      probeImplementation.commit(context, line);
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
     }
@@ -376,6 +444,41 @@ public class DebuggerContext {
         }
         probeImplementation.commit(entryContext, exitContext, caughtExceptions);
       }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in commit: ", ex);
+    }
+  }
+
+  /**
+   * Optimized version of {@link DebuggerContext#commit(CapturedContext, CapturedContext, List,
+   * int...)} for single probe
+   */
+  public static void commit(
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions,
+      int probeIndex) {
+    // Cannot call the multi probe version here, because it will add a new level for stacktrace
+    // recording
+    try {
+      if (entryContext == CapturedContext.EMPTY_CONTEXT
+          && exitContext == CapturedContext.EMPTY_CONTEXT) {
+        // rate limited
+        return;
+      }
+      CapturedContext.Status entryStatus = entryContext.getStatus(probeIndex);
+      CapturedContext.Status exitStatus = exitContext.getStatus(probeIndex);
+      ProbeImplementation probeImplementation;
+      if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
+          && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
+              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+        probeImplementation = entryStatus.probeImplementation;
+      } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
+        probeImplementation = exitStatus.probeImplementation;
+      } else {
+        throw new IllegalStateException("no probe details for " + probeIndex);
+      }
+      probeImplementation.commit(entryContext, exitContext, caughtExceptions);
     } catch (Exception ex) {
       LOGGER.debug("Error in commit: ", ex);
     }
