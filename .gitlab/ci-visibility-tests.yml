@@ -1,10 +1,9 @@
 test-gitlab-api:
-  stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   script:
   - |
-    curl -s --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects?membership=true"
+    curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID"
 
 #check-ci-visibility-label:
 #  stage: publish
