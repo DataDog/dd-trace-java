@@ -66,7 +66,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-configurations.testImplementation {
+configurations.named('testImplementation') {
   exclude group: 'com.typesafe.play', module: "play-test_$scalaVer"
 }
 
