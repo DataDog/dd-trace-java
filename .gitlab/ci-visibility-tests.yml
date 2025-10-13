@@ -1,7 +1,64 @@
+check-ci-visibility-label:
+  stage: publish
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  needs: [ publish-artifacts-to-s3 ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
+  before_script:
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
+    - gh auth login --with-token < github-token.txt
+  script:
+    - |
+      # Install authanywhere - Required for PR comment
+      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
+      chmod +x authanywhere-linux-amd64
+
+      # Source utility functions
+      source .gitlab/ci_visibility_utils.sh
+      
+      # Get PR number
+      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
+        echo "No open PR found for branch ${CI_COMMIT_BRANCH}"
+        exit 1
+      fi
+      
+      echo "Found PR #${PR_NUMBER}"
+      
+      # Check if PR has the CI visibility label
+      if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
+        echo "PR #${PR_NUMBER} detected as CI Visibility PR"
+        write_pr_comment "$PR_NUMBER" "Test Optimization - Test Environment" "Triggering test environment. Check [pipeline](https://gitlab.ddbuild.io/DataDog/apm-reliability/test-environment/-/pipelines?ref=main&source=pipeline) for test results."
+        exit 0
+      else
+        echo "PR #${PR_NUMBER} not a CI Visibility PR, ignoring trigger"
+        exit 1
+      fi
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt) || true
+  allow_failure: true
+  retry:
+    max: 2
+    when: always
+
 run-ci-visibility-test-environment:
   stage: ci-visibility-tests
-  when: manual
-  needs: []
+  needs:
+    - job: check-ci-visibility-label
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
   trigger:
     project: DataDog/apm-reliability/test-environment
     branch: main
