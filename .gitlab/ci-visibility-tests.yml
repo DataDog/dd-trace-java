@@ -1,4 +1,5 @@
 test-gitlab-api:
+  stage: build
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   script:
