@@ -27,8 +27,8 @@ tasks.register('webfluxBuild', Exec) {
     include '**/*'
     exclude '.gradle/**'
   })
-  .withPropertyName("application")
-  .withPathSensitivity(PathSensitivity.RELATIVE)
+    .withPropertyName("application")
+    .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.named("webfluxBuild", Exec) {
@@ -38,7 +38,7 @@ tasks.named("webfluxBuild", Exec) {
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'webfluxBuild'
   outputs.upToDateWhen {
-    !webfluxBuild.didWork
+    !tasks.named('webfluxBuild').get().didWork
   }
 }
 
