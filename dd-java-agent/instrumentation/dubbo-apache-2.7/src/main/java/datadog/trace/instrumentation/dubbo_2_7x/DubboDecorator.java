@@ -28,11 +28,9 @@ public class DubboDecorator extends BaseDecorator {
 
   public static final DubboDecorator DECORATE = new DubboDecorator();
 
-
-
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"apache-dubbo"};
+    return new String[] {"apache-dubbo"};
   }
 
   @Override
@@ -45,57 +43,59 @@ public class DubboDecorator extends BaseDecorator {
     return DUBBO_SERVER;
   }
 
-  public AgentSpan startDubboSpan(Invoker invoker,Invocation invocation) {
+  public AgentSpan startDubboSpan(Invoker invoker, Invocation invocation) {
     URL url = invoker.getUrl();
     boolean isConsumer = isConsumerSide(url);
-    log.debug("isConsumer:{},invoker name:{}",isConsumer,invoker.getClass().getName());
-    log.debug("isConsumer:{},invocation:{}",isConsumer,invocation.getClass().getName());
+    log.debug("isConsumer:{},invoker name:{}", isConsumer, invoker.getClass().getName());
+    log.debug("isConsumer:{},invocation:{}", isConsumer, invocation.getClass().getName());
 
     String methodName = invocation.getMethodName();
-    String resourceName = generateOperationName(invoker,url,invocation);
-    if (!isConsumer&& META_RESOURCE.equals(invoker.getInterface().getName())){
-      log.debug("skip span because dubbo resourceName:{}",META_RESOURCE);
+    String resourceName = generateOperationName(invoker, url, invocation);
+    if (!isConsumer && META_RESOURCE.equals(invoker.getInterface().getName())) {
+      log.debug("skip span because dubbo resourceName:{}", META_RESOURCE);
       return activeSpan();
     }
-    String shortUrl = generateRequestURL(invoker,url,invocation);
+    String shortUrl = generateRequestURL(invoker, url, invocation);
     if (log.isDebugEnabled()) {
-      log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{},version:{}",
+      log.debug(
+          "isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{},version:{}",
           isConsumer,
           methodName,
           resourceName,
           shortUrl,
           url.toString(),
-          getVersion(url)
-          );
+          getVersion(url));
     }
     AgentSpan span;
 
-    DubboTraceInfo dubboTraceInfo = new DubboTraceInfo((RpcInvocation) invocation,RpcContext.getContext());
+    DubboTraceInfo dubboTraceInfo =
+        new DubboTraceInfo((RpcInvocation) invocation, RpcContext.getContext());
 
-    if (isConsumer){
+    if (isConsumer) {
       // this is consumer
       span = startSpan(DUBBO_REQUEST);
       defaultPropagator().inject(span, dubboTraceInfo, SETTER);
-    }else{
+    } else {
       // this is provider
       AgentSpanContext parentContext = extractContextAndGetSpanContext(dubboTraceInfo, GETTER);
-      span = startSpan(DUBBO_REQUEST,parentContext);
-      if (Config.get().isDubboProviderPropagateEnabled()){
+      span = startSpan(DUBBO_REQUEST, parentContext);
+      if (Config.get().isDubboProviderPropagateEnabled()) {
         defaultPropagator().inject(span, dubboTraceInfo, SETTER);
       }
     }
     span.setTag(TAG_URL, url.toString());
     span.setTag(TAG_SHORT_URL, shortUrl);
     span.setTag(TAG_METHOD, methodName);
-    span.setTag(TAG_VERSION,getVersion(url));
+    span.setTag(TAG_VERSION, getVersion(url));
 
-    span.setTag(TAG_SIDE,isConsumer?CONSUMER_SIDE:PROVIDER_SIDE);
-    withRequest(span,invocation);
+    span.setTag(TAG_SIDE, isConsumer ? CONSUMER_SIDE : PROVIDER_SIDE);
+    withRequest(span, invocation);
     afterStart(span);
 
     withMethod(span, resourceName);
     return span;
   }
+
   public void withRequest(AgentSpan span, Invocation invocation) {
     if (Config.get().isDubboRequestEnabled()) {
       Gson gson = new Gson();
@@ -112,13 +112,12 @@ public class DubboDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
-
-  private String providerResourceName(Invoker invoker,Invocation invocation){
+  private String providerResourceName(Invoker invoker, Invocation invocation) {
     StringBuilder operationName = new StringBuilder();
-  //  operationName.append(invoker.getInterface().getName());
-    if(invoker.getInterface()!=null){
+    //  operationName.append(invoker.getInterface().getName());
+    if (invoker.getInterface() != null) {
       operationName.append(invoker.getInterface().getName());
-    }else{
+    } else {
       operationName.append(invoker.getClass().getName());
     }
 
@@ -133,7 +132,7 @@ public class DubboDecorator extends BaseDecorator {
     return operationName.toString();
   }
 
-  private String generateOperationName(Invoker invoker,URL requestURL, Invocation invocation) {
+  private String generateOperationName(Invoker invoker, URL requestURL, Invocation invocation) {
     boolean isConsumer = isConsumerSide(requestURL);
     if (isConsumer) {
       StringBuilder operationName = new StringBuilder();
@@ -150,18 +149,17 @@ public class DubboDecorator extends BaseDecorator {
       }
       operationName.append(")");
       return operationName.toString();
-    }else{
-      return providerResourceName(invoker,invocation);
+    } else {
+      return providerResourceName(invoker, invocation);
     }
-
   }
 
-  private String generateRequestURL(Invoker invoker,URL url, Invocation invocation) {
+  private String generateRequestURL(Invoker invoker, URL url, Invocation invocation) {
     StringBuilder requestURL = new StringBuilder();
     requestURL.append(url.getProtocol() + "://");
     requestURL.append(url.getHost());
     requestURL.append(":" + url.getPort() + "/");
-    requestURL.append(generateOperationName(invoker,url, invocation));
+    requestURL.append(generateOperationName(invoker, url, invocation));
     return requestURL.toString();
   }
 
@@ -170,9 +168,9 @@ public class DubboDecorator extends BaseDecorator {
   }
 
   public AgentScope buildSpan(Invoker invoker, Invocation invocation) {
-    AgentSpan span = startDubboSpan(invoker,invocation);
-    if (span==null){
-      return activeScope();
+    AgentSpan span = startDubboSpan(invoker, invocation);
+    if (span == null) {
+      return activateSpan(span);
     }
     AgentScope agentScope = activateSpan(span);
     return agentScope;
@@ -189,14 +187,14 @@ public class DubboDecorator extends BaseDecorator {
     return scope;
   }
 
-  public AgentSpan onError(Result result,AgentSpan span, Throwable throwable) {
+  public AgentSpan onError(Result result, AgentSpan span, Throwable throwable) {
     if (result.hasException()) {
       throwable = result.getException();
     }
-    return super.onError(span,throwable);
+    return super.onError(span, throwable);
   }
 
-  private String getVersion(URL url){
+  private String getVersion(URL url) {
     return url.getParameter(VERSION);
   }
 
