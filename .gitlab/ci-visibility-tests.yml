@@ -59,6 +59,7 @@ run-ci-visibility-test-environment:
       when: never
     - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
       when: on_success
+  allow_failure: false
   trigger:
     project: DataDog/apm-reliability/test-environment
     branch: daniel.mohedano/failing-test
