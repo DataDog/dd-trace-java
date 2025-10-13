@@ -11,6 +11,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.CoreTracer.CoreTracerBuilder;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,7 @@ public class TracerInstaller {
     }
   }
 
+  @SuppressForbidden // intentional use of Class.forName
   private static void maybeEnableServiceDiscovery(CoreTracerBuilder tracerBuilder) {
     if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
