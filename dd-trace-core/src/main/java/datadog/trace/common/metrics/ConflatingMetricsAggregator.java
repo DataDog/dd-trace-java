@@ -102,6 +102,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final boolean resourceRenamingEnabled;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -122,7 +123,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             false,
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
-        config.getTracerMetricsMaxPending());
+        config.getTracerMetricsMaxPending(),
+        config.isResourceRenamingEnabled());
   }
 
   ConflatingMetricsAggregator(
@@ -142,7 +144,30 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         10,
-        SECONDS);
+        SECONDS,
+        false);
+  }
+
+  ConflatingMetricsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      boolean resourceRenamingEnabled) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        10,
+        SECONDS,
+        resourceRenamingEnabled);
   }
 
   ConflatingMetricsAggregator(
@@ -154,7 +179,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean resourceRenamingEnabled) {
     this(
         ignoredResources,
         features,
@@ -164,7 +190,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         reportingInterval,
-        timeUnit);
+        timeUnit,
+        resourceRenamingEnabled);
   }
 
   ConflatingMetricsAggregator(
@@ -176,7 +203,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean resourceRenamingEnabled) {
     this.ignoredResources = ignoredResources;
     this.inbox = new MpscCompoundQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
@@ -185,6 +213,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
+    this.resourceRenamingEnabled = resourceRenamingEnabled;
     this.aggregator =
         new Aggregator(
             metricWriter,
@@ -309,8 +338,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
     final CharSequence spanKind = span.getTag(SPAN_KIND, "");
-    final CharSequence httpMethod = span.getTag(HTTP_METHOD, "");
-    final CharSequence httpEndpoint = span.getTag(HTTP_ENDPOINT, "");
+    // Only include HTTP tags in metric key when resource renaming is enabled
+    final CharSequence httpMethod = resourceRenamingEnabled ? span.getTag(HTTP_METHOD, "") : "";
+    final CharSequence httpEndpoint = resourceRenamingEnabled ? span.getTag(HTTP_ENDPOINT, "") : "";
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),

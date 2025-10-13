@@ -25,6 +25,7 @@ public final class HttpEndpointPostProcessor extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    HttpEndpointTagging.setEndpointTag(spanContext, config);
+    // Use direct map access for better performance
+    HttpEndpointTagging.setEndpointTag(unsafeTags, config);
   }
 }

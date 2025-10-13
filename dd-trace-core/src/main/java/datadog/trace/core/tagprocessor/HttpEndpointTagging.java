@@ -205,7 +205,10 @@ public final class HttpEndpointTagging {
    *
    * @param spanContext The span context to potentially tag
    * @param config The tracer configuration containing feature flags
+   * @deprecated Use {@link #setEndpointTag(java.util.Map, Config)} for better performance in
+   *     post-processors
    */
+  @Deprecated
   public static void setEndpointTag(DDSpanContext spanContext, Config config) {
     if (!config.isResourceRenamingEnabled()) {
       return;
@@ -226,6 +229,38 @@ public final class HttpEndpointTagging {
       String endpoint = computeEndpointFromUrl(url.toString());
       if (endpoint != null) {
         spanContext.setTag(HTTP_ENDPOINT, endpoint);
+      }
+    }
+  }
+
+  /**
+   * Sets the HTTP endpoint tag directly on the unsafe tags map based on configuration flags. This
+   * method is optimized for use in TagPostProcessors where direct map access is more efficient than
+   * using getTag/setTag methods.
+   *
+   * @param unsafeTags The unsafe tags map to potentially modify
+   * @param config The tracer configuration containing feature flags
+   */
+  public static void setEndpointTag(java.util.Map<String, Object> unsafeTags, Config config) {
+    if (!config.isResourceRenamingEnabled()) {
+      return;
+    }
+
+    Object route = unsafeTags.get(HTTP_ROUTE);
+
+    // Check if we should use route (when not forcing simplified endpoints)
+    if (!config.isResourceRenamingAlwaysSimplifiedEndpoint()
+        && route != null
+        && isRouteEligible(route.toString())) {
+      return;
+    }
+
+    // Try to compute endpoint from URL
+    Object url = unsafeTags.get(HTTP_URL);
+    if (url != null) {
+      String endpoint = computeEndpointFromUrl(url.toString());
+      if (endpoint != null) {
+        unsafeTags.put(HTTP_ENDPOINT, endpoint);
       }
     }
   }
