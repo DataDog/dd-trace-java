@@ -139,7 +139,7 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
 }
 
 tasks.named("compileLatestDepTestScala", ScalaCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
   classpath = classpath + files(compileBaseTestJava.destinationDirectory)
   dependsOn 'compileBaseTestJava'
 }
@@ -192,7 +192,7 @@ tasks.register('buildLatestDepTestRoutes', JavaExec) {
 }
 
 tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
   classpath = classpath + files(compileLatestDepTestScala.destinationDirectory)
   dependsOn buildLatestDepTestRoutes, compileLatestDepTestScala
 }
@@ -202,7 +202,7 @@ tasks.named("forbiddenApisLatestDepTestGenerated") {
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
   classpath = classpath +
     files(compileLatestDepTestScala.destinationDirectory) +
     files(compileBaseTestGroovy.destinationDirectory) +

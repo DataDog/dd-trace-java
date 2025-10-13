@@ -3,7 +3,11 @@ package datadog.trace.instrumentation.play25
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
-import datadog.trace.agent.test.base.HttpServerTest.{ServerEndpoint, getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE}
+import datadog.trace.agent.test.base.HttpServerTest.{
+  ServerEndpoint,
+  getIG_RESPONSE_HEADER,
+  getIG_RESPONSE_HEADER_VALUE
+}
 import datadog.trace.instrumentation.play25.Util.MapExtensions
 import groovy.lang.Closure
 import play.api.BuiltInComponents
@@ -19,14 +23,17 @@ object PlayRoutersScala {
 
   def async(executor: Executor): Router = {
     val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
-    val parser = BodyParsers.parse.default
+    val parser               = BodyParsers.parse.default
 
     def controller(endpoint: ServerEndpoint)(block: => Result): Future[Result] = {
       Future {
-        HttpServerTest.controller(endpoint, new Closure[Result](this) {
-          def doCall(): Result = block.withHeaders(
-            (getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
-        })
+        HttpServerTest.controller(
+          endpoint,
+          new Closure[Result](this) {
+            def doCall(): Result =
+              block.withHeaders((getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
+          }
+        )
       }(ec)
     }
 
@@ -48,7 +55,9 @@ object PlayRoutersScala {
       case GET(p"/forwarded") =>
         Action.async { request =>
           controller(FORWARDED) {
-            Results.Status(FORWARDED.getStatus)(request.headers.get("X-Forwarded-For").getOrElse("(no header)"))
+            Results.Status(FORWARDED.getStatus)(
+              request.headers.get("X-Forwarded-For").getOrElse("(no header)")
+            )
           }
         }
 
@@ -117,35 +126,41 @@ object PlayRoutersScala {
           }
         }
 
-      case POST(p"/created") => Action.async(parser) { request =>
-        controller(CREATED) {
-          val body: String = request.body.asText.getOrElse("")
-          Results.Created(s"created: $body")
+      case POST(p"/created") =>
+        Action.async(parser) { request =>
+          controller(CREATED) {
+            val body: String = request.body.asText.getOrElse("")
+            Results.Created(s"created: $body")
+          }
         }
-      }
 
-      case POST(p"/body-urlencoded") => Action.async(parser) { request =>
-        controller(BODY_URLENCODED) {
-          val body: Map[String, Seq[String]] = request.body.asFormUrlEncoded.getOrElse(Map.empty)
-          Results.Ok(body.toStringAsGroovy)
+      case POST(p"/body-urlencoded") =>
+        Action.async(parser) { request =>
+          controller(BODY_URLENCODED) {
+            val body: Map[String, Seq[String]] = request.body.asFormUrlEncoded.getOrElse(Map.empty)
+            Results.Ok(body.toStringAsGroovy)
+          }
         }
-      }
 
-      case POST(p"/body-multipart") => Action.async(parser) { request =>
-        controller(BODY_MULTIPART) {
-          val body: Map[String, scala.Seq[String]] = request.body.asMultipartFormData.getOrElse(
-            MultipartFormData(Map.empty, scala.Seq.empty, scala.Seq.empty)
-          ).asFormUrlEncoded
-          Results.Ok(body.toStringAsGroovy)
+      case POST(p"/body-multipart") =>
+        Action.async(parser) { request =>
+          controller(BODY_MULTIPART) {
+            val body: Map[String, scala.Seq[String]] = request.body.asMultipartFormData
+              .getOrElse(
+                MultipartFormData(Map.empty, scala.Seq.empty, scala.Seq.empty)
+              )
+              .asFormUrlEncoded
+            Results.Ok(body.toStringAsGroovy)
+          }
         }
-      }
 
-      case POST(p"/body-json") => Action.async(parser) { request =>
-        controller(BODY_JSON) {
-          val body: JsValue = request.body.asJson.getOrElse(JsNull)
-          Results.Ok(body)
+      case POST(p"/body-json") =>
+        Action.async(parser) { request =>
+          controller(BODY_JSON) {
+            val body: JsValue = request.body.asJson.getOrElse(JsNull)
+            Results.Ok(body)
+          }
         }
-      }
     }
   }
 }

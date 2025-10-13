@@ -1,31 +1,8 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-buildscript {
-  repositories {
-    mavenLocal()
-    if (project.rootProject.hasProperty("gradlePluginProxy")) {
-      maven {
-        url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
-      maven {
-        url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    gradlePluginPortal()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
-
 plugins {
   id 'com.gradleup.shadow'
+  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -40,8 +17,8 @@ dependencies {
   api libs.slf4j
 
   implementation libs.bundles.asm
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.13'
-  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.13'
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.14'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.14'
 
   implementation project(':communication')
   implementation project(':components:json')
