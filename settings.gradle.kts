@@ -420,8 +420,8 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-common",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1",
-  ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0",
-  ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-12.0",
+  // ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0", TODO fix Groovy 4.x compatibility (class file version)
+  // ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-12.0", TODO fix Groovy 4.x compatibility (class file version)
   ":dd-java-agent:instrumentation:jetty:jetty-common",
   ":dd-java-agent:instrumentation:jetty:jetty-util-9.4.31",
   ":dd-java-agent:instrumentation:jms",
