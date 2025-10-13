@@ -46,7 +46,6 @@ dependencies {
   compileOnly project(':dd-java-agent:agent-jmxfetch')
   compileOnly project(':dd-java-agent:agent-profiling')
   compileOnly project(':dd-java-agent:agent-profiling:profiling-controller')
-  api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
   api libs.bytebuddy
   api libs.bytebuddyagent
   implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'

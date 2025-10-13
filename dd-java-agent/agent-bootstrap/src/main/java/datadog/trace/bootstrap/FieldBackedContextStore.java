@@ -2,7 +2,7 @@ package datadog.trace.bootstrap;
 
 /**
  * {@link ContextStore} that attempts to store context in its keys by using bytecode-injected
- * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
+ * fields. Delegates to the global weak store for keys that don't have a field for this store.
  */
 public final class FieldBackedContextStore implements ContextStore<Object, Object> {
   final int storeId;
@@ -94,15 +94,15 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     }
   }
 
-  // only create WeakMap-based fall-back when we need it
-  private volatile WeakMapContextStore<Object, Object> weakStore;
+  // only create global weak store fall-back when we need it
+  private volatile ContextStore<Object, Object> weakStore;
   private final Object synchronizationInstance = new Object();
 
-  WeakMapContextStore<Object, Object> weakStore() {
+  ContextStore<Object, Object> weakStore() {
     if (null == weakStore) {
       synchronized (synchronizationInstance) {
         if (null == weakStore) {
-          weakStore = new WeakMapContextStore<>();
+          weakStore = new GlobalWeakContextStore<>(storeId);
         }
       }
     }
