@@ -46,7 +46,7 @@ public class TracerInstaller {
       return;
     }
     // make sure this branch is not considered possible for graalvm artifact
-    if (Platform.isNativeImageBuilder()) {
+    if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
       log.debug("service discovery not supported on native images");
       return;
     }
