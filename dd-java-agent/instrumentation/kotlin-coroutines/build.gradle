@@ -39,15 +39,15 @@ kotlin {
 addTestSuite('latestDepTest')
 
 tasks.named("compileTestFixturesGroovy", GroovyCompile) {
-  classpath += files(compileTestFixturesKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileTestFixturesKotlin').map { it.destinationDirectory })
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath += files(compileTestKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileTestKotlin').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
 }
 
 dependencies {
