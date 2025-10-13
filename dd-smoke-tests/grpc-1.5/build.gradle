@@ -32,7 +32,9 @@ protobuf {
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {
-    all()*.plugins { grpc {} }
+    ofSourceSet("main").configureEach {
+      plugins { grpc {} }
+    }
   }
 }
 
