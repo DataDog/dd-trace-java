@@ -1,111 +1,119 @@
-check-ci-visibility-label:
+test-gitlab-api:
   stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
-  needs: [ publish-artifacts-to-s3 ]
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
-    - when: never
-  before_script:
-    - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read
-    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
-    - gh auth login --with-token < github-token.txt
   script:
-    - |
-      # Source utility functions
-      source .gitlab/ci_visibility_utils.sh
-      
-      # Get PR number
-      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
-        echo "No open PR found for branch ${CI_COMMIT_BRANCH}"
-        exit 1
-      fi
-      
-      echo "Found PR #${PR_NUMBER}"
-      
-      # Check if PR has the CI visibility label
-      if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
-        echo "PR #${PR_NUMBER} detected as CI Visibility PR"
-        exit 0
-      else
-        echo "PR #${PR_NUMBER} not a CI Visibility PR, ignoring trigger"
-        exit 1
-      fi
-  after_script:
-    - dd-octo-sts revoke -t $(cat github-token.txt) || true
-  allow_failure: true
-  retry:
-    max: 2
-    when: always
+  - |
+    curl -s --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects?membership=true"
 
-run-ci-visibility-test-environment:
-  stage: ci-visibility-tests
-  needs:
-    - job: check-ci-visibility-label
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
-  trigger:
-    project: DataDog/apm-reliability/test-environment
-    branch: daniel.mohedano/java-auto-trigger # TODO: set back to `main`
-    strategy: depend
-  variables:
-    UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-    UPSTREAM_TAG: $CI_COMMIT_TAG
-    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
-    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
-    TRACER_LANG: java
-    JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
-
-report-ci-visibility-test-environment-results:
-  stage: ci-visibility-tests
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-  tags: [ "arch:amd64" ]
-  needs:
-    - job: check-ci-visibility-label
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
-  before_script:
-    - dd-octo-sts version
-    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
-    - gh auth login --with-token < github-token.txt
-  script:
-    - |
-      # Install authanywhere
-      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
-      chmod +x authanywhere-linux-amd64
-      
-      # Source utility functions
-      source .gitlab/ci_visibility_utils.sh
-      
-      # Get PR number
-      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
-        echo "No PR found, skipping comment"
-        exit 0
-      fi
-
-      echo $(get_downstream_pipeline_id)
-      
-      # Post comment
-      write_pr_comment "$PR_NUMBER" "Test environment triggered." "Test Environment Tests"
-  after_script:
-    - dd-octo-sts revoke -t $(cat github-token.txt) || true
+#check-ci-visibility-label:
+#  stage: publish
+#  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+#  tags: [ "arch:amd64" ]
+#  needs: [ publish-artifacts-to-s3 ]
+#  id_tokens:
+#    DDOCTOSTS_ID_TOKEN:
+#      aud: dd-octo-sts
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+#      when: on_success
+#    - when: never
+#  before_script:
+#    - dd-octo-sts version
+#    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read
+#    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
+#    - gh auth login --with-token < github-token.txt
+#  script:
+#    - |
+#      # Source utility functions
+#      source .gitlab/ci_visibility_utils.sh
+#      
+#      # Get PR number
+#      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
+#        echo "No open PR found for branch ${CI_COMMIT_BRANCH}"
+#        exit 1
+#      fi
+#      
+#      echo "Found PR #${PR_NUMBER}"
+#      
+#      # Check if PR has the CI visibility label
+#      if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
+#        echo "PR #${PR_NUMBER} detected as CI Visibility PR"
+#        exit 0
+#      else
+#        echo "PR #${PR_NUMBER} not a CI Visibility PR, ignoring trigger"
+#        exit 1
+#      fi
+#  after_script:
+#    - dd-octo-sts revoke -t $(cat github-token.txt) || true
+#  allow_failure: true
+#  retry:
+#    max: 2
+#    when: always
+#
+#run-ci-visibility-test-environment:
+#  stage: ci-visibility-tests
+#  needs:
+#    - job: check-ci-visibility-label
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+#      when: on_success
+#  trigger:
+#    project: DataDog/apm-reliability/test-environment
+#    branch: daniel.mohedano/java-auto-trigger # TODO: set back to `main`
+#    strategy: depend
+#  variables:
+#    UPSTREAM_PACKAGE_JOB: build
+#    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+#    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+#    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+#    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+#    UPSTREAM_TAG: $CI_COMMIT_TAG
+#    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+#    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+#    TRACER_LANG: java
+#    JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
+#
+#report-ci-visibility-test-environment-results:
+#  stage: ci-visibility-tests
+#  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+#  tags: [ "arch:amd64" ]
+#  needs:
+#    - job: check-ci-visibility-label
+#  id_tokens:
+#    DDOCTOSTS_ID_TOKEN:
+#      aud: dd-octo-sts
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+#      when: on_success
+#  before_script:
+#    - dd-octo-sts version
+#    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
+#    - gh auth login --with-token < github-token.txt
+#  script:
+#    - |
+#      # Install authanywhere
+#      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
+#      chmod +x authanywhere-linux-amd64
+#      
+#      # Source utility functions
+#      source .gitlab/ci_visibility_utils.sh
+#      
+#      # Get PR number
+#      if ! PR_NUMBER=$(get_pr_number "${CI_COMMIT_BRANCH}"); then
+#        echo "No PR found, skipping comment"
+#        exit 0
+#      fi
+#
+#      echo $(get_downstream_pipeline_id)
+#      
+#      # Post comment
+#      write_pr_comment "$PR_NUMBER" "Test environment triggered." "Test Environment Tests"
+#  after_script:
+#    - dd-octo-sts revoke -t $(cat github-token.txt) || true
