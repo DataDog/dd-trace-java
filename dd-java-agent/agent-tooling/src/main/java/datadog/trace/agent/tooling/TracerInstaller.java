@@ -2,13 +2,14 @@ package datadog.trace.agent.tooling;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.environment.OperatingSystem;
-import datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.CoreTracer.CoreTracerBuilder;
+import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,15 +22,16 @@ public class TracerInstaller {
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        CoreTracer tracer =
+        CoreTracerBuilder tracerBuilder =
             CoreTracer.builder()
                 .sharedCommunicationObjects(sharedCommunicationObjects)
                 .profilingContextIntegration(profilingContextIntegration)
                 .reportInTracerFlare()
-                .pollForTracingConfiguration()
-                .serviceDiscovery(getServiceDiscovery())
-                .build();
-        installGlobalTracer(tracer);
+                .pollForTracingConfiguration();
+
+        maybeEnableServiceDiscovery(tracerBuilder);
+
+        installGlobalTracer(tracerBuilder.build());
       } else {
         log.debug("GlobalTracer already registered.");
       }
@@ -38,17 +40,26 @@ public class TracerInstaller {
     }
   }
 
-  private static ServiceDiscovery getServiceDiscovery() {
+  private static void maybeEnableServiceDiscovery(CoreTracerBuilder tracerBuilder) {
     if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
-      return null;
+      return;
     }
     // make sure this branch is not considered possible for graalvm artifact
-    if (!Platform.isNativeImageBuilder() && !Platform.isNativeImage()) {
-      return new ServiceDiscovery(new MemFDUnixWriter());
+    if (Platform.isNativeImageBuilder()) {
+      log.debug("service discovery not supported on native images");
+      return;
     }
-    log.debug("service discovery not supported on native images");
-    return null;
+    try {
+      // use reflection to load MemFDUnixWriter so it doesn't get picked up when we transitively
+      // look for all tracer class dependencies to install in GraalVM via VMRuntimeInstrumentation
+      Class<?> memFdClass =
+          Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
+      ForeignMemoryWriter memFd = (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
+      tracerBuilder.serviceDiscovery(new ServiceDiscovery(memFd));
+    } catch (Throwable e) {
+      log.debug("service discovery not supported", e);
+    }
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {
