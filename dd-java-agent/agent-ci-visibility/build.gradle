@@ -17,8 +17,8 @@ dependencies {
   api libs.slf4j
 
   implementation libs.bundles.asm
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.13'
-  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.13'
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.14'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.14'
 
   implementation project(':communication')
   implementation project(':components:json')
