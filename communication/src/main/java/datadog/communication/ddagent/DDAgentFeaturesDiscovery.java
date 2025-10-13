@@ -356,7 +356,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public boolean supportsMetrics() {
-    return metricsEnabled && null != discoveryState.metricsEndpoint;
+    return metricsEnabled
+        && null != discoveryState.metricsEndpoint
+        && discoveryState.supportsDropping;
   }
 
   public boolean supportsDebugger() {
@@ -439,7 +441,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   @Override
   public boolean active() {
-    return supportsMetrics() && discoveryState.supportsDropping;
+    return supportsMetrics();
   }
 
   public boolean supportsTelemetryProxy() {
