@@ -221,6 +221,10 @@ tasks.named("shadowJar", ShadowJar) {
   }
 }
 
+project.configurations.register('slf4j-simple') {
+  it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
+}
+
 tasks.register('generateAgentJarIndex', JavaExec) {
   def indexName = 'dd-java-agent.index'
   def contentDir = "${sourceSets.main.output.resourcesDir}"
@@ -231,7 +235,9 @@ tasks.register('generateAgentJarIndex', JavaExec) {
   it.inputs.files(fileTree(contentDir).exclude(indexName))
   it.outputs.files(indexFile)
   it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
-  it.classpath = project.configurations.shadowInclude
+  it.classpath = objects.fileCollection()
+    .from(project.configurations.named("shadowInclude"))
+    .from(project.configurations.named('slf4j-simple'))
   it.args = [contentDir]
 
   dependsOn 'processResources'
