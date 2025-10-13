@@ -122,7 +122,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
 }
 
 def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agentDir, Provider<Directory> includedAgentDir) {
-  project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Copy) {
+  project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Sync) {
     group = LifecycleBasePlugin.BUILD_GROUP
     description = "Expand the included shadow jar into the agent jar under ${agentDir}"
 
