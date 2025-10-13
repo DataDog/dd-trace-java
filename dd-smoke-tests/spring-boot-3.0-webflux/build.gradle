@@ -31,8 +31,8 @@ tasks.register('webfluxBuild30', Exec) {
     include '**/*'
     exclude '.gradle/**'
   })
-    .withPropertyName("application")
-    .withPathSensitivity(PathSensitivity.RELATIVE)
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.named("webfluxBuild30", Exec) {
