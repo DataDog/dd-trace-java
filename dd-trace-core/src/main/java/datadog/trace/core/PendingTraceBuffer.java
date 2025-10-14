@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class PendingTraceBuffer implements AutoCloseable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PendingTraceBuffer.class);
   private static final int BUFFER_SIZE = 1 << 12; // 4096
 
   public boolean longRunningSpansEnabled() {
@@ -58,6 +59,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final long SLEEP_TIME_MS = 100;
     private static final CommandElement FLUSH_ELEMENT = new CommandElement();
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
+    private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
     private final MpscBlockingConsumerArrayQueue<Element> queue;
     private final Thread worker;
@@ -154,7 +156,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           element -> !(element instanceof PendingTrace);
 
       private volatile List<Element> data = new ArrayList<>();
-      private int index = 0;
+      private volatile int index = 0;
 
       @Override
       public void accept(Element pendingTrace) {
@@ -166,13 +168,20 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         if (index < data.size()) {
           return data.get(index++);
         }
-        return null; // Should never reach here or else queue may break according to
-        // MessagePassingQueue docs
+        // Should never reach here or else queue may break according to
+        // MessagePassingQueue docs if we return a null. Return a stand-in
+        // Element instead.
+        LOGGER.warn(
+            "Index {} is out of bounds for data size {} in DumpDrain.get so returning filler CommandElement to prevent pending trace queue from breaking.",
+            index,
+            data.size());
+        return STAND_IN_ELEMENT;
       }
 
       public List<Element> collectTraces() {
         List<Element> traces = data;
         data = new ArrayList<>();
+        index = 0;
         traces.removeIf(NOT_PENDING_TRACE);
         // Storing oldest traces first
         traces.sort(TRACE_BY_START_TIME);
