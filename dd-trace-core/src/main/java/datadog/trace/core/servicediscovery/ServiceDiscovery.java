@@ -63,41 +63,41 @@ public class ServiceDiscovery {
 
     writer.startMap(mapElements);
 
-    writer.writeBinary("schema_version".getBytes(ISO_8859_1));
+    writer.writeUTF8("schema_version".getBytes(ISO_8859_1));
     writer.writeInt(2);
 
-    writer.writeBinary("tracer_language".getBytes(ISO_8859_1));
-    writer.writeBinary("java".getBytes(ISO_8859_1));
+    writer.writeUTF8("tracer_language".getBytes(ISO_8859_1));
+    writer.writeUTF8("java".getBytes(ISO_8859_1));
 
-    writer.writeBinary("tracer_version".getBytes(ISO_8859_1));
-    writer.writeBinary(tracerVersion.getBytes(ISO_8859_1));
+    writer.writeUTF8("tracer_version".getBytes(ISO_8859_1));
+    writer.writeUTF8(tracerVersion.getBytes(ISO_8859_1));
 
-    writer.writeBinary("hostname".getBytes(ISO_8859_1));
-    writer.writeBinary(hostname.getBytes(ISO_8859_1));
+    writer.writeUTF8("hostname".getBytes(ISO_8859_1));
+    writer.writeUTF8(hostname.getBytes(ISO_8859_1));
 
     if (runtimeID != null && !runtimeID.isEmpty()) {
-      writer.writeBinary("runtime_id".getBytes(ISO_8859_1));
-      writer.writeBinary(runtimeID.getBytes(ISO_8859_1));
+      writer.writeUTF8("runtime_id".getBytes(ISO_8859_1));
+      writer.writeUTF8(runtimeID.getBytes(ISO_8859_1));
     }
     if (service != null && !service.isEmpty()) {
-      writer.writeBinary("service_name".getBytes(ISO_8859_1));
-      writer.writeBinary(service.getBytes(ISO_8859_1));
+      writer.writeUTF8("service_name".getBytes(ISO_8859_1));
+      writer.writeUTF8(service.getBytes(ISO_8859_1));
     }
     if (env != null && !env.isEmpty()) {
-      writer.writeBinary("service_env".getBytes(ISO_8859_1));
-      writer.writeBinary(env.getBytes(ISO_8859_1));
+      writer.writeUTF8("service_env".getBytes(ISO_8859_1));
+      writer.writeUTF8(env.getBytes(ISO_8859_1));
     }
     if (serviceVersion != null && !serviceVersion.isEmpty()) {
-      writer.writeBinary("service_version".getBytes(ISO_8859_1));
-      writer.writeBinary(serviceVersion.getBytes(ISO_8859_1));
+      writer.writeUTF8("service_version".getBytes(ISO_8859_1));
+      writer.writeUTF8(serviceVersion.getBytes(ISO_8859_1));
     }
     if (processTags != null && processTags.length() > 0) {
-      writer.writeBinary("process_tags".getBytes(ISO_8859_1));
+      writer.writeUTF8("process_tags".getBytes(ISO_8859_1));
       writer.writeUTF8(processTags);
     }
     if (containerID != null && !containerID.isEmpty()) {
-      writer.writeBinary("container_id".getBytes(ISO_8859_1));
-      writer.writeBinary(containerID.getBytes(ISO_8859_1));
+      writer.writeUTF8("container_id".getBytes(ISO_8859_1));
+      writer.writeUTF8(containerID.getBytes(ISO_8859_1));
     }
 
     ByteBuffer byteBuffer = buffer.slice();
