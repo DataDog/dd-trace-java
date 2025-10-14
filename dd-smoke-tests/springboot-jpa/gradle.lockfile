@@ -164,7 +164,6 @@ org.slf4j:slf4j-api:1.7.32=compileClasspath,productionRuntimeClasspath,runtimeCl
 org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
 org.spockframework:spock-bom:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.spockframework:spock-core:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
-org.spockframework:spock-junit4:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.springframework.boot:spring-boot-autoconfigure:2.6.0=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework.boot:spring-boot-starter-aop:2.6.0=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework.boot:spring-boot-starter-data-jpa:2.6.0=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
