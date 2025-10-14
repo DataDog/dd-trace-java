@@ -6,6 +6,6 @@ dependencies {
   api project(':dd-java-agent:instrumentation-testing')
 }
 
-configurations.api {
+configurations.named('api') {
   exclude group: 'org.eclipse.jetty', module: 'jetty-server'
 }

@@ -39,7 +39,7 @@ subprojects { Project subProj ->
       def name = "java$version.majorVersion"
       jdkCompile = "main_${name}Implementation"
     }
-    configurations.muzzleBootstrap {
+    configurations.named('muzzleBootstrap') {
       exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
     }
     dependencies {

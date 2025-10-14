@@ -24,12 +24,12 @@ dependencies {
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  dependsOn compileTestScala
+  dependsOn 'compileTestScala'
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  dependsOn compileLatestDepTestScala
+  dependsOn 'compileLatestDepTestScala'
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }
 

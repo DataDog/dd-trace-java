@@ -156,14 +156,15 @@ tasks.withType(Test).configureEach {
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.
-configurations.findAll { it.name in ["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"] }
-.each {
-  it.exclude group: 'tomcat', module: 'catalina'
-  it.exclude group: 'tomcat', module: 'tomcat-coyote'
-  it.exclude group: 'tomcat', module: 'tomcat-util'
-  it.exclude group: 'tomcat', module: 'tomcat-http'
-  it.exclude group: 'tomcat', module: 'naming-resources'
-  it.exclude group: 'tomcat', module: 'naming-factory'
-  it.exclude group: 'commons-modeler', module: 'commons-modeler'
-  it.exclude group: 'javax.servlet', module: 'servlet-api'
+["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"].each {
+  configurations.named(it) {
+    it.exclude group: 'tomcat', module: 'catalina'
+    it.exclude group: 'tomcat', module: 'tomcat-coyote'
+    it.exclude group: 'tomcat', module: 'tomcat-util'
+    it.exclude group: 'tomcat', module: 'tomcat-http'
+    it.exclude group: 'tomcat', module: 'naming-resources'
+    it.exclude group: 'tomcat', module: 'naming-factory'
+    it.exclude group: 'commons-modeler', module: 'commons-modeler'
+    it.exclude group: 'javax.servlet', module: 'servlet-api'
+  }
 }
