@@ -35,6 +35,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "nodeId_4",
         "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
+        "meta": "any",
         "metrics": [
           {
             "data size": "any",
@@ -57,6 +58,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen (1)",
             "nodeId": "nodeId_1",
+            "meta": "any",
             "metrics": [
               {
                 "duration": "any",
@@ -68,6 +70,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": "nodeId_3",
                 "nodeDetailString": "(keys=[string_col#0], functions=[partial_avg(double_col#1)])",
+                "meta": "any",
                 "metrics": [
                   {
                     "number of output rows": 3,
@@ -87,6 +90,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "node": "LocalTableScan",
                     "nodeId": "nodeId_2",
                     "nodeDetailString": "[string_col#0, double_col#1]",
+                    "meta": "any",
                     "metrics": [
                       {
                         "number of output rows": 3,
@@ -105,6 +109,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen (2)",
         "nodeId": "nodeId_8",
+        "meta": "any",
         "metrics": [
           {
             "duration": "any",
@@ -116,6 +121,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "node": "HashAggregate",
             "nodeId": "nodeId_9",
             "nodeDetailString": "(keys\\u003d[string_col#0], functions\\u003d[avg(double_col#1)])",
+            "meta": "any",
             "metrics": [
               {
                 "avg hash probe bucket list iters": "any",
@@ -138,22 +144,26 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
               {
                 "node": "InputAdapter",
                 "nodeId": "nodeId_7",
+                "meta": "any",
                 "children": [
                   {
                     "node": "AQEShuffleRead",
                     "nodeId": "nodeId_5",
                     "nodeDetailString": "coalesced",
+                    "meta": "any",
                     "metrics": [],
                     "children": [
                       {
                         "node": "ShuffleQueryStage",
                         "nodeId": "nodeId_6",
                         "nodeDetailString": "0",
+                        "meta": "any",
                         "children": [
                           {
                             "node": "Exchange",
                             "nodeId": "nodeId_4",
                             "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
+                            "meta": "any",
                             "metrics": [
                               {
                                 "data size": "any",
@@ -205,6 +215,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "nodeId_10",
         "nodeDetailString": "rangepartitioning(avg(double_col)#5 DESC NULLS LAST, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d67]",
+        "meta": "any",
         "metrics": [
           {
             "data size": "any",
@@ -227,6 +238,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen (2)",
             "nodeId": "nodeId_8",
+            "meta": "any",
             "metrics": [
               {
                 "duration": "any",
@@ -238,6 +250,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": "nodeId_9",
                 "nodeDetailString": "(keys\\u003d[string_col#0], functions\\u003d[avg(double_col#1)])",
+                "meta": "any",
                 "metrics": [
                   {
                     "avg hash probe bucket list iters": "any",
@@ -260,22 +273,26 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                   {
                     "node": "InputAdapter",
                     "nodeId": "nodeId_7",
+                    "meta": "any",
                     "children": [
                       {
                         "node": "AQEShuffleRead",
                         "nodeId": "nodeId_5",
                         "nodeDetailString": "coalesced",
+                        "meta": "any",
                         "metrics": [],
                         "children": [
                           {
                             "node": "ShuffleQueryStage",
                             "nodeId": "nodeId_6",
                             "nodeDetailString": "0",
+                            "meta": "any",
                             "children": [
                               {
                                 "node": "Exchange",
                                 "nodeId": "nodeId_4",
                                 "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
+                                "meta": "any", 
                                 "metrics": [
                                   {
                                     "data size": "any",
@@ -328,6 +345,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen (3)",
         "nodeId": "nodeId_12",
+        "meta": "any",
         "metrics": [
           {
             "duration": "any",
@@ -339,11 +357,13 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "node": "Project",
             "nodeId": "nodeId_11",
             "nodeDetailString": "[string_col#0, cast(avg(double_col)#5 as string) AS avg(double_col)#12]",
+            "meta": "any",
             "children": [
               {
                 "node": "Sort",
                 "nodeId": "nodeId_13",
                 "nodeDetailString": "[avg(double_col)#5 DESC NULLS LAST], true, 0",
+                "meta": "any",
                 "metrics": [
                   {
                     "peak memory": "any",
@@ -362,22 +382,26 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                   {
                     "node": "InputAdapter",
                     "nodeId": "nodeId_7",
+                    "meta": "any",
                     "children": [
                       {
                         "node": "AQEShuffleRead",
                         "nodeId": "nodeId_5",
                         "nodeDetailString": "coalesced",
+                        "meta": "any",
                         "metrics": [],
                         "children": [
                           {
                             "node": "ShuffleQueryStage",
                             "nodeId": "nodeId_14",
                             "nodeDetailString": "1",
+                            "meta": "any",
                             "children": [
                               {
                                 "node": "Exchange",
                                 "nodeId": "nodeId_10",
                                 "nodeDetailString": "rangepartitioning(avg(double_col)#5 DESC NULLS LAST, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d67]",
+                                "meta": "any",
                                 "metrics": [
                                   {
                                     "data size": "any",
@@ -525,6 +549,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#28, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d119]",
+        "meta": "any",
         "metrics": [
           {
             "data size": "any",
@@ -548,6 +573,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "node": "LocalTableScan",
             "nodeId": "any",
             "nodeDetailString": "[string_col#28]",
+            "meta": "any",
             "metrics": [
               {
                 "number of output rows": "any",
@@ -563,6 +589,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#32, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d120]",
+        "meta": "any",
         "metrics": [
           {
             "data size": "any",
@@ -586,6 +613,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "node": "LocalTableScan",
             "nodeId": "any",
             "nodeDetailString": "[string_col#32]",
+            "meta": "any",
             "metrics": [
               {
                 "number of output rows": "any",
@@ -601,6 +629,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "nodeId_7",
         "nodeDetailString": "SinglePartition, ENSURE_REQUIREMENTS, [plan_id\\u003d230]",
+        "meta": "any",
         "metrics": [
           {
             "data size": "any",
@@ -623,6 +652,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen (3)",
             "nodeId": "nodeId_9",
+            "meta": "any",
             "metrics": [
               {
                 "duration": "any",
@@ -634,6 +664,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": "nodeId_16",
                 "nodeDetailString": "(keys\\u003d[], functions\\u003d[partial_count(1)])",
+                "meta": "any",
                 "metrics": [
                   {
                     "number of output rows": 1,
@@ -648,11 +679,13 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                   {
                     "node": "Project",
                     "nodeId": "nodeId_13",
+                    "meta": "any",
                     "children": [
                       {
                         "node": "SortMergeJoin",
                         "nodeId": "nodeId_15",
                         "nodeDetailString": "[string_col#28], [string_col#32], Inner",
+                        "meta": "any",
                         "metrics": [
                           {
                             "number of output rows": "any",
@@ -663,10 +696,12 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                           {
                             "node": "InputAdapter",
                             "nodeId": "nodeId_6",
+                            "meta": "any",
                             "children": [
                               {
                                 "node": "WholeStageCodegen (1)",
                                 "nodeId": "nodeId_8",
+                                "meta": "any",
                                 "metrics": [
                                   {
                                     "duration": "any",
@@ -678,6 +713,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                     "node": "Sort",
                                     "nodeId": "nodeId_11",
                                     "nodeDetailString": "[string_col#28 ASC NULLS FIRST], false, 0",
+                                    "meta": "any",
                                     "metrics": [
                                       {
                                         "peak memory": "any",
@@ -696,22 +732,26 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                       {
                                         "node": "InputAdapter",
                                         "nodeId": "nodeId_6",
+                                        "meta": "any",
                                         "children": [
                                           {
                                             "node": "AQEShuffleRead",
                                             "nodeId": "nodeId_5",
                                             "nodeDetailString": "coalesced",
+                                            "meta": "any",
                                             "metrics": [],
                                             "children": [
                                               {
                                                 "node": "ShuffleQueryStage",
                                                 "nodeId": "nodeId_14",
                                                 "nodeDetailString": "0",
+                                                "meta": "any",
                                                 "children": [
                                                   {
                                                     "node": "Exchange",
                                                     "nodeId": "nodeId_2",
                                                     "nodeDetailString": "hashpartitioning(string_col#28, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d119]",
+                                                    "meta": "any",
                                                     "metrics": [
                                                       {
                                                         "data size": "any",
@@ -762,10 +802,12 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                           {
                             "node": "InputAdapter",
                             "nodeId": "nodeId_6",
+                            "meta": "any",
                             "children": [
                               {
                                 "node": "WholeStageCodegen (2)",
                                 "nodeId": "nodeId_12",
+                                "meta": "any",
                                 "metrics": [
                                   {
                                     "duration": "any",
@@ -777,6 +819,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                     "node": "Sort",
                                     "nodeId": "nodeId_17",
                                     "nodeDetailString": "[string_col#32 ASC NULLS FIRST], false, 0",
+                                    "meta": "any",
                                     "metrics": [
                                       {
                                         "peak memory": "any",
@@ -795,22 +838,26 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                       {
                                         "node": "InputAdapter",
                                         "nodeId": "nodeId_6",
+                                        "meta": "any",
                                         "children": [
                                           {
                                             "node": "AQEShuffleRead",
                                             "nodeId": "nodeId_5",
                                             "nodeDetailString": "coalesced",
+                                            "meta": "any",
                                             "metrics": [],
                                             "children": [
                                               {
                                                 "node": "ShuffleQueryStage",
                                                 "nodeId": "nodeId_10",
                                                 "nodeDetailString": "1",
+                                                "meta": "any",
                                                 "children": [
                                                   {
                                                     "node": "Exchange",
                                                     "nodeId": "nodeId_4",
                                                     "nodeDetailString": "hashpartitioning(string_col#32, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d120]",
+                                                    "meta": "any",
                                                     "metrics": [
                                                       {
                                                         "data size": "any",
@@ -873,6 +920,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen (4)",
         "nodeId": "nodeId_20",
+        "meta": "any",
         "metrics": [
           {
             "duration": "any",
@@ -884,6 +932,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "node": "HashAggregate",
             "nodeId": "nodeId_18",
             "nodeDetailString": "(keys\\u003d[], functions\\u003d[count(1)])",
+            "meta": "any",
             "metrics": [
               {
                 "number of output rows": "any",
@@ -898,16 +947,19 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
               {
                 "node": "InputAdapter",
                 "nodeId": "nodeId_6",
+                "meta": "any",
                 "children": [
                   {
                     "node": "ShuffleQueryStage",
                     "nodeId": "nodeId_19",
                     "nodeDetailString": "2",
+                    "meta": "any",
                     "children": [
                       {
                         "node": "Exchange",
                         "nodeId": "nodeId_7",
                         "nodeDetailString": "SinglePartition, ENSURE_REQUIREMENTS, [plan_id\\u003d230]",
+                        "meta": "any",
                         "metrics": [
                           {
                             "data size": "any",

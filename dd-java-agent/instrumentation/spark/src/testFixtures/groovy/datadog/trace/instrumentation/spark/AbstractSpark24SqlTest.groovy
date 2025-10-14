@@ -47,7 +47,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
   }
 
   static assertStringSQLPlanEquals(String expectedString, String actualString) {
-    System.err.println("Checking if expected $expectedString SQL plan match actual $actualString")
+    //    System.err.println("Checking if expected $expectedString SQL plan match actual $actualString")
 
     def jsonSlurper = new JsonSlurper()
 
@@ -60,7 +60,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
   // Similar to assertStringSQLPlanEquals, but the actual plan can be a subset of the expected plan
   // This is used for spark 2.4 where the exact SQL plan is not deterministic
   protected static assertStringSQLPlanSubset(String expectedString, String actualString) {
-    System.err.println("Checking if expected $expectedString SQL plan is a super set of $actualString")
+    //    System.err.println("Checking if expected $expectedString SQL plan is a super set of $actualString")
 
     def jsonSlurper = new JsonSlurper()
 
@@ -83,7 +83,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
     // Checking all keys expect children and metrics that are checked after
     expected.keySet().each { key ->
       if (!['children', 'metrics'].contains(key)) {
-
+        if (key == "meta") {
+          var simpleString = actual["nodeDetailString"]
+          var values = actual[key]
+          System.err.println("FOUND: node=$actual.node, values=$values, simpleString=$simpleString")
+        }
         // Some metric values will varies between runs
         // In the case, setting the expected value to "any" skips the assertion
         if (expected[key] != "any") {
@@ -159,6 +163,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": -1909876497,
         "nodeDetailString": "hashpartitioning(string_col#0, 2)",
+        "meta": "any",
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -169,6 +174,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen",
             "nodeId": 724251804,
+            "meta": "any",
             "metrics": [
               {
                 "duration total (min, med, max)": "any",
@@ -180,6 +186,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": 1128016273,
                 "nodeDetailString": "(keys=[string_col#0], functions=[partial_avg(double_col#1)])",
+                "meta": "any",
                 "metrics": [
                   {
                     "aggregate time total (min, med, max)": "any",
@@ -198,11 +205,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                   {
                     "node": "InputAdapter",
                     "nodeId": 180293,
+                    "meta": "any",
                     "children": [
                       {
                         "node": "LocalTableScan",
                         "nodeId": 1632930767,
                         "nodeDetailString": "[string_col#0, double_col#1]",
+                        "meta": "any",
                         "metrics": [
                           {
                             "number of output rows": 3,
@@ -224,6 +233,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen",
         "nodeId": 724251804,
+        "meta": "any",
         "metrics": [
           {
             "duration total (min, med, max)": "any",
@@ -235,6 +245,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "HashAggregate",
             "nodeId": 126020943,
             "nodeDetailString": "(keys=[string_col#0], functions=[avg(double_col#1)])",
+            "meta": "any",
             "metrics": [
               {
                 "aggregate time total (min, med, max)": "any",
@@ -256,7 +267,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "children": [
               {
                 "node": "InputAdapter",
-                "nodeId": 180293
+                "nodeId": 180293,
+                "meta": "any"
               }
             ]
           }
@@ -325,6 +337,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#25, 2)",
+        "meta": "any",
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -336,6 +349,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "LocalTableScan",
             "nodeId": "any",
             "nodeDetailString": "[string_col#25]", 
+            "meta": "any",
             "metrics": [
               {
                 "number of output rows": "any",
@@ -351,6 +365,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#21, 2)",
+        "meta": "any",
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -362,6 +377,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "LocalTableScan",
             "nodeId": "any",
             "nodeDetailString": "[string_col#21]", 
+            "meta": "any",
             "metrics": [
               {
                 "number of output rows": "any",
@@ -377,6 +393,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": -1350402171,
         "nodeDetailString": "SinglePartition",
+        "meta": "any",
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -387,6 +404,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen",
             "nodeId": 724251804,
+            "meta": "any",
             "metrics": [
               {
                 "duration total (min, med, max)": "any",
@@ -398,6 +416,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": -879128980,
                 "nodeDetailString": "(keys=[], functions=[partial_count(1)])",
+                "meta": "any",
                 "metrics": [
                   {
                     "aggregate time total (min, med, max)": "any",
@@ -412,11 +431,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                   {
                     "node": "Project",
                     "nodeId": 1355342585,
+                    "meta": "any",
                     "children": [
                       {
                         "node": "SortMergeJoin",
                         "nodeId": -1975876610,
                         "nodeDetailString": "[string_col#21], [string_col#25], Inner",
+                        "meta": "any",
                         "metrics": [
                           {
                             "number of output rows": "any",
@@ -427,10 +448,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                           {
                             "node": "InputAdapter",
                             "nodeId": 180293,
+                            "meta": "any",
                             "children": [
                               {
                                 "node": "WholeStageCodegen",
                                 "nodeId": 724251804,
+                                "meta": "any",
                                 "metrics": [
                                   {
                                     "duration total (min, med, max)": "any",
@@ -442,6 +465,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "node": "Sort",
                                     "nodeId": 66807398,
                                     "nodeDetailString": "[string_col#21 ASC NULLS FIRST], false, 0",
+                                    "meta": "any",
                                     "metrics": [
                                       {
                                         "peak memory total (min, med, max)": "any",
@@ -455,7 +479,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "children": [
                                       {
                                         "node": "InputAdapter",
-                                        "nodeId": 180293
+                                        "nodeId": 180293,
+                                        "meta": "any"
                                       }
                                     ]
                                   }
@@ -466,10 +491,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                           {
                             "node": "InputAdapter",
                             "nodeId": 180293,
+                            "meta": "any",
                             "children": [
                               {
                                 "node": "WholeStageCodegen",
                                 "nodeId": 724251804,
+                                "meta": "any",
                                 "metrics": [
                                   {
                                     "duration total (min, med, max)": "any",
@@ -481,6 +508,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "node": "Sort",
                                     "nodeId": -952138782,
                                     "nodeDetailString": "[string_col#25 ASC NULLS FIRST], false, 0",
+                                    "meta": "any",
                                     "metrics": [
                                       {
                                         "peak memory total (min, med, max)": "any",
@@ -490,7 +518,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "children": [
                                       {
                                         "node": "InputAdapter",
-                                        "nodeId": 180293
+                                        "nodeId": 180293,
+                                        "meta": "any"
                                       }
                                     ]
                                   }
@@ -513,6 +542,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen",
         "nodeId": 724251804,
+        "meta": "any",
         "metrics": [
           {
             "duration total (min, med, max)": "any",
@@ -524,6 +554,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "HashAggregate",
             "nodeId": 724815342,
             "nodeDetailString": "(keys=[], functions=[count(1)])",
+            "meta": "any",
             "metrics": [
               {
                 "number of output rows": 1,
@@ -533,7 +564,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "children": [
               {
                 "node": "InputAdapter",
-                "nodeId": 180293
+                "nodeId": 180293,
+                "meta": "any"
               }
             ]
           }
