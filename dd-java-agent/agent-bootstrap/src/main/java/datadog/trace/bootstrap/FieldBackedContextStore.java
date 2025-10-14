@@ -2,7 +2,7 @@ package datadog.trace.bootstrap;
 
 /**
  * {@link ContextStore} that attempts to store context in its keys by using bytecode-injected
- * fields. Delegates to a lazy {@link WeakMap} for keys that don't have a field for this store.
+ * fields. Delegates to the global weak map for keys that don't have a field for this store.
  */
 public final class FieldBackedContextStore implements ContextStore<Object, Object> {
   final int storeId;
@@ -16,7 +16,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     if (key instanceof FieldBackedContextAccessor) {
       return ((FieldBackedContextAccessor) key).$get$__datadogContext$(storeId);
     } else {
-      return weakStore().get(key);
+      return GlobalWeakContextStore.weakGet(key, storeId);
     }
   }
 
@@ -25,7 +25,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     if (key instanceof FieldBackedContextAccessor) {
       ((FieldBackedContextAccessor) key).$put$__datadogContext$(storeId, context);
     } else {
-      weakStore().put(key, context);
+      GlobalWeakContextStore.weakPut(key, storeId, context);
     }
   }
 
@@ -45,7 +45,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
       }
       return existingContext;
     } else {
-      return weakStore().putIfAbsent(key, context);
+      return GlobalWeakContextStore.weakPutIfAbsent(key, storeId, context);
     }
   }
 
@@ -71,7 +71,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
       }
       return existingContext;
     } else {
-      return weakStore().computeIfAbsent(key, contextFactory);
+      return GlobalWeakContextStore.weakComputeIfAbsent(key, storeId, contextFactory);
     }
   }
 
@@ -90,22 +90,7 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
       }
       return existingContext;
     } else {
-      return weakStore().remove(key);
+      return GlobalWeakContextStore.weakRemove(key, storeId);
     }
-  }
-
-  // only create WeakMap-based fall-back when we need it
-  private volatile WeakMapContextStore<Object, Object> weakStore;
-  private final Object synchronizationInstance = new Object();
-
-  WeakMapContextStore<Object, Object> weakStore() {
-    if (null == weakStore) {
-      synchronized (synchronizationInstance) {
-        if (null == weakStore) {
-          weakStore = new WeakMapContextStore<>();
-        }
-      }
-    }
-    return weakStore;
   }
 }
