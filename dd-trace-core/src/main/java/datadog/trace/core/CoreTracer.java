@@ -1992,11 +1992,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     /**
-     * Resets the ReusableSingleSpanBuilder, so it may be used to build another single span Returns
-     * true if the reset was successful Returns false if this ReusableSingleSpanBuilder is still
-     * "in-use"
+     * Resets the {@link ReusableSingleSpanBuilder}, so it may be used to build another single span 
+     * @returns <code>true</code> if the reset was successful, otherwise <code>false</code> 
+     * if this <code>ReusableSingleSpanBuilder</code> is still "in-use".
      */
-    final boolean reset(String instrumentationName, CharSequence operationName) {
       if (this.inUse) return false;
       this.inUse = true;
 
