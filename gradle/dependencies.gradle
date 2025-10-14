@@ -45,6 +45,9 @@ final class CachedData {
       exclude(dependency('com.github.jnr::'))
       exclude(dependency('org.ow2.asm::'))
 
+      // javac plugin client
+      exclude(dependency('com.datadoghq:dd-javac-plugin-client'))
+
       // moshi and its transitives
       exclude(dependency('com.squareup.moshi::'))
 

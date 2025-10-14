@@ -28,7 +28,7 @@ kotlin {
 addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
 }
 
 dependencies {
