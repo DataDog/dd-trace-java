@@ -1,7 +1,7 @@
 package datadog.trace.core;
 
 import datadog.libconfig.NativeTracerMetadata;
-import datadog.libconfig.NullTracerMetadata;
+import datadog.libconfig.NoOpTracerMetadata;
 import datadog.libconfig.TracerMetadata;
 import datadog.nativeloader.LibraryLoadException;
 import datadog.nativeloader.NativeLoader;
@@ -19,13 +19,13 @@ final class TracerMetadataProvider {
     try {
       nativeLoader().load("lib");
     } catch (LibraryLoadException e) {
-      return new NullTracerMetadata();
+      return new NoOpTracerMetadata();
     }
 
     try {
       return new NativeTracerMetadata();
     } catch (Throwable t) {
-      return new NullTracerMetadata();
+      return new NoOpTracerMetadata();
     }
   }
 }
