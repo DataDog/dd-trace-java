@@ -1038,7 +1038,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // that case could result in permanently burning the cache for a given thread.
 
     // That could be solved with additional logic during ReusableSingleSpanBuilder#buildSpan
-    // that checks to see if the cached the Builder is in use and then replaces it
+    // that checks to see if the cached Builder is in use and then replaces it
     // with the freed Builder, but that would put extra logic in the common path.
 
     // Instead of making the release process more complicated, I'm chosing to just
