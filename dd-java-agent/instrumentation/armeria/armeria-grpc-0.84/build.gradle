@@ -31,8 +31,8 @@ protobuf {
     }
   }
   generateProtoTasks {
-    all()*.plugins {
-      grpc {}
+    ofSourceSet("test").configureEach {
+      plugins { grpc {} }
     }
   }
 }

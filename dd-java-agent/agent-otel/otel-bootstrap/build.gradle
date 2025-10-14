@@ -11,12 +11,14 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'instrument'
 
 configurations {
-  embeddedClasspath {
+  def ec = register('embeddedClasspath') {
     visible = false
     canBeConsumed = false
     canBeResolved = true
   }
-  compileClasspath.extendsFrom(embeddedClasspath)
+  named('compileClasspath') {
+    compileClasspath.extendsFrom(ec.get())
+  }
   instrumentPluginClasspath {
     visible = false
     canBeConsumed = false
@@ -55,13 +57,16 @@ dependencies {
 
 // unpack embeddedClasspath to same path as compiled classes so it can get instrumented
 tasks.register('unpackJars', Copy) {
-  dependsOn configurations.embeddedClasspath
+  dependsOn configurations.named('embeddedClasspath')
   exclude 'META-INF/'
   exclude '**/module-info.class'
   exclude '**/package-info.class'
-  from {
-    configurations.embeddedClasspath.collect { zipTree(it) }
-  }
+
+  from(configurations.named('embeddedClasspath').map {
+    it.collect {
+      zipTree(it)
+    }
+  })
   into compileJava.destinationDirectory
 }
 

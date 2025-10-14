@@ -1,6 +1,7 @@
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
+
 muzzle {
   pass {
     group = "org.apache.kafka"
@@ -31,14 +32,11 @@ tasks.withType(GroovyCompile).configureEach {
 }
 
 dependencies {
-  //  compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
-  main_java17CompileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
-  main_java17Implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
-
   implementation project(':dd-java-agent:instrumentation:span-origin')
 
-  testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  main_java17CompileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  main_java17Implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.3.4', {
     exclude group: 'org.apache.kafka'
@@ -46,8 +44,13 @@ dependencies {
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.3.4', {
     exclude group: 'org.apache.kafka'
   }
+
+  testImplementation 'org.apache.kafka:kafka-server-common:3.8.0:test'
+
+  testImplementation 'org.apache.kafka:kafka-clients:3.8.0'
   testImplementation 'org.apache.kafka:kafka-clients:3.8.0:test'
-  testImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '3.8.0'
+
+  testImplementation 'org.apache.kafka:kafka_2.13:3.8.0'
   testImplementation 'org.apache.kafka:kafka_2.13:3.8.0:test'
 
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
@@ -57,6 +60,5 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
   latestDepTestImplementation group: 'io.dropwizard.metrics', name: 'metrics-core', version: '+'
-
   latestDepTestImplementation libs.guava
 }

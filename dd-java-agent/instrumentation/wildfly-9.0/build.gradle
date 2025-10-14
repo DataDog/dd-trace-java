@@ -81,8 +81,8 @@ def extractWildfly(NamedDomainObjectProvider<Configuration> config, String zipFi
 }
 
 def extractWildflyTask = tasks.register("extractWildfly", Copy) {
-  dependsOn configurations.wildflyTest
-  mustRunAfter tasks.compileTestGroovy
+  dependsOn configurations.named('wildflyTest')
+  mustRunAfter 'compileTestGroovy'
   extractWildfly(configurations.named("wildflyTest"), "wildfly-dist", it)
 
   // When tests are disabled this would still be run, so disable this manually
@@ -90,11 +90,11 @@ def extractWildflyTask = tasks.register("extractWildfly", Copy) {
 }
 
 def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
-  mustRunAfter tasks.compileLatestDepTestGroovy
-  mustRunAfter tasks.compileLatestDepForkedTestGroovy
-  mustRunAfter tasks.compileLatestDepTestJava
-  mustRunAfter tasks.compileLatestDepForkedTestJava
-  mustRunAfter tasks.compileJava
+  mustRunAfter 'compileLatestDepTestGroovy'
+  mustRunAfter 'compileLatestDepForkedTestGroovy'
+  mustRunAfter 'compileLatestDepTestJava'
+  mustRunAfter 'compileLatestDepForkedTestJava'
+  mustRunAfter 'compileJava'
   extractWildfly(configurations.named("wildflyLatestDepTest"), "wildfly", it)
 
   // When tests are disabled this would still be run, so disable this manually
