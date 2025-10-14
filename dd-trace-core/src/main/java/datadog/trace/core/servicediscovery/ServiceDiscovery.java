@@ -9,25 +9,12 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.common.writer.ddagent.SimpleUtf8Cache;
 import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ServiceDiscovery {
   private static final Logger log = LoggerFactory.getLogger(ServiceDiscovery.class);
-
-  private static final byte[] SCHEMA_VERSION = "schema_version".getBytes(ISO_8859_1);
-  private static final byte[] RUNTIME_ID = "runtime_id".getBytes(ISO_8859_1);
-  private static final byte[] LANG = "tracer_language".getBytes(ISO_8859_1);
-  private static final byte[] TRACER_VERSION = "tracer_version".getBytes(ISO_8859_1);
-  private static final byte[] HOSTNAME = "hostname".getBytes(ISO_8859_1);
-  private static final byte[] SERVICE = "service_name".getBytes(ISO_8859_1);
-  private static final byte[] ENV = "service_env".getBytes(ISO_8859_1);
-  private static final byte[] SERVICE_VERSION = "service_version".getBytes(ISO_8859_1);
-  private static final byte[] PROCESS_TAGS = "process_tags".getBytes(ISO_8859_1);
-  private static final byte[] CONTAINER_ID = "container_id".getBytes(ISO_8859_1);
-  private static final byte[] JAVA_LANG = "java".getBytes(ISO_8859_1);
 
   private final ForeignMemoryWriter foreignMemoryWriter;
 
@@ -74,45 +61,43 @@ public class ServiceDiscovery {
     mapElements += (processTags != null && processTags.length() > 0) ? 1 : 0;
     mapElements += (containerID != null && !containerID.isEmpty()) ? 1 : 0;
 
-    SimpleUtf8Cache encodingCache = new SimpleUtf8Cache(256);
-
     writer.startMap(mapElements);
 
-    writer.writeBinary(SCHEMA_VERSION);
+    writer.writeBinary("schema_version".getBytes(ISO_8859_1));
     writer.writeInt(2);
 
-    writer.writeBinary(LANG);
-    writer.writeBinary(JAVA_LANG);
+    writer.writeBinary("tracer_language".getBytes(ISO_8859_1));
+    writer.writeBinary("java".getBytes(ISO_8859_1));
 
-    writer.writeBinary(TRACER_VERSION);
-    writer.writeString(tracerVersion, encodingCache);
+    writer.writeBinary("tracer_version".getBytes(ISO_8859_1));
+    writer.writeBinary(tracerVersion.getBytes(ISO_8859_1));
 
-    writer.writeBinary(HOSTNAME);
-    writer.writeString(hostname, encodingCache);
+    writer.writeBinary("hostname".getBytes(ISO_8859_1));
+    writer.writeBinary(hostname.getBytes(ISO_8859_1));
 
     if (runtimeID != null && !runtimeID.isEmpty()) {
-      writer.writeBinary(RUNTIME_ID);
-      writer.writeString(runtimeID, encodingCache);
+      writer.writeBinary("runtime_id".getBytes(ISO_8859_1));
+      writer.writeBinary(runtimeID.getBytes(ISO_8859_1));
     }
     if (service != null && !service.isEmpty()) {
-      writer.writeBinary(SERVICE);
-      writer.writeString(service, encodingCache);
+      writer.writeBinary("service_name".getBytes(ISO_8859_1));
+      writer.writeBinary(service.getBytes(ISO_8859_1));
     }
     if (env != null && !env.isEmpty()) {
-      writer.writeBinary(ENV);
-      writer.writeString(env, encodingCache);
+      writer.writeBinary("service_env".getBytes(ISO_8859_1));
+      writer.writeBinary(env.getBytes(ISO_8859_1));
     }
     if (serviceVersion != null && !serviceVersion.isEmpty()) {
-      writer.writeBinary(SERVICE_VERSION);
-      writer.writeString(serviceVersion, encodingCache);
+      writer.writeBinary("service_version".getBytes(ISO_8859_1));
+      writer.writeBinary(serviceVersion.getBytes(ISO_8859_1));
     }
     if (processTags != null && processTags.length() > 0) {
-      writer.writeBinary(PROCESS_TAGS);
+      writer.writeBinary("process_tags".getBytes(ISO_8859_1));
       writer.writeUTF8(processTags);
     }
     if (containerID != null && !containerID.isEmpty()) {
-      writer.writeBinary(CONTAINER_ID);
-      writer.writeString(containerID, encodingCache);
+      writer.writeBinary("container_id".getBytes(ISO_8859_1));
+      writer.writeBinary(containerID.getBytes(ISO_8859_1));
     }
 
     ByteBuffer byteBuffer = buffer.slice();
