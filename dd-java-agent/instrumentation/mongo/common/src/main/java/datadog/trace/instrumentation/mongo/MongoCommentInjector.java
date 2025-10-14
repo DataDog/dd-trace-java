@@ -46,8 +46,7 @@ public class MongoCommentInjector {
       log.warn(
           "Linking Database Monitoring profiles to spans is not supported for the following query type: {}. "
               + "To disable this feature please set the following environment variable: DD_DBM_PROPAGATION_MODE=disabled",
-          event.getCommand().getClass().getSimpleName(),
-          e);
+          event.getCommand().getClass().getSimpleName());
       return event.getCommand();
     }
   }
@@ -115,9 +114,12 @@ public class MongoCommentInjector {
 
   private static String buildTraceParent(AgentSpan span) {
     // W3C traceparent format: version-traceId-spanId-flags
-    String traceIdHex = span.getTraceId().toHexStringPadded(32);
-    String spanIdHex = String.format("%016x", span.getSpanId());
-    String flags = "00"; // '01' if sampled, '00' if not
-    return String.format("00-%s-%s-%s", traceIdHex, spanIdHex, flags);
+    StringBuilder sb = new StringBuilder(2 + 1 + 32 + 1 + 16 + 1 + 2);
+    sb.append("00-"); // version
+    sb.append(span.getTraceId().toHexStringPadded(32)); // traceId
+    sb.append("-");
+    sb.append(String.format("%016x", span.getSpanId())); // spanId
+    sb.append(span.context().getSamplingPriority() > 0 ? "-01" : "-00");
+    return sb.toString();
   }
 }

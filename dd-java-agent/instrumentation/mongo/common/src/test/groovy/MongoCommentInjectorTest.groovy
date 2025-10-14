@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.mongo
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.sampling.PrioritySampling
 import org.bson.BsonDocument
 import org.bson.BsonString
 
@@ -23,6 +24,66 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
 
     then:
     comment == null
+  }
+
+  def "getComment with full mode builds traceParent in W3C format with sampled flag"() {
+    setup:
+    // Set the propagation mode to full to trigger buildTraceParent call
+    injectSysConfig("dd." + TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "full")
+    def span = TEST_TRACER.buildSpan("test-op").start()
+    span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, 0)
+
+    // Create a mock event
+    def event = Mock(com.mongodb.event.CommandStartedEvent) {
+      getDatabaseName() >> "testdb"
+      getConnectionDescription() >> Mock(com.mongodb.connection.ConnectionDescription) {
+        getServerAddress() >> Mock(com.mongodb.ServerAddress) {
+          getHost() >> "localhost"
+        }
+      }
+    }
+
+    when:
+    String comment = MongoCommentInjector.getComment(span, event)
+
+    then:
+    comment != null
+    comment.contains("dddbs='test-mongo-service'")
+    comment.contains("dde='test'")
+    comment.contains("ddh='localhost'")
+    comment.contains("dddb='testdb'")
+    // W3C traceparent format: 00-{32 hex chars}-{16 hex chars}-01 (sampled)
+    comment ==~ /.*ddtp='00-[0-9a-f]{32}-[0-9a-f]{16}-01'.*/
+  }
+
+  def "getComment with full mode builds traceParent in W3C format with not sampled flag"() {
+    setup:
+    // Set the propagation mode to full to trigger buildTraceParent call
+    injectSysConfig("dd." + TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "full")
+    def span = TEST_TRACER.buildSpan("test-op").start()
+    span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, 0)
+
+    // Create a mock event
+    def event = Mock(com.mongodb.event.CommandStartedEvent) {
+      getDatabaseName() >> "testdb"
+      getConnectionDescription() >> Mock(com.mongodb.connection.ConnectionDescription) {
+        getServerAddress() >> Mock(com.mongodb.ServerAddress) {
+          getHost() >> "localhost"
+        }
+      }
+    }
+
+    when:
+    String comment = MongoCommentInjector.getComment(span, event)
+
+    then:
+    comment != null
+    comment.contains("dddbs='test-mongo-service'")
+    comment.contains("dde='test'")
+    comment.contains("ddh='localhost'")
+    comment.contains("dddb='testdb'")
+    // W3C traceparent format: 00-{32 hex chars}-{16 hex chars}-00 (not sampled)
+    comment ==~ /.*ddtp='00-[0-9a-f]{32}-[0-9a-f]{16}-00'.*/
   }
 
   def "injectComment returns null when event is null"() {
