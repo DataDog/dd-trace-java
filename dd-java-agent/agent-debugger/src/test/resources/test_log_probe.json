@@ -43,5 +43,45 @@
         "json": {"contains": [{"ref": "arg"}, "foo"]}
       }
     ]
+  },{
+    "id": "04692489-c21a-40d3-a378-a602f8205bc0",
+    "created": "2021-03-31T13:26:52.519150+00:00",
+    "active": true,
+    "language": "java",
+    "tags": [],
+    "where": {
+      "typeName": "VetController",
+      "methodName": "showVetList"
+    },
+    "captureSnapshot": false,
+    "captureExpressions": [
+      {
+        "name": "uuid",
+        "expr": {
+          "dsl": "uuid",
+          "json": {"ref": "uuid"}
+        },
+        "capture": {
+          "maxReferenceDepth": 5
+        }
+      },
+      {
+        "name": "field1_map_key_array_3_field2",
+        "expr": {
+          "dsl": "field1.map['key'].array[3].field2",
+          "json": {
+            "getmember": [{
+              "index": [{
+                "index": [{
+                  "getmember": [{
+                    "ref": "field1"
+                  }, "map"]
+                }, "key"]
+              }, 3]
+            }, "field2"]
+          }
+        }
+      }
+    ]
   }]
 }
