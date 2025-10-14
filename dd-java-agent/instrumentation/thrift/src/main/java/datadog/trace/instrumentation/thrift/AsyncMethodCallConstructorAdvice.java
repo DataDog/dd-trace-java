@@ -7,25 +7,28 @@ import org.apache.thrift.async.TAsyncMethodCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-
 public class AsyncMethodCallConstructorAdvice {
-  private static final Logger logger = LoggerFactory.getLogger(AsyncMethodCallConstructorAdvice.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(AsyncMethodCallConstructorAdvice.class);
 
   @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void after(@Advice.This TAsyncMethodCall objInst
-      , @Advice.AllArguments final Object[] args) {
+  public static void after(
+      @Advice.This TAsyncMethodCall objInst, @Advice.AllArguments final Object[] args) {
     if (args[3] instanceof AsyncMethodCallback) {
       final AsyncMethodCallback<Object> callback = (AsyncMethodCallback) args[3];
       try {
-        ThriftConstants.setValue(TAsyncMethodCall.class, objInst, "callback", new DataDogAsyncMethodCallback<Object>(callback,null));
+        ThriftConstants.setValue(
+            TAsyncMethodCall.class,
+            objInst,
+            "callback",
+            new DataDogAsyncMethodCallback<Object>(callback, null));
       } catch (Exception e) {
         logger.error("set value error:", e);
       }
     }
 
-//    if (allArguments[2] instanceof EnhancedInstance) {
-//      remotePeer = (String) ((EnhancedInstance) allArguments[2]).getSkyWalkingDynamicField();
-//    }
+    //    if (allArguments[2] instanceof EnhancedInstance) {
+    //      remotePeer = (String) ((EnhancedInstance) allArguments[2]).getSkyWalkingDynamicField();
+    //    }
   }
 }

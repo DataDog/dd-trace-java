@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.dubbo_2_7x.DubboDecorator.DECORATE;
 import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.apache.dubbo.rpc.Filter;
@@ -16,9 +17,13 @@ import org.apache.dubbo.rpc.RpcInvocation;
 public class DubboInvokeAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope beginRequest(@Advice.This Filter filter, @Advice.Argument(1) Invocation invocation, @Advice.Local("hasSpan") boolean hasSpan) {
-    DubboTraceInfo dubboTraceInfo = new DubboTraceInfo((RpcInvocation) invocation, RpcContext.getContext());
-    AgentScope scope = activeScope();
+  public static AgentScope beginRequest(
+      @Advice.This Filter filter,
+      @Advice.Argument(1) Invocation invocation,
+      @Advice.Local("hasSpan") boolean hasSpan) {
+    DubboTraceInfo dubboTraceInfo =
+        new DubboTraceInfo((RpcInvocation) invocation, RpcContext.getContext());
+    /*    AgentScope scope = activeScope();
     if(filter.getClass().getPackage().getName().contains("org.apache.dubbo")){
       return scope;
     }
@@ -29,11 +34,24 @@ public class DubboInvokeAdvice {
         return activateSpan(startSpan("dubbo/filter",parentContext));
       }
     }
-    return scope;
+    return scope;*/
+
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(dubboTraceInfo, GETTER);
+    if (null != parentContext) {
+      hasSpan = true;
+      return activateSpan(startSpan("dubbo/filter", parentContext));
+    }
+
+    AgentSpan span = startSpan("dubbo/filter");
+
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void stopSpan(@Advice.Enter final AgentScope scope,@Advice.Local("hasSpan") boolean hasSpan, @Advice.Thrown final Throwable throwable) {
+  public static void stopSpan(
+      @Advice.Enter final AgentScope scope,
+      @Advice.Local("hasSpan") boolean hasSpan,
+      @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
       return;
     }
@@ -44,6 +62,5 @@ public class DubboInvokeAdvice {
       scope.close();
       scope.span().finish();
     }
-
   }
 }

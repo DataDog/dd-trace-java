@@ -63,15 +63,21 @@ public final class AxisClientInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      AgentScope scope = activeScope();
-      if (null != scope) {
+      AgentSpan span = activeSpan();
+      if (null != span && !DECORATE.sameTrace(span, message)) {
+        DECORATE.afterStart(span);
+        DECORATE.onMessage(span, message);
+        activateSpan(span);
+      }
+
+/*      if (null != scope) {
         if (!DECORATE.sameTrace(scope.span(), message)) {
           AgentSpan  span = startSpan(AXIS2_MESSAGE);
           DECORATE.afterStart(span);
           DECORATE.onMessage(span, message);
           return activateSpan(span);
         }
-      }
+      }*/
       return null;
     }
 

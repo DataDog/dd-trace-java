@@ -270,6 +270,7 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:aws-java:aws-java-s3-2.0",
   ":dd-java-agent:instrumentation:axis-2",
+  ":dd-java-agent:instrumentation:axis-1",
   ":dd-java-agent:instrumentation:axway-api",
   ":dd-java-agent:instrumentation:azure-functions",
   ":dd-java-agent:instrumentation:caffeine",

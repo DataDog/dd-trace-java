@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -78,12 +79,12 @@ public class TBaseAsyncProcessorInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Thrown final Throwable throwable) {
-      AgentScope scope = activeScope();
-      if (scope != null) {
-        SERVER_DECORATOR.onError(scope.span(), throwable);
-        SERVER_DECORATOR.beforeFinish(scope.span());
-        scope.close();
-        scope.span().finish();
+      AgentSpan span = activeSpan();
+      if (span != null) {
+        SERVER_DECORATOR.onError(span, throwable);
+        SERVER_DECORATOR.beforeFinish(span);
+
+        span.finish();
         CONTEXT_THREAD.remove();
       }
     }

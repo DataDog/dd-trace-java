@@ -105,14 +105,15 @@ public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Thrown final Throwable throwable) {
-      AgentScope scope = activeScope();
-      if (scope==null){
+
+      AgentSpan span = activeSpan();
+      // AgentScope scope = activeScope();
+      if (span==null){
         return;
       }
-      CLIENT_DECORATOR.onError(scope.span(), throwable);
-      CLIENT_DECORATOR.beforeFinish(scope.span());
-      scope.close();
-      scope.span().finish();
+      CLIENT_DECORATOR.onError(span, throwable);
+      CLIENT_DECORATOR.beforeFinish(span);
+      span.finish();
       CLIENT_INJECT_THREAD.remove();
     }
   }
