@@ -75,10 +75,16 @@ dependencies {
   latestDepTestCompileOnly group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.+'
   latestDepTestImplementation group: 'org.apache.cxf', name: 'cxf-rt-frontend-jaxrs', version: '+'
   latestDepTestImplementation group: 'org.apache.cxf', name:'cxf-rt-transports-http-jetty', version: '+'
+}
 
-  configurations.findAll {it.name in ['latestDepTestRuntimeClasspath', 'cxf3LatestDepTestRuntimeClasspath'] }.each {
-    it.resolutionStrategy {
-      force libs.slf4j
-    }
+configurations.named('latestDepTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
+  }
+}
+
+configurations.named('cxf3LatestDepTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
   }
 }

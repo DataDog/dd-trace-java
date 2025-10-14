@@ -106,7 +106,7 @@ jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", vers
 asm = ["asm", "asmcommons"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 # Testing
-spock = ["spock-core", "spock-junit4", "objenesis"]
+spock = ["spock-core", "objenesis"]
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]

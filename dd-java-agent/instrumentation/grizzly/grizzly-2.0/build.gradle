@@ -26,7 +26,7 @@ dependencies {
   latestDepTestImplementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
 }
 
-configurations.testRuntimeOnly {
+configurations.named('testRuntimeOnly') {
   // jersey-container-grizzly2-http transitively imports its own set repackaged asm classes
   exclude group: 'org.ow2.asm'
 }

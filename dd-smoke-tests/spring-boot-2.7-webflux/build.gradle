@@ -38,7 +38,7 @@ tasks.named("webfluxBuild", Exec) {
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'webfluxBuild'
   outputs.upToDateWhen {
-    !webfluxBuild.didWork
+    !tasks.named('webfluxBuild').get().didWork
   }
 }
 
