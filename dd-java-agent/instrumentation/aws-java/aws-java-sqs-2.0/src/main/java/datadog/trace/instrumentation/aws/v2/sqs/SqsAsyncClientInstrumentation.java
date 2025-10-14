@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -12,8 +11,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
@@ -23,22 +20,17 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
  */
 @AutoService(InstrumenterModule.class)
 public class SqsAsyncClientInstrumentation extends AbstractSqsInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
-  public String hierarchyMarkerType() {
-    return "software.amazon.awssdk.services.sqs.SqsAsyncClient";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+  public String instrumentedType() {
+    return "software.amazon.awssdk.services.sqs.DefaultSqsAsyncClient";
   }
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new java.util.HashMap<>(2);
-    contextStore.put("software.amazon.awssdk.services.sqs.SqsAsyncClient", "java.lang.Boolean");
+    contextStore.put("software.amazon.awssdk.services.sqs.SqsAsyncClient", Boolean.class.getName());
     // Map queue URL to Spring management status
     contextStore.put("java.lang.String", "java.lang.Boolean");
     return contextStore;
