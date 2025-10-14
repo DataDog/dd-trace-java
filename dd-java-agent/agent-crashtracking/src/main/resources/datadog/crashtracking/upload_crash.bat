@@ -37,13 +37,14 @@ for /f "tokens=1,2 delims=: " %%a in (%configFile%.cfg) do (
 )
 
 :: Debug: Print the loaded values (Optional)
+echo Config file: %configFile%
 echo Agent Jar: %agent%
 echo Error Log: %hs_err%
 echo JAVA_HOME: %java_home%
 echo PID: %PID%
 
 :: Execute the Java command with the loaded values
-"%java_home%\bin\java" -jar "%agent%" uploadCrash "%hs_err%"
+"%java_home%\bin\java" -jar "%agent%" uploadCrash -c "%configFile%" %hs_err%"
 set RC=%ERRORLEVEL%
 del "%configFile%" :: Clean up the configuration file
 if %RC% EQU 0 (

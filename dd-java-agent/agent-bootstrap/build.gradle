@@ -9,7 +9,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
-tasks.named("compileJava", JavaCompile).configure {
+tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.* packages")
 }
 

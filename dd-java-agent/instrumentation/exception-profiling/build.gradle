@@ -26,11 +26,11 @@ dependencies {
   }
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 
-test {
+tasks.named("test", Test) {
   useJUnitPlatform()
 }
 

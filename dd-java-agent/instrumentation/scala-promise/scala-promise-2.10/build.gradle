@@ -30,7 +30,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest'
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
+tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 

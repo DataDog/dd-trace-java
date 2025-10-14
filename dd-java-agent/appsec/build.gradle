@@ -15,7 +15,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '16.0.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '17.1.0'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy

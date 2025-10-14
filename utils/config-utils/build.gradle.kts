@@ -30,20 +30,23 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.StableConfigParser",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource"
   )
 )
 
 val excludedClassesBranchCoverage by extra(
   listOf(
     "datadog.trace.bootstrap.config.provider.AgentArgsInjector",
+    // Enum
+    "datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy",
     "datadog.trace.util.ConfigStrings"
   )
 )
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.config.inversion.GeneratedSupportedConfigurations"
+    "datadog.trace.config.inversion.GeneratedSupportedConfigurations",
+    "datadog.trace.config.inversion.SupportedConfigurationSource"
   )
 )
 
@@ -55,8 +58,4 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-}
-
-tasks.named("javadoc") {
-  dependsOn("generateSupportedConfigurations")
 }

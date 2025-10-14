@@ -44,12 +44,12 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
   }
 }
 
-forbiddenApisMain_java17 {
+tasks.named("forbiddenApisMain_java17") {
   failOnMissingClasses = false
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  javaLauncher = getJavaLauncherFor(17)
+  configureCompiler(it, 17)
 }
 
 dependencies {

@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ARGUMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.CAPTURES;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.CAPTURE_EXPRESSIONS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.COLLECTION_SIZE_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
@@ -20,7 +21,6 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
-import static com.datadog.debugger.util.MoshiSnapshotHelper.WATCHES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -202,6 +202,7 @@ public class SnapshotSerializationTest {
         });
     exitCapturedContext.addReturn(
         CapturedContext.CapturedValue.of(String.class.getTypeName(), "foo"));
+    exitCapturedContext.addThrowable(new RuntimeException("Illegal argument"));
     snapshot.setExit(exitCapturedContext);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
@@ -210,9 +211,40 @@ public class SnapshotSerializationTest {
     CapturedContext exit = deserializedSnapshot.getCaptures().getReturn();
     Assertions.assertEquals(1, entry.getLocals().size());
     Assertions.assertEquals(42, entry.getLocals().get("localInt").getValue());
-    Assertions.assertEquals(2, exit.getLocals().size());
+    Assertions.assertEquals(3, exit.getLocals().size());
     Assertions.assertEquals(42, exit.getLocals().get("localInt").getValue());
     Assertions.assertEquals("foo", exit.getLocals().get("@return").getValue());
+    Assertions.assertEquals(
+        "Illegal argument",
+        ((HashMap<String, CapturedContext.CapturedValue>)
+                exit.getLocals().get("@exception").getValue())
+            .get("detailMessage")
+            .getValue());
+    Assertions.assertEquals(
+        RuntimeException.class.getTypeName(), exit.getCapturedThrowable().getType());
+    Assertions.assertEquals("Illegal argument", exit.getCapturedThrowable().getMessage());
+  }
+
+  @Test
+  public void truncatedExceptionMessage() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext exitCapturedContext = new CapturedContext();
+    String oneKB =
+        "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123";
+    String largeErrorMessage = oneKB + oneKB + oneKB + oneKB;
+    exitCapturedContext.addThrowable(new RuntimeException(largeErrorMessage));
+    snapshot.setExit(exitCapturedContext);
+    String buffer = adapter.toJson(snapshot);
+    Snapshot deserializedSnapshot = adapter.fromJson(buffer);
+    Assertions.assertEquals(
+        2048,
+        deserializedSnapshot
+            .getCaptures()
+            .getReturn()
+            .getCapturedThrowable()
+            .getMessage()
+            .length());
   }
 
   @Test
@@ -940,7 +972,7 @@ public class SnapshotSerializationTest {
   }
 
   @Test
-  public void watches() throws IOException {
+  public void captureExpressions() throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
@@ -948,24 +980,27 @@ public class SnapshotSerializationTest {
     map.put("foo1", "bar1");
     map.put("foo2", "bar2");
     map.put("foo3", "bar3");
-    context.addWatch(CapturedContext.CapturedValue.of("watch1", Map.class.getTypeName(), map));
-    context.addWatch(
+    context.addCaptureExpression(
+        CapturedContext.CapturedValue.of("expr1", Map.class.getTypeName(), map));
+    context.addCaptureExpression(
         CapturedContext.CapturedValue.of(
-            "watch2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
-    context.addWatch(CapturedContext.CapturedValue.of("watch3", Integer.TYPE.getTypeName(), 42));
+            "expr2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
+    context.addCaptureExpression(
+        CapturedContext.CapturedValue.of("expr3", Integer.TYPE.getTypeName(), 42));
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
     Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
     Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
-    Map<String, Object> watches = (Map<String, Object>) returnJson.get(WATCHES);
+    Map<String, Object> captureExpressions =
+        (Map<String, Object>) returnJson.get(CAPTURE_EXPRESSIONS);
     assertNull(returnJson.get(LOCALS));
     assertNull(returnJson.get(ARGUMENTS));
-    assertEquals(3, watches.size());
-    assertMapItems(watches, "watch1", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3");
-    assertArrayItem(watches, "watch2", "1", "2", "3");
-    assertPrimitiveValue(watches, "watch3", Integer.TYPE.getTypeName(), "42");
+    assertEquals(3, captureExpressions.size());
+    assertMapItems(captureExpressions, "expr1", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3");
+    assertArrayItem(captureExpressions, "expr2", "1", "2", "3");
+    assertPrimitiveValue(captureExpressions, "expr3", Integer.TYPE.getTypeName(), "42");
   }
 
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {

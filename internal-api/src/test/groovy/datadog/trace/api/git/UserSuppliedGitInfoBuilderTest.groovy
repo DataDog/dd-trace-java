@@ -6,12 +6,6 @@ import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.ConfigStrings
 
 class UserSuppliedGitInfoBuilderTest extends DDSpecification {
-
-  def setup() {
-    // Clear all environment variables to avoid clashes between
-    environmentVariables.clear(System.getenv().keySet() as String[])
-  }
-
   def "test no user supplied git info"() {
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)

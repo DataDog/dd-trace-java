@@ -27,7 +27,7 @@ addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty
 
 ["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }
 
@@ -92,6 +92,4 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
-
-
 }
