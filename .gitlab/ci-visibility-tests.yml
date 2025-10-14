@@ -46,7 +46,7 @@ check-ci-visibility-label:
       dotenv: pr.env
   allow_failure: true
   retry:
-    max: 2 
+    max: 2
     when: always
 
 run-ci-visibility-test-environment:
