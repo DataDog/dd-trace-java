@@ -98,8 +98,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
-  private boolean hasUserWafConfig;
-  private boolean defaultConfigActivated;
+  private volatile boolean hasUserWafConfig;
+  private volatile boolean defaultConfigActivated;
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());

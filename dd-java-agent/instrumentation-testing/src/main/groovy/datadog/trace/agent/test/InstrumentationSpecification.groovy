@@ -251,7 +251,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
   }
 
-  boolean originalAppSecRuntimeValue
+  volatile boolean originalAppSecRuntimeValue
 
   @Shared
   ConcurrentHashMap<DDSpan, List<Exception>> spanFinishLocations = new ConcurrentHashMap<>()

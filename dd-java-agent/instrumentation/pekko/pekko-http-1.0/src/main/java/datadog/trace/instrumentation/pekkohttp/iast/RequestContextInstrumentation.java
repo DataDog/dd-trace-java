@@ -17,7 +17,6 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.server.RequestContext;
@@ -46,7 +45,6 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
         RequestContextInstrumentation.class.getName() + "$GetRequestAdvice");
   }
 
-  @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
   @RequiresRequestContext(RequestContextSlot.IAST)
   static class GetRequestAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
