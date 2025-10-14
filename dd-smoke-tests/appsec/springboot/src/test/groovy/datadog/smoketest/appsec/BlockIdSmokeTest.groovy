@@ -15,7 +15,7 @@ import java.util.regex.Pattern
  * - block_id is extracted from libddwaf action parameters
  * - block_id is included in JSON blocking responses as "block_id" field
  * - block_id is included in HTML blocking responses as placeholder replacement
- * - block_id placeholder {block_id} is replaced in custom redirect URLs
+ * - block_id placeholder [block_id] is replaced in custom redirect URLs
  */
 class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -171,8 +171,8 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     def matcher = UUID_PATTERN.matcher(body)
     assert matcher.find(), "block_id with valid UUID format not found in response: ${body}"
 
-    // Verify the placeholder {block_id} was replaced (should not be present)
-    assert !body.contains('{block_id}'), "Placeholder {block_id} was not replaced in HTML response"
+    // Verify the placeholder [block_id] was replaced (should not be present)
+    assert !body.contains('[block_id]'), "Placeholder [block_id] was not replaced in HTML response"
 
     // Verify it's in the expected HTML structure
     body.contains('You\'ve been blocked')
