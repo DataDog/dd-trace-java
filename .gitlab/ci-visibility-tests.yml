@@ -32,8 +32,7 @@ check-ci-visibility-label:
       
       # Check if PR has the CI visibility label
       if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
-        # Export PR number for trigger job
-        export JAVA_TRACER_PR_TO_TEST="$PR_NUMBER"
+        echo "PR_NUMBER=${PR_NUMBER}" > pr.env
         echo "PR #${PR_NUMBER} detected as CI Visibility PR"
         exit 0
       else
@@ -42,6 +41,9 @@ check-ci-visibility-label:
       fi
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
+  artifacts:
+    reports:
+      dotenv: pr.env
   allow_failure: true
   retry:
     max: 2
@@ -51,6 +53,7 @@ run-ci-visibility-test-environment:
   stage: ci-visibility-tests
   needs:
     - job: check-ci-visibility-label
+      artifacts: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
