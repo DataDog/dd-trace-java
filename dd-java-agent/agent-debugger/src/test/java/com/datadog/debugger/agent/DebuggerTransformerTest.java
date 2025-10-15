@@ -155,7 +155,9 @@ public class DebuggerTransformerTest {
           LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
       DebuggerTransformer debuggerTransformer =
           new DebuggerTransformer(
-              config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
+              config,
+              new ProbeMetadata(),
+              new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
       debuggerTransformer.transform(
           ClassLoader.getSystemClassLoader(),
           "java.util.ArrayList",
@@ -201,7 +203,8 @@ public class DebuggerTransformerTest {
       logProbes.add(logProbe);
     }
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
-    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
+    DebuggerTransformer debuggerTransformer =
+        new DebuggerTransformer(config, new ProbeMetadata(), configuration);
     for (ProbeTestInfo probeInfo : probeInfos) {
       byte[] newClassBuffer =
           debuggerTransformer.transform(
@@ -255,6 +258,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
+            new ProbeMetadata(),
             new DebuggerSink(
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
@@ -283,6 +287,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
+            new ProbeMetadata(),
             new DebuggerSink(
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
@@ -319,7 +324,11 @@ public class DebuggerTransformerTest {
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
-            config, configuration, ((definition, result) -> lastResult.set(result)), listener);
+            config,
+            configuration,
+            ((definition, result) -> lastResult.set(result)),
+            new ProbeMetadata(),
+            listener);
     DebuggerAgentHelper.injectSink(listener);
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -365,6 +374,7 @@ public class DebuggerTransformerTest {
                 invocationOrder.add(definition);
               }
             },
+            new ProbeMetadata(),
             new DebuggerSink(
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     debuggerTransformer.transform(
@@ -412,7 +422,7 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
       methodInfo
           .getMethodNode()
           .instructions

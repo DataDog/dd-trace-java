@@ -221,7 +221,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, line);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver((encodedProbeId) -> null);
+    DebuggerContext.initProbeResolver(probeIndex -> null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -238,7 +238,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     TestSnapshotListener listener = installProbes(lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(
-        (encodedProbeId) -> {
+        probeIndex -> {
           throw new IllegalArgumentException("oops");
         });
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);

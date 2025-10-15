@@ -454,14 +454,14 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
     // only capture entry values if explicitly not at Exit. By default, we are using evaluateAt=EXIT
     boolean captureEntry = getEvaluateAt() != MethodLocation.EXIT;
     return new CapturedContextInstrumentor(
             this,
             methodInfo,
             diagnostics,
-            probeIds,
+            probeIndices,
             isCaptureSnapshot(),
             captureEntry,
             toLimits(getCapture()))

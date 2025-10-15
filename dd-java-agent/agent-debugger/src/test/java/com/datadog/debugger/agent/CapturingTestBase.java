@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.io.File;
@@ -65,16 +64,12 @@ public class CapturingTestBase {
       MoshiHelper.createGenericAdapter();
 
   protected Config config;
-
   protected ConfigurationUpdater configurationUpdater;
-
   protected ClassFileTransformer currentTransformer;
-
   protected Instrumentation instr;
-
   protected MockInstrumentationListener instrumentationListener;
-
   protected ProbeStatusSink probeStatusSink;
+  protected ProbeMetadata probeMetadata = new ProbeMetadata();
 
   @AfterEach
   public void after() {
@@ -359,11 +354,15 @@ public class CapturingTestBase {
             new DebuggerSink(config, probeStatusSink),
             new ClassesToRetransformFinder());
     currentTransformer =
-        new DebuggerTransformer(config, configuration, instrumentationListener, listener);
+        new DebuggerTransformer(
+            config,
+            configuration,
+            instrumentationListener,
+            configurationUpdater.getProbeMetadata(),
+            listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(
-        (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
+    DebuggerContext.initProbeResolver(configurationUpdater::resolve);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
@@ -387,16 +386,6 @@ public class CapturingTestBase {
     setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
     setFieldInConfig(config, "dynamicInstrumentationSnapshotUrl", "http://localhost:8080");
     return config;
-  }
-
-  public ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
-    for (ProbeDefinition probe : probes) {
-      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-        return probe;
-      }
-    }
-
-    return configurationUpdater.resolve(encodedId);
   }
 
   protected TestSnapshotListener installMethodProbeAtExit(

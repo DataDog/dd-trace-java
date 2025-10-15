@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -187,6 +188,22 @@ public class WellKnownClasses {
     THROWABLE_SPECIAL_FIELDS.put("cause", ThrowableFields::cause);
   }
 
+  private static final List<String> SAFE_COLLECTION_PACKAGES =
+      Arrays.asList(
+          "java.", // JDK base module
+          "com.google.protobuf.", // Google ProtoBuf
+          "com.google.common.collect.", // Google Guava
+          "it.unimi.dsi.fastutil." // fastutil
+          );
+
+  private static final List<String> SAFE_MAP_PACKAGES =
+      Arrays.asList(
+          "java.", // JDK base module
+          "com.google.protobuf.", // Google ProtoBuf
+          "com.google.common.collect.", // Google Guava
+          "it.unimi.dsi.fastutil." // fastutil
+          );
+
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
    *     free
@@ -209,13 +226,10 @@ public class WellKnownClasses {
    */
   public static boolean isSafe(Collection<?> collection) {
     String className = collection.getClass().getTypeName();
-    if (className.startsWith("java.")) {
-      // All Collection implementations from JDK base module are considered as safe
-      return true;
-    }
-    if (className.startsWith("com.google.protobuf.")) {
-      // All Collection implementations from Google ProtoBuf are considered as safe
-      return true;
+    for (String safePackage : SAFE_COLLECTION_PACKAGES) {
+      if (className.startsWith(safePackage)) {
+        return true;
+      }
     }
     return false;
   }
@@ -225,13 +239,10 @@ public class WellKnownClasses {
    */
   public static boolean isSafe(Map<?, ?> map) {
     String className = map.getClass().getTypeName();
-    if (className.startsWith("java.")) {
-      // All Map implementations from JDK base module are considered as safe
-      return true;
-    }
-    if (className.startsWith("com.google.protobuf.")) {
-      // All Map implementations from Google ProtoBuf are considered as safe
-      return true;
+    for (String safePackage : SAFE_MAP_PACKAGES) {
+      if (className.startsWith(safePackage)) {
+        return true;
+      }
     }
     return false;
   }

@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'com.gradleup.shadow'
@@ -13,12 +14,6 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
-
-kotlin {
-  compilerOptions {
-    jvmTarget = JvmTarget.JVM_1_8
-  }
-}
 
 dependencies {
   api libs.slf4j
@@ -59,4 +54,12 @@ tasks.named("compileTestGroovy") {
     "Groovy generates synthetic accessors methods from superclass, we don't want that for `MisbehavingClassLoader`," +
     " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
     )
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
 }
