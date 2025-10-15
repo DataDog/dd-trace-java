@@ -1996,6 +1996,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      * @returns <code>true</code> if the reset was successful, otherwise <code>false</code> 
      * if this <code>ReusableSingleSpanBuilder</code> is still "in-use".
      */
+    final boolean reset(String instrumentationName, CharSequence operationName) {
       if (this.inUse) return false;
       this.inUse = true;
 
