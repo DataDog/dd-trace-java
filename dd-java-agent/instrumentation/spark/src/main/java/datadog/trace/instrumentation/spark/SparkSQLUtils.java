@@ -173,13 +173,26 @@ public class SparkSQLUtils {
         generator.writeStringField("nodeDetailString", nodeDetails);
       }
 
-      // Metadata is only present for FileSourceScan nodes
+      // Metadata is only added natively by Spark for FileSourceScan nodes
+      // We leverage this to extract & inject additional argument-level data
       if (!plan.metadata().isEmpty()) {
         generator.writeFieldName("meta");
         generator.writeStartObject();
 
         for (Tuple2<String, String> metadata : JavaConverters.asJavaCollection(plan.metadata())) {
-          generator.writeStringField(metadata._1, metadata._2);
+          // If it looks like a string array, break apart and write as native JSON array
+          if (metadata._2.startsWith("[\"") && metadata._2.endsWith("\"]")) {
+            String[] list = metadata._2.substring(2, metadata._2.length() - 2).split("\", \"");
+
+            generator.writeFieldName(metadata._1);
+            generator.writeStartArray();
+            for (String entry : list) {
+              generator.writeString(entry);
+            }
+            generator.writeEndArray();
+          } else {
+            generator.writeStringField(metadata._1, metadata._2);
+          }
         }
 
         generator.writeEndObject();

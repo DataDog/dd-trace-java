@@ -1,37 +1,21 @@
 package datadog.trace.instrumentation.spark;
 
-import java.util.Collection;
-import org.apache.spark.sql.catalyst.trees.TreeNode;
-import scala.None$;
-import scala.collection.JavaConverters;
-import scala.collection.immutable.$colon$colon;
-import scala.collection.immutable.Iterable;
-import scala.collection.immutable.Nil$;
+import java.util.ArrayList;
+import org.apache.spark.sql.catalyst.plans.QueryPlan;
+import scala.Option;
+import scala.collection.Iterable;
 
 public class CommonSparkPlanUtils {
   public static String parsePlanProduct(Object value) {
-    // TODO: improve parsing of certain types
-    //  1. Some() should be unwrapped
-    //  2. requiredSchema on Scan * (currently showing StructType)
-
-    // TODO: support a few more common types?
-    // condition=org.apache.spark.sql.catalyst.expressions.objects.Invoke
-    // joinType=org.apache.spark.sql.catalyst.plans.Inner$
-    // buildSide=org.apache.spark.sql.catalyst.optimizer.BuildRight$
-    // shuffleOrigin=org.apache.spark.sql.execution.exchange.ENSURE_REQUIREMENTS$
-    // outputPartitioning=org.apache.spark.sql.catalyst.plans.physical.SinglePartition$
-    if (value instanceof String
-        || value instanceof Boolean
-        || value instanceof Collection
-        || value instanceof None$
-        || value instanceof Integer) {
-      return value.toString();
-    } else if (value instanceof $colon$colon || value instanceof Nil$) {
-      return JavaConverters.asJavaIterable(((Iterable) value)).toString();
-    } else if (value instanceof TreeNode) {
-      // Filter out any potential child nodes
-      // TODO: Exempt conditions from this branch
-      // e.g. condition=class org.apache.spark.sql.catalyst.expressions.objects.Invoke
+    if (value == null) {
+      return "null";
+    } else if (value instanceof Iterable) {
+      ArrayList<String> list = new ArrayList<>();
+      ((Iterable) value).foreach(item -> list.add(parsePlanProduct(item)));
+      return "[\"" + String.join("\", \"", list) + "\"]";
+    } else if (value instanceof Option) {
+      return parsePlanProduct(((Option) value).getOrElse(() -> "none"));
+    } else if (value instanceof QueryPlan) { // Filter out values referencing child nodes
       return null;
     } else {
       return value.toString();
