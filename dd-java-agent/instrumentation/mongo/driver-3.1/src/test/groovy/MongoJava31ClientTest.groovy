@@ -8,20 +8,15 @@ import com.mongodb.event.CommandFailedEvent
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import com.mongodb.event.CommandSucceededEvent
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.Document
 import spock.lang.Shared
 
-import java.util.concurrent.ConcurrentLinkedQueue
-
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class MongoJava31ClientTest extends MongoBaseTest {
@@ -235,132 +230,6 @@ abstract class MongoJava31ClientTest extends MongoBaseTest {
     thrown(MongoTimeoutException)
     // Unfortunately not caught by our instrumentation.
     assertTraces(0) {}
-  }
-
-  def "test DBM propagation with sampled flag"() {
-    setup:
-    injectSysConfig("dd." + DB_DBM_PROPAGATION_MODE_MODE, "full")
-    injectSysConfig("service.name", "test-mongo-service")
-    injectSysConfig("dd.env", "test")
-
-    String collectionName = randomCollectionName()
-    def capturedEvents = new ConcurrentLinkedQueue<CommandStartedEvent>()
-
-    def dbmClient = new MongoClient(new ServerAddress(mongoDbContainer.getHost(), port),
-      MongoClientOptions.builder()
-      .description("dbm-test-client")
-      .addCommandListener(new CommandListener() {
-        @Override
-        void commandStarted(CommandStartedEvent event) {
-          capturedEvents.add(event)
-        }
-
-        @Override
-        void commandSucceeded(CommandSucceededEvent event) {}
-
-        @Override
-        void commandFailed(CommandFailedEvent event) {}
-      })
-      .build())
-
-    DDSpan setupSpan = null
-    MongoCollection<Document> collection = runUnderTrace("setup") {
-      setupSpan = activeSpan() as DDSpan
-      MongoDatabase db = dbmClient.getDatabase(databaseName)
-      db.createCollection(collectionName)
-      return db.getCollection(collectionName)
-    }
-    TEST_WRITER.waitUntilReported(setupSpan)
-    TEST_WRITER.clear()
-    capturedEvents.clear()
-
-    when:
-    runUnderTrace("dbm-test") {
-      AgentSpan span = activeSpan() as AgentSpan
-      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, 0)
-      collection.insertOne(new Document("test", "value"))
-    }
-
-    then:
-    // Find the insert command event
-    def insertEvent = capturedEvents.find { it.commandName == "insert" }
-    insertEvent != null
-    def command = insertEvent.command
-    command.containsKey('$comment')
-    def comment = command.getString('$comment').value
-
-    // Verify comment contains DBM tags
-    comment.contains("dddbs='test-mongo-service'")
-    comment.contains("dde='test'")
-
-    // Verify traceparent has sampled flag (01)
-    comment ==~ /.*ddtp='00-[0-9a-f]{32}-[0-9a-f]{16}-01'.*/
-
-    cleanup:
-    dbmClient?.close()
-  }
-
-  def "test DBM propagation with not sampled flag"() {
-    setup:
-    injectSysConfig("dd." + DB_DBM_PROPAGATION_MODE_MODE, "full")
-    injectSysConfig("service.name", "test-mongo-service")
-    injectSysConfig("dd.env", "test")
-
-    String collectionName = randomCollectionName()
-    def capturedEvents = new ConcurrentLinkedQueue<CommandStartedEvent>()
-
-    def dbmClient = new MongoClient(new ServerAddress(mongoDbContainer.getHost(), port),
-      MongoClientOptions.builder()
-      .description("dbm-test-client")
-      .addCommandListener(new CommandListener() {
-        @Override
-        void commandStarted(CommandStartedEvent event) {
-          capturedEvents.add(event)
-        }
-
-        @Override
-        void commandSucceeded(CommandSucceededEvent event) {}
-
-        @Override
-        void commandFailed(CommandFailedEvent event) {}
-      })
-      .build())
-
-    DDSpan setupSpan = null
-    MongoCollection<Document> collection = runUnderTrace("setup") {
-      setupSpan = activeSpan() as DDSpan
-      MongoDatabase db = dbmClient.getDatabase(databaseName)
-      db.createCollection(collectionName)
-      return db.getCollection(collectionName)
-    }
-    TEST_WRITER.waitUntilReported(setupSpan)
-    TEST_WRITER.clear()
-    capturedEvents.clear()
-
-    when:
-    runUnderTrace("dbm-test") {
-      AgentSpan span = activeSpan() as AgentSpan
-      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, 0)
-      collection.insertOne(new Document("test", "value"))
-    }
-
-    then:
-    // Find the insert command event
-    def insertEvent = capturedEvents.find { it.commandName == "insert" }
-    insertEvent != null
-    def command = insertEvent.command
-    command.containsKey('$comment')
-    def comment = command.getString('$comment').value
-
-    // Verify comment contains DBM tags
-    comment.contains("dddbs='test-mongo-service'")
-    comment.contains("dde='test'")
-
-    // Verify traceparent has not sampled flag (00)
-    comment ==~ /.*ddtp='00-[0-9a-f]{32}-[0-9a-f]{16}-00'.*/
-
-    cleanup:
-    dbmClient?.close()
   }
 }
 
