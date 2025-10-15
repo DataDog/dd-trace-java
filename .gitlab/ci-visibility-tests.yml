@@ -19,10 +19,6 @@ check-ci-visibility-label:
     - gh auth login --with-token < github-token.txt
   script:
     - |
-      # Install authanywhere - Required for PR comment
-      wget -q binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-amd64
-      chmod +x authanywhere-linux-amd64
-
       # Source utility functions
       source .gitlab/ci_visibility_utils.sh
       
@@ -36,8 +32,8 @@ check-ci-visibility-label:
       
       # Check if PR has the CI visibility label
       if pr_has_label "$PR_NUMBER" "comp: ci visibility"; then
+        echo "PR_NUMBER=${PR_NUMBER}" > pr.env
         echo "PR #${PR_NUMBER} detected as CI Visibility PR"
-        write_pr_comment "$PR_NUMBER" "Test Optimization - Test Environment" "Triggering test environment. Check [pipeline](https://gitlab.ddbuild.io/DataDog/apm-reliability/test-environment/-/pipelines?ref=main&source=pipeline) for test results."
         exit 0
       else
         echo "PR #${PR_NUMBER} not a CI Visibility PR, ignoring trigger"
@@ -45,6 +41,9 @@ check-ci-visibility-label:
       fi
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
+  artifacts:
+    reports:
+      dotenv: pr.env
   allow_failure: true
   retry:
     max: 2
@@ -54,6 +53,7 @@ run-ci-visibility-test-environment:
   stage: ci-visibility-tests
   needs:
     - job: check-ci-visibility-label
+      artifacts: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -74,3 +74,4 @@ run-ci-visibility-test-environment:
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
     TRACER_LANG: java
     JAVA_TRACER_REF_TO_TEST: $CI_COMMIT_BRANCH
+    JAVA_TRACER_PR_TO_TEST: $PR_NUMBER
