@@ -1034,7 +1034,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     newSpanBuilder.init(instrumentationName, operationName);
 
     // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
-    // and then not using it.  Without an ability to replace the cached SpanBuilder,
+    // and then not using it.  Without the ability to replace the cached SpanBuilder,
     // that case could result in permanently burning the cache for a given thread.
 
     // That could be solved with additional logic during ReusableSingleSpanBuilder#start
