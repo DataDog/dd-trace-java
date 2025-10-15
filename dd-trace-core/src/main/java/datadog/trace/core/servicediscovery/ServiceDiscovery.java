@@ -23,9 +23,6 @@ public class ServiceDiscovery {
   }
 
   public void writeTracerMetadata(Config config) {
-    if (!config.isServiceDiscoveryEnabled()) {
-      return;
-    }
     try {
       byte[] payload =
           ServiceDiscovery.encodePayload(

@@ -43,6 +43,9 @@ public class TracerInstaller {
 
   @SuppressForbidden // intentional use of Class.forName
   private static void maybeEnableServiceDiscovery(CoreTracerBuilder tracerBuilder) {
+    if (!Config.get().isServiceDiscoveryEnabled()) {
+      return;
+    }
     if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
       return;

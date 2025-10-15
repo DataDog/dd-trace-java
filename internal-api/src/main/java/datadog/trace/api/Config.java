@@ -367,7 +367,6 @@ import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_RUNTIME_ID_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME_SET_BY_USER;
 import static datadog.trace.api.config.GeneralConfig.SITE;
@@ -645,6 +644,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
@@ -2672,7 +2672,8 @@ public class Config {
         configProvider.getLong(
             TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
     serviceDiscoveryEnabled =
-        configProvider.getBoolean(SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
+        configProvider.getBoolean(
+            TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -2954,6 +2955,10 @@ public class Config {
 
   public boolean isServiceDiscoveryEnabled() {
     return serviceDiscoveryEnabled;
+  }
+
+  public boolean isLongRunningTraceEnabled() {
+    return longRunningTraceEnabled;
   }
 
   public long getLongRunningTraceInitialFlushInterval() {
@@ -5922,6 +5927,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", serviceDiscoveryEnabled="
+        + serviceDiscoveryEnabled
         + '}';
   }
 }
