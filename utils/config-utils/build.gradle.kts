@@ -16,6 +16,7 @@ val excludedClassesCoverage by extra(
     // tested in internal-api
     "datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider",
     "datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider",
+    "datadog.trace.bootstrap.config.provider.civisibility.CiEnvironmentVariables",
     "datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.ConfigConverter.ValueOfLookup",
     // tested in internal-api
