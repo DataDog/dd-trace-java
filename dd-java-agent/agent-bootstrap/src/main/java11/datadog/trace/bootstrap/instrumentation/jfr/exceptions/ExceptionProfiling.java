@@ -2,6 +2,8 @@ package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
@@ -9,9 +11,20 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
  */
 public final class ExceptionProfiling {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProfiling.class);
+
   /** Lazy initialization-on-demand. */
   private static final class Holder {
-    static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
+    static final ExceptionProfiling INSTANCE = create();
+
+    private static ExceptionProfiling create() {
+      try {
+        return new ExceptionProfiling(Config.get());
+      } catch (Throwable t) {
+        LOGGER.debug("Unable to create ExceptionProfiling", t);
+        return null;
+      }
+    }
   }
 
   /**
