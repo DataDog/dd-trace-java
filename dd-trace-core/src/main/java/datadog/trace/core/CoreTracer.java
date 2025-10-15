@@ -1037,7 +1037,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // and then not using it.  Without an ability to replace the cached SpanBuilder,
     // that case could result in permanently burning the cache for a given thread.
 
-    // That could be solved with additional logic during ReusableSingleSpanBuilder#buildSpan
+    // That could be solved with additional logic during ReusableSingleSpanBuilder#start
     // that checks to see if the cached Builder is in use and then replaces it
     // with the freed Builder, but that would put extra logic in the common path.
 
@@ -1982,7 +1982,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
     // Used to track whether the ReusableSingleSpanBuilder is actively being used
     // ReusableSingleSpanBuilder becomes "inUse" after a succesful init/reset and remains "inUse"
-    // until "buildSpan" is called
+    // until "start" is called
     boolean inUse;
 
     ReusableSingleSpanBuilder(CoreTracer tracer) {
