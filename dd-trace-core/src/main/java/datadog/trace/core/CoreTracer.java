@@ -598,7 +598,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         tagInterceptor,
         strictTraceWrites,
         instrumentationGateway,
-        null, // you might refactor this as well
+        null,
         timeSource,
         dataStreamsMonitoring,
         profilingContextIntegration,
@@ -903,8 +903,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       AgentTaskScheduler.get()
           .schedule(
               () -> {
-                final ServiceDiscovery serviceDiscovery =
-                    serviceDiscoveryFactory.createServiceDiscovery();
+                final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
                 if (serviceDiscovery != null) {
                   // JNA can do ldconfig and other commands. Those are hidden since internal.
                   try (final TraceScope blackhole = muteTracing()) {
