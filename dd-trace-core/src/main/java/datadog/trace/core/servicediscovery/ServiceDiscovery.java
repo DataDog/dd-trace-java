@@ -23,18 +23,18 @@ public class ServiceDiscovery {
   }
 
   public void writeTracerMetadata(Config config) {
-    byte[] payload =
-        ServiceDiscovery.encodePayload(
-            TracerVersion.TRACER_VERSION,
-            config.getHostName(),
-            config.getRuntimeId(),
-            config.getServiceName(),
-            config.getEnv(),
-            config.getVersion(),
-            ProcessTags.getTagsForSerialization(),
-            ContainerInfo.get().getContainerId());
-
     try {
+      byte[] payload =
+          ServiceDiscovery.encodePayload(
+              TracerVersion.TRACER_VERSION,
+              config.getHostName(),
+              config.getRuntimeId(),
+              config.getServiceName(),
+              config.getEnv(),
+              config.getVersion(),
+              ProcessTags.getTagsForSerialization(),
+              ContainerInfo.get().getContainerId());
+
       foreignMemoryWriter.write(payload);
     } catch (Throwable t) {
       log.debug("service discovery memfd write failed", t);
