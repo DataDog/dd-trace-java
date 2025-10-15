@@ -55,8 +55,8 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
-    // Updated to match actual trace pattern after MongoDB DBM implementation
-    return ["[servlet.request[spring.handler[repository.operation]]]"]
+    // MongoDB driver creates mongo.query spans as children of repository.operation spans
+    return ["[servlet.request[spring.handler[repository.operation[mongo.query]]]]"]
   }
 
   def "put docs and find all docs"() {
