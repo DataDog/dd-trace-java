@@ -53,9 +53,9 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
     return new CapturedContextInstrumentor(
-            this, methodInfo, diagnostics, probeIds, false, false, null)
+            this, methodInfo, diagnostics, probeIndices, false, false, null)
         .instrument();
   }
 

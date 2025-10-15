@@ -24,8 +24,8 @@ public class SpanProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new SpanInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+    return new SpanInstrumentor(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
   @Generated
