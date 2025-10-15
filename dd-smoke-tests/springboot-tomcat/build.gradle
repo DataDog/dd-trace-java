@@ -43,18 +43,19 @@ dependencies {
 
 tasks.register("unzip", Copy) {
   def zipFileNamePrefix = "tomcat"
-  def zipPath = project.configurations.serverFile.find {
-    it.name.startsWith(zipFileNamePrefix)
+  def serverZipTree = providers.provider {
+    // eager access
+    def zipPath = project.configurations.serverFile.find {
+      it.name.startsWith(zipFileNamePrefix)
+    }
+    if (zipPath == null) {
+      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+    }
+    zipTree(zipPath)
   }
-  if (zipPath != null) {
-    def zipFile = file(zipPath)
-    def outputDir = file("${buildDir}")
 
-    from zipTree(zipFile)
-    into outputDir
-  } else {
-    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
-  }
+  from serverZipTree
+  into layout.buildDirectory
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
