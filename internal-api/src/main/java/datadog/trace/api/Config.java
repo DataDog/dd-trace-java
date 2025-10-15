@@ -128,6 +128,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
@@ -366,6 +367,7 @@ import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_RUNTIME_ID_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME_SET_BY_USER;
 import static datadog.trace.api.config.GeneralConfig.SITE;
@@ -1192,6 +1194,8 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
+
+  private final boolean serviceDiscoveryEnabled;
 
   private final Set<String> iastWeakHashAlgorithms;
 
@@ -2667,6 +2671,8 @@ public class Config {
     long longRunningTraceFlushInterval =
         configProvider.getLong(
             TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+    serviceDiscoveryEnabled =
+        configProvider.getBoolean(SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -2946,8 +2952,8 @@ public class Config {
     return instrumenterConfig.isTraceEnabled();
   }
 
-  public boolean isLongRunningTraceEnabled() {
-    return longRunningTraceEnabled;
+  public boolean isServiceDiscoveryEnabled() {
+    return serviceDiscoveryEnabled;
   }
 
   public long getLongRunningTraceInitialFlushInterval() {
