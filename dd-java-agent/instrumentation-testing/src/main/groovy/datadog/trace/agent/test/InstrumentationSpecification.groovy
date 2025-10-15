@@ -326,7 +326,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     INSTRUMENTATION.addTransformer(new DebuggerTransformer(config, configuration, {
       ProbeDefinition definition, InstrumentationResult result ->
-    }, sink))
+    }, configurationUpdater.getProbeMetadata(), sink))
     DebuggerContext.initProbeResolver(configurationUpdater)
     DebuggerContext.initClassFilter(new DenyListHelper(null))
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer())
