@@ -334,10 +334,10 @@ final class InstrumenterIndex {
      */
     public static void main(String[] args) throws IOException {
       if (args.length < 1) {
-        throw new IllegalArgumentException("Expected: resources-dir");
+        throw new IllegalArgumentException("Expected: index-dir");
       }
 
-      Path resourcesDir = Paths.get(args[0]).toAbsolutePath();
+      Path indexDir = Paths.get(args[0]).toAbsolutePath();
 
       // satisfy some instrumenters that cache matchers in initializers
       HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
@@ -345,7 +345,7 @@ final class InstrumenterIndex {
 
       IndexGenerator indexGenerator = new IndexGenerator();
       indexGenerator.buildIndex();
-      indexGenerator.writeIndex(resourcesDir.resolve(INSTRUMENTER_INDEX_NAME));
+      indexGenerator.writeIndex(indexDir.resolve(INSTRUMENTER_INDEX_NAME));
     }
   }
 }

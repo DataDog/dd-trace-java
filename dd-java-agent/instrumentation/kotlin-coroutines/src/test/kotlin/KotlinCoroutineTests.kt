@@ -1,5 +1,4 @@
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CoroutineDispatcher

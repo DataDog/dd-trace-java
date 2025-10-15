@@ -17,7 +17,7 @@ tasks.named("compileLatestDepJava11TestJava", JavaCompile) {
 }
 
 tasks.named("compileLatestDepJava11TestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
 }
 
 tasks.named("latestDepJava11Test", Test) {

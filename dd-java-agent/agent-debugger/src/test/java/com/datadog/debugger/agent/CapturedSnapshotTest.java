@@ -7,6 +7,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
+import static com.datadog.debugger.util.MoshiSnapshotTestHelper.deserializeCapturedValue;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +31,7 @@ import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
@@ -2697,33 +2699,80 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  public void watches() throws IOException, URISyntaxException {
+  public void captureExpressions() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe probe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
             .evaluateAt(MethodLocation.EXIT)
-            .tags(
-                "dd_watches_dsl:{typed.fld.fld.msg},{nullTyped.fld}",
-                "dd_watches_json:[{\"dsl\":\"typed.fld.fld.msg_json\",\"json\":{\"getmember\":[{\"getmember\":[{\"getmember\":[{\"ref\":\"typed\"},\"fld\"]},\"fld\"]},\"msg\"]}}]")
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "typed_fld_fld_msg",
+                        new ValueScript(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                "msg"),
+                            "typed.fld.fld.msg"),
+                        null),
+                    new LogProbe.CaptureExpression(
+                        "nullTyped_fld",
+                        new ValueScript(
+                            DSL.getMember(DSL.ref("nullTyped"), "fld"), "nullTyped.fld"),
+                        null)))
             .build();
     TestSnapshotListener listener = installProbes(probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertEquals(3, snapshot.getCaptures().getReturn().getWatches().size());
-    assertCaptureWatches(
+    assertEquals(2, snapshot.getCaptures().getReturn().getCaptureExpressions().size());
+    assertCaptureExpressions(
         snapshot.getCaptures().getReturn(),
-        "typed.fld.fld.msg",
+        "typed_fld_fld_msg",
         String.class.getTypeName(),
         "hello");
-    assertCaptureWatches(
-        snapshot.getCaptures().getReturn(), "nullTyped.fld", Object.class.getTypeName(), null);
-    assertCaptureWatches(
-        snapshot.getCaptures().getReturn(),
-        "typed.fld.fld.msg_json",
-        String.class.getTypeName(),
-        "hello");
+    assertCaptureExpressions(
+        snapshot.getCaptures().getReturn(), "nullTyped_fld", Object.class.getTypeName(), null);
+  }
+
+  @Test
+  public void captureExpressionsWithCaptureLimits() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "typed_fld_fld_msg",
+                        new ValueScript(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                "msg"),
+                            "typed.fld.fld.msg"),
+                        new LogProbe.Capture(3, 100, 3, 20)),
+                    new LogProbe.CaptureExpression(
+                        "typed",
+                        new ValueScript(DSL.ref("typed"), "typed"),
+                        new LogProbe.Capture(1, 1, 3, 20))))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext.CapturedValue msgValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed_fld_fld_msg"));
+    assertEquals("hel", msgValue.getValue());
+    assertEquals("truncated", msgValue.getNotCapturedReason());
+    CapturedContext.CapturedValue typedValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed"));
+    Map<String, CapturedContext.CapturedValue> fields =
+        (Map<String, CapturedContext.CapturedValue>) typedValue.getValue();
+    CapturedContext.CapturedValue fldValue = fields.get("fld");
+    assertEquals("depth", fldValue.getNotCapturedReason());
   }
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(

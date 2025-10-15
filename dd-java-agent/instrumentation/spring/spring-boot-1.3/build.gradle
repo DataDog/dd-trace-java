@@ -33,7 +33,7 @@ addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
 ["compileLatestDepTestGroovy", "compileBoot3TestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(17)
+    configureCompiler(it, 17)
   }
 }
 

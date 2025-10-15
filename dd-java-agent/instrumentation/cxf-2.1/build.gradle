@@ -32,7 +32,7 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(17)
+  configureCompiler(it, 17)
 }
 
 tasks.named("latestDepTest", Test) {
@@ -40,7 +40,7 @@ tasks.named("latestDepTest", Test) {
 }
 
 tasks.named("compileCxf3LatestDepTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
+  configureCompiler(it, 11)
 }
 
 tasks.named("cxf3LatestDepTest", Test) {
@@ -75,10 +75,16 @@ dependencies {
   latestDepTestCompileOnly group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.+'
   latestDepTestImplementation group: 'org.apache.cxf', name: 'cxf-rt-frontend-jaxrs', version: '+'
   latestDepTestImplementation group: 'org.apache.cxf', name:'cxf-rt-transports-http-jetty', version: '+'
+}
 
-  configurations.findAll {it.name in ['latestDepTestRuntimeClasspath', 'cxf3LatestDepTestRuntimeClasspath'] }.each {
-    it.resolutionStrategy {
-      force libs.slf4j
-    }
+configurations.named('latestDepTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
+  }
+}
+
+configurations.named('cxf3LatestDepTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
   }
 }

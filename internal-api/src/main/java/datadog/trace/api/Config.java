@@ -4718,10 +4718,12 @@ public class Config {
         newHashMap(
             getGlobalTags().size()
                 + crashTrackingTags.size()
+                + jmxTags.size()
                 + runtimeTags.size()
                 + 3 /* for serviceName and host and language */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
+    result.putAll(jmxTags);
     result.putAll(crashTrackingTags);
     result.putAll(runtimeTags);
     // service name set here instead of getRuntimeTags because apm already manages the service tag

@@ -171,31 +171,25 @@ dependencies {
 }
 
 tasks.named("compileBaseTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileBaseForkedTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileVersion101TestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
-  dependsOn "compileVersion101TestScala"
+  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileVersion101ForkedTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
-  dependsOn "compileVersion101TestScala"
+  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileVersion102Scala213TestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileVersion102Scala213TestScala.destinationDirectory))
-  dependsOn "compileVersion102Scala213TestScala"
+  classpath += files(tasks.named('compileVersion102Scala213TestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }

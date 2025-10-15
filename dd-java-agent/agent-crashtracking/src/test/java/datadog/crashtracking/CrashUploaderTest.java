@@ -93,9 +93,9 @@ public class CrashUploaderTest {
   @Test
   public void testLogsHappyPath() throws Exception {
     // Given
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(CRASH, new PrintStream(out));
 
@@ -112,7 +112,8 @@ public class CrashUploaderTest {
 
   @Test
   public void testExtractStackTraceFromRealCrashFile() throws IOException {
-    uploader = new CrashUploader(config);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
+    uploader = new CrashUploader(config, crashConfig);
     String msg = readFileAsString("sample-crash-redacted.txt");
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(msg, new PrintStream(out));
@@ -153,9 +154,10 @@ public class CrashUploaderTest {
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/" + log));
-
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config).processTags("a:b").runtimeId("1234").build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.uploadToTelemetry(getResourcePath(log));
 
@@ -170,6 +172,8 @@ public class CrashUploaderTest {
     assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
     assertEquals("logs", event.get("request_type").asText());
     assertEquals("crashtracker", event.get("origin").asText());
+    assertEquals("1234", event.get("runtime_id").asText());
+
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
 
@@ -192,6 +196,7 @@ public class CrashUploaderTest {
     assertEquals(SERVICE, event.get("application").get("service_name").asText());
     assertEquals(VERSION, event.get("application").get("service_version").asText());
     assertEquals(VersionInfo.VERSION, event.get("application").get("tracer_version").asText());
+    assertEquals("a:b", event.get("application").get("process_tags").asText());
     // host
     assertEquals(HOSTNAME, event.get("host").get("hostname").asText());
     assertEquals(ENV, event.get("host").get("env").asText());
@@ -200,9 +205,9 @@ public class CrashUploaderTest {
   @Test
   public void testTelemetryUnrecognizedFile() throws Exception {
     // Given
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     assertFalse(uploader.uploadToTelemetry(getResourcePath("no-crash.txt")));
   }
@@ -211,8 +216,9 @@ public class CrashUploaderTest {
   public void testAgentlessRequest() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
@@ -225,8 +231,9 @@ public class CrashUploaderTest {
   public void test404() throws Exception {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
     uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
@@ -241,8 +248,9 @@ public class CrashUploaderTest {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
     uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 

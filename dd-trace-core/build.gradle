@@ -57,7 +57,7 @@ excludedClassesCoverage += [
 
 addTestSuite('traceAgentTest')
 
-tasks.withType(Test).findByName('forkedTest').configure {
+tasks.named('forkedTest', Test) {
   // Needed for FootprintForkedTest on Java 17
   jvmArgs += ['-Djol.magicFieldOffset=true']
 }

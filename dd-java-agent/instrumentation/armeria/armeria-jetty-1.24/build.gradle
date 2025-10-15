@@ -27,7 +27,7 @@ addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty
 
 ["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }
 

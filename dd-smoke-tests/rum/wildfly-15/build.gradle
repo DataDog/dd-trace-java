@@ -26,7 +26,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Wildfly Smoke Tests.'
 
 configurations {
-  serverFile {
+  register('serverFile') {
     extendsFrom implementation
     canBeResolved = true
   }
@@ -61,16 +61,14 @@ tasks.register('earBuild', Exec) {
   })
   .withPropertyName("application")
   .withPathSensitivity(PathSensitivity.RELATIVE)
-}
 
-tasks.named("earBuild", Exec) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  dependsOn tasks.earBuild
+  dependsOn 'earBuild'
   outputs.upToDateWhen {
-    !earBuild.didWork
+    !tasks.named('earBuild').get().didWork
   }
 }
 
@@ -84,41 +82,43 @@ spotless {
   }
 }
 
-def wildflyDir="${buildDir}/${serverName}-${serverVersion}"
-
 tasks.register("unzip", Copy) {
-  dependsOn tasks.earBuild
-  mustRunAfter tasks.compileTestGroovy
+  dependsOn 'earBuild'
+  mustRunAfter 'compileTestGroovy'
   def zipFileNamePrefix = "wildfly"
-  def zipPath = project.configurations.serverFile.find {
-    it.name.startsWith(zipFileNamePrefix)
-  }
-  if (zipPath != null) {
-    def zipFile = file(zipPath)
-    def outputDir = file("${buildDir}")
 
-    from zipTree(zipFile)
-    into outputDir
-  } else {
-    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+  def serverZipTree = providers.provider {
+    // eager access
+    def zipPath = project.configurations.serverFile.find {
+      it.name.startsWith(zipFileNamePrefix)
+    }
+    if (zipPath == null) {
+      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+    }
+    zipTree(zipPath)
   }
+
+  from serverZipTree
+  into layout.buildDirectory
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
 tasks.withType(Jar).configureEach {
-  dependsOn tasks.unzip
+  dependsOn 'unzip'
 }
 
+def wildflyDir = "${buildDir}/${serverName}-${serverVersion}"
+
 tasks.register("deploy", Copy) {
-  dependsOn tasks.unzip
+  dependsOn 'unzip'
   from "${appBuildDir}/libs/wildfly-rum-ear-smoketest.ear"
   into "${wildflyDir}/standalone/deployments"
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn tasks.deploy
+  dependsOn 'deploy'
   jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
 }
 

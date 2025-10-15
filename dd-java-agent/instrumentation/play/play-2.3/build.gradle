@@ -60,6 +60,5 @@ dependencies {
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn compileLatestDepTestScala
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }

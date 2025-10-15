@@ -67,39 +67,39 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-tasks.sourcesJar {
+tasks.named('sourcesJar') {
   dependsOn 'unzip'
 }
 
-tasks.javadocJar {
+tasks.named('javadocJar') {
   dependsOn 'unzip'
 }
 
-tasks.bootWar {
+tasks.named('bootWar') {
   dependsOn 'unzip'
 }
 
-tasks.bootWarMainClassName {
+tasks.named('bootWarMainClassName') {
   dependsOn 'unzip'
 }
 
-tasks.war {
+tasks.named('war') {
   dependsOn 'unzip'
 }
 
-tasks.javadocJar{
+tasks.named('javadocJar') {
   dependsOn 'unzip'
 }
 
-tasks.sourcesJar{
+tasks.named('sourcesJar') {
   dependsOn 'unzip'
 }
 
-tasks.forbiddenApisMain {
+tasks.named('forbiddenApisMain') {
   dependsOn 'unzip'
 }
 
-tasks.spotbugsMain {
+tasks.named('spotbugsMain') {
   dependsOn 'unzip'
 }
 

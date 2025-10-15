@@ -78,24 +78,27 @@ class AkkaActors extends AutoCloseable {
 
 object AkkaActors {
   // If we can't load the Version class, then assume 2.3
-  val isAkka23: Boolean = try {
-    Class.forName("akka.Version")
-    false
-  } catch {
-    case _: Throwable => true
-  }
+  val isAkka23: Boolean =
+    try {
+      Class.forName("akka.Version")
+      false
+    } catch {
+      case _: Throwable => true
+    }
 
   // The way to terminate an actor system has changed between versions
   val terminate: (ActorSystem) => Unit = {
-    val t = try {
-      ActorSystem.getClass.getMethod("terminate")
-    } catch {
-      case _: Throwable => try {
-        ActorSystem.getClass.getMethod("awaitTermination")
+    val t =
+      try {
+        ActorSystem.getClass.getMethod("terminate")
       } catch {
-        case _: Throwable => null
+        case _: Throwable =>
+          try {
+            ActorSystem.getClass.getMethod("awaitTermination")
+          } catch {
+            case _: Throwable => null
+          }
       }
-    }
     if (t ne null) {
       { system: ActorSystem =>
         t.invoke(system)

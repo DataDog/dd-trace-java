@@ -104,10 +104,13 @@ class AsyncServer extends HttpServer {
 
     case ("GET", "/user-block") =>
       Action.async {
-        HttpServerTest.controller(USER_BLOCK, AsyncBlockClosureAdapter {
-          Blocking.forUser("user-to-block").blockIfMatch()
-          Future.successful(Results.Ok("should never be reached"))
-        })
+        HttpServerTest.controller(
+          USER_BLOCK,
+          AsyncBlockClosureAdapter {
+            Blocking.forUser("user-to-block").blockIfMatch()
+            Future.successful(Results.Ok("should never be reached"))
+          }
+        )
       }
   }
 

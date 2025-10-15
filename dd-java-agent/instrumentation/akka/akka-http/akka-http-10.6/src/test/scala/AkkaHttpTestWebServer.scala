@@ -14,7 +14,12 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.settings.ServerSettings
 import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers.defaultUrlEncodedFormDataUnmarshaller
 import akka.http.scaladsl.unmarshalling.Unmarshaller.messageUnmarshallerFromEntityUnmarshaller
-import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, MultipartUnmarshallers, Unmarshal, Unmarshaller}
+import akka.http.scaladsl.unmarshalling.{
+  FromEntityUnmarshaller,
+  MultipartUnmarshallers,
+  Unmarshal,
+  Unmarshaller
+}
 import akka.http.scaladsl.util.FastFuture.EnhancedFuture
 import akka.http.scaladsl.{Http, model}
 import akka.stream.{ActorMaterializer, Materializer}
@@ -42,7 +47,7 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
       case Some(config) => ActorSystem(name, config)
     }
   }
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer   = ActorMaterializer()
   private var port: Int                          = 0
   private var portBinding: Future[ServerBinding] = _
 
@@ -70,18 +75,18 @@ object AkkaHttpTestWebServer {
 
     def config: Option[Config] = None
 
-    def bind(port: Int)(
-      implicit system: ActorSystem,
-      materializer: Materializer
+    def bind(port: Int)(implicit
+        system: ActorSystem,
+        materializer: Materializer
     ): Future[ServerBinding]
   }
 
   val BindAndHandle: Binder = new Binder {
     override def name: String = "bind-and-handle"
 
-    override def bind(port: Int)(
-      implicit system: ActorSystem,
-      materializer: Materializer
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
+        materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
       Http().bindAndHandle(route, "localhost", port)
@@ -92,14 +97,15 @@ object AkkaHttpTestWebServer {
     override def name: String = "bind-and-handle-async-with-route-async-handler"
 
     override def config: Option[Config] = Some(
-      ConfigFactory.load()
+      ConfigFactory
+        .load()
         .withValue("akka.http.server.request-timeout", ConfigValueFactory.fromAnyRef("300 s"))
         .withValue("akka.http.server.idle-timeout", ConfigValueFactory.fromAnyRef("300 s"))
     )
 
-    override def bind(port: Int)(
-      implicit system: ActorSystem,
-      materializer: Materializer
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
+        materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
       Http().bindAndHandleAsync(Route.asyncHandler(route), "localhost", port)
@@ -109,9 +115,9 @@ object AkkaHttpTestWebServer {
   val BindAndHandleSync: Binder = new Binder {
     override def name: String = "bind-and-handle-sync"
 
-    override def bind(port: Int)(
-      implicit system: ActorSystem,
-      materializer: Materializer
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
+        materializer: Materializer
     ): Future[ServerBinding] = {
       Http().bindAndHandleSync(syncHandler, "localhost", port)
     }
@@ -120,9 +126,9 @@ object AkkaHttpTestWebServer {
   val BindAndHandleAsync: Binder = new Binder {
     override def name: String = "bind-and-handle-async"
 
-    override def bind(port: Int)(
-      implicit system: ActorSystem,
-      materializer: Materializer
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
+        materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
       Http().bindAndHandleAsync(asyncHandler, "localhost", port)
@@ -132,9 +138,9 @@ object AkkaHttpTestWebServer {
   val BindAndHandleAsyncHttp2: Binder = new Binder {
     override def name: String = "bind-and-handle-async-http2"
 
-    override def bind(port: Int)(
-      implicit system: ActorSystem,
-      materializer: Materializer
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
+        materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
       val serverSettings = enableHttp2(ServerSettings(system))
@@ -150,7 +156,7 @@ object AkkaHttpTestWebServer {
   // This part defines the routes using the Scala routing DSL
   // ---------------------------------------------------------------------- //
   private val exceptionHandler = ExceptionHandler {
-    case e : Exception if !e.isInstanceOf[BlockingException] =>
+    case e: Exception if !e.isInstanceOf[BlockingException] =>
       val span = activeSpan()
       TraceUtils.handleException(span, e)
       complete(
@@ -188,11 +194,12 @@ object AkkaHttpTestWebServer {
 
   // force a rejection due to BlockingException to throw so that the error
   // can be recorded in the span
-  private val blockingRejectionHandler: RejectionHandler = RejectionHandler.newBuilder()
-    .handle({
-      case MalformedRequestContentRejection(_, cause: BlockingException) =>
-        throw cause
-    }).result()
+  private val blockingRejectionHandler: RejectionHandler = RejectionHandler
+    .newBuilder()
+    .handle({ case MalformedRequestContentRejection(_, cause: BlockingException) =>
+      throw cause
+    })
+    .result()
 
   def route(implicit ec: ExecutionContext): Route = withController {
     handleRejections(blockingRejectionHandler) {
@@ -272,7 +279,9 @@ object AkkaHttpTestWebServer {
             path(BODY_JSON.relativePath()) {
               parameter(Symbol("variant") ?) {
                 case Some("spray") =>
-                  entity(Unmarshaller.messageUnmarshallerFromEntityUnmarshaller(sprayMapUnmarshaller)) { m =>
+                  entity(
+                    Unmarshaller.messageUnmarshallerFromEntityUnmarshaller(sprayMapUnmarshaller)
+                  ) { m =>
                     complete(
                       HttpResponse(
                         status = BODY_JSON.getStatus,
@@ -281,7 +290,9 @@ object AkkaHttpTestWebServer {
                     )
                   }
                 case _ => // jackson
-                  entity(Unmarshaller.messageUnmarshallerFromEntityUnmarshaller(jacksonMapUnmarshaller)) { m =>
+                  entity(
+                    Unmarshaller.messageUnmarshallerFromEntityUnmarshaller(jacksonMapUnmarshaller)
+                  ) { m =>
                     complete(
                       HttpResponse(
                         status = BODY_JSON.getStatus,
@@ -298,9 +309,7 @@ object AkkaHttpTestWebServer {
                     val m = formData.strictParts
                       .groupBy(_.name)
                       .mapValues(
-                        _.map((bp: BodyPart.Strict) =>
-                          bp.entity.data.utf8String
-                        ).toList
+                        _.map((bp: BodyPart.Strict) => bp.entity.data.utf8String).toList
                       )
                     complete(
                       HttpResponse(
@@ -328,60 +337,59 @@ object AkkaHttpTestWebServer {
   // This part defines the sync and async handler functions
   // ---------------------------------------------------------------------- //
 
-  val syncHandler: HttpRequest => HttpResponse = {
-    case HttpRequest(GET, uri: Uri, _, _, _) =>
-      val path = uri.path.toString()
-      val endpoint = HttpServerTest.ServerEndpoint.forPath(path)
-      HttpServerTest
-        .controller(
-          endpoint,
-          new Closure[HttpResponse](()) {
-            def doCall(): HttpResponse = {
-              val resp = HttpResponse(status = endpoint.getStatus)
-              endpoint match {
-                case SUCCESS => resp.withEntity(endpoint.getBody)
-                case FORWARDED => resp.withEntity(endpoint.getBody) // cheating
-                case QUERY_PARAM | QUERY_ENCODED_BOTH | QUERY_ENCODED_QUERY =>
-                  resp.withEntity(uri.queryString().orNull)
-                case REDIRECT =>
-                  resp.withHeaders(headers.Location(endpoint.getBody))
-                case ERROR => resp.withEntity(endpoint.getBody)
-                case EXCEPTION => throw new Exception(endpoint.getBody)
-                case USER_BLOCK => {
-                  Blocking.forUser("user-to-block").blockIfMatch()
-                  // should never be output:
-                  resp.withEntity("should never be reached")
-                }
-                case _ =>
-                  if (path.startsWith("/injected-id/")) {
-                    val groups = path.split('/')
-                    if (groups.length == 4) { // The path starts with a / and has 3 segments
-                      val traceId = AgentTracer.activeSpan().getTraceId
-                      val id = groups(3).toInt
-                      groups(2) match {
-                        case "ping" =>
-                          return HttpResponse(entity = s"pong $id -> $traceId")
-                        case "fing" =>
-                          return HttpResponse(entity = s"fong $id -> $traceId")
-                        case _ =>
-                      }
+  val syncHandler: HttpRequest => HttpResponse = { case HttpRequest(GET, uri: Uri, _, _, _) =>
+    val path     = uri.path.toString()
+    val endpoint = HttpServerTest.ServerEndpoint.forPath(path)
+    HttpServerTest
+      .controller(
+        endpoint,
+        new Closure[HttpResponse](()) {
+          def doCall(): HttpResponse = {
+            val resp = HttpResponse(status = endpoint.getStatus)
+            endpoint match {
+              case SUCCESS   => resp.withEntity(endpoint.getBody)
+              case FORWARDED => resp.withEntity(endpoint.getBody) // cheating
+              case QUERY_PARAM | QUERY_ENCODED_BOTH | QUERY_ENCODED_QUERY =>
+                resp.withEntity(uri.queryString().orNull)
+              case REDIRECT =>
+                resp.withHeaders(headers.Location(endpoint.getBody))
+              case ERROR     => resp.withEntity(endpoint.getBody)
+              case EXCEPTION => throw new Exception(endpoint.getBody)
+              case USER_BLOCK => {
+                Blocking.forUser("user-to-block").blockIfMatch()
+                // should never be output:
+                resp.withEntity("should never be reached")
+              }
+              case _ =>
+                if (path.startsWith("/injected-id/")) {
+                  val groups = path.split('/')
+                  if (groups.length == 4) { // The path starts with a / and has 3 segments
+                    val traceId = AgentTracer.activeSpan().getTraceId
+                    val id      = groups(3).toInt
+                    groups(2) match {
+                      case "ping" =>
+                        return HttpResponse(entity = s"pong $id -> $traceId")
+                      case "fing" =>
+                        return HttpResponse(entity = s"fong $id -> $traceId")
+                      case _ =>
                     }
                   }
-                  HttpResponse(status = NOT_FOUND.getStatus)
-                    .withEntity(NOT_FOUND.getBody)
-              }
+                }
+                HttpResponse(status = NOT_FOUND.getStatus)
+                  .withEntity(NOT_FOUND.getBody)
             }
           }
-        )
-        .withDefaultHeaders(defaultHeader)
+        }
+      )
+      .withDefaultHeaders(defaultHeader)
   }
 
-  def asyncHandler(
-      implicit ec: ExecutionContext,
+  def asyncHandler(implicit
+      ec: ExecutionContext,
       mat: Materializer
   ): HttpRequest => Future[HttpResponse] = {
-    case request@HttpRequest(POST, uri, _, entity, _) =>
-      val path = request.uri.path.toString
+    case request @ HttpRequest(POST, uri, _, entity, _) =>
+      val path     = request.uri.path.toString
       val endpoint = HttpServerTest.ServerEndpoint.forPath(path)
 
       endpoint match {
@@ -399,7 +407,7 @@ object AkkaHttpTestWebServer {
                   .withEntity(s.toStringAsGroovy)
               }
             case _ =>
-              val fd = Unmarshal(entity).to[Multipart.FormData]
+              val fd             = Unmarshal(entity).to[Multipart.FormData]
               val eventualStrict = fd.flatMap(_.toStrict(500 millis))
               eventualStrict.map { s =>
                 HttpResponse(status = BODY_MULTIPART.getStatus)
@@ -415,7 +423,7 @@ object AkkaHttpTestWebServer {
         case BODY_JSON =>
           val unmarshaller = uri.query().get("variant") match {
             case Some("spray") => sprayMapUnmarshaller
-            case _ => jacksonMapUnmarshaller
+            case _             => jacksonMapUnmarshaller
           }
           val eventualData = Unmarshal(entity).to[Map[String, String]](unmarshaller, ec, mat)
           eventualData.map { d =>
@@ -424,9 +432,10 @@ object AkkaHttpTestWebServer {
           }
         case _ => Future.successful(HttpResponse(404))
       }
-    case request => Future {
-      syncHandler(request)
-    }
+    case request =>
+      Future {
+        syncHandler(request)
+      }
   }
 
   def enableHttp2(serverSettings: ServerSettings): ServerSettings = {
@@ -437,8 +446,9 @@ object AkkaHttpTestWebServer {
 
   implicit class MapExtensions[A](m: Iterable[(String, A)]) {
     def toStringAsGroovy: String = {
-      def valueToString(value: Object) : String = value match {
-        case seq: Seq[_] => seq.map(x => valueToString(x.asInstanceOf[Object])).mkString("[", ",", "]")
+      def valueToString(value: Object): String = value match {
+        case seq: Seq[_] =>
+          seq.map(x => valueToString(x.asInstanceOf[Object])).mkString("[", ",", "]")
         case other => other.toString
       }
 
@@ -452,48 +462,48 @@ object AkkaHttpTestWebServer {
       strict.strictParts
         .groupBy(_.name)
         .mapValues(
-          _.map((bp: BodyPart.Strict) =>
-            bp.entity.data.utf8String
-          ).toList
-        ).toStringAsGroovy
+          _.map((bp: BodyPart.Strict) => bp.entity.data.utf8String).toList
+        )
+        .toStringAsGroovy
   }
 
   implicit class FormDataExtensions(formData: model.FormData) {
     def toStringAsGroovy: String = formData.fields.toMultiMap.toStringAsGroovy
   }
 
-  implicit def strictMultipartFormDataUnmarshaller: FromEntityUnmarshaller[Multipart.FormData.Strict] = {
+  implicit def strictMultipartFormDataUnmarshaller
+      : FromEntityUnmarshaller[Multipart.FormData.Strict] = {
     val toStrictUnmarshaller = Unmarshaller.withMaterializer[HttpEntity, HttpEntity.Strict] {
-      implicit ec =>
-        implicit mat =>
-          entity =>
-            entity.toStrict(1000.millis)
+      implicit ec => implicit mat => entity =>
+        entity.toStrict(1000.millis)
     }
     val toFormDataUnmarshaller = MultipartUnmarshallers.multipartFormDataUnmarshaller
     val downcastUnmarshaller = Unmarshaller.strict[Multipart.FormData, Multipart.FormData.Strict] {
       case strict: Multipart.FormData.Strict => strict
-      case _ => throw new RuntimeException("Expected Strict form data at this point")
+      case _                                 => throw new RuntimeException("Expected Strict form data at this point")
     }
 
     toStrictUnmarshaller.andThen(toFormDataUnmarshaller).andThen(downcastUnmarshaller)
   }
 
-  val jacksonMapUnmarshaller: FromEntityUnmarshaller[Map[String,String]] = {
-    Jackson.unmarshaller(classOf[java.util.Map[String, String]]).asScala.map(
-      javaMap => {
+  val jacksonMapUnmarshaller: FromEntityUnmarshaller[Map[String, String]] = {
+    Jackson
+      .unmarshaller(classOf[java.util.Map[String, String]])
+      .asScala
+      .map(javaMap => {
         import scala.collection.JavaConverters._
         javaMap.asScala.toMap
-      }
-    )
+      })
   }
 
   object SprayMapFormat extends RootJsonFormat[Map[String, String]] {
     def write(map: Map[String, String]): JsObject = JsObject(map.mapValues(JsString(_)).toMap)
 
     def read(value: JsValue): Map[String, String] = value match {
-      case JsObject(fields) => fields.collect {
-        case (k, JsString(v)) => k -> v
-      }
+      case JsObject(fields) =>
+        fields.collect { case (k, JsString(v)) =>
+          k -> v
+        }
       case _ => deserializationError("Expected a JSON object")
     }
   }

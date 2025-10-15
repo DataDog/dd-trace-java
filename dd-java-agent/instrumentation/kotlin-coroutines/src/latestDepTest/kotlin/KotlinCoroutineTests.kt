@@ -3,7 +3,6 @@ import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.single

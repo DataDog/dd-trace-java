@@ -12,12 +12,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn "compileTestScala"
-  classpath += files(compileTestScala.destinationDirectory)
+  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   dependsOn "compileLatestDepTestScala"
-  classpath += files(compileLatestDepTestScala.destinationDirectory)
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
 dependencies {

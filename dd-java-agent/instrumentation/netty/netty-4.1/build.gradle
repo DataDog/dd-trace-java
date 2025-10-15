@@ -58,7 +58,7 @@ dependencies {
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
-configurations.testImplementation {
+configurations.named('testImplementation') {
   resolutionStrategy {
     eachDependency { DependencyResolveDetails details ->
       //specifying a fixed version for all libraries with io.netty' group

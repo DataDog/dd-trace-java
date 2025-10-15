@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.apache.maven.model.License
 
 plugins {
   id 'com.gradleup.shadow'
@@ -22,6 +23,10 @@ dependencies {
 
 tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
-  // exclude this since it's available in the instrumentation jar
-  exclude 'com/sun/jna/**/*'
+
+  // exclude 'jna' this since it's available in the instrumentation jar
+  dependencies {
+    exclude(dependency("net.java.dev.jna:jna"))
+    exclude(dependency("net.java.dev.jna:jna-platform"))
+  }
 }

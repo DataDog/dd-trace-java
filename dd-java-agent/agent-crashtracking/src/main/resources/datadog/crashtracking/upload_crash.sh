@@ -58,7 +58,7 @@ echo "JAVA_HOME: $config_java_home"
 echo "PID: $PID"
 
 # Execute the Java command with the loaded values
-"$config_java_home/bin/java" -jar "$config_agent" uploadCrash "$config_hs_err"
+"$config_java_home/bin/java" -jar "$config_agent" uploadCrash -c "$configFile" "$config_hs_err"
 RC=$?
 
 # Remove the configuration file

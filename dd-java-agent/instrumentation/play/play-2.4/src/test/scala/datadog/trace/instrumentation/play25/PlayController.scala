@@ -2,7 +2,11 @@ package datadog.trace.instrumentation.play25
 
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.base.HttpServerTest.{ServerEndpoint, getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE}
+import datadog.trace.agent.test.base.HttpServerTest.{
+  ServerEndpoint,
+  getIG_RESPONSE_HEADER,
+  getIG_RESPONSE_HEADER_VALUE
+}
 import datadog.trace.instrumentation.play25.Util.MapExtensions
 import groovy.lang.Closure
 import play.api.libs.json.{JsNull, JsValue, Json}
@@ -20,7 +24,9 @@ class PlayController(implicit ec: ExecutionContext) extends Controller {
   }
 
   def forwarded = controller(ServerEndpoint.FORWARDED) { request =>
-    Results.Status(ServerEndpoint.FORWARDED.getStatus)(request.headers.get("X-Forwarded-For").getOrElse("(no header)"))
+    Results.Status(ServerEndpoint.FORWARDED.getStatus)(
+      request.headers.get("X-Forwarded-For").getOrElse("(no header)")
+    )
   }
 
   def errorStatus = controller(ServerEndpoint.ERROR) { _ =>
@@ -71,7 +77,8 @@ class PlayController(implicit ec: ExecutionContext) extends Controller {
   }
 
   def bodyMultipart = controller(ServerEndpoint.BODY_MULTIPART) { request =>
-    val body: Map[String, Seq[String]] = request.body.asMultipartFormData.map(_.asFormUrlEncoded).getOrElse(Map.empty)
+    val body: Map[String, Seq[String]] =
+      request.body.asMultipartFormData.map(_.asFormUrlEncoded).getOrElse(Map.empty)
     Results.Ok(body.toStringAsGroovy)
   }
 
@@ -80,13 +87,18 @@ class PlayController(implicit ec: ExecutionContext) extends Controller {
     Results.Ok(body)
   }
 
-  private def controller(endpoint: ServerEndpoint)(block: Request[AnyContent] => Result) : Action[AnyContent] = {
+  private def controller(
+      endpoint: ServerEndpoint
+  )(block: Request[AnyContent] => Result): Action[AnyContent] = {
     Action.async { request =>
       Future {
-        HttpServerTest.controller(endpoint, new Closure[Result](this) {
-          def doCall() = block(request).withHeaders(
-            (getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
-        })
+        HttpServerTest.controller(
+          endpoint,
+          new Closure[Result](this) {
+            def doCall() =
+              block(request).withHeaders((getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
+          }
+        )
       }
     }
   }

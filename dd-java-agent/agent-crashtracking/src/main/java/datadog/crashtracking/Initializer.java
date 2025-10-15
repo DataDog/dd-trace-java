@@ -1,18 +1,14 @@
 package datadog.crashtracking;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.environment.OperatingSystem;
-import datadog.environment.SystemProperties;
 import datadog.libs.ddprof.DdprofLibraryLoader;
-import datadog.trace.util.PidHelper;
 import datadog.trace.util.TempLocationManager;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
@@ -152,43 +148,6 @@ public final class Initializer {
     return agentPath;
   }
 
-  static void writeConfig(Path scriptPath, String... entries) {
-    String cfgFileName = getBaseName(scriptPath) + PID_PREFIX + PidHelper.getPid() + ".cfg";
-    Path cfgPath = scriptPath.resolveSibling(cfgFileName);
-    LOG.debug("Writing config file: {}", cfgPath);
-    try (BufferedWriter bw = Files.newBufferedWriter(cfgPath)) {
-      for (int i = 0; i < entries.length; i += 2) {
-        bw.write(entries[i]);
-        bw.write('=');
-        bw.write(entries[i + 1]);
-        bw.newLine();
-      }
-      bw.write("java_home=" + SystemProperties.get("java.home"));
-      bw.newLine();
-
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  AGENT_THREAD_GROUP,
-                  () -> {
-                    try {
-                      LOG.debug("Deleting config file: {}", cfgPath);
-                      Files.deleteIfExists(cfgPath);
-                    } catch (IOException e) {
-                      LOG.warn(SEND_TELEMETRY, "Failed deleting config file: {}", cfgPath, e);
-                    }
-                  }));
-      LOG.debug("Config file written: {}", cfgPath);
-    } catch (IOException e) {
-      LOG.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgPath);
-      try {
-        Files.deleteIfExists(cfgPath);
-      } catch (IOException ignored) {
-        // ignore
-      }
-    }
-  }
-
   static String pidFromSpecialFileName(String fileName) {
     if (fileName == null || fileName.isEmpty()) {
       return null;
@@ -235,15 +194,6 @@ public final class Initializer {
       path = path.substring(idx + 1).trim();
     }
     return path;
-  }
-
-  private static String getBaseName(Path path) {
-    String filename = path.getFileName().toString();
-    int dotIndex = filename.lastIndexOf('.');
-    if (dotIndex == -1) {
-      return filename;
-    }
-    return filename.substring(0, dotIndex);
   }
 
   /**

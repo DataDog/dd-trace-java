@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Test;
 
 public class StartWithAgentTest {
 
-  private static final Pattern WARNING_PATTERN = Pattern.compile("^Warning: Version [^ ]+ of dd-java-agent is not compatible with Java [^ ]+ found at [^ ]+ and is effectively disabled\\.$");
+  private static final Pattern WARNING_PATTERN =
+      Pattern.compile(
+          "^Warning: Version [^ ]+ of dd-java-agent is not compatible with Java [^ ]+ found at [^ ]+ and is effectively disabled\\.$");
   private static final String UPGRADE_MESSAGE = "Please upgrade your Java version to 8+";
 
   @Test
@@ -26,9 +28,13 @@ public class StartWithAgentTest {
     List<String> errors = getLines(process.getErrorStream());
     logProcessOutput(output, errors);
     assertEquals(0, exitCode, "Command failed with unexpected exit code");
-    assertTrue(output.contains(expectedMessage), "Output does not contain '" + expectedMessage + "'");
-    assertTrue(errors.stream().anyMatch(WARNING_PATTERN.asPredicate()), "Output does not contain line matching '" + WARNING_PATTERN + "'");
-    assertTrue(errors.contains(UPGRADE_MESSAGE), "Output does not contain '" + UPGRADE_MESSAGE + "'");
+    assertTrue(
+        output.contains(expectedMessage), "Output does not contain '" + expectedMessage + "'");
+    assertTrue(
+        errors.stream().anyMatch(WARNING_PATTERN.asPredicate()),
+        "Output does not contain line matching '" + WARNING_PATTERN + "'");
+    assertTrue(
+        errors.contains(UPGRADE_MESSAGE), "Output does not contain '" + UPGRADE_MESSAGE + "'");
   }
 
   @Test
@@ -41,20 +47,28 @@ public class StartWithAgentTest {
     ensureThatApplicationStartsWithoutWarning("11");
   }
 
-  private static void ensureThatApplicationStartsWithoutWarning(String version) throws InterruptedException, IOException {
+  private static void ensureThatApplicationStartsWithoutWarning(String version)
+      throws InterruptedException, IOException {
     String expectedMessage = "Woho! Started on Java " + version;
-    Process process = startAndWaitForJvmWithAgentForJava("JAVA_" + version + "_HOME", expectedMessage);
+    Process process =
+        startAndWaitForJvmWithAgentForJava("JAVA_" + version + "_HOME", expectedMessage);
     int exitCode = process.waitFor();
     List<String> output = getLines(process.getInputStream());
     List<String> errors = getLines(process.getErrorStream());
     logProcessOutput(output, errors);
     assertEquals(0, exitCode, "Command failed with unexpected exit code");
-    assertTrue(output.contains(expectedMessage), "Output does not contain '" + expectedMessage + "'");
-    assertFalse(errors.stream().anyMatch(WARNING_PATTERN.asPredicate()), "Output contains unexpected line matching '" + WARNING_PATTERN + "'");
-    assertFalse(errors.contains(UPGRADE_MESSAGE), "Output contains unexpected line '" + UPGRADE_MESSAGE + "'");
+    assertTrue(
+        output.contains(expectedMessage), "Output does not contain '" + expectedMessage + "'");
+    assertFalse(
+        errors.stream().anyMatch(WARNING_PATTERN.asPredicate()),
+        "Output contains unexpected line matching '" + WARNING_PATTERN + "'");
+    assertFalse(
+        errors.contains(UPGRADE_MESSAGE),
+        "Output contains unexpected line '" + UPGRADE_MESSAGE + "'");
   }
 
-  private static Process startAndWaitForJvmWithAgentForJava(String javaHomeEnv, String message) throws IOException {
+  private static Process startAndWaitForJvmWithAgentForJava(String javaHomeEnv, String message)
+      throws IOException {
     String javaHome = System.getenv(javaHomeEnv);
     checkFile(javaHome, javaHomeEnv);
     String javaAgent = System.getProperty("test.published.dependencies.agent");
@@ -82,7 +96,9 @@ public class StartWithAgentTest {
   }
 
   private static List<String> getLines(InputStream inputStream) {
-    return new BufferedReader(new InputStreamReader(inputStream)).lines().collect(Collectors.toList());
+    return new BufferedReader(new InputStreamReader(inputStream))
+        .lines()
+        .collect(Collectors.toList());
   }
 
   private static void logProcessOutput(List<String> output, List<String> errors) {

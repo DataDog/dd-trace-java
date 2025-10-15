@@ -16,6 +16,19 @@ import javax.annotation.Nullable;
 public final class EnvironmentVariables {
   private EnvironmentVariables() {}
 
+  public static class EnvironmentVariablesProvider {
+    public String get(String name) {
+      return System.getenv(name);
+    }
+
+    public Map<String, String> getAll() {
+      return System.getenv();
+    }
+  }
+
+  // Make it accessible from tests.
+  public static EnvironmentVariablesProvider provider = new EnvironmentVariablesProvider();
+
   /**
    * Gets an environment variable value.
    *
@@ -41,7 +54,7 @@ public final class EnvironmentVariables {
       return defaultValue;
     }
     try {
-      String value = System.getenv(name);
+      String value = provider.get(name);
       return value == null ? defaultValue : value;
     } catch (SecurityException e) {
       return defaultValue;
@@ -56,7 +69,7 @@ public final class EnvironmentVariables {
    */
   public static Map<String, String> getAll() {
     try {
-      return unmodifiableMap(new HashMap<>(System.getenv()));
+      return unmodifiableMap(new HashMap<>(provider.getAll()));
     } catch (SecurityException e) {
       return emptyMap();
     }

@@ -1,3 +1,4 @@
+import datadog.environment.EnvironmentVariables
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Config
 import spock.lang.Shared
@@ -19,7 +20,7 @@ class ConfigResetTest extends InstrumentationSpecification {
 
   static Object checkStaticAssertions() {
     assert System.getProperty("dd.trace.enabled") == null
-    assert System.getenv("DD_TRACE_ENABLED") == null
+    assert EnvironmentVariables.get("DD_TRACE_ENABLED") == null
     assert Config.get().isTraceEnabled()
 
     // Returning a new object so this can be used in field initializations
@@ -152,14 +153,14 @@ class ConfigResetTest extends InstrumentationSpecification {
     injectEnvConfig("DD_TRACE_ENABLED", "true")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == "true"
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == "true"
     Config.get().isTraceEnabled()
 
     when:
     injectEnvConfig("DD_TRACE_ENABLED", "false")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == "false"
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == "false"
     !Config.get().isTraceEnabled()
   }
 
@@ -171,14 +172,14 @@ class ConfigResetTest extends InstrumentationSpecification {
     injectEnvConfig("TRACE_ENABLED", "true")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == "true"
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == "true"
     Config.get().isTraceEnabled()
 
     when:
     injectEnvConfig("TRACE_ENABLED", "false")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == "false"
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == "false"
     !Config.get().isTraceEnabled()
   }
 
@@ -190,28 +191,28 @@ class ConfigResetTest extends InstrumentationSpecification {
     injectEnvConfig("DD_TRACE_ENABLED", "false")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == "false"
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == "false"
     !Config.get().isTraceEnabled()
 
     when:
     removeEnvConfig("DD_TRACE_ENABLED")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == null
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == null
     Config.get().isTraceEnabled()
 
     when:
     injectEnvConfig("DD_TRACE_ENABLED", "false")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == "false"
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == "false"
     !Config.get().isTraceEnabled()
 
     when:
     removeEnvConfig("TRACE_ENABLED")
 
     then:
-    System.getenv("DD_TRACE_ENABLED") == null
+    EnvironmentVariables.get("DD_TRACE_ENABLED") == null
     Config.get().isTraceEnabled()
   }
 }

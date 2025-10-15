@@ -35,7 +35,7 @@ class InstrumentPlugin implements Plugin<Project> {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
     project.tasks.matching {
-      it.name in ['compileJava', 'compileScala', 'compileKotlin', 'compileGroovy'] ||
+      it.name in ['compileJava', 'compileScala', 'compileGroovy'] ||
         it.name =~ /compileMain_.+Java/
     }.all {
       AbstractCompile compileTask = it as AbstractCompile

@@ -32,7 +32,9 @@ protobuf {
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {
-    all()*.plugins { grpc {} }
+    ofSourceSet("main").configureEach {
+      plugins { grpc {} }
+    }
   }
 }
 
@@ -42,6 +44,12 @@ tasks.withType(ShadowJar).configureEach {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.grpc.jar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.grpc.jar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

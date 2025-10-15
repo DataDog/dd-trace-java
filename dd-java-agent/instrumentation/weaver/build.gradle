@@ -31,16 +31,16 @@ dependencies {
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  dependsOn compileTestScala
+  dependsOn 'compileTestScala'
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  dependsOn compileLatestDepTestScala
+  dependsOn 'compileLatestDepTestScala'
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }
 
 tasks.named("compileWeaver084TestGroovy", GroovyCompile) {
-  dependsOn compileWeaver084TestScala
+  dependsOn 'compileWeaver084TestScala'
   classpath += files(sourceSets.weaver084Test.scala.destinationDirectory)
 }

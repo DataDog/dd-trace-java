@@ -35,7 +35,7 @@ dependencies {
   latestDepTestImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '+'
 }
 
-configurations.matching({ it.name.startsWith('test') || it.name.startsWith('latestDepTest') }).each({
+configurations.matching({ it.name.startsWith('test') || it.name.startsWith('latestDepTest') }).configureEach({
   it.resolutionStrategy {
     // There is a conflict between the version used by HTMLUnit and the one used by :dd-java-agent:testing
     force group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.50.v20221201'

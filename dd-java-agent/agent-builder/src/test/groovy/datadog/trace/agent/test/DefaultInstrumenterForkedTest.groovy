@@ -1,6 +1,6 @@
 package datadog.trace.agent.test
 
-
+import datadog.environment.EnvironmentVariables
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
@@ -118,7 +118,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     def target = new TestDefaultInstrumenter(name, altName)
 
     then:
-    System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
+    EnvironmentVariables.get("DD_INTEGRATION_${value}_ENABLED") == "true"
     target.enabled == enabled
 
     where:

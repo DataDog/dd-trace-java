@@ -58,7 +58,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
-    features.supportsMetrics()
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
@@ -87,7 +87,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then: "info returned"
     1 * client.newCall(_) >> {
-      Request request -> infoResponse(request, INFO_RESPONSE)
+      Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE)
     }
     features.supportsMetrics()
 
@@ -116,7 +116,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
-    features.supportsMetrics()
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
@@ -162,7 +162,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITHOUT_DATA_STREAMS_RESPONSE) }
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
-    features.supportsMetrics()
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     features.getDataStreamsEndpoint() == null
     !features.supportsDataStreams()

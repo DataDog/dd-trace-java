@@ -2,7 +2,6 @@ package foo.bar
 
 import org.slf4j.LoggerFactory
 
-
 class TestScalaStringBuilderSuite {
 
   private val LOGGER = LoggerFactory.getLogger("TestStringBuilderSuite")
@@ -54,21 +53,21 @@ class TestScalaStringBuilderSuite {
   }
 
   def plus(left: String, right: String): String = {
-    LOGGER.debug("Before string plus {} {}", Array(left, right):_*)
+    LOGGER.debug("Before string plus {} {}", Array(left, right): _*)
     val result: String = left + right
     LOGGER.debug("After string plus {}", result)
     result
   }
 
   def plus(left: String, right: AnyRef): String = {
-    LOGGER.debug("Before string plus object {} {}", Array(left, right):_*)
+    LOGGER.debug("Before string plus object {} {}", Array(left, right): _*)
     val result: String = left + right
     LOGGER.debug("After string plus object {}", result)
     result
   }
 
   def plus(items: Array[AnyRef]): String = {
-    LOGGER.debug("Before string plus array {}", items:_*)
+    LOGGER.debug("Before string plus array {}", items: _*)
     var result: String = ""
     for (item <- items) {
       result += item

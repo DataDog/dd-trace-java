@@ -60,8 +60,8 @@ object PekkoHttpTestWebServer {
 
     def config: Option[Config] = None
 
-    def bind(port: Int)(
-        implicit system: ActorSystem,
+    def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding]
   }
@@ -69,8 +69,8 @@ object PekkoHttpTestWebServer {
   val BindAndHandle: Binder = new Binder {
     override def name: String = "bind-and-handle"
 
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -81,8 +81,8 @@ object PekkoHttpTestWebServer {
   val BindAndHandleAsyncWithRouteAsyncHandler: Binder = new Binder {
     override def name: String = "bind-and-handle-async-with-route-async-handler"
 
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -93,8 +93,8 @@ object PekkoHttpTestWebServer {
   val BindAndHandleSync: Binder = new Binder {
     override def name: String = "bind-and-handle-sync"
 
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       Http().bindAndHandleSync(syncHandler, "localhost", port)
@@ -104,8 +104,8 @@ object PekkoHttpTestWebServer {
   val BindAndHandleAsync: Binder = new Binder {
     override def name: String = "bind-and-handle-async"
 
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -116,8 +116,8 @@ object PekkoHttpTestWebServer {
   val BindAndHandleAsyncHttp2: Binder = new Binder {
     override def name: String = "bind-and-handle-async-http2"
 
-    override def bind(port: Int)(
-        implicit system: ActorSystem,
+    override def bind(port: Int)(implicit
+        system: ActorSystem,
         materializer: Materializer
     ): Future[ServerBinding] = {
       import materializer.executionContext
@@ -133,17 +133,16 @@ object PekkoHttpTestWebServer {
 
   // This part defines the routes using the Scala routing DSL
   // ---------------------------------------------------------------------- //
-  private val exceptionHandler = ExceptionHandler {
-    case e: Exception =>
-      val span = activeSpan()
-      if (span != null) {
-        // The exception handler is bypassing the normal instrumentation flow, so we need to handle things here
-        TraceUtils.handleException(span, e)
-        span.finish()
-      }
-      complete(
-        HttpResponse(status = EXCEPTION.getStatus, entity = e.getMessage)
-      )
+  private val exceptionHandler = ExceptionHandler { case e: Exception =>
+    val span = activeSpan()
+    if (span != null) {
+      // The exception handler is bypassing the normal instrumentation flow, so we need to handle things here
+      TraceUtils.handleException(span, e)
+      span.finish()
+    }
+    complete(
+      HttpResponse(status = EXCEPTION.getStatus, entity = e.getMessage)
+    )
   }
 
   // Since the pekko-http route DSL produces a Route that is evaluated for every
@@ -270,8 +269,8 @@ object PekkoHttpTestWebServer {
     }
   }
 
-  def asyncHandler(
-      implicit ec: ExecutionContext
+  def asyncHandler(implicit
+      ec: ExecutionContext
   ): HttpRequest => Future[HttpResponse] = { request =>
     Future {
       syncHandler(request)

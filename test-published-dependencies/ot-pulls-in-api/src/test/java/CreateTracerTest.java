@@ -1,8 +1,8 @@
 import datadog.opentracing.DDTracer;
 import io.opentracing.util.GlobalTracer;
-import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
 
 public class CreateTracerTest {
 

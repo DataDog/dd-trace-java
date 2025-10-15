@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
 plugins {
   id 'org.springframework.boot' version '2.7.15'
   id 'io.spring.dependency-management' version '1.0.15.RELEASE'
@@ -21,6 +23,12 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn 'bootJar'
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+  def bootJarTask = tasks.named('bootJar', BootJar)
+  dependsOn bootJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

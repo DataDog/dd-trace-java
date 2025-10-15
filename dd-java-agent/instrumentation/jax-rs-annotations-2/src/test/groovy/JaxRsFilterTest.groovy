@@ -1,12 +1,11 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.dropwizard.testing.junit.ResourceTestRule
+import io.dropwizard.testing.junit5.ResourceExtension
 import org.jboss.resteasy.core.Dispatcher
 import org.jboss.resteasy.mock.MockDispatcherFactory
 import org.jboss.resteasy.mock.MockHttpRequest
 import org.jboss.resteasy.mock.MockHttpResponse
-import org.junit.ClassRule
 import spock.lang.Shared
 
 import javax.ws.rs.client.Entity
@@ -36,12 +35,9 @@ abstract class JaxRsFilterTest extends InstrumentationSpecification {
     def abort = abortNormal || abortPrematch
 
     when:
-    def responseText
-    def responseStatus
-
     // start a trace because the test doesn't go through any servlet or other instrumentation.
-    runUnderTrace("test.span") {
-      (responseText, responseStatus) = makeRequest(resource)
+    def (responseText, responseStatus) = runUnderTrace("test.span") {
+      makeRequest(resource)
     }
 
     then:
@@ -104,12 +100,9 @@ abstract class JaxRsFilterTest extends InstrumentationSpecification {
     prematchRequestFilter.abort = false
 
     when:
-    def responseText
-    def responseStatus
-
     // start a trace because the test doesn't go through any servlet or other instrumentation.
-    runUnderTrace("test.span") {
-      (responseText, responseStatus) = makeRequest(resource)
+    def (responseText, responseStatus) = runUnderTrace("test.span") {
+      makeRequest(resource)
     }
 
     then:
@@ -192,14 +185,22 @@ abstract class JaxRsFilterTest extends InstrumentationSpecification {
 
 class JerseyFilterTest extends JaxRsFilterTest {
   @Shared
-  @ClassRule
-  ResourceTestRule resources = ResourceTestRule.builder()
+  ResourceExtension resources = ResourceExtension.builder()
   .addResource(new Resource.Test1())
   .addResource(new Resource.Test2())
   .addResource(new Resource.Test3())
   .addProvider(simpleRequestFilter)
   .addProvider(prematchRequestFilter)
   .build()
+
+  // Spock has no support for JUnit5 extension.
+  def setupSpec() {
+    resources.before()
+  }
+
+  def cleanupSpec() {
+    resources.after()
+  }
 
   @Override
   def makeRequest(String url) {
