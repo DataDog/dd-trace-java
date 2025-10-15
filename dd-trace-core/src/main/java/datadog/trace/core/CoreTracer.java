@@ -1516,9 +1516,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
-    protected abstract DDSpan buildSpan();
-
-    protected final DDSpan buildSpanImpl() {
+    protected final DDSpan buildSpan() {
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
@@ -1559,7 +1557,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    public final AgentSpan start() {
+    public abstract AgentSpan start();
+
+    protected AgentSpan startImpl() {
       AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
         final AgentSpan span = tracer.activeSpan();
@@ -1945,6 +1945,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
+  /** CoreSpanBuilder that can be used to produce multiple spans */
   static final class MultiSpanBuilder extends CoreSpanBuilder {
     MultiSpanBuilder(CoreTracer tracer, String instrumentationName, CharSequence operationName) {
       super(tracer);
@@ -1953,8 +1954,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    protected DDSpan buildSpan() {
-      return this.buildSpanImpl();
+    public AgentSpan start() {
+      return this.startImpl();
     }
   }
 
@@ -1972,6 +1973,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
+  /**
+   * Reusable CoreSpanBuilder that can be used to build one and only one span before being reset
+   *
+   * <p>{@link CoreTracer#singleSpanBuilder(String, CharSequence)} reuses instances of this object
+   * to reduce the overhead of span construction
+   */
   static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
     // Used to track whether the ReusableSingleSpanBuilder is actively being used
     // ReusableSingleSpanBuilder becomes "inUse" after a succesful init/reset and remains "inUse"
@@ -2025,11 +2032,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      * Clears the inUse boolean, so this ReusableSpanBuilder can be reset
      */
     @Override
-    protected DDSpan buildSpan() {
+    public AgentSpan start() {
       assert this.inUse
           : "ReusableSingleSpanBuilder not reset properly -- multiple span construction?";
 
-      DDSpan span = this.buildSpanImpl();
+      AgentSpan span = this.startImpl();
       this.inUse = false;
       return span;
     }
