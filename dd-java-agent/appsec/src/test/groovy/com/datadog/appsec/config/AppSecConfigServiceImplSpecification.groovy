@@ -24,13 +24,16 @@ import java.nio.file.Paths
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_PROCESSOR_OVERRIDES
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_CMDI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI
@@ -38,11 +41,10 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES
 import static datadog.remoteconfig.PollingHinterNoop.NOOP
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
 import static datadog.trace.api.UserIdCollectionMode.DISABLED
@@ -282,6 +284,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
+      | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+      | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
       | CAPABILITY_ASM_RASP_SQLI
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI
@@ -442,6 +446,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
+      | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+      | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -533,6 +539,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
+      | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+      | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
       | CAPABILITY_ASM_RASP_SQLI
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI

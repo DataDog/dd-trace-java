@@ -299,7 +299,6 @@ org.slf4j:slf4j-api:2.0.0=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
 org.spockframework:spock-bom:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.spockframework:spock-core:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
-org.spockframework:spock-junit4:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-beans:5.2.20.RELEASE=compileClasspath,play
 org.springframework:spring-context:5.2.20.RELEASE=compileClasspath,play
 org.springframework:spring-core:5.2.20.RELEASE=compileClasspath,play
