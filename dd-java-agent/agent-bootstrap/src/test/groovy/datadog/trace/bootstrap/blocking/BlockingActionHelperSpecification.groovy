@@ -177,8 +177,8 @@ class BlockingActionHelperSpecification extends DDSpecification {
     def templateStr = new String(template, StandardCharsets.UTF_8)
 
     then:
-    templateStr.contains("Event ID: ${blockId}")
-    !templateStr.contains('[block_id]')
+    templateStr.contains("Security Response ID: ${blockId}")
+    !templateStr.contains('[security_response_id]')
   }
 
   void 'getTemplate with block_id replaces placeholder in JSON template'() {
@@ -190,8 +190,8 @@ class BlockingActionHelperSpecification extends DDSpecification {
     def templateStr = new String(template, StandardCharsets.UTF_8)
 
     then:
-    templateStr.contains("\"block_id\":\"${blockId}\"")
-    !templateStr.contains('[block_id]')
+    templateStr.contains("\"security_response_id\":\"${blockId}\"")
+    !templateStr.contains('[security_response_id]')
   }
 
   void 'getTemplate without block_id removes block_id field from HTML template'() {
@@ -200,8 +200,8 @@ class BlockingActionHelperSpecification extends DDSpecification {
     def templateStr = new String(template, StandardCharsets.UTF_8)
 
     then:
-    !templateStr.contains('[block_id]')
-    !templateStr.contains('Event ID:')
+    !templateStr.contains('[security_response_id]')
+    !templateStr.contains('Security Response ID:')
   }
 
   void 'getTemplate without block_id removes block_id field from JSON template'() {
@@ -210,8 +210,8 @@ class BlockingActionHelperSpecification extends DDSpecification {
     def templateStr = new String(template, StandardCharsets.UTF_8)
 
     then:
-    !templateStr.contains('[block_id]')
-    !templateStr.contains('"block_id"')
+    !templateStr.contains('[security_response_id]')
+    !templateStr.contains('"security_response_id"')
   }
 
   void 'getTemplate with empty block_id removes block_id field'() {
@@ -220,10 +220,10 @@ class BlockingActionHelperSpecification extends DDSpecification {
     def jsonTemplate = BlockingActionHelper.getTemplate(JSON, '')
 
     then:
-    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('[block_id]')
-    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('Event ID:')
-    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('[block_id]')
-    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('"block_id"')
+    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('[security_response_id]')
+    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('Security Response ID:')
+    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('[security_response_id]')
+    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('"security_response_id"')
   }
 
   void 'getTemplate with block_id works with custom HTML template'() {
@@ -231,7 +231,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     File tempDir = File.createTempDir('testTempDir-', '')
     Config config = Mock(Config)
     File tempFile = new File(tempDir, 'template.html')
-    tempFile << '<body>Custom template with block_id: [block_id]</body>'
+    tempFile << '<body>Custom template with security_response_id: [security_response_id]</body>'
     def blockId = 'test-block-id-123'
 
     when:
@@ -242,8 +242,8 @@ class BlockingActionHelperSpecification extends DDSpecification {
     then:
     1 * config.getAppSecHttpBlockedTemplateHtml() >> tempFile.toString()
     1 * config.getAppSecHttpBlockedTemplateJson() >> null
-    templateStr.contains("Custom template with block_id: ${blockId}")
-    !templateStr.contains('[block_id]')
+    templateStr.contains("Custom template with security_response_id: ${blockId}")
+    !templateStr.contains('[security_response_id]')
 
     cleanup:
     BlockingActionHelper.reset(Config.get())
@@ -255,7 +255,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     File tempDir = File.createTempDir('testTempDir-', '')
     Config config = Mock(Config)
     File tempFile = new File(tempDir, 'template.json')
-    tempFile << '{"error":"blocked","id":"[block_id]"}'
+    tempFile << '{"error":"blocked","id":"[security_response_id]"}'
     def blockId = 'test-block-id-456'
 
     when:
@@ -267,7 +267,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     1 * config.getAppSecHttpBlockedTemplateHtml() >> null
     1 * config.getAppSecHttpBlockedTemplateJson() >> tempFile.toString()
     templateStr.contains("\"error\":\"blocked\",\"id\":\"${blockId}\"")
-    !templateStr.contains('[block_id]')
+    !templateStr.contains('[security_response_id]')
 
     cleanup:
     BlockingActionHelper.reset(Config.get())

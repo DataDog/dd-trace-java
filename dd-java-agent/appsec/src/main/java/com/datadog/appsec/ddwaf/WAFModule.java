@@ -510,11 +510,12 @@ public class WAFModule implements AppSecModule {
         }
         String blockId = (String) actionInfo.parameters.get("block_id");
         if (blockId != null && !blockId.isEmpty()) {
-          // For custom redirects, only replace [block_id] placeholder if present in the URL.
-          // The client decides whether to include block_id by adding the placeholder.
-          // We don't automatically append block_id as a URL parameter.
-          if (location.contains("[block_id]")) {
-            location = location.replace("[block_id]", blockId);
+          // For custom redirects, only replace [security_response_id] placeholder if present in the
+          // URL.
+          // The client decides whether to include security_response_id by adding the placeholder.
+          // We don't automatically append security_response_id as a URL parameter.
+          if (location.contains("[security_response_id]")) {
+            location = location.replace("[security_response_id]", blockId);
           }
         }
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location, blockId);
