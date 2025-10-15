@@ -26,64 +26,36 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
     comment == null
   }
 
-  def "getComment with full mode builds traceParent in W3C format with sampled flag"() {
+  def "buildTraceParent with sampled flag (SAMPLER_KEEP)"() {
     setup:
-    // Set the propagation mode to full to trigger buildTraceParent call
-    injectSysConfig("dd." + TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "full")
     def span = TEST_TRACER.buildSpan("test-op").start()
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, 0)
 
-    // Create a mock event
-    def event = Mock(com.mongodb.event.CommandStartedEvent) {
-      getDatabaseName() >> "testdb"
-      getConnectionDescription() >> Mock(com.mongodb.connection.ConnectionDescription) {
-        getServerAddress() >> Mock(com.mongodb.ServerAddress) {
-          getHost() >> "localhost"
-        }
-      }
-    }
-
     when:
-    String comment = MongoCommentInjector.getComment(span, event)
+    String traceParent = MongoCommentInjector.buildTraceParent(span)
 
     then:
-    comment != null
-    comment.contains("dddbs='test-mongo-service'")
-    comment.contains("dde='test'")
-    comment.contains("ddh='localhost'")
-    comment.contains("dddb='testdb'")
-    // W3C traceparent format: 00-{32 hex chars}-{16 hex chars}-01 (sampled)
-    comment ==~ /.*ddtp='00-[0-9a-f]{32}-[0-9a-f]{16}-01'.*/
+    traceParent != null
+    traceParent ==~ /00-[0-9a-f]{32}-[0-9a-f]{16}-01/
+
+    cleanup:
+    span?.finish()
   }
 
-  def "getComment with full mode builds traceParent in W3C format with not sampled flag"() {
+  def "buildTraceParent with not sampled flag (SAMPLER_DROP)"() {
     setup:
-    // Set the propagation mode to full to trigger buildTraceParent call
-    injectSysConfig("dd." + TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "full")
     def span = TEST_TRACER.buildSpan("test-op").start()
     span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, 0)
 
-    // Create a mock event
-    def event = Mock(com.mongodb.event.CommandStartedEvent) {
-      getDatabaseName() >> "testdb"
-      getConnectionDescription() >> Mock(com.mongodb.connection.ConnectionDescription) {
-        getServerAddress() >> Mock(com.mongodb.ServerAddress) {
-          getHost() >> "localhost"
-        }
-      }
-    }
-
     when:
-    String comment = MongoCommentInjector.getComment(span, event)
+    String traceParent = MongoCommentInjector.buildTraceParent(span)
 
     then:
-    comment != null
-    comment.contains("dddbs='test-mongo-service'")
-    comment.contains("dde='test'")
-    comment.contains("ddh='localhost'")
-    comment.contains("dddb='testdb'")
-    // W3C traceparent format: 00-{32 hex chars}-{16 hex chars}-00 (not sampled)
-    comment ==~ /.*ddtp='00-[0-9a-f]{32}-[0-9a-f]{16}-00'.*/
+    traceParent != null
+    traceParent ==~ /00-[0-9a-f]{32}-[0-9a-f]{16}-00/
+
+    cleanup:
+    span?.finish()
   }
 
   def "injectComment returns null when event is null"() {

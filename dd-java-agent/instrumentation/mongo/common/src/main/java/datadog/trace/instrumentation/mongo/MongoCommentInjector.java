@@ -112,7 +112,7 @@ public class MongoCommentInjector {
     return null;
   }
 
-  private static String buildTraceParent(AgentSpan span) {
+  static String buildTraceParent(AgentSpan span) {
     // W3C traceparent format: version-traceId-spanId-flags
     StringBuilder sb = new StringBuilder(2 + 1 + 32 + 1 + 16 + 1 + 2);
     sb.append("00-"); // version
