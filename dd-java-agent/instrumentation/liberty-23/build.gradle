@@ -7,8 +7,8 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
-
 String testWebAppDir = 'wlp/usr/servers/defaultServer/dropins/war/testapp'
+
 sourceSets {
   register("webapp") {
     java {

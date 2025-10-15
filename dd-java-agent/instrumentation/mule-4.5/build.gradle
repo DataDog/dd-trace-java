@@ -100,17 +100,15 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 
@@ -124,11 +122,11 @@ tasks.named("compileMule46ForkedTestGroovy", GroovyCompile) {
 
 tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractLatestMuleServices'
-  setJavaVersion(it, 17)
+  configureCompiler(it, 17)
 }
 
 tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
-  setJavaVersion(it, 17)
+  configureCompiler(it, 17)
 }
 
 dependencies {
@@ -209,21 +207,22 @@ def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
 
 // extract the enabled services into the mule base directory
 tasks.register('extractMuleServices', Sync) {
-  dependsOn configurations.muleServices
+  dependsOn configurations.named('muleServices')
   copyMuleArtifacts("muleServices", "$buildDir/mule/test", it)
 }
 tasks.register('extractMule46Services', Sync) {
-  dependsOn configurations.mule46Services
+  dependsOn configurations.named('mule46Services')
   copyMuleArtifacts("mule46Services", "$buildDir/mule/mule46ForkedTest", it)
 }
 tasks.register('extractLatestMuleServices', Sync) {
-  dependsOn configurations.latestMuleServices
+  dependsOn configurations.named('latestMuleServices')
   copyMuleArtifacts("latestMuleServices", "$buildDir/mule/latestDepForkedTest", it)
 }
 
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
   workingDir "$appDir"
+  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
   commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")

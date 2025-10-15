@@ -30,8 +30,7 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 
   protected boolean useWebsocketPojoEndpoint() {
-    // only supported in jetty 10+
-    isLatestDepTest
+    false
   }
 
 
@@ -96,12 +95,8 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 }
 
-class Jetty9V0ForkedTest extends Jetty9Test implements TestingGenericHttpNamingConventions.ServerV0 {
+class Jetty9V0Test extends Jetty9Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
 class Jetty9V1ForkedTest extends Jetty9Test implements TestingGenericHttpNamingConventions.ServerV1 {
-  @Override
-  protected boolean useWebsocketPojoEndpoint() {
-    false
-  }
 }

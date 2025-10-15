@@ -292,11 +292,11 @@ public class CapturingTestBase {
     assertEquals(lineNumber, throwable.getStacktrace().get(0).getLineNumber());
   }
 
-  protected void assertCaptureWatches(
+  protected void assertCaptureExpressions(
       CapturedContext context, String name, String typeName, String value) {
-    CapturedContext.CapturedValue watch = context.getWatches().get(name);
-    assertEquals(typeName, watch.getType());
-    assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
+    CapturedContext.CapturedValue expression = context.getCaptureExpressions().get(name);
+    assertEquals(typeName, expression.getType());
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(expression));
   }
 
   protected TestSnapshotListener installMethodProbe(
@@ -437,7 +437,7 @@ public class CapturingTestBase {
       args.setDestination(compilerOutputDir);
       args.setClasspath(System.getProperty("java.class.path"));
       ExitCode exitCode =
-          compiler.execImpl(
+          compiler.exec(
               new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
               Services.EMPTY,
               args);

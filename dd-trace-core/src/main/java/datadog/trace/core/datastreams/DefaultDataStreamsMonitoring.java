@@ -75,7 +75,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Supplier<TraceConfig> traceConfigSupplier) {
     this(
         new OkHttpSink(
-            sharedCommunicationObjects.okHttpClient,
+            sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
             V01_DATASTREAMS_ENDPOINT,
             false,

@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -152,13 +153,14 @@ public class MuzzleVersionScanPlugin {
   }
 
   @SuppressForbidden
-  public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
+  public static void printMuzzleReferences(
+      final ClassLoader instrumentationLoader, final PrintWriter out) {
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {
       final ReferenceMatcher muzzle = module.getInstrumentationMuzzle();
-      System.out.println(module.getClass().getName());
+      out.println(module.getClass().getName());
       for (final Reference ref : muzzle.getReferences()) {
-        System.out.println(prettyPrint("  ", ref));
+        out.println(prettyPrint("  ", ref));
       }
     }
   }

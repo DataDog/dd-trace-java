@@ -5,10 +5,6 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-// temporary workaround to avoid early resolution of test classpath
-// ( Akka instrumentation doesn't require call-site instrumentation )
-// apply plugin: 'call-site-instrumentation'
-
 
 muzzle {
   pass {
@@ -43,38 +39,26 @@ repositories {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-["compileTestScala", "compileLatestDepTestScala"].each { name ->
-  tasks.named(name, ScalaCompile) {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+["compileMain_java11Java", "compileTestScala", "compileLatestDepTestScala"].each {
+  tasks.named(it, AbstractCompile) {
+    configureCompiler(it, 11, JavaVersion.VERSION_1_8)
   }
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
-  dependsOn compileTestScala
-  classpath += files(compileTestScala.destinationDirectory)
+  configureCompiler(it, 11)
+  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  javaLauncher = getJavaLauncherFor(11)
-  dependsOn compileLatestDepTestScala
-  classpath += files(compileLatestDepTestScala.destinationDirectory)
+  configureCompiler(it, 11)
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
 dependencies {
   main_java11CompileOnly libs.scala213
-  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0-M1'
-  // should be 2.9.0 on compileOnly but this has been temporary downgraded for the CI
-  // for the advice compilation it should not change.
-  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.8.8'
+  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
+  main_java11CompileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.9.0'
 
   //testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.6.0'
@@ -97,6 +81,8 @@ dependencies {
   latestDepTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.0.+'
 }
 
-configurations.getByName("latestDepTestRuntimeClasspath").resolutionStrategy {
-  it.force libs.slf4j
+configurations.named("latestDepTestRuntimeClasspath") {
+  it.resolutionStrategy {
+    it.force libs.slf4j
+  }
 }

@@ -247,7 +247,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.3.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(7), mockBackend.waitForCoverages(0), additionalDynamicTags)
-    verifySnapshotLogs(mockBackend.waitForLogs(5), 1, 2)
+    verifySnapshots(mockBackend.waitForLogs(2), 2)
 
     where:
     projectName                            | mavenVersion
@@ -304,16 +304,22 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
    */
   private void givenMavenDependenciesAreLoaded(String projectName, String mavenVersion, Map<String, String> additionalEnvVars = [:]) {
     if (LOADED_DEPENDENCIES.add("$projectName:$mavenVersion")) {
-      retryUntilSuccessfulOrNoAttemptsLeft(["dependency:go-offline"], additionalEnvVars)
+      retryUntilSuccessfulOrNoAttemptsLeft(["org.apache.maven.plugins:maven-dependency-plugin:3.6.1:go-offline"], additionalEnvVars)
     }
     // dependencies below are download separately
     // because they are not declared in the project,
     // but are added at runtime by the tracer
     if (LOADED_DEPENDENCIES.add("com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION")) {
-      retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION".toString()], additionalEnvVars)
+      retryUntilSuccessfulOrNoAttemptsLeft([
+        "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get",
+        "-Dartifact=com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION".toString()
+      ], additionalEnvVars)
     }
     if (LOADED_DEPENDENCIES.add("org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION")) {
-      retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION".toString()], additionalEnvVars)
+      retryUntilSuccessfulOrNoAttemptsLeft([
+        "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get",
+        "-Dartifact=org.jacoco:jacoco-maven-plugin:$JACOCO_PLUGIN_VERSION".toString()
+      ], additionalEnvVars)
     }
   }
 

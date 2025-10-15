@@ -165,6 +165,14 @@ public class SparkSQLUtils {
       generator.writeStringField("node", plan.nodeName());
       generator.writeNumberField("nodeId", plan.hashCode());
 
+      String nodeDetails = plan.simpleString();
+      if (nodeDetails.startsWith(plan.nodeName())) {
+        nodeDetails = nodeDetails.substring(plan.nodeName().length()).trim();
+      }
+      if (!nodeDetails.isEmpty()) {
+        generator.writeStringField("nodeDetailString", nodeDetails);
+      }
+
       // Metadata is only present for FileSourceScan nodes
       if (!plan.metadata().isEmpty()) {
         generator.writeFieldName("meta");

@@ -20,7 +20,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.1"
+  id("com.gradle.develocity") version "4.2.1"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -104,6 +104,7 @@ include(
   ":components:context",
   ":components:environment",
   ":components:json",
+  ":components:native-loader",
   ":components:yaml",
   ":telemetry",
   ":remote-config:remote-config-api",
@@ -136,6 +137,9 @@ include(
 include(
   ":dd-java-agent:cws-tls",
 )
+
+// AI Guard
+include(":dd-java-agent:agent-aiguard")
 
 // misc
 include(
@@ -363,22 +367,20 @@ include(
   ":dd-java-agent:instrumentation:jakarta-mail",
   ":dd-java-agent:instrumentation:jakarta-rs-annotations-3",
   ":dd-java-agent:instrumentation:jakarta-ws-annotations",
-  ":dd-java-agent:instrumentation:java-concurrent",
-  ":dd-java-agent:instrumentation:java-concurrent:java-completablefuture",
-  ":dd-java-agent:instrumentation:java-concurrent:java-concurrent-21",
-  ":dd-java-agent:instrumentation:java-concurrent:java-concurrent-25",
-  ":dd-java-agent:instrumentation:java-concurrent:lambda-testing",
-  ":dd-java-agent:instrumentation:java-directbytebuffer",
-  ":dd-java-agent:instrumentation:java-http-client",
-  ":dd-java-agent:instrumentation:java-io",
-  ":dd-java-agent:instrumentation:java-lang",
-  ":dd-java-agent:instrumentation:java-lang:java-lang-9",
-  ":dd-java-agent:instrumentation:java-lang:java-lang-11",
-  ":dd-java-agent:instrumentation:java-lang:java-lang-15",
-  ":dd-java-agent:instrumentation:java-lang:java-lang-17",
-  ":dd-java-agent:instrumentation:java-net",
-  ":dd-java-agent:instrumentation:java-security",
-  ":dd-java-agent:instrumentation:java-util",
+  ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8",
+  ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-21.0",
+  ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-25.0",
+  ":dd-java-agent:instrumentation:java:java-nio-1.8",
+  ":dd-java-agent:instrumentation:java:java-io-1.8",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-1.8",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-11.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-15.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-17.0",
+  ":dd-java-agent:instrumentation:java:java-net:java-net-1.8",
+  ":dd-java-agent:instrumentation:java:java-net:java-net-11.0",
+  ":dd-java-agent:instrumentation:java:java-security-1.8",
+  ":dd-java-agent:instrumentation:java:java-util-1.8",
   ":dd-java-agent:instrumentation:javax-naming",
   ":dd-java-agent:instrumentation:javax-xml",
   ":dd-java-agent:instrumentation:javax-mail",
@@ -406,6 +408,10 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0",
+  ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4",
+  ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.3",
+  ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.4.21",
+  ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0",
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-12.0",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0",

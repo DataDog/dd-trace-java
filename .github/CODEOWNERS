@@ -46,6 +46,7 @@
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java
+/dd-java-agent/agent-aiguard/                                   @DataDog/asm-java
 /dd-java-agent/agent-iast/                                      @DataDog/asm-java
 /dd-java-agent/appsec/appsec-test-fixtures/                     @DataDog/asm-java
 /dd-java-agent/instrumentation/*iast*                           @DataDog/asm-java
@@ -58,6 +59,7 @@
 /dd-smoke-tests/spring-security/                                @DataDog/asm-java
 /dd-java-agent/instrumentation/commons-fileupload/              @DataDog/asm-java
 /dd-java-agent/instrumentation/spring/spring-security/          @DataDog/asm-java
+/dd-trace-api/src/main/java/datadog/trace/api/aiguard/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
@@ -117,7 +119,7 @@
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 /dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
 /dd-java-agent/instrumentation/exception-profiling/                                         @DataDog/profiling-java
-/dd-java-agent/instrumentation/java-directbytebuffer/                                       @DataDog/profiling-java
+/dd-java-agent/instrumentation/java/java-nio-1.8/                                           @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/jfr/   @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrumentation/jfr/ @DataDog/profiling-java
 /dd-trace-api/src/main/java/datadog/trace/api/profiling                                     @DataDog/profiling-java

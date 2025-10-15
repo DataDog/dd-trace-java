@@ -22,9 +22,7 @@ dependencies {
 }
 
 tasks.named("compileJava", JavaCompile) {
-  setJavaVersion(it, 17)
-  sourceCompatibility = JavaVersion.VERSION_17
-  targetCompatibility = JavaVersion.VERSION_17
+  configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 
 tasks.named("forbiddenApisMain") {

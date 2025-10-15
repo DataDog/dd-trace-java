@@ -308,14 +308,14 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     // TODO: missing queue.spans (# of spans being sent)
     flushedBytes.add(sizeInBytes);
 
-    if (response.exception() != null) {
+    if (response.exception().isPresent()) {
       // covers communication errors -- both not receiving a response or
       // receiving malformed response (even when otherwise successful)
       apiErrors.increment();
     }
 
-    Integer status = response.status();
-    if (status != null) {
+    int status = response.status().orElse(0);
+    if (status != 0) {
       if (200 == status) {
         apiResponsesOK.increment();
       } else {

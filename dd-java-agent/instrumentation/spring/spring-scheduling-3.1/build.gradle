@@ -29,27 +29,20 @@ addTestSuiteForDir('latestSpring5Test', 'test')
 
 ["compileSpring6TestJava", "compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
   }
 }
 
 ["compileSpring6TestGroovy", "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(17)
+    configureCompiler(it, 17)
   }
 }
 
 ["spring6Test", "latestDepTest", "latestDepForkedTest"].each { name ->
   tasks.named(name, Test) {
     javaLauncher = getJavaLauncherFor(17)
-  }
-}
-
-["spring6Test", "latestDepTest", "latestDepForkedTest"].each { name ->
-  tasks.named(name, Test) {
-    jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+    jvmArgs("--add-opens", "java.base/java.util=ALL-UNNAMED")
   }
 }
 

@@ -15,15 +15,15 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-compileMain_java17Java.configure {
-  setJavaVersion(it, 17)
+tasks.named("compileMain_java17Java", JavaCompile) {
+  configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 
-configurations.matching({ it.name.startsWith('test') || it.name.startsWith('latestDepTest') }).each({
+configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {
   it.resolutionStrategy {
     force group: 'org.slf4j', name: 'slf4j-api', version: libs.versions.slf4j.get()
   }
-})
+}
 
 dependencies {
   main_java17CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'

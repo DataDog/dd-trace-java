@@ -2,7 +2,8 @@ tasks.register("artifacts") {
   group = "Help"
   description = "Displays the artifacts associated with each configuration of " + project
   doFirst {
-    configurations.findAll().each { config ->
+    // This eager access is ok as it is during the task execution phase
+    configurations.each { config ->
       println "${config}:"
       config.allArtifacts.getFiles().each { file ->
         println " " + file

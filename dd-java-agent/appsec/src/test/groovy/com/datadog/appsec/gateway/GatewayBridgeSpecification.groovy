@@ -27,6 +27,7 @@ import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.LoginEvent
+import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -899,6 +900,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
     gatewayContext.isRasp == true
+    gatewayContext.raspRuleType == RuleType.SSRF_REQUEST
 
     where:
     sampled << [true, false]
@@ -932,7 +934,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
-    gatewayContext.isRasp == false
+    gatewayContext.isRasp == true
+    gatewayContext.raspRuleType == RuleType.SSRF_RESPONSE
 
     where:
     sampled << [true, false]
@@ -1317,6 +1320,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'test default writeRequestHeaders'(){
     given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
     def headers = [
       'x-allowed-header' : ['value1'],
@@ -1327,7 +1331,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, false)
+    GatewayBridge.writeRequestHeaders(mockAppSecCtx, traceSegment, allowedHeaders, headers, false)
 
     then:
     1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
@@ -1337,6 +1341,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'test default writeResponseHeaders'(){
     given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
     def headers = [
       'x-allowed-header' : ['value1'],
@@ -1347,7 +1352,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, false)
+    GatewayBridge.writeResponseHeaders(mockAppSecCtx, traceSegment, allowedHeaders, headers, false)
 
     then:
     1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
@@ -1357,7 +1362,10 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'test  writeRequestHeaders collecting all headers '(){
     setup:
-    injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.isExtendedDataCollection() >> true
+    mockAppSecCtx.getExtendedDataCollectionMaxHeaders() >> 4
+    mockAppSecCtx.getCookies() >> new HashMap()
 
     def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
     def headers = [
@@ -1369,7 +1377,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, true)
+    GatewayBridge.writeRequestHeaders(mockAppSecCtx, traceSegment, allowedHeaders, headers, true)
 
     then:
     1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
@@ -1382,8 +1390,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'test  writeResponseHeaders collecting all headers '(){
     setup:
-    injectEnvConfig('DD_APPSEC_COLLECT_ALL_HEADERS' , 'true')
-    injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.isExtendedDataCollection() >> true
+    mockAppSecCtx.getExtendedDataCollectionMaxHeaders() >> 4
 
     def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
     def headers = [
@@ -1395,7 +1404,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, true)
+    GatewayBridge.writeResponseHeaders(mockAppSecCtx, traceSegment, allowedHeaders, headers, true)
 
     then:
     1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
@@ -1403,6 +1412,66 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.response.headers.x-other-header-1', 'value2')
     1 * traceSegment.setTagTop('http.response.headers.x-other-header-2', 'value3')
     1 * traceSegment.setTagTop('_dd.appsec.response.header_collection.discarded', 1)
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test writeRequestHeaders redacts AUTHORIZATION_HEADERS values'() {
+    setup:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.isExtendedDataCollection() >> true
+    mockAppSecCtx.getExtendedDataCollectionMaxHeaders() >> 10
+    mockAppSecCtx.getCookies() >> new HashMap()
+
+    def allowedHeaders = ['content-type', 'user-agent'] as Set
+    def headers = [
+      'authorization': ['Bearer abc123xyz'],
+      'proxy-authorization': ['Basic dXNlcjpwYXNz'],
+      'authentication-info': ['nextnonce="abc123"'],
+      'proxy-authentication-info': ['nextnonce="xyz789"'],
+      'content-type': ['application/json'],
+      'user-agent': ['Mozilla/5.0'],
+      'accept': ['text/html,application/xhtml+xml']
+    ]
+
+    when:
+    GatewayBridge.writeRequestHeaders(mockAppSecCtx, traceSegment, allowedHeaders, headers, true)
+
+    then:
+    1 * traceSegment.setTagTop('http.request.headers.authorization', '<redacted>')
+    1 * traceSegment.setTagTop('http.request.headers.proxy-authorization', '<redacted>')
+    1 * traceSegment.setTagTop('http.request.headers.authentication-info', '<redacted>')
+    1 * traceSegment.setTagTop('http.request.headers.proxy-authentication-info', '<redacted>')
+    1 * traceSegment.setTagTop('http.request.headers.content-type', 'application/json')
+    1 * traceSegment.setTagTop('http.request.headers.user-agent', 'Mozilla/5.0')
+    1 * traceSegment.setTagTop('http.request.headers.accept', 'text/html,application/xhtml+xml')
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test writeResponseHeaders redacts AUTHORIZATION_HEADERS values'() {
+    setup:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.isExtendedDataCollection() >> true
+    mockAppSecCtx.getExtendedDataCollectionMaxHeaders() >> 10
+    mockAppSecCtx.getCookies() >> new HashMap()
+
+    def allowedHeaders = ['content-type', 'server'] as Set
+    def headers = [
+      'www-authenticate': ['Basic realm="example"'],
+      'proxy-authenticate': ['Digest realm="example"'],
+      'set-cookie': ['session=abc123; Path=/; HttpOnly'],
+      'content-type': ['text/html; charset=UTF-8'],
+      'server': ['nginx/1.18.0']
+    ]
+
+    when:
+    GatewayBridge.writeResponseHeaders(mockAppSecCtx, traceSegment, allowedHeaders, headers, true)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.www-authenticate', '<redacted>')
+    1 * traceSegment.setTagTop('http.response.headers.proxy-authenticate', '<redacted>')
+    1 * traceSegment.setTagTop('http.response.headers.set-cookie', '<redacted>')
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
+    1 * traceSegment.setTagTop('http.response.headers.server', 'nginx/1.18.0')
     0 * traceSegment.setTagTop(_, _)
   }
 

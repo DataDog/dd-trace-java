@@ -11,13 +11,14 @@ groovy = "3.0.24"
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 logback = "1.2.13"
-bytebuddy = "1.17.5"
+bytebuddy = "1.17.7"
 scala = "2.11.12" # Last version to support Java 7 (2.12+ require Java 8+)
 scala211 = "2.11.12"
 scala212 = "2.12.18"
 scala213 = "2.13.11"
 scala33 = "3.3.0"
 kotlin = "1.6.21"
+kotlin-plugin = "1.9.24"
 coroutines = "1.3.0"
 dogstatsd = "4.4.3"
 jnr-unixsocket = "0.38.22"
@@ -26,11 +27,11 @@ commons = "3.2"
 mockito = '4.4.0'
 jctools = '3.3.0'
 moshi = '1.11.0'
-testcontainers = '1.20.1'
+testcontainers = '1.21.3'
 jmc = "8.1.0"
 autoservice = "1.1.1"
-ddprof = "1.32.0"
-asm = "9.8"
+ddprof = "1.33.0"
+asm = "9.9"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
 jmh = "1.37"
@@ -50,6 +51,8 @@ autoservice-annotation = { module = "com.google.auto.service:auto-service-annota
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons" }
 ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
+asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
+asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
 asmcommons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
 dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
 jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
@@ -75,11 +78,9 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 
 mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
-# needed for Java 21 support
-byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
-byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "bytebuddy" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback" }
@@ -105,10 +106,10 @@ jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", vers
 asm = ["asm", "asmcommons"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 # Testing
-spock = ["spock-core", "spock-junit4", "objenesis"]
+spock = ["spock-core", "objenesis"]
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]
-mockito = ["mokito-core", "mokito-junit-jupiter", "byte-buddy", "byte-buddy-agent"]
+mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
 test-logging = ["logback-classic", "log4j-over-slf4j", "jcl-over-slf4j", "jul-to-slf4j"]
 
 jmc = ["jmc-common", "jmc-flightrecorder"]

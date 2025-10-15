@@ -227,7 +227,7 @@ class TestConnection implements Connection {
 
   @Override
   boolean isValid(int timeout) throws SQLException {
-    return false
+    return true
   }
 
   @Override

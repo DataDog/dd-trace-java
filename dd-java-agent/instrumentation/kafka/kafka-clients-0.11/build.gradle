@@ -26,6 +26,7 @@ dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
+  testImplementation libs.spock.junit4 // This legacy module still needs JUnit4.
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '1.3.3.RELEASE'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '1.3.3.RELEASE'
@@ -41,8 +42,8 @@ dependencies {
 
   // IAST testing dependencies
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-lang')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.4')
@@ -58,15 +59,15 @@ dependencies {
   iastLatestDepTest3Implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'
   iastLatestDepTest3Implementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java-lang')
-  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java-io')
+  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
+  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
   iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.4')
   iastLatestDepTest3Implementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 }
 
-iastLatestDepTest3.configure {
+tasks.named("iastLatestDepTest3", Test) {
   javaLauncher = getJavaLauncherFor(17)
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }

@@ -1,11 +1,12 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.repository.RemoteRepository
+import java.io.Serializable
 
 /**
  * A pass or fail directive for a single dependency.
  */
-open class MuzzleDirective {
+open class MuzzleDirective : Serializable {
   /**
    * Name is optional and is used to further define the scope of a directive. The motivation for this is that this
    * plugin creates a config for each of the dependencies under test with name '...-<group_id>-<artifact_id>-<version>'.
@@ -20,7 +21,7 @@ open class MuzzleDirective {
   var versions: String? = null
   var skipVersions: MutableSet<String> = HashSet()
   var additionalDependencies: MutableList<String> = ArrayList()
-  internal var additionalRepositories: MutableList<RemoteRepository> = ArrayList()
+  internal var additionalRepositories: MutableList<Triple<String, String, String>> = ArrayList()
   internal var excludedDependencies: MutableList<String> = ArrayList()
   var assertPass: Boolean = false
   var assertInverse: Boolean = false
@@ -51,7 +52,7 @@ open class MuzzleDirective {
    * @param type the type of repository, defaults to "default"
    */
   fun extraRepository(id: String, url: String, type: String = "default") {
-    additionalRepositories.add(RemoteRepository.Builder(id, type, url).build())
+    additionalRepositories.add(Triple(id, type, url))
   }
 
   /**
@@ -69,13 +70,15 @@ open class MuzzleDirective {
    * @param defaults the default repositories
    * @return a list of the default repositories followed by any additional repositories
    */
-  fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> {
+  internal fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> {
     return if (additionalRepositories.isEmpty()) {
       defaults
     } else {
       ArrayList<RemoteRepository>(defaults.size + additionalRepositories.size).apply {
         addAll(defaults)
-        addAll(additionalRepositories)
+        addAll(additionalRepositories.map { (id, type, url) ->
+          RemoteRepository.Builder(id, type, url).build()
+        })
       }
     }
   }

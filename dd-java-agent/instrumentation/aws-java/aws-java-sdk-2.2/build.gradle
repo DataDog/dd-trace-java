@@ -44,8 +44,7 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
   testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
 
-
-  testImplementation group: 'org.testcontainers', name: 'localstack', version: libs.versions.testcontainers.get()
+  testImplementation libs.testcontainers.localstack
 
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS

@@ -4,12 +4,11 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  // need access to sun.misc package
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.misc package")
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
@@ -28,7 +27,7 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
 
-configurations.api {
+configurations.named('api') {
   exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
 }
 

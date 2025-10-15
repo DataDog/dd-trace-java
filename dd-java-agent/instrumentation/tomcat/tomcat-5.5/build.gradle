@@ -74,13 +74,13 @@ configurations.configureEach {
 
 ["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+    configureCompiler(it, 11)
   }
 }
 
 ["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(17)
+    configureCompiler(it, 17)
   }
 }
 
@@ -146,24 +146,25 @@ dependencies {
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-      // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
-      jvmArgs += ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
-    }
-  }
+tasks.withType(Test).configureEach {
+  // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
+  configureJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
+    )
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.
-configurations.findAll { it.name in ["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"] }
-.each {
-  it.exclude group: 'tomcat', module: 'catalina'
-  it.exclude group: 'tomcat', module: 'tomcat-coyote'
-  it.exclude group: 'tomcat', module: 'tomcat-util'
-  it.exclude group: 'tomcat', module: 'tomcat-http'
-  it.exclude group: 'tomcat', module: 'naming-resources'
-  it.exclude group: 'tomcat', module: 'naming-factory'
-  it.exclude group: 'commons-modeler', module: 'commons-modeler'
-  it.exclude group: 'javax.servlet', module: 'servlet-api'
+["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"].each {
+  configurations.named(it) {
+    it.exclude group: 'tomcat', module: 'catalina'
+    it.exclude group: 'tomcat', module: 'tomcat-coyote'
+    it.exclude group: 'tomcat', module: 'tomcat-util'
+    it.exclude group: 'tomcat', module: 'tomcat-http'
+    it.exclude group: 'tomcat', module: 'naming-resources'
+    it.exclude group: 'tomcat', module: 'naming-factory'
+    it.exclude group: 'commons-modeler', module: 'commons-modeler'
+    it.exclude group: 'javax.servlet', module: 'servlet-api'
+  }
 }

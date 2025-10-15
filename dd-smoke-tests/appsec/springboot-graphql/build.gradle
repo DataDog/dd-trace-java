@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -20,8 +22,8 @@ shadowJar {
 }
 
 // Use Java 11 to build application
-tasks.withType(JavaCompile) {
-  setJavaVersion(delegate, 11)
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 dependencies {
@@ -33,14 +35,26 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
 
-  jvmArgs "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
 
-task testRuntimeActivation(type: Test) {
-  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-    "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+tasks.register('testRuntimeActivation', Test) {
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive'
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
 
 tasks.named('check') {

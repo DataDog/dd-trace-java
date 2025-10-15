@@ -27,7 +27,6 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
-
 dependencies {
   compileOnly group: 'org.apache.pekko', name: "pekko-actor_2.12", version: pekkoVersion
 

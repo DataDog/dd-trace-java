@@ -13,11 +13,23 @@ import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.io.Closeable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +42,8 @@ import org.slf4j.LoggerFactory;
 // or at least create separate interfaces
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
+
+  public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
 
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
@@ -77,6 +91,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
 
+  // headers related with authorization
+  public static final Set<String> AUTHORIZATION_HEADERS =
+      new TreeSet<>(
+          Arrays.asList(
+              "authorization",
+              "proxy-authorization",
+              "www-authenticate",
+              "proxy-authenticate",
+              "authentication-info",
+              "proxy-authentication-info",
+              "cookie",
+              "set-cookie"));
+
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
   }
@@ -98,6 +125,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String peerAddress;
   private int peerPort;
   private String inferredClientIp;
+
+  private boolean extendedDataCollection = false;
+  private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
@@ -133,6 +163,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile boolean processedResponseBodySizeExceeded;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -147,7 +178,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
-  private volatile byte keepType = PrioritySampling.SAMPLER_KEEP;
 
   private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
   private final Set<Long> sampledHttpClientRequests = new HashSet<>();
@@ -156,6 +186,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+  private boolean manuallyKept = false;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -264,6 +295,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public int getRaspTimeouts() {
     return raspTimeouts;
+  }
+
+  public boolean isExtendedDataCollection() {
+    return extendedDataCollection;
+  }
+
+  public void setExtendedDataCollection(boolean extendedDataCollection) {
+    this.extendedDataCollection = extendedDataCollection;
+  }
+
+  public int getExtendedDataCollectionMaxHeaders() {
+    return extendedDataCollectionMaxHeaders;
+  }
+
+  public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
+    this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
   public WafContext getOrCreateWafContext(
@@ -384,14 +431,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Long getApiSecurityEndpointHash() {
     return this.apiSecurityEndpointHash;
-  }
-
-  public void setKeepType(byte keepType) {
-    this.keepType = keepType;
-  }
-
-  public byte getKeepType() {
-    return this.keepType;
   }
 
   void addRequestHeader(String name, String value) {
@@ -964,11 +1003,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return processedRequestBody;
   }
 
+  public boolean isProcessedResponseBodySizeExceeded() {
+    return processedResponseBodySizeExceeded;
+  }
+
+  public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
+    this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
+  }
+
   public boolean isRaspMatched() {
     return raspMatched;
   }
 
   public void setRaspMatched(boolean raspMatched) {
     this.raspMatched = raspMatched;
+  }
+
+  public boolean isManuallyKept() {
+    return manuallyKept;
+  }
+
+  public void setManuallyKept(boolean manuallyKept) {
+    this.manuallyKept = manuallyKept;
   }
 }

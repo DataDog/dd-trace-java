@@ -1028,7 +1028,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
   }
 
   private static List<String> httpClientDownstreamAnalysisVariants() {
-    return ['okHttp2']
+    return ['okHttp2', 'okHttp3']
   }
 
   private static byte[] unzip(final String text) {

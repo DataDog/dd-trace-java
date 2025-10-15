@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.EndpointCollector;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -66,13 +67,16 @@ public class AppSecDispatcherServletWithPathPatternsInstrumentation
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterRefresh(@Advice.Argument(0) final ApplicationContext springCtx) {
-      final RequestMappingHandlerMapping handler =
-          springCtx.getBean(RequestMappingHandlerMapping.class);
-      if (handler == null) {
+      final Map<String, RequestMappingHandlerMapping> handlers =
+          springCtx.getBeansOfType(RequestMappingHandlerMapping.class);
+      if (handlers == null || handlers.isEmpty()) {
         return;
       }
-      final Map<RequestMappingInfo, HandlerMethod> mappings = handler.getHandlerMethods();
-      if (mappings == null || mappings.isEmpty()) {
+      final Map<RequestMappingInfo, HandlerMethod> mappings = new HashMap<>();
+      for (RequestMappingHandlerMapping mapping : handlers.values()) {
+        mappings.putAll(mapping.getHandlerMethods());
+      }
+      if (mappings.isEmpty()) {
         return;
       }
       EndpointCollector.get().supplier(new RequestMappingInfoWithPathPatternsIterator(mappings));

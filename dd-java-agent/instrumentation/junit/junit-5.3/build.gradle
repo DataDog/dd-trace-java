@@ -26,6 +26,7 @@ ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
 }
 
+addTestSuiteForDir('v513Test', 'test')
 addTestSuiteForDir('latest5Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -41,6 +42,10 @@ dependencies {
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: libs.versions.junit5.get()
 
+  v513TestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.0'
+  v513TestImplementation  group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.13.0'
+  v513TestImplementation  group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.13.0'
+
   latest5TestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.+'
   latest5TestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.+'
   latest5TestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.+'
@@ -50,16 +55,14 @@ dependencies {
   latestDepTestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '+'
 }
 
-configurations.matching({ it.name.startsWith('test') }).each({
+configurations.matching { it.name.startsWith('test') }.configureEach {
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
     force group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
     force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: libs.versions.junit5.get()
   }
-})
+}
 
 tasks.named("compileLatestDepTestJava", JavaCompile) {
-  setJavaVersion(it, 17)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 17, JavaVersion.VERSION_1_8)
 }

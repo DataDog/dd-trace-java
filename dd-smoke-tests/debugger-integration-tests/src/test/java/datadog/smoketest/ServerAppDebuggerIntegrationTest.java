@@ -99,25 +99,28 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void waitForInstrumentation(String appUrl) throws Exception {
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS);
+    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, true);
   }
 
-  protected void waitForInstrumentation(String appUrl, String className) throws Exception {
+  protected void waitForInstrumentation(
+      String appUrl, String className, boolean waitOnProbeStatuses) throws Exception {
     String url = String.format(appUrl + "/waitForInstrumentation?classname=%s", className);
     LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
-    AtomicBoolean received = new AtomicBoolean();
-    AtomicBoolean installed = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-            installed.set(true);
-          }
-        });
-    processRequests(() -> received.get() && installed.get());
+    if (waitOnProbeStatuses) {
+      AtomicBoolean received = new AtomicBoolean();
+      AtomicBoolean installed = new AtomicBoolean();
+      registerProbeStatusListener(
+          probeStatus -> {
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+              received.set(true);
+            }
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+              installed.set(true);
+            }
+          });
+      processRequests(() -> received.get() && installed.get());
+    }
     LOG.info("instrumentation done");
   }
 
