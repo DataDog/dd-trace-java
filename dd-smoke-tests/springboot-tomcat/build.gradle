@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootWar
+
 plugins {
   id 'war'
   id 'org.springframework.boot' version '2.5.12'
@@ -110,6 +112,15 @@ tasks.matching({it.name.startsWith('compileTest')}).configureEach {
 
 tasks.withType(Test).configureEach {
   dependsOn "war", "bootWar", "unzip"
-  jvmArgs "-Ddatadog.smoketest.springboot.war.path=${tasks.bootWar.archiveFile.get().getAsFile()}"
-  jvmArgs "-Ddatadog.smoketest.tomcatDir=${buildDir}/apache-${serverName}-${serverVersion}"
+
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def bootWarTask = tasks.named('bootWar', BootWar).get()
+        return [
+          "-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}",
+          "-Ddatadog.smoketest.tomcatDir=${layout.buildDirectory.get()}/apache-${serverName}-${serverVersion}"
+        ]
+      }
+    })
 }
