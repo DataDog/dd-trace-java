@@ -83,22 +83,33 @@ public final class AgentCLI {
   }
 
   public static void uploadCrash(final String configFile, final String... files) throws Exception {
+    String error = null;
     ConfigManager.StoredConfig storedConfig = null;
     if (configFile != null) {
       Path configPath = Paths.get(configFile);
       if (!Files.exists(configPath)) {
         log.error("Config file {} does not exist", configFile);
-        System.exit(1);
+        error = "Config file does not exist";
       }
       storedConfig = readConfig(Config.get(), configPath);
       if (storedConfig == null) {
         log.error("Unable to parse config file {}", configFile);
-        System.exit(1);
+        error += "Unable to parse config file";
       }
-    } else {
+    }
+    if (storedConfig == null) {
       // if the PID is not provided, the config file will be null
       storedConfig = new ConfigManager.StoredConfig.Builder(Config.get()).build();
     }
+
+    final CrashUploader crashUploader = new CrashUploader(storedConfig);
+    // send the crash ping
+    crashUploader.notifyCrashStarted(error);
+
+    if (error != null) {
+      System.exit(1);
+    }
+
     List<Path> paths = new ArrayList<>(files.length);
     for (String file : files) {
       final Path path = Paths.get(file);
@@ -108,7 +119,7 @@ public final class AgentCLI {
       }
       paths.add(path);
     }
-    new CrashUploader(storedConfig).upload(paths);
+    crashUploader.upload(paths);
   }
 
   public static void sendOomeEvent(String taglist) throws Exception {
