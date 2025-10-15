@@ -23,6 +23,7 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.Handle;
+import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
@@ -128,11 +129,31 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   private static class CallSiteMethodVisitor extends MethodVisitor
       implements CallSiteAdvice.MethodHandler {
     protected final Advices advices;
+    protected int lastOpcode;
+    protected boolean newFollowedByDup;
 
     private CallSiteMethodVisitor(
         @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
       super(ASM_API, delegated);
       this.advices = advices;
+    }
+
+    @Override
+    public void visitTypeInsn(int opcode, String type) {
+      lastOpcode = opcode;
+      if (opcode == Opcodes.NEW) {
+        newFollowedByDup = false;
+      }
+      super.visitTypeInsn(opcode, type);
+    }
+
+    @Override
+    public void visitInsn(final int opcode) {
+      if (opcode == Opcodes.DUP) {
+        newFollowedByDup = lastOpcode == Opcodes.NEW;
+      }
+      lastOpcode = opcode;
+      super.visitInsn(opcode);
     }
 
     @Override
@@ -142,9 +163,9 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final boolean isInterface) {
-
+      lastOpcode = opcode;
       CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
-      if (advice instanceof InvokeAdvice) {
+      if (applyInvokeAdvice(advice, name, descriptor)) {
         invokeAdvice((InvokeAdvice) advice, opcode, owner, name, descriptor, isInterface);
       } else {
         mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -167,6 +188,7 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String descriptor,
         final Handle bootstrapMethodHandle,
         final Object... bootstrapMethodArguments) {
+      lastOpcode = Opcodes.INVOKEDYNAMIC;
       CallSiteAdvice advice = advices.findAdvice(bootstrapMethodHandle);
       if (advice instanceof InvokeDynamicAdvice) {
         invokeDynamicAdvice(
@@ -303,6 +325,75 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
           methodParameterTypesWithThis.length - 1);
       return methodParameterTypesWithThis;
     }
+
+    protected boolean applyInvokeAdvice(
+        final CallSiteAdvice advice, final String methodName, final String methodDescriptor) {
+      if (!(advice instanceof InvokeAdvice)) {
+        return false;
+      }
+      if (!"<init>".equals(methodName)) {
+        return true;
+      }
+      // TODO: do not ignore ctors where there is no DUP after NEW
+      return newFollowedByDup;
+    }
+
+    // Keep track of the latest opcode to match a DUP with its previous NEW
+    @Override
+    public void visitIntInsn(final int opcode, final int operand) {
+      lastOpcode = opcode;
+      super.visitIntInsn(opcode, operand);
+    }
+
+    @Override
+    public void visitVarInsn(final int opcode, final int var) {
+      lastOpcode = opcode;
+      super.visitVarInsn(opcode, var);
+    }
+
+    @Override
+    public void visitFieldInsn(
+        final int opcode, final String owner, final String name, final String descriptor) {
+      lastOpcode = opcode;
+      super.visitFieldInsn(opcode, owner, name, descriptor);
+    }
+
+    @Override
+    public void visitJumpInsn(final int opcode, final Label label) {
+      lastOpcode = opcode;
+      super.visitJumpInsn(opcode, label);
+    }
+
+    @Override
+    public void visitLdcInsn(final Object value) {
+      lastOpcode = Opcodes.LDC;
+      super.visitLdcInsn(value);
+    }
+
+    @Override
+    public void visitIincInsn(final int var, final int increment) {
+      lastOpcode = Opcodes.IINC;
+      super.visitIincInsn(var, increment);
+    }
+
+    @Override
+    public void visitTableSwitchInsn(
+        final int min, final int max, final Label dflt, final Label... labels) {
+      lastOpcode = Opcodes.TABLESWITCH;
+      super.visitTableSwitchInsn(min, max, dflt, labels);
+    }
+
+    @Override
+    public void visitLookupSwitchInsn(final Label dflt, final int[] keys, final Label[] labels) {
+      lastOpcode = Opcodes.LOOKUPSWITCH;
+      super.visitLookupSwitchInsn(dflt, keys, labels);
+    }
+
+    @Override
+    public void visitMultiANewArrayInsn(final String descriptor, final int numDimensions) {
+      lastOpcode = Opcodes.MULTIANEWARRAY;
+      super.visitMultiANewArrayInsn(descriptor, numDimensions);
+    }
   }
 
   private static class CallSiteCtorMethodVisitor extends CallSiteMethodVisitor {
@@ -389,6 +480,15 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
       } else {
         super.invokeAdvice(advice, opcode, owner, name, descriptor, isInterface);
       }
+    }
+
+    @Override
+    protected boolean applyInvokeAdvice(
+        final CallSiteAdvice advice, final String methodName, final String descriptor) {
+      if (isSuperCall) {
+        return advice instanceof InvokeAdvice && "<init>".equals(methodName);
+      }
+      return super.applyInvokeAdvice(advice, methodName, descriptor);
     }
   }
 }

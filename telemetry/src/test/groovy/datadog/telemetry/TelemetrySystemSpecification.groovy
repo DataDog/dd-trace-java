@@ -64,7 +64,7 @@ class TelemetrySystemSpecification extends DDSpecification {
 
   private SharedCommunicationObjects sharedCommunicationObjects() {
     new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(OkHttpClient),
       monitoring: Mock(Monitoring),
       agentUrl: HttpUrl.get('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery)

@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'application'
   id 'com.gradleup.shadow'
@@ -18,24 +20,21 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'JDK 25 Concurrent Integration Tests'
 
-tasks.named('compileJava') {
-  setJavaVersion(it, 25)
-  sourceCompatibility = JavaVersion.VERSION_25
-  targetCompatibility = JavaVersion.VERSION_25
-  options.compilerArgs.add("--enable-preview")
-  javaToolchains {
-    java {
-      toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-      }
+javaToolchains {
+  java {
+    toolchain {
+      languageVersion = JavaLanguageVersion.of(25)
     }
   }
 }
 
+tasks.named('compileJava', JavaCompile) {
+  configureCompiler(it, 25, JavaVersion.VERSION_25)
+  options.compilerArgs.add("--enable-preview")
+}
+
 tasks.named('compileTestGroovy') {
-  setJavaVersion(it, 8)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8)
 }
 
 // Disable plugin tasks that do not support Java 25:
@@ -60,6 +59,12 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

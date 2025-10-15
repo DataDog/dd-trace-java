@@ -1,0 +1,15 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  maven {
+    url = "https://repo.gradle.org/artifactory/libs-releases-local"
+  }
+}
+
+dependencies {
+  compileOnly gradleApi()
+}
+
+tasks.named("forbiddenApisMain") {
+  failOnMissingClasses = false
+}

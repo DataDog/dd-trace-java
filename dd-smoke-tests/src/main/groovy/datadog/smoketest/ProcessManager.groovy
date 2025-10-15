@@ -268,7 +268,7 @@ abstract class ProcessManager extends Specification {
     while (reader.read(buffer) != -1) {
       buffer.flip()
       while (buffer.hasRemaining()) {
-        int c = buffer.get()
+        char c = buffer.get()
         if (c == '\n' || c == '\r') {
           break
         }

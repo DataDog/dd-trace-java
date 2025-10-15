@@ -153,7 +153,7 @@ public class CiVisibilityServices {
       CiEnvironment remoteEnvironment =
           new CiEnvironmentImpl(
               getRemoteEnvironment(
-                  remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
+                  remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.agentHttpClient));
       return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
     } else {
       return localEnvironment;

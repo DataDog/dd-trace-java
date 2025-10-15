@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
-import org.junit.Rule
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -140,12 +139,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 class ConfigTest extends DDSpecification {
-
-  static final String PREFIX = "dd."
-
-  @Rule
-  public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
-
+  private static final String PREFIX = "dd."
   private static final DD_API_KEY_ENV = "DD_API_KEY"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
   private static final DD_TRACE_ENABLED_ENV = "DD_TRACE_ENABLED"
@@ -178,6 +172,10 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
+
+  def setup() {
+    FixedCapturedEnvironment.useFixedEnv([:])
+  }
 
   def "specify overrides via properties"() {
     setup:
@@ -830,15 +828,14 @@ class ConfigTest extends DDSpecification {
 
   def "captured env props override default props"() {
     setup:
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "automatic service name")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "test service name"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
 
     then:
-    config.serviceName == "automatic service name"
+    config.serviceName == "test service name"
   }
 
   def "specify props override captured env props"() {
@@ -846,9 +843,8 @@ class ConfigTest extends DDSpecification {
     def prop = new Properties()
     prop.setProperty(SERVICE_NAME, "what actually wants")
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "something else"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = Config.get(prop)
@@ -861,9 +857,8 @@ class ConfigTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + SERVICE_NAME, "what actually wants")
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "something else"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
@@ -876,9 +871,8 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV, "what actually wants")
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "something else"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
@@ -1786,8 +1780,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     //check that env wasn't set:
-    System.getenv(DD_ENV_ENV) == null
-    System.getenv(DD_VERSION_ENV) == null
+    environmentVariables.get(DD_ENV_ENV) == null
+    environmentVariables.get(DD_VERSION_ENV) == null
     //actual guard:
     config.mergedSpanTags == ["env": "production"]
   }
@@ -1801,8 +1795,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     //check that env wasn't set:
-    System.getenv(DD_ENV_ENV) == null
-    System.getenv(DD_VERSION_ENV) == null
+    environmentVariables.get(DD_ENV_ENV) == null
+    environmentVariables.get(DD_VERSION_ENV) == null
     //actual guard:
     config.mergedSpanTags == [(VERSION): "42"]
   }
@@ -1815,7 +1809,7 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    System.getenv(DD_ENV_ENV) == null
+    environmentVariables.get(DD_ENV_ENV) == null
     config.mergedSpanTags.get("env") == null
     config.mergedSpanTags == [(VERSION): "3.2.1"]
   }
@@ -2593,9 +2587,8 @@ class ConfigTest extends DDSpecification {
     setup:
     AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "captured props service name")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "captured props service name"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()

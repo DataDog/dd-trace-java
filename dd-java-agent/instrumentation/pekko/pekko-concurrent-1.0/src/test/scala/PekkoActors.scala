@@ -6,7 +6,12 @@ import org.apache.pekko.pattern.ask
 import org.apache.pekko.routing.RoundRobinPool
 import org.apache.pekko.util.Timeout
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activateSpan, activeSpan, setAsyncPropagationEnabled, startSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activateSpan,
+  activeSpan,
+  setAsyncPropagationEnabled,
+  startSpan
+}
 
 import scala.concurrent.duration._
 
@@ -87,15 +92,17 @@ object PekkoActors {
 
   // The way to terminate an actor system has changed between versions
   val terminate: (ActorSystem) => Unit = {
-    val t = try {
-      ActorSystem.getClass.getMethod("terminate")
-    } catch {
-      case _: Throwable => try {
-        ActorSystem.getClass.getMethod("awaitTermination")
+    val t =
+      try {
+        ActorSystem.getClass.getMethod("terminate")
       } catch {
-        case _: Throwable => null
+        case _: Throwable =>
+          try {
+            ActorSystem.getClass.getMethod("awaitTermination")
+          } catch {
+            case _: Throwable => null
+          }
       }
-    }
     if (t ne null) {
       { system: ActorSystem =>
         t.invoke(system)

@@ -66,11 +66,13 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
         @Advice.FieldValue("path") final String path,
         @Advice.FieldValue("clazz") final Class clazz) {
 
-      // Update the parent "netty.request"
+      // Update the parent "netty.request" if present
       final AgentSpan parent = activeSpan();
-      HTTP_RESOURCE_DECORATOR.withRoute(parent, request.method().name(), path);
-      parent.setTag(Tags.COMPONENT, "finatra");
-      parent.setSpanName(DECORATE.spanName());
+      if (parent != null) {
+        HTTP_RESOURCE_DECORATOR.withRoute(parent, request.method().name(), path);
+        parent.setTag(Tags.COMPONENT, "finatra");
+        parent.setSpanName(DECORATE.spanName());
+      }
 
       final AgentSpan span = startSpan(FINATRA_CONTROLLER);
       DECORATE.afterStart(span);

@@ -1,5 +1,7 @@
 package datadog.trace.api.gateway;
 
+import datadog.trace.api.appsec.HttpClientRequest;
+import datadog.trace.api.appsec.HttpClientResponse;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -237,16 +239,17 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) GRPC_SERVER_METHOD;
   }
 
-  static final int NETWORK_CONNECTION_ID = 19;
+  static final int HTTP_CLIENT_REQUEST_ID = 19;
 
   @SuppressWarnings("rawtypes")
-  private static final EventType NETWORK_CONNECTION =
-      new ET<>("network.connection", NETWORK_CONNECTION_ID);
+  private static final EventType HTTP_CLIENT_REQUEST =
+      new ET<>("http.client.request", HTTP_CLIENT_REQUEST_ID);
 
-  /** A I/O network URL */
+  /** An http downstream request */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext, String, Flow<Void>>> networkConnection() {
-    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) NETWORK_CONNECTION;
+  public EventType<BiFunction<RequestContext, HttpClientRequest, Flow<Void>>> httpClientRequest() {
+    return (EventType<BiFunction<RequestContext, HttpClientRequest, Flow<Void>>>)
+        HTTP_CLIENT_REQUEST;
   }
 
   static final int FILE_LOADED_ID = 20;
@@ -332,6 +335,32 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Object, Flow<Void>>> responseBody() {
     return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) RESPONSE_BODY;
+  }
+
+  static final int HTTP_CLIENT_RESPONSE_ID = 28;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType HTTP_CLIENT_RESPONSE =
+      new ET<>("http.client.response", HTTP_CLIENT_RESPONSE_ID);
+
+  /** An http downstream response */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, HttpClientResponse, Flow<Void>>>
+      httpClientResponse() {
+    return (EventType<BiFunction<RequestContext, HttpClientResponse, Flow<Void>>>)
+        HTTP_CLIENT_RESPONSE;
+  }
+
+  static final int HTTP_CLIENT_SAMPLING_ID = 29;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType HTTP_CLIENT_SAMPLING =
+      new ET<>("http.client.sampling", HTTP_CLIENT_SAMPLING_ID);
+
+  /** Check sampling status for a downstream request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Long, Flow<Boolean>>> httpClientSampling() {
+    return (EventType<BiFunction<RequestContext, Long, Flow<Boolean>>>) HTTP_CLIENT_SAMPLING;
   }
 
   static final int MAX_EVENTS = nextId.get();

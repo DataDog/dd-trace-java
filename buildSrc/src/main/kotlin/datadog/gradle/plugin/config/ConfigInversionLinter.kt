@@ -5,8 +5,6 @@ import org.gradle.api.Project
 import org.gradle.api.GradleException
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.internal.impldep.kotlinx.metadata.impl.extensions.KmExtension
-import org.gradle.kotlin.dsl.accessors.runtime.externalModuleDependencyFor
 import org.gradle.kotlin.dsl.getByType
 import java.net.URLClassLoader
 import java.nio.file.Path

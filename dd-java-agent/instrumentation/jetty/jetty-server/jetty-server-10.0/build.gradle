@@ -1,0 +1,99 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+muzzle {
+  pass {
+    name = "10_series"
+    group = "org.eclipse.jetty"
+    module = 'jetty-server'
+    versions = "[10,11)"
+    assertInverse = true
+    javaVersion = 11
+  }
+  pass {
+    name = "after_10"
+    group = "org.eclipse.jetty"
+    module = 'jetty-server'
+    versions = "[10,12)"
+    assertInverse = true
+    javaVersion = 11
+  }
+  pass {
+    name = 'named_dispatches'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    versions = "[10.0.16,11),[11.0.16,12)"
+    assertInverse = true
+    //extraDependency "javax.servlet:javax.servlet-api:3.1.0"
+    //extraDependency "jakarta.servlet:jakarta.servlet-api:5.0.0"
+    javaVersion = 11
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+addTestSuiteForDir("latestDepTest", "test")
+addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
+
+dependencies {
+  main_java11Implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
+  main_java11Implementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
+
+  // Don't want to conflict with jetty from the test server.
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
+
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.0.0'
+  testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+
+  // Include all jetty-server instrumentation modules for testing. Only the version-compatible module will apply at runtime.
+  testRuntimeOnly project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  // Include all appsec instrumentation modules for testing. Only the version-compatible module will apply at runtime.
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  // Include all websocket instrumentation modules for testing. Only the version-compatible module will apply at runtime.
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10')
+
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
+  latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+
+  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
+  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
+  latestDepForkedTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
+  latestDepForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  latestDepForkedTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+}
+
+configurations.named('latestDepForkedTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
+  }
+}
+
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

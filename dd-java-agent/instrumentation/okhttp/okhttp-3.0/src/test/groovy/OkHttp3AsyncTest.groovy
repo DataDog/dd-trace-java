@@ -19,7 +19,8 @@ import static java.util.concurrent.TimeUnit.SECONDS
 abstract class OkHttp3AsyncTest extends OkHttp3Test {
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
+    final contentType = headers.remove("Content-Type")
+    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse(contentType ?: "text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
       .method(method, reqBody)
@@ -33,13 +34,13 @@ abstract class OkHttp3AsyncTest extends OkHttp3Test {
     client.newCall(request).enqueue(new Callback() {
         void onResponse(Call call, Response response) {
           responseRef.set(response)
-          callback?.call()
+          callback?.call(response.body().byteStream())
           latch.countDown()
         }
 
         void onFailure(Call call, IOException e) {
           exRef.set(e)
-          callback?.call()
+          callback?.call(e)
           latch.countDown()
         }
       })

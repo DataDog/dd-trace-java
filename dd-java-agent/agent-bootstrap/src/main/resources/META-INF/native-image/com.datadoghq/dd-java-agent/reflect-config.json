@@ -181,11 +181,5 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
-  },
-  {
-    "name" : "datadog.jctools.maps.NonBlockingHashMap",
-    "fields": [
-      {"name": "_kvs", "allowUnsafeAccess": true}
-    ]
   }
 ]

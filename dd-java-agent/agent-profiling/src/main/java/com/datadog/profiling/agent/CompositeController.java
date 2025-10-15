@@ -11,9 +11,8 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.ddprof.DatadogProfilerController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import com.datadog.profiling.controller.oracle.OracleJdkController;
-import com.datadog.profiling.ddprof.Arch;
-import com.datadog.profiling.ddprof.OperatingSystem;
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
@@ -168,8 +167,8 @@ public class CompositeController implements Controller {
             ProfilerFlareLogger.getInstance()
                 .log(
                     "JFR is not available on this platform: {}, {}",
-                    OperatingSystem.current(),
-                    Arch.current());
+                    OperatingSystem.type(),
+                    OperatingSystem.architecture());
           }
         } catch (Throwable t) {
           ProfilerFlareLogger.getInstance().log("Failed to load openjdk profiler", t);
@@ -186,14 +185,16 @@ public class CompositeController implements Controller {
       } catch (Throwable error) {
         Throwable rootCause = error.getCause() == null ? error : error.getCause();
         context.setDatadogProfilerUnavailableReason(rootCause.getMessage());
-        OperatingSystem os = OperatingSystem.current();
-        if (os != OperatingSystem.linux) {
+        if (!isLinux()) {
           ProfilerFlareLogger.getInstance()
               .log("Datadog profiler only supported on Linux", rootCause);
         } else {
           ProfilerFlareLogger.getInstance()
               .log(
-                  "Failed to instantiate Datadog profiler on {} {}", os, Arch.current(), rootCause);
+                  "Failed to instantiate Datadog profiler on {} {}",
+                  OperatingSystem.type(),
+                  OperatingSystem.architecture(),
+                  rootCause);
         }
       }
     } else {

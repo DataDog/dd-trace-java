@@ -384,11 +384,6 @@ final class TypeFactory {
     }
 
     @Override
-    public TypeDescription getDeclaringType() {
-      return outline().getDeclaringType();
-    }
-
-    @Override
     public boolean isPublic() {
       return isPublicFilter.contains(name) || super.isPublic();
     }

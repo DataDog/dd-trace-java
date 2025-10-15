@@ -18,12 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -207,6 +209,53 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
     processRequests(() -> snapshotReceived.get() && correctLogMessage.get() && statusResult.get());
+  }
+
+  @Test
+  @DisplayName("testFullMethodWithCaptureExpressions")
+  void testFullMethodWithCaptureExpressions() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "argStr",
+                        new ValueScript(DSL.ref("argStr"), "argStr"),
+                        new LogProbe.Capture(3, 100, 3, 20)),
+                    new LogProbe.CaptureExpression(
+                        "argMap[key2]",
+                        new ValueScript(
+                            DSL.index(DSL.ref("argMap"), DSL.value("key2")), "argMap['key2']"),
+                        new LogProbe.Capture(3, 100, 4, 20))))
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+          assertEquals(2, snapshot.getCaptures().getReturn().getCaptureExpressions().size());
+          assertNull(snapshot.getCaptures().getReturn().getArguments());
+          assertNull(snapshot.getCaptures().getReturn().getLocals());
+          CapturedContext.CapturedValue argStrValue =
+              snapshot.getCaptures().getReturn().getCaptureExpressions().get("argStr");
+          assertEquals("argStr", argStrValue.getName());
+          assertEquals("foo", argStrValue.getValue());
+          assertEquals("truncated", argStrValue.getNotCapturedReason());
+          CapturedContext.CapturedValue key2Value =
+              snapshot.getCaptures().getReturn().getCaptureExpressions().get("argMap[key2]");
+          assertEquals("argMap[key2]", key2Value.getName());
+          assertEquals("val2", key2Value.getValue());
+          assertNull(key2Value.getNotCapturedReason());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
   }
 
   @Test

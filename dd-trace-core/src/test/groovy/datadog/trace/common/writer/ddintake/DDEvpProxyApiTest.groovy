@@ -60,7 +60,8 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     agentEvpProxy.getLastRequest().path == path
     agentEvpProxy.getLastRequest().getHeader(DDEvpProxyApi.DD_EVP_SUBDOMAIN_HEADER) == intakeSubdomain
 
@@ -95,7 +96,8 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     agentEvpProxy.getLastRequest().path == path
     agentEvpProxy.getLastRequest().getHeader(DDEvpProxyApi.DD_EVP_SUBDOMAIN_HEADER) == intakeSubdomain
 

@@ -70,7 +70,7 @@ public class RepoIndex {
     try {
       String fileName = Utils.getFileName(c);
       if (fileName == null) {
-        log.error("Could not retrieve file name for class {}", c.getName());
+        log.debug("Could not retrieve file name for class {}", c.getName());
         return null;
       }
 

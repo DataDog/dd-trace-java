@@ -63,9 +63,6 @@ Requirements to build the full project:
 
 Download and install JDK versions 8, 11, 17, 21 and 25, and GraalVM 17 for your OS.
 
-> [!NOTE]
-> While Temurin JDK 25 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) has not been released, please download the OpenJDK EA version at [this link](https://jdk.java.net/25/). Add the required environment variable using an `export` command along the lines of `export JAVA_25_HOME=/Library/Java/JavaVirtualMachines/jdk-25.jdk/Contents/Home`. Then, confirm that this was set properly by executing `echo $JAVA_25_HOME`.
-
 #### macOS
 
 * Install the required JDKs using `brew`:

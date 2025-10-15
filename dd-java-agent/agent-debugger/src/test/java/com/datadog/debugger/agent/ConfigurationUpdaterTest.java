@@ -330,7 +330,7 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             inst,
-            (tracerConfig, configuration, listener, debuggerSink) -> {
+            (tracerConfig, configuration, listener, probeMetadata, debuggerSink) -> {
               assertEquals(expectedDefinitions.get(), configuration.getDefinitions().size());
               return transformer;
             },
@@ -399,7 +399,8 @@ public class ConfigurationUpdaterTest {
                 .build());
     logProbes.get(0).buildLocation(null);
     configurationUpdater.accept(REMOTE_CONFIG, logProbes);
-    ProbeImplementation probeImplementation = configurationUpdater.resolve(PROBE_ID.getEncodedId());
+    configurationUpdater.getProbeMetadata().addProbe(logProbes.get(0));
+    ProbeImplementation probeImplementation = configurationUpdater.resolve(0);
     Assertions.assertEquals(
         PROBE_ID.getEncodedId(), probeImplementation.getProbeId().getEncodedId());
     Assertions.assertEquals("java.lang.String", probeImplementation.getLocation().getType());
@@ -417,8 +418,7 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(REMOTE_CONFIG, logProbes);
     verify(inst).retransformClasses(eq(String.class));
     // simulate that there is a snapshot probe instrumentation left in HashMap class
-    ProbeImplementation probeImplementation =
-        configurationUpdater.resolve(PROBE_ID2.getEncodedId());
+    ProbeImplementation probeImplementation = configurationUpdater.resolve(1);
     Assertions.assertNull(probeImplementation);
   }
 
@@ -627,6 +627,7 @@ public class ConfigurationUpdaterTest {
       Config tracerConfig,
       Configuration configuration,
       DebuggerTransformer.InstrumentationListener listener,
+      ProbeMetadata probeMetadata,
       DebuggerSink debuggerSink) {
     return transformer;
   }

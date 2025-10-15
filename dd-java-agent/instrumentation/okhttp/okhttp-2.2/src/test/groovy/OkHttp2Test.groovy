@@ -26,7 +26,8 @@ abstract class OkHttp2Test extends HttpClientTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
+    final contentType = headers.remove("Content-Type")
+    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse(contentType ?: "text/plain"), body) : null
 
     def request = new Request.Builder()
       .url(uri.toURL())
@@ -34,7 +35,7 @@ abstract class OkHttp2Test extends HttpClientTest {
       .headers(Headers.of(HeadersUtil.headersToArray(headers)))
       .build()
     def response = client.newCall(request).execute()
-    callback?.call()
+    callback?.call(response.body().byteStream())
     return response.code()
   }
 
@@ -46,6 +47,11 @@ abstract class OkHttp2Test extends HttpClientTest {
 
   boolean testRedirects() {
     false
+  }
+
+  @Override
+  boolean testAppSecClientRequest() {
+    true
   }
 }
 

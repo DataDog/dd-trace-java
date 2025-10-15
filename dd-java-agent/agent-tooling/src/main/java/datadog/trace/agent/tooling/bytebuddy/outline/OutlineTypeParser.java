@@ -7,7 +7,6 @@ import static net.bytebuddy.jar.asm.ClassReader.SKIP_DEBUG;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -34,16 +33,10 @@ final class OutlineTypeParser implements TypeParser {
 
     TypeOutline typeOutline =
         new TypeOutline(
-            ClassFileVersion.ofThisVm().getMinorMajorVersion(),
             loadedType.getModifiers(),
             loadedType.getName(),
             null != superClass ? superClass.getName() : null,
             extractTypeNames(loadedType.getInterfaces()));
-
-    Class<?> declaringClass = loadedType.getDeclaringClass();
-    if (null != declaringClass) {
-      typeOutline.declaredBy(declaringClass.getName());
-    }
 
     for (Annotation a : loadedType.getDeclaredAnnotations()) {
       typeOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
@@ -91,7 +84,6 @@ final class OutlineTypeParser implements TypeParser {
     TypeOutline typeOutline;
     FieldOutline fieldOutline;
     MethodOutline methodOutline;
-    boolean selfContained = true;
 
     OutlineTypeExtractor() {
       super(OpenedClassReader.ASM_API);
@@ -105,23 +97,7 @@ final class OutlineTypeParser implements TypeParser {
         String signature,
         String superName,
         String[] interfaces) {
-      typeOutline = new TypeOutline(version, access, name, superName, interfaces);
-    }
-
-    @Override
-    public void visitOuterClass(String owner, String name, String descriptor) {
-      selfContained = false;
-    }
-
-    @Override
-    public void visitInnerClass(String name, String outerName, String innerName, int access) {
-      if (typeOutline.getInternalName().equals(name)) {
-        if (null != outerName) {
-          typeOutline.declaredBy(outerName);
-        } else if (null == innerName && !selfContained) {
-          typeOutline.anonymousType();
-        }
-      }
+      typeOutline = new TypeOutline(access, name, superName, interfaces);
     }
 
     @Override

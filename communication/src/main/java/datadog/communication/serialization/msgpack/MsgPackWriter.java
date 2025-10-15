@@ -90,6 +90,7 @@ public class MsgPackWriter implements WritableFormatter {
       // max capacity, then reject the message
       if (buffer.flush()) {
         try {
+          mapper.reset();
           mapper.map(message, this);
           buffer.mark();
           return true;

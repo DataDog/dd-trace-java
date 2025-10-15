@@ -33,11 +33,11 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     def githubEvent = GithubActionsInfoTest.getResource("/ci/github-event.json")
     def githubEventPath = Paths.get(githubEvent.toURI())
 
-    environmentVariables.set(GithubActionsInfo.GITHUB_BASE_REF, "base-ref")
-    environmentVariables.set(GithubActionsInfo.GITHUB_EVENT_PATH, githubEventPath.toString())
+    env.set(GithubActionsInfo.GITHUB_BASE_REF, "base-ref")
+    env.set(GithubActionsInfo.GITHUB_EVENT_PATH, githubEventPath.toString())
 
     when:
-    def pullRequestInfo = new GithubActionsInfo(new CiEnvironmentImpl(System.getenv())).buildPullRequestInfo()
+    def pullRequestInfo = new GithubActionsInfo(new CiEnvironmentImpl(env.getAll())).buildPullRequestInfo()
 
     then:
     pullRequestInfo.getBaseBranch() == "base-ref"

@@ -7,7 +7,6 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -33,6 +32,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
+  private boolean firstSpanWritten;
 
   public TraceMapperV0_5() {
     this(2 << 20);
@@ -79,10 +79,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .forFirstSpanInChunk(i == 0)
-              .forLastSpanInChunk(i == trace.size() - 1));
+              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
+      firstSpanWritten = true;
     }
   }
 
@@ -115,6 +115,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   public void reset() {
     dictionary.reset();
     encoding.clear();
+    firstSpanWritten = false;
   }
 
   @Override
@@ -181,29 +182,26 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
-    private boolean firstSpanInChunk;
-    private boolean lastSpanInChunk;
+    private boolean firstSpanInTrace;
+    private boolean lastSpanInTrace;
+    private boolean firstSpanInPayload;
 
     MetaWriter withWritable(final Writable writable) {
       this.writable = writable;
       return this;
     }
 
-    MetaWriter forFirstSpanInChunk(final boolean firstSpanInChunk) {
-      this.firstSpanInChunk = firstSpanInChunk;
-      return this;
-    }
-
-    MetaWriter forLastSpanInChunk(final boolean lastSpanInChunk) {
-      this.lastSpanInChunk = lastSpanInChunk;
+    MetaWriter forSpan(boolean firstInTrace, boolean lastInTrace, boolean firstInPayload) {
+      this.firstSpanInTrace = firstInTrace;
+      this.lastSpanInTrace = lastInTrace;
+      this.firstSpanInPayload = firstInPayload;
       return this;
     }
 
     @Override
     public void accept(Metadata metadata) {
-      final boolean writeSamplingPriority = firstSpanInChunk || lastSpanInChunk;
-      final UTF8BytesString processTags =
-          firstSpanInChunk ? ProcessTags.getTagsForSerialization() : null;
+      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
+      final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
       int metaSize =
           metadata.getBaggage().size()
               + metadata.getTags().size()

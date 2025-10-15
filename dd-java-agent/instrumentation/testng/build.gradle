@@ -15,7 +15,7 @@ dependencies {
 
 // gradle can't downgrade the testng dependencies with `strictly` and IntelliJ IDEA reports
 // an error when importing the project, so pretty please DON'T change this back to strictly
-configurations.matching({ it.name.startsWith('test') }).each({
+configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.testng', name: 'testng', version: '6.4'
   }

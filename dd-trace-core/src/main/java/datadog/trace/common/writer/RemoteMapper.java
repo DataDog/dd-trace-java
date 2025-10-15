@@ -36,8 +36,6 @@ public interface RemoteMapper extends Mapper<List<? extends CoreSpan<?>>> {
 
   int messageBufferSize();
 
-  void reset();
-
   String endpoint();
 
   class NoopRemoteMapper implements RemoteMapper {
@@ -54,9 +52,6 @@ public interface RemoteMapper extends Mapper<List<? extends CoreSpan<?>>> {
     public int messageBufferSize() {
       return 0;
     }
-
-    @Override
-    public void reset() {}
 
     @Override
     public String endpoint() {

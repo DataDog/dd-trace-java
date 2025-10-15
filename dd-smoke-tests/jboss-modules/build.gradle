@@ -8,8 +8,8 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'JBoss Modules Smoke Tests.'
 
 configurations {
-  jbossModulesV1
-  jbossModulesV2
+  register('jbossModulesV1')
+  register('jbossModulesV2')
 }
 
 configurations.matching { name =~ /jbossModules.*/ }.configureEach {
@@ -30,14 +30,14 @@ dependencies {
 }
 
 tasks.register('libraryModules', Copy) {
-  from configurations.compileClasspath
-  into libsDirectory.dir('test-repo')
+  from configurations.named('compileClasspath')
+  into layout.buildDirectory.dir('test-repo')
   exclude '**/jboss-modules-*'
   rename '(.*)(-[0-9][^-]*)\\.jar', '$1/main/$1.jar'
 }
 
 def packageTestModule(jar, name) {
-  jar.destinationDirectory = libsDirectory.dir("test-repo/${name}/main")
+  jar.destinationDirectory = layout.buildDirectory.dir("test-repo/${name}/main")
   jar.archiveFileName = "${name}.jar"
   jar.from sourceSets.main.output
   jar.include "datadog/smoketest/jbossmodules/${name}/**"
@@ -67,7 +67,7 @@ tasks.register('appModule', Jar) {
 
 tasks.register('moduleDescriptors', Copy) {
   from sourceSets.main.output.resourcesDir
-  into libsDirectory.dir('test-repo')
+  into layout.buildDirectory.dir('test-repo')
   dependsOn "processResources"
 }
 
@@ -81,7 +81,17 @@ tasks.withType(Test).configureEach {
     "subscribingModule",
     "appModule"
 
-  jvmArgs "-Ddatadog.smoketest.jbossmodules.JBossModulesV1=${configurations.jbossModulesV1.asPath}"
-  jvmArgs "-Ddatadog.smoketest.jbossmodules.JBossModulesV2=${configurations.jbossModulesV2.asPath}"
-  jvmArgs "-Ddatadog.smoketest.jbossmodules.repoPath=${libsDirectory.dir('test-repo').get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def jbossModulesV1Jar = configurations.named('jbossModulesV1').get().asPath
+        def jbossModulesV2Jar = configurations.named('jbossModulesV2').get().asPath
+
+        return [
+          "-Ddatadog.smoketest.jbossmodules.JBossModulesV1=${jbossModulesV1Jar}",
+          "-Ddatadog.smoketest.jbossmodules.JBossModulesV2=${jbossModulesV2Jar}",
+          "-Ddatadog.smoketest.jbossmodules.repoPath=${layout.buildDirectory.dir('test-repo').get()}"
+        ]
+      }
+    })
 }

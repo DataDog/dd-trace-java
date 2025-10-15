@@ -1,5 +1,6 @@
 package datadog.crashtracking;
 
+import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.RWXRWXRWX;
 import static datadog.crashtracking.Initializer.R_XR_XR_X;
@@ -7,13 +8,11 @@ import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
-import static datadog.crashtracking.Initializer.writeConfig;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 
-import datadog.trace.api.Config;
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -24,7 +23,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public final class OOMENotifierScriptInitializer {
   private static final String OOME_NOTIFIER_SCRIPT_PREFIX = "dd_oome_notifier.";
@@ -57,14 +55,7 @@ public final class OOMENotifierScriptInitializer {
     if (!copyOOMEscript(scriptPath)) {
       return;
     }
-    String tags = getTags();
-    writeConfig(scriptPath, "agent", agentJar, "tags", tags);
-  }
-
-  private static String getTags() {
-    return Config.get().getMergedJmxTags().entrySet().stream()
-        .map(e -> e.getKey() + ":" + e.getValue())
-        .collect(Collectors.joining(","));
+    writeConfigToPath(scriptPath, "agent", agentJar);
   }
 
   private static Path getOOMEScriptPath(String onOutOfMemoryVal) {

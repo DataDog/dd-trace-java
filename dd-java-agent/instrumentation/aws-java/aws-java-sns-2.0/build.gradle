@@ -22,7 +22,7 @@ dependencies {
   testImplementation 'software.amazon.awssdk:sns:2.25.40'
   // SQS is used to act as the "Subscriber" of the SNS topic.
   testImplementation 'software.amazon.awssdk:sqs:2.25.40'
-  testImplementation group: 'org.testcontainers', name: 'localstack', version: libs.versions.testcontainers.get()
+  testImplementation libs.testcontainers.localstack
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
 }

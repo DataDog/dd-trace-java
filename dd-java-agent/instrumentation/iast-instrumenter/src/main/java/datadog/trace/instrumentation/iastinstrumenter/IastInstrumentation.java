@@ -76,11 +76,30 @@ public class IastInstrumentation extends CallSiteInstrumentation {
           }
         };
 
+    // this deliberately only considers anonymous types following the Java naming convention
+    private static final ElementMatcher.Junction<TypeDescription> ANONYMOUS_TYPE_MATCHER =
+        new ElementMatcher.Junction.ForNonNullValues<TypeDescription>() {
+          @Override
+          protected boolean doMatch(TypeDescription target) {
+            String name = target.getName();
+            // search the name in reverse until we find a $ or non-digit
+            for (int end = name.length() - 1, i = end; i > 0; i--) {
+              char c = name.charAt(i);
+              if (c == '$' && i < end) {
+                return true; // only seen digits so far, assume anonymous
+              } else if (c < '0' || c > '9') {
+                break; // non-digit character found, assume not anonymous
+              }
+            }
+            return false;
+          }
+        };
+
     static {
       if (Config.get().isIastAnonymousClassesEnabled()) {
         INSTANCE = TRIE_MATCHER;
       } else {
-        INSTANCE = TRIE_MATCHER.and(not(TypeDescription::isAnonymousType));
+        INSTANCE = TRIE_MATCHER.and(not(ANONYMOUS_TYPE_MATCHER));
       }
     }
   }

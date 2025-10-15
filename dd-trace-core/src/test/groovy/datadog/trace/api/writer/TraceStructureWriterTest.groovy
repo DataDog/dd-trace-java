@@ -7,24 +7,23 @@ import datadog.trace.core.test.DDCoreSpecification
 class TraceStructureWriterTest extends DDCoreSpecification {
   def "parse CLI args"() {
     when:
-    System.setProperty("os.name", osName)
-    def args = TraceStructureWriter.parseArgs(cli)
+    def args = TraceStructureWriter.parseArgs(cli, windows)
 
     then:
     args.length > 0
     args[0] == path
 
     where:
-    osName    | cli                             | path
-    'Windows' | 'C:/tmp/file'                   | 'C:/tmp/file'
-    'Windows' | 'C:\\tmp\\file'                 | 'C:\\tmp\\file'
-    'Windows' | 'file'                          | 'file'
-    'Windows' | 'C:/tmp/file:includeresource'   | 'C:/tmp/file'
-    'Windows' | 'C:\\tmp\\file:includeresource' | 'C:\\tmp\\file'
-    'Windows' | 'file:includeresource'          | 'file'
-    'Linux'   | '/var/tmp/file'                 | '/var/tmp/file'
-    'Linux'   | 'file'                          | 'file'
-    'MacOS'   | '/var/tmp/file'                 | '/var/tmp/file'
-    'MacOS'   | 'file'                          | 'file'
+    windows | cli                             | path
+    true    | 'C:/tmp/file'                   | 'C:/tmp/file'
+    true    | 'C:\\tmp\\file'                 | 'C:\\tmp\\file'
+    true    | 'file'                          | 'file'
+    true    | 'C:/tmp/file:includeresource'   | 'C:/tmp/file'
+    true    | 'C:\\tmp\\file:includeresource' | 'C:\\tmp\\file'
+    true    | 'file:includeresource'          | 'file'
+    false   | '/var/tmp/file'                 | '/var/tmp/file'
+    false   | 'file'                          | 'file'
+    false   | '/var/tmp/file'                 | '/var/tmp/file'
+    false   | 'file'                          | 'file'
   }
 }

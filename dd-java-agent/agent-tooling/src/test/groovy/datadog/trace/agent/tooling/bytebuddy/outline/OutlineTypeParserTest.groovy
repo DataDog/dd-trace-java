@@ -5,7 +5,7 @@ import spock.lang.Specification
 
 class OutlineTypeParserTest extends Specification {
 
-  void 'test modifiers are correct and anonymous classes are detected'() {
+  void 'test modifiers are correct'() {
     setup:
     final parser = new OutlineTypeParser()
     final locator = ClassFileLocators.classFileLocator(Thread.currentThread().contextClassLoader)
@@ -15,11 +15,12 @@ class OutlineTypeParserTest extends Specification {
     final outline = parser.parse(bytes)
 
     then:
-    outline.anonymousType == anonymous
     outline.interface == isinterface
     outline.abstract == isabstract
     outline.annotation == annotation
     outline.enum == isenum
+
+    // isAnonymousType is no longer supported in outlines for performance reasons
 
     where:
     clazz                                                    | anonymous | isinterface | isabstract | annotation | isenum

@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.bootstrap.Constants;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -38,6 +39,15 @@ public class ReferenceCreator extends ClassVisitor {
   private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
 
   private static final int UNDEFINED_LINE = -1;
+
+  /** Set containing name+descriptor signatures of Object methods. */
+  private static final Set<String> OBJECT_METHODS = new HashSet<>();
+
+  static {
+    for (Method m : Object.class.getMethods()) {
+      OBJECT_METHODS.add(methodSig(m.getName(), Type.getMethodDescriptor(m)));
+    }
+  }
 
   /**
    * Generate all references reachable from a given class.
@@ -323,7 +333,7 @@ public class ReferenceCreator extends ClassVisitor {
         final String name,
         final String descriptor,
         final boolean isInterface) {
-      if (ignoreReference(owner)) {
+      if (ignoreReference(owner) || ignoreObjectMethod(name, descriptor)) {
         return;
       }
 
@@ -489,5 +499,13 @@ public class ReferenceCreator extends ClassVisitor {
       }
     }
     return false;
+  }
+
+  private static boolean ignoreObjectMethod(String methodName, String methodDescriptor) {
+    return OBJECT_METHODS.contains(methodSig(methodName, methodDescriptor));
+  }
+
+  private static String methodSig(String methodName, String methodDescriptor) {
+    return methodName + methodDescriptor;
   }
 }

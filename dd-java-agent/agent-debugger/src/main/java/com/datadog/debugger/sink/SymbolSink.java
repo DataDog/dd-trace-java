@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +23,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.zip.GZIPOutputStream;
 import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okio.BufferedSink;
+import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,41 +107,49 @@ public class SymbolSink {
     if (scopesToSerialize.isEmpty()) {
       return;
     }
-    String json =
-        SERVICE_VERSION_ADAPTER.toJson(
-            new ServiceVersion(serviceName, env, version, "JAVA", scopesToSerialize));
-    updateStats(scopesToSerialize, json);
-    doUpload(scopesToSerialize, json);
+    serializeAndUpload(scopesToSerialize);
   }
 
-  private void doUpload(List<Scope> scopesToSerialize, String json) {
-    byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
-    byte[] payload = null;
+  private void serializeAndUpload(List<Scope> scopesToSerialize) {
+    try {
+      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(2 * 1024 * 1024);
+      try (OutputStream outputStream =
+          isCompressed ? new GZIPOutputStream(byteArrayOutputStream) : byteArrayOutputStream) {
+        BufferedSink sink = Okio.buffer(Okio.sink(outputStream));
+        SERVICE_VERSION_ADAPTER.toJson(
+            sink, new ServiceVersion(serviceName, env, version, "JAVA", scopesToSerialize));
+        sink.flush();
+      }
+      doUpload(scopesToSerialize, byteArrayOutputStream.toByteArray(), isCompressed);
+    } catch (IOException e) {
+      LOGGER.debug("Error serializing scopes", e);
+    }
+  }
+
+  private void doUpload(List<Scope> scopesToSerialize, byte[] payload, boolean isCompressed) {
+    if (payload.length > maxPayloadSize) {
+      LOGGER.warn(
+          "Payload is too big: {}/{} isCompressed={}",
+          payload.length,
+          maxPayloadSize,
+          isCompressed);
+      splitAndSend(scopesToSerialize);
+      return;
+    }
+    updateStats(scopesToSerialize, payload.length);
+    LOGGER.debug(
+        "Sending {} jar scopes size={} isCompressed={}",
+        scopesToSerialize.size(),
+        payload.length,
+        isCompressed);
+    String fileName = "file.json";
+    MediaType mediaType = APPLICATION_JSON;
     if (isCompressed) {
-      payload = compressPayload(jsonBytes);
+      fileName = "file.gz";
+      mediaType = APPLICATION_GZIP;
     }
-    if (payload == null) {
-      if (json.length() > maxPayloadSize) {
-        LOGGER.warn("Payload is too big: {}/{}", json.length(), maxPayloadSize);
-        splitAndSend(scopesToSerialize);
-        return;
-      }
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(jsonBytes, "file", "file.json", APPLICATION_JSON));
-    } else {
-      if (payload.length > maxPayloadSize) {
-        LOGGER.warn("Compressed payload is too big: {}/{}", payload.length, maxPayloadSize);
-        splitAndSend(scopesToSerialize);
-        return;
-      }
-      LOGGER.debug("Sending {} jar scopes size={}", scopesToSerialize.size(), payload.length);
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(payload, "file", "file.gz", APPLICATION_GZIP));
-    }
+    symbolUploader.uploadAsMultipart(
+        "", event, new BatchUploader.MultiPartContent(payload, "file", fileName, mediaType));
   }
 
   private static byte[] compressPayload(byte[] jsonBytes) {
@@ -164,12 +176,7 @@ public class SymbolSink {
       // try to split by jar scopes: one scope per request
       if (scopesToSerialize.size() < BatchUploader.MAX_ENQUEUED_REQUESTS) {
         for (Scope scope : scopesToSerialize) {
-          String json =
-              SERVICE_VERSION_ADAPTER.toJson(
-                  new ServiceVersion(
-                      serviceName, env, version, "JAVA", Collections.singletonList(scope)));
-          LOGGER.debug("Sending {} jar scope size={}", scope.getName(), json.length());
-          doUpload(Collections.singletonList(scope), json);
+          serializeAndUpload(Collections.singletonList(scope));
         }
       } else {
         // split the list of jar scope in 2 list jar scopes with half of the jar scopes
@@ -177,14 +184,8 @@ public class SymbolSink {
         List<Scope> firstHalf = scopesToSerialize.subList(0, half);
         List<Scope> secondHalf = scopesToSerialize.subList(half, scopesToSerialize.size());
         LOGGER.debug("split jar scope list in 2: {} and {}", firstHalf.size(), secondHalf.size());
-        String jsonFirstHalf =
-            SERVICE_VERSION_ADAPTER.toJson(
-                new ServiceVersion(serviceName, env, version, "JAVA", firstHalf));
-        doUpload(firstHalf, jsonFirstHalf);
-        String jsonSecondHalf =
-            SERVICE_VERSION_ADAPTER.toJson(
-                new ServiceVersion(serviceName, env, version, "JAVA", secondHalf));
-        doUpload(secondHalf, jsonSecondHalf);
+        serializeAndUpload(firstHalf);
+        serializeAndUpload(secondHalf);
       }
     } else {
       Scope jarScope = scopesToSerialize.get(0);
@@ -217,12 +218,12 @@ public class SymbolSink {
     return Scope.builder(ScopeType.JAR, jarName, 0, 0).name(jarName).scopes(classScopes).build();
   }
 
-  private void updateStats(List<Scope> scopesToSerialize, String json) {
+  private void updateStats(List<Scope> scopesToSerialize, long size) {
     int totalClasses = 0;
     for (Scope scope : scopesToSerialize) {
       totalClasses += scope.getScopes() != null ? scope.getScopes().size() : 0;
     }
-    stats.updateStats(totalClasses, json.length());
+    stats.updateStats(totalClasses, size);
     LOGGER.debug("SymbolSink stats: {}", stats);
   }
 

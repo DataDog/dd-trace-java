@@ -122,7 +122,7 @@ public class ConfigurationTest {
         MoshiHelper.createMoshiConfig().adapter(Configuration.class);
     Configuration config = adapter.fromJson(content);
     ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
-    assertEquals(1, logProbes.size());
+    assertEquals(2, logProbes.size());
     LogProbe logProbe0 = logProbes.get(0);
     assertEquals(2, logProbe0.getTags().length);
     assertEquals("dd_watches_dsl", logProbe0.getTags()[0].getKey());
@@ -138,6 +138,16 @@ public class ConfigurationTest {
     assertEquals("garbageStart", logProbe0.getSegments().get(5).getExpr());
     assertEquals(" contain=", logProbe0.getSegments().get(6).getStr());
     assertEquals("contains(arg, 'foo')", logProbe0.getSegments().get(7).getExpr());
+    LogProbe logProbe1 = logProbes.get(1);
+    assertEquals(2, logProbe1.getCaptureExpressions().size());
+    LogProbe.CaptureExpression captureExpression0 = logProbe1.getCaptureExpressions().get(0);
+    assertEquals("uuid", captureExpression0.getName());
+    assertEquals("uuid", captureExpression0.getExpr().getDsl());
+    assertEquals(5, captureExpression0.getCapture().getMaxReferenceDepth());
+    LogProbe.CaptureExpression captureExpression1 = logProbe1.getCaptureExpressions().get(1);
+    assertEquals("field1_map_key_array_3_field2", captureExpression1.getName());
+    assertEquals("field1.map['key'].array[3].field2", captureExpression1.getExpr().getDsl());
+    assertNull(captureExpression1.getCapture());
   }
 
   @Test

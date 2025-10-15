@@ -1,7 +1,10 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
@@ -194,6 +197,9 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   @Timeout(30)
   def "test default buffer size for #agentVersion"() {
     setup:
+    // disable process tags since they are only written on the first span and it will break the trace size estimation
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
     def api = Mock(DDAgentApi)
     def discovery = Mock(DDAgentFeaturesDiscovery)
     def writer = DDAgentWriter.builder()
@@ -222,6 +228,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     0 * _
 
     cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
     writer.close()
 
     where:
@@ -335,7 +343,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onPublish(minimalTrace, _)
     1 * healthMetrics.onSerialize(_)
     1 * healthMetrics.onFlush(false)
-    1 * healthMetrics.onSend(1, _, { response -> response.success() && response.status() == 200 })
+    1 * healthMetrics.onSend(1, _, { response -> response.success() && response.status().present && response.status().asInt == 200 })
 
     when:
     writer.close()
@@ -394,7 +402,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onPublish(minimalTrace, _)
     1 * healthMetrics.onSerialize(_)
     1 * healthMetrics.onFlush(false)
-    1 * healthMetrics.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
+    1 * healthMetrics.onFailedSend(1, _, { response -> !response.success() && response.status().present && response.status().asInt == 500 })
 
     when:
     writer.close()

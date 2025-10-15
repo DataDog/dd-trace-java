@@ -1,5 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
   java
   groovy
@@ -32,11 +30,11 @@ dependencies {
   compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
 
   implementation("org.freemarker", "freemarker", "2.3.30")
-  implementation("org.ow2.asm", "asm", "9.8")
-  implementation("org.ow2.asm", "asm-tree", "9.8")
+  implementation(libs.asm)
+  implementation(libs.asm.tree)
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
-  testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
+  testImplementation(libs.bytebuddy)
   testImplementation(libs.spock.core)
   testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation(libs.groovy)

@@ -23,7 +23,7 @@ dependencies {
   // SQS is used to act as the "Subscriber" of the SNS topic.
   // There's a problem with sqs sdk v1 with localstack+testcontainers testing. so use sdk v2 for sqs
   testImplementation 'software.amazon.awssdk:sqs:2.25.40'
-  testImplementation group: 'org.testcontainers', name: 'localstack', version: libs.versions.testcontainers.get()
+  testImplementation libs.testcontainers.localstack
 
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
 }

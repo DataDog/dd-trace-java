@@ -204,11 +204,7 @@ public class LogProbeTest {
   private static CapturedContext capturedContext(AgentSpan span, ProbeDefinition probeDefinition) {
     CapturedContext context = new CapturedContext();
     context.evaluate(
-        probeDefinition.getProbeId().getEncodedId(),
-        probeDefinition,
-        "Log Probe test",
-        System.currentTimeMillis(),
-        MethodLocation.DEFAULT);
+        probeDefinition, "Log Probe test", System.currentTimeMillis(), MethodLocation.DEFAULT);
     return context;
   }
 
@@ -287,7 +283,7 @@ public class LogProbeTest {
 
   private LogStatus prepareContext(
       CapturedContext context, LogProbe logProbe, MethodLocation methodLocation) {
-    context.evaluate(PROBE_ID.getEncodedId(), logProbe, "", 0, methodLocation);
+    context.evaluate(logProbe, "", 0, methodLocation);
     return (LogStatus) context.getStatus(PROBE_ID.getEncodedId());
   }
 

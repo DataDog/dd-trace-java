@@ -1,20 +1,20 @@
 package datadog.gradle.plugin.muzzle
 
-import org.eclipse.aether.repository.RemoteRepository
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
+import org.gradle.kotlin.dsl.newInstance
 import javax.inject.Inject
 import java.util.Locale
 
 /**
  * Muzzle extension containing all pass and fail directives.
  */
-abstract class MuzzleExtension @Inject constructor(protected val objectFactory: ObjectFactory) {
+abstract class MuzzleExtension @Inject constructor(private val objectFactory: ObjectFactory) {
     val directives: MutableList<MuzzleDirective> = ArrayList()
-    private val additionalRepositories: MutableList<RemoteRepository> = ArrayList()
+    private val additionalRepositories: MutableList<Triple<String, String, String>> = ArrayList()
 
     fun pass(action: Action<in MuzzleDirective>) {
-        val pass = objectFactory.newInstance(MuzzleDirective::class.java)
+        val pass = objectFactory.newInstance<MuzzleDirective>()
         action.execute(pass)
         postConstruct(pass)
         pass.assertPass = true
@@ -22,7 +22,7 @@ abstract class MuzzleExtension @Inject constructor(protected val objectFactory: 
     }
 
     fun fail(action: Action<in MuzzleDirective>) {
-        val fail = objectFactory.newInstance(MuzzleDirective::class.java)
+        val fail = objectFactory.newInstance<MuzzleDirective>()
         action.execute(fail)
         postConstruct(fail)
         fail.assertPass = false
@@ -39,7 +39,7 @@ abstract class MuzzleExtension @Inject constructor(protected val objectFactory: 
      */
     @JvmOverloads
     fun extraRepository(id: String, url: String, type: String = "default") {
-        additionalRepositories.add(RemoteRepository.Builder(id, type, url).build())
+        additionalRepositories.add(Triple(id, type, url))
     }
 
     private fun postConstruct(directive: MuzzleDirective) {

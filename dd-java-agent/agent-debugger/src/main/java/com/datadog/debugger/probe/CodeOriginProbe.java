@@ -35,8 +35,8 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new CodeOriginInstrumentor(this, methodInfo, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+    return new CodeOriginInstrumentor(this, methodInfo, probeIndices).instrument();
   }
 
   @Override

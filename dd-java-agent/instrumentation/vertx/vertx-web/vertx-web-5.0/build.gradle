@@ -22,12 +22,6 @@ configurations {
   testArtifacts
 }
 
-java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(11))
-  }
-}
-
 // Create test artifacts so vertx-rx can reuse the server test instrumentation and base class
 artifacts {
   testArtifacts testJar
@@ -57,4 +51,8 @@ dependencies {
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '+'
+}
+
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }

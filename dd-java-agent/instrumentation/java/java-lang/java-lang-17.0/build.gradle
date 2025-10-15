@@ -1,0 +1,42 @@
+plugins {
+  id 'idea'
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+idea {
+  module {
+    jdkName = '17'
+  }
+}
+
+csi {
+  javaVersion = JavaLanguageVersion.of(17)
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+}
+
+project.tasks.withType(AbstractCompile).configureEach {
+  switch (it.name) {
+    case 'compileCsiJava':
+      configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+      break
+    default:
+      configureCompiler(it, 17)
+  }
+}

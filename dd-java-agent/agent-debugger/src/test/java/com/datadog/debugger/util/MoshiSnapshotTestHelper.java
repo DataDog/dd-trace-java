@@ -1,6 +1,7 @@
 package com.datadog.debugger.util;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ARGUMENTS;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.CAPTURE_EXPRESSIONS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.CAUGHT_EXCEPTIONS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ELEMENTS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.ENTRIES;
@@ -11,9 +12,11 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.IS_NULL;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LINES;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCALS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.LOCATION;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.MESSAGE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.RETURN;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.SIZE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.STACKTRACE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.STATIC_FIELDS;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.THROWABLE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
@@ -28,6 +31,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
@@ -48,6 +52,16 @@ public class MoshiSnapshotTestHelper {
 
   public static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotTestHelper.CapturedValueAdapter();
+
+  public static CapturedContext.CapturedValue deserializeCapturedValue(
+      CapturedContext.CapturedValue capturedValue) {
+    try {
+      return VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
 
   public static String getValue(CapturedContext.CapturedValue capturedValue) {
     CapturedContext.CapturedValue valued = null;
@@ -80,14 +94,16 @@ public class MoshiSnapshotTestHelper {
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
       if (Types.equals(type, Snapshot.Captures.class)) {
         return new MoshiSnapshotTestHelper.CapturesAdapter(
-            moshi, new CapturedContextAdapter(moshi, new CapturedValueAdapter()));
+            moshi,
+            new CapturedContextAdapter(
+                moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi)));
       }
       if (Types.equals(type, CapturedContext.CapturedValue.class)) {
         return new MoshiSnapshotTestHelper.CapturedValueAdapter();
       }
       if (Types.equals(type, CapturedContext.class)) {
         return new MoshiSnapshotTestHelper.CapturedContextAdapter(
-            moshi, new CapturedValueAdapter());
+            moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi));
       }
       if (Types.equals(type, ProbeImplementation.class)) {
         return new MoshiSnapshotTestHelper.ProbeDetailsAdapter(moshi);
@@ -178,8 +194,10 @@ public class MoshiSnapshotTestHelper {
         new CapturedContext.CapturedValue[0];
 
     public CapturedContextAdapter(
-        Moshi moshi, JsonAdapter<CapturedContext.CapturedValue> valueAdapter) {
-      super(moshi, valueAdapter);
+        Moshi moshi,
+        JsonAdapter<CapturedContext.CapturedValue> valueAdapter,
+        MoshiSnapshotHelper.CapturedThrowableAdapter throwableAdapter) {
+      super(moshi, valueAdapter, throwableAdapter);
     }
 
     @Override
@@ -211,6 +229,11 @@ public class MoshiSnapshotTestHelper {
             break;
           case THROWABLE:
             capturedContext.addThrowable(throwableAdapter.fromJson(jsonReader));
+            break;
+          case CAPTURE_EXPRESSIONS:
+            for (CapturedContext.CapturedValue value : fromJsonCapturedValues(jsonReader)) {
+              capturedContext.addCaptureExpression(value);
+            }
             break;
           default:
             throw new IllegalArgumentException("Unknown field name for Captures object: " + name);
@@ -502,6 +525,37 @@ public class MoshiSnapshotTestHelper {
           return strValue;
       }
       return strValue;
+    }
+  }
+
+  public static class CapturedThrowableAdapter
+      extends MoshiSnapshotHelper.CapturedThrowableAdapter {
+    public CapturedThrowableAdapter(Moshi moshi) {
+      super(moshi);
+    }
+
+    @Override
+    public CapturedContext.CapturedThrowable fromJson(JsonReader jsonReader) throws IOException {
+      String type = null;
+      String message = null;
+      List<CapturedStackFrame> stacktrace = null;
+      jsonReader.beginObject();
+      while (jsonReader.hasNext()) {
+        String name = jsonReader.nextName();
+        switch (name) {
+          case TYPE:
+            type = jsonReader.nextString();
+            break;
+          case MESSAGE:
+            message = jsonReader.nextString();
+            break;
+          case STACKTRACE:
+            stacktrace = stackTraceAdapter.fromJson(jsonReader);
+            break;
+        }
+      }
+      jsonReader.endObject();
+      return new CapturedContext.CapturedThrowable(type, message, stacktrace, null);
     }
   }
 

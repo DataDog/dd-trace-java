@@ -7,13 +7,23 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.appsec.HttpClientRequest
+import datadog.trace.api.appsec.HttpClientResponse
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.DataStreamsContext
+import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import spock.lang.AutoCleanup
 import spock.lang.IgnoreIf
 import spock.lang.Requires
@@ -21,6 +31,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
@@ -28,7 +39,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
-import static datadog.trace.api.config.TracerConfig.*
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
 abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
@@ -80,12 +95,23 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         handleDistributedRequest()
         String msg = "Hello."
         response.status(200)
-          .addHeader('x-datadog-test-response-header', 'baz')
-          .send(msg)
+        .addHeader('x-datadog-test-response-header', 'baz')
+        .send(msg)
       }
       prefix("/timeout") {
         Thread.sleep(10_000)
         throw new IllegalStateException("Should never happen")
+      }
+      prefix("/json") {
+        if (request.getContentType() != 'application/json') {
+          response.status(400).send('Bad content type')
+        } else {
+          response
+          .status(200)
+          .addHeader('Content-Type', 'application/json')
+          .addHeader('X-AppSec-Test', 'true')
+          .sendWithType('application/json', request.body)
+        }
       }
     }
   }
@@ -120,19 +146,27 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def setupSpec() {
     List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
     proxySelector = new ProxySelector() {
-        @Override
-        List<Proxy> select(URI uri) {
-          if (uri.fragment == "proxy") {
-            return proxyList
-          }
-          return getDefault().select(uri)
+      @Override
+      List<Proxy> select(URI uri) {
+        if (uri.fragment == "proxy") {
+          return proxyList
         }
-
-        @Override
-        void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-          getDefault().connectFailed(uri, sa, ioe)
-        }
+        return getDefault().select(uri)
       }
+
+      @Override
+      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+        getDefault().connectFailed(uri, sa, ioe)
+      }
+    }
+
+    // Register the Instrumentation Gateway callbacks
+    def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)
+    def callbacks = new IGCallbacks()
+    Events<?> events = Events.get()
+    ss.registerCallback(events.httpClientRequest(), callbacks.httpClientRequestCb)
+    ss.registerCallback(events.httpClientResponse(), callbacks.httpClientResponseCb)
+    ss.registerCallback(events.httpClientSampling(), callbacks.httpClientBodySamplingCb)
   }
 
   /**
@@ -174,7 +208,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         getTags() == DSM_EDGE_TAGS
       }
@@ -810,19 +846,58 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     'GET'  | 'X-Datadog-Test-Response-Header' | 'response_header_tag' | [ 'response_header_tag': 'baz' ]
   }
 
+
+  @IgnoreIf({ !instance.testAppSecClientRequest() })
+  void 'test appsec client request analysis'() {
+    given:
+    final url = server.address.resolve(endpoint)
+    final tags = [
+      'downstream.request.url': url.toString(),
+      'downstream.request.method': method,
+      'downstream.request.body': body,
+      'downstream.response.status': 200,
+      'downstream.response.body': body,
+    ]
+
+    when:
+    final status = runUnderAppSecTrace {
+      doRequest(method, url, ['Content-Type': contentType] + headers, body) { InputStream response ->
+        assert response.text == body
+      }
+    }
+
+    then:
+    status == 200
+    TEST_WRITER.waitForTraces(1)
+    final span = TEST_WRITER.get(0).find { it.spanType == 'http'}
+    tags.each {
+      assert span.getTag(it.key) == it.value
+    }
+    final requestHeaders = new JsonSlurper().parseText(span.getTag("downstream.request.headers") as String) as Map<String, List<String>>
+    final responseHeaders = new JsonSlurper().parseText(span.getTag("downstream.response.headers") as String) as Map<String, List<String>>
+    headers.each {
+      assert requestHeaders[it.key] == [it.value]
+      assert responseHeaders[it.key] == [it.value]
+    }
+
+    where:
+    endpoint | method | contentType        | headers                   | body
+    '/json'  | 'POST' | 'application/json' | ['X-AppSec-Test': 'true'] | '{"hello": "world!" }'
+  }
+
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
   void clientSpan(
-    TraceAssert trace,
-    Object parentSpan,
-    String method = "GET",
-    boolean renameService = false,
-    boolean tagQueryString = false,
-    URI uri = server.address.resolve("/success"),
-    Integer status = 200,
-    boolean error = false,
-    Throwable exception = null,
-    boolean ignorePeer = false,
-    Map<String, Serializable> extraTags = null) {
+  TraceAssert trace,
+  Object parentSpan,
+  String method = "GET",
+  boolean renameService = false,
+  boolean tagQueryString = false,
+  URI uri = server.address.resolve("/success"),
+  Integer status = 200,
+  boolean error = false,
+  Throwable exception = null,
+  boolean ignorePeer = false,
+  Map<String, Serializable> extraTags = null) {
 
     def expectedQuery = tagQueryString ? uri.query : null
     def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
@@ -915,5 +990,62 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     // FIXME: this hack is here because callback with parent is broken in play-ws when the stream()
     // function is used.  There is no way to stop a test from a derived class hence the flag
     true
+  }
+
+  boolean testAppSecClientRequest() {
+    false
+  }
+
+  protected <E> E runUnderAppSecTrace(Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataAppSec(new IGCallbacks.Context())
+    final span = TEST_TRACER.startSpan("test", "test-appsec-span", ddctx)
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
+  }
+
+  static class IGCallbacks {
+
+    static class Context {
+      boolean hasAppSecData
+    }
+
+    final BiFunction<RequestContext, Long, Flow<Boolean>> httpClientBodySamplingCb =
+    { RequestContext rqCtxt, final long requestId ->
+      return new Flow.ResultFlow<>(true)
+    } as BiFunction<RequestContext, Long, Flow<Boolean>>
+
+    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCb =
+    { RequestContext rqCtxt, HttpClientRequest req ->
+      if (req.headers?.containsKey('X-AppSec-Test')) {
+        final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
+        if (context != null) {
+          context.hasAppSecData = true
+          activeSpan()
+          .setTag('downstream.request.url', req.url)
+          .setTag('downstream.request.method', req.method)
+          .setTag('downstream.request.headers', JsonOutput.toJson(req.headers))
+          .setTag('downstream.request.body', req.body?.text)
+        }
+
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, HttpClientRequest, Flow<Void>>
+
+    final BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCb =
+    { RequestContext rqCtxt, HttpClientResponse res ->
+      final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
+      if (context?.hasAppSecData) {
+        activeSpan()
+        .setTag('downstream.response.status', res.status)
+        .setTag('downstream.response.headers', JsonOutput.toJson(res.headers))
+        .setTag('downstream.response.body', res.body?.text)
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, HttpClientResponse, Flow<Void>>
+
+
   }
 }

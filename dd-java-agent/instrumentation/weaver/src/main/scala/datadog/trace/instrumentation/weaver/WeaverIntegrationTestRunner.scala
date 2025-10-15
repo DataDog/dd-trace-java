@@ -43,22 +43,22 @@ object WeaverIntegrationTestRunner {
         add(LoggedEvent.Trace(t))
     }
 
-    val framework = new CatsEffect(new PrintStream(System.out))
-    val runner = framework.runner(Array.empty, Array.empty, getClass.getClassLoader)
+    val framework                    = new CatsEffect(new PrintStream(System.out))
+    val runner                       = framework.runner(Array.empty, Array.empty, getClass.getClassLoader)
     val scalaTestNames: List[String] = testNames.asScala.toList
     val taskDefs: Array[TaskDef] = scalaTestNames.map { name =>
       new TaskDef(name, SuiteFingerprint, false, Array(new SuiteSelector()))
     }.toArray
-    val tasks = runner.tasks(taskDefs)
+    val tasks        = runner.tasks(taskDefs)
     val eventHandler = new WeaverTestEventHandler()
-    val logger = new WeaverTestLogger()
+    val logger       = new WeaverTestLogger()
     tasks.foreach(_.execute(eventHandler, Array(logger)))
     logger.logs.foreach {
       case LoggedEvent.Error(msg) => println(s"$msg")
-      case LoggedEvent.Warn(msg) => println(s"$msg")
-      case LoggedEvent.Info(msg) => println(s"$msg")
+      case LoggedEvent.Warn(msg)  => println(s"$msg")
+      case LoggedEvent.Info(msg)  => println(s"$msg")
       case LoggedEvent.Debug(msg) => println(s"$msg")
-      case LoggedEvent.Trace(t) => t.printStackTrace()
+      case LoggedEvent.Trace(t)   => t.printStackTrace()
     }
   }
 }

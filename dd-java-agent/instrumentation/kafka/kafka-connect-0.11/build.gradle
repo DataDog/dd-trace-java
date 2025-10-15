@@ -15,8 +15,8 @@ dependencies {
 
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-lang')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   testImplementation libs.jackson.databind

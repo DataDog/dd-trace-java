@@ -154,6 +154,42 @@ class TraceTaggingSmokeTest extends AbstractAppSecServerSmokeTest {
             ]
           ],
           on_match: []
+        ],
+        [
+          id: 'ttr-000-004',
+          name: 'Trace Tagging Rule: Attributes, No Keep, Event',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^TraceTagging\\/v4'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          output: [
+            event: true,
+            keep: false,
+            attributes: [
+              '_dd.appsec.trace.integer': [
+                value: 1729
+              ],
+              '_dd.appsec.trace.agent': [
+                address: 'server.request.headers.no_cookies',
+                key_path: ['user-agent']
+              ]
+            ]
+          ],
+          on_match: []
         ]
       ]
     ]
@@ -263,6 +299,40 @@ class TraceTaggingSmokeTest extends AbstractAppSecServerSmokeTest {
     assert rootSpan.meta['_dd.appsec.json'] != null, "Missing WAF attack event"
     def appsecJson = new JsonSlurper().parseText(rootSpan.meta['_dd.appsec.json'])
     assert appsecJson.triggers != null, "Missing triggers in WAF attack event"
+  }
+
+  def "test trace tagging rule with attributes, no keep and event"() {
+    when:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder()
+      .url(url)
+      .addHeader("User-Agent", "TraceTagging/v4")
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+    waitForTraceCount(1)
+
+    then:
+    responseBodyStr == "Sup AppSec Dawg"
+    response.code() == 200
+    rootSpans.size() == 1
+
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta['_dd.appsec.trace.agent'] != null, "Missing _dd.appsec.trace.agent from span's meta"
+    assert rootSpan.metrics['_dd.appsec.trace.integer'] != null, "Missing _dd.appsec.trace.integer from span's metrics"
+
+    assert rootSpan.meta['_dd.appsec.trace.agent'].startsWith("TraceTagging/v4")
+    assert rootSpan.metrics['_dd.appsec.trace.integer'] == 1729
+
+    // Check for WAF attack event (should exist since event: true)
+    assert rootSpan.meta['_dd.appsec.json'] != null, "Missing WAF attack event"
+    def appsecJson = new JsonSlurper().parseText(rootSpan.meta['_dd.appsec.json'])
+    assert appsecJson.triggers != null, "Missing triggers in WAF attack event"
+
+    // Should NOT have USER_KEEP sampling priority since keep: false
+    assert rootSpan.metrics.get('_sampling_priority_v1') < 2,
+    "Should not have USER_KEEP sampling priority when keep: false"
+
   }
 
 }

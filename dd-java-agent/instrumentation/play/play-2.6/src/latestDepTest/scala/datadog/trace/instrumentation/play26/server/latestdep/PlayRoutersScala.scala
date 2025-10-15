@@ -2,7 +2,11 @@ package datadog.trace.instrumentation.play26.server.latestdep
 
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.base.HttpServerTest.{ServerEndpoint, getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE}
+import datadog.trace.agent.test.base.HttpServerTest.{
+  ServerEndpoint,
+  getIG_RESPONSE_HEADER,
+  getIG_RESPONSE_HEADER_VALUE
+}
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler.CustomRuntimeException
 import datadog.trace.instrumentation.play26.server.latestdep.ImplicitConversions.MapExtensions
@@ -21,16 +25,19 @@ object PlayRoutersScala {
 
   def async(executor: ExecutorService)(components: BuiltInComponents): Router = {
     val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
-    val parser = components.defaultBodyParser
+    val parser               = components.defaultBodyParser
 
     import components._
 
     def controller(endpoint: ServerEndpoint)(block: => Result): Future[Result] = {
       Future {
-        HttpServerTest.controller(endpoint, new Closure[Result](this) {
-          def doCall(): Result = block.withHeaders(
-            (getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
-        })
+        HttpServerTest.controller(
+          endpoint,
+          new Closure[Result](this) {
+            def doCall(): Result =
+              block.withHeaders((getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
+          }
+        )
       }(ec)
     }
 
@@ -52,7 +59,9 @@ object PlayRoutersScala {
       case GET(p"/forwarded") =>
         defaultActionBuilder.async { request =>
           controller(FORWARDED) {
-            Results.Status(FORWARDED.getStatus)(request.headers.get("X-Forwarded-For").getOrElse("(no header)"))
+            Results.Status(FORWARDED.getStatus)(
+              request.headers.get("X-Forwarded-For").getOrElse("(no header)")
+            )
           }
         }
 
@@ -121,42 +130,49 @@ object PlayRoutersScala {
           }
         }
 
-      case POST(p"/created") => defaultActionBuilder.async(parser) { request =>
-        controller(CREATED) {
-          val body: String = request.body.asText.getOrElse("")
-          Results.Created(s"created: $body")
+      case POST(p"/created") =>
+        defaultActionBuilder.async(parser) { request =>
+          controller(CREATED) {
+            val body: String = request.body.asText.getOrElse("")
+            Results.Created(s"created: $body")
+          }
         }
-      }
 
-      case POST(p"/body-urlencoded") => defaultActionBuilder.async(parser) { request =>
-        controller(BODY_URLENCODED) {
-          val body: Map[String, Seq[String]] = request.body.asFormUrlEncoded.getOrElse(Map.empty)
-          Results.Ok(body.toStringAsGroovy)
+      case POST(p"/body-urlencoded") =>
+        defaultActionBuilder.async(parser) { request =>
+          controller(BODY_URLENCODED) {
+            val body: Map[String, Seq[String]] = request.body.asFormUrlEncoded.getOrElse(Map.empty)
+            Results.Ok(body.toStringAsGroovy)
+          }
         }
-      }
 
-      case POST(p"/body-multipart") => defaultActionBuilder.async(parser) { request =>
-        controller(BODY_MULTIPART) {
-          val body: Map[String, scala.Seq[String]] = request.body.asMultipartFormData.getOrElse(
-            MultipartFormData(Map.empty, scala.Seq.empty, scala.Seq.empty)
-          ).asFormUrlEncoded
-          Results.Ok(body.toStringAsGroovy)
+      case POST(p"/body-multipart") =>
+        defaultActionBuilder.async(parser) { request =>
+          controller(BODY_MULTIPART) {
+            val body: Map[String, scala.Seq[String]] = request.body.asMultipartFormData
+              .getOrElse(
+                MultipartFormData(Map.empty, scala.Seq.empty, scala.Seq.empty)
+              )
+              .asFormUrlEncoded
+            Results.Ok(body.toStringAsGroovy)
+          }
         }
-      }
 
-      case POST(p"/body-json") => defaultActionBuilder.async(parser) { request =>
-        controller(BODY_JSON) {
-          val body: JsValue = request.body.asJson.getOrElse(JsNull)
-          Results.Ok(body)
+      case POST(p"/body-json") =>
+        defaultActionBuilder.async(parser) { request =>
+          controller(BODY_JSON) {
+            val body: JsValue = request.body.asJson.getOrElse(JsNull)
+            Results.Ok(body)
+          }
         }
-      }
 
-      case POST(p"/body-xml") => defaultActionBuilder.async(parser) { request =>
-        controller(BODY_XML) {
-          val body: NodeSeq = request.body.asXml.getOrElse(NodeSeq.Empty)
-          Results.Ok(body.toString())
+      case POST(p"/body-xml") =>
+        defaultActionBuilder.async(parser) { request =>
+          controller(BODY_XML) {
+            val body: NodeSeq = request.body.asXml.getOrElse(NodeSeq.Empty)
+            Results.Ok(body.toString())
+          }
         }
-      }
     }
   }
 

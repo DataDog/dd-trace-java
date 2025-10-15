@@ -22,12 +22,12 @@ addTestSuiteForDir 'version101IastTest', 'iastTest'
 addTestSuiteForDir 'version102IastTest', 'iastTest'
 addTestSuiteForDir 'latestDepIastTest', 'iastTest'
 
-compileLagomTestJava {
+tasks.named("compileLagomTestJava", JavaCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-compileLagomTestGroovy {
+tasks.named("compileLagomTestGroovy", GroovyCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
@@ -170,32 +170,26 @@ dependencies {
   lagomTestImplementation group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'
 }
 
-compileBaseTestGroovy {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+tasks.named("compileBaseTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
-compileBaseForkedTestGroovy {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+tasks.named("compileBaseForkedTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
-compileVersion101TestGroovy {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
-  dependsOn "compileVersion101TestScala"
+tasks.named("compileVersion101TestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 
-compileVersion101ForkedTestGroovy {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
-  dependsOn "compileVersion101TestScala"
+tasks.named("compileVersion101ForkedTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 
-compileVersion102Scala213TestGroovy {
-  classpath = classpath.plus(files(compileVersion102Scala213TestScala.destinationDirectory))
-  dependsOn "compileVersion102Scala213TestScala"
+tasks.named("compileVersion102Scala213TestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileVersion102Scala213TestScala').map { it.destinationDirectory })
 }
 
-compileLatestDepTestGroovy {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }

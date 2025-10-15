@@ -13,6 +13,5 @@ public class App {
   }
 
   @Trace
-  void tracedMethod() {
-  }
+  void tracedMethod() {}
 }

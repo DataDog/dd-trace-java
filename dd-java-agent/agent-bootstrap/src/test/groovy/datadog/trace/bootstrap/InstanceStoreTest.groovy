@@ -1,15 +1,11 @@
 package datadog.trace.bootstrap
 
-import datadog.trace.agent.tooling.WeakMaps
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
 
 class InstanceStoreTest extends DDSpecification {
-  static {
-    WeakMaps.registerAsSupplier()
-  }
 
   @Shared
   private AtomicInteger counter = new AtomicInteger()
@@ -17,14 +13,6 @@ class InstanceStoreTest extends DDSpecification {
   // Since the InstanceStore is a per Class singleton, every test case needs new keys
   String nextKey() {
     "key-${counter.incrementAndGet()}"
-  }
-
-  def "test empty InstanceStore"() {
-    setup:
-    WeakMapContextStore<String, Some> someStore = InstanceStore.of(Some) as WeakMapContextStore<String, Some>
-
-    expect:
-    someStore.size() == 0
   }
 
   def "test returns existing value"() {

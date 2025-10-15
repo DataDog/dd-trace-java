@@ -1,13 +1,13 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.AdviceShader;
-import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -72,16 +72,15 @@ public class MuzzleVersionScanPlugin {
     if (assertPass) {
       for (InstrumenterModule module : toBeTested) {
         try {
-          // verify helper injector works
+          // verify helper consistency
           final String[] helperClassNames = module.helperClassNames();
           if (helperClassNames.length > 0) {
-            new HelperInjector(
-                    module.useAgentCodeSource(),
-                    MuzzleVersionScanPlugin.class.getSimpleName(),
-                    createHelperMap(module))
-                .transform(null, null, testApplicationLoader, null, null);
+            HelperClassLoader helperClassLoader = new HelperClassLoader(testApplicationLoader);
+            for (Map.Entry<String, byte[]> helper : createHelperMap(module).entrySet()) {
+              helperClassLoader.injectClass(helper.getKey(), helper.getValue());
+            }
           }
-        } catch (final Exception e) {
+        } catch (final Throwable e) {
           System.err.println(
               "FAILED HELPER INJECTION. Are Helpers being injected in the correct order?");
           System.err.println(e.getMessage());
@@ -105,6 +104,18 @@ public class MuzzleVersionScanPlugin {
       } // this module wants to validate against a different named directive
     }
     return toBeTested;
+  }
+
+  // Exposes ClassLoader.defineClass() to test helper consistency
+  // without requiring java.lang.instrument.Instrumentation agent
+  static final class HelperClassLoader extends ClassLoader {
+    HelperClassLoader(ClassLoader parent) {
+      super(parent);
+    }
+
+    public void injectClass(String name, byte[] bytecode) {
+      defineClass(name, bytecode, 0, bytecode.length);
+    }
   }
 
   private static Map<String, byte[]> createHelperMap(final InstrumenterModule module)
@@ -142,13 +153,14 @@ public class MuzzleVersionScanPlugin {
   }
 
   @SuppressForbidden
-  public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
+  public static void printMuzzleReferences(
+      final ClassLoader instrumentationLoader, final PrintWriter out) {
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {
       final ReferenceMatcher muzzle = module.getInstrumentationMuzzle();
-      System.out.println(module.getClass().getName());
+      out.println(module.getClass().getName());
       for (final Reference ref : muzzle.getReferences()) {
-        System.out.println(prettyPrint("  ", ref));
+        out.println(prettyPrint("  ", ref));
       }
     }
   }

@@ -37,5 +37,5 @@ dependencies {
   latestDepTestImplementation group: 'com.squareup.okio', name: 'okio', version: '1.+'
 
   testRuntimeOnly(project(':dd-java-agent:instrumentation:iast-instrumenter'))
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
 }

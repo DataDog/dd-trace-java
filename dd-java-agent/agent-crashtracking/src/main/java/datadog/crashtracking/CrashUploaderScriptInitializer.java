@@ -1,11 +1,11 @@
 package datadog.crashtracking;
 
+import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.RWXRWXRWX;
 import static datadog.crashtracking.Initializer.R_XR_XR_X;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
-import static datadog.crashtracking.Initializer.writeConfig;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
@@ -56,7 +56,7 @@ public final class CrashUploaderScriptInitializer {
       return;
     }
 
-    writeConfig(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
+    writeConfigToPath(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
   }
 
   private static boolean copyCrashUploaderScript(

@@ -57,7 +57,7 @@ public class KafkaProducerWithSchemaRegistry {
             MyMessage.newBuilder().setId("1").setValue("Hello from Protobuf!").build();
 
         ProducerRecord<String, MyMessage> record =
-            new ProducerRecord<String, MyMessage>(topicName, "testkey", message);
+            new ProducerRecord<>(topicName, "testkey", message);
         producer.send(record);
         Thread.sleep(1500);
         log.info("produced message");

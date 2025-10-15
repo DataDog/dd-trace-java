@@ -30,7 +30,7 @@ dependencies {
   latestReactorTestImplementation group: 'io.projectreactor.rabbitmq', name: 'reactor-rabbitmq', version: '+'
 }
 
-configurations.testRuntimeOnly {
+configurations.named('testRuntimeOnly') {
   resolutionStrategy {
     force group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
   }
@@ -40,6 +40,6 @@ tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
 
-tasks.named("latestDepTest") {
-  finalizedBy latestReactorTest
+tasks.named("latestDepTest", Test) {
+  finalizedBy 'latestReactorTest'
 }

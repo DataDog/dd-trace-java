@@ -23,7 +23,7 @@ repositories {
 addTestSuiteForDir('baseForkedTest', 'baseTest')
 addTestSuite('latestDepTest')
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn "baseForkedTest"
 }
 

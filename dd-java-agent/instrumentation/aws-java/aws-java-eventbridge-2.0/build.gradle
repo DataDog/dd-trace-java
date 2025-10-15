@@ -22,7 +22,7 @@ dependencies {
   // SQS and SNS are used to act as the "targets" of the EB bus.
   testImplementation 'software.amazon.awssdk:sqs:2.27.23'
   testImplementation 'software.amazon.awssdk:sns:2.27.23'
-  testImplementation 'org.testcontainers:localstack:1.20.1'
+  testImplementation libs.testcontainers.localstack
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'eventbridge', version: '+'
 }

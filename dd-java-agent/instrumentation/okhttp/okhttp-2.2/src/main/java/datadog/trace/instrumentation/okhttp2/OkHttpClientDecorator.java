@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.okhttp2;
 
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -52,5 +53,11 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected String getResponseHeader(Response response, String headerName) {
     return response.header(headerName);
+  }
+
+  /** Overridden by {@link AppSecInterceptor} */
+  @Override
+  protected void onHttpClientRequest(AgentSpan span, String url) {
+    // do nothing
   }
 }

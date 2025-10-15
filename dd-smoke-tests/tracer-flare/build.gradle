@@ -14,5 +14,11 @@ dependencies {
 tasks.withType(Test).configureEach {
   dependsOn "jar"
 
-  jvmArgs "-Ddatadog.smoketest.tracer-flare.jar.path=${tasks.jar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def jarTask = tasks.named('jar', Jar).get()
+        return ["-Ddatadog.smoketest.tracer-flare.jar.path=${jarTask.archiveFile.get()}"]
+      }
+    })
 }

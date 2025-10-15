@@ -80,11 +80,17 @@ tasks.named('compileTestGroovy') {
   }
 }
 
-tasks.withType(AbstractCopyTask).each {
+tasks.withType(ScalaCompile).configureEach {
+  // Despite the compatibility matrix, scala compiler doesn't properly
+  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+  // * https://github.com/gradle/gradle/issues/19456
+  configureCompiler(it, 8)
+}
+
+tasks.withType(AbstractCopyTask).configureEach {
   // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
-  it.configure {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-  }
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 spotless {

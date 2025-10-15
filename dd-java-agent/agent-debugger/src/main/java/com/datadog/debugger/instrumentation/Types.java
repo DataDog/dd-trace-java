@@ -47,6 +47,7 @@ public final class Types {
   // common Type constants
   public static final Type STRING_TYPE = Type.getType(String.class);
   public static final Type OBJECT_ARRAY_TYPE = Type.getType(Object[].class);
+  public static final Type INT_ARRAY_TYPE = Type.getType(int[].class);
   public static final Type STRING_ARRAY_TYPE = Type.getType(String[].class);
   public static final Type OBJECT_TYPE = Type.getType(Object.class);
   public static final Type COLLECTION_TYPE = Type.getType(Collection.class);

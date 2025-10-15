@@ -1,10 +1,13 @@
 package datadog.trace.core
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
@@ -19,6 +22,18 @@ import org.msgpack.value.ValueType
 import java.nio.ByteBuffer
 
 class DDSpanSerializationTest extends DDCoreSpecification {
+
+  def setupSpec() {
+    //disable process tags since will generate noise on the meta
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
+  }
+
+  def cleanupSpec() {
+    //disable process tags since will generate noise on the meta
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+  }
 
   def "serialize trace with id #value as int"() {
     setup:
