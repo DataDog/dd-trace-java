@@ -28,7 +28,10 @@ public class MongoCommentInjector {
       return event != null ? event.getCommand() : null;
     }
 
-    BsonDocument command = event.getCommand().clone();
+    // Create a mutable copy by constructing a new BsonDocument and copying all entries
+    // This handles both regular BsonDocument and immutable RawBsonDocument/ByteBufBsonDocument
+    BsonDocument command = new BsonDocument();
+    command.putAll(event.getCommand());
 
     try {
       for (String commentKey : new String[] {"comment", "$comment"}) {
