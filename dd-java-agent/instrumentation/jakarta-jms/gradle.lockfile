@@ -175,7 +175,6 @@ org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=instrumentPluginClasspath,main_java17RuntimeClasspath,muzzleTooling,runtimeClasspath,testRuntimeClasspath
 org.spockframework:spock-bom:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.spockframework:spock-core:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
-org.spockframework:spock-junit4:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-aop:6.0.11=testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-beans:6.0.11=testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-context:6.0.11=testCompileClasspath,testRuntimeClasspath

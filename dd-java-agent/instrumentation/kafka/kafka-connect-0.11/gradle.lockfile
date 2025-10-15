@@ -393,7 +393,6 @@ org.spockframework:spock-bom:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeC
 org.spockframework:spock-core:2.2-groovy-3.0=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.spockframework:spock-core:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.spockframework:spock-junit4:2.2-groovy-3.0=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-org.spockframework:spock-junit4:2.4-M6-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.springframework.kafka:spring-kafka-test:1.3.3.RELEASE=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath
 org.springframework.kafka:spring-kafka-test:2.7.9=testCompileClasspath,testRuntimeClasspath
 org.springframework.kafka:spring-kafka-test:2.9.13=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath

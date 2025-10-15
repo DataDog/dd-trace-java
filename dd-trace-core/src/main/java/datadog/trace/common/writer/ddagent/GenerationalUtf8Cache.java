@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
-import datadog.trace.common.writer.ddagent.SimpleUtf8Cache.CacheEntry;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 
