@@ -1,5 +1,6 @@
-package datadog.environment;
+package datadog.trace.bootstrap.config.provider.civisibility;
 
+import datadog.environment.EnvironmentVariables;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;

@@ -30,9 +30,3 @@ val excludedClassesCoverage by extra {
 val excludedClassesBranchCoverage by extra {
   listOf("datadog.environment.CommandLine") // tested using forked process
 }
-
-dependencies {
-  implementation(libs.slf4j)
-
-  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
-}

@@ -1,4 +1,4 @@
-package datadog.environment;
+package datadog.trace.bootstrap.config.provider.civisibility;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
