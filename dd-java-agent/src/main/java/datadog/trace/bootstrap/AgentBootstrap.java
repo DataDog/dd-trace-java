@@ -62,7 +62,7 @@ public final class AgentBootstrap {
     // while in single threaded mode.
     try {
       if ("Linux".equals(System.getProperty("os.name"))) {
-        System.loadLibrary("pthread");
+        System.loadLibrary("nio");
       }
     } catch (Exception e) {
     }
