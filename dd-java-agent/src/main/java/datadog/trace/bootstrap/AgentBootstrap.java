@@ -56,6 +56,18 @@ public final class AgentBootstrap {
   private static boolean initialized = false;
   private static List<File> agentFiles = null;
 
+  static {
+    // Workaround JDK-8345810.
+    // On Linux, libpthread must be loaded and initialized
+    // while in single threaded mode.
+    try {
+      if ("Linux".equals(System.getProperty("os.name"))) {
+        System.loadLibrary("pthread");
+      }
+    } catch (Exception e) {
+    }
+  }
+
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
   }
