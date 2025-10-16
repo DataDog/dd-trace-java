@@ -38,7 +38,7 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
 
     int memFd = libc.memfd_create("datadog-tracer-info", MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (memFd < 0) {
-      log.warn("memfd_create failed, errno={}", Native.getLastError());
+      log.warn("datadog-tracer-info memfd create failed, errno={}", Native.getLastError());
       return;
     }
 
@@ -49,13 +49,13 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
 
     NativeLong written = libc.write(memFd, buf, new NativeLong(payload.length));
     if (written.longValue() != payload.length) {
-      log.warn("write to memfd failed errno={}", Native.getLastError());
+      log.warn("write to datadog-tracer-info memfd failed errno={}", Native.getLastError());
       return;
     }
     log.debug("wrote {} bytes to memfd {}", written.longValue(), memFd);
     int returnCode = libc.fcntl(memFd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL);
     if (returnCode == -1) {
-      log.warn("failed to add seal to memfd errno={}", Native.getLastError());
+      log.warn("failed to add seal to datadog-tracer-info memfd errno={}", Native.getLastError());
       return;
     }
     // memfd is not closed to keep it readable for the lifetime of the process.
