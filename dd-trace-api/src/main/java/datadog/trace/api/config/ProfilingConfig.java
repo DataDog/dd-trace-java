@@ -199,20 +199,24 @@ public final class ProfilingConfig {
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
   // spotless:off
   /**
-   * Configuration for profile upload compression.<br><br> Supported values are:
+   * Configuration for profile upload compression.<br>
+   * <br>
+   * Supported values are:
+   *
    * <ul>
-   * <li><b>on</b>: equivalent to <b>zstd</b></li>
-   * <li><b>off</b>: disables compression</li>
-   * <li><b>lz4</b>: uses LZ4 compression (fast with moderate compression ratio)</li>
-   * <li><b>gzip</b>: uses GZIP compression (higher compression ratio but slower)</li>
-   * <li><b>zstd</b>: uses ZSTD compression (high compression ratio with reasonable performance)</li>
+   *   <li><b>on</b>: equivalent to <b>zstd</b>
+   *   <li><b>off</b>: disables compression
+   *   <li><b>lz4</b>: uses LZ4 compression (fast with moderate compression ratio)
+   *   <li><b>gzip</b>: uses GZIP compression (higher compression ratio but slower)
+   *   <li><b>zstd</b>: uses ZSTD compression (high compression ratio with reasonable performance)
    * </ul>
    */
   // spotless:on
   public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION =
       "profiling.debug.upload.compression";
 
-  public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT = "zstd";
+  // public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT = "zstd";
+  public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT = "lz4";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
