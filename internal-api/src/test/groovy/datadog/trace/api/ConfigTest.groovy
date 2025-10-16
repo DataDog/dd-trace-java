@@ -2793,4 +2793,60 @@ class ConfigTest extends DDSpecification {
     then:
     config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.CONTINUE
   }
+
+  def "db metadata fetching enabled with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.trace.db.metadata.fetching.enabled", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ENABLED", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbMetadataFetchingEnabled() == expected
+
+    where:
+    // spotless:off
+    sys     | env     | expected
+    null    | null    | true    // default is true
+    null    | "true"  | true
+    null    | "false" | false
+    "true"  | null    | true
+    "false" | null    | false
+    "true"  | "false" | true    // sys prop takes precedence
+    "false" | "true"  | false   // sys prop takes precedence
+    // spotless:on
+  }
+
+  def "db client info fetching enabled with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.trace.db.client.info.fetching.enabled", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_TRACE_DB_CLIENT_INFO_FETCHING_ENABLED", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbClientInfoFetchingEnabled() == expected
+
+    where:
+    // spotless:off
+    sys     | env     | expected
+    null    | null    | true    // default is true
+    null    | "true"  | true
+    null    | "false" | false
+    "true"  | null    | true
+    "false" | null    | false
+    "true"  | "false" | true    // sys prop takes precedence
+    "false" | "true"  | false   // sys prop takes precedence
+    // spotless:on
+  }
 }

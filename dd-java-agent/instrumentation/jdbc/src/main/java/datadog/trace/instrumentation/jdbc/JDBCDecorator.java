@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -202,7 +201,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null || !InstrumenterConfig.get().isJdbcMetadataFetchingEnabled()) {
+    if (connection == null || !Config.get().isDbMetadataFetchingEnabled()) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -212,7 +211,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final String url = metaData.getURL();
       if (url != null) {
         Properties clientInfo = null;
-        if (InstrumenterConfig.get().isJdbcClientInfoFetchingEnabled()) {
+        if (Config.get().isDbClientInfoFetchingEnabled()) {
           try {
             clientInfo = connection.getClientInfo();
           } catch (final Throwable ex) {

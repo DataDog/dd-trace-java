@@ -509,9 +509,11 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.COUCHBASE_INTE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_INFO_FETCHING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
@@ -1078,6 +1080,8 @@ public class Config {
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
   private final boolean dbmTracePreparedStatements;
+  private final boolean dbMetadataFetchingEnabled;
+  private final boolean dbClientInfoFetchingEnabled;
 
   private final boolean dynamicInstrumentationEnabled;
   private final String dynamicInstrumentationSnapshotUrl;
@@ -1625,6 +1629,9 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
+
+    dbMetadataFetchingEnabled = configProvider.getBoolean(DB_METADATA_FETCHING_ENABLED, true);
+    dbClientInfoFetchingEnabled = configProvider.getBoolean(DB_CLIENT_INFO_FETCHING_ENABLED, true);
 
     dbClientSplitByHost =
         configProvider.getBoolean(
@@ -3148,6 +3155,14 @@ public class Config {
 
   public boolean isDbClientSplitByHost() {
     return dbClientSplitByHost;
+  }
+
+  public boolean isDbMetadataFetchingEnabled() {
+    return dbMetadataFetchingEnabled;
+  }
+
+  public boolean isDbClientInfoFetchingEnabled() {
+    return dbClientInfoFetchingEnabled;
   }
 
   public Set<String> getSplitByTags() {
@@ -5552,6 +5567,10 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
+        + ", dbMetadataFetchingEnabled="
+        + dbMetadataFetchingEnabled
+        + ", dbClientInfoFetchingEnabled="
+        + dbClientInfoFetchingEnabled
         + ", dbmInjectSqlBaseHash="
         + dbmInjectSqlBaseHash
         + ", dbmPropagationMode="
