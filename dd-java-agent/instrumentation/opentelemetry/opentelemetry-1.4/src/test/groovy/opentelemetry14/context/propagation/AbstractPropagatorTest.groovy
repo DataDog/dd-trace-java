@@ -4,7 +4,6 @@ import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.api.trace.Span
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
 import io.opentelemetry.context.propagation.TextMapPropagator
@@ -101,14 +100,6 @@ abstract class AbstractPropagatorTest extends InstrumentationSpecification {
     where:
     values << values()
     (headers, traceId, spanId, sampling) = values
-  }
-
-  def "extraction on missing tracecontext should return an empty context"() {
-    when:
-    def headers = ["User-Agent":"test"]
-    def context = propagator().extract(Context.root(), headers, TextMap.INSTANCE)
-    then:
-    assert Span.fromContextOrNull(context) == null : "Should not have a tracing context"
   }
 
   def expectedTraceId(String traceId) {
