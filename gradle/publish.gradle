@@ -22,7 +22,7 @@ publishing {
   publications {
     maven(MavenPublication) { MavenPublication publication ->
       if (project.plugins.hasPlugin('com.gradleup.shadow')) {
-        publication.artifact(project.tasks.shadowJar)
+        publication.artifact(project.tasks.named("shadowJar"))
 
         // Required by Maven Central:
         publication.artifact sourcesJar
