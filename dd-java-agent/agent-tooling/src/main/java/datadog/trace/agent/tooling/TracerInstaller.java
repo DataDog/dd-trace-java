@@ -8,9 +8,9 @@ import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
-import datadog.trace.core.CoreTracer.CoreTracerBuilder;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
+import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,16 +23,15 @@ public class TracerInstaller {
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        CoreTracerBuilder tracerBuilder =
+        CoreTracer tracer =
             CoreTracer.builder()
                 .sharedCommunicationObjects(sharedCommunicationObjects)
                 .profilingContextIntegration(profilingContextIntegration)
                 .reportInTracerFlare()
-                .pollForTracingConfiguration();
-
-        maybeEnableServiceDiscovery(tracerBuilder);
-
-        installGlobalTracer(tracerBuilder.build());
+                .pollForTracingConfiguration()
+                .serviceDiscoveryFactory(serviceDiscoveryFactory())
+                .build();
+        installGlobalTracer(tracer);
       } else {
         log.debug("GlobalTracer already registered.");
       }
@@ -41,36 +40,36 @@ public class TracerInstaller {
     }
   }
 
-  @SuppressForbidden // intentional use of Class.forName
-  private static void maybeEnableServiceDiscovery(CoreTracerBuilder tracerBuilder) {
+  private static ServiceDiscoveryFactory serviceDiscoveryFactory() {
     if (!Config.get().isServiceDiscoveryEnabled()) {
-      return;
+      return ServiceDiscoveryFactory.NOOP;
     }
     if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
-      return;
+      return ServiceDiscoveryFactory.NOOP;
     }
     // make sure this branch is not considered possible for graalvm artifact
     if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
       log.debug("service discovery not supported on native images");
-      return;
+      return ServiceDiscoveryFactory.NOOP;
     }
-    tracerBuilder.serviceDiscoveryFactory(
-        () -> {
-          try {
-            // use reflection to load MemFDUnixWriter so it doesn't get picked up when we
-            // transitively look for all tracer class dependencies to install in GraalVM via
-            // VMRuntimeInstrumentation
-            Class<?> memFdClass =
-                Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
-            ForeignMemoryWriter memFd =
-                (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
-            return new ServiceDiscovery(memFd);
-          } catch (Throwable e) {
-            log.debug("service discovery not supported", e);
-            return null;
-          }
-        });
+    return TracerInstaller::initServiceDiscovery;
+  }
+
+  @SuppressForbidden // intentional use of Class.forName
+  private static ServiceDiscovery initServiceDiscovery() {
+    try {
+      // use reflection to load MemFDUnixWriter so it doesn't get picked up when we
+      // transitively look for all tracer class dependencies to install in GraalVM via
+      // VMRuntimeInstrumentation
+      Class<?> memFdClass =
+          Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
+      ForeignMemoryWriter memFd = (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
+      return new ServiceDiscovery(memFd);
+    } catch (Throwable e) {
+      log.debug("service discovery not supported", e);
+      return null;
+    }
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {

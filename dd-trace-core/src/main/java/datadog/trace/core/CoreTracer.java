@@ -512,6 +512,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       strictTraceWrites(config.isTraceStrictWritesEnabled());
       injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
       flushOnClose(config.isCiVisibilityEnabled());
+      serviceDiscoveryFactory(ServiceDiscoveryFactory.NOOP);
       return this;
     }
 
@@ -899,21 +900,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     this.localRootSpanTagsNeedIntercept =
         this.tagInterceptor.needsIntercept(this.localRootSpanTags);
-    if (serviceDiscoveryFactory != null) {
-      AgentTaskScheduler.get()
-          .schedule(
-              () -> {
-                final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
-                if (serviceDiscovery != null) {
-                  // JNA can do ldconfig and other commands. Those are hidden since internal.
-                  try (final TraceScope blackhole = muteTracing()) {
-                    serviceDiscovery.writeTracerMetadata(config);
-                  }
+    AgentTaskScheduler.get()
+        .schedule(
+            () -> {
+              final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
+              if (serviceDiscovery != null) {
+                // JNA can do ldconfig and other commands. Those are hidden since internal.
+                try (final TraceScope blackhole = muteTracing()) {
+                  serviceDiscovery.writeTracerMetadata(config);
                 }
-              },
-              1,
-              SECONDS);
-    }
+              }
+            },
+            1,
+            SECONDS);
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
