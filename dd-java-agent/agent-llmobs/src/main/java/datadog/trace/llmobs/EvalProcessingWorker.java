@@ -145,14 +145,12 @@ public class EvalProcessingWorker implements AutoCloseable {
     private void runDutyCycle() throws InterruptedException {
       Thread thread = Thread.currentThread();
       while (!thread.isInterrupted()) {
-        LLMObsEval eval = queue.poll(ticksRequiredToFlush, TimeUnit.NANOSECONDS);
+        LLMObsEval eval = queue.poll(100, TimeUnit.MILLISECONDS);
         if (eval != null) {
           buffer.add(eval);
           consumeBatch();
-          flushIfNecessary();
-        } else if (!buffer.isEmpty()) {
-          flushIfNecessary();
         }
+        flushIfNecessary();
       }
     }
 
