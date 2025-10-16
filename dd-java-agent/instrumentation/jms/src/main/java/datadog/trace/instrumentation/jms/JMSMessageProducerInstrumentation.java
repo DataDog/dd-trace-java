@@ -99,7 +99,9 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
-      if (!destinationName.isEmpty() && Config.get().isDataStreamsEnabled()) {
+      if (destinationName != null
+          && !destinationName.isEmpty()
+          && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
         if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
@@ -156,7 +158,9 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
-      if (!destinationName.isEmpty() && Config.get().isDataStreamsEnabled()) {
+      if (destinationName != null
+          && !destinationName.isEmpty()
+          && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
         if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
