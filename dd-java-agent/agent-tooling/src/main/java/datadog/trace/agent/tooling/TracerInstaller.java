@@ -42,16 +42,16 @@ public class TracerInstaller {
 
   private static ServiceDiscoveryFactory serviceDiscoveryFactory() {
     if (!Config.get().isServiceDiscoveryEnabled()) {
-      return ServiceDiscoveryFactory.NOOP;
+      return null;
     }
     if (!OperatingSystem.isLinux()) {
       log.debug("service discovery not supported outside linux");
-      return ServiceDiscoveryFactory.NOOP;
+      return null;
     }
     // make sure this branch is not considered possible for graalvm artifact
     if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
       log.debug("service discovery not supported on native images");
-      return ServiceDiscoveryFactory.NOOP;
+      return null;
     }
     return TracerInstaller::initServiceDiscovery;
   }

@@ -3,6 +3,4 @@ package datadog.trace.core.servicediscovery;
 import java.util.function.Supplier;
 
 @FunctionalInterface
-public interface ServiceDiscoveryFactory extends Supplier<ServiceDiscovery> {
-  ServiceDiscoveryFactory NOOP = () -> null;
-}
+public interface ServiceDiscoveryFactory extends Supplier<ServiceDiscovery> {}
