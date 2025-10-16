@@ -60,6 +60,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
+  private static final boolean FETCH_DB_METADATA = Config.get().isDbMetadataFetchingEnabled();
+  private static final boolean FETCH_DB_CLIENT_INFO = Config.get().isDbClientInfoFetchingEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -201,7 +203,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null || !Config.get().isDbMetadataFetchingEnabled()) {
+    if (connection == null || !FETCH_DB_METADATA) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -211,7 +213,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final String url = metaData.getURL();
       if (url != null) {
         Properties clientInfo = null;
-        if (Config.get().isDbClientInfoFetchingEnabled()) {
+        if (FETCH_DB_CLIENT_INFO) {
           try {
             clientInfo = connection.getClientInfo();
           } catch (final Throwable ex) {
