@@ -1489,9 +1489,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected String instrumentationName;
     protected CharSequence operationName;
 
-    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
-    // (below)
     // Builder attributes
+    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
     protected TagMap.Ledger tagLedger;
     protected long timestampMicro;
     protected AgentSpanContext parent;
@@ -1505,6 +1504,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected Object builderCiVisibilityContextData;
     protected List<AgentSpanLink> links;
     protected long spanId;
+    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
 
     CoreSpanBuilder(CoreTracer tracer) {
       this.tracer = tracer;
@@ -1996,6 +1996,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       this.instrumentationName = instrumentationName;
       this.operationName = operationName;
+      
+      this.inUse = true;
     }
 
     /**

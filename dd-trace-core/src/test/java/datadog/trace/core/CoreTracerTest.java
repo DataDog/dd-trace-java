@@ -1,18 +1,23 @@
 package datadog.trace.core;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.CoreTracer.CoreSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilderThreadLocalCache;
-import org.junit.Test;
 
 public final class CoreTracerTest {
   static final CoreTracer TRACER = CoreTracer.builder().build();
+  
   static final ReusableSingleSpanBuilderThreadLocalCache CACHE =
       new ReusableSingleSpanBuilderThreadLocalCache(TRACER);
 
@@ -112,5 +117,66 @@ public final class CoreTracerTest {
 
     builder2.start();
     assertFalse(builder2.inUse);
+  }
+  
+  @Test
+  public void init_twice() {
+	ReusableSingleSpanBuilder builder = new ReusableSingleSpanBuilder(TRACER);
+	builder.init("foo", "bar");
+	assertTrue(builder.inUse);
+	assertEquals("foo", builder.instrumentationName);
+	assertEquals("bar", builder.operationName);
+	
+	assertThrows(AssertionError.class, () -> builder.init("baz", "quux"));
+  }
+  
+  @Test
+  public void reset_twice() {
+	ReusableSingleSpanBuilder builder = new ReusableSingleSpanBuilder(TRACER);
+	builder.reset("foo", "bar");
+	assertTrue(builder.inUse);
+	assertEquals("foo", builder.instrumentationName);
+	assertEquals("bar", builder.operationName);
+		
+ 	assertFalse(builder.reset("baz", "quux"));
+	assertEquals("foo", builder.instrumentationName);
+	assertEquals("bar", builder.operationName);
+  }
+  
+  @Test
+  public void reset_and_start() {
+	ReusableSingleSpanBuilder builder = new ReusableSingleSpanBuilder(TRACER);
+	builder.reset("foo", "bar");
+	assertTrue(builder.inUse);
+	assertEquals("foo", builder.instrumentationName);
+	assertEquals("bar", builder.operationName);
+
+	AgentSpan span = builder.start();
+	assertEquals(span.getOperationName(), "bar");
+  }
+  
+  @Test
+  public void init_and_start() {
+	ReusableSingleSpanBuilder builder = new ReusableSingleSpanBuilder(TRACER);
+	builder.reset("foo", "bar");
+	assertTrue(builder.inUse);
+	assertEquals("foo", builder.instrumentationName);
+	assertEquals("bar", builder.operationName);
+
+	AgentSpan span = builder.start();
+	assertFalse(builder.inUse);
+	assertEquals(span.getOperationName(), "bar");
+	
+	
+	builder.reset("baz", "quux");
+	assertTrue(builder.inUse);
+	assertEquals("baz", builder.instrumentationName);
+	assertEquals("quux", builder.operationName);
+  }
+  
+  @Test
+  public void start_not_inUse() {
+	ReusableSingleSpanBuilder builder = new ReusableSingleSpanBuilder(TRACER);
+	assertThrows(AssertionError.class, () -> builder.start());
   }
 }
