@@ -50,7 +50,7 @@ public class ServiceDiscovery {
       String serviceVersion,
       UTF8BytesString processTags,
       String containerID) {
-    GrowableBuffer buffer = new GrowableBuffer(1028);
+    GrowableBuffer buffer = new GrowableBuffer(1024);
     MsgPackWriter writer = new MsgPackWriter(buffer);
 
     int mapElements = 4;
@@ -102,7 +102,7 @@ public class ServiceDiscovery {
 
     ByteBuffer byteBuffer = buffer.slice();
     byte[] bytes = new byte[byteBuffer.remaining()];
-    byteBuffer.duplicate().get(bytes);
+    byteBuffer.get(bytes);
     return bytes;
   }
 }
