@@ -82,12 +82,14 @@ public final class JMSMessageProducerInstrumentation
       String destinationName;
       try {
         // fall-back when producer wasn't created via standard Session.createProducer API
-        Destination destination = producer.getDestination();
-        boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
-        destinationName = PRODUCER_DECORATE.getDestinationName(destination);
         if (null != producerState) {
           resourceName = producerState.getResourceName();
+          Destination destination = producer.getDestination();
+          destinationName = PRODUCER_DECORATE.getDestinationName(destination);
         } else {
+          Destination destination = producer.getDestination();
+          destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+          boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
           resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
         }
       } catch (Exception ignored) {
@@ -99,11 +101,11 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
-      if (destinationName != null
+      if (null != destinationName
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
@@ -158,11 +160,11 @@ public final class JMSMessageProducerInstrumentation
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
-      if (destinationName != null
+      if (null != destinationName
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);

@@ -115,6 +115,10 @@ public final class JMSDecorator extends MessagingClientDecorator {
   }
 
   public static String messageTechnology(Message m) {
+    if (null == m) {
+      return "null";
+    }
+
     String messageClass = m.getClass().getName();
 
     if (messageClass.startsWith("com.amazon.sqs")) {

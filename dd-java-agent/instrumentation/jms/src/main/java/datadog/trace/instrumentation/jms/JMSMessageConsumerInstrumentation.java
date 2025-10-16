@@ -153,7 +153,7 @@ public final class JMSMessageConsumerInstrumentation
 
       if (Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if (tech == "ibmmq") { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags =
               create(tech, INBOUND, consumerState.getConsumerBaseResourceName().toString());
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
