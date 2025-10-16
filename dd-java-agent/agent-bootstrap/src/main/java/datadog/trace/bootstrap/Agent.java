@@ -63,6 +63,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.security.CodeSource;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
@@ -183,7 +184,6 @@ public class Agent {
   private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
-
   /**
    * Starts the agent; returns a boolean indicating if Agent started successfully
    *
@@ -795,6 +795,10 @@ public class Agent {
       if (forceEarlyStart) {
         initializeCrashTrackingDefault();
       } else {
+        // To workaround JDK-8345810, we want to initialize nio early,
+        // which has dependence on libpthread. Creating a small nio ByteBuffer
+        // to force nio initialization.
+        ByteBuffer buffer = ByteBuffer.allocate(1);
         AgentTaskScheduler.get().execute(Agent::initializeCrashTrackingDefault);
       }
     } else {

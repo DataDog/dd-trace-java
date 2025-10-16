@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import datadog.trace.bootstrap.environment.JavaVirtualMachine;
+import datadog.trace.bootstrap.environment.OperatingSystem;
 import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -61,7 +62,7 @@ public final class AgentBootstrap {
     // On Linux, libpthread must be loaded and initialized
     // while in single threaded mode.
     try {
-      if ("Linux".equals(System.getProperty("os.name"))) {
+      if (OperatingSystem.isLinux()) {
         System.loadLibrary("nio");
       }
     } catch (Exception e) {
