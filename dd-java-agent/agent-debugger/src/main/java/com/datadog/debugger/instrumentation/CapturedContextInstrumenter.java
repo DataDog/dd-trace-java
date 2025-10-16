@@ -60,19 +60,19 @@ import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CapturedContextInstrumentor extends Instrumentor {
-  private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContextInstrumentor.class);
+public class CapturedContextInstrumenter extends Instrumenter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(CapturedContextInstrumenter.class);
   private final boolean captureSnapshot;
   private final boolean captureEntry;
   private final Limits limits;
-  private final LabelNode contextInitLabel = new LabelNode();
+  protected final LabelNode contextInitLabel = new LabelNode();
   private int entryContextVar = -1;
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
   private Collection<LocalVariableNode> hoistedLocalVars = Collections.emptyList();
 
-  public CapturedContextInstrumentor(
+  public CapturedContextInstrumenter(
       ProbeDefinition definition,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
@@ -140,40 +140,14 @@ public class CapturedContextInstrumentor extends Instrumentor {
             // stack [exception]
           }
         }
-        ldc(insnList, Type.getObjectType(classNode.name));
-        // stack [class, array]
-        pushProbeIndices(insnList);
-        // stack [array]
-        invokeStatic(
-            insnList,
-            DEBUGGER_CONTEXT_TYPE,
-            "isReadyToCapture",
-            Type.BOOLEAN_TYPE,
-            CLASS_TYPE,
-            INT_ARRAY_TYPE);
+        addIsReadyToCaptureCall(insnList);
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
         insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
         LabelNode inProbeStartLabel = new LabelNode();
         insnList.add(inProbeStartLabel);
         // stack []
-        insnList.add(collectCapturedContext(Snapshot.Kind.BEFORE, beforeLabel));
-        // stack [capturedcontext]
-        ldc(insnList, Type.getObjectType(classNode.name));
-        // stack [capturedcontext, class]
-        ldc(insnList, sourceLine.getFrom());
-        // stack [capturedcontext, class, int]
-        pushProbeIndices(insnList);
-        // stack [capturedcontext, class, int, array]
-        invokeStatic(
-            insnList,
-            DEBUGGER_CONTEXT_TYPE,
-            "evalContextAndCommit",
-            VOID_TYPE,
-            CAPTURED_CONTEXT_TYPE,
-            CLASS_TYPE,
-            INT_TYPE,
-            INT_ARRAY_TYPE);
+        addEvalContextAndCommitCall(sourceLine, insnList, beforeLabel);
         // stack []
         invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
         LabelNode inProbeEndLabel = new LabelNode();
@@ -188,6 +162,28 @@ public class CapturedContextInstrumentor extends Instrumentor {
       }
     }
     return true;
+  }
+
+  protected void addEvalContextAndCommitCall(
+      Where.SourceLine sourceLine, InsnList insnList, LabelNode beforeLabel) {
+    insnList.add(collectCapturedContext(Snapshot.Kind.BEFORE, beforeLabel));
+    // stack [capturedcontext]
+    ldc(insnList, Type.getObjectType(classNode.name));
+    // stack [capturedcontext, class]
+    ldc(insnList, sourceLine.getFrom());
+    // stack [capturedcontext, class, int]
+    pushProbeIndices(insnList);
+    // stack [capturedcontext, class, int, array]
+    invokeStatic(
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "evalContextAndCommit",
+        VOID_TYPE,
+        CAPTURED_CONTEXT_TYPE,
+        CLASS_TYPE,
+        INT_TYPE,
+        INT_ARRAY_TYPE);
+    // stack []
   }
 
   private int addExceptionLocal(TryCatchBlockNode catchHandler, MethodNode methodNode) {
@@ -271,26 +267,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack [ret_value, boolean]
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
     // stack [ret_value]
-    insnList.add(collectCapturedContext(Snapshot.Kind.RETURN, node));
-    // stack [ret_value, capturedcontext]
-    ldc(insnList, Type.getObjectType(classNode.name));
-    // stack [ret_value, capturedcontext, class]
-    insnList.add(new VarInsnNode(Opcodes.LLOAD, timestampStartVar));
-    // stack [ret_value, capturedcontext, class, long]
-    getStatic(insnList, METHOD_LOCATION_TYPE, "EXIT");
-    // stack [ret_value, capturedcontext, class, long, methodlocation]
-    pushProbeIndices(insnList);
-    // stack [ret_value, capturedcontext, class, long, methodlocation, array]
-    invokeStatic(
-        insnList,
-        DEBUGGER_CONTEXT_TYPE,
-        "evalContext",
-        VOID_TYPE,
-        CAPTURED_CONTEXT_TYPE,
-        CLASS_TYPE,
-        LONG_TYPE,
-        METHOD_LOCATION_TYPE,
-        INT_ARRAY_TYPE);
+    addEvalContextCall(insnList, Snapshot.Kind.RETURN, node, timestampStartVar, "EXIT");
     // stack [ret_value]
     invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     insnList.add(new JumpInsnNode(Opcodes.GOTO, gotoNode));
@@ -325,8 +302,15 @@ public class CapturedContextInstrumentor extends Instrumentor {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
     }
     // stack [capturedcontext, capturedcontext, list]
+    addCommitCall(insnList);
+    // stack []
+    return insnList;
+  }
+
+  protected void addCommitCall(InsnList insnList) {
+    // stack [capturedcontext, capturedcontext, list]
     pushProbeIndices(insnList);
-    // stack [capturedcontext, capturedcontext, array]
+    // stack [capturedcontext, capturedcontext, list, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
@@ -337,7 +321,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
         getType(List.class),
         INT_ARRAY_TYPE);
     // stack []
-    return insnList;
   }
 
   protected void addFinallyHandler(LabelNode startLabel, LabelNode endLabel) {
@@ -362,30 +345,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       exitContextVar = newVar(CAPTURED_CONTEXT_TYPE);
     }
     // stack [exception]
-    handler.add(collectCapturedContext(Snapshot.Kind.UNHANDLED_EXCEPTION, endLabel));
-    // stack: [exception, capturedcontext]
-    ldc(handler, Type.getObjectType(classNode.name));
-    // stack [exception, capturedcontext, class]
-    if (timestampStartVar != -1) {
-      handler.add(new VarInsnNode(Opcodes.LLOAD, timestampStartVar));
-    } else {
-      ldc(handler, -1L);
-    }
-    // stack [exception, capturedcontext, class, long]
-    getStatic(handler, METHOD_LOCATION_TYPE, "EXIT");
-    // stack [exception, capturedcontext, class, long, methodlocation]
-    pushProbeIndices(handler);
-    // stack [exception, capturedcontext, class, long, methodlocation, array]
-    invokeStatic(
-        handler,
-        DEBUGGER_CONTEXT_TYPE,
-        "evalContext",
-        VOID_TYPE,
-        CAPTURED_CONTEXT_TYPE,
-        CLASS_TYPE,
-        LONG_TYPE,
-        METHOD_LOCATION_TYPE,
-        INT_ARRAY_TYPE);
+    addEvalContextCall(
+        handler, Snapshot.Kind.UNHANDLED_EXCEPTION, endLabel, timestampStartVar, "EXIT");
     // stack [exception]
     invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     // stack [exception]
@@ -398,6 +359,40 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: []
     methodNode.instructions.add(handler);
     finallyBlocks.add(new FinallyBlock(startLabel, endLabel, handlerLabel));
+  }
+
+  protected void addEvalContextCall(
+      InsnList insnList,
+      Snapshot.Kind snapshotKind,
+      AbstractInsnNode endLabel,
+      int timestampVar,
+      String methodLocation) {
+    // stack []
+    insnList.add(collectCapturedContext(snapshotKind, endLabel));
+    // stack: [capturedcontext]
+    ldc(insnList, Type.getObjectType(classNode.name));
+    // stack [capturedcontext, class]
+    if (timestampVar != -1) {
+      insnList.add(new VarInsnNode(Opcodes.LLOAD, timestampVar));
+    } else {
+      ldc(insnList, -1L);
+    }
+    // stack [capturedcontext, class, long]
+    getStatic(insnList, METHOD_LOCATION_TYPE, methodLocation);
+    // stack [capturedcontext, class, long, methodlocation]
+    pushProbeIndices(insnList);
+    // stack [capturedcontext, class, long, methodlocation, array]
+    invokeStatic(
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "evalContext",
+        VOID_TYPE,
+        CAPTURED_CONTEXT_TYPE,
+        CLASS_TYPE,
+        LONG_TYPE,
+        METHOD_LOCATION_TYPE,
+        INT_ARRAY_TYPE);
+    // stack []
   }
 
   private void instrumentMethodEnter() {
@@ -416,18 +411,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       methodNode.instructions.insert(methodEnterLabel, insnList);
       return;
     }
-    ldc(insnList, Type.getObjectType(classNode.name));
-    // stack [class]
-    pushProbeIndices(insnList);
-    // stack [class, array]
-    invokeStatic(
-        insnList,
-        DEBUGGER_CONTEXT_TYPE,
-        "isReadyToCapture",
-        Type.BOOLEAN_TYPE,
-        CLASS_TYPE,
-        INT_ARRAY_TYPE);
-    // stack [boolean]
+    addIsReadyToCaptureCall(insnList);
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
     insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
@@ -435,26 +419,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
       LabelNode inProbeStartLabel = new LabelNode();
       insnList.add(inProbeStartLabel);
       // stack []
-      insnList.add(collectCapturedContext(Snapshot.Kind.ENTER, null));
-      // stack [capturedcontext]
-      ldc(insnList, Type.getObjectType(classNode.name));
-      // stack [capturedcontext, class]
-      ldc(insnList, -1L);
-      // stack [capturedcontext, class, long]
-      getStatic(insnList, METHOD_LOCATION_TYPE, "ENTRY");
-      // stack [capturedcontext, class, long, methodlocation]
-      pushProbeIndices(insnList);
-      // stack [capturedcontext, class, long, methodlocation, array]
-      invokeStatic(
-          insnList,
-          DEBUGGER_CONTEXT_TYPE,
-          "evalContext",
-          VOID_TYPE,
-          CAPTURED_CONTEXT_TYPE,
-          CLASS_TYPE,
-          LONG_TYPE,
-          METHOD_LOCATION_TYPE,
-          INT_ARRAY_TYPE);
+      addEvalContextCall(insnList, Snapshot.Kind.ENTER, null, -1, "ENTRY");
+      // stack []
       invokeStatic(insnList, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
       LabelNode inProbeEndLabel = new LabelNode();
       insnList.add(inProbeEndLabel);
@@ -471,6 +437,21 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack []
     insnList.add(gotoNode);
     methodNode.instructions.insert(methodEnterLabel, insnList);
+  }
+
+  protected void addIsReadyToCaptureCall(InsnList insnList) {
+    ldc(insnList, Type.getObjectType(classNode.name));
+    // stack [class]
+    pushProbeIndices(insnList);
+    // stack [class, array]
+    invokeStatic(
+        insnList,
+        DEBUGGER_CONTEXT_TYPE,
+        "isReadyToCapture",
+        Type.BOOLEAN_TYPE,
+        CLASS_TYPE,
+        INT_ARRAY_TYPE);
+    // stack [boolean]
   }
 
   // Initialize and hoist local variables to the top of the method
@@ -572,7 +553,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack []
   }
 
-  private InsnList collectCapturedContext(Snapshot.Kind kind, AbstractInsnNode location) {
+  protected InsnList collectCapturedContext(Snapshot.Kind kind, AbstractInsnNode location) {
     InsnList insnList = new InsnList();
     if (kind == Snapshot.Kind.ENTER) {
       createContext(insnList, entryContextVar);
@@ -845,7 +826,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   private void collectStaticFields(InsnList insnList) {
-    List<FieldNode> fieldsToCapture = extractStaticFields(classNode, classLoader, limits);
+    List<FieldNode> fieldsToCapture = extractStaticFields(classNode, limits);
     if (fieldsToCapture.isEmpty()) {
       // bail out if no fields
       return;
@@ -916,8 +897,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     return true;
   }
 
-  private static List<FieldNode> extractStaticFields(
-      ClassNode classNode, ClassLoader classLoader, Limits limits) {
+  private static List<FieldNode> extractStaticFields(ClassNode classNode, Limits limits) {
     int fieldCount = 0;
     List<FieldNode> results = new ArrayList<>();
     for (FieldNode fieldNode : classNode.fields) {
