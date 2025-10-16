@@ -36,7 +36,7 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
   public void write(byte[] payload) {
     final LibC libc = Native.load("c", LibC.class);
 
-    int memFd = libc.memfd_create("datadog-tracer-info", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    int memFd = libc.memfd_create("datadog-tracer-info-", MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (memFd < 0) {
       log.warn("datadog-tracer-info memfd create failed, errno={}", Native.getLastError());
       return;
