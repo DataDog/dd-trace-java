@@ -264,7 +264,6 @@ include(
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
-  ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0",
@@ -612,6 +611,13 @@ include(
   ":dd-java-agent:instrumentation:wildfly-9.0",
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
+
+// Optional Akka instrumentation (see BUILDING.md for how to enable it):
+if (providers.environmentVariable("ORG_GRADLE_PROJECT_akkaRepositoryToken").isPresent) {
+  include(
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6"
+  )
+}
 
 // benchmark
 include(
