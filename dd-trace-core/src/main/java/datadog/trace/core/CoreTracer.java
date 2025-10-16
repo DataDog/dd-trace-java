@@ -985,7 +985,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
-    return createSpanBuilder(instrumentationName, operationName);
+    return createMultiSpanBuilder(instrumentationName, operationName);
+  }
+
+  MultiSpanBuilder createMultiSpanBuilder(
+      final String instrumentationName, final CharSequence operationName) {
+    return new MultiSpanBuilder(this, instrumentationName, operationName);
   }
 
   @Override
@@ -993,12 +998,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final String instrumentationName, final CharSequence operationName) {
     return SPAN_BUILDER_REUSE_ENABLED
         ? reuseSingleSpanBuilder(instrumentationName, operationName)
-        : createSpanBuilder(instrumentationName, operationName);
+        : createMultiSpanBuilder(instrumentationName, operationName);
   }
 
-  CoreSpanBuilder createSpanBuilder(
-      final String instrumentationName, final CharSequence operationName) {
-    return new MultiSpanBuilder(this, instrumentationName, operationName);
+  ReusableSingleSpanBuilder createSingleSpanBuilder(
+      final String instrumentationName, final CharSequence oprationName) {
+    ReusableSingleSpanBuilder singleSpanBuilder = new ReusableSingleSpanBuilder(this);
+    singleSpanBuilder.init(instrumentationName, oprationName);
+    return singleSpanBuilder;
   }
 
   CoreSpanBuilder reuseSingleSpanBuilder(
@@ -1018,9 +1025,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // TODO: This could probably be improved by having a single thread local that
       // holds the core things that we need for tracing.  e.g. context, etc
-      ReusableSingleSpanBuilder newSpanBuilder = new ReusableSingleSpanBuilder(tracer);
-      newSpanBuilder.init(instrumentationName, operationName);
-      return newSpanBuilder;
+      return tracer.createSingleSpanBuilder(instrumentationName, operationName);
     }
 
     // retrieve the thread's typical SpanBuilder and try to reset it
@@ -1030,8 +1035,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (wasReset) return tlSpanBuilder;
 
     // TODO: counter for how often the fallback is used?
-    ReusableSingleSpanBuilder newSpanBuilder = new ReusableSingleSpanBuilder(tracer);
-    newSpanBuilder.init(instrumentationName, operationName);
+    ReusableSingleSpanBuilder newSpanBuilder =
+        tracer.createSingleSpanBuilder(instrumentationName, operationName);
 
     // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
     // and then not using it.  Without the ability to replace the cached SpanBuilder,
