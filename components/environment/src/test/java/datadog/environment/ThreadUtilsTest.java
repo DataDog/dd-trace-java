@@ -92,7 +92,7 @@ public class ThreadUtilsTest {
               .findStatic(
                   Thread.class,
                   "startVirtualThread",
-                  MethodType.methodType(Runnable.class, Thread.class));
+                  MethodType.methodType(Thread.class, Runnable.class));
     } catch (NoSuchMethodException | IllegalAccessException e) {
       throw new IllegalStateException(e);
     }
