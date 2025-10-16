@@ -22,7 +22,7 @@ jobs:
         id: octo-sts
         with:
           scope: DataDog/dd-trace-java
-          policy: self.create-release-branch.push
+          policy: self.update-system-tests.push
 
       - name: Determine tag
         id: determine-tag
