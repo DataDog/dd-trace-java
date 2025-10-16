@@ -724,6 +724,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           errored false
           measured true
           tags {
+            "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" database
