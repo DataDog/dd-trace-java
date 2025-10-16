@@ -29,70 +29,108 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
     spark.createDataFrame(rows, structType)
   }
 
-  static assertStringSQLPlanIn(ArrayList<String> expectedStrings, String actualString) {
+  static assertStringSQLPlanIn(ArrayList<String> expectedStrings, String actualString, String name) {
     def jsonSlurper = new JsonSlurper()
     def actual = jsonSlurper.parseText(actualString)
 
     for (String expectedString : expectedStrings) {
       try {
         def expected = jsonSlurper.parseText(expectedString)
-        assertSQLPlanEquals(expected, actual)
+        assertSQLPlanEquals(expected, actual, name)
         return
       } catch (AssertionError e) {
-        System.println("Failed to assert $expectedString, attempting next")
+        System.err.println("Failed to assert $expectedString, attempting next")
       }
     }
 
     throw new AssertionError("No matching SQL Plan found for $actualString in $expectedStrings")
   }
 
-  static assertStringSQLPlanEquals(String expectedString, String actualString) {
-    //    System.err.println("Checking if expected $expectedString SQL plan match actual $actualString")
-
+  static assertStringSQLPlanEquals(String expectedString, String actualString, String name) {
     def jsonSlurper = new JsonSlurper()
 
     def expected = jsonSlurper.parseText(expectedString)
     def actual = jsonSlurper.parseText(actualString)
 
-    assertSQLPlanEquals(expected, actual)
+    assertSQLPlanEquals(expected, actual, name)
   }
 
   // Similar to assertStringSQLPlanEquals, but the actual plan can be a subset of the expected plan
   // This is used for spark 2.4 where the exact SQL plan is not deterministic
-  protected static assertStringSQLPlanSubset(String expectedString, String actualString) {
-    //    System.err.println("Checking if expected $expectedString SQL plan is a super set of $actualString")
-
+  protected static assertStringSQLPlanSubset(String expectedString, String actualString, String name) {
     def jsonSlurper = new JsonSlurper()
 
     def expected = jsonSlurper.parseText(expectedString)
     def actual = jsonSlurper.parseText(actualString)
 
     try {
-      assertSQLPlanEquals(expected.children[0], actual)
+      assertSQLPlanEquals(expected.children[0], actual, name)
       return // If is a subset, the test is successful
     }
-    catch (AssertionError e) {}
+    catch (AssertionError e) {
+      System.err.println("Failed to assert $expectedString, attempting parent")
+    }
 
-    assertSQLPlanEquals(expected, actual)
+    assertSQLPlanEquals(expected, actual, name)
   }
 
-  private static assertSQLPlanEquals(Object expected, Object actual) {
+  private static assertSQLPlanEquals(Object expected, Object actual, String name) {
     assert expected.node == actual.node
     assert expected.keySet() == actual.keySet()
 
-    // Checking all keys expect children and metrics that are checked after
+    def prefix = "$name on $expected.node node:\n\t"
+
+    // Checking all keys except children, meta, and metrics that are checked after
     expected.keySet().each { key ->
-      if (!['children', 'metrics'].contains(key)) {
-        if (key == "meta") {
-          var simpleString = actual["nodeDetailString"]
-          var values = actual[key]
-          System.err.println("FOUND: node=$actual.node, values=$values, simpleString=$simpleString")
-        }
-        // Some metric values will varies between runs
-        // In the case, setting the expected value to "any" skips the assertion
+      if (!['children', 'metrics', 'meta'].contains(key)) {
         if (expected[key] != "any") {
-          assert expected[key] == actual[key]: "$expected does not match $actual"
+          // Some metric values will varies between runs
+          // In the case, setting the expected value to "any" skips the assertion
+          assert expected[key] == actual[key]: prefix + "value of \"$key\" does not match $expected.key, got $actual.key"
         }
+      }
+    }
+
+    // Checking the meta values are the same on both sides
+    if (expected.meta == null) {
+      assert actual.meta == null
+    } else {
+      try {
+        def expectedMeta = expected.meta
+        def actualMeta = actual.meta
+
+        assert actualMeta.size() == expectedMeta.size() : prefix + "meta size of $expectedMeta does not match $actualMeta"
+
+        def actualUnknown = [] // List of values for all valid unknown keys
+        actual.meta.each { actualMetaKey, actualMetaValue ->
+          if (!expectedMeta.containsKey(actualMetaKey) && actualMetaKey.startsWith("_dd.unknown_key.")) {
+            actualUnknown.add(actualMetaValue)
+          } else if (!expectedMeta.containsKey(actualMetaKey)) {
+            throw new AssertionError(prefix + "unexpected key \"$actualMetaKey\" found, not valid unknown key with prefix '_dd.unknown_key.' or in $expectedMeta")
+          }
+        }
+
+        expected.meta.each { expectedMetaKey, expectedMetaValue ->
+          if (actualMeta.containsKey(expectedMetaKey)) {
+            def actualMetaValue = actualMeta[expectedMetaKey]
+            if (expectedMetaValue instanceof List) {
+              assert expectedMetaValue ==~ actualMetaValue : prefix + "value of meta key \"$expectedMetaKey\" does not match \"$expectedMetaValue\", got \"$actualMetaValue\""
+            } else {
+              // Don't assert meta values where expectation is "any"
+              assert expectedMetaValue == "any" || expectedMetaValue == actualMetaValue: prefix + "value of meta key \"$expectedMetaKey\" does not match \"$expectedMetaValue\", got \"$actualMetaValue\""
+            }
+          } else if (actualUnknown.size() > 0) {
+            // If expected key not found, attempt to match value against those from valid unknown keys
+            assert actualUnknown.indexOf(expectedMetaValue) >= 0 : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta\n\tattempted to match against value \"$expectedMetaValue\" with unknown keys, but not found"
+            actualUnknown.drop(actualUnknown.indexOf(expectedMetaValue))
+          } else {
+            // Defensive, should never happen
+            assert actualMeta.containsKey(expectedMetaKey) : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta"
+          }
+        }
+      } catch (AssertionError e) {
+        generateMetaExpectations(actual, name)
+        throw e
       }
     }
 
@@ -107,15 +145,16 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         def expectedMetric = metricPair[0]
         def actualMetric = metricPair[1]
 
-        assert expectedMetric.size() == actualMetric.size(): "$expected does not match $actual"
+        assert expectedMetric.size() == actualMetric.size(): prefix + "metric size of $expectedMetric does not match $actualMetric"
 
         // Each metric is a dict { "metric_name": "metric_value", "type": "metric_type" }
         expectedMetric.each { key, expectedValue ->
-          assert actualMetric.containsKey(key): "$expected does not match $actual"
+          assert actualMetric.containsKey(key): prefix + "metric key \"$key\" not found in $actualMetric"
 
           // Some metric values are duration that will varies between runs
           // In the case, setting the expected value to "any" skips the assertion
-          assert expectedValue == "any" || actualMetric[key] == expectedValue: "$expected does not match $actual"
+          def actualValue = actualMetric[key]
+          assert expectedValue == "any" || actualValue == expectedValue: prefix + "value of metric key \"$key\" does not match \"$expectedValue\", got $actualValue"
         }
       }
     }
@@ -128,7 +167,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       actual.children.sort { it.node }
 
       [expected.children, actual.children].transpose().each { childPair ->
-        assertSQLPlanEquals(childPair[0], childPair[1])
+        assertSQLPlanEquals(childPair[0], childPair[1], name)
       }
     }
   }
@@ -138,6 +177,36 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       source = source.replace(c.toString(), "\\" + c.toString())
     }
     return source
+  }
+
+  private static generateMetaExpectations(Object actual, String name) {
+    var simpleString = actual["nodeDetailString"]
+    var values = []
+    var child = "N/A"
+    actual["meta"].each() { key, value ->
+      if (key == "_dd.unparsed") {
+        values.add("\"_dd.unparsed\": \"any\"")
+        child = value
+      } else if (value instanceof List) {
+        var list = []
+        value.each() { it ->
+          list.add("\"$it\"")
+        }
+        def prettyList = "[\n    " + list.join(", \n    ") + "\n  ]"
+        if (list.size() == 1) {
+          prettyList = "[" + list.join(", ") + "]"
+        }
+        values.add("\"$key\": $prettyList")
+      } else {
+        values.add("\"$key\": \"$value\"")
+      }
+    }
+    values.sort() { it }
+    def prettyValues = "\n\"meta\": {\n  " + values.join(", \n  ") + "\n},"
+    if (values.size() == 1) {
+      prettyValues = "\n\"meta\": {" + values.join(", ") + "},"
+    }
+    System.err.println("$actual.node\n\tname=$name\n\tchild=$child\n\tvalues=$prettyValues\n\tsimpleString=$simpleString")
   }
 
   def "compute a GROUP BY sql query plan"() {
@@ -163,7 +232,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": -1909876497,
         "nodeDetailString": "hashpartitioning(string_col#0, 2)",
-        "meta": "any",
+        "meta": {
+          "_dd.unknown_key.0": "hashpartitioning(string_col#0, 2)", 
+          "_dd.unknown_key.2": "none", 
+          "_dd.unparsed": "any"
+        },
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -174,7 +247,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen",
             "nodeId": 724251804,
-            "meta": "any",
+            "meta": {"_dd.unparsed": "any"},
             "metrics": [
               {
                 "duration total (min, med, max)": "any",
@@ -186,7 +259,22 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": 1128016273,
                 "nodeDetailString": "(keys=[string_col#0], functions=[partial_avg(double_col#1)])",
-                "meta": "any",
+                "meta": {
+                  "_dd.unknown_key.0": "none", 
+                  "_dd.unknown_key.1": ["string_col#0"], 
+                  "_dd.unknown_key.2": ["partial_avg(double_col#1)"], 
+                  "_dd.unknown_key.3": [
+                    "sum#16", 
+                    "count#17L"
+                  ], 
+                  "_dd.unknown_key.4": "0", 
+                  "_dd.unknown_key.5": [
+                    "string_col#0", 
+                    "sum#18", 
+                    "count#19L"
+                  ], 
+                  "_dd.unparsed": "any"
+                },
                 "metrics": [
                   {
                     "aggregate time total (min, med, max)": "any",
@@ -205,13 +293,23 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                   {
                     "node": "InputAdapter",
                     "nodeId": 180293,
-                    "meta": "any",
+                    "meta": {"_dd.unparsed": "any"},
                     "children": [
                       {
                         "node": "LocalTableScan",
                         "nodeId": 1632930767,
                         "nodeDetailString": "[string_col#0, double_col#1]",
-                        "meta": "any",
+                        "meta": {
+                          "_dd.unknown_key.0": [
+                            "string_col#0", 
+                            "double_col#1"
+                          ], 
+                          "_dd.unknown_key.1": [
+                            "[first,1.2]", 
+                            "[first,1.3]", 
+                            "[second,1.6]"
+                          ]
+                        },
                         "metrics": [
                           {
                             "number of output rows": 3,
@@ -233,7 +331,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen",
         "nodeId": 724251804,
-        "meta": "any",
+        "meta": {"_dd.unparsed": "any"},
         "metrics": [
           {
             "duration total (min, med, max)": "any",
@@ -245,7 +343,18 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "HashAggregate",
             "nodeId": 126020943,
             "nodeDetailString": "(keys=[string_col#0], functions=[avg(double_col#1)])",
-            "meta": "any",
+            "meta": {
+              "_dd.unknown_key.0": ["string_col#0"], 
+              "_dd.unknown_key.1": ["string_col#0"], 
+              "_dd.unknown_key.2": ["avg(double_col#1)"], 
+              "_dd.unknown_key.3": ["avg(double_col#1)#4"], 
+              "_dd.unknown_key.4": "1", 
+              "_dd.unknown_key.5": [
+                "string_col#0", 
+                "avg(double_col#1)#4 AS avg(double_col)#5"
+              ], 
+              "_dd.unparsed": "any"
+            },
             "metrics": [
               {
                 "aggregate time total (min, med, max)": "any",
@@ -268,7 +377,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
               {
                 "node": "InputAdapter",
                 "nodeId": 180293,
-                "meta": "any"
+                "meta": {"_dd.unparsed": "any"}
               }
             ]
           }
@@ -297,7 +406,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanEquals(secondStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "secondStagePlan")
           assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
         }
@@ -305,7 +414,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanEquals(firstStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "firstStagePlan")
           assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
@@ -337,7 +446,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#25, 2)",
-        "meta": "any",
+        "meta": {
+          "_dd.unknown_key.0": "hashpartitioning(string_col#25, 2)", 
+          "_dd.unknown_key.2": "none", 
+          "_dd.unparsed": "any"
+        },
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -349,7 +462,14 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "LocalTableScan",
             "nodeId": "any",
             "nodeDetailString": "[string_col#25]", 
-            "meta": "any",
+            "meta": {
+              "_dd.unknown_key.0": ["string_col#25"], 
+              "_dd.unknown_key.1": [
+                "[first]", 
+                "[first]", 
+                "[second]"
+              ]
+            },
             "metrics": [
               {
                 "number of output rows": "any",
@@ -365,7 +485,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#21, 2)",
-        "meta": "any",
+        "meta": {
+          "_dd.unknown_key.0": "hashpartitioning(string_col#21, 2)", 
+          "_dd.unknown_key.2": "none", 
+          "_dd.unparsed": "any"
+        },
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -377,7 +501,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "LocalTableScan",
             "nodeId": "any",
             "nodeDetailString": "[string_col#21]", 
-            "meta": "any",
+            "meta": {
+              "_dd.unknown_key.0": ["string_col#21"], 
+              "_dd.unknown_key.1": [
+                "[first]", 
+                "[second]"
+              ]
+            },
             "metrics": [
               {
                 "number of output rows": "any",
@@ -393,7 +523,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "node": "Exchange",
         "nodeId": -1350402171,
         "nodeDetailString": "SinglePartition",
-        "meta": "any",
+        "meta": {
+          "_dd.unknown_key.0": "SinglePartition", 
+          "_dd.unknown_key.2": "none", 
+          "_dd.unparsed": "any"
+        },
         "metrics": [
           {
             "data size total (min, med, max)": "any",
@@ -404,7 +538,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           {
             "node": "WholeStageCodegen",
             "nodeId": 724251804,
-            "meta": "any",
+            "meta": {"_dd.unparsed": "any"},
             "metrics": [
               {
                 "duration total (min, med, max)": "any",
@@ -416,7 +550,15 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "node": "HashAggregate",
                 "nodeId": -879128980,
                 "nodeDetailString": "(keys=[], functions=[partial_count(1)])",
-                "meta": "any",
+                "meta": {
+                  "_dd.unknown_key.0": "none", 
+                  "_dd.unknown_key.1": [""], 
+                  "_dd.unknown_key.2": ["partial_count(1)"], 
+                  "_dd.unknown_key.3": ["count#38L"], 
+                  "_dd.unknown_key.4": "0", 
+                  "_dd.unknown_key.5": ["count#39L"], 
+                  "_dd.unparsed": "any"
+                },
                 "metrics": [
                   {
                     "aggregate time total (min, med, max)": "any",
@@ -431,13 +573,22 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                   {
                     "node": "Project",
                     "nodeId": 1355342585,
-                    "meta": "any",
+                    "meta": {
+                      "_dd.unknown_key.0": [""], 
+                      "_dd.unparsed": "any"
+                    },
                     "children": [
                       {
                         "node": "SortMergeJoin",
                         "nodeId": -1975876610,
                         "nodeDetailString": "[string_col#21], [string_col#25], Inner",
-                        "meta": "any",
+                        "meta": {
+                          "_dd.unknown_key.0": ["string_col#21"], 
+                          "_dd.unknown_key.1": ["string_col#25"], 
+                          "_dd.unknown_key.2": "Inner", 
+                          "_dd.unknown_key.3": "none", 
+                          "_dd.unparsed": "any"
+                        },
                         "metrics": [
                           {
                             "number of output rows": "any",
@@ -448,12 +599,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                           {
                             "node": "InputAdapter",
                             "nodeId": 180293,
-                            "meta": "any",
+                            "meta": {"_dd.unparsed": "any"},
                             "children": [
                               {
                                 "node": "WholeStageCodegen",
                                 "nodeId": 724251804,
-                                "meta": "any",
+                                "meta": {"_dd.unparsed": "any"},
                                 "metrics": [
                                   {
                                     "duration total (min, med, max)": "any",
@@ -465,7 +616,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "node": "Sort",
                                     "nodeId": 66807398,
                                     "nodeDetailString": "[string_col#21 ASC NULLS FIRST], false, 0",
-                                    "meta": "any",
+                                    "meta": {
+                                      "_dd.unknown_key.0": ["string_col#21 ASC NULLS FIRST"], 
+                                      "_dd.unknown_key.1": "false", 
+                                      "_dd.unknown_key.3": "0", 
+                                      "_dd.unparsed": "any"
+                                    },
                                     "metrics": [
                                       {
                                         "peak memory total (min, med, max)": "any",
@@ -480,7 +636,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                       {
                                         "node": "InputAdapter",
                                         "nodeId": 180293,
-                                        "meta": "any"
+                                        "meta": {"_dd.unparsed": "any"}
                                       }
                                     ]
                                   }
@@ -491,12 +647,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                           {
                             "node": "InputAdapter",
                             "nodeId": 180293,
-                            "meta": "any",
+                            "meta": {"_dd.unparsed": "any"},
                             "children": [
                               {
                                 "node": "WholeStageCodegen",
                                 "nodeId": 724251804,
-                                "meta": "any",
+                                "meta": {"_dd.unparsed": "any"},
                                 "metrics": [
                                   {
                                     "duration total (min, med, max)": "any",
@@ -508,7 +664,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "node": "Sort",
                                     "nodeId": -952138782,
                                     "nodeDetailString": "[string_col#25 ASC NULLS FIRST], false, 0",
-                                    "meta": "any",
+                                    "meta": {
+                                      "_dd.unknown_key.0": ["string_col#25 ASC NULLS FIRST"], 
+                                      "_dd.unknown_key.1": "false", 
+                                      "_dd.unknown_key.3": "0", 
+                                      "_dd.unparsed": "any"
+                                    },
                                     "metrics": [
                                       {
                                         "peak memory total (min, med, max)": "any",
@@ -519,7 +680,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                       {
                                         "node": "InputAdapter",
                                         "nodeId": 180293,
-                                        "meta": "any"
+                                        "meta": {"_dd.unparsed": "any"}
                                       }
                                     ]
                                   }
@@ -542,7 +703,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       {
         "node": "WholeStageCodegen",
         "nodeId": 724251804,
-        "meta": "any",
+        "meta": {"_dd.unparsed": "any"},
         "metrics": [
           {
             "duration total (min, med, max)": "any",
@@ -554,7 +715,15 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "node": "HashAggregate",
             "nodeId": 724815342,
             "nodeDetailString": "(keys=[], functions=[count(1)])",
-            "meta": "any",
+            "meta": {
+              "_dd.unknown_key.0": [""], 
+              "_dd.unknown_key.1": [""], 
+              "_dd.unknown_key.2": ["count(1)"], 
+              "_dd.unknown_key.3": ["count(1)#35L"], 
+              "_dd.unknown_key.4": "0", 
+              "_dd.unknown_key.5": ["count(1)#35L AS count#36L"], 
+              "_dd.unparsed": "any"
+            },
             "metrics": [
               {
                 "number of output rows": 1,
@@ -565,7 +734,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
               {
                 "node": "InputAdapter",
                 "nodeId": 180293,
-                "meta": "any"
+                "meta": {"_dd.unparsed": "any"}
               }
             ]
           }
@@ -594,7 +763,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanSubset(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanSubset(fourthStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "fourthStagePlan")
           assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[2]"
         }
@@ -602,7 +771,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanEquals(thirdStagePlan, span.tags["_dd.spark.sql_plan"].toString(), "thirdStagePlan")
           assert span.tags["_dd.spark.physical_plan"] == null
           assert ["[0, 1]", "[1, 0]"].contains(span.tags["_dd.spark.sql_parent_stage_ids"])
         }
@@ -610,7 +779,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString(), "secondStagePlan")
           assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
@@ -618,7 +787,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
           operationName "spark.stage"
           spanType "spark"
           childOf(span(2))
-          assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString())
+          assertStringSQLPlanIn([firstStagePlan, secondStagePlan], span.tags["_dd.spark.sql_plan"].toString(), "firstStagePlan")
           assert span.tags["_dd.spark.physical_plan"] == null
           assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
         }
