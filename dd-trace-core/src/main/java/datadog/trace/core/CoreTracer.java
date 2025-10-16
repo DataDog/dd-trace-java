@@ -1996,7 +1996,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       this.instrumentationName = instrumentationName;
       this.operationName = operationName;
-      
+
       this.inUse = true;
     }
 
