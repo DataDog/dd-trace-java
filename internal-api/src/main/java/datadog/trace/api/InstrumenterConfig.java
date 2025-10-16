@@ -44,7 +44,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNE
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CLIENT_INFO_FETCHING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_METADATA_FETCHING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
@@ -132,6 +134,8 @@ public class InstrumenterConfig {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
   private final boolean jdbcPoolWaitingEnabled;
+  private final boolean jdbcMetadataFetchingEnabled;
+  private final boolean jdbcClientInfoFetchingEnabled;
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
@@ -245,6 +249,9 @@ public class InstrumenterConfig {
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
     jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
+    jdbcMetadataFetchingEnabled = configProvider.getBoolean(JDBC_METADATA_FETCHING_ENABLED, true);
+    jdbcClientInfoFetchingEnabled =
+        configProvider.getBoolean(JDBC_CLIENT_INFO_FETCHING_ENABLED, true);
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
@@ -423,6 +430,14 @@ public class InstrumenterConfig {
 
   public boolean isJdbcPoolWaitingEnabled() {
     return jdbcPoolWaitingEnabled;
+  }
+
+  public boolean isJdbcMetadataFetchingEnabled() {
+    return jdbcMetadataFetchingEnabled;
+  }
+
+  public boolean isJdbcClientInfoFetchingEnabled() {
+    return jdbcClientInfoFetchingEnabled;
   }
 
   public String getHttpURLConnectionClassName() {
@@ -636,6 +651,10 @@ public class InstrumenterConfig {
         + '\''
         + ", jdbcPoolWaitingEnabled="
         + jdbcPoolWaitingEnabled
+        + ", jdbcMetadataFetchingEnabled="
+        + jdbcMetadataFetchingEnabled
+        + ", jdbcClientInfoFetchingEnabled="
+        + jdbcClientInfoFetchingEnabled
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''

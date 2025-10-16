@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -28,6 +29,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,7 +183,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (Throwable ignore) {
         }
         if (dbInfo == null) {
-          // couldn't find DBInfo anywhere, so fall back to default
+          // couldn't find DBInfo from a previous call anywhere, so we try to fetch it from the DB
           dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
@@ -200,7 +202,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null) {
+    if (connection == null || !InstrumenterConfig.get().isJdbcMetadataFetchingEnabled()) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -209,12 +211,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final DatabaseMetaData metaData = connection.getMetaData();
       final String url = metaData.getURL();
       if (url != null) {
-        try {
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
-        } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed.
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+        Properties clientInfo = null;
+        if (InstrumenterConfig.get().isJdbcClientInfoFetchingEnabled()) {
+          try {
+            clientInfo = connection.getClientInfo();
+          } catch (final Throwable ex) {
+            // getClientInfo is likely not allowed, we can still extract info from the url alone
+          }
         }
+        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
         dbInfo = DBInfo.DEFAULT;
       }

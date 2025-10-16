@@ -75,6 +75,11 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_POOL_WAITING_ENABLED =
       "trace.experimental.jdbc.pool.waiting.enabled";
 
+  public static final String JDBC_METADATA_FETCHING_ENABLED =
+      "trace.jdbc.metadata.fetching.enabled";
+  public static final String JDBC_CLIENT_INFO_FETCHING_ENABLED =
+      "trace.jdbc.client.info.fetching.enabled";
+
   public static final String AKKA_FORK_JOIN_TASK_NAME = "trace.akka.fork.join.task.name";
   public static final String AKKA_FORK_JOIN_EXECUTOR_TASK_NAME =
       "trace.akka.fork.join.executor.task.name";
