@@ -52,7 +52,6 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.bootstrap.debugger.MethodLocation;
-import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -88,8 +87,8 @@ public class MetricInstrumentor extends Instrumentor {
       MetricProbe metricProbe,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
-    super(metricProbe, methodInfo, diagnostics, probeIds);
+      List<Integer> probeIndices) {
+    super(metricProbe, methodInfo, diagnostics, probeIndices);
     this.metricProbe = metricProbe;
   }
 

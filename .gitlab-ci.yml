@@ -727,7 +727,7 @@ test_smoke_graalvm:
     NON_DEFAULT_JVMS: "true"
   parallel:
     matrix:
-      - testJvm: ["graalvm17", "graalvm21"]
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
   extends: .test_job

@@ -136,8 +136,8 @@ public class MetricProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new MetricInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+    return new MetricInstrumentor(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
   public static Builder builder() {

@@ -128,7 +128,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   public abstract InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds);
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices);
 
   @Override
   public ProbeLocation getLocation() {
