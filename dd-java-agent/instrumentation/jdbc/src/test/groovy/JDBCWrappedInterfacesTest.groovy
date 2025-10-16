@@ -255,6 +255,9 @@ class JDBCWrappedInterfacesTest extends InstrumentationSpecification {
           childOfPrevious()
           errored false
           tags {
+            if (database == "testdb") {
+              "$Tags.PEER_HOSTNAME" "localhost"
+            }
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "${database}"
