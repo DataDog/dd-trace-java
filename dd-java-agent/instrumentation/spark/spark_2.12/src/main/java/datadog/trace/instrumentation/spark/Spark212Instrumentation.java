@@ -21,6 +21,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
+      packageName + ".AbstractSparkPlanUtils",
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark212Listener",
@@ -31,7 +32,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
-      packageName + ".Spark212PlanUtils",
+      packageName + ".Spark212PlanUtils"
     };
   }
 
@@ -109,14 +110,14 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
         @Advice.Argument(0) SparkPlan plan) {
       if (planInfo.metadata().size() == 0) {
+        Spark212PlanUtils planUtils = new Spark212PlanUtils();
         HashMap<String, String> args = new HashMap<>();
         planInfo =
             new SparkPlanInfo(
                 planInfo.nodeName(),
                 planInfo.simpleString(),
                 planInfo.children(),
-                args.$plus$plus(
-                    JavaConverters.mapAsScalaMap(Spark212PlanUtils.extractPlanProduct(plan))),
+                args.$plus$plus(JavaConverters.mapAsScalaMap(planUtils.extractPlanProduct(plan))),
                 planInfo.metrics());
       }
     }

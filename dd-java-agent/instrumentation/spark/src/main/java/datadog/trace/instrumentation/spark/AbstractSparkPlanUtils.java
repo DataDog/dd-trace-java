@@ -1,12 +1,16 @@
 package datadog.trace.instrumentation.spark;
 
 import java.util.ArrayList;
+import java.util.Map;
 import org.apache.spark.sql.catalyst.plans.QueryPlan;
+import org.apache.spark.sql.catalyst.trees.TreeNode;
 import scala.Option;
 import scala.collection.Iterable;
 
-public class CommonSparkPlanUtils {
-  public static String parsePlanProduct(Object value) {
+public abstract class AbstractSparkPlanUtils {
+  public abstract Map<String, String> extractPlanProduct(TreeNode node);
+
+  public String parsePlanProduct(Object value) {
     if (value == null) {
       return "null";
     } else if (value instanceof Iterable) {

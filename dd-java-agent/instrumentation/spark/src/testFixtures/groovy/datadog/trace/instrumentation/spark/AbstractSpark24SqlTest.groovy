@@ -183,13 +183,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
     var simpleString = actual["nodeDetailString"]
     var values = []
     var child = "N/A"
-    actual["meta"].each() { key, value ->
+    actual["meta"].each { key, value ->
       if (key == "_dd.unparsed") {
         values.add("\"_dd.unparsed\": \"any\"")
         child = value
       } else if (value instanceof List) {
         var list = []
-        value.each() { it ->
+        value.each { it ->
           list.add("\"$it\"")
         }
         def prettyList = "[\n    " + list.join(", \n    ") + "\n  ]"
@@ -201,7 +201,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         values.add("\"$key\": \"$value\"")
       }
     }
-    values.sort() { it }
+    values.sort { it }
     def prettyValues = "\n\"meta\": {\n  " + values.join(", \n  ") + "\n},"
     if (values.size() == 1) {
       prettyValues = "\n\"meta\": {" + values.join(", ") + "},"
