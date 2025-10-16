@@ -151,7 +151,7 @@ public class SparkSQLUtils {
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       try (JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
-        this.toJson(generator, accumulators);
+        this.toJson(generator, accumulators, mapper);
       } catch (IOException e) {
         return null;
       }
@@ -159,7 +159,8 @@ public class SparkSQLUtils {
       return new String(baos.toByteArray(), StandardCharsets.UTF_8);
     }
 
-    private void toJson(JsonGenerator generator, Map<Long, AccumulatorWithStage> accumulators)
+    private void toJson(
+        JsonGenerator generator, Map<Long, AccumulatorWithStage> accumulators, ObjectMapper mapper)
         throws IOException {
       generator.writeStartObject();
       generator.writeStringField("node", plan.nodeName());
@@ -180,18 +181,11 @@ public class SparkSQLUtils {
         generator.writeStartObject();
 
         for (Tuple2<String, String> metadata : JavaConverters.asJavaCollection(plan.metadata())) {
-          // If it looks like a string array, break apart and write as native JSON array
-          if (metadata._2.startsWith("[\"") && metadata._2.endsWith("\"]")) {
-            String[] list = metadata._2.substring(2, metadata._2.length() - 2).split("\", \"");
-
-            generator.writeFieldName(metadata._1);
-            generator.writeStartArray();
-            for (String entry : list) {
-              generator.writeString(entry);
-            }
-            generator.writeEndArray();
-          } else {
-            generator.writeStringField(metadata._1, metadata._2);
+          generator.writeFieldName(metadata._1);
+          try {
+            generator.writeTree(mapper.readTree(metadata._2));
+          } catch (IOException e) {
+            generator.writeString(metadata._2);
           }
         }
 
@@ -219,7 +213,7 @@ public class SparkSQLUtils {
         generator.writeFieldName("children");
         generator.writeStartArray();
         for (SparkPlanInfoForStage child : children) {
-          child.toJson(generator, accumulators);
+          child.toJson(generator, accumulators, mapper);
         }
         generator.writeEndArray();
       }

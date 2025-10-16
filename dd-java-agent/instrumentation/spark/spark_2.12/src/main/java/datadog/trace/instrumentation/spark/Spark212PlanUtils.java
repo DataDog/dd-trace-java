@@ -19,9 +19,9 @@ public class Spark212PlanUtils extends AbstractSparkPlanUtils {
       Object obj = it.next();
       String key = String.format("_dd.unknown_key.%d", i);
 
-      String val = parsePlanProduct(obj);
+      Object val = parsePlanProduct(obj);
       if (val != null) {
-        args.put(key, val);
+        args.put(key, writeObjectToString(val));
       } else {
         unparsed.put(key, obj.getClass().getName());
       }
@@ -31,7 +31,7 @@ public class Spark212PlanUtils extends AbstractSparkPlanUtils {
 
     if (unparsed.size() > 0) {
       // For now, place what we can't parse here with the types so we're aware of them
-      args.put("_dd.unparsed", unparsed.toString());
+      args.put("_dd.unparsed", writeObjectToString(unparsed.toString()));
     }
     return args;
   }

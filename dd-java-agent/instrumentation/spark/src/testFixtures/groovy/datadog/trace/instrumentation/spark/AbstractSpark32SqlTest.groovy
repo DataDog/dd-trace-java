@@ -82,8 +82,8 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                   ], 
                   "aggregateExpressions": ["partial_avg(double_col#1)"], 
                   "groupingExpressions": ["string_col#0"], 
-                  "initialInputBufferOffset": "0", 
-                  "isStreaming": "false", 
+                  "initialInputBufferOffset": 0, 
+                  "isStreaming": false, 
                   "numShufflePartitions": "none", 
                   "requiredChildDistributionExpressions": "none", 
                   "resultExpressions": [
@@ -157,8 +157,8 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
               "aggregateAttributes": ["avg(double_col#1)#4"], 
               "aggregateExpressions": ["avg(double_col#1)"], 
               "groupingExpressions": ["string_col#0"], 
-              "initialInputBufferOffset": "1", 
-              "isStreaming": "false", 
+              "initialInputBufferOffset": 1, 
+              "isStreaming": false, 
               "numShufflePartitions": "none", 
               "requiredChildDistributionExpressions": ["string_col#0"], 
               "resultExpressions": [
@@ -206,7 +206,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                         "nodeDetailString": "0",
                         "meta": {
                           "_dd.unparsed": "any", 
-                          "id": "0"
+                          "id": 0
                         },
                         "children": [
                           {
@@ -313,8 +313,8 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                   "aggregateAttributes": ["avg(double_col#1)#4"], 
                   "aggregateExpressions": ["avg(double_col#1)"], 
                   "groupingExpressions": ["string_col#0"], 
-                  "initialInputBufferOffset": "1", 
-                  "isStreaming": "false", 
+                  "initialInputBufferOffset": 1, 
+                  "isStreaming": false, 
                   "numShufflePartitions": "none", 
                   "requiredChildDistributionExpressions": ["string_col#0"], 
                   "resultExpressions": [
@@ -362,7 +362,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                             "nodeDetailString": "0",
                             "meta": {
                               "_dd.unparsed": "any", 
-                              "id": "0"
+                              "id": 0
                             },
                             "children": [
                               {
@@ -452,9 +452,9 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 "nodeDetailString": "[avg(double_col)#5 DESC NULLS LAST], true, 0",
                 "meta": {
                   "_dd.unparsed": "any", 
-                  "global": "true", 
+                  "global": true, 
                   "sortOrder": ["avg(double_col)#5 DESC NULLS LAST"], 
-                  "testSpillFrequency": "0"
+                  "testSpillFrequency": 0
                 },
                 "metrics": [
                   {
@@ -492,7 +492,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                             "nodeDetailString": "1",
                             "meta": {
                               "_dd.unparsed": "any", 
-                              "id": "1"
+                              "id": 1
                             },
                             "children": [
                               {
@@ -796,9 +796,9 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                   "_dd.unparsed": "any", 
                   "aggregateAttributes": ["count#45L"], 
                   "aggregateExpressions": ["partial_count(1)"], 
-                  "groupingExpressions": [""], 
-                  "initialInputBufferOffset": "0", 
-                  "isStreaming": "false", 
+                  "groupingExpressions": [], 
+                  "initialInputBufferOffset": 0, 
+                  "isStreaming": false, 
                   "numShufflePartitions": "none", 
                   "requiredChildDistributionExpressions": "none", 
                   "resultExpressions": ["count#46L"]
@@ -819,7 +819,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "nodeId": "nodeId_13",
                     "meta": {
                       "_dd.unparsed": "any", 
-                      "projectList": [""]
+                      "projectList": []
                     },
                     "children": [
                       {
@@ -829,7 +829,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                         "meta": {
                           "_dd.unparsed": "any", 
                           "condition": "none", 
-                          "isSkewJoin": "false", 
+                          "isSkewJoin": false, 
                           "joinType": "Inner", 
                           "leftKeys": ["string_col#28"], 
                           "rightKeys": ["string_col#32"]
@@ -863,9 +863,9 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                     "nodeDetailString": "[string_col#28 ASC NULLS FIRST], false, 0",
                                     "meta": {
                                       "_dd.unparsed": "any", 
-                                      "global": "false", 
+                                      "global": false, 
                                       "sortOrder": ["string_col#28 ASC NULLS FIRST"], 
-                                      "testSpillFrequency": "0"
+                                      "testSpillFrequency": 0
                                     },
                                     "metrics": [
                                       {
@@ -903,7 +903,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                                 "nodeDetailString": "0",
                                                 "meta": {
                                                   "_dd.unparsed": "any", 
-                                                  "id": "0"
+                                                  "id": 0
                                                 },
                                                 "children": [
                                                   {
@@ -984,9 +984,9 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                     "nodeDetailString": "[string_col#32 ASC NULLS FIRST], false, 0",
                                     "meta": {
                                       "_dd.unparsed": "any", 
-                                      "global": "false", 
+                                      "global": false, 
                                       "sortOrder": ["string_col#32 ASC NULLS FIRST"], 
-                                      "testSpillFrequency": "0"
+                                      "testSpillFrequency": 0
                                     },
                                     "metrics": [
                                       {
@@ -1024,7 +1024,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                                 "nodeDetailString": "1",
                                                 "meta": {
                                                   "_dd.unparsed": "any", 
-                                                  "id": "1"
+                                                  "id": 1
                                                 },
                                                 "children": [
                                                   {
@@ -1114,11 +1114,11 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
               "_dd.unparsed": "any", 
               "aggregateAttributes": ["count(1)#42L"], 
               "aggregateExpressions": ["count(1)"], 
-              "groupingExpressions": [""], 
-              "initialInputBufferOffset": "0", 
-              "isStreaming": "false", 
+              "groupingExpressions": [], 
+              "initialInputBufferOffset": 0, 
+              "isStreaming": false, 
               "numShufflePartitions": "none", 
-              "requiredChildDistributionExpressions": [""], 
+              "requiredChildDistributionExpressions": [], 
               "resultExpressions": ["count(1)#42L AS count#43L"]
             },
             "metrics": [
@@ -1143,7 +1143,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "nodeDetailString": "2",
                     "meta": {
                       "_dd.unparsed": "any", 
-                      "id": "2"
+                      "id": 2
                     },
                     "children": [
                       {

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.InstrumentationSpecification
 import groovy.json.JsonSlurper
 import org.apache.spark.sql.Dataset
@@ -180,32 +181,21 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
   }
 
   private static generateMetaExpectations(Object actual, String name) {
-    var simpleString = actual["nodeDetailString"]
-    var values = []
-    var child = "N/A"
+    ObjectMapper mapper = new ObjectMapper()
+
+    def simpleString = actual["nodeDetailString"]
+    def child = "N/A"
+    def values = [:]
+
     actual["meta"].each { key, value ->
       if (key == "_dd.unparsed") {
-        values.add("\"_dd.unparsed\": \"any\"")
+        values.put("_dd.unparsed", "any")
         child = value
-      } else if (value instanceof List) {
-        var list = []
-        value.each { it ->
-          list.add("\"$it\"")
-        }
-        def prettyList = "[\n    " + list.join(", \n    ") + "\n  ]"
-        if (list.size() == 1) {
-          prettyList = "[" + list.join(", ") + "]"
-        }
-        values.add("\"$key\": $prettyList")
       } else {
-        values.add("\"$key\": \"$value\"")
+        values.put(key, value)
       }
     }
-    values.sort { it }
-    def prettyValues = "\n\"meta\": {\n  " + values.join(", \n  ") + "\n},"
-    if (values.size() == 1) {
-      prettyValues = "\n\"meta\": {" + values.join(", ") + "},"
-    }
+    def prettyValues = "\n\"meta\": " + mapper.writerWithDefaultPrettyPrinter().writeValueAsString(values.sort { it -> it.key }) + ","
     System.err.println("$actual.node\n\tname=$name\n\tchild=$child\n\tvalues=$prettyValues\n\tsimpleString=$simpleString")
   }
 
@@ -267,7 +257,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                     "sum#16", 
                     "count#17L"
                   ], 
-                  "_dd.unknown_key.4": "0", 
+                  "_dd.unknown_key.4": 0, 
                   "_dd.unknown_key.5": [
                     "string_col#0", 
                     "sum#18", 
@@ -348,7 +338,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
               "_dd.unknown_key.1": ["string_col#0"], 
               "_dd.unknown_key.2": ["avg(double_col#1)"], 
               "_dd.unknown_key.3": ["avg(double_col#1)#4"], 
-              "_dd.unknown_key.4": "1", 
+              "_dd.unknown_key.4": 1, 
               "_dd.unknown_key.5": [
                 "string_col#0", 
                 "avg(double_col#1)#4 AS avg(double_col)#5"
@@ -552,10 +542,10 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "nodeDetailString": "(keys=[], functions=[partial_count(1)])",
                 "meta": {
                   "_dd.unknown_key.0": "none", 
-                  "_dd.unknown_key.1": [""], 
+                  "_dd.unknown_key.1": [], 
                   "_dd.unknown_key.2": ["partial_count(1)"], 
                   "_dd.unknown_key.3": ["count#38L"], 
-                  "_dd.unknown_key.4": "0", 
+                  "_dd.unknown_key.4": 0, 
                   "_dd.unknown_key.5": ["count#39L"], 
                   "_dd.unparsed": "any"
                 },
@@ -574,7 +564,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                     "node": "Project",
                     "nodeId": 1355342585,
                     "meta": {
-                      "_dd.unknown_key.0": [""], 
+                      "_dd.unknown_key.0": [], 
                       "_dd.unparsed": "any"
                     },
                     "children": [
@@ -618,8 +608,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "nodeDetailString": "[string_col#21 ASC NULLS FIRST], false, 0",
                                     "meta": {
                                       "_dd.unknown_key.0": ["string_col#21 ASC NULLS FIRST"], 
-                                      "_dd.unknown_key.1": "false", 
-                                      "_dd.unknown_key.3": "0", 
+                                      "_dd.unknown_key.1": false, 
+                                      "_dd.unknown_key.3": 0, 
                                       "_dd.unparsed": "any"
                                     },
                                     "metrics": [
@@ -666,8 +656,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "nodeDetailString": "[string_col#25 ASC NULLS FIRST], false, 0",
                                     "meta": {
                                       "_dd.unknown_key.0": ["string_col#25 ASC NULLS FIRST"], 
-                                      "_dd.unknown_key.1": "false", 
-                                      "_dd.unknown_key.3": "0", 
+                                      "_dd.unknown_key.1": false, 
+                                      "_dd.unknown_key.3": 0, 
                                       "_dd.unparsed": "any"
                                     },
                                     "metrics": [
@@ -716,11 +706,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "nodeId": 724815342,
             "nodeDetailString": "(keys=[], functions=[count(1)])",
             "meta": {
-              "_dd.unknown_key.0": [""], 
-              "_dd.unknown_key.1": [""], 
+              "_dd.unknown_key.0": [], 
+              "_dd.unknown_key.1": [], 
               "_dd.unknown_key.2": ["count(1)"], 
               "_dd.unknown_key.3": ["count(1)#35L"], 
-              "_dd.unknown_key.4": "0", 
+              "_dd.unknown_key.4": 0, 
               "_dd.unknown_key.5": ["count(1)#35L AS count#36L"], 
               "_dd.unparsed": "any"
             },
