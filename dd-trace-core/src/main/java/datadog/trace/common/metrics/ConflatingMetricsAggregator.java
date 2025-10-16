@@ -3,6 +3,8 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -100,6 +102,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final boolean resourceRenamingEnabled;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -120,7 +123,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             false,
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
-        config.getTracerMetricsMaxPending());
+        config.getTracerMetricsMaxPending(),
+        config.isResourceRenamingEnabled());
   }
 
   ConflatingMetricsAggregator(
@@ -140,7 +144,30 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         10,
-        SECONDS);
+        SECONDS,
+        false);
+  }
+
+  ConflatingMetricsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      boolean resourceRenamingEnabled) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        10,
+        SECONDS,
+        resourceRenamingEnabled);
   }
 
   ConflatingMetricsAggregator(
@@ -152,7 +179,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean resourceRenamingEnabled) {
     this(
         ignoredResources,
         features,
@@ -162,7 +190,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         reportingInterval,
-        timeUnit);
+        timeUnit,
+        resourceRenamingEnabled);
   }
 
   ConflatingMetricsAggregator(
@@ -174,7 +203,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean resourceRenamingEnabled) {
     this.ignoredResources = ignoredResources;
     this.inbox = new MpscCompoundQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
@@ -183,6 +213,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
+    this.resourceRenamingEnabled = resourceRenamingEnabled;
     this.aggregator =
         new Aggregator(
             metricWriter,
@@ -307,6 +338,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
     final CharSequence spanKind = span.getTag(SPAN_KIND, "");
+    // Only include HTTP tags in metric key when resource renaming is enabled
+    final CharSequence httpMethod = resourceRenamingEnabled ? span.getTag(HTTP_METHOD, "") : "";
+    final CharSequence httpEndpoint = resourceRenamingEnabled ? span.getTag(HTTP_ENDPOINT, "") : "";
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -318,7 +352,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()));
+            getPeerTags(span, spanKind.toString()),
+            httpMethod,
+            httpEndpoint);
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {

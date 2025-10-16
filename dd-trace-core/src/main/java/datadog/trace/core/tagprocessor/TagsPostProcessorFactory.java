@@ -13,8 +13,11 @@ public final class TagsPostProcessorFactory {
     private static TagsPostProcessor lazyProcessor = createLazyChain();
 
     private static TagsPostProcessor createEagerChain() {
-      final List<TagsPostProcessor> processors = new ArrayList<>(2);
+      final List<TagsPostProcessor> processors = new ArrayList<>(3);
       processors.add(new PeerServiceCalculator());
+      if (Config.get().isResourceRenamingEnabled()) {
+        processors.add(new HttpEndpointPostProcessor());
+      }
       if (addBaseService) {
         processors.add(new BaseServiceAdder(Config.get().getServiceName()));
       }
