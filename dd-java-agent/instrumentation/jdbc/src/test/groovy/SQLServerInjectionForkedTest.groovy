@@ -37,7 +37,7 @@ class SQLServerInjectionForkedTest extends InstrumentationSpecification {
     assert !statement.sql.contains("traceparent")
   }
 
-  def "SQL Server apend comment when getting generated keys"() {
+  def "SQL Server append comment when getting generated keys"() {
     setup:
     def connection = new TestConnection(false)
     def metadata = new TestDatabaseMetaData()
@@ -47,6 +47,22 @@ class SQLServerInjectionForkedTest extends InstrumentationSpecification {
     when:
     def statement = connection.createStatement() as TestStatement
     statement.executeUpdate(query, 1)
+
+    then:
+    assert statement.sql == "${query} /*${serviceInjection}*/"
+  }
+
+  def "SQL Server append comment when configured to do so"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT, "true")
+    def connection = new TestConnection(false)
+    def metadata = new TestDatabaseMetaData()
+    metadata.setURL("jdbc:microsoft:sqlserver://localhost:1433;DatabaseName=testdb;")
+    connection.setMetaData(metadata)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.executeUpdate(query)
 
     then:
     assert statement.sql == "${query} /*${serviceInjection}*/"
