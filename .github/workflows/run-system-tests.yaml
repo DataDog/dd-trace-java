@@ -60,7 +60,8 @@ jobs:
   main:
     needs:
     - build
-    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned for releases only: the create-release-branch workflow depends on this comment to update the reference
+    # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned for releases only
     secrets: inherit
     permissions:
       contents: read
@@ -68,7 +69,8 @@ jobs:
       packages: write
     with:
       library: java
-      ref: main # system tests are pinned for releases only: the create-release-branch workflow depends on this comment to update the reference
+       # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
+      ref: main # system tests are pinned for releases only
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
