@@ -4737,6 +4737,17 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public String getDefaultTelemetryUrl() {
+    String site = getSite();
+    String prefix = "";
+    if (site.endsWith("datad0g.com")) {
+      prefix = "all-http-intake.logs.";
+    } else if (site.endsWith("datadoghq.com") || site.endsWith("datadoghq.eu")) {
+      prefix = "instrumentation-telemetry-intake.";
+    }
+    return "https://" + prefix + site + "/api/v2/apmtelemetry";
+  }
+
   /**
    * Returns the sample rate for the specified instrumentation or {@link
    * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
@@ -4928,7 +4939,7 @@ public class Config {
   public String getFinalCrashTrackingTelemetryUrl() {
     if (crashTrackingAgentless) {
       // when agentless crashTracking is turned on we send directly to our intake
-      return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
+      return getDefaultTelemetryUrl();
     } else {
       // when agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
