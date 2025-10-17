@@ -63,7 +63,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.ByteBuffer;
+import java.nio.file.FileSystems;
 import java.security.CodeSource;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
@@ -799,8 +799,7 @@ public class Agent {
         // To workaround JDK-8345810, we want to initialize nio early,
         // which has dependence on libpthread. Creating a small nio ByteBuffer
         // to force nio initialization.
-        ByteBuffer buffer = ByteBuffer.allocate(1);
-
+        FileSystems.getDefault();
         AgentTaskScheduler.get().execute(Agent::initializeCrashTrackingDefault);
       }
     } else {
