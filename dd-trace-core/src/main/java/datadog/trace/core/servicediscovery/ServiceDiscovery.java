@@ -43,7 +43,7 @@ public class ServiceDiscovery {
   }
 
   private static String generateFileName() {
-    String suffix = UUID.randomUUID().toString().substring(0, 8);
+    String suffix = RandomUtils.randomUUID().toString().substring(0, 8);
     return "datadog-tracer-info-" + suffix;
   }
 
