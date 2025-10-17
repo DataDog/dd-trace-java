@@ -56,7 +56,7 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
             classVisitor, instrumentedType.getInternalName(), fieldName);
   }
 
-  private static class ImplementTaskWrapperClassVisitor extends ClassVisitor {
+  static class ImplementTaskWrapperClassVisitor extends ClassVisitor {
 
     private static final String TASK_WRAPPER =
         "datadog/trace/bootstrap/instrumentation/api/TaskWrapper";
