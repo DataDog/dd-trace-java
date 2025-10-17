@@ -162,7 +162,6 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             log.debug("StatsD connected to {}", statsDAddress());
           }
         } catch (final Exception e) {
-          log.error("Unable to create StatsD client - {}", statsDAddress(), e);
           if (retries.getAndIncrement() < MAX_RETRIES) {
             if (log.isDebugEnabled()) {
               log.debug(
@@ -173,6 +172,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
           } else {
             log.debug("Max retries have been reached. Will not attempt again.");
           }
+        } catch (Throwable t) {
+          log.error("Unable to create StatsD client - {} - Will not retry", statsDAddress(), t);
         }
       }
     }
