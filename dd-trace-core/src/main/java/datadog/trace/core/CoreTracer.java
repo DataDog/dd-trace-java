@@ -1184,6 +1184,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
         }
       }
+      if (interceptedTrace == null || interceptedTrace.isEmpty()) {
+        return Collections.emptyList();
+      }
+
       trace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
         if (span instanceof DDSpan) {
