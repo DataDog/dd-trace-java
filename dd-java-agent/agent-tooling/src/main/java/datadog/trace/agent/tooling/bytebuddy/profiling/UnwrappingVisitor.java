@@ -83,6 +83,9 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
         String[] interfaces) {
       if (interfaces == null || !Arrays.asList(interfaces).contains(TASK_WRAPPER)) {
         interfaces = append(interfaces, TASK_WRAPPER);
+        if (signature != null) {
+          signature += 'L' + TASK_WRAPPER + ';';
+        }
         modify = true;
       }
       super.visit(version, access, name, signature, superName, interfaces);
