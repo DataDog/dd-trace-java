@@ -4,33 +4,19 @@
 
 [versions]
 # Kafka ecosystem
-kafka-clients-v011 = "0.11.0.0"
-kafka-clients-v27 = "2.7.0"
-kafka-clients-v38 = "3.8.0"
-kafka-clients-latest-v2x = "2.+"
-kafka-clients-latest-v3x = "3.+"
-kafka-streams-v011 = "0.11.0.0"
+kafka-v011 = "0.11.0.0"
+kafka-v27 = "2.7.0"
+kafka-v38 = "3.8.0"
+kafka-latest-v2x = "2.+"
+kafka-latest-v3x = "3.+"
 kafka-streams-v10 = "1.0.0"
-kafka-streams-latest-v2x = "2.+"
-kafka-v213-v38 = "3.8.0"
 kafka-v213-latest-v2x = "2.+"
-kafka-server-common-v38 = "3.8.0"
-kafka-connect-runtime-v011 = "0.11.0.0"
-kafka-connect-api-v27 = "2.7.0"
-kafka-connect-runtime-v27 = "2.7.0"
-kafka-connect-file-v27 = "2.7.0"
 spring-kafka-v13 = "1.3.3.RELEASE"
-spring-kafka-test-v13 = "1.3.3.RELEASE"
 spring-kafka-v27 = "2.7.9"
-spring-kafka-test-v27 = "2.7.9"
 spring-kafka-v33 = "3.3.4"
-spring-kafka-test-v33 = "3.3.4"
 spring-kafka-v27plus = "2.7+"
-spring-kafka-test-v27plus = "2.7+"
 spring-kafka-latest-v2x = "2.+"
-spring-kafka-test-latest-v2x = "2.+"
 spring-kafka-latest-v3x = "3.+"
-spring-kafka-test-latest-v3x = "3.+"
 reactor-kafka-v10 = "1.0.0.RELEASE"
 jaxb-api-v22 = "2.2.3"
 mockito-core-v219 = "2.19.0"
@@ -39,16 +25,11 @@ dropwizard-metrics-latest = "+"
 # Netty ecosystem
 netty-v38 = "3.8.0.Final"
 netty-latest-v3x = "3.10.+"
-netty-codec-http-v400 = "4.0.0.Final"
+netty-v400 = "4.0.0.Final"
 netty-codec-http-v4056 = "4.0.56.Final"
 netty-v410 = "4.1.0.Final"
-netty-buffer-v400 = "4.0.0.Final"
-netty-common-v400 = "4.0.0.Final"
-netty-buffer-latest-v4x = "4.+"
-netty-buffer-latest = "+"
-netty-common-latest-v4x = "4.+"
-netty-common-latest = "+"
-netty-codec-v4-latest = "4.+"
+netty-latest-v4x = "4.+"
+netty-latest = "+"
 netty-codec-socks-v4-latest = "4.+"
 reactor-netty-v08 = "0.8.0.RELEASE"
 async-http-client-ning-v18 = "1.8.0"
@@ -60,33 +41,33 @@ async-http-client-latest = "2.+"
 
 [libraries]
 # Kafka
-kafka-clients-v011 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-clients-v011" }
-kafka-clients-v27 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-clients-v27" }
-kafka-clients-v38 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-clients-v38" }
-kafka-clients-latest-v2x = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-clients-latest-v2x" }
-kafka-clients-latest-v3x = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-clients-latest-v3x" }
-kafka-streams-v011 = { module = "org.apache.kafka:kafka-streams", version.ref = "kafka-streams-v011" }
+kafka-clients-v011 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-v011" }
+kafka-clients-v27 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-v27" }
+kafka-clients-v38 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-v38" }
+kafka-clients-latest-v2x = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-latest-v2x" }
+kafka-clients-latest-v3x = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-latest-v3x" }
+kafka-streams-v011 = { module = "org.apache.kafka:kafka-streams", version.ref = "kafka-v011" }
 kafka-streams-v10 = { module = "org.apache.kafka:kafka-streams", version.ref = "kafka-streams-v10" }
-kafka-streams-latest-v2x = { module = "org.apache.kafka:kafka-streams", version.ref = "kafka-streams-latest-v2x" }
-kafka-v213-v38 = { module = "org.apache.kafka:kafka_2.13", version.ref = "kafka-v213-v38" }
+kafka-streams-latest-v2x = { module = "org.apache.kafka:kafka-streams", version.ref = "kafka-latest-v2x" }
+kafka-v213-v38 = { module = "org.apache.kafka:kafka_2.13", version.ref = "kafka-v38" }
 kafka-v213-latest-v2x = { module = "org.apache.kafka:kafka_2.13", version.ref = "kafka-v213-latest-v2x" }
-kafka-server-common-v38-test = { module = "org.apache.kafka:kafka-server-common", version.ref = "kafka-server-common-v38" }
-kafka-connect-runtime-v011 = { module = "org.apache.kafka:connect-runtime", version.ref = "kafka-connect-runtime-v011" }
-kafka-connect-api-v27 = { module = "org.apache.kafka:connect-api", version.ref = "kafka-connect-api-v27" }
-kafka-connect-runtime-v27 = { module = "org.apache.kafka:connect-runtime", version.ref = "kafka-connect-runtime-v27" }
-kafka-connect-file-v27 = { module = "org.apache.kafka:connect-file", version.ref = "kafka-connect-file-v27" }
+kafka-server-common-v38-test = { module = "org.apache.kafka:kafka-server-common", version.ref = "kafka-v38" }
+kafka-connect-runtime-v011 = { module = "org.apache.kafka:connect-runtime", version.ref = "kafka-v011" }
+kafka-connect-api-v27 = { module = "org.apache.kafka:connect-api", version.ref = "kafka-v27" }
+kafka-connect-runtime-v27 = { module = "org.apache.kafka:connect-runtime", version.ref = "kafka-v27" }
+kafka-connect-file-v27 = { module = "org.apache.kafka:connect-file", version.ref = "kafka-v27" }
 spring-kafka-v13 = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka-v13" }
-spring-kafka-test-v13 = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-test-v13" }
+spring-kafka-test-v13 = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-v13" }
 spring-kafka-v27 = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka-v27" }
-spring-kafka-test-v27 = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-test-v27" }
+spring-kafka-test-v27 = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-v27" }
 spring-kafka-v33 = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka-v33" }
-spring-kafka-test-v33 = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-test-v33" }
+spring-kafka-test-v33 = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-v33" }
 spring-kafka-v27plus = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka-v27plus" }
-spring-kafka-test-v27plus = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-test-v27plus" }
+spring-kafka-test-v27plus = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-v27plus" }
 spring-kafka-latest-v2x = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka-latest-v2x" }
-spring-kafka-test-latest-v2x = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-test-latest-v2x" }
+spring-kafka-test-latest-v2x = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-latest-v2x" }
 spring-kafka-latest-v3x = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka-latest-v3x" }
-spring-kafka-test-latest-v3x = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-test-latest-v3x" }
+spring-kafka-test-latest-v3x = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka-latest-v3x" }
 reactor-kafka-v10 = { module = "io.projectreactor.kafka:reactor-kafka", version.ref = "reactor-kafka-v10" }
 jaxb-api-v22 = { module = "javax.xml.bind:jaxb-api", version.ref = "jaxb-api-v22" }
 mockito-core-v219 = { module = "org.mockito:mockito-core", version.ref = "mockito-core-v219" }
@@ -95,19 +76,19 @@ dropwizard-metrics-latest = { module = "io.dropwizard.metrics:metrics-core", ver
 # Netty
 netty-v38 = { module = "io.netty:netty", version.ref = "netty-v38" }
 netty-latest-v3x = { module = "io.netty:netty", version.ref = "netty-latest-v3x" }
-netty-codec-http-v400 = { module = "io.netty:netty-codec-http", version.ref = "netty-codec-http-v400" }
+netty-codec-http-v400 = { module = "io.netty:netty-codec-http", version.ref = "netty-v400" }
 netty-codec-http-v4056 = { module = "io.netty:netty-codec-http", version.ref = "netty-codec-http-v4056" }
 netty-codec-http-v410 = { module = "io.netty:netty-codec-http", version.ref = "netty-v410" }
 netty-codec-http2-v410 = { module = "io.netty:netty-codec-http2", version.ref = "netty-v410" }
-netty-buffer-v400 = { module = "io.netty:netty-buffer", version.ref = "netty-buffer-v400" }
-netty-common-v400 = { module = "io.netty:netty-common", version.ref = "netty-common-v400" }
-netty-buffer-latest-v4x = { module = "io.netty:netty-buffer", version.ref = "netty-buffer-latest-v4x" }
-netty-buffer-latest = { module = "io.netty:netty-buffer", version.ref = "netty-buffer-latest" }
-netty-common-latest-v4x = { module = "io.netty:netty-common", version.ref = "netty-common-latest-v4x" }
-netty-common-latest = { module = "io.netty:netty-common", version.ref = "netty-common-latest" }
-netty-codec-latest = { module = "io.netty:netty-codec", version.ref = "netty-codec-v4-latest" }
-netty-codec-http-latest = { module = "io.netty:netty-codec-http", version.ref = "netty-codec-v4-latest" }
-netty-codec-http2-latest = { module = "io.netty:netty-codec-http2", version.ref = "netty-codec-v4-latest" }
+netty-buffer-v400 = { module = "io.netty:netty-buffer", version.ref = "netty-v400" }
+netty-common-v400 = { module = "io.netty:netty-common", version.ref = "netty-v400" }
+netty-buffer-latest-v4x = { module = "io.netty:netty-buffer", version.ref = "netty-latest-v4x" }
+netty-buffer-latest = { module = "io.netty:netty-buffer", version.ref = "netty-latest" }
+netty-common-latest-v4x = { module = "io.netty:netty-common", version.ref = "netty-latest-v4x" }
+netty-common-latest = { module = "io.netty:netty-common", version.ref = "netty-latest" }
+netty-codec-latest = { module = "io.netty:netty-codec", version.ref = "netty-latest-v4x" }
+netty-codec-http-latest = { module = "io.netty:netty-codec-http", version.ref = "netty-latest-v4x" }
+netty-codec-http2-latest = { module = "io.netty:netty-codec-http2", version.ref = "netty-latest-v4x" }
 netty-codec-socks-latest = { module = "io.netty:netty-codec-socks", version.ref = "netty-codec-socks-v4-latest" }
 reactor-netty-v08 = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty-v08" }
 async-http-client-ning-v18 = { module = "com.ning:async-http-client", version.ref = "async-http-client-ning-v18" }
