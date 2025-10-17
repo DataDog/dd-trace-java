@@ -45,8 +45,7 @@ public class ExceptionSampleEvent extends Event implements ContextualEvent {
   }
 
   private static String getMessage(Throwable t) {
-    final ExceptionProfiling exceptionProfiling = ExceptionProfiling.getInstance();
-    if (exceptionProfiling != null && exceptionProfiling.recordExceptionMessage()) {
+    if (ExceptionProfiling.getInstance().recordExceptionMessage()) {
       try {
         return t.getMessage();
       } catch (Throwable ignored) {

@@ -258,10 +258,7 @@ public final class OpenJdkController implements Controller {
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
 
     if (isEventEnabled(this.recordingSettings, "datadog.ExceptionSample")) {
-      final ExceptionProfiling exceptionProfiling = ExceptionProfiling.getInstance();
-      if (exceptionProfiling != null) {
-        exceptionProfiling.start();
-      }
+      ExceptionProfiling.getInstance().start();
     }
 
     if (Config.get().isProfilingBackPressureSamplingEnabled()) {
