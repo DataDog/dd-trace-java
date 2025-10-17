@@ -56,6 +56,8 @@ public class AppSecInterceptor implements Interceptor {
       final Request request = onRequest(span, sampled, chain.request());
       final Response response = chain.proceed(request);
       return onResponse(span, sampled, response);
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       LOGGER.debug("Failed to intercept request", e);
       return chain.proceed(chain.request());
