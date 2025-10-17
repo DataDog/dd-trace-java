@@ -44,6 +44,7 @@ public final class WithSpanAnnotationInstrumentation extends InstrumenterModule.
       this.packageName + ".WithSpanDecorator",
       this.packageName + ".WithSpanDecorator$1", // Switch over enum generated class
       "datadog.opentelemetry.shim.trace.OtelConventions",
+      "datadog.opentelemetry.shim.trace.OtelConventions$1",
     };
   }
 
