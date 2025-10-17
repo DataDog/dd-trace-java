@@ -11,7 +11,7 @@ class TelemetryClientTest extends Specification {
 
   def "Intake client uses CI Visibility agentless URL if configured to do so"() {
     setup:
-    def config = Stub(Config)
+    def config = Spy(Config.get())
     config.getApiKey() >> "dummy-key"
     config.getAgentTimeout() >> 123
     config.getSite() >> "datad0g.com"
