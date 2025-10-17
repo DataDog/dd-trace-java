@@ -485,6 +485,10 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
   @Override
   public boolean isReadyToCapture() {
+    if (isLineProbe() && !hasCondition()) {
+      // we are sampling here to avoid creating CapturedContext when the sampling result is negative
+      return ProbeRateLimiter.tryProbe(id);
+    }
     return true;
   }
 
@@ -494,9 +498,14 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!(status instanceof LogStatus)) {
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
-
     LogStatus logStatus = (LogStatus) status;
-    if (!hasCondition()) {
+    if (isLineProbe() && !hasCondition()) {
+      // sampling was already done in isReadToCapture so we assume that if we are executing the
+      // current method it means the status should be sampled
+      if (!logStatus.getDebugSessionStatus().isDisabled()) {
+        logStatus.setSampled(true);
+      }
+    } else if (!hasCondition()) {
       // sample when no condition associated
       sample(logStatus, methodLocation);
     }
