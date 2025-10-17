@@ -55,7 +55,7 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     // disable AppSec rate limit
     "-Ddd.appsec.trace.rate.limit=-1",
     // disable http client sampling
-    "-Ddd.api-security.downstream.request.analysis.sample_rate=1"
+    "-Ddd.api-security.downstream.request.body.analysis.sample_rate=1"
   ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?
   // enable remote config so that appsec is partially enabled (rc is now enabled by default)
   [
