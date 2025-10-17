@@ -56,7 +56,7 @@ public final class SemanticVersion {
   }
 
   public static SemanticVersion of(String version) {
-    String[] parts = NUMERIC_SPLITTER.split(version);
+    String[] parts = NUMERIC_SPLITTER.split(version, 4);
     if (parts.length == 0) {
       LOGGER.error("Invalid version string {} ", version);
       return new SemanticVersion(0, 0, 0); // have a sane default
