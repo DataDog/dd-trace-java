@@ -21,10 +21,10 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-public class SpanInstrumentor extends Instrumentor {
+public class SpanInstrumenter extends Instrumenter {
   private int spanVar;
 
-  public SpanInstrumentor(
+  public SpanInstrumenter(
       SpanProbe spanProbe,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,

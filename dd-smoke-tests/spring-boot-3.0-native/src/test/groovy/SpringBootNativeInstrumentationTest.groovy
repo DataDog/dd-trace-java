@@ -51,6 +51,9 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       "-Ddd.trace.debug=true",
       "-Ddd.jmxfetch.statsd.port=${statsdPort}",
       "-Ddd.jmxfetch.start-delay=0",
+      // TODO: Remove this arg after JFR initialization is fixed on GraalVM 25.
+      // https://datadoghq.atlassian.net/browse/PROF-12742
+      "-XX:StartFlightRecording=filename=${testJfrDir}/recording.jfr",
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))

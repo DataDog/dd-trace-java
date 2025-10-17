@@ -96,6 +96,8 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.servicediscovery.ServiceDiscovery;
+import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
@@ -321,6 +323,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private TagInterceptor tagInterceptor;
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
+    private ServiceDiscoveryFactory serviceDiscoveryFactory;
     private TimeSource timeSource;
     private DataStreamsMonitoring dataStreamsMonitoring;
     private ProfilingContextIntegration profilingContextIntegration =
@@ -436,6 +439,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    public CoreTracerBuilder serviceDiscoveryFactory(
+        ServiceDiscoveryFactory serviceDiscoveryFactory) {
+      this.serviceDiscoveryFactory = serviceDiscoveryFactory;
+      return this;
+    }
+
     public CoreTracerBuilder timeSource(TimeSource timeSource) {
       this.timeSource = timeSource;
       return this;
@@ -528,6 +537,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           tagInterceptor,
           strictTraceWrites,
           instrumentationGateway,
+          serviceDiscoveryFactory,
           timeSource,
           dataStreamsMonitoring,
           profilingContextIntegration,
@@ -588,6 +598,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         tagInterceptor,
         strictTraceWrites,
         instrumentationGateway,
+        null,
         timeSource,
         dataStreamsMonitoring,
         profilingContextIntegration,
@@ -619,6 +630,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
+      final ServiceDiscoveryFactory serviceDiscoveryFactory,
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
       final ProfilingContextIntegration profilingContextIntegration,
@@ -887,6 +899,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     this.localRootSpanTagsNeedIntercept =
         this.tagInterceptor.needsIntercept(this.localRootSpanTags);
+    if (serviceDiscoveryFactory != null) {
+      AgentTaskScheduler.get()
+          .schedule(
+              () -> {
+                final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
+                if (serviceDiscovery != null) {
+                  // JNA can do ldconfig and other commands. Those are hidden since internal.
+                  try (final TraceScope blackhole = muteTracing()) {
+                    serviceDiscovery.writeTracerMetadata(config);
+                  }
+                }
+              },
+              1,
+              SECONDS);
+    }
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */

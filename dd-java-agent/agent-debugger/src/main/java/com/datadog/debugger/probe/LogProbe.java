@@ -10,10 +10,11 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
-import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.instrumentation.MultiCapturedContextInstrumenter;
+import com.datadog.debugger.instrumentation.SingleCapturedContextInstrumenter;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.WeakIdentityHashMap;
@@ -24,6 +25,7 @@ import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -54,7 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Stores definition of a log probe */
-public class LogProbe extends ProbeDefinition implements Sampled {
+public class LogProbe extends ProbeDefinition implements Sampled, CapturedContextProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
@@ -457,7 +459,20 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
     // only capture entry values if explicitly not at Exit. By default, we are using evaluateAt=EXIT
     boolean captureEntry = getEvaluateAt() != MethodLocation.EXIT;
-    return new CapturedContextInstrumentor(
+    if (probeIndices.size() == 1) {
+      // special case for single probe
+      return new SingleCapturedContextInstrumenter(
+              this,
+              methodInfo,
+              diagnostics,
+              probeIndices,
+              isCaptureSnapshot(),
+              captureEntry,
+              toLimits(getCapture()))
+          .instrument();
+    }
+    // fallbacks to multi probes handling
+    return new MultiCapturedContextInstrumenter(
             this,
             methodInfo,
             diagnostics,
@@ -466,6 +481,11 @@ public class LogProbe extends ProbeDefinition implements Sampled {
             captureEntry,
             toLimits(getCapture()))
         .instrument();
+  }
+
+  @Override
+  public boolean isReadyToCapture() {
+    return true;
   }
 
   @Override
@@ -777,7 +797,9 @@ public class LogProbe extends ProbeDefinition implements Sampled {
 
     @Override
     public boolean shouldFreezeContext() {
-      return sampled && probeImplementation.isCaptureSnapshot() && shouldSend();
+      return sampled
+          && ((CapturedContextProbe) probeImplementation).isCaptureSnapshot()
+          && shouldSend();
     }
 
     @Override

@@ -29,7 +29,7 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Common class for generating instrumentation */
-public abstract class Instrumentor {
+public abstract class Instrumenter {
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -47,9 +47,9 @@ public abstract class Instrumentor {
   protected final LocalVariableNode[] localVarsBySlotArray;
   protected final JvmLanguage language;
   protected LabelNode returnHandlerLabel;
-  protected final List<CapturedContextInstrumentor.FinallyBlock> finallyBlocks = new ArrayList<>();
+  protected final List<CapturedContextInstrumenter.FinallyBlock> finallyBlocks = new ArrayList<>();
 
-  public Instrumentor(
+  public Instrumenter(
       ProbeDefinition definition,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
