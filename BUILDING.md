@@ -250,7 +250,8 @@ winget install --id Docker.DockerDesktop
 > Both git configurations (hooks and submodule) will only be applied to this project and won't apply globally in your setup.
 
 ### Configure Akka Token
-> Note: You can skip this step if you don’t need instrumentation for the **akka-http-10.6** module.
+> [!NOTE]
+> You can skip this step if you don’t need instrumentation for the **akka-http-10.6** module.
 > For background on why Akka now requires authentication, see this [article](https://akka.io/blog/why-we-are-changing-the-license-for-akka).
 
 To enable access to Akka artifacts hosted on Lightbend’s private repository, you’ll need to configure an authentication token.

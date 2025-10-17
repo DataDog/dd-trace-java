@@ -613,10 +613,12 @@ include(
 )
 
 // Optional Akka instrumentation (see BUILDING.md for how to enable it):
-if (providers.environmentVariable("ORG_GRADLE_PROJECT_akkaRepositoryToken").isPresent) {
+if (providers.gradleProperty("akkaRepositoryToken").isPresent) {
   include(
     ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6"
   )
+} else {
+  logger.quiet("Omitting :dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6: 'akkaRepositoryToken' not configured")
 }
 
 // benchmark
