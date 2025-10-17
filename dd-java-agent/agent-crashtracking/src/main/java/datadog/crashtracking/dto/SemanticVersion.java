@@ -6,11 +6,13 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.ToJson;
 import java.io.IOException;
 import java.util.Objects;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SemanticVersion {
-  private static final Pattern DOT_SPLITTER = Pattern.compile("\\.");
+  private static final Pattern NUMERIC_SPLITTER = Pattern.compile("[^0-9]+");
+  private static final Logger LOGGER = LoggerFactory.getLogger(SemanticVersion.class.getName());
 
   public static final class SemanticVersionAdapter {
 
@@ -54,30 +56,23 @@ public final class SemanticVersion {
   }
 
   public static SemanticVersion of(String version) {
-    String[] parts = DOT_SPLITTER.split(version);
-    if (parts.length == 3) {
-      return new SemanticVersion(
-          safeParseInteger(parts[0]), safeParseInteger(parts[1]), safeParseInteger(parts[2]));
+    String[] parts = NUMERIC_SPLITTER.split(version);
+    if (parts.length == 0) {
+      LOGGER.error("Invalid version string {} ", version);
+      return new SemanticVersion(0, 0, 0); // have a sane default
     } else if (parts.length == 2) {
       return new SemanticVersion(safeParseInteger(parts[0]), safeParseInteger(parts[1]), 0);
     } else if (parts.length == 1) {
       return new SemanticVersion(safeParseInteger(parts[0]), 0, 0);
-    } else {
-      throw new IllegalArgumentException("Invalid version string: " + version);
     }
+    return new SemanticVersion(
+        safeParseInteger(parts[0]), safeParseInteger(parts[1]), safeParseInteger(parts[2]));
   }
-
-  private static final Pattern INTEGER_PATTERN = Pattern.compile("(\\d+).*");
 
   private static int safeParseInteger(String value) {
     try {
       return Integer.parseInt(value);
-    } catch (NumberFormatException e) {
-      Matcher matcher = INTEGER_PATTERN.matcher(value);
-      if (matcher.matches()) {
-        // this is guaranteed to be an integer
-        return Integer.parseInt(matcher.group(1));
-      }
+    } catch (Throwable ignored) {
       return 0;
     }
   }
@@ -97,5 +92,10 @@ public final class SemanticVersion {
   @Override
   public int hashCode() {
     return Objects.hash(major, minor, patch);
+  }
+
+  @Override
+  public String toString() {
+    return "SemanticVersion{" + "major=" + major + ", minor=" + minor + ", patch=" + patch + '}';
   }
 }
