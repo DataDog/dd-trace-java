@@ -187,7 +187,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
     if (null == host) {
       if (!OperatingSystem.isWindows() && new File(DEFAULT_DOGSTATSD_SOCKET_PATH).exists()) {
-        log.info("Detected {}.  Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
+        log.info("Detected {}. Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
         host = DEFAULT_DOGSTATSD_SOCKET_PATH;
         port = 0; // tells dogstatsd client to treat host as a socket path
       } else {
