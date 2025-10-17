@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+
 import datadog.trace.api.iast.util.PropagationUtils;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -129,7 +131,7 @@ public class URIUtils {
     try {
       return PropagationUtils.onUriCreate(unparsed, URI.create(unparsed));
     } catch (final IllegalArgumentException exception) {
-      LOGGER.debug("Unable to parse request uri {}", unparsed, exception);
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Unable to parse request uri {}", unparsed, exception);
       return null;
     }
   }
