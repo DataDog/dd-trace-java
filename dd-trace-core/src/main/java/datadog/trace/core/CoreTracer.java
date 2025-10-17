@@ -13,6 +13,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
+import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -1183,7 +1184,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           String interceptorName = interceptor.getClass().getName();
           rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
         }
+        if (interceptedTrace == null || interceptedTrace.isEmpty()) {
+          interceptedTrace = emptyList();
+        }
       }
+
       trace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
         if (span instanceof DDSpan) {
