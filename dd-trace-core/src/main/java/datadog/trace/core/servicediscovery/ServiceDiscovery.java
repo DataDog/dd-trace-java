@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,10 +36,15 @@ public class ServiceDiscovery {
               ProcessTags.getTagsForSerialization(),
               ContainerInfo.get().getContainerId());
 
-      foreignMemoryWriter.write(payload);
+      foreignMemoryWriter.write(generateFileName(), payload);
     } catch (Throwable t) {
       log.debug("service discovery memfd write failed", t);
     }
+  }
+
+  private static String generateFileName() {
+    String suffix = UUID.randomUUID().toString().substring(0, 8);
+    return "datadog-tracer-info-" + suffix;
   }
 
   static byte[] encodePayload(
