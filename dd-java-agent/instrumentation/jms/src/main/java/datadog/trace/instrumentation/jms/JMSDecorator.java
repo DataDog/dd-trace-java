@@ -114,6 +114,22 @@ public final class JMSDecorator extends MessagingClientDecorator {
     }
   }
 
+  public static String messageTechnology(Message m) {
+    if (null == m) {
+      return "null";
+    }
+
+    String messageClass = m.getClass().getName();
+
+    if (messageClass.startsWith("com.amazon.sqs")) {
+      return "sqs";
+    } else if (messageClass.startsWith("com.ibm")) {
+      return "ibmmq";
+    } else {
+      return "unknown";
+    }
+  }
+
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"jms"};

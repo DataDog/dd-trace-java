@@ -7,6 +7,8 @@ import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
+import datadog.trace.bootstrap.config.provider.civisibility.CiEnvironmentVariables;
+import datadog.trace.util.ConfigStrings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,6 +22,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -495,24 +498,32 @@ public final class ConfigProvider {
     Properties configProperties =
         loadConfigurationFile(
             new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
-    if (configProperties.isEmpty()) {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          StableConfigSource.FLEET,
-          new EnvironmentConfigSource(),
-          new OtelEnvironmentConfigSource(),
-          StableConfigSource.LOCAL,
-          new CapturedEnvironmentConfigSource());
-    } else {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          StableConfigSource.FLEET,
-          new EnvironmentConfigSource(),
-          new PropertiesConfigSource(configProperties, true),
-          new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSource.LOCAL,
-          new CapturedEnvironmentConfigSource());
-    }
+    ConfigProvider.Source propertiesSource =
+        !configProperties.isEmpty() ? new PropertiesConfigSource(configProperties, true) : null;
+
+    Map<String, String> ciEnvironmentVariables = CiEnvironmentVariables.getAll();
+    ConfigProvider.Source ciEnvironmentSource =
+        ciEnvironmentVariables != null
+            ? new MapConfigSource(
+                ciEnvironmentVariables,
+                ConfigStrings::propertyNameToEnvironmentVariableName,
+                ConfigOrigin.ENV)
+            : null;
+
+    return new ConfigProvider(
+        filterNonNull(
+            new SystemPropertiesConfigSource(),
+            StableConfigSource.FLEET,
+            ciEnvironmentSource,
+            new EnvironmentConfigSource(),
+            propertiesSource,
+            new OtelEnvironmentConfigSource(),
+            StableConfigSource.LOCAL,
+            new CapturedEnvironmentConfigSource()));
+  }
+
+  private static ConfigProvider.Source[] filterNonNull(ConfigProvider.Source... values) {
+    return Arrays.stream(values).filter(Objects::nonNull).toArray(Source[]::new);
   }
 
   public static ConfigProvider withoutCollector() {
