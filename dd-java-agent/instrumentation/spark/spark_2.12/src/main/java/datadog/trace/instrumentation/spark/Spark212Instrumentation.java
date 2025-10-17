@@ -117,7 +117,8 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
                 planInfo.nodeName(),
                 planInfo.simpleString(),
                 planInfo.children(),
-                args.$plus$plus(JavaConverters.mapAsScalaMap(planUtils.extractPlanProduct(plan))),
+                args.$plus$plus(
+                    JavaConverters.mapAsScalaMap(planUtils.extractFormattedProduct(plan))),
                 planInfo.metrics());
       }
     }
