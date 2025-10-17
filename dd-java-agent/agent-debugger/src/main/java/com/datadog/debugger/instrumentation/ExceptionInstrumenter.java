@@ -6,9 +6,9 @@ import java.util.List;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 
-public class ExceptionInstrumentor extends CapturedContextInstrumentor {
+public class ExceptionInstrumenter extends CapturedContextInstrumenter {
 
-  public ExceptionInstrumentor(
+  public ExceptionInstrumenter(
       ProbeDefinition definition,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
