@@ -423,4 +423,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
         || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
   }
+
+  public boolean shouldAppendSqlComment() {
+    return Config.get().isDbmAlwaysAppendSqlComment();
+  }
 }
