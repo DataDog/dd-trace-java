@@ -11,7 +11,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compileOnly group: 'org.apache.kafka', name: 'connect-runtime', version: '0.11.0.0'
+  compileOnly instrumentedLibs.kafka.connect.runtime.v011
 
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
@@ -20,14 +20,14 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   testImplementation libs.jackson.databind
-  testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
-  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
-  testImplementation 'org.apache.kafka:connect-api:2.7.0'      // Fixed version
-  testImplementation 'org.apache.kafka:connect-runtime:2.7.0'
-  testImplementation 'org.apache.kafka:connect-file:2.7.0'     // For FileStreamSourceConnector
-  testImplementation 'org.apache.kafka:kafka-clients:2.7.0'
+  testImplementation instrumentedLibs.mockito.core.v219
+  testImplementation instrumentedLibs.jaxb.api.v22
+  testImplementation instrumentedLibs.kafka.connect.api.v27      // Fixed version
+  testImplementation instrumentedLibs.kafka.connect.runtime.v27
+  testImplementation instrumentedLibs.kafka.connect.file.v27     // For FileStreamSourceConnector
+  testImplementation instrumentedLibs.kafka.clients.v27
   // Spring Kafka Test library
-  testImplementation 'org.springframework.kafka:spring-kafka-test:2.7.9'  // Version compatible with Kafka 2.7.x
+  testImplementation instrumentedLibs.spring.kafka.test.v27  // Version compatible with Kafka 2.7.x
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-clients-0.11')
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-clients-3.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-streams-0.11')

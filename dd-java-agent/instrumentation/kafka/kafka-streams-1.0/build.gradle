@@ -12,6 +12,6 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuite('latestDepTest')
 
 dependencies {
-  compileOnly group: 'org.apache.kafka', name: 'kafka-streams', version: '1.0.0'
+  compileOnly instrumentedLibs.kafka.streams.v10
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 }

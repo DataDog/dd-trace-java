@@ -23,13 +23,13 @@ muzzle {
 addTestSuite('latestDepTest')
 
 dependencies {
-  compileOnly group: 'io.netty', name: 'netty', version: '3.8.0.Final'
+  compileOnly instrumentedLibs.netty.v38
 
-  testImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final'
-  testImplementation group: 'com.ning', name: 'async-http-client', version: '1.8.0'
+  testImplementation instrumentedLibs.netty.v38
+  testImplementation instrumentedLibs.async.http.client.ning.v18
 
-  latestDepTestImplementation group: 'io.netty', name: 'netty', version: '3.10.+'
-  latestDepTestImplementation group: 'com.ning', name: 'async-http-client', version: '1.9.+'
+  latestDepTestImplementation instrumentedLibs.netty.latest.v3x
+  latestDepTestImplementation instrumentedLibs.async.http.client.ning.latest.v1x
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
