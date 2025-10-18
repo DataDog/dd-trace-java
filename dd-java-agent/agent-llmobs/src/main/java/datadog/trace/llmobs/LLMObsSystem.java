@@ -22,7 +22,7 @@ public class LLMObsSystem {
 
   private static final String CUSTOM_MODEL_VAL = "custom";
 
-  public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
+  public static void start(@Nullable Instrumentation inst, SharedCommunicationObjects sco) {
     Config config = Config.get();
     if (!config.isLlmObsEnabled()) {
       LOGGER.debug("LLM Observability is disabled");
