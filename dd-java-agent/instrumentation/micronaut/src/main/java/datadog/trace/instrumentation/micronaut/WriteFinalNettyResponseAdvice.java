@@ -22,7 +22,7 @@ public class WriteFinalNettyResponseAdvice {
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.onResponse(span, message);
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       span.finish();
     }
   }

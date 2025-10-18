@@ -45,7 +45,7 @@ public class HTTPPluginAdvice {
       if (throwable != null) {
         DECORATE.onError(span, throwable);
       }
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
     } finally {
       scope.close();
       span.finish();

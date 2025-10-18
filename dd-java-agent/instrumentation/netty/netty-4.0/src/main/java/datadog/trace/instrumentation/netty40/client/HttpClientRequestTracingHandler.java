@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE_SECURE;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
@@ -90,7 +90,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         DECORATE.injectContext(current(), request.headers(), SETTER);
       }
 
-      ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(scope.context());
 
       try {
         ctx.write(msg, prm);

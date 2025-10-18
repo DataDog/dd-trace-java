@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.jetty76;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty76.JettyDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -150,10 +150,10 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         @Advice.Local("newSpan") AgentSpan span) {
       Request req = connection.getRequest();
 
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (existingSpan instanceof AgentSpan) {
-        // Request already gone through initial processing, so just activate the span.
-        return ((AgentSpan) existingSpan).attach();
+      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (existingContext instanceof Context) {
+        // Request already gone through initial processing, so just activate the context.
+        return ((Context) existingContext).attach();
       }
 
       final Context parentContext = DECORATE.extract(req);
@@ -163,7 +163,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, parentContext);
 
-      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       return scope;
@@ -184,12 +184,15 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final AbstractHttpConnection connection) {
       Request req = connection.getRequest();
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (spanObj instanceof AgentSpan) {
-        final AgentSpan span = (AgentSpan) spanObj;
-        DECORATE.onResponse(span, connection);
-        DECORATE.beforeFinish(span);
-        span.finish();
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        final Context context = (Context) contextObj;
+        final AgentSpan span = spanFromContext(context);
+        if (span != null) {
+          DECORATE.onResponse(span, connection);
+          DECORATE.beforeFinish(context);
+          span.finish();
+        }
       }
 
       // Jetty doesn't always call async listeners
