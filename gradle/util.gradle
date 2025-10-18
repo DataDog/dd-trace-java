@@ -3,12 +3,17 @@ tasks.register("artifacts") {
   description = "Displays the artifacts associated with each configuration of " + project
   doFirst {
     // This eager access is ok as it is during the task execution phase
-    configurations.each { config ->
-      println "${config}:"
-      config.allArtifacts.getFiles().each { file ->
-        println " " + file
+    def builder = new StringBuilder()
+    configurations.matching { it.name == "archives" }.each { config ->
+      def outgoingFiles = config.outgoing.artifacts.getFiles()
+      if (!outgoingFiles.isEmpty()) {
+        builder.setLength(0)
+        outgoingFiles.each { file ->
+          def relPath = project.rootDir.toPath().relativize(file.toPath())
+          builder.append(config).append(" (outgoing): ").append(relPath).append('\n')
+        }
+        logger.quiet(builder.toString())
       }
-      println ' '
     }
   }
 }

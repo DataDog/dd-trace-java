@@ -299,7 +299,7 @@ tasks.withType(JavaExec).configureEach {
   }
 }
 
-// Helps for reproducible builds
+// For reproducible builds
 tasks.withType(AbstractArchiveTask).configureEach {
   preserveFileTimestamps = false
   reproducibleFileOrder = true
@@ -307,17 +307,13 @@ tasks.withType(AbstractArchiveTask).configureEach {
 
 project.pluginManager.withPlugin('com.gradleup.shadow') {
   // Remove the no-deps jar from the archives to prevent publication
-  configurations.named('archives') { Configuration c ->
-    c.artifacts.remove(c.artifacts.find {
-      if (it.hasProperty("delegate")) {
-        it.delegate.archiveTask.is jar
-      } else {
-        it.archiveTask.is jar
+  configurations {
+    named("archives") {
+      outgoing.artifact(project.tasks.named("shadowJar"))
+      outgoing.artifacts.removeIf {
+        it.buildDependencies.getDependencies(null).contains(project.tasks.named("jar", Jar).get())
       }
     }
-    )
-
-    c.artifacts.add(tasks.named("shadowJar"))
   }
 }
 
