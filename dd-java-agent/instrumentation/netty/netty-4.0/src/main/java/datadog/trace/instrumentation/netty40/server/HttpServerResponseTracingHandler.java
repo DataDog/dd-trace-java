@@ -9,13 +9,13 @@ import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecora
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
+import datadog.trace.util.RandomUtils;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import java.util.UUID;
 
 @ChannelHandler.Sharable
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -49,7 +49,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         String channelId =
             ctx.channel()
                 .attr(CHANNEL_ID)
-                .setIfAbsent(UUID.randomUUID().toString().substring(0, 8));
+                .setIfAbsent(RandomUtils.randomUUID().toString().substring(0, 8));
         ctx.channel()
             .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
             .set(new HandlerContext.Sender(span, channelId));

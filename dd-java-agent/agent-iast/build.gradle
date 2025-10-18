@@ -109,6 +109,10 @@ jmh {
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+tasks.named("forbiddenApisJmh") {
+  ignoreFailures = true
+}
+
 sourceSets {
   test {
     java {

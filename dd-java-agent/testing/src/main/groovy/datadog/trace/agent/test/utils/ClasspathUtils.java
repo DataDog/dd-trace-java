@@ -2,6 +2,7 @@ package datadog.trace.agent.test.utils;
 
 import static datadog.trace.util.Strings.getResourceName;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -45,6 +46,7 @@ public class ClasspathUtils {
    * @return the location of the newly created jar.
    * @throws IOException if the jar file cannot be created.
    */
+  @SuppressForbidden
   public static URL createJarWithClasses(final ClassLoader loader, final String... resourceNames)
       throws IOException {
     final File tmpJar = File.createTempFile(UUID.randomUUID().toString(), ".jar");
@@ -75,6 +77,7 @@ public class ClasspathUtils {
    * @return the location of the newly created jar.
    * @throws IOException
    */
+  @SuppressForbidden
   public static URL createJarWithClasses(final Class<?>... classes) throws IOException {
     final File tmpJar = File.createTempFile(UUID.randomUUID().toString(), ".jar");
     tmpJar.deleteOnExit();
