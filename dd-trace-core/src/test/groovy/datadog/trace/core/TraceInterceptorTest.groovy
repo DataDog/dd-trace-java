@@ -171,6 +171,37 @@ class TraceInterceptorTest extends DDCoreSpecification {
     tags.size() >= 7
   }
 
+  def "should be robust when interceptor return a null trace"() {
+    setup:
+    tracer.interceptors.add(new TraceInterceptor() {
+        @Override
+        Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
+          if (trace[0].getOperationName().toString() == "boom") {
+            return null
+          }
+          return trace
+        }
+
+        @Override
+        int priority() {
+          return 0
+        }
+      })
+
+    when:
+    tracer.buildSpan("boom").start().finish()
+
+    then:
+    !writer.waitForTracesMax(1, 5)
+
+    when:
+    tracer.buildSpan("test").start().finish()
+    writer.waitForTraces(1)
+
+    then:
+    writer.size() == 1
+  }
+
   def "register interceptor through bridge"() {
     setup:
     GlobalTracer.registerIfAbsent(tracer)
