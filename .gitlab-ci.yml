@@ -152,7 +152,7 @@ default:
         - .gradle/wrapper
         - .gradle/caches
         - .gradle/notifications
-        - .mvn/caches1
+        - .mvn/caches
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
@@ -163,7 +163,7 @@ default:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
-        - .mvn/caches2
+        - .mvn/caches
       policy: $BUILD_CACHE_POLICY
       unprotect: true
   before_script:
@@ -182,8 +182,7 @@ default:
       # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
       sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - export MAVEN_USER_HOME=$(pwd)/.mvn
-    - mkdir -p .mvn/caches1
-    - mkdir -p .mvn/caches2
+    - mkdir -p .mvn/caches
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
@@ -198,8 +197,7 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
-    - ls .mvn/caches1
-    - ls .mvn/caches2
+    - ls .mvn/caches
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.

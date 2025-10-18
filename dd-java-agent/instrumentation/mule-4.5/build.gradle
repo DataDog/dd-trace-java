@@ -233,7 +233,7 @@ tasks.register('mvnPackage', Exec) {
   ]
 
   if (providers.environmentVariable("CI").isPresent()) {
-    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches1")
+    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
   }
 
   commandLine(mvnArgs)
