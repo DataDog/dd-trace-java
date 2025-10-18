@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.XmlDomUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import jakarta.ws.rs.core.Form;
 import java.util.function.BiFunction;
@@ -24,6 +25,7 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
   public MessageBodyReaderInstrumentation() {
     super("jersey");
   }
@@ -69,7 +71,9 @@ public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
       if (ret instanceof Form) {
         objToPass = ((Form) ret).asMap();
       } else {
-        objToPass = ret;
+        // Process XML strings for WAF compatibility
+        Object processedObj = XmlDomUtils.processXmlForWaf(ret);
+        objToPass = processedObj != null ? processedObj : ret;
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);

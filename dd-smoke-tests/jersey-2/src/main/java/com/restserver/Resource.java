@@ -153,4 +153,14 @@ public class Resource {
   public Response apiSecuritySamplingWithStatus(@PathParam("i") int i) {
     return Response.status(i).header("content-type", "text/plain").entity("Hello!\n").build();
   }
+
+  @Path("/api_security/xml")
+  @POST
+  @Produces(MediaType.APPLICATION_XML)
+  @Consumes(MediaType.APPLICATION_XML)
+  public Response bodyXml(String xmlInput) {
+    return Response.ok(
+            "<response><message>Received XML</message><input>" + xmlInput + "</input></response>")
+        .build();
+  }
 }

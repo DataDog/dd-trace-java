@@ -23,6 +23,12 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 
 public final class ObjectIntrospection {
 
@@ -199,6 +205,17 @@ public final class ObjectIntrospection {
       } catch (Throwable e) {
         // in case of failure let default conversion run
         log.debug("Error handling jackson node {}", clazz, e);
+        return null;
+      }
+    }
+
+    // XML DOM nodes (W3C DOM API)
+    if (obj instanceof Document || obj instanceof Element) {
+      try {
+        return doConversionXmlDom(obj, depth, state);
+      } catch (Throwable e) {
+        // in case of failure let default conversion run
+        log.debug("Error handling xml dom node {}", clazz, e);
         return null;
       }
     }
@@ -428,6 +445,112 @@ public final class ObjectIntrospection {
         // return null for the rest
         return null;
     }
+  }
+
+  /**
+   * Converts XML DOM objects to WAF-compatible data structures.
+   *
+   * <p>XML DOM objects ({@link org.w3c.dom.Document} and {@link org.w3c.dom.Element}) are converted
+   * to appropriate data types for WAF analysis. This method handles the conversion of XML structure
+   * to Map/List format similar to JSON handling.
+   *
+   * <p>Supported XML DOM types and their conversions:
+   *
+   * <ul>
+   *   <li>{@code Document} - Converted to {@link HashMap} with root element children as keys
+   *   <li>{@code Element} - Converted to {@link HashMap} with attributes and child elements
+   *   <li>Attributes are preserved as key-value pairs in the element map
+   *   <li>Text content is stored under the "_text" key
+   *   <li>Child elements are recursively converted and stored by tag name
+   * </ul>
+   *
+   * <p>The method applies the same truncation limits as the main conversion logic.
+   */
+  private static Object doConversionXmlDom(Object obj, int depth, State state) {
+    if (obj == null) {
+      return null;
+    }
+    state.elemsLeft--;
+    if (state.elemsLeft <= 0) {
+      state.listMapTooLarge = true;
+      return null;
+    }
+    if (depth > MAX_DEPTH) {
+      state.objectTooDeep = true;
+      return null;
+    }
+
+    if (obj instanceof Document) {
+      Document doc = (Document) obj;
+      Element rootElement = doc.getDocumentElement();
+      if (rootElement != null) {
+        return doConversionXmlDom(rootElement, depth + 1, state);
+      }
+      return new HashMap<>();
+    } else if (obj instanceof Element) {
+      Element elem = (Element) obj;
+      Map<String, Object> newMap = new HashMap<>();
+
+      // Add attributes
+      NamedNodeMap attributes = elem.getAttributes();
+      for (int i = 0; i < attributes.getLength(); i++) {
+        Node attr = attributes.item(i);
+        String attrName = attr.getNodeName();
+        String attrValue = attr.getNodeValue();
+        if (attrValue != null) {
+          newMap.put(attrName, checkStringLength(attrValue, state));
+        }
+      }
+
+      // Process child nodes
+      NodeList nodeList = elem.getChildNodes();
+      StringBuilder textContent = new StringBuilder();
+      Map<String, List<Object>> childElements = new HashMap<>();
+
+      for (int i = 0; i < nodeList.getLength(); i++) {
+        Node node = nodeList.item(i);
+        if (node instanceof Element) {
+          Element childElem = (Element) node;
+          String tagName = childElem.getTagName();
+          Object childValue = guardedConversion(childElem, depth + 1, state);
+
+          // Only add if conversion was successful (not null due to truncation)
+          if (childValue != null) {
+            // Handle multiple elements with same tag name
+            childElements.computeIfAbsent(tagName, k -> new ArrayList<>()).add(childValue);
+          }
+
+          // Stop processing if we've hit the element limit
+          if (state.elemsLeft <= 0) {
+            break;
+          }
+        } else if (node instanceof Text) {
+          String text = node.getNodeValue();
+          if (text != null && !text.trim().isEmpty()) {
+            textContent.append(text.trim());
+          }
+        }
+      }
+
+      // Add child elements to map
+      for (Map.Entry<String, List<Object>> entry : childElements.entrySet()) {
+        List<Object> values = entry.getValue();
+        if (values.size() == 1) {
+          newMap.put(entry.getKey(), values.get(0));
+        } else {
+          newMap.put(entry.getKey(), values);
+        }
+      }
+
+      // Add text content if present
+      if (textContent.length() > 0) {
+        newMap.put("_text", checkStringLength(textContent.toString(), state));
+      }
+
+      return newMap;
+    }
+
+    return null;
   }
 
   /**
