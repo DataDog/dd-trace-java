@@ -61,6 +61,7 @@ dependencies {
   //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly libs.groovy
+  webappRuntimeOnly libs.groovy.xml
 }
 
 configurations.named("testRuntimeOnly") {

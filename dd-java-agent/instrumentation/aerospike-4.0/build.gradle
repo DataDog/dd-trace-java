@@ -27,7 +27,7 @@ dependencies {
   testImplementation libs.testcontainers
 
   latest7DepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '7.+'
-  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
+  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client-jdk8', version: '+'
 }
 
 tasks.withType(Test).configureEach {
