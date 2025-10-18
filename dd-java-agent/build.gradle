@@ -75,6 +75,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/liblz4-java.dylib'
     exclude '**/inst/META-INF/versions/**'
     exclude '**/META-INF/versions/*/org/yaml/**'
+    exclude '**/package.html'
 
     // Used to generate Java code during build, no need to include original file
     exclude '**/*.trie'
