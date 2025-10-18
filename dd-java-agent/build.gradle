@@ -76,6 +76,9 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/inst/META-INF/versions/**'
     exclude '**/META-INF/versions/*/org/yaml/**'
 
+    // Used to generate Java code during build, no need to include original file
+    exclude '**/*.trie'
+
     // Replaced by 'instrumenter.index', no need to include original service file
     exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'
 
