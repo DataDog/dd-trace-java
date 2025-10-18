@@ -1263,6 +1263,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean optimizedMapEnabled;
+  private final boolean spanBuilderReuseEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
@@ -2798,6 +2799,8 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.spanBuilderReuseEnabled =
+        configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -4554,6 +4557,10 @@ public class Config {
 
   public boolean isOptimizedMapEnabled() {
     return optimizedMapEnabled;
+  }
+
+  public boolean isSpanBuilderReuseEnabled() {
+    return spanBuilderReuseEnabled;
   }
 
   public int getTagNameUtf8CacheSize() {
