@@ -148,10 +148,12 @@ default:
   cache:
     - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
-        # Cached dependencies and wrappers for gradle
+        # Cached dependencies and wrappers for Gradle:
         - .gradle/wrapper
         - .gradle/caches
         - .gradle/notifications
+        # Cached dependencies for Maven:
+        - .mvn/caches
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
@@ -179,6 +181,13 @@ default:
     - |
       # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
       sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    - export MAVEN_USER_HOME=$(pwd)/.mvn
+    - |
+      cat << EOF > .mvn/settings.xml
+      <settings>
+      <localRepository>$MAVEN_USER_HOME</localRepository>
+      </settings>
+      EOF
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
@@ -190,6 +199,8 @@ default:
     - rm -rf .gradle
     - mv .gradle-copy .gradle
     - ls -la
+    - ls $MAVEN_USER_HOME
+    - cat $MAVEN_USER_HOME/settings.xml
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
