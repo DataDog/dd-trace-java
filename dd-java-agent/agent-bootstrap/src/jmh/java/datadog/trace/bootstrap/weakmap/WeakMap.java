@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap;
+package datadog.trace.bootstrap.weakmap;
 
 import java.util.function.Function;
 
