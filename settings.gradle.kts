@@ -43,6 +43,15 @@ if (isCI.isPresent) {
   }
 }
 
+// Register version catalog for instrumentations
+dependencyResolutionManagement {
+  versionCatalogs {
+    create("instrumentedLibs") {
+      from(files("gradle/instrumentedLibs.versions.toml"))
+    }
+  }
+}
+
 rootProject.name = "dd-trace-java"
 
 // external apis

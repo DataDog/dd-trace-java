@@ -36,25 +36,25 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
-  compileOnly group: 'io.netty', name: 'netty-codec-http2', version: '4.1.0.Final'
+  compileOnly instrumentedLibs.netty.codec.http.v410
+  compileOnly instrumentedLibs.netty.codec.http2.v410
 
   api project(':dd-java-agent:instrumentation:netty:netty-common')
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
-  testImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
-  testImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.8.0.RELEASE'
-  testImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0'
+  testImplementation instrumentedLibs.netty.codec.http.v410
+  testImplementation instrumentedLibs.reactor.netty.v08
+  testImplementation instrumentedLibs.async.http.client.v21
 
   // latest async-http-client incompatable with 5.0+ netty
-  latestDepTestImplementation group: 'io.netty', name: 'netty-codec', version: '4.+'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.+'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http2', version: '4.+'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-socks', version: '4.+'
+  latestDepTestImplementation instrumentedLibs.netty.codec.latest
+  latestDepTestImplementation instrumentedLibs.netty.codec.http.latest
+  latestDepTestImplementation instrumentedLibs.netty.codec.http2.latest
+  latestDepTestImplementation instrumentedLibs.netty.codec.socks.latest
 
-  latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.+'
+  latestDepTestImplementation instrumentedLibs.async.http.client.latest
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.

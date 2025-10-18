@@ -13,12 +13,12 @@ addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
+  compileOnly instrumentedLibs.netty.common.v400
 
-  testImplementation group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
+  testImplementation instrumentedLibs.netty.common.v400
 
-  latestDep4TestImplementation group: 'io.netty', name: 'netty-common', version: '4.+'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-common', version: '+'
+  latestDep4TestImplementation instrumentedLibs.netty.common.latest.v4x
+  latestDepTestImplementation instrumentedLibs.netty.common.latest
 }
 
 tasks.named("latestDepTest", Test) {
