@@ -127,7 +127,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
 
           // prepend mode will prepend the SQL comment to the raw sql query
-          boolean appendComment = false;
+          boolean appendComment = DECORATE.shouldAppendSqlComment();
 
           // There is a bug in the SQL Server JDBC driver that prevents
           // the generated keys from being returned when the
@@ -135,6 +135,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           // We only append in this case to avoid the comment from being truncated.
           // @see https://github.com/microsoft/mssql-jdbc/issues/2729
           if (isSqlServer
+              && !appendComment
               && args.length == 2
               && args[1] instanceof Integer
               && (Integer) args[1] == Statement.RETURN_GENERATED_KEYS) {
