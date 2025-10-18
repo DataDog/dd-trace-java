@@ -40,7 +40,7 @@ public class CircuitBreakerOperatorInstrumentation
               result,
               CircuitBreakerDecorator.DECORATE,
               circuitBreaker,
-              InstrumentationContext.get(Publisher.class, AgentSpan.class)::put);
+              InstrumentationContext.get(Publisher.class, AgentSpan.class)::putIfAbsent);
     }
   }
 }
