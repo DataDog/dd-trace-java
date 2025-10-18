@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.opentelemetry.annotations;
 
+import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue;
 import static datadog.trace.api.DDSpanTypes.HTTP_CLIENT;
 import static datadog.trace.api.DDSpanTypes.HTTP_SERVER;
 import static datadog.trace.api.DDSpanTypes.MESSAGE_CONSUMER;
 import static datadog.trace.api.DDSpanTypes.MESSAGE_PRODUCER;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static java.lang.Math.min;
 
 import datadog.trace.api.InstrumenterConfig;
@@ -55,12 +57,13 @@ public class WithSpanDecorator extends AsyncResultDecorator {
   public AgentSpan startMethodSpan(Method method) {
     CharSequence operationName = null;
     CharSequence spanType = null;
+    SpanKind kind = null;
     boolean inheritContext = true;
 
     WithSpan withSpanAnnotation = method.getAnnotation(WithSpan.class);
     if (withSpanAnnotation != null) {
       operationName = withSpanAnnotation.value();
-      spanType = convertToSpanType(withSpanAnnotation.kind());
+      kind = withSpanAnnotation.kind();
       if (INHERIT_CONTEXT_MH != null) {
         try {
           inheritContext = (boolean) INHERIT_CONTEXT_MH.invokeExact(withSpanAnnotation);
@@ -82,8 +85,9 @@ public class WithSpanDecorator extends AsyncResultDecorator {
     final AgentSpan span = spanBuilder.start();
     DECORATE.afterStart(span);
 
-    if (spanType != null) {
-      span.setSpanType(spanType);
+    if (kind != null) {
+      span.setSpanType(convertToSpanType(kind));
+      span.setTag(SPAN_KIND, toSpanKindTagValue(kind));
     }
     if (InstrumenterConfig.get().isMethodMeasured(method)) {
       span.setMeasured(true);

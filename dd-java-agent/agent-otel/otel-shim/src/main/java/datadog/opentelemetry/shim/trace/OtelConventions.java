@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 public final class OtelConventions {
   static final String SPAN_KIND_INTERNAL = "internal";
   static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
+  static final String SPAN_TYPE = "span.type";
   static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
   static final String HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE = "http.response.status_code";
 
@@ -109,6 +110,9 @@ public final class OtelConventions {
           return true;
         } else if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(name) && value instanceof String) {
           span.setMetric(ANALYTICS_SAMPLE_RATE, parseBoolean((String) value) ? 1 : 0);
+          return true;
+        } else if (SPAN_TYPE.equals(name) && value instanceof String) {
+          span.setSpanType((CharSequence) value);
           return true;
         }
       case BOOLEAN:
