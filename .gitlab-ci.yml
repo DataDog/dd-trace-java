@@ -152,8 +152,7 @@ default:
         - .gradle/wrapper
         - .gradle/caches
         - .gradle/notifications
-        # Cached dependencies for Maven:
-        - .mvn/caches
+        - .mvn/caches1
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
@@ -164,7 +163,7 @@ default:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
-        - .mvn/caches
+        - .mvn/caches2
       policy: $BUILD_CACHE_POLICY
       unprotect: true
   before_script:
@@ -183,13 +182,8 @@ default:
       # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
       sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - export MAVEN_USER_HOME=$(pwd)/.mvn
-    - mkdir -p .mvn/caches
-    - |
-      cat << EOF > .mvn/settings.xml
-      <settings>
-      <localRepository>${MAVEN_USER_HOME}/caches</localRepository>
-      </settings>
-      EOF
+    - mkdir -p .mvn/caches1
+    - mkdir -p .mvn/caches2
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
@@ -201,12 +195,11 @@ default:
     - rm -rf .gradle
     - mv .gradle-copy .gradle
     - ls -la
-    - ls $MAVEN_USER_HOME
-    - cat $MAVEN_USER_HOME/settings.xml
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
-    - ls .mvn/caches
+    - ls .mvn/caches1
+    - ls .mvn/caches2
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
