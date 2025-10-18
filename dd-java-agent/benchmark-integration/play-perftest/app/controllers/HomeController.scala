@@ -7,8 +7,8 @@ import javax.inject.Inject
 
 import play.api.mvc._
 
-/** This controller creates an `Action` to handle HTTP requests to the
-  * application's work page which does busy wait to simulate some work
+/** This controller creates an `Action` to handle HTTP requests to the application's work page which
+  * does busy wait to simulate some work
   */
 class HomeController @Inject() (cc: ControllerComponents) extends AbstractController(cc) {
 
@@ -18,7 +18,7 @@ class HomeController @Inject() (cc: ControllerComponents) extends AbstractContro
     implicit request: Request[AnyContent] =>
       error match {
         case Some(x) => throw new RuntimeException("some sync error")
-        case None => {
+        case None    => {
           var workTime = workTimeMS.getOrElse(0L)
           scheduleWork(workTime)
           Ok("Did " + workTime + "ms of work.")

@@ -365,7 +365,8 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
   @IgnoreIf({
     System.getProperty("java.vm.name").contains("IBM J9 VM") ||
       // TODO Java 17: we can't access HttpsURLConnectionImpl on Java 17
-      new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0) })
+      new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+  })
   def "Make sure we can load HttpsURLConnectionImpl"() {
     when:
     def instance = new HttpsURLConnectionImpl(null, null, null)

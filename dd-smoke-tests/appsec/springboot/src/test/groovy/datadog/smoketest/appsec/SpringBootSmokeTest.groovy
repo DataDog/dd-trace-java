@@ -709,7 +709,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'paths'    | _
     'file'    | _
     'path'    | _
-
   }
 
   def findFirstMatchingSpan(String resource) {
@@ -877,7 +876,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(3)
     def spans = rootSpans.toList().toSorted { it.span.duration }
     spans.size() == 3
-    def sampledSpans = spans.findAll { it.meta.keySet().any { it.startsWith('_dd.appsec.s.req.') } }
+    def sampledSpans = spans.findAll {
+      it.meta.keySet().any {
+        it.startsWith('_dd.appsec.s.req.')
+      }
+    }
     sampledSpans.size() == 1
     def span = sampledSpans[0]
     span.meta.containsKey('_dd.appsec.s.req.query')
@@ -1037,5 +1040,4 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
     return inflaterStream.getBytes()
   }
-
 }

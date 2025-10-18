@@ -7,5 +7,4 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 // Component scan defeats the purpose of configuring with specific classes
 @SpringBootApplication(exclude = [ErrorMvcAutoConfiguration])
 class AppConfig implements WebMvcConfigurer {
-
 }

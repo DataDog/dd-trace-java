@@ -17,7 +17,9 @@ public final class InstanceStore<T> implements ContextStore<String, T> {
   private static final ClassValue<? super ContextStore<String, ?>> classInstanceStore =
       GenericClassValue.of(input -> new InstanceStore<>());
 
-  /** @return global store of instances with the same common type */
+  /**
+   * @return global store of instances with the same common type
+   */
   @SuppressWarnings("unchecked")
   public static <T> InstanceStore<T> of(Class<T> type) {
     return (InstanceStore<T>) classInstanceStore.get(type);

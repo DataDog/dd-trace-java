@@ -50,7 +50,9 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
         HttpServerExchangeSenderInstrumentation.class.getName() + "$GetResponseChannelAdvice");
   }
 
-  /** @see HttpServerExchange#getResponseChannel() () */
+  /**
+   * @see HttpServerExchange#getResponseChannel() ()
+   */
   static class GetResponseChannelAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     static boolean /* skip */ before(

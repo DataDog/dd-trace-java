@@ -722,11 +722,13 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static class W3CPTags extends PTags {
     /** The index of the first tracestate list-member position in {@link #tracestate}. */
     private final int firstMemberStart;
+
     /**
      * The index of the Datadog tracestate list-member (dd=) position in {@link #tracestate}, {@code
      * -1 if Datadog list-member not found}.
      */
     private final int ddMemberStart;
+
     /**
      * The index of the end Datadog tracestate list-member (dd=) in {@link #tracestate}, {@code -1
      * if Datadog list-member not found}.

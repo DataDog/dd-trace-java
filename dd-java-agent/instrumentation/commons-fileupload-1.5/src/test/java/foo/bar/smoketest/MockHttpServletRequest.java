@@ -166,7 +166,9 @@ public class MockHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  /** @deprecated */
+  /**
+   * @deprecated
+   */
   public String getRealPath(String var1) {
     return null;
   }
@@ -348,7 +350,9 @@ public class MockHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  /** @deprecated */
+  /**
+   * @deprecated
+   */
   public boolean isRequestedSessionIdFromUrl() {
     return false;
   }

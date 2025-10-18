@@ -170,9 +170,7 @@ abstract class Jetty76Test extends HttpServerTest<Server> {
 }
 
 class Jetty76V0ForkedTest extends Jetty76Test implements TestingGenericHttpNamingConventions.ServerV0 {
-
 }
 
 class Jetty76V1ForkedTest extends Jetty76Test implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }

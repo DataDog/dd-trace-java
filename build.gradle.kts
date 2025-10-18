@@ -6,7 +6,7 @@ plugins {
   id("datadog.tracer-version")
   id("datadog.dump-hanged-test")
 
-  id("com.diffplug.spotless") version "6.13.0"
+  id("com.diffplug.spotless") version "8.0.0"
   id("com.github.spotbugs") version "5.0.14"
   id("de.thetaphi.forbiddenapis") version "3.8"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
@@ -33,7 +33,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
 
     // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.7")
+    googleJavaFormat("1.29.0")
   }
   groovyGradle {
     greclipse()
@@ -42,13 +42,13 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     greclipse()
   }
   kotlinGradle {
-    ktlint("0.41.0")
+    ktlint("1.7.1")
   }
   kotlin {
-    ktlint("0.41.0")
+    ktlint("1.7.1")
   }
   scala {
-    scalafmt("2.7.5")
+    scalafmt("3.9.10")
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
@@ -59,13 +59,15 @@ allprojects {
   group = "com.datadoghq"
 
   if (isCI.isPresent) {
-    layout.buildDirectory = providers.provider {
-      val newProjectCIPath = projectDir.path.replace(
-        rootDir.path,
-        ""
-      )
-      rootDir.resolve("workspace/$newProjectCIPath/build/")
-    }
+    layout.buildDirectory =
+      providers.provider {
+        val newProjectCIPath =
+          projectDir.path.replace(
+            rootDir.path,
+            "",
+          )
+        rootDir.resolve("workspace/$newProjectCIPath/build/")
+      }
   }
 
   apply(from = rootDir.resolve("gradle/dependencies.gradle"))
@@ -82,7 +84,7 @@ allprojects {
       jvmArgs(
         "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
         "-XX:+HeapDumpOnOutOfMemoryError",
-        "-XX:HeapDumpPath=/tmp"
+        "-XX:HeapDumpPath=/tmp",
       )
     }
   }
@@ -121,15 +123,24 @@ nexusPublishing {
   }
 }
 
-val writeMainVersionFileTask = tasks.register("writeMainVersionFile") {
-  val versionFile = rootProject.layout.buildDirectory.file("main.version")
-  inputs.property("version", project.version)
-  outputs.file(versionFile)
-  doFirst {
-    require(versionFile.get().asFile.parentFile.mkdirs() || versionFile.get().asFile.parentFile.isDirectory)
-    versionFile.get().asFile.writeText(project.version.toString())
+val writeMainVersionFileTask =
+  tasks.register("writeMainVersionFile") {
+    val versionFile = rootProject.layout.buildDirectory.file("main.version")
+    inputs.property("version", project.version)
+    outputs.file(versionFile)
+    doFirst {
+      require(
+        versionFile
+          .get()
+          .asFile.parentFile
+          .mkdirs() ||
+          versionFile
+            .get()
+            .asFile.parentFile.isDirectory,
+      )
+      versionFile.get().asFile.writeText(project.version.toString())
+    }
   }
-}
 
 allprojects {
   tasks.withType<PublishToMavenLocal>().configureEach {

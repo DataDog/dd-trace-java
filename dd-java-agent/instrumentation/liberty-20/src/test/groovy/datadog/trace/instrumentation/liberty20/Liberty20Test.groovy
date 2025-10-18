@@ -206,7 +206,8 @@ class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHt
   // failing because org.apache.xalan.transformer.TransformerImpl is
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
+  System.getProperty('java.specification.version') == '1.8'
+})
 class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   @Override
   protected void configurePreAgent() {
@@ -220,7 +221,8 @@ class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   // failing because org.apache.xalan.transformer.TransformerImpl is
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
+  System.getProperty('java.specification.version') == '1.8'
+})
 class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
@@ -228,6 +230,7 @@ class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpN
   // failing because org.apache.xalan.transformer.TransformerImpl is
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
-  System.getProperty('java.specification.version') == '1.8' })
+  System.getProperty('java.specification.version') == '1.8'
+})
 class Liberty20V1ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV1 {
 }

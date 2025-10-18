@@ -11,7 +11,9 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
-/** @see org.springframework.http.HttpHeaders#get(Object) */
+/**
+ * @see org.springframework.http.HttpHeaders#get(Object)
+ */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintReadOnlyHttpHeadersAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)

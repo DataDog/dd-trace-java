@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 
 class PekkoActors extends AutoCloseable {
   val system: ActorSystem = ActorSystem("pekko-actors-test")
-  val receiver: ActorRef =
+  val receiver: ActorRef  =
     system.actorOf(Receiver.props, "receiver")
   val forwarder: ActorRef =
     system.actorOf(Forwarder.props(receiver), "forwarder")

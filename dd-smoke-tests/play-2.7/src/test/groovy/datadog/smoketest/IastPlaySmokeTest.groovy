@@ -97,7 +97,8 @@ abstract class IastPlaySmokeTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA-1' }
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD2'}
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD5'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'RIPEMD128'}}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'RIPEMD128'}
+  }
 
   // Ensure to clean up server and not only the shell script that starts it
   def cleanupSpec() {

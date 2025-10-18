@@ -62,7 +62,11 @@ tasks.register('unpackJars', Copy) {
   exclude '**/module-info.class'
   exclude '**/package-info.class'
 
-  from(configurations.named('embeddedClasspath').map { it.collect { zipTree(it) } })
+  from(configurations.named('embeddedClasspath').map {
+    it.collect {
+      zipTree(it)
+    }
+  })
   into compileJava.destinationDirectory
 }
 

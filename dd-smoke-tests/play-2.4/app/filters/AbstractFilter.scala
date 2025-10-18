@@ -18,7 +18,7 @@ abstract class AbstractFilter(val operationName: String, val wrap: Boolean) exte
   )(requestHeader: RequestHeader): Future[Result] = {
     val tracer      = GlobalTracer.get
     val startedSpan = if (wrap) tracer.buildSpan(operationName).start else null
-    val outerScope =
+    val outerScope  =
       if (wrap) tracer.scopeManager.activate(startedSpan) else null
     try {
       nextFilter(requestHeader).map { result =>

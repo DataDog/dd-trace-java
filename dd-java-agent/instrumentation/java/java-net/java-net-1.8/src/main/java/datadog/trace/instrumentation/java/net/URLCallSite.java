@@ -60,7 +60,9 @@ public class URLCallSite {
     return result;
   }
 
-  /** @see #afterToString(URL, String) */
+  /**
+   * @see #afterToString(URL, String)
+   */
   @Propagation
   @CallSite.After("java.lang.String java.net.URL.toExternalForm()")
   public static String afterToExternalForm(
@@ -77,7 +79,9 @@ public class URLCallSite {
     return result;
   }
 
-  /** @see #afterToString(URL, String) */
+  /**
+   * @see #afterToString(URL, String)
+   */
   @Propagation
   @CallSite.After("java.net.URI java.net.URL.toURI()")
   public static URI afterToURI(@CallSite.This final URL url, @CallSite.Return final URI result) {

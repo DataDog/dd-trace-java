@@ -177,8 +177,9 @@ object AkkaHttpTestWebServer {
       endpoint,
       new Closure[Future[RouteResult]](()) {
         def doCall(): Future[RouteResult] = {
-          try inner(())(ctx).fast
-            .recoverWith(handleException)(ctx.executionContext)
+          try
+            inner(())(ctx).fast
+              .recoverWith(handleException)(ctx.executionContext)
           catch {
             case NonFatal(e) =>
               handleException
@@ -353,8 +354,8 @@ object AkkaHttpTestWebServer {
                 resp.withEntity(uri.queryString().orNull)
               case REDIRECT =>
                 resp.withHeaders(headers.Location(endpoint.getBody))
-              case ERROR     => resp.withEntity(endpoint.getBody)
-              case EXCEPTION => throw new Exception(endpoint.getBody)
+              case ERROR      => resp.withEntity(endpoint.getBody)
+              case EXCEPTION  => throw new Exception(endpoint.getBody)
               case USER_BLOCK => {
                 Blocking.forUser("user-to-block").blockIfMatch()
                 // should never be output:
@@ -480,7 +481,7 @@ object AkkaHttpTestWebServer {
     val toFormDataUnmarshaller = MultipartUnmarshallers.multipartFormDataUnmarshaller
     val downcastUnmarshaller = Unmarshaller.strict[Multipart.FormData, Multipart.FormData.Strict] {
       case strict: Multipart.FormData.Strict => strict
-      case _                                 => throw new RuntimeException("Expected Strict form data at this point")
+      case _ => throw new RuntimeException("Expected Strict form data at this point")
     }
 
     toStrictUnmarshaller.andThen(toFormDataUnmarshaller).andThen(downcastUnmarshaller)
