@@ -164,6 +164,7 @@ default:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
+        - .mvn/caches
       policy: $BUILD_CACHE_POLICY
       unprotect: true
   before_script:
@@ -205,7 +206,7 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
-    - ls ${MAVEN_USER_HOME}/caches
+    - ls .mvn/caches
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
