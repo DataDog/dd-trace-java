@@ -153,7 +153,6 @@ public class CrashUploaderTest {
 
     // Then
     assertEquals(url, recordedRequest.getRequestUrl());
-
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
 
@@ -164,7 +163,7 @@ public class CrashUploaderTest {
     assertEquals("DEBUG", event.get("payload").get(0).get("level").asText());
 
     assertFalse(event.get("payload").get(0).get("is_sensitive").asBoolean());
-    assertTrue(event.get("payload").get(0).get("is_crash_ping").asBoolean());
+    assertTrue(event.get("payload").get(0).get("tags").asText().contains("is_crash_ping:true"));
 
     assertEquals(expected, event.get("payload").get(0).get("message").asText());
     assertCommonPayload(event);

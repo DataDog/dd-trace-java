@@ -309,7 +309,7 @@ public final class CrashUploader {
         if (isPing) {
           writer.name("level").value("DEBUG");
           writer.name("is_sensitive").value(false);
-          writer.name("is_crash_ping").value(true);
+          writer.name("tags").value("is_crash_ping:true");
         } else {
           writer.name("level").value("ERROR");
           writer.name("tags").value("severity:crash");
