@@ -21,13 +21,13 @@ addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
 
 
 dependencies {
-  compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  compileOnly instrumentedLibs.aerospike.client.v4
 
-  testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  testImplementation instrumentedLibs.aerospike.client.v4
   testImplementation libs.testcontainers
 
-  latest7DepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '7.+'
-  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
+  latest7DepTestImplementation instrumentedLibs.aerospike.client.latest.v7x
+  latestDepTestImplementation instrumentedLibs.aerospike.client.latest
 }
 
 tasks.withType(Test).configureEach {

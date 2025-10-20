@@ -3,7 +3,21 @@
 # separate from the build tooling and internal dependencies in libs.versions.toml
 
 [versions]
-# Kafka ecosystem
+# Aerospike
+aerospike-client-v4_0_0 = "4.0.0"
+aerospike-client-latest-v7x = "7.+"
+aerospike-client-latest = "+"
+
+# Apache HTTP
+httpclient-v4_0 = "4.0"
+httpclient-v4_1 = "4.1"
+httpclient-v4_2 = "4.2"
+httpclient-v4_3 = "4.3"
+httpclient-v4_4 = "4.4"
+httpclient-v4_5 = "4.5"
+httpclient-latest = "+"
+
+# Kafka
 kafka-v0_11_0_0 = "0.11.0.0"
 kafka-v2_7_0 = "2.7.0"
 kafka-v3_8_0 = "3.8.0"
@@ -22,7 +36,7 @@ jaxb-api-v2_2_3 = "2.2.3"
 mockito-core-v2_19_0 = "2.19.0"
 dropwizard-metrics-latest = "+"
 
-# Netty ecosystem
+# Netty
 netty-v3_8_0 = "3.8.0.Final"
 netty-latest-v3x = "3.10.+"
 netty-v4_0_0 = "4.0.0.Final"
@@ -45,6 +59,20 @@ async-http-client-latest = "2.+"
 # - Thus we cannot use hyphens in version names (e.g. v4-1) because Gradle interprets the dot as a property accessor
 # - We also cannot use underscores in version names (e.g. v4_1) because Gradle strips them when generating accessors
 # - So when necessary, use direct concatenation for minor versions (e.g. v41 for 4.1)
+
+# Aerospike
+aerospike-client-v4 = { module = "com.aerospike:aerospike-client", version.ref = "aerospike-client-v4_0_0" }
+aerospike-client-latest-v7x = { module = "com.aerospike:aerospike-client", version.ref = "aerospike-client-latest-v7x" }
+aerospike-client-latest = { module = "com.aerospike:aerospike-client", version.ref = "aerospike-client-latest" }
+
+# Apache HTTP
+httpclient-v4 = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-v4_0" }
+httpclient-v41 = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-v4_1" }
+httpclient-v42 = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-v4_2" }
+httpclient-v43 = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-v4_3" }
+httpclient-v44 = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-v4_4" }
+httpclient-v45 = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-v4_5" }
+httpclient-latest = { module = "org.apache.httpcomponents:httpclient", version.ref = "httpclient-latest" }
 
 # Kafka
 kafka-clients-v0 = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-v0_11_0_0" }
