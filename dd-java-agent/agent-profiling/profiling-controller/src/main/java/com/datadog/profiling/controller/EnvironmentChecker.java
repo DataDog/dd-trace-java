@@ -1,14 +1,14 @@
 package com.datadog.profiling.controller;
 
-import static datadog.environment.OperatingSystem.Architecture.ARM64;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.nativeloader.LibFile;
+import datadog.nativeloader.NativeLoader;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -19,9 +19,18 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.jar.JarFile;
 
 public final class EnvironmentChecker {
+  // Loader for native libraries. This should eventually be consolidated into a single shared
+  // instance, but for now, each module maintains its own instance to simplify the migration.
+  private static final URL JAR_URL =
+      EnvironmentChecker.class.getProtectionDomain().getCodeSource().getLocation();
+  private static final NativeLoader NATIVE_LOADER =
+      NativeLoader.builder()
+          .nestedLayout()
+          .fromClassLoader(new URLClassLoader(new URL[] {JAR_URL}))
+          .build();
+
   private static void appendLine(String line, StringBuilder sb) {
     sb.append(line).append(System.lineSeparator());
   }
@@ -50,7 +59,7 @@ public final class EnvironmentChecker {
     boolean result = false;
     result |= checkJFR(sb);
     result |= checkDdprof(sb);
-    if (!result) {;
+    if (!result) {
       appendLine("Profiler is not supported on this JVM.", sb);
       return false;
     } else {
@@ -153,8 +162,7 @@ public final class EnvironmentChecker {
               target,
               new FileVisitor<Path>() {
                 @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException {
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                   return FileVisitResult.CONTINUE;
                 }
 
@@ -166,8 +174,7 @@ public final class EnvironmentChecker {
                 }
 
                 @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc)
-                    throws IOException {
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
                   return FileVisitResult.CONTINUE;
                 }
 
@@ -217,54 +224,17 @@ public final class EnvironmentChecker {
       appendLine("Skipping native library check on non-linux platform", sb);
       return true;
     }
-    boolean rslt = true;
-    try {
-      rslt &= extractSoFromJar(target, sb);
-      if (rslt) {
-        Path libFile = target.resolve("libjavaProfiler.so");
-        appendLine(() -> sb.append("Attempting to load native library from: ").append(libFile));
-        System.load(libFile.toString());
-        appendLine("Native library loaded successfully", sb);
-      }
+    appendLine(
+        () -> sb.append("Attempting to load native library from: ").append("libjavaProfiler.so"));
+    try (LibFile lib = NATIVE_LOADER.resolveDynamic("libjavaProfiler.so")) {
+      lib.load();
+      appendLine("Native library loaded successfully", sb);
       return true;
     } catch (Throwable t) {
       appendLine(
           () -> sb.append("Unable to load native library in temp directory ").append(target));
       appendLine(() -> sb.append("Error: ").append(t));
       return false;
-    }
-  }
-
-  @SuppressForbidden
-  private static boolean extractSoFromJar(Path target, StringBuilder sb) throws Exception {
-    URL jarUrl = EnvironmentChecker.class.getProtectionDomain().getCodeSource().getLocation();
-    try (JarFile jarFile = new JarFile(new File(jarUrl.toURI()))) {
-      return jarFile.stream()
-          .filter(e -> e.getName().contains("libjavaProfiler.so"))
-          .filter(
-              e ->
-                  e.getName()
-                          .contains(
-                              OperatingSystem.architecture() == ARM64
-                                  ? "/linux-arm64/"
-                                  : "/linux-x64/")
-                      && (!OperatingSystem.isMusl() || e.getName().contains("-musl")))
-          .findFirst()
-          .map(
-              e -> {
-                try {
-                  Path soFile = target.resolve("libjavaProfiler.so");
-                  Files.createDirectories(soFile.getParent());
-                  Files.copy(jarFile.getInputStream(e), soFile);
-                  appendLine(() -> sb.append("Native library extracted to: ").append(soFile));
-                  return true;
-                } catch (Throwable t) {
-                  appendLine("Failed to extract or load native library", sb);
-                  appendLine(() -> sb.append("Error: ").append(t));
-                }
-                return false;
-              })
-          .orElse(Boolean.FALSE);
     }
   }
 }

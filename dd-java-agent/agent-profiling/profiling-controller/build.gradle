@@ -20,11 +20,11 @@ dependencies {
   api libs.slf4j
   api project(':internal-api')
   api project(':components:environment')
+  api project(':components:native-loader')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
 
-  testImplementation libs.bundles.junit5
   testImplementation libs.guava
+  testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
-
