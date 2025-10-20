@@ -7,6 +7,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.TraceUtils.normalizeTag;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
@@ -309,7 +310,7 @@ public final class CrashUploader {
         if (isPing) {
           writer.name("level").value("DEBUG");
           writer.name("is_sensitive").value(false);
-          writer.name("tags").value("is_crash_ping:true");
+          writer.name("tags").value(tagsForPing(storedConfig.reportUUID));
         } else {
           writer.name("level").value("ERROR");
           writer.name("tags").value("severity:crash");
@@ -345,6 +346,19 @@ public final class CrashUploader {
 
       return RequestBody.create(APPLICATION_JSON, buf.readByteString());
     }
+  }
+
+  private String tagsForPing(String uuid) {
+    final StringBuilder tags = new StringBuilder("is_crash_ping:true");
+    tags.append(",").append("language_name:jvm");
+    tags.append(",").append(normalizeTag("service:" + storedConfig.service));
+    tags.append(",")
+        .append(
+            normalizeTag(
+                "language_version:" + SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",").append(normalizeTag("tracer_version:" + VersionInfo.VERSION));
+    tags.append(",").append("uuid:").append(uuid);
+    return (tags.toString());
   }
 
   private void handleCall(final Call call, String kind) {

@@ -11,6 +11,7 @@ import datadog.crashtracking.dto.CrashLog;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.TraceUtils;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -163,8 +164,13 @@ public class CrashUploaderTest {
     assertEquals("DEBUG", event.get("payload").get(0).get("level").asText());
 
     assertFalse(event.get("payload").get(0).get("is_sensitive").asBoolean());
-    assertTrue(event.get("payload").get(0).get("tags").asText().contains("is_crash_ping:true"));
-
+    String tags = event.get("payload").get(0).get("tags").asText();
+    assertNotNull(tags);
+    assertTrue(tags.contains("is_crash_ping:true"));
+    assertTrue(tags.contains(TraceUtils.normalizeTag("service:" + crashConfig.service)));
+    assertTrue(tags.contains("uuid:" + crashConfig.reportUUID));
+    assertTrue(tags.contains(TraceUtils.normalizeTag("tracer_version:" + VersionInfo.VERSION)));
+    assertTrue(tags.contains("language_name:jvm"));
     assertEquals(expected, event.get("payload").get(0).get("message").asText());
     assertCommonPayload(event);
   }
