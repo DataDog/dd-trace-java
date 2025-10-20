@@ -150,16 +150,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   public void commit(CapturedContext lineContext, int line) {}
 
   @Override
-  public boolean isCaptureSnapshot() {
-    return false;
-  }
-
-  @Override
-  public boolean hasCondition() {
-    return false;
-  }
-
-  @Override
   public CapturedContext.Status createStatus() {
     return null;
   }

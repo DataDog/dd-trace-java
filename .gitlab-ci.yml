@@ -167,7 +167,7 @@ default:
   before_script:
     - source .gitlab/gitlab-utils.sh
     # Akka token added to SSM from https://account.akka.io/token
-    - export AKKA_REPO_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
+    - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - |
@@ -175,7 +175,6 @@ default:
       cat << EOF > $GRADLE_USER_HOME/gradle.properties
       mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
       gradlePluginProxy=$GRADLE_PLUGIN_PROXY
-      akkaRepositoryToken=$AKKA_REPO_TOKEN
       EOF
     - |
       # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
@@ -727,7 +726,7 @@ test_smoke_graalvm:
     NON_DEFAULT_JVMS: "true"
   parallel:
     matrix:
-      - testJvm: ["graalvm17", "graalvm21"]
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
   extends: .test_job

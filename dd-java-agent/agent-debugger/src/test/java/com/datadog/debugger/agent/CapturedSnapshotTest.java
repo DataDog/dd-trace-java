@@ -50,6 +50,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -1772,7 +1773,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertFalse(probeImplementation.isCaptureSnapshot());
+    assertFalse(((CapturedContextProbe) probeImplementation).isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
