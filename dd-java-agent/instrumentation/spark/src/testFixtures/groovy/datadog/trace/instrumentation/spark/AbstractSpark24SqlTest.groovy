@@ -102,33 +102,40 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
 
         assert actualMeta.size() == expectedMeta.size() : prefix + "meta size of $expectedMeta does not match $actualMeta"
 
-        def actualUnknown = [] // List of values for all valid unknown keys
+        def numKnownKeys = 0
         actual.meta.each { actualMetaKey, actualMetaValue ->
-          if (!expectedMeta.containsKey(actualMetaKey) && actualMetaKey.startsWith("_dd.unknown_key.")) {
-            actualUnknown.add(parseNestedMetaObject(actualMetaValue))
-          } else if (!expectedMeta.containsKey(actualMetaKey)) {
+          if (expectedMeta.containsKey(actualMetaKey)) {
+            numKnownKeys += 1
+          } else if (!actualMetaKey.startsWith("_dd.unknown_key.")) {
             throw new AssertionError(prefix + "unexpected key \"$actualMetaKey\" found, not valid unknown key with prefix '_dd.unknown_key.' or in $expectedMeta")
           }
         }
 
-        expected.meta.each { expectedMetaKey, expectedMetaValue ->
-          if (actualMeta.containsKey(expectedMetaKey)) {
-            def actualMetaValue = actualMeta[expectedMetaKey]
-            if (expectedMetaValue instanceof List) {
-              assert expectedMetaValue ==~ actualMetaValue : prefix + "value of meta key \"$expectedMetaKey\" does not match \"$expectedMetaValue\", got \"$actualMetaValue\""
+        // Assume unknown keys are all or nothing (a single known key means we must compare keys)
+        if (numKnownKeys == actual.meta.size()) {
+          expected.meta.each { expectedMetaKey, expectedMetaValue ->
+            if (actualMeta.containsKey(expectedMetaKey)) {
+              def actualMetaValue = actualMeta[expectedMetaKey]
+              if (expectedMetaValue instanceof List) {
+                assert expectedMetaValue ==~ actualMetaValue : prefix + "value of meta key \"$expectedMetaKey\" does not match \"$expectedMetaValue\", got \"$actualMetaValue\""
+              } else {
+                // Don't assert meta values where expectation is "any"
+                assert expectedMetaValue == "any" || expectedMetaValue == actualMetaValue: prefix + "value of meta key \"$expectedMetaKey\" does not match \"$expectedMetaValue\", got \"$actualMetaValue\""
+              }
             } else {
-              // Don't assert meta values where expectation is "any"
-              assert expectedMetaValue == "any" || expectedMetaValue == actualMetaValue: prefix + "value of meta key \"$expectedMetaKey\" does not match \"$expectedMetaValue\", got \"$actualMetaValue\""
+              // Defensive, should never happen
+              assert actualMeta.containsKey(expectedMetaKey) : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta"
             }
-          } else if (actualUnknown.size() > 0) {
-            // If expected key not found, attempt to match value against those from valid unknown keys
-            def expectedMetaValueToCompare = parseNestedMetaObject(expectedMetaValue)
-            assert actualUnknown.indexOf(expectedMetaValueToCompare) >= 0 : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta\n\tattempted to match against value \"$expectedMetaValueToCompare\" with unknown keys, but not found"
-            actualUnknown.drop(actualUnknown.indexOf(expectedMetaValueToCompare))
-          } else {
-            // Defensive, should never happen
-            assert actualMeta.containsKey(expectedMetaKey) : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta"
           }
+        } else {
+          def expectedValuesList = getMetaValues(expectedMeta)
+          def actualValuesList = getMetaValues(actualMeta)
+
+          // We filter out items marked as "any" in `expectedValuesList`, so check that subset of expected values exists
+          // in the actual list returned. Note this could mean a value that was designated for "any" is used to validate
+          // another key's value incorrectly:
+          //    e.g. actual={a:b, c:d}, expected={a:any, c:b}
+          assert actualValuesList.containsAll(expectedValuesList) : prefix + "expected values not contained in actual, expected $expectedValuesList, got $actualValuesList"
         }
       } catch (AssertionError e) {
         generateMetaExpectations(actual, name)
@@ -174,14 +181,19 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
     }
   }
 
-  // Parse any nested objects to a standard form that ignores the keys
-  // Right now we do this by just asserting the key set and none of the values
-  static Object parseNestedMetaObject(Object value) {
-    if (value instanceof Map) {
-      return value.keySet()
-    } else {
-      return value
+  static List getMetaValues(Map obj) {
+    List res = new ArrayList()
+    obj.values().forEach { val ->
+      if (val == "any") {
+        // skip
+      } else if (val instanceof Map) {
+        res.add(getMetaValues(val))
+      } else {
+        res.add(val)
+      }
     }
+    // sort to keep nested values stable
+    return res.sort()
   }
 
   static String escapeJsonString(String source) {
