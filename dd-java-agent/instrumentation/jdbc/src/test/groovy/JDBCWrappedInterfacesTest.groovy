@@ -1,3 +1,6 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -6,9 +9,6 @@ import test.TestConnection
 import test.TestPreparedStatement
 import test.WrappedConnection
 import test.WrappedPreparedStatement
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 /**
  * This tests all combinations of wrapped/unwrapped connections and prepared statements
