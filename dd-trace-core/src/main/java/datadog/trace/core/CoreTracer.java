@@ -1184,7 +1184,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           String interceptorName = interceptor.getClass().getName();
           rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
         }
-        if (interceptedTrace == null || interceptedTrace.isEmpty()) {
+        if (interceptedTrace == null) {
           interceptedTrace = emptyList();
         }
       }
