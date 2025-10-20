@@ -94,7 +94,11 @@ public final class AgentCLI {
       storedConfig = readConfig(Config.get(), configPath);
       if (storedConfig == null) {
         log.error("Unable to parse config file {}", configFile);
-        error += "Unable to parse config file";
+        if (error == null) {
+          error = "Unable to parse config file";
+        } else {
+          error += ", Unable to parse config file";
+        }
       }
     }
     if (storedConfig == null) {
