@@ -1,17 +1,12 @@
 package datadog.nativeloader;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Set;
 
 /**
  * NativeLoader is intended as more feature rich replacement for calling {@link
@@ -22,10 +17,10 @@ import java.util.Set;
 public final class NativeLoader {
   public static final class Builder {
     private PlatformSpec platformSpec;
-    private Path tempDir;
     private String[] preloadedLibNames;
     private LibraryResolver libResolver;
     private PathLocator pathLocator;
+    private TempFileManager tempFileManager;
 
     Builder() {}
 
@@ -126,7 +121,7 @@ public final class NativeLoader {
      * returns a non-file {@link URL}
      */
     public Builder tempDir(Path tempPath) {
-      this.tempDir = tempPath;
+      this.tempFileManager = new SimpleTempFileManager(tempPath);
       return this;
     }
 
@@ -160,8 +155,8 @@ public final class NativeLoader {
           : LibraryResolvers.withPreloaded(baseResolver, this.preloadedLibNames);
     }
 
-    Path tempDir() {
-      return this.tempDir;
+    TempFileManager tempFileManager() {
+      return this.tempFileManager != null ? this.tempFileManager : new SimpleTempFileManager(null);
     }
   }
 
@@ -172,13 +167,13 @@ public final class NativeLoader {
   private final PlatformSpec defaultPlatformSpec;
   private final LibraryResolver libResolver;
   private final PathLocator pathResolver;
-  private final Path tempDir;
+  private final TempFileManager tempFileManager;
 
   private NativeLoader(Builder builder) {
     this.defaultPlatformSpec = builder.platformSpec();
     this.libResolver = builder.libResolver();
     this.pathResolver = builder.pathLocator();
-    this.tempDir = builder.tempDir();
+    this.tempFileManager = builder.tempFileManager();
   }
 
   /** Indicates if a library is considered "pre-loaded" */
@@ -260,7 +255,7 @@ public final class NativeLoader {
       String libExt = PathUtils.dynamicLibExtension(platformSpec);
 
       try {
-        Path tempFile = TempFileHelper.createTempFile(this.tempDir, libName, libExt);
+        Path tempFile = tempFileManager.createTempFile(libName, libExt);
 
         try (InputStream in = url.openStream()) {
           Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
@@ -274,31 +269,10 @@ public final class NativeLoader {
   }
 
   static void delete(File tempFile) {
-    TempFileHelper.delete(tempFile);
-  }
+    boolean deleted = tempFile.delete();
 
-  static final class TempFileHelper {
-    private TempFileHelper() {}
-
-    static Path createTempFile(Path tempDir, String libname, String libExt)
-        throws IOException, SecurityException {
-      FileAttribute<Set<PosixFilePermission>> permAttrs =
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
-
-      if (tempDir == null) {
-        return Files.createTempFile(libname, "." + libExt, permAttrs);
-      } else {
-        Files.createDirectories(
-            tempDir,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-
-        return Files.createTempFile(tempDir, libname, "." + libExt, permAttrs);
-      }
-    }
-
-    static void delete(File tempFile) {
-      boolean deleted = tempFile.delete();
-      if (!deleted) tempFile.deleteOnExit();
+    if (!deleted) {
+      tempFile.deleteOnExit();
     }
   }
 }

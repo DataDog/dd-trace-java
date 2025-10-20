@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
 
@@ -122,20 +123,23 @@ public class NativeLoaderBuilderTest {
   }
 
   @Test
-  public void tempDir_string() {
+  public void tempDir_string() throws IOException {
     NativeLoader.Builder builder = NativeLoader.builder().tempDir("tmp");
-    assertEquals(builder.tempDir(), Paths.get("tmp"));
+    assertEquals(
+        builder.tempFileManager().createTempFile("test", "so").getParent(), Paths.get("tmp"));
   }
 
   @Test
-  public void tempDir_file() {
+  public void tempDir_file() throws IOException {
     NativeLoader.Builder builder = NativeLoader.builder().tempDir(new File("tmp"));
-    assertEquals(builder.tempDir(), Paths.get("tmp"));
+    assertEquals(
+        builder.tempFileManager().createTempFile("test", "so").getParent(), Paths.get("tmp"));
   }
 
   @Test
-  public void tempDir_path() {
+  public void tempDir_path() throws IOException {
     NativeLoader.Builder builder = NativeLoader.builder().tempDir(Paths.get("tmp"));
-    assertEquals(builder.tempDir(), Paths.get("tmp"));
+    assertEquals(
+        builder.tempFileManager().createTempFile("test", "so").getParent(), Paths.get("tmp"));
   }
 }
