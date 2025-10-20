@@ -18,6 +18,7 @@ tasks.register('mvnStage', Exec) {
 
   List<String> mvnArgs = ["$rootDir/${mvnwCommand}", "-Dtarget.dir=${buildDir}/application/target", "package"]
 
+  // Specify caches folder on CI.
   if (providers.environmentVariable("CI").isPresent()) {
     mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
   }

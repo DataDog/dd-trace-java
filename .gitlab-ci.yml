@@ -148,7 +148,7 @@ default:
   cache:
     - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
-        # Cached dependencies and wrappers for Gradle:
+        # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
         - .gradle/caches
         - .gradle/notifications
@@ -160,10 +160,11 @@ default:
         - 'dependency-lib'
     - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
+        # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
-        - workspace
         - .mvn/caches
+        - workspace
       policy: $BUILD_CACHE_POLICY
       unprotect: true
   before_script:
@@ -197,7 +198,6 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
-    - ls .mvn/caches
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.

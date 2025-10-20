@@ -232,6 +232,7 @@ tasks.register('mvnPackage', Exec) {
     "package"
   ]
 
+  // Specify caches folder on CI.
   if (providers.environmentVariable("CI").isPresent()) {
     mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
   }
