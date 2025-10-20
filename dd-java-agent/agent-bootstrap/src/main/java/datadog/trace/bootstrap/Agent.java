@@ -291,6 +291,12 @@ public class Agent {
       startCwsAgent();
     }
 
+    // To workaround JDK-8345810, we want to trigger loading/initializing of pthread library on
+    // main thread (Linux only)
+    if (OperatingSystem.isLinux()) {
+      FileSystems.getDefault();
+    }
+
     /*
      * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
      * when it will happen after the class transformers were added.
@@ -796,10 +802,6 @@ public class Agent {
       if (forceEarlyStart) {
         initializeCrashTrackingDefault();
       } else {
-        // To workaround JDK-8345810, we want to initialize nio early,
-        // which has dependence on libpthread. Creating a small nio ByteBuffer
-        // to force nio initialization.
-        FileSystems.getDefault();
         AgentTaskScheduler.get().execute(Agent::initializeCrashTrackingDefault);
       }
     } else {
