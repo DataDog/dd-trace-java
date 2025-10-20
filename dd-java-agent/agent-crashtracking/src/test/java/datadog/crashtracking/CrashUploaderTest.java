@@ -259,7 +259,7 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -274,7 +274,7 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -291,7 +291,7 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);

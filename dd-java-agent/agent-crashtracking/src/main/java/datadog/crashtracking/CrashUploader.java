@@ -28,7 +28,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -133,15 +132,10 @@ public final class CrashUploader {
     }
   }
 
-  public void upload(@Nonnull List<Path> files) throws IOException {
+  public void upload(@Nonnull Path file) throws IOException {
     String uuid = storedConfig.reportUUID;
-    for (Path file : files) {
-      uploadToLogs(file);
-      uploadToTelemetry(file, uuid);
-      // if we send more than 1 file via the CLI, let's make sure we have unique uuid (will be
-      // generated if null)
-      uuid = null;
-    }
+    uploadToLogs(file);
+    uploadToTelemetry(file, uuid);
   }
 
   @SuppressForbidden

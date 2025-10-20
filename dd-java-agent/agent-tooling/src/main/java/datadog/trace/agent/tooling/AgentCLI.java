@@ -24,8 +24,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -82,7 +80,7 @@ public final class AgentCLI {
     }
   }
 
-  public static void uploadCrash(final String configFile, final String... files) throws Exception {
+  public static void uploadCrash(final String configFile, final String file) throws Exception {
     String error = null;
     ConfigManager.StoredConfig storedConfig = null;
     if (configFile != null) {
@@ -114,16 +112,13 @@ public final class AgentCLI {
       System.exit(1);
     }
 
-    List<Path> paths = new ArrayList<>(files.length);
-    for (String file : files) {
-      final Path path = Paths.get(file);
-      if (!Files.exists(path)) {
-        log.error("Crash log {} does not exist", file);
-        System.exit(1);
-      }
-      paths.add(path);
+    final Path path = Paths.get(file);
+    if (!Files.exists(path)) {
+      log.error("Crash log {} does not exist", file);
+      System.exit(1);
     }
-    crashUploader.upload(paths);
+
+    crashUploader.upload(path);
   }
 
   public static void sendOomeEvent(String taglist) throws Exception {
