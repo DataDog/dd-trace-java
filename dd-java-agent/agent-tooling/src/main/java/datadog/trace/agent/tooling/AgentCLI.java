@@ -104,6 +104,16 @@ public final class AgentCLI {
       storedConfig = new ConfigManager.StoredConfig.Builder(Config.get()).build();
     }
 
+    final Path path = Paths.get(file);
+    if (!Files.exists(path)) {
+      log.error("Crash log {} does not exist", file);
+      if (error == null) {
+        error = "Crash log does not exist";
+      } else {
+        error = ", Crash log does not exist";
+      }
+    }
+
     final CrashUploader crashUploader = new CrashUploader(storedConfig);
     // send the crash ping
     crashUploader.notifyCrashStarted(error);
@@ -111,13 +121,6 @@ public final class AgentCLI {
     if (error != null) {
       System.exit(1);
     }
-
-    final Path path = Paths.get(file);
-    if (!Files.exists(path)) {
-      log.error("Crash log {} does not exist", file);
-      System.exit(1);
-    }
-
     crashUploader.upload(path);
   }
 
