@@ -6,6 +6,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_USERNAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
@@ -263,7 +264,7 @@ public final class CrashUploader {
       String content = new String(Files.readAllBytes(file), Charset.defaultCharset());
       CrashLog crashLog = CrashLogParser.fromHotspotCrashLog(uuid, content);
       if (crashLog == null) {
-        log.error("Failed to parse crash log");
+        log.error(SEND_TELEMETRY, "Failed to parse crash log with uuid {} ", uuid);
         return false;
       }
       handleCall(makeTelemetryRequest(makeTelemetryRequestBody(crashLog.toJson(), false)), "crash");
