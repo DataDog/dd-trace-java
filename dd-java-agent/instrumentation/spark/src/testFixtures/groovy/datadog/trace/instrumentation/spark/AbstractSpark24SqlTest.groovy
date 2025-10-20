@@ -105,7 +105,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         def actualUnknown = [] // List of values for all valid unknown keys
         actual.meta.each { actualMetaKey, actualMetaValue ->
           if (!expectedMeta.containsKey(actualMetaKey) && actualMetaKey.startsWith("_dd.unknown_key.")) {
-            actualUnknown.add(actualMetaValue)
+            actualUnknown.add(parseNestedMetaObject(actualMetaValue))
           } else if (!expectedMeta.containsKey(actualMetaKey)) {
             throw new AssertionError(prefix + "unexpected key \"$actualMetaKey\" found, not valid unknown key with prefix '_dd.unknown_key.' or in $expectedMeta")
           }
@@ -122,8 +122,9 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             }
           } else if (actualUnknown.size() > 0) {
             // If expected key not found, attempt to match value against those from valid unknown keys
-            assert actualUnknown.indexOf(expectedMetaValue) >= 0 : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta\n\tattempted to match against value \"$expectedMetaValue\" with unknown keys, but not found"
-            actualUnknown.drop(actualUnknown.indexOf(expectedMetaValue))
+            def expectedMetaValueToCompare = parseNestedMetaObject(expectedMetaValue)
+            assert actualUnknown.indexOf(expectedMetaValueToCompare) >= 0 : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta\n\tattempted to match against value \"$expectedMetaValueToCompare\" with unknown keys, but not found"
+            actualUnknown.drop(actualUnknown.indexOf(expectedMetaValueToCompare))
           } else {
             // Defensive, should never happen
             assert actualMeta.containsKey(expectedMetaKey) : prefix + "meta key \"$expectedMetaKey\" not found in $actualMeta"
@@ -170,6 +171,16 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
       [expected.children, actual.children].transpose().each { childPair ->
         assertSQLPlanEquals(childPair[0], childPair[1], name)
       }
+    }
+  }
+
+  // Parse any nested objects to a standard form that ignores the keys
+  // Right now we do this by just asserting the key set and none of the values
+  static Object parseNestedMetaObject(Object value) {
+    if (value instanceof Map) {
+      return value.keySet()
+    } else {
+      return value
     }
   }
 
@@ -223,9 +234,14 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "nodeId": -1909876497,
         "nodeDetailString": "hashpartitioning(string_col#0, 2)",
         "meta": {
-          "_dd.unknown_key.0": "hashpartitioning(string_col#0, 2)", 
-          "_dd.unknown_key.2": "none", 
-          "_dd.unparsed": "any"
+          "_dd.unknown_key.0" : {
+            "HashPartitioning" : {
+              "_dd.unknown_key.0" : [ "string_col#0" ],
+              "_dd.unknown_key.1" : 2
+            }
+          },
+          "_dd.unknown_key.2" : "none",
+          "_dd.unparsed" : "any"
         },
         "metrics": [
           {
@@ -250,20 +266,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "nodeId": 1128016273,
                 "nodeDetailString": "(keys=[string_col#0], functions=[partial_avg(double_col#1)])",
                 "meta": {
-                  "_dd.unknown_key.0": "none", 
-                  "_dd.unknown_key.1": ["string_col#0"], 
-                  "_dd.unknown_key.2": ["partial_avg(double_col#1)"], 
-                  "_dd.unknown_key.3": [
-                    "sum#16", 
-                    "count#17L"
-                  ], 
-                  "_dd.unknown_key.4": 0, 
-                  "_dd.unknown_key.5": [
-                    "string_col#0", 
-                    "sum#18", 
-                    "count#19L"
-                  ], 
-                  "_dd.unparsed": "any"
+                  "_dd.unknown_key.0" : "none",
+                  "_dd.unknown_key.1" : [ "string_col#0" ],
+                  "_dd.unknown_key.2" : [ "partial_avg(double_col#1)" ],
+                  "_dd.unknown_key.3" : [ "sum#16", "count#17L" ],
+                  "_dd.unknown_key.4" : 0,
+                  "_dd.unknown_key.5" : [ "string_col#0", "sum#18", "count#19L" ],
+                  "_dd.unparsed" : "any"
                 },
                 "metrics": [
                   {
@@ -290,15 +299,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                         "nodeId": 1632930767,
                         "nodeDetailString": "[string_col#0, double_col#1]",
                         "meta": {
-                          "_dd.unknown_key.0": [
-                            "string_col#0", 
-                            "double_col#1"
-                          ], 
-                          "_dd.unknown_key.1": [
-                            "[first,1.2]", 
-                            "[first,1.3]", 
-                            "[second,1.6]"
-                          ]
+                          "_dd.unknown_key.0" : [ "string_col#0", "double_col#1" ],
+                          "_dd.unknown_key.1" : [ ]
                         },
                         "metrics": [
                           {
@@ -334,16 +336,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "nodeId": 126020943,
             "nodeDetailString": "(keys=[string_col#0], functions=[avg(double_col#1)])",
             "meta": {
-              "_dd.unknown_key.0": ["string_col#0"], 
-              "_dd.unknown_key.1": ["string_col#0"], 
-              "_dd.unknown_key.2": ["avg(double_col#1)"], 
-              "_dd.unknown_key.3": ["avg(double_col#1)#4"], 
-              "_dd.unknown_key.4": 1, 
-              "_dd.unknown_key.5": [
-                "string_col#0", 
-                "avg(double_col#1)#4 AS avg(double_col)#5"
-              ], 
-              "_dd.unparsed": "any"
+              "_dd.unknown_key.0" : [ "string_col#0" ],
+              "_dd.unknown_key.1" : [ "string_col#0" ],
+              "_dd.unknown_key.2" : [ "avg(double_col#1)" ],
+              "_dd.unknown_key.3" : [ "avg(double_col#1)#4" ],
+              "_dd.unknown_key.4" : 1,
+              "_dd.unknown_key.5" : [ "string_col#0", "avg(double_col#1)#4 AS avg(double_col)#5" ],
+              "_dd.unparsed" : "any"
             },
             "metrics": [
               {
@@ -437,9 +436,14 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#25, 2)",
         "meta": {
-          "_dd.unknown_key.0": "hashpartitioning(string_col#25, 2)", 
-          "_dd.unknown_key.2": "none", 
-          "_dd.unparsed": "any"
+          "_dd.unknown_key.0" : {
+            "HashPartitioning" : {
+              "_dd.unknown_key.0" : [ "string_col#25" ],
+              "_dd.unknown_key.1" : 2
+            }
+          },
+          "_dd.unknown_key.2" : "none",
+          "_dd.unparsed" : "any"
         },
         "metrics": [
           {
@@ -453,12 +457,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "nodeId": "any",
             "nodeDetailString": "[string_col#25]", 
             "meta": {
-              "_dd.unknown_key.0": ["string_col#25"], 
-              "_dd.unknown_key.1": [
-                "[first]", 
-                "[first]", 
-                "[second]"
-              ]
+              "_dd.unknown_key.0" : [ "string_col#25" ],
+              "_dd.unknown_key.1" : [ ]
             },
             "metrics": [
               {
@@ -476,9 +476,14 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "nodeId": "any",
         "nodeDetailString": "hashpartitioning(string_col#21, 2)",
         "meta": {
-          "_dd.unknown_key.0": "hashpartitioning(string_col#21, 2)", 
-          "_dd.unknown_key.2": "none", 
-          "_dd.unparsed": "any"
+          "_dd.unknown_key.0" : {
+            "HashPartitioning" : {
+              "_dd.unknown_key.0" : [ "string_col#21" ],
+              "_dd.unknown_key.1" : 2
+            }
+          },
+          "_dd.unknown_key.2" : "none",
+          "_dd.unparsed" : "any"
         },
         "metrics": [
           {
@@ -492,11 +497,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "nodeId": "any",
             "nodeDetailString": "[string_col#21]", 
             "meta": {
-              "_dd.unknown_key.0": ["string_col#21"], 
-              "_dd.unknown_key.1": [
-                "[first]", 
-                "[second]"
-              ]
+              "_dd.unknown_key.0" : [ "string_col#21" ],
+              "_dd.unknown_key.1" : [ ]
             },
             "metrics": [
               {
@@ -514,9 +516,9 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
         "nodeId": -1350402171,
         "nodeDetailString": "SinglePartition",
         "meta": {
-          "_dd.unknown_key.0": "SinglePartition", 
-          "_dd.unknown_key.2": "none", 
-          "_dd.unparsed": "any"
+          "_dd.unknown_key.0" : "SinglePartition",
+          "_dd.unknown_key.2" : "none",
+          "_dd.unparsed" : "any"
         },
         "metrics": [
           {
@@ -541,13 +543,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "nodeId": -879128980,
                 "nodeDetailString": "(keys=[], functions=[partial_count(1)])",
                 "meta": {
-                  "_dd.unknown_key.0": "none", 
-                  "_dd.unknown_key.1": [], 
-                  "_dd.unknown_key.2": ["partial_count(1)"], 
-                  "_dd.unknown_key.3": ["count#38L"], 
-                  "_dd.unknown_key.4": 0, 
-                  "_dd.unknown_key.5": ["count#39L"], 
-                  "_dd.unparsed": "any"
+                  "_dd.unknown_key.0" : "none",
+                  "_dd.unknown_key.1" : [ ],
+                  "_dd.unknown_key.2" : [ "partial_count(1)" ],
+                  "_dd.unknown_key.3" : [ "count#38L" ],
+                  "_dd.unknown_key.4" : 0,
+                  "_dd.unknown_key.5" : [ "count#39L" ],
+                  "_dd.unparsed" : "any"
                 },
                 "metrics": [
                   {
@@ -564,8 +566,8 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                     "node": "Project",
                     "nodeId": 1355342585,
                     "meta": {
-                      "_dd.unknown_key.0": [], 
-                      "_dd.unparsed": "any"
+                      "_dd.unknown_key.0" : [ ],
+                      "_dd.unparsed" : "any"
                     },
                     "children": [
                       {
@@ -573,11 +575,11 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                         "nodeId": -1975876610,
                         "nodeDetailString": "[string_col#21], [string_col#25], Inner",
                         "meta": {
-                          "_dd.unknown_key.0": ["string_col#21"], 
-                          "_dd.unknown_key.1": ["string_col#25"], 
-                          "_dd.unknown_key.2": "Inner", 
-                          "_dd.unknown_key.3": "none", 
-                          "_dd.unparsed": "any"
+                          "_dd.unknown_key.0" : [ "string_col#21" ],
+                          "_dd.unknown_key.1" : [ "string_col#25" ],
+                          "_dd.unknown_key.2" : "Inner",
+                          "_dd.unknown_key.3" : "none",
+                          "_dd.unparsed" : "any"
                         },
                         "metrics": [
                           {
@@ -607,10 +609,10 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "nodeId": 66807398,
                                     "nodeDetailString": "[string_col#21 ASC NULLS FIRST], false, 0",
                                     "meta": {
-                                      "_dd.unknown_key.0": ["string_col#21 ASC NULLS FIRST"], 
-                                      "_dd.unknown_key.1": false, 
-                                      "_dd.unknown_key.3": 0, 
-                                      "_dd.unparsed": "any"
+                                      "_dd.unknown_key.0" : [ "string_col#21 ASC NULLS FIRST" ],
+                                      "_dd.unknown_key.1" : false,
+                                      "_dd.unknown_key.3" : 0,
+                                      "_dd.unparsed" : "any"
                                     },
                                     "metrics": [
                                       {
@@ -655,10 +657,10 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     "nodeId": -952138782,
                                     "nodeDetailString": "[string_col#25 ASC NULLS FIRST], false, 0",
                                     "meta": {
-                                      "_dd.unknown_key.0": ["string_col#25 ASC NULLS FIRST"], 
-                                      "_dd.unknown_key.1": false, 
-                                      "_dd.unknown_key.3": 0, 
-                                      "_dd.unparsed": "any"
+                                      "_dd.unknown_key.0" : [ "string_col#25 ASC NULLS FIRST" ],
+                                      "_dd.unknown_key.1" : false,
+                                      "_dd.unknown_key.3" : 0,
+                                      "_dd.unparsed" : "any"
                                     },
                                     "metrics": [
                                       {
@@ -706,13 +708,13 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             "nodeId": 724815342,
             "nodeDetailString": "(keys=[], functions=[count(1)])",
             "meta": {
-              "_dd.unknown_key.0": [], 
-              "_dd.unknown_key.1": [], 
-              "_dd.unknown_key.2": ["count(1)"], 
-              "_dd.unknown_key.3": ["count(1)#35L"], 
-              "_dd.unknown_key.4": 0, 
-              "_dd.unknown_key.5": ["count(1)#35L AS count#36L"], 
-              "_dd.unparsed": "any"
+              "_dd.unknown_key.0" : [ ],
+              "_dd.unknown_key.1" : [ ],
+              "_dd.unknown_key.2" : [ "count(1)" ],
+              "_dd.unknown_key.3" : [ "count(1)#35L" ],
+              "_dd.unknown_key.4" : 0,
+              "_dd.unknown_key.5" : [ "count(1)#35L AS count#36L" ],
+              "_dd.unparsed" : "any"
             },
             "metrics": [
               {
