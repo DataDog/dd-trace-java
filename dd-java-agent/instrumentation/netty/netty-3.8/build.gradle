@@ -23,10 +23,10 @@ muzzle {
 addTestSuite('latestDepTest')
 
 dependencies {
-  compileOnly instrumentedLibs.netty.v38
+  compileOnly instrumentedLibs.netty.v3
 
-  testImplementation instrumentedLibs.netty.v38
-  testImplementation instrumentedLibs.async.http.client.ning.v18
+  testImplementation instrumentedLibs.netty.v3
+  testImplementation instrumentedLibs.async.http.client.ning.v1
 
   latestDepTestImplementation instrumentedLibs.netty.latest.v3x
   latestDepTestImplementation instrumentedLibs.async.http.client.ning.latest.v1x

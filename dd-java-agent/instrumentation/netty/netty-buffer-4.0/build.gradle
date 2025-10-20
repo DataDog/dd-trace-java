@@ -13,9 +13,9 @@ addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly instrumentedLibs.netty.buffer.v400
+  compileOnly instrumentedLibs.netty.buffer.v4
 
-  testImplementation instrumentedLibs.netty.buffer.v400
+  testImplementation instrumentedLibs.netty.buffer.v4
 
   latestDep4TestImplementation instrumentedLibs.netty.buffer.latest.v4x
   latestDepTestImplementation instrumentedLibs.netty.buffer.latest

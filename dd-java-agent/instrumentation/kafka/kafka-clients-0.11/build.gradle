@@ -23,16 +23,16 @@ addTestSuite('iastLatestDepTest3')
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
 dependencies {
-  compileOnly instrumentedLibs.kafka.clients.v011
+  compileOnly instrumentedLibs.kafka.clients.v0
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
   testImplementation libs.spock.junit4 // This legacy module still needs JUnit4.
-  testImplementation instrumentedLibs.kafka.clients.v011
-  testImplementation instrumentedLibs.spring.kafka.v13
-  testImplementation instrumentedLibs.spring.kafka.test.v13
-  testImplementation instrumentedLibs.reactor.kafka.v10
-  testImplementation instrumentedLibs.jaxb.api.v22
-  testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
+  testImplementation instrumentedLibs.kafka.clients.v0
+  testImplementation instrumentedLibs.spring.kafka.v1
+  testImplementation instrumentedLibs.spring.kafka.test.v1
+  testImplementation instrumentedLibs.reactor.kafka.v1
+  testImplementation instrumentedLibs.jaxb.api.v2
+  testImplementation instrumentedLibs.mockito.core.v2
   testRuntimeOnly group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')

@@ -36,14 +36,14 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly instrumentedLibs.netty.codec.http.v400
+  compileOnly instrumentedLibs.netty.codec.http.v4
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
-  testImplementation instrumentedLibs.netty.codec.http.v400
-  testImplementation instrumentedLibs.async.http.client.v20
+  testImplementation instrumentedLibs.netty.codec.http.v4
+  testImplementation instrumentedLibs.async.http.client.v2
 
-  latestDepTestImplementation instrumentedLibs.netty.codec.http.v4056
-  latestDepTestImplementation instrumentedLibs.async.http.client.v20plus
+  latestDepTestImplementation instrumentedLibs.netty.codec.http.latest.v4x
+  latestDepTestImplementation instrumentedLibs.async.http.client.v2x
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.

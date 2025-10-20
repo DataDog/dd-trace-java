@@ -35,26 +35,26 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
   implementation project(':dd-java-agent:instrumentation:span-origin')
 
-  main_java17CompileOnly instrumentedLibs.kafka.clients.v38
+  main_java17CompileOnly instrumentedLibs.kafka.clients.v3
   main_java17Implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
-  testImplementation(instrumentedLibs.spring.kafka.v33) {
+  testImplementation(instrumentedLibs.spring.kafka.v3) {
     exclude group: 'org.apache.kafka'
   }
-  testImplementation(instrumentedLibs.spring.kafka.test.v33) {
+  testImplementation(instrumentedLibs.spring.kafka.test.v3) {
     exclude group: 'org.apache.kafka'
   }
 
-  testImplementation instrumentedLibs.kafka.server.common.v38.test
+  testImplementation instrumentedLibs.kafka.server.common.v3.test
 
-  testImplementation instrumentedLibs.kafka.clients.v38
-  testImplementation "${instrumentedLibs.kafka.clients.v38.get().module}:${instrumentedLibs.kafka.clients.v38.get().version}:test"
+  testImplementation instrumentedLibs.kafka.clients.v3
+  testImplementation "${instrumentedLibs.kafka.clients.v3.get().module}:${instrumentedLibs.kafka.clients.v3.get().version}:test"
 
-  testImplementation instrumentedLibs.kafka.v213.v38
-  testImplementation "${instrumentedLibs.kafka.v213.v38.get().module}:${instrumentedLibs.kafka.v213.v38.get().version}:test"
+  testImplementation instrumentedLibs.kafka.v2.v3
+  testImplementation "${instrumentedLibs.kafka.v2.v3.get().module}:${instrumentedLibs.kafka.v2.v3.get().version}:test"
 
-  testImplementation instrumentedLibs.jaxb.api.v22
-  testImplementation instrumentedLibs.mockito.core.v219
+  testImplementation instrumentedLibs.jaxb.api.v2
+  testImplementation instrumentedLibs.mockito.core.v2
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
 
   latestDepTestImplementation instrumentedLibs.spring.kafka.latest.v3x
