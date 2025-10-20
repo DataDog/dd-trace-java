@@ -87,4 +87,22 @@ public final class CrashLog {
     return Objects.hash(
         uuid, timestamp, incomplete, error, metadata, osInfo, procInfo, version, dataSchemaVersion);
   }
+
+  public boolean equalsForTest(Object o) {
+    // for tests, we need to ignore OSInfo and Metadata part
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    CrashLog crashLog = (CrashLog) o;
+    return incomplete == crashLog.incomplete
+        && version == crashLog.version
+        && Objects.equals(uuid, crashLog.uuid)
+        && Objects.equals(timestamp, crashLog.timestamp)
+        && Objects.equals(error, crashLog.error)
+        && Objects.equals(procInfo, crashLog.procInfo)
+        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
+  }
 }

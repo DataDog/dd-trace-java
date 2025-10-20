@@ -210,9 +210,8 @@ public class CrashUploaderTest {
     String message = event.get("payload").get(0).get("message").asText();
     CrashLog extracted = CrashLog.fromJson(message);
 
-    assertEquals(
-        expected,
-        extracted,
+    assertTrue(
+        expected.equalsForTest(extracted),
         () -> "Expected: " + expected.toJson() + "\nbut got: " + extracted.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
     assertCommonPayload(event);
