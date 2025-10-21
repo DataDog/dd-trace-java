@@ -1,11 +1,13 @@
-package datadog.trace.bootstrap;
+package datadog.trace.bootstrap.weakmap;
+
+import datadog.trace.bootstrap.ContextStore;
 
 /**
  * Weak {@link ContextStore} that acts as a fall-back when field-injection isn't possible.
  *
  * <p>This class should be created lazily because it uses weak maps with background cleanup.
  */
-final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
+public final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
   private static final int DEFAULT_MAX_SIZE = 50_000;
 
   private final int maxSize;
