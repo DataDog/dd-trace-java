@@ -16,7 +16,7 @@ class ConfigInversionMetricCollectorImplTest extends DDSpecification {
     def metrics = collector.drain()
 
     then:
-    assert metrics.size() == 1 : "The following Environment Variables need to be added to metadata/supported-configurations.json: ${metrics}"
+    assert metrics.size() == 1 : "The following Environment Variables need to be added to metadata/supported-configurations.json.: ${metrics}\nSee https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5372248222/APM+-+Centralized+Configuration+Config+inversion#dd-trace-java"
     def metric = metrics[0]
     metric.type == 'count'
     metric.value == 1
