@@ -21,10 +21,10 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CodeOriginInstrumentor extends Instrumentor {
+public class CodeOriginInstrumenter extends Instrumenter {
   private static final String CAPTURE;
   private static final String MARKER;
-  private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginInstrumentor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginInstrumenter.class);
 
   static {
     String className = DebuggerContext.class.getName().replace('.', '/');
@@ -32,7 +32,7 @@ public class CodeOriginInstrumentor extends Instrumentor {
     MARKER = format("%s#%s", className, "marker");
   }
 
-  public CodeOriginInstrumentor(
+  public CodeOriginInstrumenter(
       ProbeDefinition definition, MethodInfo methodInfo, List<Integer> probeIndices) {
     super(definition, methodInfo, null, probeIndices);
   }

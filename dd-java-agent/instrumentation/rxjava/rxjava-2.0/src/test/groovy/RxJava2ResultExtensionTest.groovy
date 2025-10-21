@@ -34,6 +34,7 @@ class RxJava2ResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -73,6 +74,7 @@ class RxJava2ResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -110,6 +112,7 @@ class RxJava2ResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

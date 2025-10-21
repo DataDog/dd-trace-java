@@ -319,11 +319,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
             getPeerTags(span, spanKind.toString()));
-    boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;
-      isNewKey = true;
     }
     long tag = (span.getError() > 0 ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
     long durationNanos = span.getDurationNano();
@@ -340,7 +338,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
       // recycle the older key
       key = batch.getKey();
-      isNewKey = false;
     }
     batch = newBatch(key);
     batch.add(tag, durationNanos);
@@ -349,8 +346,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     pending.put(key, batch);
     // must offer to the queue after adding to pending
     inbox.offer(batch);
-    // force keep keys we haven't seen before or errors
-    return isNewKey || span.getError() > 0;
+    // force keep keys if there are errors
+    return span.getError() > 0;
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {

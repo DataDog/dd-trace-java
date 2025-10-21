@@ -82,8 +82,8 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     then: "should have sent statistics and informed the agent that we calculate the stats"
     assert state.receivedClientComputedHeader
     assert state.receivedStats
-    // 1 trace processed. not a p0 drop (first time we see it). No errors
-    assertMetrics(healthMetrics, 1, 0, 1, 0, 0)
+    // 1 trace processed. 1 p0 drop No errors
+    assertMetrics(healthMetrics, 1, 1, 1, 0, 0)
 
 
     when: "simulate an agent downgrade"
@@ -95,8 +95,8 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     then: "a discovery should have done - we do not support anymore stats calculation"
     state.latch.await()
     assert !featuresDiscovery.supportsMetrics()
-    // 2 traces processed. 1 p0 dropped. 2 requests and 1 downgrade no errors
-    assertMetrics(healthMetrics, 2, 1, 2, 0, 1)
+    // 2 traces processed. 2 p0 dropped. 2 requests and 1 downgrade no errors
+    assertMetrics(healthMetrics, 2, 2, 2, 0, 1)
 
 
     when: "a span is published"
@@ -109,7 +109,7 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     assert !state.receivedClientComputedHeader
     assert !state.receivedStats
     // 2 traces processed. 1 p0 dropped. 2 requests and 1 downgrade no errors
-    assertMetrics(healthMetrics, 2, 1, 2, 0, 1)
+    assertMetrics(healthMetrics, 2, 2, 2, 0, 1)
 
     when: "we detect that the agent can calculate the stats again"
     state.reset(true)
@@ -128,7 +128,7 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     assert state.receivedClientComputedHeader
     assert state.receivedStats
     // 3 traces processed. 2 p0 dropped. 3 requests and 1 downgrade no errors
-    assertMetrics(healthMetrics, 3, 2, 3, 0, 1)
+    assertMetrics(healthMetrics, 3, 3, 3, 0, 1)
 
     when: "an error occurred on the agent stats endpoint"
     state.reset(true, 500)
@@ -140,7 +140,7 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     assert state.receivedClientComputedHeader
     assert state.receivedStats
     // 4 traces processed. 3 p0 dropped. 4 requests and 1 downgrade - 1 error
-    assertMetrics(healthMetrics, 4, 3, 4, 1, 1)
+    assertMetrics(healthMetrics, 4, 4, 4, 1, 1)
 
     when: "the next call succeed"
     state.reset(true)
@@ -153,7 +153,7 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     assert state.receivedStats
     // 5 traces processed. 3 p0 dropped (this one is errored so it's not dropped).
     // 5 requests and 1 downgrade - 1 error
-    assertMetrics(healthMetrics, 5, 3, 5, 1, 1)
+    assertMetrics(healthMetrics, 5, 4, 5, 1, 1)
 
     cleanup:
     tracer.close()

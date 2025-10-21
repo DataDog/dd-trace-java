@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED
+
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -6,18 +11,6 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import org.apache.commons.dbcp2.BasicDataSource
-import org.apache.commons.pool2.PooledObject
-import org.apache.commons.pool2.PooledObjectFactory
-import org.apache.commons.pool2.impl.DefaultPooledObject
-import org.apache.commons.pool2.impl.GenericObjectPool
-import org.apache.derby.jdbc.EmbeddedDataSource
-import org.h2.jdbcx.JdbcDataSource
-import spock.lang.Shared
-import test.TestConnection
-import test.WrappedConnection
-
-import javax.sql.DataSource
 import java.sql.CallableStatement
 import java.sql.Connection
 import java.sql.Driver
@@ -28,11 +21,17 @@ import java.sql.SQLTimeoutException
 import java.sql.SQLTransientConnectionException
 import java.sql.Statement
 import java.time.Duration
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED
+import javax.sql.DataSource
+import org.apache.commons.dbcp2.BasicDataSource
+import org.apache.commons.pool2.PooledObject
+import org.apache.commons.pool2.PooledObjectFactory
+import org.apache.commons.pool2.impl.DefaultPooledObject
+import org.apache.commons.pool2.impl.GenericObjectPool
+import org.apache.derby.jdbc.EmbeddedDataSource
+import org.h2.jdbcx.JdbcDataSource
+import spock.lang.Shared
+import test.TestConnection
+import test.WrappedConnection
 
 abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
@@ -728,6 +727,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           errored false
           measured true
           tags {
+            "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" database
@@ -735,7 +735,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
-            defaultTagsNoPeerService()
+            defaultTags()
           }
         }
       }

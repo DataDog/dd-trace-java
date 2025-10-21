@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 class GithubActionsInfo implements CIProviderInfo {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(UnknownCIInfo.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GithubActionsInfo.class);
 
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
   public static final String GHACTIONS = "GITHUB_ACTION";

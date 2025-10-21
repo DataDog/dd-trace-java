@@ -184,6 +184,14 @@ public class Agent {
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
+  private static void safelySetContextClassLoader(ClassLoader classLoader) {
+    try {
+      // this method call can cause a SecurityException if a security manager is installed.
+      Thread.currentThread().setContextClassLoader(classLoader);
+    } catch (final Throwable ignored) {
+    }
+  }
+
   /**
    * Starts the agent; returns a boolean indicating if Agent started successfully
    *
@@ -924,7 +932,7 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting JmxFetch", ex);
     } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      safelySetContextClassLoader(contextLoader);
     }
   }
 
@@ -1305,7 +1313,7 @@ public class Agent {
       } catch (final Throwable ex) {
         log.error(SEND_TELEMETRY, "Throwable thrown while starting profiling agent", ex);
       } finally {
-        Thread.currentThread().setContextClassLoader(contextLoader);
+        safelySetContextClassLoader(contextLoader);
       }
       StaticEventLogger.end("ProfilingAgent");
     }
@@ -1349,7 +1357,7 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      safelySetContextClassLoader(contextLoader);
     }
   }
 
@@ -1383,7 +1391,7 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      safelySetContextClassLoader(contextLoader);
     }
 
     StaticEventLogger.end("Debugger");

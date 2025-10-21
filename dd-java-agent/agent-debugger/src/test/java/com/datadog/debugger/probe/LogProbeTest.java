@@ -342,6 +342,7 @@ public class LogProbeTest {
     return LogProbe.builder()
         .language(LANGUAGE)
         .probeId(PROBE_ID)
+        .where("String.java", 42)
         .template(template, parseTemplate(template));
   }
 

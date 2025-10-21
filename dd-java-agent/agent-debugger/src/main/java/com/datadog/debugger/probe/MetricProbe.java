@@ -5,7 +5,7 @@ import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
-import com.datadog.debugger.instrumentation.MetricInstrumentor;
+import com.datadog.debugger.instrumentation.MetricInstrumenter;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
@@ -137,7 +137,7 @@ public class MetricProbe extends ProbeDefinition {
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
-    return new MetricInstrumentor(this, methodInfo, diagnostics, probeIndices).instrument();
+    return new MetricInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
   public static Builder builder() {

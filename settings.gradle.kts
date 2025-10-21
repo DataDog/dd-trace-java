@@ -264,7 +264,7 @@ include(
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
-  ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6",
+  // dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6 will be included when `akkaRepositoryToken` is present, see next `include` block.
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0",
@@ -612,6 +612,15 @@ include(
   ":dd-java-agent:instrumentation:wildfly-9.0",
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
+
+// Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
+if (providers.gradleProperty("akkaRepositoryToken").isPresent) {
+  include(
+    ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6",
+  )
+} else {
+  logger.quiet("Omitting :dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6: 'akkaRepositoryToken' not configured")
+}
 
 // benchmark
 include(
