@@ -457,6 +457,50 @@ public static void methodExit(
 }
 ```
 
+## Logging in Instrumentations
+
+Logging should only be used in helper classes where you can easily add and access a static logger field:
+
+```java
+// GOOD - Logger only in helper classes
+public class MyInstrumentationHelper {
+  private static final Logger log = LoggerFactory.getLogger(MyInstrumentationHelper.class);
+
+  public void helperMethod() {
+    log.debug("Logging from helper is safe");
+    // This helper is called from instrumentation/advice
+  }
+}
+```
+
+`org.slf4j` is the logging facade to use.
+It is shaded and redirects to our internal logger.
+
+> [!CAUTION]
+> Do NOT put logger fields in instrumentation classes or refer to them in advice:
+
+```java
+// BAD - Logger in instrumentation class
+public class MyInstrumentation extends InstrumenterModule.Tracing {
+  private static final Logger log = LoggerFactory.getLogger(MyInstrumentation.class);
+}
+```
+
+> [!CAUTION]
+> Do NOT put logger fields in Advice classes:
+
+```java
+// BAD - Logger in advice class
+public class MyAdvice {
+  private static final Logger log = LoggerFactory.getLogger(MyAdvice.class);
+
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  public static void enter() {
+    log.debug("Entering method"); // BAD
+  }
+}
+```
+
 ## InjectAdapters & Custom GETTERs/SETTERs
 
 Custom Inject Adapter static instances typically named `SETTER` implement the `AgentPropagation.Setter` interface and
