@@ -445,6 +445,11 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
           continue;
         }
 
+        if (pathRelativeToIndexRoot == null) {
+          LOGGER.debug("Could not resolve source for path {}", pathRelativeToSourceRoot);
+          continue;
+        }
+
         LinesCoverage linesCoverage = getLinesCoverage(sourceFile);
         // backendCoverageData contains data for all modules in the repo,
         // but coverageBundle bundle only has source files that are relevant for the given module,
