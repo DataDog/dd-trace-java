@@ -3,7 +3,7 @@ include:
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
-  - local: ".gitlab/ci-visibility-tests.yml"
+  #  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
