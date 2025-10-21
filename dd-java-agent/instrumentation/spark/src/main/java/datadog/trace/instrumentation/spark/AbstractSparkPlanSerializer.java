@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.spark;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -21,11 +20,10 @@ import scala.collection.JavaConverters;
 
 // An extension of how Spark translates `SparkPlan`s to `SparkPlanInfo`, see here:
 // https://github.com/apache/spark/blob/v3.5.0/sql/core/src/main/scala/org/apache/spark/sql/execution/SparkPlanInfo.scala#L54
-public abstract class AbstractSparkPlanUtils {
+public abstract class AbstractSparkPlanSerializer {
   private final int MAX_DEPTH = 4;
   private final int MAX_LENGTH = 50;
-  private final ObjectMapper mapper =
-      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  private final ObjectMapper mapper = AbstractDatadogSparkListener.objectMapper;
 
   private final Class[] SAFE_CLASSES = {
     Attribute.class, // simpleString appends data type, avoid by using toString
@@ -42,7 +40,7 @@ public abstract class AbstractSparkPlanUtils {
 
   public Map<String, String> extractFormattedProduct(TreeNode plan) {
     HashMap<String, String> result = new HashMap<>();
-    extractPlanProduct(plan, 0)
+    safeParseTreeNode(plan, 0)
         .forEach(
             (key, value) -> {
               result.put(key, writeObjectToString(value));
@@ -50,7 +48,7 @@ public abstract class AbstractSparkPlanUtils {
     return result;
   }
 
-  protected Map<String, Object> extractPlanProduct(TreeNode node, int depth) {
+  protected Map<String, Object> safeParseTreeNode(TreeNode node, int depth) {
     HashMap<String, Object> args = new HashMap<>();
     HashMap<String, String> unparsed = new HashMap<>();
 
@@ -59,7 +57,7 @@ public abstract class AbstractSparkPlanUtils {
         it.hasNext(); ) {
       Object obj = it.next();
 
-      Object val = parsePlanProduct(obj, depth);
+      Object val = safeParseObjectToJson(obj, depth);
       if (val != null) {
         args.put(getKey(i, node), val);
       } else {
@@ -85,11 +83,10 @@ public abstract class AbstractSparkPlanUtils {
     }
   }
 
-  protected Object parsePlanProduct(Object value, int depth) {
+  protected Object safeParseObjectToJson(Object value, int depth) {
     // This function MUST not arbitrarily serialize the object as we can't be sure what it is.
     // A null return indicates object is unserializable, otherwise it should really only return
-    // valid
-    // JSON types (Array, Map, String, Boolean, Number, null)
+    // valid JSON types (Array, Map, String, Boolean, Number, null)
 
     if (value == null) {
       return "null";
@@ -98,14 +95,14 @@ public abstract class AbstractSparkPlanUtils {
         || Number.class.isInstance(value)) {
       return value;
     } else if (value instanceof Option) {
-      return parsePlanProduct(((Option) value).getOrElse(() -> "none"), depth);
+      return safeParseObjectToJson(((Option) value).getOrElse(() -> "none"), depth);
     } else if (value instanceof QueryPlan) {
       // don't duplicate child nodes
       return null;
     } else if (value instanceof Iterable && depth < MAX_DEPTH) {
       ArrayList<Object> list = new ArrayList<>();
       for (Object item : JavaConverters.asJavaIterable((Iterable) value)) {
-        Object res = parsePlanProduct(item, depth + 1);
+        Object res = safeParseObjectToJson(item, depth + 1);
         if (list.size() < MAX_LENGTH && res != null) {
           list.add(res);
         }
@@ -115,7 +112,7 @@ public abstract class AbstractSparkPlanUtils {
       if (value instanceof TreeNode && depth + 1 < MAX_DEPTH) {
         HashMap<String, Object> inner = new HashMap<>();
         inner.put(
-            value.getClass().getSimpleName(), extractPlanProduct(((TreeNode) value), depth + 2));
+            value.getClass().getSimpleName(), safeParseTreeNode(((TreeNode) value), depth + 2));
         return inner;
       } else {
         return value.toString();
