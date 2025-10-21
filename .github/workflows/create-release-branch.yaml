@@ -1,0 +1,87 @@
+name: Create Release Branch and Pin System-Tests
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.0'  # Trigger on minor release tags (e.g. v1.54.0)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The minor release tag (e.g. v1.54.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC token federation
+    steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.update-system-tests.push
+
+      - name: Determine tag
+        id: determine-tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG=${{ github.event.inputs.tag }}
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+            echo "Error: Tag $TAG is not in the expected format: vX.Y.0"
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Define branch name from tag
+        id: define-branch
+        run: |
+          TAG=${{ steps.determine-tag.outputs.tag }}
+          BRANCH="release/${TAG%.0}.x"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout dd-trace-java
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+
+      - name: Check if branch already exists
+        id: check-branch
+        run: |
+          BRANCH=${{ steps.define-branch.outputs.branch }}
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "creating_new_branch=false" >> "$GITHUB_OUTPUT"
+            echo "Branch $BRANCH already exists - skipping following steps"
+          else
+            echo "creating_new_branch=true" >> "$GITHUB_OUTPUT"
+            echo "Branch $BRANCH does not exist - proceeding with following steps"
+          fi
+
+      - name: Update system-tests references to latest commit SHA on main
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        run: BRANCH=main ./tooling/update_system_test_reference.sh
+
+      - name: Commit changes
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        id: create-commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Push changes
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          # for scheduled runs, sha is the tip of the default branch
+          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          head-sha: "${{ github.sha }}"
+          create-branch: true
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"

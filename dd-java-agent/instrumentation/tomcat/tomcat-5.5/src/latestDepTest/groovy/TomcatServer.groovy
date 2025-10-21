@@ -66,7 +66,7 @@ class TomcatServer implements WebsocketServer {
     assert port > 0
     if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
       server.getEngine().setName("tomcat")
-      def serverName = TraceUtils.normalizeTag(server.getEngine().getName())
+      def serverName = TraceUtils.normalizeTagValue(server.getEngine().getName())
       assert ProcessTags.getTagsAsStringList().containsAll(["server.type:tomcat", "server.name:" + serverName])
     } else {
       assert ProcessTags.getTagsAsStringList() == null

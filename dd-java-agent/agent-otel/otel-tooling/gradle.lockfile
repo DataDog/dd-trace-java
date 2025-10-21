@@ -7,6 +7,7 @@ com.beust:jcommander:1.78=testRuntimeClasspath
 com.blogspot.mydailyjava:weak-lock-free:0.17=compileClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=compileClasspath
 com.datadoghq.okio:okio:1.17.6=compileClasspath
+com.datadoghq:dd-instrument-java:0.0.2=compileClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc,testCompileClasspath,testRuntimeClasspath
 com.github.spotbugs:spotbugs-annotations:4.2.0=compileClasspath,testCompileClasspath,testRuntimeClasspath
