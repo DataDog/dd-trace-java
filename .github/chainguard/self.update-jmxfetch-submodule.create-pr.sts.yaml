@@ -5,6 +5,7 @@ subject: repo:DataDog/dd-trace-java:ref:refs/heads/master
 claim_pattern:
   event_name: (schedule|workflow_dispatch)
   ref: refs/heads/master
+  ref_protected: "true"
   job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/update-jmxfetch-submodule\.yaml@refs/heads/master
 
 permissions:
