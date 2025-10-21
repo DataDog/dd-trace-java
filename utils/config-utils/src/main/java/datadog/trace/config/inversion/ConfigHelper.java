@@ -86,7 +86,7 @@ public class ConfigHelper {
   }
 
   public Map<String, String> getEnvironmentVariables() {
-    if (configs != null) {
+    if (!configs.isEmpty()) {
       return configs;
     }
 
