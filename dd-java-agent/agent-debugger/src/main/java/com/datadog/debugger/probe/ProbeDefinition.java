@@ -128,7 +128,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   public abstract InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds);
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices);
 
   @Override
   public ProbeLocation getLocation() {
@@ -148,16 +148,6 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   /** Commit snapshot based on line context and the current probe This is for line probes */
   @Override
   public void commit(CapturedContext lineContext, int line) {}
-
-  @Override
-  public boolean isCaptureSnapshot() {
-    return false;
-  }
-
-  @Override
-  public boolean hasCondition() {
-    return false;
-  }
 
   @Override
   public CapturedContext.Status createStatus() {

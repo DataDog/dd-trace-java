@@ -3,7 +3,6 @@ package datadog.gradle.plugin.muzzle.tasks
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils
 import datadog.gradle.plugin.muzzle.TestedArtifact
 import org.eclipse.aether.util.version.GenericVersionScheme
-import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.TaskAction
 import java.util.TreeMap
 

@@ -3,7 +3,6 @@ package datadog.gradle.plugin.muzzle.tasks
 import datadog.gradle.plugin.muzzle.TestedArtifact
 import datadog.gradle.plugin.muzzle.pathSlug
 import org.gradle.api.file.RegularFile
-import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.OutputFile
 import java.util.SortedMap

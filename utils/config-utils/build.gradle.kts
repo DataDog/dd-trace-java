@@ -16,6 +16,7 @@ val excludedClassesCoverage by extra(
     // tested in internal-api
     "datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider",
     "datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider",
+    "datadog.trace.bootstrap.config.provider.civisibility.CiEnvironmentVariables",
     "datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.ConfigConverter.ValueOfLookup",
     // tested in internal-api
@@ -25,6 +26,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Source",
     "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
+    "datadog.trace.bootstrap.config.provider.MapConfigSource",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
@@ -58,8 +60,5 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-}
-
-tasks.named("javadoc") {
-  dependsOn("generateSupportedConfigurations")
+  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
 }

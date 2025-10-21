@@ -59,7 +59,7 @@ dependencies {
 }
 
 // gradle can't downgrade the akka dependencies with `strictly`
-configurations.matching({ it.name.startsWith('akka23') }).each({
+configurations.matching({ it.name.startsWith('akka23') }).configureEach({
   it.resolutionStrategy {
     force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version :'2.3.16'
     force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version :'2.3.16'
