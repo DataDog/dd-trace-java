@@ -4,14 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import org.apache.spark.Partitioner;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.catalyst.plans.JoinType;
+import java.util.Set;
 import org.apache.spark.sql.catalyst.plans.QueryPlan;
-import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode;
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning;
 import org.apache.spark.sql.catalyst.trees.TreeNode;
 import scala.Option;
@@ -25,16 +24,37 @@ public abstract class AbstractSparkPlanSerializer {
   private final int MAX_LENGTH = 50;
   private final ObjectMapper mapper = AbstractDatadogSparkListener.objectMapper;
 
-  private final Class[] SAFE_CLASSES = {
-    Attribute.class, // simpleString appends data type, avoid by using toString
-    JoinType.class, // enum
-    Partitioner.class, // not a product or TreeNode
-    BroadcastMode.class, // not a product or TreeNode
-    maybeGetClass("org.apache.spark.sql.execution.exchange.ShuffleOrigin"), // enum (v3+)
-    maybeGetClass("org.apache.spark.sql.catalyst.optimizer.BuildSide"), // enum (v3+)
-    maybeGetClass(
-        "org.apache.spark.sql.execution.ShufflePartitionSpec"), // not a product or TreeNode (v3+)
-  };
+  private final String SPARK_PKG_NAME = "org.apache.spark";
+  private final Set<String> SAFE_CLASS_NAMES =
+      new HashSet<>(
+          Arrays.asList(
+              SPARK_PKG_NAME + ".Partitioner", // not a product or TreeNode
+              SPARK_PKG_NAME
+                  + ".sql.catalyst.expressions.Attribute", // avoid data type added by simpleString
+              SPARK_PKG_NAME + ".sql.catalyst.optimizer.BuildSide", // enum (v3+)
+              SPARK_PKG_NAME + ".sql.catalyst.plans.JoinType", // enum
+              SPARK_PKG_NAME
+                  + ".sql.catalyst.plans.physical.BroadcastMode", // not a product or TreeNode
+              SPARK_PKG_NAME
+                  + ".sql.execution.ShufflePartitionSpec", // not a product or TreeNode (v3+)
+              SPARK_PKG_NAME + ".sql.execution.exchange.ShuffleOrigin" // enum (v3+)
+              ));
+
+  // Add class here if we want to break inheritance and interface traversal early when we see
+  // this class. Any class added must be a class whose parents we do not want to match
+  // (inclusive of the class itself).
+  private final Set<String> NEGATIVE_CACHE_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              "java.io.Serializable",
+              "java.lang.Object",
+              "scala.Equals",
+              "scala.Product",
+              SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
+              SPARK_PKG_NAME + ".sql.catalyst.expressions.Expression",
+              SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
+              SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
+              SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
 
   public abstract String getKey(int idx, TreeNode node);
 
@@ -117,7 +137,7 @@ public abstract class AbstractSparkPlanSerializer {
       } else {
         return value.toString();
       }
-    } else if (instanceOf(value, SAFE_CLASSES)) {
+    } else if (traversedInstanceOf(value, SAFE_CLASS_NAMES, NEGATIVE_CACHE_CLASSES)) {
       return value.toString();
     } else if (value instanceof TreeNode) {
       // fallback case, leave at bottom
@@ -147,22 +167,44 @@ public abstract class AbstractSparkPlanSerializer {
     }
   }
 
-  // Use reflection rather than native `instanceof` for classes added in later Spark versions
-  private boolean instanceOf(Object value, Class[] classes) {
-    for (Class cls : classes) {
-      if (cls != null && cls.isInstance(value)) {
+  private boolean traversedInstanceOf(
+      Object value, Set<String> expectedClasses, Set<String> negativeCache) {
+    if (instanceOf(value.getClass(), expectedClasses, negativeCache)) {
+      return true;
+    }
+
+    // Traverse up inheritance tree to check for matches
+    int lim = 0;
+    Class currClass = value.getClass();
+    while (currClass.getSuperclass() != null && lim < MAX_DEPTH) {
+      currClass = currClass.getSuperclass();
+      if (negativeCache.contains(currClass.getName())) {
+        // don't traverse known paths
+        break;
+      }
+      if (instanceOf(currClass, expectedClasses, negativeCache)) {
         return true;
       }
+      lim += 1;
     }
 
     return false;
   }
 
-  private Class maybeGetClass(String cls) {
-    try {
-      return Class.forName(cls);
-    } catch (ClassNotFoundException e) {
-      return null;
+  private boolean instanceOf(Class cls, Set<String> expectedClasses, Set<String> negativeCache) {
+    // Match on strings to avoid class loading errors
+    if (expectedClasses.contains(cls.getName())) {
+      return true;
     }
+
+    // Check interfaces as well
+    for (Class interfaceClass : cls.getInterfaces()) {
+      if (!negativeCache.contains(interfaceClass.getName())
+          && instanceOf(interfaceClass, expectedClasses, negativeCache)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
