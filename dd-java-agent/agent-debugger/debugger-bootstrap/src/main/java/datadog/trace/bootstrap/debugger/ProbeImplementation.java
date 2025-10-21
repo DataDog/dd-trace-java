@@ -28,10 +28,6 @@ public interface ProbeImplementation {
 
   MethodLocation getEvaluateAt();
 
-  boolean isCaptureSnapshot();
-
-  boolean hasCondition();
-
   CapturedContext.Status createStatus();
 
   class NoopProbeImplementation implements ProbeImplementation {
@@ -100,16 +96,6 @@ public interface ProbeImplementation {
     @Override
     public MethodLocation getEvaluateAt() {
       return evaluateAt;
-    }
-
-    @Override
-    public boolean isCaptureSnapshot() {
-      return captureSnapshot;
-    }
-
-    @Override
-    public boolean hasCondition() {
-      return script != null;
     }
 
     @Override

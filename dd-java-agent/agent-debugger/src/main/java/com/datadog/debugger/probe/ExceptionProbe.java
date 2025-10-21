@@ -8,7 +8,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
-import com.datadog.debugger.instrumentation.ExceptionInstrumentor;
+import com.datadog.debugger.instrumentation.ExceptionInstrumenter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
@@ -55,7 +55,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
-    return new ExceptionInstrumentor(this, methodInfo, diagnostics, probeIndices).instrument();
+    return new ExceptionInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
   @Override

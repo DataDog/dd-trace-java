@@ -58,15 +58,7 @@ public class TelemetryClient {
         return agentlessUrl + "/api/v2/apmtelemetry";
       }
     }
-
-    String site = config.getSite();
-    String prefix = "";
-    if (site.endsWith("datad0g.com")) {
-      prefix = "all-http-intake.logs.";
-    } else if (site.endsWith("datadoghq.com") || site.endsWith("datadoghq.eu")) {
-      prefix = "instrumentation-telemetry-intake.";
-    }
-    return "https://" + prefix + site + "/api/v2/apmtelemetry";
+    return config.getDefaultTelemetryUrl();
   }
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryClient.class);

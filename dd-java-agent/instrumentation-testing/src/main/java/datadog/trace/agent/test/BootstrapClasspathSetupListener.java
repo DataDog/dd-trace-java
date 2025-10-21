@@ -66,6 +66,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     "datadog.environment",
     "datadog.json",
     "datadog.yaml",
+    "datadog.instrument",
     "datadog.appsec.api",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
