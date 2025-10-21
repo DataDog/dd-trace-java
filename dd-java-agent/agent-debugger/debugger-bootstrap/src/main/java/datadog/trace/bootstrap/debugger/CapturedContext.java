@@ -297,7 +297,8 @@ public class CapturedContext implements ValueReferenceResolver {
       ProbeImplementation probeImplementation,
       String thisClassName,
       long startTimestamp,
-      MethodLocation methodLocation) {
+      MethodLocation methodLocation,
+      boolean singleProbe) {
     Status status =
         statusByProbeId.computeIfAbsent(
             probeImplementation.getProbeId().getEncodedId(),
@@ -311,7 +312,7 @@ public class CapturedContext implements ValueReferenceResolver {
     boolean shouldEvaluate =
         MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
     if (shouldEvaluate) {
-      probeImplementation.evaluate(this, status, methodLocation);
+      probeImplementation.evaluate(this, status, methodLocation, singleProbe);
     }
     return status;
   }

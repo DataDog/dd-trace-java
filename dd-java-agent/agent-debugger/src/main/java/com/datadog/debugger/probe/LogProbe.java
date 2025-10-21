@@ -485,7 +485,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
   @Override
   public boolean isReadyToCapture() {
-    if (isLineProbe() && !hasCondition()) {
+    if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
       return ProbeRateLimiter.tryProbe(id);
     }
@@ -494,20 +494,25 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
   @Override
   public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation methodLocation,
+      boolean singleProbe) {
     if (!(status instanceof LogStatus)) {
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
     LogStatus logStatus = (LogStatus) status;
-    if (isLineProbe() && !hasCondition()) {
-      // sampling was already done in isReadToCapture so we assume that if we are executing the
-      // current method it means the status should be sampled
-      if (!logStatus.getDebugSessionStatus().isDisabled()) {
-        logStatus.setSampled(true);
+    if (!hasCondition()) {
+      if (singleProbe) {
+        // sampling was already done in isReadToCapture so we assume that if we are executing the
+        // current method it means the status should be sampled
+        if (!logStatus.getDebugSessionStatus().isDisabled()) {
+          logStatus.setSampled(true);
+        }
+      } else {
+        // sample when no condition associated
+        sample(logStatus, methodLocation);
       }
-    } else if (!hasCondition()) {
-      // sample when no condition associated
-      sample(logStatus, methodLocation);
     }
     logStatus.setCondition(evaluateCondition(context, logStatus));
     CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
