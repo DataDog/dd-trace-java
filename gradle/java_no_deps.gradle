@@ -315,9 +315,9 @@ if (project.plugins.hasPlugin('com.gradleup.shadow')) {
   }
 }
 
-if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
+if (project.hasProperty("removeJarVersionNumbers") && project.findProperty("removeJarVersionNumbers").asBoolean()) {
   tasks.withType(AbstractArchiveTask).configureEach {
-    archiveVersion.convention(null)
+    archiveVersion.unsetConvention()
     archiveVersion.set(null)
   }
 }
