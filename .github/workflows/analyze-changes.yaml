@@ -1,13 +1,9 @@
 name: Analyze changes
 
 on:
-  push:
-    branches: [ master ]
-
-# Cancel long-running jobs when a new commit is pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch:
 
 jobs:
   codeql:
