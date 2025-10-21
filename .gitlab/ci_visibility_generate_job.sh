@@ -2,26 +2,37 @@
 
 set -e
 
-# Generate empty yml for now
+# Generate yml
 cat <<EOF >ci-visibility-test-environment.yml
 stages:
   - ci-visibility-tests
 
 EOF
 
+add_dummy_job() {
+  cat <<EOF >>ci-visibility-test-environment.yml
+skip-ci-visibility-test-environment:
+  stage: ci-visibility-tests
+  script:
+    - echo "CI Visibility test environment not triggered - PR does not have required label"
+EOF
+}
+
 echo "Performing trigger checks for ci-visibility test-environment..."
 pr_number=$(gh pr list --repo DataDog/dd-trace-java --head "$CI_COMMIT_BRANCH" --state open --json number --jq '.[0].number')
 
 if [ -z "$pr_number" ]; then
   echo "No open PR found for branch $CI_COMMIT_BRANCH - skipping trigger"
+  add_dummy_job
   exit 0
 fi
 
 echo "PR #${pr_number} found, checking labels..."
 labels=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json labels --jq '.labels[].name')
 
-if [ -z "$labels" || ! echo "$labels" | grep -q "comp: ci visibility" ]; then
+if [ -z "$labels" ] || ! echo "$labels" | grep -q "comp: ci visibility"; then
   echo "PR #$pr_number is not a CI Visibility PR - skipping trigger"
+  add_dummy_job
   exit 0
 fi
 

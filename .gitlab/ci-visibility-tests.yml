@@ -29,7 +29,7 @@ ci-visibility-test-environment:
     when: always
 
 ci-visibility-test-environment-trigger:
-  stage: publish
+  stage: ci-visibility-tests
   needs:
     - job: ci-visibility-test-environment
   rules:
