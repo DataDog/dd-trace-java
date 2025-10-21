@@ -44,4 +44,12 @@ class ServiceDiscoveryTest extends DDCoreSpecification {
     and:
     map.toString() == '{"schema_version":2,"tracer_language":"java","tracer_version":"1.2.3","hostname":"my_host"}'
   }
+  def "generateFileName"() {
+    when:
+    String name = ServiceDiscovery.generateFileName()
+
+    then:
+    name.startsWith("datadog-tracer-info-")
+    name.length() == "datadog-tracer-info-".length() + 8
+  }
 }
