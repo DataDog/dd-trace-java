@@ -477,7 +477,7 @@ public class MyInstrumentationHelper {
 It is shaded and redirects to our internal logger.
 
 > [!CAUTION]
-> Do NOT put logger fields in instrumentation classes or refer to them in advice:
+> Do NOT put logger fields in instrumentation classes:
 
 ```java
 // BAD - Logger in instrumentation class
