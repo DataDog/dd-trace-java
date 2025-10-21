@@ -14,7 +14,7 @@ add_dummy_job() {
 skip-ci-visibility-test-environment:
   stage: ci-visibility-tests
   script:
-    - echo "CI Visibility test environment not triggered - PR does not have required label"
+    - echo "PR does not have required label - CI Visibility test environment not triggered"
 EOF
 }
 
