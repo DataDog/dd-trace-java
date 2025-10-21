@@ -31,7 +31,7 @@ if (version >= 17) {
   tasks.register('springNativeBuild', Exec) {
     workingDir "$appDir"
     environment += [
-      'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx4096M'",
+      'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx1024M'",
       'JAVA_HOME': javaHome,
       'GRAALVM_HOME': testJvmHome,
       'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]',
