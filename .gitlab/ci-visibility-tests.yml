@@ -21,6 +21,8 @@ check-ci-visibility-label:
     - |
       # Source utility functions
       source .gitlab/ci_visibility_utils.sh
+
+      echo "Performing trigger checks for ci-visibility test-environment"
       touch ci-visibility-pr.env
       
       # Get PR number
