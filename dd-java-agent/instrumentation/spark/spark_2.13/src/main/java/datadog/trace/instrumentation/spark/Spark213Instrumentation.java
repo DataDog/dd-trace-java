@@ -110,7 +110,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
     public static void exit(
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
         @Advice.Argument(0) SparkPlan plan) {
-      if (planInfo.metadata().size() == 0) {
+      if (planInfo.metadata().size() == 0 && Config.get().isDataJobsParseSparkPlanEnabled()) {
         Spark213PlanSerializer planUtils = new Spark213PlanSerializer();
         planInfo =
             new SparkPlanInfo(
