@@ -48,6 +48,7 @@ class GuavaAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -74,6 +75,7 @@ class GuavaAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -104,6 +106,7 @@ class GuavaAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
