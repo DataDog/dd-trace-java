@@ -7,7 +7,8 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.util.TraceUtils.normalizeTag;
+import static datadog.trace.util.TraceUtils.normalizeServiceName;
+import static datadog.trace.util.TraceUtils.normalizeTagValue;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
@@ -351,12 +352,11 @@ public final class CrashUploader {
   private String tagsForPing(String uuid) {
     final StringBuilder tags = new StringBuilder("is_crash_ping:true");
     tags.append(",").append("language_name:jvm");
-    tags.append(",").append(normalizeTag("service:" + storedConfig.service));
+    tags.append(",").append("service:").append(normalizeServiceName(storedConfig.service));
     tags.append(",")
-        .append(
-            normalizeTag(
-                "language_version:" + SystemProperties.getOrDefault("java.version", "unknown")));
-    tags.append(",").append(normalizeTag("tracer_version:" + VersionInfo.VERSION));
+        .append("language_version:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());
   }
