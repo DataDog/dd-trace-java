@@ -1,6 +1,6 @@
 abstract class DisplayArtifactsTask extends DefaultTask {
 
-  @Option(option = "configuration", description = "Comma separated list of of configuration name (defaults to 'archives,javadocElements,sourcesElements'). Use 'all' to display all configurations.)")
+  @Option(option = "configuration", description = "Comma separated list of configuration name (defaults to 'archives,javadocElements,sourcesElements'). Use 'all' to display all configurations.")
   @Input
   @Optional
   abstract Property<String> getConfigurationName()
@@ -16,7 +16,8 @@ abstract class DisplayArtifactsTask extends DefaultTask {
     // This eager access is ok as it is during the task execution phase
     def builder = new StringBuilder()
     def targetConfig = configurationName.map { it.split(",").toList().toSet() }.orNull
-    project.configurations.matching { targetConfig.contains("all") ? true : targetConfig.contains(it.name) }.each { config ->
+    def configs = targetConfig.contains("all") ? project.configurations : project.configurations.matching { targetConfig.contains(it.name) }
+    configs.each { config ->
       def outgoingFiles = config.outgoing.artifacts.getFiles()
       if (!outgoingFiles.isEmpty()) {
         builder.setLength(0)
