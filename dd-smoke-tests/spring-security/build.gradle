@@ -32,7 +32,13 @@ dependencies {
 
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.jar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def jarTask = tasks.named('jar', Jar).get()
+        return ["-Ddatadog.smoketest.springboot.shadowJar.path=${jarTask.archiveFile.get()}"]
+      }
+    })
 }
 
 tasks.named("processResources", ProcessResources) {

@@ -3,7 +3,7 @@ project.pluginManager.withPlugin('kotlin') {
   tasks.named("compileTestGroovy", GroovyCompile) {
     //Note: look like it should be `classpath += files(sourceSets.test.kotlin.classesDirectory)`
     //instead, but kotlin plugin doesn't support it (yet?)
-    classpath += files(compileTestKotlin.destinationDirectory)
+    classpath += files(tasks.named('compileTestKotlin').map { it.destinationDirectory })
   }
 
   // Having Groovy, Kotlin and Java in the same project is a bit problematic

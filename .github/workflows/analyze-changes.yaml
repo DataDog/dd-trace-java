@@ -1,13 +1,9 @@
 name: Analyze changes
 
 on:
-  push:
-    branches: [ master ]
-
-# Cancel long-running jobs when a new commit is pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch:
 
 jobs:
   codeql:
@@ -34,7 +30,7 @@ jobs:
             ${{ runner.os }}-gradle-
         
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.29.5
+        uses: github/codeql-action/init@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v4.30.8
         with:
           languages: 'java'
           build-mode: 'manual'
@@ -53,7 +49,7 @@ jobs:
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
-        uses: github/codeql-action/analyze@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.29.5
+        uses: github/codeql-action/analyze@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v4.30.8
 
   trivy:
     name: Analyze changes with Trivy
@@ -118,7 +114,7 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.29.5
+        uses: github/codeql-action/upload-sarif@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v4.30.8
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'

@@ -104,10 +104,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
+      } catch (final BlockingException e) {
+        throw e;
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
+      } finally {
+        ssrfIastCheck(request);
       }
-      ssrfIastCheck(request);
     }
     return span;
   }

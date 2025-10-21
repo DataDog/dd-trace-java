@@ -56,7 +56,7 @@ jobs:
           git commit -a -m "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
-        uses: DataDog/commit-headless@1186485b788f57eedaaadb19919781698b4d262f # action/v1.0.0
+        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
         if: ${{ steps.create-commit.outputs.commit != '' }}
         with:
           branch: cloudfoundry

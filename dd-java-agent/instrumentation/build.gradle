@@ -39,7 +39,7 @@ subprojects { Project subProj ->
       def name = "java$version.majorVersion"
       jdkCompile = "main_${name}Implementation"
     }
-    configurations.muzzleBootstrap {
+    configurations.named('muzzleBootstrap') {
       exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
     }
     dependencies {
@@ -114,44 +114,43 @@ tasks.named('shadowJar', ShadowJar) {
   dependencies deps.excludeShared
 }
 
-tasks.register('generateInstrumenterIndex', JavaExec) {
-  // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
-
-  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${resourcesDir}/instrumenter.index"
-
-  it.group = 'Build'
-  it.description = "Generate instrumenter.index"
-  it.mainClass = 'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator'
-  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
-  it.inputs.files(it.classpath)
-  it.outputs.files(indexFile)
-  it.args = [resourcesDir]
-
-  dependsOn 'processResources'
+// temporary config to add slf4j-simple so we get logging from instrumenters while indexing
+project.configurations.register('slf4j-simple') {
+  it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
 }
 
-tasks.register('generateKnownTypesIndex', JavaExec) {
-  // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
+TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, String description ) {
+  def indexTask = tasks.register(indexTaskName, JavaExec) {
+    def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
 
-  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${resourcesDir}/known-types.index"
-
-  it.group = 'Build'
-  it.description = "Generate known-types.index"
-  it.mainClass = 'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator'
-  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
-  it.inputs.files(it.classpath)
-  it.outputs.files(indexFile)
-  it.args = [resourcesDir]
-
-  dependsOn 'processResources'
+    it.group = LifecycleBasePlugin.BUILD_GROUP
+    it.description = description
+    it.mainClass = indexer
+    it.classpath = objects.fileCollection().tap {
+      it.from(project.configurations.named("runtimeClasspath"))
+      it.from(project.configurations.named('slf4j-simple'))
+    }
+    it.inputs.files(it.classpath)
+    it.outputs.dir(destinationDir)
+    it.argumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          return destinationDir.map { [it.asFile.path] }.get()
+        }
+      })
+  }
+  sourceSets.main.resources.srcDir(indexTask)
+  return indexTask
 }
 
-tasks.named("shadowJar", ShadowJar) {
-  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
-}
+registerIndexTask(
+  'generateInstrumenterIndex',
+  'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator',
+  'Generate instrumenter.index'
+  )
+
+registerIndexTask(
+  'generateKnownTypesIndex',
+  'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator',
+  'Generate known-types.index'
+  )

@@ -83,6 +83,10 @@ public final class ClassloadingInstrumentation extends InstrumenterModule
   public static class LoadClassAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(0) final String name) {
+      if (!name.startsWith("datadog.")) {
+        return null; // ignore packages that won't be bundled on the dd-java-agent bootstrap
+      }
+
       // we must access agent types used in the call-depth block like 'Constants' before entering it
       // - otherwise we risk loading these agent types with a non-zero call-depth, which will fail
       final String[] bootstrapPrefixes = Constants.BOOTSTRAP_PACKAGE_PREFIXES;

@@ -49,8 +49,8 @@ public class GrowableBufferTest {
 
     gb.put((byte) 42);
     ByteBuffer slice = gb.slice();
-    assertEquals(gb.messageCount(), 0);
-    assertEquals(slice.get(), 42);
+    assertEquals(0, gb.messageCount());
+    assertEquals(42, slice.get());
   }
 
   @Test
