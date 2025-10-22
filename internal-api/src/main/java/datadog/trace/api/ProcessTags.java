@@ -146,7 +146,7 @@ public class ProcessTags {
                 .map(
                     entry ->
                         UTF8BytesString.create(
-                            entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue())));
+                            entry.getKey() + ":" + TraceUtils.normalizeTagValue(entry.getValue())));
         utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
         stringListForm =
             Collections.unmodifiableList(

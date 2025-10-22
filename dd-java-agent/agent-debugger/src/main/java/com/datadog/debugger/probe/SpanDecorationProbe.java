@@ -5,7 +5,7 @@ import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
+import com.datadog.debugger.instrumentation.CapturedContextInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -136,7 +136,7 @@ public class SpanDecorationProbe extends ProbeDefinition {
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
     boolean captureEntry = evaluateAt != MethodLocation.EXIT;
-    return new CapturedContextInstrumentor(
+    return new CapturedContextInstrumenter(
             this, methodInfo, diagnostics, probeIndices, false, captureEntry, Limits.DEFAULT)
         .instrument();
   }
