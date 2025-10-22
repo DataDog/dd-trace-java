@@ -8,6 +8,7 @@ This documentation provides information for developers to set up their environme
   * [Install the required JDKs](#install-the-required-jdks)
   * [Install git](#install-git)
   * [Install Docker Desktop](#install-docker-desktop)
+  * [Configure Akka Token](#configure-akka-token)
 * [Clone the repository and set up git](#clone-the-repository-and-set-up-git)
 * [Building the project](#building-the-project)
 
@@ -247,6 +248,18 @@ winget install --id Docker.DockerDesktop
 
 > [!NOTE]
 > Both git configurations (hooks and submodule) will only be applied to this project and won't apply globally in your setup.
+
+### Configure Akka Token
+> [!NOTE]
+> You can skip this step if you don’t need instrumentation for the **akka-http-10.6** module.
+> For background on why Akka now requires authentication, see this [article](https://akka.io/blog/why-we-are-changing-the-license-for-akka).
+
+To enable access to Akka artifacts hosted on Lightbend’s private repository, you’ll need to configure an authentication token.
+1. Obtain a repository token. Visit the Akka account [page](https://account.akka.io/token) to generate a secure repository token.
+2. Set up the environment variable. Create an environment variable named:
+```shell
+  ORG_GRADLE_PROJECT_akkaRepositoryToken=<your_token>
+```
 
 ## Building the project
 

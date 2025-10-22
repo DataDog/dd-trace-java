@@ -37,37 +37,16 @@ public final class HotspotCrashLogParser {
     DONE
   }
 
-  private static class FileLine {
-    final String file;
-    final int lineNum;
-
-    public FileLine(String file, int lineNum) {
-      this.file = file;
-      this.lineNum = lineNum;
-    }
-  }
-
   private State state = State.NEW;
 
-  private static final Pattern COLUMN_SPLITTER = Pattern.compile(":");
+  private static final Pattern PLUS_SPLITTER = Pattern.compile("\\+");
   private static final Pattern SPACE_SPLITTER = Pattern.compile("\\s+");
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
 
-  private FileLine fileLine(String line) {
-    if (line.endsWith(")")) {
-      int idx = line.lastIndexOf('(');
-      String src = line.substring(idx + 1, line.length() - 1);
-      String[] srcParts = COLUMN_SPLITTER.split(src);
-      if (srcParts.length == 2) {
-        return new FileLine(srcParts[0], Integer.parseInt(srcParts[1]));
-      }
-    }
-    return null;
-  }
-
   private StackFrame parseLine(String line) {
-    FileLine fLine = fileLine(line);
-    String function = null;
+    String functionName = null;
+    Integer functionLine = null;
+    String filename = null;
     char firstChar = line.charAt(0);
     switch (firstChar) {
       case 'J':
@@ -75,14 +54,20 @@ public final class HotspotCrashLogParser {
           // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @
           // 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
           String[] parts = SPACE_SPLITTER.split(line);
-          function = parts[3];
+          functionName = parts[3];
           break;
         }
       case 'j':
         {
           // j  one.profiler.AsyncProfiler.stop()V+1
-          int plusIdx = line.lastIndexOf('+');
-          function = plusIdx > -1 ? line.substring(3, plusIdx) : line.substring(3);
+          String[] parts = PLUS_SPLITTER.split(line, 2);
+          functionName = parts[0].substring(3);
+          if (parts.length > 1) {
+            try {
+              functionLine = Integer.parseInt(parts[1]);
+            } catch (Throwable ignored) {
+            }
+          }
           break;
         }
       case 'C':
@@ -91,13 +76,22 @@ public final class HotspotCrashLogParser {
           // V  [libjvm.so+0x8fc20a]  thread_entry(JavaThread*, JavaThread*)+0x8a
           if (line.endsWith("]")) {
             // C  [libpthread.so.0+0x13d60]
-            function = line.substring(4, line.length() - 1);
+            functionName = line.substring(4, line.length() - 1);
           } else {
             int plusIdx = line.lastIndexOf('+');
-            function =
+            functionName =
                 plusIdx > -1
                     ? line.substring(line.indexOf(']') + 3, plusIdx)
                     : line.substring(line.indexOf(']') + 3);
+          }
+          int libstart = line.indexOf('[');
+          if (libstart > 0) {
+            int libend = line.indexOf(']', libstart + 1);
+            if (libend > 0) {
+              String[] parts = PLUS_SPLITTER.split(line.substring(libstart + 1, libend), 2);
+              filename = parts[0];
+              // TODO: extract relative address for second part and send to the intake
+            }
           }
           break;
         }
@@ -105,7 +99,7 @@ public final class HotspotCrashLogParser {
         {
           // v  ~StubRoutines::call_stub
           int plusIdx = line.lastIndexOf('+');
-          function =
+          functionName =
               plusIdx > -1
                   ? line.substring(line.indexOf(']') + 3, plusIdx)
                   : line.substring(line.indexOf(']') + 3);
@@ -115,9 +109,8 @@ public final class HotspotCrashLogParser {
         // do nothing
         break;
     }
-    if (function != null || fLine != null) {
-      return new StackFrame(
-          fLine != null ? fLine.file : null, fLine != null ? fLine.lineNum : 0, function);
+    if (functionName != null) {
+      return new StackFrame(filename, functionLine, functionName);
     }
     return null;
   }
@@ -220,7 +213,7 @@ public final class HotspotCrashLogParser {
             SystemProperties.get("os.name"),
             SemanticVersion.of(SystemProperties.get("os.version")));
     ProcInfo procInfo = pid != null ? new ProcInfo(pid) : null;
-    return new CrashLog(false, datetime, error, metadata, osInfo, procInfo);
+    return new CrashLog(false, datetime, error, metadata, osInfo, procInfo, "1.0");
   }
 
   static String dateTimeToISO(String datetime) {

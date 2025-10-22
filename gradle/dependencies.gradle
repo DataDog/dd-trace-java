@@ -31,6 +31,7 @@ final class CachedData {
       exclude(project(':dd-java-agent:agent-crashtracking'))
       exclude(project(':dd-java-agent:ddprof-lib'))
       exclude(dependency('org.slf4j::'))
+      exclude(dependency(':dd-instrument-java:'))
 
       // okhttp and its transitives (both fork and non-fork)
       exclude(dependency('com.datadoghq.okhttp3:okhttp'))
@@ -44,6 +45,9 @@ final class CachedData {
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
       exclude(dependency('com.github.jnr::'))
       exclude(dependency('org.ow2.asm::'))
+
+      // javac plugin client
+      exclude(dependency('com.datadoghq:dd-javac-plugin-client'))
 
       // moshi and its transitives
       exclude(dependency('com.squareup.moshi::'))

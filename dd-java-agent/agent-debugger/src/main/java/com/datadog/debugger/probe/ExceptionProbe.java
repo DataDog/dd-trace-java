@@ -8,7 +8,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
-import com.datadog.debugger.instrumentation.ExceptionInstrumentor;
+import com.datadog.debugger.instrumentation.ExceptionInstrumenter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
@@ -46,15 +46,16 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         // forcing a useless condition to be instrumented with captureEntry=false
         new ProbeCondition(DSL.when(DSL.TRUE), "true"),
         capture,
-        sampling);
+        sampling,
+        null);
     this.exceptionProbeManager = exceptionProbeManager;
     this.chainedExceptionIdx = chainedExceptionIdx;
   }
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new ExceptionInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+    return new ExceptionInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
   @Override

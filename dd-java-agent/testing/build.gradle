@@ -27,7 +27,7 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
 
-configurations.api {
+configurations.named('api') {
   exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
 }
 

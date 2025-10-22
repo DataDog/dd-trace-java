@@ -49,6 +49,7 @@ class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -79,6 +80,7 @@ class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -107,6 +109,7 @@ class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -134,6 +137,7 @@ class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -164,6 +168,7 @@ class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -192,6 +197,7 @@ class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

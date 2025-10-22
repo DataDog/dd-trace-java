@@ -3,7 +3,7 @@ include:
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
-  - local: ".gitlab/ci-visibility-tests.yml"
+  #  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
@@ -167,20 +167,14 @@ default:
   before_script:
     - source .gitlab/gitlab-utils.sh
     # Akka token added to SSM from https://account.akka.io/token
-    - export AKKA_REPO_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
+    - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    - |
-      # Don't put jvm args here as it will be picked up by child gradle processes used in tests
-      cat << EOF > $GRADLE_USER_HOME/gradle.properties
-      mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
-      gradlePluginProxy=$GRADLE_PLUGIN_PROXY
-      akkaRepositoryToken=$AKKA_REPO_TOKEN
-      EOF
-    - |
-      # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
-      sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx$GRADLE_MEM -Xms$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
+    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -318,14 +312,12 @@ populate_dep_cache:
         CACHE_TYPE: "base"
       - GRADLE_TARGET: ":profilingTest"
         CACHE_TYPE: "profiling"
-#      FIXME: Gitlab doesn't support s3 based caches >5GB. Fixed in Gitlab 17.5
-#      See: https://gitlab.com/gitlab-org/gitlab-runner/-/issues/26921#note_2132307223
-#      - GRADLE_TARGET: ":instrumentationTest"
-#        CACHE_TYPE: "inst"
-#      - GRADLE_TARGET: ":instrumentationLatestDepTest"
-#        CACHE_TYPE: "latestdep"
-#      - GRADLE_TARGET: ":smokeTest"
-#        CACHE_TYPE: "smoke"
+      - GRADLE_TARGET: ":instrumentationTest"
+        CACHE_TYPE: "inst"
+      - GRADLE_TARGET: ":instrumentationLatestDepTest"
+        CACHE_TYPE: "latestdep"
+      - GRADLE_TARGET: ":smokeTest"
+        CACHE_TYPE: "smoke"
 
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
@@ -379,10 +371,10 @@ test_published_artifacts:
     - rm -rf "${mvn_local_repo}/com/datadoghq"
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
     - cd test-published-dependencies
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew --version
     - ./gradlew check --info $GRADLE_ARGS
   after_script:
@@ -640,7 +632,7 @@ test_inst_latest:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_TARGET: ":instrumentationLatestDepTest"
-    CACHE_TYPE: "latestDep"
+    CACHE_TYPE: "latestdep"
   parallel:
     matrix:
       - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
@@ -729,7 +721,7 @@ test_smoke_graalvm:
     NON_DEFAULT_JVMS: "true"
   parallel:
     matrix:
-      - testJvm: ["graalvm17", "graalvm21"]
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
   extends: .test_job

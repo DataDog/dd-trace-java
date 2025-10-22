@@ -31,6 +31,7 @@
 1 com.sun.*
 0 com.sun.jersey.api.client.*
 0 com.sun.messaging.*
+1 datadog.instrument.*
 1 datadog.opentracing.*
 1 datadog.slf4j.*
 1 datadog.trace.*

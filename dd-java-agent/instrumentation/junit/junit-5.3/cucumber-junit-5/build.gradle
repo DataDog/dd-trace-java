@@ -31,7 +31,7 @@ dependencies {
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '+'
 }
 
-configurations.matching({ it.name.startsWith('test') }).each({
+configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
     force group: 'org.junit.platform', name: 'junit-platform-suite', version: libs.versions.junit.platform.get()

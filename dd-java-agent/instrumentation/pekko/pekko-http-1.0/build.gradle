@@ -118,16 +118,13 @@ tasks.named("latestDepTest", Test) {
 }
 
 tasks.named("compileBaseTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestPekko10TestGroovy", GroovyCompile) {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }

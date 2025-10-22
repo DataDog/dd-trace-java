@@ -12,7 +12,7 @@ tasks.withType(AbstractCompile).configureEach {
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  javaLauncher = getJavaLauncherFor(17)
+  configureCompiler(it, 17)
 }
 
 dependencies {

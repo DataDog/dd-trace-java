@@ -5,7 +5,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.Generated;
-import com.datadog.debugger.instrumentation.CodeOriginInstrumentor;
+import com.datadog.debugger.instrumentation.CodeOriginInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult.Status;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -35,8 +35,8 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new CodeOriginInstrumentor(this, methodInfo, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+    return new CodeOriginInstrumenter(this, methodInfo, probeIndices).instrument();
   }
 
   @Override

@@ -10,18 +10,6 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("test", Test) {
-  environment "_HANDLER", "Handler"
-}
-
-tasks.named("forkedTest", Test) {
-  environment "_HANDLER", "Handler"
-}
-
-tasks.named("latestDepTest", Test) {
-  environment "_HANDLER", "Handler"
-}
-
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
   testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
