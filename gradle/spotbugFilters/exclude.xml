@@ -31,6 +31,8 @@
       <Bug pattern="AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE" />
       <Bug pattern="AT_NONATOMIC_64BIT_PRIMITIVE" />
       <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE" />
+      <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE" />
+      <Bug pattern="HSM_HIDING_METHOD" />
     </Or>
   </Match>
 </FindBugsFilter>

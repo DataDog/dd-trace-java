@@ -32,6 +32,10 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+
+  // Some strange issue with spotbug classpath???
+  spotbugs "com.github.spotbugs:spotbugs:4.9.8"
+  spotbugs "org.apache.commons:commons-lang3:3.19.0"
 }
 
 tasks.withType(Test).configureEach {

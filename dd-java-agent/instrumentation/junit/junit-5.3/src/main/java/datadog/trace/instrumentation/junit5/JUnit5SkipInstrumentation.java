@@ -15,7 +15,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -77,9 +76,6 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
    */
   public static class JUnit5SkipAdvice {
 
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "skipResult is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void shouldBeSkipped(
         @Advice.This TestDescriptor testDescriptor,

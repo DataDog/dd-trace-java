@@ -39,7 +39,7 @@ dependencies {
   testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation(libs.groovy)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.9.7")
+  testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.9.8")
 }
 
 sourceSets {
