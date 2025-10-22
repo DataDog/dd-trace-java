@@ -353,6 +353,7 @@ include(
   ":dd-java-agent:instrumentation:hibernate:core-4.3",
   ":dd-java-agent:instrumentation:http-url-connection",
   ":dd-java-agent:instrumentation:hystrix-1.4",
+  ":dd-java-agent:instrumentation:ibmmq",
   ":dd-java-agent:instrumentation:iast-instrumenter",
   ":dd-java-agent:instrumentation:ignite-2.0",
   ":dd-java-agent:instrumentation:jackson-core",

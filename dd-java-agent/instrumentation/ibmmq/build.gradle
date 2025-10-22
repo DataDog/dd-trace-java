@@ -1,0 +1,72 @@
+muzzle {
+  //    implementation("com.ibm.mq:com.ibm.mq.allclient:9.4.3.1")
+  pass {
+    group = "com.ibm.mq"
+    module = "com.ibm.mq.allclient"
+    versions = "9.4.3.1"
+  }
+  // pass {
+  //   group = 'org.springframework'
+  //   module = 'spring-messaging'
+  //   versions = "[4.0.0.RELEASE,)"
+  //   assertInverse = true
+  // }
+
+
+
+
+
+
+
+
+  // pass {
+  //   name = "javax.jms"
+  //   group = "javax.jms"
+  //   module = "javax.jms-api"
+  //   versions = "[,]"
+  // }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+// repositories {
+//   maven {
+//     // only place that has org.jboss.naming:jnpserver:5.0.3.GA publicly accessible
+//     name = 'jboss-releases'
+//     url = 'https://repository.jboss.org/nexus/content/repositories/releases/'
+//   }
+// }
+
+// addTestSuite('latestDepTest')
+// addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+// apply from: "$rootDir/gradle/configure_tests.gradle"
+
+// tasks.named("latestDepTest", Test) {
+//   finalizedBy 'latestDepForkedTest'
+// }
+
+tasks.withType(JavaCompile) {
+  options.compilerArgs << "-Xlint:deprecation"
+}
+
+dependencies {
+  compileOnly group: 'com.ibm.mq', name: 'com.ibm.mq.allclient', version: '9.4.3.1'
+  implementation group: 'com.ibm.mq', name: 'com.ibm.mq.allclient', version: '9.4.3.1'
+}
+// dependencies {
+//   compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
+
+//   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+//   testImplementation group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.14.5'
+//   testImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
+//   testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
+
+//   // required for Java 11+ .  Latest version that runs on Java 7
+//   testImplementation group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
+//   testImplementation group: 'org.springframework', name: 'spring-jms', version: '4.3.21.RELEASE' // 4.x required for Java 7
+//   testImplementation group: 'javax.ejb', name: 'javax.ejb-api', version: '3.2'
+
+//   latestDepTestImplementation group: 'org.hornetq', name: 'hornetq-jms-client', version: '2.4.7.Final'
+//   latestDepTestImplementation group: 'org.hornetq', name: 'hornetq-jms-server', version: '2.4.7.Final'
+// }
