@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.spark
 
+import datadog.trace.test.util.DDSpecification
 import org.apache.spark.SparkConf
-import spock.lang.Specification
 
-class OpenlineageParentContextTest extends Specification {
+class OpenlineageParentContextTest extends DDSpecification {
   def "should create OpenLineageParentContext with particular trace id based on root parent id" () {
     given:
+    injectSysConfig("data.jobs.openlineage.enabled", "true")
     SparkConf mockSparkConf = Mock(SparkConf)
 
     when:
@@ -38,6 +39,7 @@ class OpenlineageParentContextTest extends Specification {
 
   def "should create empty OpenLineageParentContext if any required field is missing" () {
     given:
+    injectSysConfig("data.jobs.openlineage.enabled", "true")
     SparkConf mockSparkConf = Mock(SparkConf)
 
     when:
@@ -66,6 +68,7 @@ class OpenlineageParentContextTest extends Specification {
 
   def "should only generate a non-empty OpenlineageParentContext if parentRunId is a valid UUID" () {
     given:
+    injectSysConfig("data.jobs.openlineage.enabled", "true")
     SparkConf mockSparkConf = Mock(SparkConf)
 
     when:
@@ -94,6 +97,7 @@ class OpenlineageParentContextTest extends Specification {
 
   def "should only generate a non-empty OpenlineageParentContext if rootParentRunId is a valid UUID" () {
     given:
+    injectSysConfig("data.jobs.openlineage.enabled", "true")
     SparkConf mockSparkConf = Mock(SparkConf)
 
     when:
@@ -118,6 +122,22 @@ class OpenlineageParentContextTest extends Specification {
     "invalid-uuid"                         | false
     "6afeb6ee-729d-37f7-b8e6f47ca694"      | false
     "6AFEB6EE-729D-37F7-AD73-B8E6F47CA694" | true
+  }
+
+  def "should create empty OpenLineageParentContext if data jobs openlineage not enabled" () {
+    given:
+    injectSysConfig("data.jobs.openlineage.enabled", "falsebrn")
+    SparkConf mockSparkConf = Mock(SparkConf)
+
+    when:
+    mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAMESPACE) >> true
+    mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_JOB_NAME) >> true
+    mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_PARENT_RUN_ID) >> true
+    mockSparkConf.contains(OpenlineageParentContext.OPENLINEAGE_ROOT_PARENT_RUN_ID) >> true
+
+    then:
+    Optional<OpenlineageParentContext> parentContext = OpenlineageParentContext.from(mockSparkConf)
+    !parentContext.isPresent()
   }
 }
 

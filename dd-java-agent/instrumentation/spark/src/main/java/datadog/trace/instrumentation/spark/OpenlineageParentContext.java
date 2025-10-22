@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -43,6 +44,11 @@ public class OpenlineageParentContext implements AgentSpanContext {
   public static final String OPENLINEAGE_ROOT_PARENT_RUN_ID = "spark.openlineage.rootParentRunId";
 
   public static Optional<OpenlineageParentContext> from(SparkConf sparkConf) {
+    if (!Config.get().isDataJobsOpenLineageEnabled()) {
+      log.debug(
+          "OpenLineage - Data Jobs integration disabled. Not returning OpenlineageParentContext");
+      return Optional.empty();
+    }
     if (!sparkConf.contains(OPENLINEAGE_PARENT_JOB_NAMESPACE)
         || !sparkConf.contains(OPENLINEAGE_PARENT_JOB_NAME)
         || !sparkConf.contains(OPENLINEAGE_PARENT_RUN_ID)) {
