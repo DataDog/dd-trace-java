@@ -3,6 +3,7 @@ package datadog.environment;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -55,7 +56,7 @@ public class ThreadUtilsTest {
 
   @Test
   public void isVirtualThread_true() throws InterruptedException {
-    if (!ThreadUtils.supportsVirtualThreads()) return;
+    assumeTrue(ThreadUtils.supportsVirtualThreads());
 
     Thread vThread = startVirtualThread(() -> {});
     try {
@@ -67,7 +68,7 @@ public class ThreadUtilsTest {
 
   @Test
   public void isCurrentThreadVirtual_true() throws InterruptedException {
-    if (!ThreadUtils.supportsVirtualThreads()) return;
+    assumeTrue(ThreadUtils.supportsVirtualThreads());
 
     AtomicBoolean result = new AtomicBoolean();
 
