@@ -14,7 +14,7 @@ import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilderThreadLocalCache;
 import org.junit.jupiter.api.Test;
 
-public final class CoreTracerTest {
+public final class CoreTracerTest2 {
   static final CoreTracer TRACER = CoreTracer.builder().build();
 
   static final ReusableSingleSpanBuilderThreadLocalCache CACHE =
