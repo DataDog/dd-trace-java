@@ -118,7 +118,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
     }
     long start = System.nanoTime();
     try {
-      return !probeCondition.execute(capture);
+      return probeCondition.execute(capture);
     } catch (EvaluationException ex) {
       DebuggerAgent.getSink().getProbeStatusSink().addError(probeId, ex);
       return false;
