@@ -5,8 +5,8 @@ subject_pattern: repo:DataDog/dd-trace-java:ref:refs/(heads/master|tags/v[0-9]+.
 claim_pattern:
   event_name: (push|workflow_dispatch)
   ref: refs/(heads/master|tags/v[0-9]+\.[0-9]+\.0)
-  ref_protected: "true"
   job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/create-release-branch\.yaml@refs/heads/master
 
 permissions:
   contents: write
+  pull_requests: write
