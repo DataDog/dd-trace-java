@@ -47,6 +47,7 @@ val excludedClassesBranchCoverage by extra(
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
+    "datadog.trace.api.telemetry.NoOpConfigInversionMetricCollector",
     "datadog.trace.config.inversion.GeneratedSupportedConfigurations",
     "datadog.trace.config.inversion.SupportedConfigurationSource"
   )

@@ -626,6 +626,6 @@ if (providers.gradleProperty("akkaRepositoryToken").isPresent) {
 include(
   ":dd-java-agent:benchmark",
   ":dd-java-agent:benchmark-integration",
-  ":dd-java-agent:benchmark-integration:jetty:jetty-perftest",
+  ":dd-java-agent:benchmark-integration:jetty-perftest",
   ":dd-java-agent:benchmark-integration:play-perftest",
 )

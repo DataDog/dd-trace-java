@@ -32,7 +32,6 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,11 +54,6 @@ public class TriggerProbeTest extends CapturingTestBase {
     setFieldInConfig(Config.get(), "debuggerCodeOriginEnabled", true);
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
     setFieldInConfig(Config.get(), "distributedDebuggerEnabled", true);
-  }
-
-  @AfterEach
-  public void after() {
-    ProbeRateLimiter.resetAll();
   }
 
   @Test

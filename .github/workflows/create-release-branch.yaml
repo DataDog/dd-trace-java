@@ -15,7 +15,7 @@ jobs:
   create-release-branch:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Allow pushing the empty release branch
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -45,8 +45,10 @@ jobs:
           BRANCH="release/${TAG%.0}.x"
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout dd-trace-java
+      - name: Checkout dd-trace-java at tag
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        with:
+          ref: ${{ github.sha }}
 
       - name: Check if branch already exists
         id: check-branch
@@ -59,6 +61,19 @@ jobs:
             echo "creating_new_branch=true" >> "$GITHUB_OUTPUT"
             echo "Branch $BRANCH does not exist - proceeding with following steps"
           fi
+
+      - name: Create and push empty release branch
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        run: |
+          git checkout -b "${{ steps.define-branch.outputs.branch }}"
+          git push -u origin "${{ steps.define-branch.outputs.branch }}"
+
+      - name: Define temp branch name
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        id: define-temp-branch
+        run: |
+          TEMP_BRANCH="${{ steps.define-branch.outputs.branch }}-pin-system-tests"
+          echo "branch=${TEMP_BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Update system-tests references to latest commit SHA on main
         if: steps.check-branch.outputs.creating_new_branch == 'true'
@@ -73,15 +88,25 @@ jobs:
           git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       
-      - name: Push changes
+      - name: Push changes to temp branch
         if: steps.check-branch.outputs.creating_new_branch == 'true'
         uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
-          branch: "${{ steps.define-branch.outputs.branch }}"
-          # for scheduled runs, sha is the tip of the default branch
-          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          branch: "${{ steps.define-temp-branch.outputs.branch }}"
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
+
+      - name: Create pull request from temp branch to release branch
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        env:
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        run: |
+          gh pr create  --title "Pin system-tests for ${{ steps.define-branch.outputs.branch }}" \
+            --base "${{ steps.define-branch.outputs.branch }}" \
+            --head "${{ steps.define-temp-branch.outputs.branch }}" \
+            --label "tag: dependencies" \
+            --label "tag: no release notes" \
+            --body "This PR pins the system-tests reference for the release branch."
