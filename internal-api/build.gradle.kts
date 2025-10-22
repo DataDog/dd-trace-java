@@ -2,6 +2,7 @@ import groovy.lang.Closure
 
 plugins {
   `java-library`
+  id("de.thetaphi.forbiddenapis") version "3.10"
   id("me.champeau.jmh")
 }
 
@@ -12,6 +13,10 @@ java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(8)
   }
+}
+
+tasks.forbiddenApisMain {
+  failOnMissingClasses = false
 }
 
 tasks.withType<JavaCompile>().configureEach {

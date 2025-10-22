@@ -8,7 +8,7 @@ plugins {
 
   id("com.diffplug.spotless") version "8.0.0"
   id("com.github.spotbugs") version "6.4.4"
-  id("de.thetaphi.forbiddenapis") version "3.8"
+  id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.6" apply false
   id("me.champeau.jmh") version "0.7.3" apply false

@@ -18,7 +18,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "de.thetaphi:forbiddenapis:3.8"
+    classpath "de.thetaphi:forbiddenapis:3.10"
   }
 }
 
@@ -40,5 +40,5 @@ afterEvaluate {
 }
 
 dependencies {
-  compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.8'
+  compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.10'
 }

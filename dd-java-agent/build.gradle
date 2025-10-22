@@ -42,7 +42,7 @@ tasks.named("compileJava") {
 }
 
 dependencies {
-  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.10'
   testImplementation sourceSets.main_java6.output
 }
 
