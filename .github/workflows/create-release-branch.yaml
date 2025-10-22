@@ -69,7 +69,6 @@ jobs:
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
-          commits: ""
 
       - name: Define temp branch name
         if: steps.check-branch.outputs.creating_new_branch == 'true'
