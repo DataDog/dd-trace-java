@@ -282,6 +282,8 @@ abstract class ProcessManager extends Specification {
 
       buffer.compact()
     }
+    reader.close()
+
     if (buffer.position() > 0) {
       buffer.flip().toString().split('\r\n|\n').each {
         closure.call(it.trim())
