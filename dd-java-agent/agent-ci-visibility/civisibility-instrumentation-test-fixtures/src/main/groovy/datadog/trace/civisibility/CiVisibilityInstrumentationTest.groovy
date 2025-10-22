@@ -3,7 +3,6 @@ package datadog.trace.civisibility
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.environment.EnvironmentVariables
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
@@ -368,7 +367,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
 
     def additionalIgnoredTags = CiVisibilityTestUtils.IGNORED_TAGS + ignoredTags
 
-    if (EnvironmentVariables.get("GENERATE_TEST_FIXTURES") != null) {
+    if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
       return generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
     }
 
