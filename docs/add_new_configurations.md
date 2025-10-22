@@ -26,6 +26,8 @@ In order to properly add a new configuration in the tracer, follow the below ste
    1. If there are aliases of the Environment Variable, add them to the `aliases` key of the file.
 8. If the configuration is unique to all tracers, add it to the [Feature Parity Dashboard](https://feature-parity.us1.prod.dog/#/configurations?viewType=configurations). This ensures that we have good documentation of all configurations supported in the tracer.
 
+For details on adding environment variables to `metadata/supported-configurations.json` or the Feature Parity Dashboard, refer to this [document](https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5372248222/APM+-+Centralized+Configuration+Config+inversion#dd-trace-java).
+
 ## Verifying the Configuration
 
 To verify a configuration has been correctly added, developers can modify existing test cases in `ConfigTest.groovy` to set the value of the configuration with various sources and confirm the internal value is correctly set in `Config.java`.
