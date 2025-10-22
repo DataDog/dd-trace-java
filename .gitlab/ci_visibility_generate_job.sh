@@ -13,6 +13,7 @@ add_dummy_job() {
   cat <<EOF >>ci-visibility-test-environment.yml
 skip-ci-visibility-test-environment:
   stage: ci-visibility-tests
+  tags: [ "arch:amd64" ]
   script:
     - echo "PR does not have required label - CI Visibility test environment not triggered"
 EOF
