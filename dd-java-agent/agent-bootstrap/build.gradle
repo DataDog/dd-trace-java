@@ -27,6 +27,9 @@ dependencies {
   api project(':components:json')
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
+  api(variantOf(libs.instrumentjava, { classifier("all") })) {
+    transitive = false
+  }
 
   testImplementation project(':dd-java-agent:testing')
 }

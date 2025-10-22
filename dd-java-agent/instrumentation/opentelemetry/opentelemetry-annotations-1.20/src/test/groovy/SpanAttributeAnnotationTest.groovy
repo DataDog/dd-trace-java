@@ -26,6 +26,7 @@ class SpanAttributeAnnotationTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             "custom-tag" value
           }
         }
@@ -57,6 +58,7 @@ class SpanAttributeAnnotationTest extends InstrumentationSpecification {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             "custom-tag1" "param1"
             "custom-tag2" "param2"
           }

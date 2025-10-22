@@ -128,6 +128,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
@@ -264,8 +265,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_FOLLOW_SYMLINKS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
@@ -643,6 +642,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
@@ -1054,8 +1054,6 @@ public class Config {
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
   private final boolean ciVisibilityAutoInjected;
-  private final String ciVisibilityRemoteEnvVarsProviderUrl;
-  private final String ciVisibilityRemoteEnvVarsProviderKey;
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
@@ -1192,6 +1190,8 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
+
+  private final boolean serviceDiscoveryEnabled;
 
   private final Set<String> iastWeakHashAlgorithms;
 
@@ -1860,15 +1860,8 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    // Enable tracer computed trace metrics by default for Azure Functions or for applications using
-    // java 17
-    // We're rolling out progressively CSS so we'll target a slice of the java pool.
-    // That will be removed once will be activated by default
     tracerMetricsEnabled =
-        configProvider.getBoolean(
-            TRACE_STATS_COMPUTATION_ENABLED,
-            azureFunctions || JavaVirtualMachine.isJavaVersion(17),
-            TRACER_METRICS_ENABLED);
+        configProvider.getBoolean(TRACE_STATS_COMPUTATION_ENABLED, true, TRACER_METRICS_ENABLED);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -2364,10 +2357,6 @@ public class Config {
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
     ciVisibilityAutoInjected =
         Strings.isNotBlank(configProvider.getString(CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER));
-    ciVisibilityRemoteEnvVarsProviderUrl =
-        configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
-    ciVisibilityRemoteEnvVarsProviderKey =
-        configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
@@ -2668,6 +2657,9 @@ public class Config {
     long longRunningTraceFlushInterval =
         configProvider.getLong(
             TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
+    serviceDiscoveryEnabled =
+        configProvider.getBoolean(
+            TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -2947,6 +2939,10 @@ public class Config {
 
   public boolean isTraceEnabled() {
     return instrumenterConfig.isTraceEnabled();
+  }
+
+  public boolean isServiceDiscoveryEnabled() {
+    return serviceDiscoveryEnabled;
   }
 
   public boolean isLongRunningTraceEnabled() {
@@ -4042,14 +4038,6 @@ public class Config {
     return ciVisibilityAutoInjected;
   }
 
-  public String getCiVisibilityRemoteEnvVarsProviderUrl() {
-    return ciVisibilityRemoteEnvVarsProviderUrl;
-  }
-
-  public String getCiVisibilityRemoteEnvVarsProviderKey() {
-    return ciVisibilityRemoteEnvVarsProviderKey;
-  }
-
   public String getCiVisibilityTestOrder() {
     return ciVisibilityTestOrder;
   }
@@ -4740,6 +4728,17 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public String getDefaultTelemetryUrl() {
+    String site = getSite();
+    String prefix = "";
+    if (site.endsWith("datad0g.com")) {
+      prefix = "all-http-intake.logs.";
+    } else if (site.endsWith("datadoghq.com") || site.endsWith("datadoghq.eu")) {
+      prefix = "instrumentation-telemetry-intake.";
+    }
+    return "https://" + prefix + site + "/api/v2/apmtelemetry";
+  }
+
   /**
    * Returns the sample rate for the specified instrumentation or {@link
    * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
@@ -4931,7 +4930,7 @@ public class Config {
   public String getFinalCrashTrackingTelemetryUrl() {
     if (crashTrackingAgentless) {
       // when agentless crashTracking is turned on we send directly to our intake
-      return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
+      return getDefaultTelemetryUrl();
     } else {
       // when agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
@@ -5923,6 +5922,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", serviceDiscoveryEnabled="
+        + serviceDiscoveryEnabled
         + '}';
   }
 }
