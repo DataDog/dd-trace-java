@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -25,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class PendingTraceBuffer implements AutoCloseable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(PendingTraceBuffer.class);
   private static final int BUFFER_SIZE = 1 << 12; // 4096
 
   public boolean longRunningSpansEnabled() {
@@ -147,6 +147,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private static final class DumpDrain
         implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
+      private static final Logger LOGGER = LoggerFactory.getLogger(DumpDrain.class);
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
       private static final int MAX_DUMPED_TRACES = 50;
 
@@ -172,6 +173,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         // MessagePassingQueue docs if we return a null. Return a stand-in
         // Element instead.
         LOGGER.warn(
+            SEND_TELEMETRY,
             "Index {} is out of bounds for data size {} in DumpDrain.get so returning filler CommandElement to prevent pending trace queue from breaking.",
             index,
             data.size());
