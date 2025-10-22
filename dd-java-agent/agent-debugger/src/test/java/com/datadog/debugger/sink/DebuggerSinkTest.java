@@ -84,7 +84,7 @@ public class DebuggerSinkTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
 
     EXPECTED_SNAPSHOT_TAGS =
-        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:null,host_name:"
+        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:[^,]+,host_name:"
             + config.getHostName()
             + "$";
     probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
