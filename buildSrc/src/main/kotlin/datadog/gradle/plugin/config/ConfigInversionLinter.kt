@@ -14,6 +14,7 @@ class ConfigInversionLinter : Plugin<Project> {
     val extension = target.extensions.create("supportedTracerConfigurations", SupportedTracerConfigurations::class.java)
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
+    registerCheckConfigStringsTask(target, extension)
   }
 }
 
@@ -120,6 +121,82 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
         throw GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
       } else {
         project.logger.info("No forbidden EnvironmentVariables.get(...) usages found in src/main/java.")
+      }
+    }
+  }
+}
+
+/** Registers `checkConfigStrings` to validate config strings against documented supported configurations. */
+private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations) {
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
+
+  project.tasks.register("checkConfigStrings") {
+    group = "verification"
+    description = "Validates that all config definitions in dd-trace-api/src/main/java/datadog/trace/api/config exist in metadata/supported-configurations.json"
+
+    val mainSourceSetOutput = ownerPath.map {
+      project.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
+    inputs.files(mainSourceSetOutput)
+
+    doLast {
+      val repoRoot: Path = project.rootProject.projectDir.toPath()
+      val configDir = repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config").toFile()
+
+      if (!configDir.exists()) {
+        throw GradleException("Config directory not found: ${configDir.absolutePath}")
+      }
+
+      val urls = mainSourceSetOutput.get().get().files.map { it.toURI().toURL() }.toTypedArray()
+      val (supported, aliasMapping) = URLClassLoader(urls, javaClass.classLoader).use { cl ->
+        val clazz = Class.forName(generatedFile.get(), true, cl)
+        @Suppress("UNCHECKED_CAST")
+        val supportedSet = clazz.getField("SUPPORTED").get(null) as Set<String>
+        @Suppress("UNCHECKED_CAST")
+        val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
+        Pair(supportedSet, aliasMappingMap)
+      }
+
+      val stringFieldRegex = Regex("""public\s+static\s+final\s+String\s+\w+\s*=\s*"([^"]+)"\s*;""")
+
+      val violations = buildList {
+        configDir.listFiles()?.filter { it.extension == "java" }?.forEach { file ->
+          var inBlockComment = false
+          file.readLines().forEachIndexed { idx, line ->
+            val trimmed = line.trim()
+            
+            if (trimmed.startsWith("//")) return@forEachIndexed
+            if (!inBlockComment && trimmed.contains("/*")) inBlockComment = true
+            if (inBlockComment) {
+              if (trimmed.contains("*/")) inBlockComment = false
+              return@forEachIndexed
+            }
+
+            stringFieldRegex.findAll(line).forEach { match ->
+              val configValue = match.groupValues[1]
+              
+              val normalized = "DD_" + configValue.uppercase()
+                .replace("-", "_")
+                .replace(".", "_")
+              
+              if (normalized !in supported && normalized !in aliasMapping) {
+                add("${file.name}:${idx + 1} -> Config '$configValue' normalizes to '$normalized' which is not in supported-configurations.json")
+              }
+            }
+          }
+        }
+      }
+
+      if (violations.isNotEmpty()) {
+        project.logger.lifecycle("\nFound config strings not in supported-configurations.json:")
+        violations.forEach { project.logger.lifecycle(it) }
+        throw GradleException("Config strings validation failed. See errors above.")
+      } else {
+        project.logger.info("All config strings are present in supported-configurations.json.")
       }
     }
   }
