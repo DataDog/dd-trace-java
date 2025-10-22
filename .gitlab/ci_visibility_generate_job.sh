@@ -66,8 +66,8 @@ run-ci-visibility-test-environment:
   stage: ci-visibility-tests
   trigger:
     project: DataDog/apm-reliability/test-environment
-    branch: main
-    strategy: daniel.mohedano/failing-test
+    branch: daniel.mohedano/failing-test
+    strategy: depend
   variables:
     UPSTREAM_PACKAGE_JOB: build
     UPSTREAM_PROJECT_ID: "$CI_PROJECT_ID"
