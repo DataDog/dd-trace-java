@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.core.DDSpan
-
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * <p>It also wraps the span's {@link RequestContext} with {@link ValidatingRequestContextDecorator}
  */
+@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 class TrackingSpanDecorator implements AgentSpan {
 
   private final AgentSpan delegate

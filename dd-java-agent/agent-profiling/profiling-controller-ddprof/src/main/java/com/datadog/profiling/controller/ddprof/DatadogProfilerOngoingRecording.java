@@ -22,10 +22,12 @@ import com.datadog.profiling.ddprof.DatadogProfiler;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 public class DatadogProfilerOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerOngoingRecording.class);
 

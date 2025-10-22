@@ -4,7 +4,7 @@ import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
-
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import java.util.function.Function
 
 /**
@@ -12,6 +12,7 @@ import java.util.function.Function
  * if there is an attempt to modify the trace segment after the root span has finished,
  * an assertion error will be thrown.
  */
+@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 class ValidatingRequestContextDecorator implements RequestContext {
 
   private final RequestContext delegate

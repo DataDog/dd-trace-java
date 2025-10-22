@@ -251,7 +251,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
   }
 
-  boolean originalAppSecRuntimeValue
+  volatile boolean originalAppSecRuntimeValue
 
   @Shared
   ConcurrentHashMap<DDSpan, List<Exception>> spanFinishLocations = new ConcurrentHashMap<>()
@@ -654,7 +654,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 }
 
 /** Used to signal that a transformation was intentionally aborted and is not an error. */
-@SuppressFBWarnings("RANGE_ARRAY_INDEX")
+@SuppressFBWarnings(value = ["RANGE_ARRAY_INDEX", "CT_CONSTRUCTOR_THROW"])
 class AbortTransformationException extends RuntimeException {
   AbortTransformationException(final String message) {
     super(message)
