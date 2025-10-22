@@ -14,6 +14,8 @@ import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilderThreadLocalCache;
 import org.junit.jupiter.api.Test;
 
+// named CoreTracerTest2 to avoid collision with Groovy which appears to have messed up test
+// coverage
 public final class CoreTracerTest2 {
   static final CoreTracer TRACER = CoreTracer.builder().build();
 
