@@ -7,7 +7,7 @@ import datadog.trace.api.StatsDClient;
 /** implements a StatsD client for internal debugger agent metrics */
 public class DebuggerMetrics implements StatsDClient {
 
-  private static DebuggerMetrics INSTANCE = null;
+  private static volatile DebuggerMetrics INSTANCE = null;
 
   private static final String STATSD_NAMESPACE_PREFIX = "datadog.debugger";
 
@@ -31,7 +31,11 @@ public class DebuggerMetrics implements StatsDClient {
 
   public static DebuggerMetrics getInstance(Config config) {
     if (INSTANCE == null) {
-      INSTANCE = new DebuggerMetrics(config);
+      synchronized (DebuggerMetrics.class) {
+        if (INSTANCE == null) {
+          INSTANCE = new DebuggerMetrics(config);
+        }
+      }
     }
     return INSTANCE;
   }

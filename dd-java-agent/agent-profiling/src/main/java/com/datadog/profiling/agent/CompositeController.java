@@ -23,6 +23,7 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.SequenceInputStream;
 import java.time.Instant;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
  * This class composes one or more controllers (i.e. profilers), synchronizing their recordings and
  * concatenating their outputs.
  */
+@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 public class CompositeController implements Controller {
 
   private static final Logger log = LoggerFactory.getLogger(CompositeController.class);

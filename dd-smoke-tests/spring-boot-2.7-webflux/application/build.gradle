@@ -5,6 +5,12 @@ plugins {
   id 'com.diffplug.spotless' version '8.0.0'
 }
 
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 def sharedRootDir = "$rootDir/../../../"
 def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory

@@ -8,6 +8,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Handles batching logic of upload requests sent to the intake */
+@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 public class BatchUploader {
   public static class MultiPartContent {
     private final byte[] content;
