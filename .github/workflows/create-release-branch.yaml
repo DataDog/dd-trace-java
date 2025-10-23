@@ -22,7 +22,7 @@ jobs:
         id: octo-sts
         with:
           scope: DataDog/dd-trace-java
-          policy: self.update-system-tests.push
+          policy: self.update-system-tests.create-pr
 
       - name: Determine tag
         id: determine-tag
@@ -85,7 +85,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-      
+
       - name: Push changes to temp branch
         if: steps.check-branch.outputs.creating_new_branch == 'true'
         uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
