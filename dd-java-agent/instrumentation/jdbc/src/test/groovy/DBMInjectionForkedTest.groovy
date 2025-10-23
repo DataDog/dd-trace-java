@@ -20,7 +20,7 @@ class DBMInjectionForkedTest extends InstrumentationSpecification {
   }
 
   static query = "SELECT 1"
-  static serviceInjection = "ddps='my_service_name',dddbs='remapped_testdb'"
+  static serviceInjection = "ddps='my_service_name',dddbs='remapped_testdb',ddh='localhost'"
   static fullInjection = serviceInjection + ",traceparent='00-00000000000000000000000000000004-0000000000000003-01'"
 
   def "prepared stmt"() {

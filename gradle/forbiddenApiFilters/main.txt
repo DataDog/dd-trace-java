@@ -8,7 +8,7 @@ java.lang.String#replaceAll(java.lang.String,java.lang.String)
 java.lang.String#replaceFirst(java.lang.String,java.lang.String)
 
 # can initialize java.util.logging when ACCP is installed, prefer RandomUtils instead
-java.util.UUID.randomUUID()
+java.util.UUID#randomUUID()
 
 # prefer the NameMatchers/HierarchyMatchers equivalent instead
 net.bytebuddy.matcher.ElementMatchers#named(java.lang.String)
@@ -28,6 +28,11 @@ net.bytebuddy.matcher.ElementMatchers#isAbstract()
 @defaultMessage Avoid using System.out/err to prevent excess logging. To override, add @SuppressForbidden.
 java.lang.System#out
 java.lang.System#err
+
+# use ConfigHelper to access environment variables instead of using System.getenv() or System.getenv(String)
+@defaultMessage Use ConfigHelper to access environment variables instead of using System.getenv() or System.getenv(String)
+java.lang.System#getenv()
+java.lang.System#getenv(java.lang.String)
 
 #Use jdk LongAdder
 @defaultMessage use LongAdder instead of the legacy jctools FixedSizeStripedLongCounter

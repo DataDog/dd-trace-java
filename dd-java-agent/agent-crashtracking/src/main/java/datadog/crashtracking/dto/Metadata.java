@@ -1,8 +1,7 @@
 package datadog.crashtracking.dto;
 
 import com.squareup.moshi.Json;
-import java.util.Collections;
-import java.util.Map;
+import java.util.Arrays;
 import java.util.Objects;
 
 public final class Metadata {
@@ -13,14 +12,13 @@ public final class Metadata {
   public final String libraryVersion;
 
   public final String family;
-  public final Map<String, String> tags;
+  public final String[] tags;
 
-  public Metadata(
-      String libraryName, String libraryVersion, String family, Map<String, String> tags) {
+  public Metadata(String libraryName, String libraryVersion, String family, String[] tags) {
     this.libraryName = libraryName;
     this.libraryVersion = libraryVersion;
     this.family = family;
-    this.tags = tags != null ? Collections.unmodifiableMap(tags) : Collections.emptyMap();
+    this.tags = tags;
   }
 
   @Override
@@ -35,11 +33,11 @@ public final class Metadata {
     return Objects.equals(libraryName, metadata.libraryName)
         && Objects.equals(libraryVersion, metadata.libraryVersion)
         && Objects.equals(family, metadata.family)
-        && Objects.equals(tags, metadata.tags);
+        && Arrays.equals(tags, metadata.tags);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(libraryName, libraryVersion, family, tags);
+    return Objects.hash(libraryName, libraryVersion, family, Arrays.hashCode(tags));
   }
 }

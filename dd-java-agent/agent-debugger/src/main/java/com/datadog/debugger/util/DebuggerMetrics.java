@@ -3,7 +3,6 @@ package com.datadog.debugger.util;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /** implements a StatsD client for internal debugger agent metrics */
 public class DebuggerMetrics implements StatsDClient {
@@ -30,10 +29,7 @@ public class DebuggerMetrics implements StatsDClient {
     }
   }
 
-  @SuppressFBWarnings(
-      value = "SING_SINGLETON_GETTER_NOT_SYNCHRONIZED",
-      justification = "initialized in a single thread")
-  public static DebuggerMetrics getInstance(Config config) {
+  public static synchronized DebuggerMetrics getInstance(Config config) {
     if (INSTANCE == null) {
       INSTANCE = new DebuggerMetrics(config);
     }

@@ -33,6 +33,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends InstrumentationSpecificati
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -63,6 +64,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends InstrumentationSpecificati
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -92,6 +94,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends InstrumentationSpecificati
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -121,6 +124,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends InstrumentationSpecificati
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
         span {
@@ -130,6 +134,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends InstrumentationSpecificati
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

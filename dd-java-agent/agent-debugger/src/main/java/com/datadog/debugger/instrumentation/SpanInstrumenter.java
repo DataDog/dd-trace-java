@@ -12,7 +12,6 @@ import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
-import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -22,15 +21,15 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-public class SpanInstrumentor extends Instrumentor {
+public class SpanInstrumenter extends Instrumenter {
   private int spanVar;
 
-  public SpanInstrumentor(
+  public SpanInstrumenter(
       SpanProbe spanProbe,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
-    super(spanProbe, methodInfo, diagnostics, probeIds);
+      List<Integer> probeIndices) {
+    super(spanProbe, methodInfo, diagnostics, probeIndices);
   }
 
   @Override

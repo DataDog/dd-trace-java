@@ -213,7 +213,7 @@ public final class HotspotCrashLogParser {
             SystemProperties.get("os.name"),
             SemanticVersion.of(SystemProperties.get("os.version")));
     ProcInfo procInfo = pid != null ? new ProcInfo(pid) : null;
-    return new CrashLog(false, datetime, error, metadata, osInfo, procInfo);
+    return new CrashLog(false, datetime, error, metadata, osInfo, procInfo, "1.0");
   }
 
   static String dateTimeToISO(String datetime) {

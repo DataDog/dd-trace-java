@@ -43,8 +43,10 @@ public class SharedCommunicationObjects {
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public long httpClientTimeout;
+
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public boolean forceClearTextHttpForIntakeClient;
+
   public HttpUrl agentUrl;
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
