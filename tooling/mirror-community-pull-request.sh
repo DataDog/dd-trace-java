@@ -52,7 +52,7 @@ echo "- Checking requirements"
 # Check gh is installed
 gh --version 1>/dev/null 2>&1 || { echo "❌ gh is not installed. Please install GitHub CLI."; exit 1; }
 # Check that user is logged into gh cli
-gh auth status 1>/dev/null 2>&1 || { echo "❌ Not logged into Github CLI. Please login with \`gh auth status\`."; exit 1; }
+gh auth status 1>/dev/null 2>&1 || { echo "❌ Not logged into Github CLI. Please login with \`gh auth login\`."; exit 1; }
 # Check jq is installed
 jq --version 1>/dev/null 2>&1 || { echo "❌ jq is not installed. Please install jq."; exit 1; }
 # Check there are no local changes
@@ -62,7 +62,6 @@ git diff --quiet --exit-code || { echo "❌ There are local changes. Please comm
 # Fetch PR information.
 #
 echo "- Fetching PR #$PR_NUMBER details"
-exit 1
 # Check if PR exists and get details
 PR_DATA=$(gh pr view "$PR_NUMBER" --json headRepository,headRepositoryOwner,headRefName,title,number,state,author 2>/dev/null || echo "")
 if [ -z "$PR_DATA" ]; then
