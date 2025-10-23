@@ -71,7 +71,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
 
   @Override
   public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation methodLocation,
+      boolean singleProbe) {
     ExceptionProbeStatus exceptionStatus;
     if (status instanceof ExceptionProbeStatus) {
       exceptionStatus = (ExceptionProbeStatus) status;
@@ -108,7 +111,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         exceptionStatus.setForceSampling(true);
       }
       exceptionStatus.setCapture(true);
-      super.evaluate(context, status, methodLocation);
+      super.evaluate(context, status, methodLocation, singleProbe);
     }
   }
 
