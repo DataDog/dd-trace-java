@@ -161,4 +161,4 @@ org.webjars:jquery:3.5.1=testRuntimeClasspath
 org.xmlresolver:xmlresolver:4.4.3=spotbugs
 org.xmlunit:xmlunit-core:2.10.3=testCompileClasspath,testRuntimeClasspath
 xml-apis:xml-apis:1.4.01=spotbugs
-empty=annotationProcessor,shadow,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor
