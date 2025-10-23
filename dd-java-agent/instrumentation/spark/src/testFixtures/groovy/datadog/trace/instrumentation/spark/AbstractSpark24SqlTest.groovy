@@ -16,7 +16,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
     injectSysConfig("dd.integration.openlineage-spark.enabled", "true")
-    injectSysConfig("dd.data.jobs.parse_spark_plan.enabled", "true")
+    injectSysConfig("dd.data.jobs.experimental_features.enabled", "true")
   }
 
   static Dataset<Row> generateSampleDataframe(SparkSession spark) {

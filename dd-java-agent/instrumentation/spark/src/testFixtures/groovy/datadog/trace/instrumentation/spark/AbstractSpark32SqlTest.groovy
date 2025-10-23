@@ -11,7 +11,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
     injectSysConfig("dd.integration.spark-openlineage.enabled", "true")
-    injectSysConfig("dd.data.jobs.parse_spark_plan.enabled", "true")
+    injectSysConfig("dd.data.jobs.experimental_features.enabled", "true")
   }
 
   def "compute a GROUP BY sql query plan"() {

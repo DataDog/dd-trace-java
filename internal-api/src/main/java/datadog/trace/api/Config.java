@@ -48,6 +48,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
@@ -343,6 +344,7 @@ import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APP_KEY;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
@@ -1192,6 +1194,7 @@ public class Config {
   private final boolean dataJobsOpenLineageEnabled;
   private final boolean dataJobsOpenLineageTimeoutEnabled;
   private final boolean dataJobsParseSparkPlanEnabled;
+  private final boolean dataJobsExperimentalFeaturesEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -2633,6 +2636,10 @@ public class Config {
     dataJobsParseSparkPlanEnabled =
         configProvider.getBoolean(
             DATA_JOBS_PARSE_SPARK_PLAN_ENABLED, DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED);
+    dataJobsExperimentalFeaturesEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED,
+            DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -4566,6 +4573,10 @@ public class Config {
     return dataJobsParseSparkPlanEnabled;
   }
 
+  public boolean isDataJobsExperimentalFeaturesEnabled() {
+    return dataJobsExperimentalFeaturesEnabled;
+  }
+
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
   }
@@ -5910,6 +5921,8 @@ public class Config {
         + dataJobsOpenLineageTimeoutEnabled
         + ", dataJobsParseSparkPlanEnabled="
         + dataJobsParseSparkPlanEnabled
+        + ", dataJobsExperimentalFeaturesEnabled="
+        + dataJobsExperimentalFeaturesEnabled
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="

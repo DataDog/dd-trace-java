@@ -109,7 +109,9 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
     public static void exit(
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
         @Advice.Argument(0) SparkPlan plan) {
-      if (planInfo.metadata().size() == 0 && Config.get().isDataJobsParseSparkPlanEnabled()) {
+      if (planInfo.metadata().size() == 0
+          && (Config.get().isDataJobsParseSparkPlanEnabled()
+              || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark212PlanSerializer planUtils = new Spark212PlanSerializer();
         HashMap<String, String> args = new HashMap<>();
         planInfo =
