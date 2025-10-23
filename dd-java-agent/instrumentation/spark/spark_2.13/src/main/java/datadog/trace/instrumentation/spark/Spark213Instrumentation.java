@@ -21,7 +21,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
-      packageName + ".AbstractSparkPlanUtils",
+      packageName + ".AbstractSparkPlanSerializer",
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark213Listener",
@@ -32,7 +32,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
-      packageName + ".Spark213PlanUtils"
+      packageName + ".Spark213PlanSerializer"
     };
   }
 
