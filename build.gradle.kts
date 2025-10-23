@@ -1,4 +1,5 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import datadog.ci.testAggregate
 
 plugins {
   id("datadog.gradle-debug")

@@ -4,6 +4,7 @@
  * with -PgitBaseRef.
  */
 
+import datadog.ci.isAffectedBy
 import java.io.File
 import kotlin.math.abs
 

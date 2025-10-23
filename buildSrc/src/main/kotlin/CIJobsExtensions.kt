@@ -1,3 +1,5 @@
+package datadog.ci
+
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.kotlin.dsl.extra
@@ -32,9 +34,63 @@ internal fun isAffectedBy(baseTask: Task, affectedProjects: Map<Project, Set<Str
 }
 
 /**
- * Creates aggregate test tasks for CI
+ * Creates a single aggregate root task that depends on matching subproject tasks
+ */
+private fun Project.createRootTask(
+    rootTaskName: String,
+    subProjTaskName: String,
+    includePrefixes: List<String>,
+    excludePrefixes: List<String>,
+    forceCoverage: Boolean
+) {
+    val coverage = forceCoverage || rootProject.hasProperty("checkCoverage")
+    tasks.register(rootTaskName) {
+        subprojects.forEach { subproject ->
+            val activePartition = subproject.extra.get("activePartition") as Boolean
+            if (activePartition &&
+                includePrefixes.any { subproject.path.startsWith(it) } &&
+                !excludePrefixes.any { subproject.path.startsWith(it) }) {
+                
+                val testTask = subproject.tasks.findByName(subProjTaskName)
+                var isAffected = true
+                
+                if (testTask != null) {
+                    val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
+                    if (useGitChanges) {
+                        @Suppress("UNCHECKED_CAST")
+                        val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
+                        val fileTrigger = isAffectedBy(testTask, affectedProjects)
+                        if (fileTrigger != null) {
+                            logger.warn("Selecting ${subproject.path}:$subProjTaskName (triggered by $fileTrigger)")
+                        } else {
+                            logger.warn("Skipping ${subproject.path}:$subProjTaskName (not affected by changed files)")
+                            isAffected = false
+                        }
+                    }
+                    if (isAffected) {
+                        dependsOn(testTask)
+                    }
+                }
+                
+                if (isAffected && coverage) {
+                    val coverageTask = subproject.tasks.findByName("jacocoTestReport")
+                    if (coverageTask != null) {
+                        dependsOn(coverageTask)
+                    }
+                    val verificationTask = subproject.tasks.findByName("jacocoTestCoverageVerification")
+                    if (verificationTask != null) {
+                        dependsOn(verificationTask)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Creates aggregate test tasks for CI using createRootTask() above
  * 
- * Creates three tasks for the given base name:
+ * Creates three subtasks for the given base task name:
  * - ${baseTaskName}Test - runs allTests
  * - ${baseTaskName}LatestDepTest - runs allLatestDepTests
  * - ${baseTaskName}Check - runs check
@@ -45,54 +101,8 @@ fun Project.testAggregate(
     excludePrefixes: List<String>,
     forceCoverage: Boolean = false
 ) {
-    fun createRootTask(rootTaskName: String, subProjTaskName: String) {
-        val coverage = forceCoverage || rootProject.hasProperty("checkCoverage")
-        val proj = this@testAggregate
-        tasks.register(rootTaskName) {
-            proj.subprojects.forEach { subproject ->
-                val activePartition = subproject.extra.get("activePartition") as Boolean
-                if (activePartition &&
-                    includePrefixes.any { subproject.path.startsWith(it) } &&
-                    !excludePrefixes.any { subproject.path.startsWith(it) }) {
-                    
-                    val testTask = subproject.tasks.findByName(subProjTaskName)
-                    var isAffected = true
-                    
-                    if (testTask != null) {
-                        val useGitChanges = proj.rootProject.extra.get("useGitChanges") as Boolean
-                        if (useGitChanges) {
-                            @Suppress("UNCHECKED_CAST")
-                            val affectedProjects = proj.rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
-                            val fileTrigger = isAffectedBy(testTask, affectedProjects)
-                            if (fileTrigger != null) {
-                                proj.logger.warn("Selecting ${subproject.path}:$subProjTaskName (triggered by $fileTrigger)")
-                            } else {
-                                proj.logger.warn("Skipping ${subproject.path}:$subProjTaskName (not affected by changed files)")
-                                isAffected = false
-                            }
-                        }
-                        if (isAffected) {
-                            dependsOn(testTask)
-                        }
-                    }
-                    
-                    if (isAffected && coverage) {
-                        val coverageTask = subproject.tasks.findByName("jacocoTestReport")
-                        if (coverageTask != null) {
-                            dependsOn(coverageTask)
-                        }
-                        val verificationTask = subproject.tasks.findByName("jacocoTestCoverageVerification")
-                        if (verificationTask != null) {
-                            dependsOn(verificationTask)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    createRootTask("${baseTaskName}Test", "allTests")
-    createRootTask("${baseTaskName}LatestDepTest", "allLatestDepTests")
-    createRootTask("${baseTaskName}Check", "check")
+    createRootTask("${baseTaskName}Test", "allTests", includePrefixes, excludePrefixes, forceCoverage)
+    createRootTask("${baseTaskName}LatestDepTest", "allLatestDepTests", includePrefixes, excludePrefixes, forceCoverage)
+    createRootTask("${baseTaskName}Check", "check", includePrefixes, excludePrefixes, forceCoverage)
 }
 
