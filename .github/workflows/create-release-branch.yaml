@@ -71,9 +71,7 @@ jobs:
       - name: Define temp branch name
         if: steps.check-branch.outputs.creating_new_branch == 'true'
         id: define-temp-branch
-        run: |
-          TEMP_BRANCH="${{ steps.define-branch.outputs.branch }}-pin-system-tests"
-          echo "branch=${TEMP_BRANCH}" >> "$GITHUB_OUTPUT"
+        run: echo "branch=ci/pin-system-tests-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
       - name: Update system-tests references to latest commit SHA on main
         if: steps.check-branch.outputs.creating_new_branch == 'true'
