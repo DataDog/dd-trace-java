@@ -13,6 +13,7 @@ import java.util.Set;
 import org.apache.spark.sql.catalyst.plans.QueryPlan;
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning;
 import org.apache.spark.sql.catalyst.trees.TreeNode;
+import org.apache.spark.sql.execution.SparkPlan;
 import scala.Option;
 import scala.collection.Iterable;
 import scala.collection.JavaConverters;
@@ -58,7 +59,7 @@ public abstract class AbstractSparkPlanSerializer {
 
   public abstract String getKey(int idx, TreeNode node);
 
-  public Map<String, String> extractFormattedProduct(TreeNode plan) {
+  public Map<String, String> extractFormattedProduct(SparkPlan plan) {
     HashMap<String, String> result = new HashMap<>();
     safeParseTreeNode(plan, 0)
         .forEach(
@@ -110,9 +111,7 @@ public abstract class AbstractSparkPlanSerializer {
 
     if (value == null) {
       return "null";
-    } else if (value instanceof String
-        || value instanceof Boolean
-        || Number.class.isInstance(value)) {
+    } else if (value instanceof String || value instanceof Boolean || value instanceof Number) {
       return value;
     } else if (value instanceof Option) {
       return safeParseObjectToJson(((Option) value).getOrElse(() -> "none"), depth);
@@ -129,10 +128,10 @@ public abstract class AbstractSparkPlanSerializer {
       }
       return list;
     } else if (value instanceof Partitioning) {
-      if (value instanceof TreeNode && depth + 1 < MAX_DEPTH) {
+      if (value instanceof TreeNode && depth < MAX_DEPTH) {
         HashMap<String, Object> inner = new HashMap<>();
         inner.put(
-            value.getClass().getSimpleName(), safeParseTreeNode(((TreeNode) value), depth + 2));
+            value.getClass().getSimpleName(), safeParseTreeNode(((TreeNode) value), depth + 1));
         return inner;
       } else {
         return value.toString();
