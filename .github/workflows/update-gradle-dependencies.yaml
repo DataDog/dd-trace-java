@@ -26,6 +26,7 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
+          find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
