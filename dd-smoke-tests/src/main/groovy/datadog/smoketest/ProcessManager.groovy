@@ -1,16 +1,12 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.utils.PortUtils
-import de.thetaphi.forbiddenapis.SuppressForbidden
-import groovy.transform.CompileStatic
-import spock.lang.AutoCleanup
-import spock.lang.Shared
-import spock.lang.Specification
-
-import java.nio.CharBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
+import spock.lang.AutoCleanup
+import spock.lang.Shared
+import spock.lang.Specification
 
 abstract class ProcessManager extends Specification {
 
@@ -101,7 +97,7 @@ abstract class ProcessManager extends Specification {
     (0..<numberOfProcesses).each { idx ->
       def curProc = testedProcesses[idx]
 
-      if ( !curProc.isAlive() && curProc.exitValue() != 0 ) {
+      if (!curProc.isAlive() && curProc.exitValue() != 0) {
         def exitCode = curProc.exitValue()
         def logFile = logFilePaths[idx]
 
@@ -212,8 +208,11 @@ abstract class ProcessManager extends Specification {
 
   void forEachLogLine(Closure checker) {
     for (String lfp : logFilePaths) {
-      ProcessManager.eachLine(new File(lfp)) {
-        checker(it)
+      def f = new File(lfp)
+      f.withReader { reader ->
+        reader.eachLine {
+          checker(it)
+        }
       }
     }
   }
@@ -240,7 +239,7 @@ abstract class ProcessManager extends Specification {
    * @param checker should return true if a match is found
    */
   void processTestLogLines(Closure<Boolean> checker) {
-    outputThreads.processTestLogLines {return checker(it) }
+    outputThreads.processTestLogLines { return checker(it) }
   }
 
   protected void beforeProcessBuilders() {}
@@ -258,36 +257,5 @@ abstract class ProcessManager extends Specification {
 
   String apiKey() {
     return "01234567890abcdef123456789ABCDEF"
-  }
-
-  @CompileStatic
-  @SuppressForbidden
-  private static void eachLine(File file, Closure closure) {
-    def reader = new InputStreamReader(new FileInputStream(file))
-    CharBuffer buffer = CharBuffer.allocate(OutputThreads.MAX_LINE_SIZE)
-    while (reader.read(buffer) != -1) {
-      buffer.flip()
-      while (buffer.hasRemaining()) {
-        char c = buffer.get()
-        if (c == '\n' || c == '\r') {
-          break
-        }
-      }
-      // we found the separator or we're out of data (max line size hit)
-      // either way, report a line
-      def str = buffer.duplicate().flip().toString().trim()
-      if (str) {
-        closure(str)
-      }
-
-      buffer.compact()
-    }
-    reader.close()
-
-    if (buffer.position() > 0) {
-      buffer.flip().toString().split('\r\n|\n').each {
-        closure.call(it.trim())
-      }
-    }
   }
 }
