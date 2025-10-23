@@ -13,6 +13,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
+import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -24,6 +25,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
+import datadog.environment.ThreadUtils;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -138,7 +140,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
 
-  public static CoreTracerBuilder builder() {
+  public static final CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
   }
 
@@ -243,6 +245,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final CallbackProvider universalCallbackProvider;
 
   private final PropagationTags.Factory propagationTagsFactory;
+
+  // DQH - storing into a static constant, so value will constant propagate and dead code eliminate
+  // the other branch in singleSpanBuilder
+  private static final boolean SPAN_BUILDER_REUSE_ENABLED =
+      Config.get().isSpanBuilderReuseEnabled();
+
+  // Cache used by buildSpan - instance so it can capture the CoreTracer
+  private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
+      SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -1002,24 +1013,94 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
-    return new CoreSpanBuilder(this, instrumentationName, operationName);
+    return createMultiSpanBuilder(instrumentationName, operationName);
+  }
+
+  MultiSpanBuilder createMultiSpanBuilder(
+      final String instrumentationName, final CharSequence operationName) {
+    return new MultiSpanBuilder(this, instrumentationName, operationName);
+  }
+
+  @Override
+  public CoreSpanBuilder singleSpanBuilder(
+      final String instrumentationName, final CharSequence operationName) {
+    return SPAN_BUILDER_REUSE_ENABLED
+        ? reuseSingleSpanBuilder(instrumentationName, operationName)
+        : createMultiSpanBuilder(instrumentationName, operationName);
+  }
+
+  ReusableSingleSpanBuilder createSingleSpanBuilder(
+      final String instrumentationName, final CharSequence oprationName) {
+    ReusableSingleSpanBuilder singleSpanBuilder = new ReusableSingleSpanBuilder(this);
+    singleSpanBuilder.init(instrumentationName, oprationName);
+    return singleSpanBuilder;
+  }
+
+  CoreSpanBuilder reuseSingleSpanBuilder(
+      final String instrumentationName, final CharSequence operationName) {
+    return reuseSingleSpanBuilder(
+        this, spanBuilderThreadLocalCache, instrumentationName, operationName);
+  }
+
+  static final ReusableSingleSpanBuilder reuseSingleSpanBuilder(
+      final CoreTracer tracer,
+      final ReusableSingleSpanBuilderThreadLocalCache tlCache,
+      final String instrumentationName,
+      final CharSequence operationName) {
+    if (ThreadUtils.isCurrentThreadVirtual()) {
+      // Since virtual threads are created and destroyed often,
+      // cautiously decided not to create a thread local for the virtual threads.
+
+      // TODO: This could probably be improved by having a single thread local that
+      // holds the core things that we need for tracing.  e.g. context, etc
+      return tracer.createSingleSpanBuilder(instrumentationName, operationName);
+    }
+
+    // retrieve the thread's typical SpanBuilder and try to reset it
+    // reset will fail if the ReusableSingleSpanBuilder is still "in-use"
+    ReusableSingleSpanBuilder tlSpanBuilder = tlCache.get();
+    boolean wasReset = tlSpanBuilder.reset(instrumentationName, operationName);
+    if (wasReset) return tlSpanBuilder;
+
+    // TODO: counter for how often the fallback is used?
+    ReusableSingleSpanBuilder newSpanBuilder =
+        tracer.createSingleSpanBuilder(instrumentationName, operationName);
+
+    // DQH - Debated how best to handle the case of someone requesting a SpanBuilder
+    // and then not using it.  Without the ability to replace the cached SpanBuilder,
+    // that case could result in permanently burning the cache for a given thread.
+
+    // That could be solved with additional logic during ReusableSingleSpanBuilder#start
+    // that checks to see if the cached Builder is in use and then replaces it
+    // with the freed Builder, but that would put extra logic in the common path.
+
+    // Instead of making the release process more complicated, I'm chosing to just
+    // override here when we know we're already in an uncommon path.
+    tlCache.set(newSpanBuilder);
+
+    return newSpanBuilder;
   }
 
   @Override
   public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-    return buildSpan(instrumentationName, spanName).start();
+    return singleSpanBuilder(instrumentationName, spanName).start();
   }
 
   @Override
   public AgentSpan startSpan(
       final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-    return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
+    return singleSpanBuilder(instrumentationName, spanName)
+        .withStartTimestamp(startTimeMicros)
+        .start();
   }
 
   @Override
   public AgentSpan startSpan(
       String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
-    return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
+    return singleSpanBuilder(instrumentationName, spanName)
+        .ignoreActiveSpan()
+        .asChildOf(parent)
+        .start();
   }
 
   @Override
@@ -1183,7 +1264,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           String interceptorName = interceptor.getClass().getName();
           rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
         }
+        if (interceptedTrace == null) {
+          interceptedTrace = emptyList();
+        }
       }
+
       trace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
         if (span instanceof DDSpan) {
@@ -1435,42 +1520,40 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   /** Spans are built using this builder */
-  public static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
-    private final String instrumentationName;
-    private final CharSequence operationName;
-    private final CoreTracer tracer;
+  public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+    protected final CoreTracer tracer;
+
+    protected String instrumentationName;
+    protected CharSequence operationName;
 
     // Builder attributes
-    private TagMap.Ledger tagLedger;
-    private long timestampMicro;
-    private AgentSpanContext parent;
-    private String serviceName;
-    private String resourceName;
-    private boolean errorFlag;
-    private CharSequence spanType;
-    private boolean ignoreScope = false;
-    private Object builderRequestContextDataAppSec;
-    private Object builderRequestContextDataIast;
-    private Object builderCiVisibilityContextData;
-    private List<AgentSpanLink> links;
-    private long spanId;
+    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
+    protected TagMap.Ledger tagLedger;
+    protected long timestampMicro;
+    protected AgentSpanContext parent;
+    protected String serviceName;
+    protected String resourceName;
+    protected boolean errorFlag;
+    protected CharSequence spanType;
+    protected boolean ignoreScope = false;
+    protected Object builderRequestContextDataAppSec;
+    protected Object builderRequestContextDataIast;
+    protected Object builderCiVisibilityContextData;
+    protected List<AgentSpanLink> links;
+    protected long spanId;
+    // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
 
-    CoreSpanBuilder(
-        final CoreTracer tracer,
-        final String instrumentationName,
-        final CharSequence operationName) {
-      this.instrumentationName = instrumentationName;
-      this.operationName = operationName;
+    CoreSpanBuilder(CoreTracer tracer) {
       this.tracer = tracer;
     }
 
     @Override
-    public CoreSpanBuilder ignoreActiveSpan() {
+    public final CoreSpanBuilder ignoreActiveSpan() {
       ignoreScope = true;
       return this;
     }
 
-    private DDSpan buildSpan() {
+    protected final DDSpan buildSpan() {
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
@@ -1481,7 +1564,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return span;
     }
 
-    private void addParentContextAsLinks(AgentSpanContext parentContext) {
+    private final void addParentContextAsLinks(AgentSpanContext parentContext) {
       SpanLink link;
       if (parentContext instanceof ExtractedContext) {
         String headers = ((ExtractedContext) parentContext).getPropagationStyle().toString();
@@ -1497,7 +1580,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       withLink(link);
     }
 
-    private void addTerminatedContextAsLinks() {
+    private final void addTerminatedContextAsLinks() {
       if (this.parent instanceof TagContext) {
         List<AgentSpanLink> terminatedContextLinks =
             ((TagContext) this.parent).getTerminatedContextLinks();
@@ -1511,7 +1594,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    public AgentSpan start() {
+    public abstract AgentSpan start();
+
+    protected AgentSpan startImpl() {
       AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
         final AgentSpan span = tracer.activeSpan();
@@ -1527,65 +1612,65 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final Number number) {
+    public final CoreSpanBuilder withTag(final String tag, final Number number) {
       return withTag(tag, (Object) number);
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final String string) {
+    public final CoreSpanBuilder withTag(final String tag, final String string) {
       return withTag(tag, (Object) (string == null || string.isEmpty() ? null : string));
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final boolean bool) {
+    public final CoreSpanBuilder withTag(final String tag, final boolean bool) {
       return withTag(tag, (Object) bool);
     }
 
     @Override
-    public CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
+    public final CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
       timestampMicro = timestampMicroseconds;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withServiceName(final String serviceName) {
+    public final CoreSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withResourceName(final String resourceName) {
+    public final CoreSpanBuilder withResourceName(final String resourceName) {
       this.resourceName = resourceName;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withErrorFlag() {
+    public final CoreSpanBuilder withErrorFlag() {
       errorFlag = true;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withSpanType(final CharSequence spanType) {
+    public final CoreSpanBuilder withSpanType(final CharSequence spanType) {
       this.spanType = spanType;
       return this;
     }
 
     @Override
-    public CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
+    public final CoreSpanBuilder asChildOf(final AgentSpanContext spanContext) {
       // TODO we will start propagating stack trace hash and it will need to
       //  be extracted here if available
       parent = spanContext;
       return this;
     }
 
-    public CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
+    public final CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
       parent = agentSpan.context();
       return this;
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final Object value) {
+    public final CoreSpanBuilder withTag(final String tag, final Object value) {
       if (tag == null) {
         return this;
       }
@@ -1609,7 +1694,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    public <T> AgentTracer.SpanBuilder withRequestContextData(RequestContextSlot slot, T data) {
+    public final <T> AgentTracer.SpanBuilder withRequestContextData(
+        RequestContextSlot slot, T data) {
       switch (slot) {
         case APPSEC:
           builderRequestContextDataAppSec = data;
@@ -1625,7 +1711,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    public AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
+    public final AgentTracer.SpanBuilder withLink(AgentSpanLink link) {
       if (link != null) {
         if (this.links == null) {
           this.links = new ArrayList<>();
@@ -1636,7 +1722,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     @Override
-    public CoreSpanBuilder withSpanId(final long spanId) {
+    public final CoreSpanBuilder withSpanId(final long spanId) {
       this.spanId = spanId;
       return this;
     }
@@ -1647,7 +1733,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      *
      * @return the context
      */
-    private DDSpanContext buildSpanContext() {
+    private final DDSpanContext buildSpanContext() {
       final DDTraceId traceId;
       final long spanId;
       final long parentSpanId;
@@ -1893,6 +1979,105 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
       return context;
+    }
+  }
+
+  /** CoreSpanBuilder that can be used to produce multiple spans */
+  static final class MultiSpanBuilder extends CoreSpanBuilder {
+    MultiSpanBuilder(CoreTracer tracer, String instrumentationName, CharSequence operationName) {
+      super(tracer);
+      this.instrumentationName = instrumentationName;
+      this.operationName = operationName;
+    }
+
+    @Override
+    public AgentSpan start() {
+      return this.startImpl();
+    }
+  }
+
+  static final class ReusableSingleSpanBuilderThreadLocalCache
+      extends ThreadLocal<ReusableSingleSpanBuilder> {
+    private final CoreTracer tracer;
+
+    public ReusableSingleSpanBuilderThreadLocalCache(CoreTracer tracer) {
+      this.tracer = tracer;
+    }
+
+    @Override
+    protected ReusableSingleSpanBuilder initialValue() {
+      return new ReusableSingleSpanBuilder(this.tracer);
+    }
+  }
+
+  /**
+   * Reusable CoreSpanBuilder that can be used to build one and only one span before being reset
+   *
+   * <p>{@link CoreTracer#singleSpanBuilder(String, CharSequence)} reuses instances of this object
+   * to reduce the overhead of span construction
+   */
+  static final class ReusableSingleSpanBuilder extends CoreSpanBuilder {
+    // Used to track whether the ReusableSingleSpanBuilder is actively being used
+    // ReusableSingleSpanBuilder becomes "inUse" after a succesful init/reset and remains "inUse"
+    // until "start" is called
+    boolean inUse;
+
+    ReusableSingleSpanBuilder(CoreTracer tracer) {
+      super(tracer);
+      this.inUse = false;
+    }
+
+    /** Similar to reset, but only valid on first use */
+    void init(String instrumentationName, CharSequence operationName) {
+      assert !this.inUse;
+
+      this.instrumentationName = instrumentationName;
+      this.operationName = operationName;
+
+      this.inUse = true;
+    }
+
+    /**
+     * Resets the {@link ReusableSingleSpanBuilder}, so it may be used to build another single span
+     *
+     * @returns <code>true</code> if the reset was successful, otherwise <code>false</code> if this
+     *     <code>ReusableSingleSpanBuilder</code> is still "in-use".
+     */
+    final boolean reset(String instrumentationName, CharSequence operationName) {
+      if (this.inUse) return false;
+      this.inUse = true;
+
+      this.instrumentationName = instrumentationName;
+      this.operationName = operationName;
+
+      if (this.tagLedger != null) this.tagLedger.reset();
+      this.timestampMicro = 0L;
+      this.parent = null;
+      this.serviceName = null;
+      this.resourceName = null;
+      this.errorFlag = false;
+      this.spanType = null;
+      this.ignoreScope = false;
+      this.builderRequestContextDataAppSec = null;
+      this.builderRequestContextDataIast = null;
+      this.builderCiVisibilityContextData = null;
+      this.links = null;
+      this.spanId = 0L;
+
+      return true;
+    }
+
+    /*
+     * Clears the inUse boolean, so this ReusableSpanBuilder can be reset
+     */
+    @Override
+    public AgentSpan start() {
+      assert this.inUse
+          : "ReusableSingleSpanBuilder not reset properly -- multiple span construction?";
+
+      AgentSpan span = this.startImpl();
+      this.inUse = false;
+      return span;
     }
   }
 

@@ -654,7 +654,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -678,6 +677,7 @@ import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.ConfigStrings;
 import datadog.trace.util.PidHelper;
@@ -1263,6 +1263,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean optimizedMapEnabled;
+  private final boolean spanBuilderReuseEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
@@ -2798,6 +2799,8 @@ public class Config {
 
     this.optimizedMapEnabled =
         configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.spanBuilderReuseEnabled =
+        configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -4556,6 +4559,10 @@ public class Config {
     return optimizedMapEnabled;
   }
 
+  public boolean isSpanBuilderReuseEnabled() {
+    return spanBuilderReuseEnabled;
+  }
+
   public int getTagNameUtf8CacheSize() {
     return tagNameUtf8CacheSize;
   }
@@ -5386,7 +5393,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = EnvironmentVariables.get(name);
+    String value = ConfigHelper.env(name);
     if (value != null) {
       // Report non-default sequence id for consistency
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV, NON_DEFAULT_SEQ_ID);

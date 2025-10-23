@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 public class StringConcatCategory2Example implements BiFunction<String, String, String> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(StringConcatExample.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(StringConcatCategory2Example.class);
 
   public String apply(final String first, final String second) {
     LOGGER.debug("Before apply : " + (System.currentTimeMillis() / 1000L));
