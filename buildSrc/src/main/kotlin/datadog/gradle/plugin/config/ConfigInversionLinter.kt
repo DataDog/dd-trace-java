@@ -126,14 +126,14 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
   }
 }
 
-/** Registers `checkConfigStrings` to validate config strings against documented supported configurations. */
+/** Registers `checkConfigStrings` to validate config definitions against documented supported configurations. */
 private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations) {
   val ownerPath = extension.configOwnerPath
   val generatedFile = extension.className
 
   project.tasks.register("checkConfigStrings") {
     group = "verification"
-    description = "Validates that all config definitions in dd-trace-api/src/main/java/datadog/trace/api/config exist in metadata/supported-configurations.json"
+    description = "Validates that all config definitions in `dd-trace-api/src/main/java/datadog/trace/api/config` exist in `metadata/supported-configurations.json`"
 
     val mainSourceSetOutput = ownerPath.map {
       project.project(it)
@@ -161,38 +161,81 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         Pair(supportedSet, aliasMappingMap)
       }
 
-      val stringFieldRegex = Regex("""public\s+static\s+final\s+String\s+\w+\s*=\s*"([^"]+)"\s*;""")
+      // Single-line: `public static final String FIELD_NAME = "value";`
+      val singleLineRegex = Regex("""public static final String (\w+) = "([^"]+)";""")
+      // Multi-line start: `public static final String FIELD_NAME =`
+      val multiLineStartRegex = Regex("""public static final String (\w+) =$""")
+      // Multi-line value: `"value";`
+      val valueLineRegex = Regex(""""([^"]+)";""")
 
       val violations = buildList {
-        configDir.listFiles()?.filter { it.extension == "java" }?.forEach { file ->
+        configDir.listFiles()?.forEach { file ->
           var inBlockComment = false
-          file.readLines().forEachIndexed { idx, line ->
+          val lines = file.readLines()
+          var i = 0
+          while (i < lines.size) {
+            val line = lines[i]
             val trimmed = line.trim()
             
-            if (trimmed.startsWith("//")) return@forEachIndexed
+            if (trimmed.startsWith("//")) {
+              i++
+              continue
+            }
             if (!inBlockComment && trimmed.contains("/*")) inBlockComment = true
             if (inBlockComment) {
               if (trimmed.contains("*/")) inBlockComment = false
-              return@forEachIndexed
+              i++
+              continue
             }
 
-            stringFieldRegex.findAll(line).forEach { match ->
-              val configValue = match.groupValues[1]
+            // Try single-line pattern first
+            val singleLineMatch = singleLineRegex.find(line)
+            if (singleLineMatch != null) {
+              val fieldName = singleLineMatch.groupValues[1]
+              val configValue = singleLineMatch.groupValues[2]
               
-              val normalized = "DD_" + configValue.uppercase()
-                .replace("-", "_")
-                .replace(".", "_")
-              
-              if (normalized !in supported && normalized !in aliasMapping) {
-                add("${file.name}:${idx + 1} -> Config '$configValue' normalizes to '$normalized' which is not in supported-configurations.json")
+              // Skip fields that end with _DEFAULT (default values defined in ProfilingConfig.java only)
+              if (!fieldName.endsWith("_DEFAULT")) {
+                val normalized = "DD_" + configValue.uppercase()
+                  .replace("-", "_")
+                  .replace(".", "_")
+                
+                if (normalized !in supported && normalized !in aliasMapping) {
+                  add("${file.name}:${i + 1} -> Config '$configValue' normalizes to '$normalized' which is not in supported-configurations.json")
+                }
+              }
+            } else {
+              val multiLineMatch = multiLineStartRegex.find(line)
+              if (multiLineMatch != null) {
+                val fieldName = multiLineMatch.groupValues[1]
+                if (!fieldName.endsWith("_DEFAULT")) {
+                  var j = i + 1
+                  while (j < lines.size) {
+                    val nextLine = lines[j].trim()
+                    val valueMatch = valueLineRegex.find(nextLine)
+                    if (valueMatch != null) {
+                      val configValue = valueMatch.groupValues[1]
+                      val normalized = "DD_" + configValue.uppercase()
+                        .replace("-", "_")
+                        .replace(".", "_")
+                      if (normalized !in supported && normalized !in aliasMapping) {
+                        add("${file.name}:${i + 1} -> Config '$configValue' normalizes to '$normalized' " +
+                          "which is not in supported-configurations.json")
+                      }
+                      break
+                    }
+                    j++
+                  }
+                }
               }
             }
+            i++
           }
         }
       }
 
       if (violations.isNotEmpty()) {
-        project.logger.lifecycle("\nFound config strings not in supported-configurations.json:")
+        project.logger.lifecycle("\nFound config definitions not in supported-configurations.json:")
         violations.forEach { project.logger.lifecycle(it) }
         throw GradleException("Config strings validation failed. See errors above.")
       } else {
