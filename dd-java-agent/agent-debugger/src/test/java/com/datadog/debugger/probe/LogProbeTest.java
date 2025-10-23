@@ -147,8 +147,8 @@ public class LogProbeTest {
 
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
-      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
-      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
       int budget =
           logProbe.isCaptureSnapshot()
@@ -193,8 +193,8 @@ public class LogProbeTest {
 
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
-      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
-      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
       return logProbe.fillSnapshot(
           entryContext, exitContext, emptyList(), new Snapshot(currentThread(), logProbe, 3));
@@ -204,7 +204,11 @@ public class LogProbeTest {
   private static CapturedContext capturedContext(AgentSpan span, ProbeDefinition probeDefinition) {
     CapturedContext context = new CapturedContext();
     context.evaluate(
-        probeDefinition, "Log Probe test", System.currentTimeMillis(), MethodLocation.DEFAULT);
+        probeDefinition,
+        "Log Probe test",
+        System.currentTimeMillis(),
+        MethodLocation.DEFAULT,
+        false);
     return context;
   }
 
@@ -283,7 +287,7 @@ public class LogProbeTest {
 
   private LogStatus prepareContext(
       CapturedContext context, LogProbe logProbe, MethodLocation methodLocation) {
-    context.evaluate(logProbe, "", 0, methodLocation);
+    context.evaluate(logProbe, "", 0, methodLocation, false);
     return (LogStatus) context.getStatus(PROBE_ID.getEncodedId());
   }
 
