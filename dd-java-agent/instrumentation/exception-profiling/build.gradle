@@ -11,7 +11,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 dependencies {
-  testImplementation 'de.thetaphi:forbiddenapis:3.8'
+  testImplementation libs.forbiddenapis
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.jmc
   testImplementation libs.commons.math

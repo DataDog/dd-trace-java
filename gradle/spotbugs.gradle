@@ -60,8 +60,8 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
 
 dependencies {
   compileOnly 'net.jcip:jcip-annotations:1.0'
-  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  compileOnly libs.spotbugs.annotations
 
   testImplementation 'net.jcip:jcip-annotations:1.0'
-  testImplementation 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  testImplementation libs.spotbugs.annotations
 }

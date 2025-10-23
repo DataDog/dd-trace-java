@@ -7,11 +7,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 /** Not thread-safe. Accumulates counts and durations. */
 @SuppressFBWarnings(
-    value = {
-      "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
-      "AT_NONATOMIC_64BIT_PRIMITIVE",
-      "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"
-    },
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
     justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 public final class AggregateMetric {
 
@@ -75,6 +71,7 @@ public final class AggregateMetric {
     return errorLatencies;
   }
 
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   public void clear() {
     this.errorCount = 0;
     this.hitCount = 0;

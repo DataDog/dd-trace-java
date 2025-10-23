@@ -47,6 +47,7 @@ public class SharedCommunicationObjects {
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public boolean forceClearTextHttpForIntakeClient;
 
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public HttpUrl agentUrl;
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")

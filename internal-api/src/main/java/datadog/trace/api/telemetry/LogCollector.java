@@ -14,9 +14,6 @@ import javax.annotation.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Usage in tests")
 public class LogCollector {
   public static final Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
@@ -33,7 +30,9 @@ public class LogCollector {
     this(DEFAULT_MAX_CAPACITY);
   }
 
-  // For testing purpose
+  @SuppressFBWarnings(
+      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+      justification = "Usage in tests")
   LogCollector(int maxCapacity) {
     this.maxCapacity = maxCapacity;
     this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);

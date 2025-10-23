@@ -60,7 +60,7 @@ dependencies {
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
   testFixturesApi project(':dd-java-agent:instrumentation-testing')
-  testFixturesApi 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  testFixturesApi libs.spotbugs.annotations
 
   testImplementation libs.kotlin
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0"

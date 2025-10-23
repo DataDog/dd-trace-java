@@ -18,7 +18,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "de.thetaphi:forbiddenapis:3.8"
+    classpath libs.forbiddenapis
   }
 }
 
@@ -38,5 +38,5 @@ tasks.matching { it.name.startsWith('forbiddenApis') && it.name.endsWith('Test')
 }
 
 dependencies {
-  compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.8'
+  compileOnly libs.forbiddenapis
 }

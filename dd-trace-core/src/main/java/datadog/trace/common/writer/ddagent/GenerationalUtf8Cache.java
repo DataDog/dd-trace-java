@@ -64,11 +64,7 @@ import java.nio.charset.StandardCharsets;
  * provide better cache utilization.
  */
 @SuppressFBWarnings(
-    value = {
-      "IS2_INCONSISTENT_SYNC",
-      "AT_NONATOMIC_64BIT_PRIMITIVE",
-      // "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"
-    },
+    value = "IS2_INCONSISTENT_SYNC",
     justification =
         "stat updates are deliberately racy - sync is only used to prevent simultaneous bulk updates")
 public final class GenerationalUtf8Cache implements EncodingCache {
@@ -142,6 +138,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   }
 
   /** Updates access time used @link {@link #getUtf8(String, String)} to the provided value */
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   public void updateAccessTime(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;
   }

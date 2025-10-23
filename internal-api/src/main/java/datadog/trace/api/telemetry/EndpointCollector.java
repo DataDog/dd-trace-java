@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @SuppressFBWarnings(
     value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Other usages")
+    justification = "Usage in tests")
 public class EndpointCollector {
 
   private static final EndpointCollector INSTANCE = new EndpointCollector();
