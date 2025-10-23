@@ -43,7 +43,7 @@ for app in *; do
   # Using profiler variants for healthcheck as they are the slowest
   if [ "${app}" == "petclinic" ]; then
     HEALTHCHECK_URL=http://localhost:8082
-    REPETITIONS_COUNT=3
+    REPETITIONS_COUNT=2
   elif [ "${app}" == "insecure-bank" ]; then
     HEALTHCHECK_URL=http://localhost:8082/login
     REPETITIONS_COUNT=2
