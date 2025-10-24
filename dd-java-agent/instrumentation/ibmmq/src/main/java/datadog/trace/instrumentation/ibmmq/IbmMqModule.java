@@ -25,6 +25,7 @@ public class IbmMqModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.ibmmq.DestinationInstrumentation$ProducerAdvice",
+      "datadog.trace.instrumentation.ibmmq.DestinationInstrumentation$ConsumerAdvice",
     };
   }
 
