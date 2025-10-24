@@ -37,18 +37,6 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    String[] res = new String[super.knownMatchingTypes().length + 1];
-    int idx = 0;
-    for (String match : super.knownMatchingTypes()) {
-      res[idx] = match;
-      idx++;
-    }
-    res[idx] = "org.apache.spark.sql.execution.SparkPlanInfo$";
-    return res;
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     super.methodAdvice(transformer);
 
