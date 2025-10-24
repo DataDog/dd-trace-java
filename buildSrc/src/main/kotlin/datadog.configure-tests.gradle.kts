@@ -32,14 +32,20 @@ val forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", 
   maxParallelUsages.set(3)
 }
 
+// Use lazy providers to avoid evaluating the property until it is needed
+val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
+val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
+val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
+val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
+
 // Go through the Test tasks and configure them
 tasks.withType(Test::class.java).configureEach {
   // Disable all tests if skipTests property was specified
-  onlyIf { !project.rootProject.hasProperty("skipTests") }
+  onlyIf { !skipTestsProvider.isPresent }
 
   // Enable force rerun of tests with -Prerun.tests.${project.name}
   outputs.upToDateWhen {
-    !project.rootProject.hasProperty("rerun.tests.${project.name}")
+    !rootProject.providers.gradleProperty("rerun.tests.${project.name}").isPresent
   }
 
   // Avoid executing classes used to test testing frameworks instrumentation
@@ -68,7 +74,7 @@ tasks.withType(Test::class.java).configureEach {
     forkEvery = 1
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
-    onlyIf { !project.rootProject.hasProperty("skipForkedTests") }
+    onlyIf { !skipForkedTestsProvider.isPresent }
   } else {
     exclude("**/*ForkedTest*")
   }
@@ -89,7 +95,7 @@ project.afterEvaluate {
     } else if (it.name != "traceAgentTest") {
       allTestsTask.dependsOn(it)
     }
-    // Make check depend on this test task
+
     checkTask.configure {
       dependsOn(it)
     }
@@ -102,17 +108,17 @@ project.afterEvaluate {
     // Flaky tests management for JUnit 5
     if (testFramework is JUnitPlatformOptions) {
       val junitPlatform = testFramework as JUnitPlatformOptions
-      if (project.rootProject.hasProperty("skipFlakyTests")) {
+      if (skipFlakyTestsProvider.isPresent) {
         junitPlatform.excludeTags("flaky")
-      } else if (project.rootProject.hasProperty("runFlakyTests")) {
+      } else if (runFlakyTestsProvider.isPresent) {
         junitPlatform.includeTags("flaky")
       }
     }
 
     // Flaky tests management for Spock
-    if (project.rootProject.hasProperty("skipFlakyTests")) {
+    if (skipFlakyTestsProvider.isPresent) {
       jvmArgs("-Drun.flaky.tests=false")
-    } else if (project.rootProject.hasProperty("runFlakyTests")) {
+    } else if (runFlakyTestsProvider.isPresent) {
       jvmArgs("-Drun.flaky.tests=true")
     }
   }
