@@ -155,7 +155,7 @@ public class DebuggerAgentTest {
     setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", url.toString());
     setFieldInConfig(Config.get(), "agentUrl", url.toString());
     setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 4096L);
-    setFieldInConfig(Config.get(), "dynamicInstrumentationProbeFileLocation", probeDefinitionPath);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationProbeFile", probeDefinitionPath);
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));

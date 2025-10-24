@@ -96,7 +96,10 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
   @Override
   public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation location) {
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation location,
+      boolean singleProbe) {
 
     Sampling sampling = getSampling();
     if (sampling == null || !sampling.inCoolDown()) {
@@ -118,7 +121,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
     }
     long start = System.nanoTime();
     try {
-      return !probeCondition.execute(capture);
+      return probeCondition.execute(capture);
     } catch (EvaluationException ex) {
       DebuggerAgent.getSink().getProbeStatusSink().addError(probeId, ex);
       return false;
