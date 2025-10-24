@@ -1,0 +1,10 @@
+# Include the template from the apm-sdks-benchmarks repository to hide the details of implementation
+include:
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-spring-petclinic.yml'
+    ref: 'fayssal/seperate-gitlab-configs'
+
+clone-repository:
+  stage: .pre
+  script:
+    - git clone --branch fayssal/seperate-gitlab-configs https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/apm-reliability/apm-sdks-benchmarks

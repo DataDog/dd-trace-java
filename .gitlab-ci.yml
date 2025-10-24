@@ -2,6 +2,7 @@ include:
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
+  - local: ".gitlab/perf-targets.yml"
   - local: ".gitlab/exploration-tests.yml"
   #  - local: ".gitlab/ci-visibility-tests.yml"
 
