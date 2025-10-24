@@ -2,7 +2,7 @@ package datadog.smoketest.appsec
 
 import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import groovy.json.JsonSlurper
 import okhttp3.FormBody
 import okhttp3.MediaType

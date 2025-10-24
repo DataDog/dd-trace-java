@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.HttpUrl
 import okhttp3.MultipartBody
