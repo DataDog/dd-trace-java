@@ -466,4 +466,4 @@ tasks.register('testJar', Jar) {
   archiveClassifier = 'test'
 }
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
+apply plugin: 'datadog.configure-tests'
