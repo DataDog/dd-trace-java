@@ -12,10 +12,11 @@ import kotlin.math.abs
 allprojects {
   extra.set("activePartition", true)
   
-  val shouldUseTaskPartitions = rootProject.hasProperty("taskPartitionCount") && rootProject.hasProperty("taskPartition")
-  if (shouldUseTaskPartitions) {
-    val taskPartitionCount = rootProject.property("taskPartitionCount") as String
-    val taskPartition = rootProject.property("taskPartition") as String
+  val taskPartitionCountProvider = rootProject.providers.gradleProperty("taskPartitionCount")
+  val taskPartitionProvider = rootProject.providers.gradleProperty("taskPartition")
+  if (taskPartitionCountProvider.isPresent && taskPartitionProvider.isPresent) {
+    val taskPartitionCount = taskPartitionCountProvider.get()
+    val taskPartition = taskPartitionProvider.get()
     val currentTaskPartition = abs(project.path.hashCode() % taskPartitionCount.toInt())
     extra.set("activePartition", currentTaskPartition == taskPartition.toInt())
   }
@@ -47,13 +48,10 @@ fun getChangedFiles(baseRef: String, newRef: String): List<File> {
 // Initialize git change tracking
 rootProject.extra.set("useGitChanges", false)
 
-if (rootProject.hasProperty("gitBaseRef")) {
-  val baseRef = rootProject.property("gitBaseRef") as String
-  val newRef = if (rootProject.hasProperty("gitNewRef")) {
-    rootProject.property("gitNewRef") as String
-  } else {
-    "HEAD"
-  }
+val gitBaseRefProvider = rootProject.providers.gradleProperty("gitBaseRef")
+if (gitBaseRefProvider.isPresent) {
+  val baseRef = gitBaseRefProvider.get()
+  val newRef = rootProject.providers.gradleProperty("gitNewRef").orElse("HEAD").get()
   
   val changedFiles = getChangedFiles(baseRef, newRef)
   rootProject.extra.set("changedFiles", changedFiles)
@@ -124,9 +122,10 @@ if (rootProject.hasProperty("gitBaseRef")) {
 }
 
 tasks.register("runMuzzle") {
-  val muzzleSubprojects = subprojects.filter { p ->
-    val activePartition = p.extra.get("activePartition") as Boolean
-    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("muzzle")
-  }
-  dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
+  dependsOn(providers.provider {
+    subprojects.filter { p ->
+      val activePartition = p.extra.get("activePartition") as Boolean
+      activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("muzzle")
+    }.map { p -> "${p.path}:muzzle" }
+  })
 }
