@@ -242,7 +242,7 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
       javaLauncher = javaTestLauncher
       onlyIf("Allowed or forced JDK") {
         !isJdkExcluded(normalizedTestJvm.get()) &&
-        (isJavaLanguageVersionAllowed(javaTestLauncher.get().metadata.languageVersion, it.name) || isJdkForced(normalizedTestJvm.get()))
+        (isJavaLauncherAllowed(javaTestLauncher.get(), it.name) || isJdkForced(normalizedTestJvm.get()))
       }
 
       // Disable jacoco for additional 'testJvm' tests to speed things up a bit
@@ -450,9 +450,9 @@ def isJavaVersionAllowed(JavaVersion version, String testTaskName) {
   return isJavaVersionAllowedForProperty(version, testTaskName)
 }
 
-def isJavaLanguageVersionAllowed(JavaLanguageVersion languageVersion, String testTaskName) {
-  def version = JavaVersion.toVersion(languageVersion.asInt())
-  return isJavaVersionAllowed(version, testTaskName)
+def isJavaLauncherAllowed(JavaLauncher javaLauncher, String testTaskName) {
+  def launcherVersion = JavaVersion.toVersion(javaLauncher.metadata.languageVersion.asInt())
+  return isJavaVersionAllowed(launcherVersion, testTaskName)
 }
 
 def isJdkForced(String javaName) {
