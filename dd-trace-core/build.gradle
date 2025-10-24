@@ -102,4 +102,5 @@ dependencies {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  includes = ['Short*']
 }

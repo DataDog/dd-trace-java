@@ -9,7 +9,7 @@
     </layout>
   </appender>
 
-  <root level="${TEST_LOG_LEVEL:-debug}">
+  <root level="${TEST_LOG_LEVEL:-warn}">
     <appender-ref ref="console" />
   </root>
 
