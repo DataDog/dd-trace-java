@@ -1,0 +1,11 @@
+package com.datadog.featureflag.ufc.v1;
+
+import java.util.List;
+
+public class Rule {
+  public final List<ConditionConfiguration> conditions;
+
+  public Rule(List<ConditionConfiguration> conditions) {
+    this.conditions = conditions;
+  }
+}

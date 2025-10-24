@@ -48,6 +48,7 @@ rootProject.name = "dd-trace-java"
 // external apis
 include(
   ":dd-trace-api",
+  ":dd-trace-api:openfeature",
   ":dd-trace-ot",
   ":dd-trace-ot:correlation-id-injection",
 )
@@ -140,6 +141,11 @@ include(
 
 // AI Guard
 include(":dd-java-agent:agent-aiguard")
+
+// Feature Flag
+include(
+  ":dd-java-agent:agent-featureflag"
+)
 
 // misc
 include(

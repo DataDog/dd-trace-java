@@ -1,0 +1,434 @@
+[
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "barbara",
+    "attributes": {
+      "email": "barbara@example.com",
+      "country": "canada"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 40
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "debra",
+    "attributes": {
+      "email": "test@test.com",
+      "country": "Mexico",
+      "age": 25
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "1",
+    "attributes": {},
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "2",
+    "attributes": {
+      "country": "Mexico"
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "3",
+    "attributes": {
+      "country": "UK",
+      "age": 50
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-age-50+",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "4",
+    "attributes": {
+      "country": "Germany"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "5",
+    "attributes": {
+      "country": "Germany"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "6",
+    "attributes": {
+      "country": "Germany"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "7",
+    "attributes": {
+      "country": "US",
+      "age": 12
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "8",
+    "attributes": {
+      "country": "Italy",
+      "age": 60
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-age-50+",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "9",
+    "attributes": {
+      "email": "email@email.com"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "10",
+    "attributes": {},
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "11",
+    "attributes": {},
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "12",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "13",
+    "attributes": {
+      "country": "Canada"
+    },
+    "result": {
+      "value": true,
+      "variant": "on",
+      "flagMetadata": {
+        "allocationKey": "on-for-NA",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "14",
+    "attributes": {},
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "15",
+    "attributes": {
+      "country": "Denmark"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "16",
+    "attributes": {
+      "country": "Norway"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "17",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "18",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "kill-switch",
+    "variationType": "BOOLEAN",
+    "defaultValue": false,
+    "targetingKey": "19",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": false,
+      "variant": "off",
+      "flagMetadata": {
+        "allocationKey": "off-for-all",
+        "variationType": "boolean",
+        "doLog": true
+      }
+    }
+  }
+]

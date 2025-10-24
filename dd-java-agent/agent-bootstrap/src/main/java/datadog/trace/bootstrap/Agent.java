@@ -31,6 +31,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.FeatureFlagConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -124,7 +125,8 @@ public class Agent {
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
-    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
+    FEATURE_FLAG(FeatureFlagConfig.FLAGGING_PROVIDER_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -183,6 +185,7 @@ public class Agent {
   private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
+  private static boolean featureFlagEnabled = false;
 
   private static void safelySetContextClassLoader(ClassLoader classLoader) {
     try {
@@ -258,6 +261,7 @@ public class Agent {
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
+    featureFlagEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAG);
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -652,6 +656,7 @@ public class Agent {
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
       maybeStartAiGuard();
+      maybeStartFeatureFlag(instrumentation, scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -1070,6 +1075,24 @@ public class Agent {
       }
 
       StaticEventLogger.end("LLM Observability");
+    }
+  }
+
+  private static void maybeStartFeatureFlag(
+      final Instrumentation inst, final Class<?> scoClass, final Object sco) {
+    if (featureFlagEnabled) {
+      StaticEventLogger.begin("Feature Flag");
+
+      try {
+        final Class<?> ffSysClass =
+            AGENT_CLASSLOADER.loadClass("com.datadog.featureflag.FeatureFlagSystem");
+        final Method ffSysMethod = ffSysClass.getMethod("start", Instrumentation.class, scoClass);
+        ffSysMethod.invoke(null, inst, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting Feature Flag subsystem", e);
+      }
+
+      StaticEventLogger.end("Feature Flag");
     }
   }
 

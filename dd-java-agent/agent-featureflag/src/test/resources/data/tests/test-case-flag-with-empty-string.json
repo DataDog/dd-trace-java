@@ -1,0 +1,36 @@
+[
+  {
+    "flag": "empty_string_flag",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "alice",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": "",
+      "variant": "empty_string",
+      "flagMetadata": {
+        "allocationKey": "allocation-empty",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "empty_string_flag",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "bob",
+    "attributes": {},
+    "result": {
+      "value": "non_empty",
+      "variant": "non_empty",
+      "flagMetadata": {
+        "allocationKey": "allocation-test",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  }
+]
