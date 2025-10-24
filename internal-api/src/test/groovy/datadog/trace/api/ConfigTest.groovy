@@ -2582,6 +2582,7 @@ class ConfigTest extends DDSpecification {
     "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
   }
 
+  // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {
 
     def strictness
