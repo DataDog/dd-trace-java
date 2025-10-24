@@ -5,6 +5,7 @@ plugins {
   id("datadog.dependency-locking")
   id("datadog.tracer-version")
   id("datadog.dump-hanged-test")
+  id("config-inversion-linter")
 
   id("com.diffplug.spotless") version "6.13.0"
   id("com.github.spotbugs") version "5.0.14"
