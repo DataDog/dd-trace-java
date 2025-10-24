@@ -398,7 +398,7 @@ test_published_artifacts:
   needs: [ build ]
   stage: tests
   variables:
-    CACHE_TYPE: lib
+    CACHE_TYPE: inst
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
