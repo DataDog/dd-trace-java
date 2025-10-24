@@ -5,6 +5,7 @@ import static java.util.Comparator.comparingLong;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -56,6 +57,16 @@ public class LongRunningTracesTracker implements TracerFlare.Reporter {
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
     this.healthMetrics = healthMetrics;
 
+    if (!features.supportsLongRunning()) {
+      LOGGER.warn(
+          "Long running trace tracking is enabled via {}, however the Datadog Agent version {} does not support receiving long running traces. "
+              + "Long running traces will be tracked locally in memory (up to {} traces) but will NOT be automatically reported to the agent. "
+              + "Long running traces are included in tracer flares.",
+          "dd." + TracerConfig.TRACE_LONG_RUNNING_ENABLED,
+          features.getVersion() != null ? features.getVersion() : "unknown",
+          maxTrackedTraces);
+    }
+
     TracerFlare.addReporter(this);
   }
 
@@ -94,7 +105,7 @@ public class LongRunningTracesTracker implements TracerFlare.Reporter {
         cleanSlot(i);
         continue;
       }
-      if (trace.empty() || !features.supportsLongRunning()) {
+      if (trace.empty()) {
         trace.compareAndSetLongRunningState(WRITE_RUNNING_SPANS, NOT_TRACKED);
         cleanSlot(i);
         continue;
@@ -111,9 +122,11 @@ public class LongRunningTracesTracker implements TracerFlare.Reporter {
           cleanSlot(i);
           continue;
         }
-        trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
-        write++;
-        trace.write();
+        if (features.supportsLongRunning()) {
+          trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
+          write++;
+          trace.write();
+        }
       }
       i++;
     }
