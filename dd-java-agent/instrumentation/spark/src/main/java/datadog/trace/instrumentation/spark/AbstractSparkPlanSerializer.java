@@ -127,7 +127,7 @@ public abstract class AbstractSparkPlanSerializer {
         }
       }
       return list;
-    } else if (value instanceof Partitioning) {
+    } else if (Partitioning.class.isInstance(value)) {
       if (value instanceof TreeNode && depth < MAX_DEPTH) {
         HashMap<String, Object> inner = new HashMap<>();
         inner.put(
@@ -153,11 +153,15 @@ public abstract class AbstractSparkPlanSerializer {
           .getDeclaredMethod("simpleString", new Class[] {int.class})
           .invoke(value, MAX_LENGTH)
           .toString();
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
+    } catch (NullPointerException
+        | NoSuchMethodException
+        | IllegalAccessException
+        | InvocationTargetException exception) {
       try {
         // Attempt the Spark v2 `simpleString` signature
         return TreeNode.class.getDeclaredMethod("simpleString").invoke(value).toString();
-      } catch (NoSuchMethodException
+      } catch (NullPointerException
+          | NoSuchMethodException
           | IllegalAccessException
           | InvocationTargetException innerException) {
       }
