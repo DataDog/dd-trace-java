@@ -192,4 +192,43 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     PrioritySampling.USER_KEEP | 1 | LongRunningTracesTracker.WRITE_RUNNING_SPANS
     PrioritySampling.SAMPLER_KEEP | 1 | LongRunningTracesTracker.WRITE_RUNNING_SPANS
   }
+
+  def "getTracesAsJson with no traces"() {
+    when:
+    def json = tracker.getTracesAsJson()
+
+    then:
+    json == ""
+  }
+
+  def "getTracesAsJson with traces"() {
+    given:
+    def trace = newTraceToTrack()
+    tracker.add(trace)
+
+    when:
+    def json = tracker.getTracesAsJson()
+
+    then:
+    json != null
+    !json.isEmpty()
+    json.contains('"service"')
+    json.contains('"name"')
+  }
+
+  def "testing tracer flare dump with trace"() {
+    given:
+    def trace = newTraceToTrack()
+    tracker.add(trace)
+
+    when:
+    def entries = PendingTraceBufferTest.buildAndExtractZip()
+
+    then:
+    entries.containsKey("long_running_traces.txt")
+
+    def jsonContent = entries["long_running_traces.txt"] as String
+    jsonContent.contains('"service"')
+    jsonContent.contains('"name"')
+  }
 }

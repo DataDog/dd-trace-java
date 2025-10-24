@@ -54,6 +54,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DelayingPendingTraceBuffer.class);
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long SLEEP_TIME_MS = 100;
@@ -315,6 +316,17 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
+    @Override
+    public String getTracesAsJson() throws IOException {
+      dumpTraces();
+      String json = getDumpJson();
+      if (json.isEmpty()) {
+        return "[]";
+      } else {
+        return json;
+      }
+    }
+
     public DelayingPendingTraceBuffer(
         int bufferSize,
         TimeSource timeSource,
@@ -350,6 +362,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       log.debug(
           "PendingTrace enqueued but won't be reported. Root span: {}", pendingTrace.getRootSpan());
     }
+
+    @Override
+    public String getTracesAsJson() {
+      return "[]";
+    }
   }
 
   public static PendingTraceBuffer delaying(
@@ -373,6 +390,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
   public abstract void flush();
 
   public abstract void enqueue(Element pendingTrace);
+
+  public abstract String getTracesAsJson() throws IOException;
 
   private static class TracerDump implements TracerFlare.Reporter {
     private final DelayingPendingTraceBuffer buffer;
