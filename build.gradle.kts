@@ -1,5 +1,5 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
-import datadog.ci.testAggregate
+import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
   id("datadog.gradle-debug")
@@ -142,7 +142,7 @@ allprojects {
 testAggregate("smoke", listOf(":dd-smoke-tests"), emptyList())
 testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), emptyList())
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
-testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), emptyList(), true)
+testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
 testAggregate(
   "base", listOf(":"),
   listOf(

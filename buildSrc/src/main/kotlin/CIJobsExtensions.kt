@@ -1,4 +1,4 @@
-package datadog.ci
+package datadog.gradle.plugin.ci
 
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -98,7 +98,7 @@ private fun Project.createRootTask(
 fun Project.testAggregate(
     baseTaskName: String,
     includePrefixes: List<String>,
-    excludePrefixes: List<String>,
+    excludePrefixes: List<String> = emptyList(),
     forceCoverage: Boolean = false
 ) {
     createRootTask("${baseTaskName}Test", "allTests", includePrefixes, excludePrefixes, forceCoverage)
