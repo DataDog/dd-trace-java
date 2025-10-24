@@ -59,5 +59,11 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
 }
 
 dependencies {
-  compileOnly libs.spotbugs.annotations
+  compileOnly(libs.spotbugs.annotations)
+  testImplementation(libs.spotbugs.annotations) {
+    // Exclude conflicting JUnit5 version from latest spotbugs.
+    exclude group: 'org.junit'
+    exclude group: 'org.junit.jupiter'
+    exclude group: 'org.junit.platform'
+  }
 }
