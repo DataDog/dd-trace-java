@@ -37,9 +37,14 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
+val activePartitionProvider = providers.provider {
+  project.extra.properties["activePartition"] as? Boolean ?: true
+}
 
 // Go through the Test tasks and configure them
 tasks.withType(Test::class.java).configureEach {
+  enabled = activePartitionProvider.get()
+  
   // Disable all tests if skipTests property was specified
   onlyIf { !skipTestsProvider.isPresent }
 
@@ -83,52 +88,42 @@ tasks.withType(Test::class.java).configureEach {
   timeout.set(Duration.of(20, ChronoUnit.MINUTES))
 }
 
-val allTestsTask = tasks.maybeCreate("allTests")
-val allLatestDepTestsTask = tasks.maybeCreate("allLatestDepTests")
-val checkTask = tasks.named("check")
-
-project.afterEvaluate {
-  tasks.withType(Test::class.java).forEach {
-    // Add test to appropriate aggregate task
-    if (it.name.contains("latest", ignoreCase = true)) {
-      allLatestDepTestsTask.dependsOn(it)
-    } else if (it.name != "traceAgentTest") {
-      allTestsTask.dependsOn(it)
+tasks.register("allTests") {
+  dependsOn(providers.provider {
+    tasks.withType<Test>().filter { testTask ->
+      !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
     }
-
-    checkTask.configure {
-      dependsOn(it)
-    }
-  }
+  })
 }
 
-// Setup flaky tests jobs. Done in afterEvaluate so that it applies to latestDepTest.
-project.afterEvaluate {
-  tasks.withType(Test::class.java).configureEach {
-    // Flaky tests management for JUnit 5
-    if (testFramework is JUnitPlatformOptions) {
-      val junitPlatform = testFramework as JUnitPlatformOptions
-      if (skipFlakyTestsProvider.isPresent) {
-        junitPlatform.excludeTags("flaky")
-      } else if (runFlakyTestsProvider.isPresent) {
-        junitPlatform.includeTags("flaky")
-      }
+tasks.register("allLatestDepTests") {
+  dependsOn(providers.provider {
+    tasks.withType<Test>().filter { testTask ->
+      testTask.name.contains("latest", ignoreCase = true)
     }
+  })
+}
 
-    // Flaky tests management for Spock
+tasks.named("check") {
+  dependsOn(tasks.withType<Test>())
+}
+
+tasks.withType(Test::class.java).configureEach {
+  // Flaky tests management for JUnit 5
+  if (testFramework is JUnitPlatformOptions) {
+    val junitPlatform = testFramework as JUnitPlatformOptions
     if (skipFlakyTestsProvider.isPresent) {
-      jvmArgs("-Drun.flaky.tests=false")
+      junitPlatform.excludeTags("flaky")
     } else if (runFlakyTestsProvider.isPresent) {
-      jvmArgs("-Drun.flaky.tests=true")
+      junitPlatform.includeTags("flaky")
     }
   }
-}
 
-if (!(project.property("activePartition") as Boolean)) {
-  project.afterEvaluate {
-    tasks.withType(Test::class.java).configureEach {
-      enabled = false
-    }
+  // Flaky tests management for Spock
+  if (skipFlakyTestsProvider.isPresent) {
+    jvmArgs("-Drun.flaky.tests=false")
+  } else if (runFlakyTestsProvider.isPresent) {
+    jvmArgs("-Drun.flaky.tests=true")
   }
 }
 
