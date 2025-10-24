@@ -1,6 +1,6 @@
 package datadog.smoketest
 
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import okhttp3.Request
 import spock.lang.Shared
 
