@@ -1,9 +1,3 @@
-ext {
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  spring6TestMinJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 muzzle {
   pass {
     group = 'org.springframework'
@@ -75,4 +69,22 @@ dependencies {
   latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '6.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.+'
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  jvmConstraint {
+    minJavaVersionForTests = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("latestDepTest", Test) {
+  jvmConstraint {
+    minJavaVersionForTests = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("spring6Test", Test) {
+  jvmConstraint {
+    minJavaVersionForTests = JavaVersion.VERSION_17
+  }
 }

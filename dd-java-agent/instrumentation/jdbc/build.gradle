@@ -3,10 +3,6 @@ plugins {
   id 'me.champeau.jmh'
 }
 
-ext {
-  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 muzzle {
   pass {
     coreJdk()
@@ -99,3 +95,10 @@ tasks.withType(GroovyCompile).configureEach {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
+
+tasks.named("latestDepJava11Test", Test) {
+  jvmConstraint {
+    minJavaVersionForTests = JavaVersion.VERSION_11
+  }
+}
+

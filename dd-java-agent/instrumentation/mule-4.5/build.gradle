@@ -1,9 +1,3 @@
-ext {
-  forkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  mule46ForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_17
-}
 def muleVersion = '4.5.0'
 def appDir = "$projectDir/application"
 
@@ -112,6 +106,12 @@ tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 
+tasks.named("forkedTest", Test) {
+  jvmConstraint {
+    maxJavaVersionForTests = JavaVersion.VERSION_11
+  }
+}
+
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractMuleServices'
 }
@@ -127,6 +127,19 @@ tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
 
 tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
   configureCompiler(it, 17)
+}
+
+tasks.named("mule46ForkedTest", Test) {
+  jvmConstraint {
+    maxJavaVersionForTests = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  jvmConstraint {
+    minJavaVersionForTests = JavaVersion.VERSION_17
+    maxJavaVersionForTests = JavaVersion.VERSION_17
+  }
 }
 
 dependencies {
