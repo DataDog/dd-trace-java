@@ -163,7 +163,6 @@ default:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
-        - .mvn/caches
         - workspace
       policy: $BUILD_CACHE_POLICY
       unprotect: true
