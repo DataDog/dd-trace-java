@@ -12,6 +12,7 @@ junit5 = "5.12.2"
 junit-platform = "1.12.2"
 logback = "1.2.13"
 bytebuddy = "1.17.7"
+instrumentjava = "0.0.2"
 scala = "2.11.12" # Last version to support Java 7 (2.12+ require Java 8+)
 scala211 = "2.11.12"
 scala212 = "2.12.18"
@@ -46,6 +47,7 @@ okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "okhttp" }
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
 bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
 bytebuddyagent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "bytebuddy" }
+instrumentjava = { module = "com.datadoghq:dd-instrument-java", version.ref = "instrumentjava" }
 autoservice-processor = { module = "com.google.auto.service:auto-service", version.ref = "autoservice" }
 autoservice-annotation = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoservice" }
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons" }

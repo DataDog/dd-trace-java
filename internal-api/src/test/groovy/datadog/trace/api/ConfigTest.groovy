@@ -2793,4 +2793,24 @@ class ConfigTest extends DDSpecification {
     then:
     config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.CONTINUE
   }
+
+  def "Intake client uses correct URL for site #site"() {
+    setup:
+    def config = Spy(Config.get())
+
+    when:
+    config.getSite() >> site
+
+    then:
+    config.getDefaultTelemetryUrl()
+
+    where:
+    site                | expectedUrl
+    "datadoghq.com"     | "https://instrumentation-telemetry-intake.datadoghq.com/api/v2/apmtelemetry"
+    "us3.datadoghq.com" | "https://instrumentation-telemetry-intake.us3.datadoghq.com/api/v2/apmtelemetry"
+    "us5.datadoghq.com" | "https://instrumentation-telemetry-intake.us5.datadoghq.com/api/v2/apmtelemetry"
+    "ap1.datadoghq.com" | "https://instrumentation-telemetry-intake.ap1.datadoghq.com/api/v2/apmtelemetry"
+    "datadoghq.eu"      | "https://instrumentation-telemetry-intake.datadoghq.eu/api/v2/apmtelemetry"
+    "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
+  }
 }

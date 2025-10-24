@@ -52,7 +52,6 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.bootstrap.debugger.MethodLocation;
-import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -76,20 +75,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Handles generating instrumentation for metric probes */
-public class MetricInstrumentor extends Instrumentor {
-  private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumentor.class);
+public class MetricInstrumenter extends Instrumenter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumenter.class);
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
 
   private final MetricProbe metricProbe;
   private int durationStartVar = -1;
   private LabelNode durationStartLabel;
 
-  public MetricInstrumentor(
+  public MetricInstrumenter(
       MetricProbe metricProbe,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
-    super(metricProbe, methodInfo, diagnostics, probeIds);
+      List<Integer> probeIndices) {
+    super(metricProbe, methodInfo, diagnostics, probeIndices);
     this.metricProbe = metricProbe;
   }
 
@@ -390,13 +389,13 @@ public class MetricInstrumentor extends Instrumentor {
   }
 
   private class MetricValueVisitor implements Visitor<VisitorResult> {
-    private final MetricInstrumentor instrumentor;
+    private final MetricInstrumenter instrumentor;
     private final InsnList nullBranch;
     private final AbstractInsnNode targetLocation;
     private final ReturnContext returnContext;
 
     public MetricValueVisitor(
-        MetricInstrumentor instrumentor,
+        MetricInstrumenter instrumentor,
         InsnList nullBranch,
         AbstractInsnNode targetLocation,
         ReturnContext returnContext) {

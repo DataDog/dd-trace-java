@@ -127,7 +127,7 @@ dependencies {
   latestDepTestImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
 }
 
-configurations.matching({ it.name.startsWith('latestDepTest') }).each({
+configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
   it.resolutionStrategy {
     // logback-classic 1.4.11 doesn't like being loaded in the bootstrap classloader (NPE)
     force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'

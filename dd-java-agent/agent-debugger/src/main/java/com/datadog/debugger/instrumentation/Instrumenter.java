@@ -9,7 +9,6 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.util.ClassFileLines;
-import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,7 +29,7 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Common class for generating instrumentation */
-public abstract class Instrumentor {
+public abstract class Instrumenter {
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -40,7 +39,7 @@ public abstract class Instrumentor {
   protected final MethodNode methodNode;
   protected final ClassFileLines classFileLines;
   protected final List<DiagnosticMessage> diagnostics;
-  protected final List<ProbeId> probeIds;
+  protected final List<Integer> probeIndices;
   protected final boolean isStatic;
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
@@ -48,20 +47,20 @@ public abstract class Instrumentor {
   protected final LocalVariableNode[] localVarsBySlotArray;
   protected final JvmLanguage language;
   protected LabelNode returnHandlerLabel;
-  protected final List<CapturedContextInstrumentor.FinallyBlock> finallyBlocks = new ArrayList<>();
+  protected final List<CapturedContextInstrumenter.FinallyBlock> finallyBlocks = new ArrayList<>();
 
-  public Instrumentor(
+  public Instrumenter(
       ProbeDefinition definition,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
+      List<Integer> probeIndices) {
     this.definition = definition;
     this.classLoader = methodInfo.getClassLoader();
     this.classNode = methodInfo.getClassNode();
     this.methodNode = methodInfo.getMethodNode();
     this.classFileLines = methodInfo.getClassFileLines();
     this.diagnostics = diagnostics;
-    this.probeIds = probeIds;
+    this.probeIndices = probeIndices;
     isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
     methodEnterLabel = insertMethodEnterLabel();
     argOffset = isStatic ? 0 : 1;

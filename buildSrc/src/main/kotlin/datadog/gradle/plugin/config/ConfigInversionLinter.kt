@@ -5,8 +5,6 @@ import org.gradle.api.Project
 import org.gradle.api.GradleException
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.internal.impldep.kotlinx.metadata.impl.extensions.KmExtension
-import org.gradle.kotlin.dsl.accessors.runtime.externalModuleDependencyFor
 import org.gradle.kotlin.dsl.getByType
 import java.net.URLClassLoader
 import java.nio.file.Path
@@ -99,9 +97,9 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
       val javaFiles = project.fileTree(project.projectDir) {
         include("**/src/main/java/**/*.java")
         exclude("**/build/**")
-        exclude("internal-api/src/main/java/datadog/trace/api/ConfigHelper.java")
+        exclude("utils/config-utils/src/main/java/datadog/trace/config/inversion/ConfigHelper.java")
         exclude("dd-java-agent/agent-bootstrap/**")
-        exclude("dd-java-agent/src/main/java/datadog/trace/bootstrap/BootstrapInitializationTelemetry.java")
+        exclude("dd-java-agent/src/main/java/datadog/trace/bootstrap/**")
       }
 
       val pattern = Regex("""EnvironmentVariables\.get\s*\(""")

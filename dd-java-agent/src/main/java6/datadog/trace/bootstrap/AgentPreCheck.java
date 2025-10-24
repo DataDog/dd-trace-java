@@ -90,6 +90,9 @@ public class AgentPreCheck {
   }
 
   // Reachable for testing
+  // System.getenv usage is necessary since class is designed to be Java 6 compatible, while
+  // Environment component is for Java 8+
+  @SuppressForbidden
   static boolean compatible(String javaVersion, String javaHome, PrintStream output) {
     int majorJavaVersion = parseJavaMajorVersion(javaVersion);
 
