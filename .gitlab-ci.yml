@@ -188,10 +188,9 @@ default:
     - rm -rf .gradle
     - mv .gradle-copy .gradle
     - ls -la
-    - gitlab_section_end "gradle-dance"
-  script:
     - ls -la .mvn/caches
     - ls -la .gradle/caches
+    - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
 
