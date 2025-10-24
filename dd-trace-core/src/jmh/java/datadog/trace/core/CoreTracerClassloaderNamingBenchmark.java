@@ -19,17 +19,17 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * Benchmark (simulateOverhead) Mode Cnt Score Error Units
+ * CoreTracerClassloaderNamingBenchmark.benchSpanCreation false avgt 3 0.747 ± 0.040 us/op
+ * CoreTracerClassloaderNamingBenchmark.benchSpanCreation true avgt 3 0.695 ± 0.106 us/op
+ */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 15, timeUnit = SECONDS)
 @Measurement(iterations = 3, time = 30, timeUnit = SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
-/**
- * Benchmark (simulateOverhead) Mode Cnt Score Error Units
- * CoreTracerClassloaderNamingBenchmark.benchSpanCreation false avgt 3 0.747 ± 0.040 us/op
- * CoreTracerClassloaderNamingBenchmark.benchSpanCreation true avgt 3 0.695 ± 0.106 us/op
- */
 public class CoreTracerClassloaderNamingBenchmark {
   CoreTracer tracer;
 
