@@ -1,4 +1,4 @@
-package datadog.trace.agent.test.utils;
+package datadog.trace.test.util;
 
 import groovy.lang.Closure;
 import java.util.concurrent.CountDownLatch;
