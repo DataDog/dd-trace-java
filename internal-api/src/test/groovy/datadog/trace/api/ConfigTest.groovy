@@ -137,6 +137,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
   private static final String PREFIX = "dd."
@@ -883,6 +884,9 @@ class ConfigTest extends DDSpecification {
 
   def "verify rule config #name"() {
     setup:
+    def strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+
     environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
     environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
     environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
@@ -893,6 +897,9 @@ class ConfigTest extends DDSpecification {
 
     expect:
     Config.get().isRuleEnabled(name) == enabled
+
+    cleanup:
+    ConfigHelper.get().setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -914,6 +921,9 @@ class ConfigTest extends DDSpecification {
 
   def "verify integration jmxfetch config"() {
     setup:
+    def strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+
     environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")
     environmentVariables.set("DD_JMXFETCH_TEST_ENV_ENABLED", "true")
     environmentVariables.set("DD_JMXFETCH_DISABLED_ENV_ENABLED", "false")
@@ -924,6 +934,9 @@ class ConfigTest extends DDSpecification {
 
     expect:
     Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+    cleanup:
+    ConfigHelper.get().setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -950,6 +963,9 @@ class ConfigTest extends DDSpecification {
 
   def "verify integration trace analytics config"() {
     setup:
+    def strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+
     environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
     environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
     environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
@@ -966,6 +982,9 @@ class ConfigTest extends DDSpecification {
 
     expect:
     Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+    cleanup:
+    ConfigHelper.get().setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
@@ -996,6 +1015,9 @@ class ConfigTest extends DDSpecification {
 
   def "test getFloatSettingFromEnvironment(#name)"() {
     setup:
+    def strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+
     environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
     environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
     environmentVariables.set("DD_FLOAT_TEST", "0.2")
@@ -1008,6 +1030,9 @@ class ConfigTest extends DDSpecification {
 
     expect:
     Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
+
+    cleanup:
+    ConfigHelper.get().setConfigInversionStrict(strictness)
 
     where:
     name              | expected
@@ -1027,6 +1052,9 @@ class ConfigTest extends DDSpecification {
 
   def "test getDoubleSettingFromEnvironment(#name)"() {
     setup:
+    def strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+
     environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
     environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
     environmentVariables.set("DD_FLOAT_TEST", "0.2")
@@ -1039,6 +1067,9 @@ class ConfigTest extends DDSpecification {
 
     expect:
     Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
+
+    cleanup:
+    ConfigHelper.get().setConfigInversionStrict(strictness)
 
     where:
     // spotless:off
