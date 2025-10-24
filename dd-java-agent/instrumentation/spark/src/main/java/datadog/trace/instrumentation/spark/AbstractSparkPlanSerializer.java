@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.catalyst.plans.QueryPlan;
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning;
 import org.apache.spark.sql.catalyst.trees.TreeNode;
 import org.apache.spark.sql.execution.SparkPlan;
 import scala.Option;
@@ -26,7 +25,10 @@ public abstract class AbstractSparkPlanSerializer {
   private final ObjectMapper mapper = AbstractDatadogSparkListener.objectMapper;
 
   private final String SPARK_PKG_NAME = "org.apache.spark";
-  private final Set<String> SAFE_CLASS_NAMES =
+
+  private final Set<String> SAFE_PARSE_TRAVERSE =
+      new HashSet<>(Arrays.asList(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning"));
+  private final Set<String> SAFE_PARSE_STRING =
       new HashSet<>(
           Arrays.asList(
               SPARK_PKG_NAME + ".Partitioner", // not a product or TreeNode
@@ -42,9 +44,8 @@ public abstract class AbstractSparkPlanSerializer {
               ));
 
   // Add class here if we want to break inheritance and interface traversal early when we see
-  // this class. Any class added must be a class whose parents we do not want to match
-  // (inclusive of the class itself).
-  private final Set<String> NEGATIVE_CACHE_CLASSES =
+  // this class. In other words, we explicitly do not match these classes or their parents
+  private final Set<String> NEGATIVE_CACHE =
       new HashSet<>(
           Arrays.asList(
               "java.io.Serializable",
@@ -52,7 +53,6 @@ public abstract class AbstractSparkPlanSerializer {
               "scala.Equals",
               "scala.Product",
               SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
-              SPARK_PKG_NAME + ".sql.catalyst.expressions.Expression",
               SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
               SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
               SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
@@ -127,7 +127,7 @@ public abstract class AbstractSparkPlanSerializer {
         }
       }
       return list;
-    } else if (Partitioning.class.isInstance(value)) {
+    } else if (instanceOf(value, SAFE_PARSE_TRAVERSE, NEGATIVE_CACHE)) {
       if (value instanceof TreeNode && depth < MAX_DEPTH) {
         HashMap<String, Object> inner = new HashMap<>();
         inner.put(
@@ -136,7 +136,7 @@ public abstract class AbstractSparkPlanSerializer {
       } else {
         return value.toString();
       }
-    } else if (traversedInstanceOf(value, SAFE_CLASS_NAMES, NEGATIVE_CACHE_CLASSES)) {
+    } else if (instanceOf(value, SAFE_PARSE_STRING, NEGATIVE_CACHE)) {
       return value.toString();
     } else if (value instanceof TreeNode) {
       // fallback case, leave at bottom
@@ -170,9 +170,11 @@ public abstract class AbstractSparkPlanSerializer {
     }
   }
 
-  private boolean traversedInstanceOf(
-      Object value, Set<String> expectedClasses, Set<String> negativeCache) {
-    if (instanceOf(value.getClass(), expectedClasses, negativeCache)) {
+  // Matches a class to a set of expected classes. Returns true if the class or any
+  // of the interfaces or parent classes it implements matches a class in `expectedClasses`.
+  // Will not attempt to match any classes identified in `negativeCache` on traversal
+  private boolean instanceOf(Object value, Set<String> expectedClasses, Set<String> negativeCache) {
+    if (classOrInterfaceInstanceOf(value.getClass(), expectedClasses, negativeCache)) {
       return true;
     }
 
@@ -185,7 +187,7 @@ public abstract class AbstractSparkPlanSerializer {
         // don't traverse known paths
         break;
       }
-      if (instanceOf(currClass, expectedClasses, negativeCache)) {
+      if (classOrInterfaceInstanceOf(currClass, expectedClasses, negativeCache)) {
         return true;
       }
       lim += 1;
@@ -194,7 +196,11 @@ public abstract class AbstractSparkPlanSerializer {
     return false;
   }
 
-  private boolean instanceOf(Class cls, Set<String> expectedClasses, Set<String> negativeCache) {
+  // Matches a class to a set of expected classes. Returns true if the class or any
+  // of the interfaces it implements matches a class in `expectedClasses`. Will not
+  // attempt to match any classes identified in `negativeCache`.
+  private boolean classOrInterfaceInstanceOf(
+      Class cls, Set<String> expectedClasses, Set<String> negativeCache) {
     // Match on strings to avoid class loading errors
     if (expectedClasses.contains(cls.getName())) {
       return true;
@@ -203,7 +209,7 @@ public abstract class AbstractSparkPlanSerializer {
     // Check interfaces as well
     for (Class interfaceClass : cls.getInterfaces()) {
       if (!negativeCache.contains(interfaceClass.getName())
-          && instanceOf(interfaceClass, expectedClasses, negativeCache)) {
+          && classOrInterfaceInstanceOf(interfaceClass, expectedClasses, negativeCache)) {
         return true;
       }
     }
