@@ -5,8 +5,7 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
-import java.math.BigDecimal;
-import java.math.BigInteger;
+import datadog.trace.bootstrap.debugger.ConditionHelper;
 import java.util.Objects;
 
 public enum ComparisonOperator {
@@ -16,10 +15,10 @@ public enum ComparisonOperator {
       if (left instanceof NumericValue && right instanceof NumericValue) {
         Number leftNumber = ((NumericValue) left).getWidenValue();
         Number rightNumber = ((NumericValue) right).getWidenValue();
-        if (isNan(leftNumber, rightNumber)) {
+        if (ConditionHelper.isNan(leftNumber, rightNumber)) {
           return Boolean.FALSE;
         }
-        return compare(leftNumber, rightNumber) == 0;
+        return ConditionHelper.compare(leftNumber, rightNumber) == 0;
       }
       if (left.getValue() instanceof Enum || right.getValue() instanceof Enum) {
         return applyEqualityForEnum(left, right);
@@ -142,53 +141,18 @@ public enum ComparisonOperator {
     return visitor.visit(this);
   }
 
-  protected static boolean isNan(Number... numbers) {
-    boolean result = false;
-    for (Number number : numbers) {
-      result |= number instanceof Double && Double.isNaN(number.doubleValue());
-    }
-    return result;
-  }
-
   protected static Integer compare(Value<?> left, Value<?> right) {
     if (left instanceof NumericValue && right instanceof NumericValue) {
       Number leftNumber = ((NumericValue) left).getWidenValue();
       Number rightNumber = ((NumericValue) right).getWidenValue();
-      if (isNan(leftNumber, rightNumber)) {
+      if (ConditionHelper.isNan(leftNumber, rightNumber)) {
         return null;
       }
-      return compare(leftNumber, rightNumber);
+      return ConditionHelper.compare(leftNumber, rightNumber);
     }
     if (left instanceof StringValue && right instanceof StringValue) {
       return ((StringValue) left).getValue().compareTo(((StringValue) right).getValue());
     }
     return null;
-  }
-
-  protected static int compare(Number left, Number right) {
-    if (isSpecial(left) || isSpecial(right)) {
-      return Double.compare(left.doubleValue(), right.doubleValue());
-    } else {
-      return toBigDecimal(left).compareTo(toBigDecimal(right));
-    }
-  }
-
-  private static boolean isSpecial(Number x) {
-    boolean specialDouble = x instanceof Double && Double.isInfinite((Double) x);
-    boolean specialFloat = x instanceof Float && Float.isInfinite((Float) x);
-    return specialDouble || specialFloat;
-  }
-
-  private static BigDecimal toBigDecimal(Number number) throws NumberFormatException {
-    if (number instanceof BigDecimal) return (BigDecimal) number;
-    if (number instanceof BigInteger) return new BigDecimal((BigInteger) number);
-    if (number instanceof Byte
-        || number instanceof Short
-        || number instanceof Integer
-        || number instanceof Long) return BigDecimal.valueOf(number.longValue());
-    if (number instanceof Float || number instanceof Double)
-      return BigDecimal.valueOf(number.doubleValue());
-
-    return new BigDecimal(number.toString());
   }
 }

@@ -1,5 +1,7 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.isStaticMethod;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -167,7 +169,7 @@ public class LocalVarHoisting {
   private static int getParameterSlotCount(MethodNode method) {
     Type[] argTypes = Type.getArgumentTypes(method.desc);
     int count = 0;
-    if ((method.access & Opcodes.ACC_STATIC) == 0) {
+    if (!isStaticMethod(method)) {
       count = 1; // 'this' parameter
     }
     for (Type type : argTypes) {

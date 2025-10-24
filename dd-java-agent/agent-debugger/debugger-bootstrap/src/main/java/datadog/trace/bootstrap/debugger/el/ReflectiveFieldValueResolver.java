@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -42,6 +43,21 @@ public class ReflectiveFieldValueResolver {
       LOGGER.debug(EXCLUDE_TELEMETRY, "INACCESSIBLE_FIELD failed: ", e);
     }
     INACCESSIBLE_FIELD = field;
+  }
+
+  private static final MethodHandle CAN_ACCCESS;
+
+  static {
+    MethodHandle methodHandle = null;
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+      methodHandle =
+          lookup.findVirtual(
+              Field.class, "canAccess", methodType(boolean.class, Object.class));
+    } catch (Exception e) {
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up canAccess failed: ", e);
+    }
+    CAN_ACCCESS = methodHandle;
   }
 
   private static final Class<?> MODULE_CLASS;
@@ -222,9 +238,9 @@ public class ReflectiveFieldValueResolver {
     }
   }
 
-  private static class FieldResult {
-    final Field field;
-    final String msg;
+  public static class FieldResult {
+    public final Field field;
+    public final String msg;
 
     public FieldResult(Field field, String msg) {
       this.field = field;
@@ -232,7 +248,7 @@ public class ReflectiveFieldValueResolver {
     }
   }
 
-  private static FieldResult getField(Class<?> container, String name) {
+  public static FieldResult getField(Class<?> container, String name) {
     while (container != null) {
       Field[] declaredFields = container.getDeclaredFields();
       for (int i = 0; i < declaredFields.length; i++) {
@@ -248,7 +264,7 @@ public class ReflectiveFieldValueResolver {
       }
       container = container.getSuperclass();
     }
-    return new FieldResult(null, "Field not found");
+    return new FieldResult(null, "Field not found: " + name);
   }
 
   public static boolean trySetAccessible(Field field) {
@@ -260,6 +276,18 @@ public class ReflectiveFieldValueResolver {
     } catch (Throwable e) {
       LOGGER.debug("trySetAccessible call failed: ", e);
       return true;
+    }
+  }
+
+  public static boolean canAccess(Field field, Object obj) {
+    if (CAN_ACCCESS == null) {
+      return field.isAccessible();
+    }
+    try {
+      return (boolean) CAN_ACCCESS.invokeExact(field, obj);
+    } catch (Throwable e) {
+      LOGGER.debug("canAccess call failed: ", e);
+      return false;
     }
   }
 

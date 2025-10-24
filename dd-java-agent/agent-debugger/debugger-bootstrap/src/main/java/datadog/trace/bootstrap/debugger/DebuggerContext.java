@@ -433,6 +433,7 @@ public class DebuggerContext {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
+      MethodLocation methodLocation,
       int... probeIndices) {
     try {
       if (entryContext == CapturedContext.EMPTY_CONTEXT
@@ -445,10 +446,10 @@ public class DebuggerContext {
         CapturedContext.Status exitStatus = exitContext.getStatus(probeIndex);
         ProbeImplementation probeImplementation;
         if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
-            && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
-                || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+            && (methodLocation == MethodLocation.ENTRY
+                || methodLocation == MethodLocation.DEFAULT)) {
           probeImplementation = entryStatus.probeImplementation;
-        } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
+        } else if (methodLocation == MethodLocation.EXIT) {
           probeImplementation = exitStatus.probeImplementation;
         } else {
           throw new IllegalStateException("no probe details for " + probeIndex);
@@ -468,6 +469,7 @@ public class DebuggerContext {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
+      MethodLocation methodLocation,
       int probeIndex) {
     // Cannot call the multi probe version here, because it will add a new level for stacktrace
     // recording
@@ -481,11 +483,15 @@ public class DebuggerContext {
       CapturedContext.Status exitStatus = exitContext.getStatus(probeIndex);
       ProbeImplementation probeImplementation;
       if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
-          && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
-              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+          && (methodLocation == MethodLocation.ENTRY || methodLocation == MethodLocation.DEFAULT)) {
         probeImplementation = entryStatus.probeImplementation;
-      } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
-        probeImplementation = exitStatus.probeImplementation;
+      } else if (methodLocation == MethodLocation.EXIT) {
+        if (exitStatus.probeImplementation != ProbeImplementation.UNKNOWN) {
+          probeImplementation = exitStatus.probeImplementation;
+        } else {
+          // otherwise nothing to do
+          return;
+        }
       } else {
         throw new IllegalStateException("no probe details for " + probeIndex);
       }
@@ -553,6 +559,16 @@ public class DebuggerContext {
     } catch (Exception ex) {
       LOGGER.debug("Error in isClassNameExcluded: ", ex);
       return false;
+    }
+  }
+
+  public static void handleConditionException(Throwable t, int probeIndex, String dslExpr) {
+    ProbeImplementation probeImplementation = resolveProbe(probeIndex);
+    if (probeImplementation != null) {
+      CapturedContext capturedContext = new CapturedContext();
+      capturedContext.addError(probeImplementation, new EvaluationError(dslExpr, t.toString()));
+      probeImplementation.commit(
+          CapturedContext.EMPTY_CAPTURING_CONTEXT, capturedContext, Collections.emptyList());
     }
   }
 }

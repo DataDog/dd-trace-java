@@ -32,6 +32,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.JvmLanguage;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.util.Redaction;
@@ -69,9 +70,13 @@ public class CapturedContextInstrumenter extends Instrumenter {
   protected final LabelNode contextInitLabel = new LabelNode();
   private int entryContextVar = -1;
   private int exitContextVar = -1;
-  private int timestampStartVar = -1;
+  protected int timestampStartVar = -1;
   private int throwableListVar = -1;
   private Collection<LocalVariableNode> hoistedLocalVars = Collections.emptyList();
+  protected final boolean hasCondition;
+  // TODO move to specialized class
+  protected MethodNode conditionMethod;
+  protected MethodNode conditionExceptionMethod;
 
   public CapturedContextInstrumenter(
       ProbeDefinition definition,
@@ -85,6 +90,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
     this.captureSnapshot = captureSnapshot;
     this.captureEntry = captureEntry;
     this.limits = limits;
+    this.hasCondition = ((CapturedContextProbe) definition).hasCondition();
   }
 
   @Override
@@ -268,13 +274,9 @@ public class CapturedContextInstrumenter extends Instrumenter {
   protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
     InsnList insnList = new InsnList();
     // stack [ret_value]
-    insnList.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
-    // stack [ret_value, capturedcontext]
     LabelNode targetNode = new LabelNode();
     LabelNode gotoNode = new LabelNode();
-    invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
-    // stack [ret_value, boolean]
-    insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    addBeforeReturnCondition(insnList, targetNode);
     // stack [ret_value]
     addEvalContextCall(insnList, Snapshot.Kind.RETURN, node, timestampStartVar, "EXIT");
     // stack [ret_value]
@@ -287,6 +289,14 @@ public class CapturedContextInstrumenter extends Instrumenter {
     // stack [ret_value]
     insnList.add(gotoNode);
     return insnList;
+  }
+
+  protected void addBeforeReturnCondition(InsnList insnList, LabelNode targetNode) {
+    insnList.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
+    // stack [ret_value, capturedcontext]
+    invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
+    // stack [ret_value, boolean]
+    insnList.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
   }
 
   @Override
@@ -311,6 +321,9 @@ public class CapturedContextInstrumenter extends Instrumenter {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
     }
     // stack [capturedcontext, capturedcontext, list]
+    String methodLocationStr = definition.getEvaluateAt() == MethodLocation.EXIT ? "EXIT" : "ENTRY";
+    getStatic(insnList, METHOD_LOCATION_TYPE, methodLocationStr);
+    // stack [capturedcontext, capturedcontext, methodlocation]
     addCommitCall(insnList);
     // stack []
     return insnList;
@@ -328,6 +341,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
         CAPTURED_CONTEXT_TYPE,
         CAPTURED_CONTEXT_TYPE,
         getType(List.class),
+        METHOD_LOCATION_TYPE,
         INT_ARRAY_TYPE);
     // stack []
   }
@@ -341,17 +355,9 @@ public class CapturedContextInstrumenter extends Instrumenter {
     InsnList handler = new InsnList();
     handler.add(handlerLabel);
     // stack [exception]
-    LabelNode targetNode = null;
-    if (entryContextVar != -1) {
-      handler.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
-      // stack [exception, capturedcontext]
-      targetNode = new LabelNode();
-      invokeVirtual(handler, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
-      // stack [exception, boolean]
-      handler.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
-    }
+    LabelNode targetNode = addFinallyHandlerCondition(handler);
     if (exitContextVar == -1) {
-      exitContextVar = newVar(CAPTURED_CONTEXT_TYPE);
+      exitContextVar = ASMHelper.newVar(methodNode, CAPTURED_CONTEXT_TYPE);
     }
     // stack [exception]
     addEvalContextCall(
@@ -368,6 +374,20 @@ public class CapturedContextInstrumenter extends Instrumenter {
     // stack: []
     methodNode.instructions.add(handler);
     finallyBlocks.add(new FinallyBlock(startLabel, endLabel, handlerLabel));
+  }
+
+  protected LabelNode addFinallyHandlerCondition(InsnList handler) {
+    LabelNode targetNode = null;
+    if (entryContextVar != -1) {
+      // TODO check, probably not needed
+      handler.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
+      // stack [exception, capturedcontext]
+      targetNode = new LabelNode();
+      invokeVirtual(handler, CAPTURED_CONTEXT_TYPE, "isCapturing", BOOLEAN_TYPE);
+      // stack [exception, boolean]
+      handler.add(new JumpInsnNode(Opcodes.IFEQ, targetNode));
+    }
+    return targetNode;
   }
 
   protected void addEvalContextCall(
@@ -643,7 +663,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
       } else {
         insnList.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
         // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, arg]
-        tryBox(argType, insnList);
+        ASMHelper.tryBox(argType, insnList);
         // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
         addCapturedValueOf(insnList, limits);
       }
@@ -677,14 +697,6 @@ public class CapturedContextInstrumenter extends Instrumenter {
     // stack: [capturedcontext, capturedcontext, array, array, int, field_value]
     insnList.add(new InsnNode(Opcodes.AASTORE));
     // stack: [capturedcontext, capturedcontext, array]
-  }
-
-  private void tryBox(Type type, InsnList insnList) {
-    // expected stack top is the value to be boxed
-    if (Types.isPrimitive(type)) {
-      Type targetType = Types.getBoxingTargetType(type);
-      invokeStatic(insnList, targetType, "valueOf", targetType, type);
-    }
   }
 
   private void collectLocalVariables(AbstractInsnNode location, InsnList insnList) {
@@ -748,7 +760,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
       } else {
         insnList.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
         // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, value]
-        tryBox(varType, insnList);
+        ASMHelper.tryBox(varType, insnList);
         // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, object]
         addCapturedValueOf(insnList, limits);
       }
@@ -779,11 +791,11 @@ public class CapturedContextInstrumenter extends Instrumenter {
       return;
     }
     // expected stack top is [ret_value, capturedcontext]
-    int captureVar = newVar(CAPTURED_CONTEXT_TYPE);
+    int captureVar = ASMHelper.newVar(methodNode, CAPTURED_CONTEXT_TYPE);
     insnList.add(new VarInsnNode(Opcodes.ASTORE, captureVar));
     // stack: [ret_value]
     Type returnType = Type.getReturnType(methodNode.desc);
-    int retVar = newVar(returnType);
+    int retVar = ASMHelper.newVar(methodNode, returnType);
     if (returnType.getSize() == 2) {
       insnList.add(new InsnNode(Opcodes.DUP2));
     } else {
@@ -801,7 +813,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name]
     insnList.add(new VarInsnNode(returnType.getOpcode(Opcodes.ILOAD), retVar));
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name, ret_value]
-    tryBox(returnType, insnList);
+    ASMHelper.tryBox(returnType, insnList);
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name, ret_value]
     // no name, no redaction
     addCapturedValueOf(insnList, limits);
@@ -816,8 +828,8 @@ public class CapturedContextInstrumenter extends Instrumenter {
       return;
     }
     // expected stack: [throwable, capturedcontext]
-    int captureVar = newVar(CAPTURED_CONTEXT_TYPE);
-    int throwableVar = newVar(THROWABLE_TYPE);
+    int captureVar = ASMHelper.newVar(methodNode, CAPTURED_CONTEXT_TYPE);
+    int throwableVar = ASMHelper.newVar(methodNode, THROWABLE_TYPE);
     insnList.add(new VarInsnNode(Opcodes.ASTORE, captureVar));
     // stack: [throwable]
     insnList.add(new InsnNode(Opcodes.DUP));
@@ -881,7 +893,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
             new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
         // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
         // field_value]
-        tryBox(fieldType, insnList);
+        ASMHelper.tryBox(fieldType, insnList);
         // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
         addCapturedValueOf(insnList, limits);
       }
@@ -926,21 +938,21 @@ public class CapturedContextInstrumenter extends Instrumenter {
   }
 
   private int declareContextVar(InsnList insnList) {
-    int var = newVar(CAPTURED_CONTEXT_TYPE);
+    int var = ASMHelper.newVar(methodNode, CAPTURED_CONTEXT_TYPE);
     getStatic(insnList, CAPTURED_CONTEXT_TYPE, "EMPTY_CAPTURING_CONTEXT");
     insnList.add(new VarInsnNode(Opcodes.ASTORE, var));
     return var;
   }
 
   private int declareTimestampVar(InsnList insnList) {
-    int var = newVar(LONG_TYPE);
+    int var = ASMHelper.newVar(methodNode, LONG_TYPE);
     invokeStatic(insnList, Type.getType(System.class), "nanoTime", LONG_TYPE);
     insnList.add(new VarInsnNode(Opcodes.LSTORE, var));
     return var;
   }
 
   private int declareThrowableList(InsnList insnList) {
-    int var = newVar(getType(ArrayList.class));
+    int var = ASMHelper.newVar(methodNode, getType(ArrayList.class));
     insnList.add(new InsnNode(Opcodes.ACONST_NULL));
     insnList.add(new VarInsnNode(Opcodes.ASTORE, var));
     return var;

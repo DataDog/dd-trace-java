@@ -281,8 +281,8 @@ public class LogProbeTest {
     entryStatus.setSampled(sampled);
     entryStatus.setCondition(condition);
     entryStatus.setConditionErrors(conditionErrors);
-    entryStatus.setLogTemplateErrors(logTemplateErrors);
-    entryStatus.setLogTemplateErrors(logTemplateErrors);
+    entryStatus.setHasEvalutionErrors(logTemplateErrors);
+    entryStatus.setHasEvalutionErrors(logTemplateErrors);
   }
 
   private LogStatus prepareContext(
@@ -324,12 +324,12 @@ public class LogProbeTest {
     CapturedContext entryContext = new CapturedContext();
     LogStatus logStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
     logStatus.addError(new EvaluationError("expr", "msg1"));
-    logStatus.setLogTemplateErrors(true);
+    logStatus.setHasEvalutionErrors(true);
     entryContext.addThrowable(new RuntimeException("errorEntry"));
     CapturedContext exitContext = new CapturedContext();
     logStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
     logStatus.addError(new EvaluationError("expr", "msg2"));
-    logStatus.setLogTemplateErrors(true);
+    logStatus.setHasEvalutionErrors(true);
     exitContext.addThrowable(new RuntimeException("errorExit"));
     Snapshot snapshot = new Snapshot(currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
