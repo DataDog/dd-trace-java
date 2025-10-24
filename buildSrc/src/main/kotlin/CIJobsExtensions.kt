@@ -43,7 +43,7 @@ private fun Project.createRootTask(
     excludePrefixes: List<String>,
     forceCoverage: Boolean
 ) {
-    val coverage = forceCoverage || rootProject.hasProperty("checkCoverage")
+    val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
     tasks.register(rootTaskName) {
         subprojects.forEach { subproject ->
             val activePartition = subproject.extra.get("activePartition") as Boolean
@@ -51,15 +51,15 @@ private fun Project.createRootTask(
                 includePrefixes.any { subproject.path.startsWith(it) } &&
                 !excludePrefixes.any { subproject.path.startsWith(it) }) {
                 
-                val testTask = subproject.tasks.findByName(subProjTaskName)
-                var isAffected = true
-                
-                if (testTask != null) {
+                if (subProjTaskName in subproject.tasks.names) {
+                    val testTaskProvider = subproject.tasks.named(subProjTaskName)
+                    var isAffected = true
+                    
                     val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
                     if (useGitChanges) {
                         @Suppress("UNCHECKED_CAST")
                         val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
-                        val fileTrigger = isAffectedBy(testTask, affectedProjects)
+                        val fileTrigger = isAffectedBy(testTaskProvider.get(), affectedProjects)
                         if (fileTrigger != null) {
                             logger.warn("Selecting ${subproject.path}:$subProjTaskName (triggered by $fileTrigger)")
                         } else {
@@ -68,18 +68,16 @@ private fun Project.createRootTask(
                         }
                     }
                     if (isAffected) {
-                        dependsOn(testTask)
+                        dependsOn(testTaskProvider)
                     }
-                }
-                
-                if (isAffected && coverage) {
-                    val coverageTask = subproject.tasks.findByName("jacocoTestReport")
-                    if (coverageTask != null) {
-                        dependsOn(coverageTask)
-                    }
-                    val verificationTask = subproject.tasks.findByName("jacocoTestCoverageVerification")
-                    if (verificationTask != null) {
-                        dependsOn(verificationTask)
+                    
+                    if (isAffected && coverage) {
+                        if ("jacocoTestReport" in subproject.tasks.names) {
+                            dependsOn(subproject.tasks.named("jacocoTestReport"))
+                        }
+                        if ("jacocoTestCoverageVerification" in subproject.tasks.names) {
+                            dependsOn(subproject.tasks.named("jacocoTestCoverageVerification"))
+                        }
                     }
                 }
             }
