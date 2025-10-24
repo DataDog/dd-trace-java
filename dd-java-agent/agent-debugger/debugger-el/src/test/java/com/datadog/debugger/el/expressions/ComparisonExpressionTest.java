@@ -45,7 +45,7 @@ class ComparisonExpressionTest {
     assertEquals(prettyPrint, print(expression));
   }
 
-  private static Stream<Arguments> expressions() {
+  public static Stream<Arguments> expressions() {
     return Stream.of(
         Arguments.of(new NumericValue(1, INT), new NumericValue(1, INT), EQ, true, "1 == 1"),
         Arguments.of(new NumericValue(1L, LONG), new NumericValue(1L, LONG), EQ, true, "1 == 1"),

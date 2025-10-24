@@ -16,6 +16,7 @@ public class CapturedSnapshot08 {
   }
 
   static class Type3 {
+    private final int value = 42;
     final String msg;
     Type3(String msg) {
       this.msg = msg;
@@ -30,7 +31,7 @@ public class CapturedSnapshot08 {
   }
 
   static final class Type1 {
-    final Type2 fld;
+    public final Type2 fld;
     Type1(Type2 fld) {
       this.fld = fld;
     }

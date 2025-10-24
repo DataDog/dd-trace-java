@@ -18,11 +18,13 @@ import static org.objectweb.asm.Opcodes.SALOAD;
 import static org.objectweb.asm.Opcodes.SASTORE;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ConditionHelper;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,6 +73,9 @@ public final class Types {
       Type.getType(ReflectiveFieldValueResolver.class);
   public static final Type METRICKIND_TYPE = Type.getType(DebuggerContext.MetricKind.class);
   public static final Type PROBE_ID_TYPE = Type.getType(ProbeId.class);
+  public static final Type CONDITION_HELPER_TYPE = Type.getType(ConditionHelper.class);
+  public static final Type ENUM_TYPE = Type.getType(Enum.class);
+  public static final Type BIG_DECIMAL_TYPE = Type.getType(BigDecimal.class);
 
   // special initialization methods
   public static final String CONSTRUCTOR = "<init>";

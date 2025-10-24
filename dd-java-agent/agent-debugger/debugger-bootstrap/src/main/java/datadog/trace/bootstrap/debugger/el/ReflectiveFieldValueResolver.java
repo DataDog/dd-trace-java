@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -42,6 +43,21 @@ public class ReflectiveFieldValueResolver {
       LOGGER.debug(EXCLUDE_TELEMETRY, "INACCESSIBLE_FIELD failed: ", e);
     }
     INACCESSIBLE_FIELD = field;
+  }
+
+  private static final MethodHandle CAN_ACCCESS;
+
+  static {
+    MethodHandle methodHandle = null;
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+      methodHandle =
+          lookup.findVirtual(
+              AccessibleObject.class, "canAccess", methodType(boolean.class, Object.class));
+    } catch (Exception e) {
+      LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up canAcess failed: ", e);
+    }
+    CAN_ACCCESS = methodHandle;
   }
 
   private static final Class<?> MODULE_CLASS;
@@ -259,6 +275,18 @@ public class ReflectiveFieldValueResolver {
       return (boolean) TRY_SET_ACCESSIBLE.invokeExact(field);
     } catch (Throwable e) {
       LOGGER.debug("trySetAccessible call failed: ", e);
+      return true;
+    }
+  }
+
+  public static boolean canAccess(Field field, Object obj) {
+    if (CAN_ACCCESS == null) {
+      return true;
+    }
+    try {
+      return (boolean) CAN_ACCCESS.invokeExact(field, obj);
+    } catch (Throwable e) {
+      LOGGER.debug("canAccess call failed: ", e);
       return true;
     }
   }

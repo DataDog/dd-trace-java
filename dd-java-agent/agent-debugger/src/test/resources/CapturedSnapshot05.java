@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class CapturedSnapshot05 {
 
-  void triggerUncaughtException() {
+  void triggerUncaughtException(String arg) {
     throw new CustomException("oops", "I did it again");
   }
 
@@ -38,7 +38,7 @@ public class CapturedSnapshot05 {
     CapturedSnapshot05 cs5 = new CapturedSnapshot05();
     long before = System.currentTimeMillis();
     if ("triggerUncaughtException".equals(arg)) {
-      cs5.triggerUncaughtException();
+      cs5.triggerUncaughtException(arg);
     } else if ("triggerCaughtException".equals(arg)) {
       return cs5.triggerCaughtException();
     } else if ("triggerSwallowedException".equals(arg)) {

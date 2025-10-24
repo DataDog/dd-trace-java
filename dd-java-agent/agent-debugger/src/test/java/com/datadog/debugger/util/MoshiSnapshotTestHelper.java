@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -362,6 +363,13 @@ public class MoshiSnapshotTestHelper {
                 }
               } else if (type.equals("java.util.Collections$EmptyList")) {
                 value = Collections.emptyList();
+              } else if (type.equals(Set.class.getTypeName())
+                  || type.equals(HashSet.class.getTypeName())) {
+                Set<Object> set = new HashSet<>();
+                for (CapturedContext.CapturedValue cValue : values) {
+                  set.add(cValue.getValue());
+                }
+                value = set;
               } else {
                 throw new RuntimeException("Cannot deserialize type: " + type);
               }

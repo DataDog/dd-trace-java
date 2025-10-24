@@ -393,7 +393,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID1, listener);
     assertEquals(
-        "this is log line for this={intValue=48, doubleValue=3.14, strValue=done, strList=..., strMap=...}",
+        "this is log line for this={intValue=48, doubleValue=3.14, strValue=done, strList=..., strMap=...}, ...",
         snapshot.getMessage());
   }
 

@@ -24,6 +24,7 @@ import java.util.StringJoiner;
 import java.util.stream.Collectors;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -32,12 +33,15 @@ import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.tree.VarInsnNode;
 import org.objectweb.asm.util.Printer;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceClassVisitor;
@@ -79,9 +83,12 @@ public class ASMHelper {
     StringWriter writer = new StringWriter();
     classNode.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(writer)));
     List<String> strings = Arrays.asList(writer.toString().split("\n"));
+    if (method.contains("$")) {
+      method = method.replace("$", "\\$");
+    }
     for (int i = 0; i < strings.size(); i++) {
       if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
-        while (!strings.get(i).equals(""))
+        while (i < strings.size() && !strings.get(i).equals(""))
           joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
       }
     }
@@ -122,6 +129,10 @@ public class ASMHelper {
     // stack: [ret_type]
   }
 
+  public static boolean isStaticMethod(MethodNode methodNode) {
+    return (methodNode.access & Opcodes.ACC_STATIC) != 0;
+  }
+
   public static boolean isStaticField(FieldNode fieldNode) {
     return (fieldNode.access & Opcodes.ACC_STATIC) != 0;
   }
@@ -140,6 +151,11 @@ public class ASMHelper {
 
   public static boolean isRecord(ClassNode classNode) {
     return (classNode.access & Opcodes.ACC_RECORD) != 0;
+  }
+
+  public static boolean hasReturnValue(MethodNode methodNode) {
+    return org.objectweb.asm.Type.getReturnType(methodNode.desc)
+        != org.objectweb.asm.Type.VOID_TYPE;
   }
 
   public static void invokeStatic(
@@ -382,12 +398,31 @@ public class ASMHelper {
     String opcode = node.getOpcode() >= 0 ? Printer.OPCODES[node.getOpcode()] : node.toString();
     if (node instanceof LineNumberNode) {
       return String.format("LineNumber: %s", ((LineNumberNode) node).line);
-    } else if (node instanceof MethodInsnNode) {
+    }
+    if (node instanceof LabelNode) {
+      return String.format("Label: %s", ((LabelNode) node).getLabel());
+    }
+    if (node instanceof MethodInsnNode) {
       MethodInsnNode method = (MethodInsnNode) node;
       return String.format("%s: [%s] %s", opcode, method.name, method.desc);
-    } else {
-      return opcode;
     }
+    if (node instanceof FieldInsnNode) {
+      FieldInsnNode field = (FieldInsnNode) node;
+      return String.format("%s: %s.%s: %s", opcode, field.owner, field.name, field.desc);
+    }
+    if (node instanceof VarInsnNode) {
+      VarInsnNode var = (VarInsnNode) node;
+      return String.format("%s: %s", opcode, var.var);
+    }
+    if (node instanceof JumpInsnNode) {
+      JumpInsnNode jump = (JumpInsnNode) node;
+      return String.format("%s: %s", opcode, jump.label.getLabel());
+    }
+    if (node instanceof LdcInsnNode) {
+      LdcInsnNode ldc = (LdcInsnNode) node;
+      return String.format("%s: %s", opcode, ldc.cst);
+    }
+    return opcode;
   }
 
   private static int widenIntType(int sort) {
@@ -426,6 +461,29 @@ public class ASMHelper {
       current = current.getNext();
     }
     return lines;
+  }
+
+  public static void tryBox(org.objectweb.asm.Type type, InsnList insnList) {
+    // expected stack top is the value to be boxed
+    if (Types.isPrimitive(type)) {
+      org.objectweb.asm.Type targetType = Types.getBoxingTargetType(type);
+      invokeStatic(insnList, targetType, "valueOf", targetType, type);
+    }
+  }
+
+  public static int newVar(MethodNode methodNode, org.objectweb.asm.Type type) {
+    int varId = methodNode.maxLocals + 1;
+    methodNode.maxLocals += type.getSize();
+    return varId;
+  }
+
+  public static int getArgOffset(MethodNode methodNode) {
+    int argOffset = isStaticMethod(methodNode) ? 0 : 1;
+    org.objectweb.asm.Type[] argTypes = org.objectweb.asm.Type.getArgumentTypes(methodNode.desc);
+    for (org.objectweb.asm.Type t : argTypes) {
+      argOffset += t.getSize();
+    }
+    return argOffset;
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

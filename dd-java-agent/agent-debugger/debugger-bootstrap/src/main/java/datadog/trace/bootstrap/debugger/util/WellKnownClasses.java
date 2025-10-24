@@ -9,6 +9,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -122,46 +123,83 @@ public class WellKnownClasses {
 
   private static final Set<String> LONG_PRIMITIVES = new HashSet<>(Arrays.asList("java.util.Date"));
 
-  private static final Map<Class<?>, Map<String, Function<Object, CapturedContext.CapturedValue>>>
-      SPECIAL_TYPE_ACCESS = new HashMap<>();
+  private static final Map<Class<?>, Map<String, SpecialFieldInfo>> SPECIAL_TYPE_ACCESS =
+      new HashMap<>();
 
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      STACKTRACEELEMENT_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> STACKTRACEELEMENT_SPECIAL_FIELDS =
+      new HashMap<>();
 
   private static Method getModuleNameMethod;
 
   static {
-    STACKTRACEELEMENT_SPECIAL_FIELDS.put("declaringClass", StackTraceElementFields::declaringClass);
-    STACKTRACEELEMENT_SPECIAL_FIELDS.put("methodName", StackTraceElementFields::methodName);
-    STACKTRACEELEMENT_SPECIAL_FIELDS.put("fileName", StackTraceElementFields::fileName);
-    STACKTRACEELEMENT_SPECIAL_FIELDS.put("lineNumber", StackTraceElementFields::lineNumber);
-    STACKTRACEELEMENT_SPECIAL_FIELDS.put("moduleName", StackTraceElementFields::moduleName);
-    try {
-      getModuleNameMethod = StackTraceElement.class.getMethod("getModuleName");
-    } catch (NoSuchMethodException e) {
-      getModuleNameMethod = null;
+    STACKTRACEELEMENT_SPECIAL_FIELDS.put(
+        "declaringClass",
+        new SpecialFieldInfo(
+            getDeclaredMethod(StackTraceElement.class, "getClassName"),
+            StackTraceElementFields::declaringClass));
+    STACKTRACEELEMENT_SPECIAL_FIELDS.put(
+        "methodName",
+        new SpecialFieldInfo(
+            getDeclaredMethod(StackTraceElement.class, "getMethodName"),
+            StackTraceElementFields::methodName));
+    STACKTRACEELEMENT_SPECIAL_FIELDS.put(
+        "fileName",
+        new SpecialFieldInfo(
+            getDeclaredMethod(StackTraceElement.class, "getFileName"),
+            StackTraceElementFields::fileName));
+    STACKTRACEELEMENT_SPECIAL_FIELDS.put(
+        "lineNumber",
+        new SpecialFieldInfo(
+            getDeclaredMethod(StackTraceElement.class, "getLineNumber"),
+            StackTraceElementFields::lineNumber));
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      STACKTRACEELEMENT_SPECIAL_FIELDS.put(
+          "moduleName",
+          new SpecialFieldInfo(
+              getDeclaredMethod(StackTraceElement.class, "getModuleName"),
+              StackTraceElementFields::moduleName));
+      try {
+        getModuleNameMethod = StackTraceElement.class.getMethod("getModuleName");
+      } catch (NoSuchMethodException e) {
+        getModuleNameMethod = null;
+      }
     }
   }
 
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONAL_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONALINT_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONALDOUBLE_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONALLONG_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      COMPLETABLEFUTURE_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> OPTIONAL_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> OPTIONALINT_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> OPTIONALDOUBLE_SPECIAL_FIELDS =
+      new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> OPTIONALLONG_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> COMPLETABLEFUTURE_SPECIAL_FIELDS =
+      new HashMap<>();
 
   static {
-    OPTIONAL_SPECIAL_FIELDS.put("value", OptionalFields::value);
-    OPTIONALINT_SPECIAL_FIELDS.put("value", OptionalFields::valueInt);
-    OPTIONALDOUBLE_SPECIAL_FIELDS.put("value", OptionalFields::valueDouble);
-    OPTIONALLONG_SPECIAL_FIELDS.put("value", OptionalFields::valueLong);
+    OPTIONAL_SPECIAL_FIELDS.put(
+        "value",
+        new SpecialFieldInfo(
+            getDeclaredMethod(Optional.class, "orElse", Object.class), OptionalFields::value));
+    OPTIONALINT_SPECIAL_FIELDS.put(
+        "value",
+        new SpecialFieldInfo(
+            getDeclaredMethod(OptionalInt.class, "orElse", Integer.TYPE),
+            OptionalFields::valueInt));
+    OPTIONALDOUBLE_SPECIAL_FIELDS.put(
+        "value",
+        new SpecialFieldInfo(
+            getDeclaredMethod(OptionalDouble.class, "orElse", Double.TYPE),
+            OptionalFields::valueDouble));
+    OPTIONALLONG_SPECIAL_FIELDS.put(
+        "value",
+        new SpecialFieldInfo(
+            getDeclaredMethod(OptionalLong.class, "orElse", Long.TYPE), OptionalFields::valueLong));
     if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
       // Future::resultNow method is available since JDK 19
-      COMPLETABLEFUTURE_SPECIAL_FIELDS.put("result", CompletableFutureFields::result);
+      COMPLETABLEFUTURE_SPECIAL_FIELDS.put(
+          "result",
+          new SpecialFieldInfo(
+              getDeclaredMethod(CompletableFuture.class, "resultNow"),
+              CompletableFutureFields::result));
     }
   }
 
@@ -177,14 +215,50 @@ public class WellKnownClasses {
     }
   }
 
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      THROWABLE_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, SpecialFieldInfo> THROWABLE_SPECIAL_FIELDS = new HashMap<>();
 
   static {
-    THROWABLE_SPECIAL_FIELDS.put("detailMessage", ThrowableFields::detailMessage);
-    THROWABLE_SPECIAL_FIELDS.put("suppressedExceptions", ThrowableFields::suppressedExceptions);
-    THROWABLE_SPECIAL_FIELDS.put("stackTrace", ThrowableFields::stackTrace);
-    THROWABLE_SPECIAL_FIELDS.put("cause", ThrowableFields::cause);
+    THROWABLE_SPECIAL_FIELDS.put(
+        "detailMessage",
+        new SpecialFieldInfo(
+            getDeclaredMethod(Throwable.class, "getMessage"), ThrowableFields::detailMessage));
+    THROWABLE_SPECIAL_FIELDS.put(
+        "suppressedExceptions",
+        new SpecialFieldInfo(
+            getDeclaredMethod(Throwable.class, "getSuppressed"),
+            ThrowableFields::suppressedExceptions));
+    THROWABLE_SPECIAL_FIELDS.put(
+        "stackTrace",
+        new SpecialFieldInfo(
+            getDeclaredMethod(Throwable.class, "getStackTrace"), ThrowableFields::stackTrace));
+    THROWABLE_SPECIAL_FIELDS.put(
+        "cause",
+        new SpecialFieldInfo(
+            getDeclaredMethod(Throwable.class, "getCause"), ThrowableFields::cause));
+  }
+
+  public static class SpecialFieldInfo {
+    public final Method method;
+    public final Function<Object, CapturedContext.CapturedValue> accessor;
+    public final boolean checksOverride;
+
+    public SpecialFieldInfo(
+        Method method, Function<Object, CapturedContext.CapturedValue> accessor) {
+      this.method = method;
+      this.accessor = accessor;
+      // checks override if declaring class & method are not final
+      this.checksOverride =
+          (method.getDeclaringClass().getModifiers() & Modifier.FINAL) == 0
+              && (method.getModifiers() & Modifier.FINAL) == 0;
+    }
+  }
+
+  private static Method getDeclaredMethod(Class<?> clazz, String name, Class<?>... parameterTypes) {
+    try {
+      return clazz.getDeclaredMethod(name, parameterTypes);
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static final List<String> SAFE_COLLECTION_PACKAGES =
@@ -268,17 +342,20 @@ public class WellKnownClasses {
    * @return a map of fields with function to access special field of a type, or null if type is not
    *     supported. This is used to avoid using reflection to access fields on well known types
    */
-  public static Map<String, Function<Object, CapturedContext.CapturedValue>> getSpecialTypeAccess(
-      Object value) {
+  public static Map<String, SpecialFieldInfo> getSpecialTypeAccess(Object value) {
     if (value == null) {
       return null;
     }
-    Map<String, Function<Object, CapturedContext.CapturedValue>> specialTypeAccess =
-        SPECIAL_TYPE_ACCESS.get(value.getClass());
+    return getSpecialTypeAccess(value.getClass());
+  }
+
+  public static Map<String, SpecialFieldInfo> getSpecialTypeAccess(Class<?> clazz) {
+    Map<String, SpecialFieldInfo> specialTypeAccess = SPECIAL_TYPE_ACCESS.get(clazz);
     if (specialTypeAccess != null) {
       return specialTypeAccess;
     }
-    if (value instanceof Throwable) {
+    // clazz instanceof Throwable
+    if (Throwable.class.isAssignableFrom(clazz)) {
       return THROWABLE_SPECIAL_FIELDS;
     }
     return null;
@@ -316,7 +393,7 @@ public class WellKnownClasses {
     return LONG_FUNCTIONS.get(typeName);
   }
 
-  private static class ThrowableFields {
+  public static class ThrowableFields {
     public static final String BECAUSE_OVERRIDDEN =
         "Special access method not safe to be called because overridden";
 
@@ -369,17 +446,19 @@ public class WellKnownClasses {
       return CapturedContext.CapturedValue.of(
           fieldName, fieldType.getTypeName(), supplier.apply(obj));
     }
+  }
 
-    private static boolean isOverridden(
-        Object value, String methodName, Class<?> originalDeclaringClass) {
-      Class<?> declaringClass = null;
-      try {
-        declaringClass = value.getClass().getMethod(methodName).getDeclaringClass();
-      } catch (NoSuchMethodException e) {
-        LOGGER.debug("Failed to get declaring class for Throwable::getMessage", e);
-      }
-      return declaringClass != originalDeclaringClass;
+  public static boolean isOverridden(
+      Object value, String methodName, Class<?> originalDeclaringClass) {
+    Class<?> declaringClass = null;
+    try {
+      declaringClass = value.getClass().getMethod(methodName).getDeclaringClass();
+    } catch (NoSuchMethodException e) {
+      LOGGER.debug(
+          "Failed to get declaring class for " + value.getClass().getTypeName() + "::" + methodName,
+          e);
     }
+    return declaringClass != originalDeclaringClass;
   }
 
   private static class StackTraceElementFields {

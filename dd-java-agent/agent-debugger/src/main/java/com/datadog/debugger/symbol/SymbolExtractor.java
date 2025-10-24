@@ -2,6 +2,7 @@ package com.datadog.debugger.symbol;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.adjustLocalVarsBasedOnArgs;
 import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStaticMethod;
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 
 import com.datadog.debugger.instrumentation.ASMHelper;
@@ -264,7 +265,7 @@ public class SymbolExtractor {
     // if class is an interface && method has code && non-static this is a default method
     if ((classNode.access & Opcodes.ACC_INTERFACE) > 0
         && methodNode.instructions.size() > 0
-        && (methodNode.access & Opcodes.ACC_STATIC) == 0) {
+        && !isStaticMethod(methodNode)) {
       results.add("default");
     }
     return results;
@@ -337,7 +338,7 @@ public class SymbolExtractor {
 
   private static int extractArgs(
       MethodNode method, List<Symbol> methodSymbols, int methodStartLine) {
-    boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
+    boolean isStatic = isStaticMethod(method);
     int slot = isStatic ? 0 : 1;
     if (method.localVariables == null || method.localVariables.size() == 0) {
       return slot;
