@@ -45,43 +45,47 @@ private fun Project.createRootTask(
 ) {
     val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
     tasks.register(rootTaskName) {
-        subprojects.forEach { subproject ->
-            val activePartition = subproject.extra.get("activePartition") as Boolean
-            if (activePartition &&
-                includePrefixes.any { subproject.path.startsWith(it) } &&
-                !excludePrefixes.any { subproject.path.startsWith(it) }) {
-                
-                if (subProjTaskName in subproject.tasks.names) {
-                    val testTaskProvider = subproject.tasks.named(subProjTaskName)
-                    var isAffected = true
+        dependsOn(project.provider {
+            val dependencies = mutableListOf<Any>()
+            subprojects.forEach { subproject ->
+                val activePartition = subproject.extra.get("activePartition") as Boolean
+                if (activePartition &&
+                    includePrefixes.any { subproject.path.startsWith(it) } &&
+                    !excludePrefixes.any { subproject.path.startsWith(it) }) {
                     
-                    val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
-                    if (useGitChanges) {
-                        @Suppress("UNCHECKED_CAST")
-                        val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
-                        val fileTrigger = isAffectedBy(testTaskProvider.get(), affectedProjects)
-                        if (fileTrigger != null) {
-                            logger.warn("Selecting ${subproject.path}:$subProjTaskName (triggered by $fileTrigger)")
-                        } else {
-                            logger.warn("Skipping ${subproject.path}:$subProjTaskName (not affected by changed files)")
-                            isAffected = false
+                    if (subProjTaskName in subproject.tasks.names) {
+                        val testTaskProvider = subproject.tasks.named(subProjTaskName)
+                        var isAffected = true
+                        
+                        val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
+                        if (useGitChanges) {
+                            @Suppress("UNCHECKED_CAST")
+                            val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
+                            val fileTrigger = isAffectedBy(testTaskProvider.get(), affectedProjects)
+                            if (fileTrigger != null) {
+                                logger.warn("Selecting ${subproject.path}:$subProjTaskName (triggered by $fileTrigger)")
+                            } else {
+                                logger.warn("Skipping ${subproject.path}:$subProjTaskName (not affected by changed files)")
+                                isAffected = false
+                            }
                         }
-                    }
-                    if (isAffected) {
-                        dependsOn(testTaskProvider)
-                    }
-                    
-                    if (isAffected && coverage) {
-                        if ("jacocoTestReport" in subproject.tasks.names) {
-                            dependsOn(subproject.tasks.named("jacocoTestReport"))
+                        if (isAffected) {
+                            dependencies.add(testTaskProvider)
                         }
-                        if ("jacocoTestCoverageVerification" in subproject.tasks.names) {
-                            dependsOn(subproject.tasks.named("jacocoTestCoverageVerification"))
+                        
+                        if (isAffected && coverage) {
+                            if ("jacocoTestReport" in subproject.tasks.names) {
+                                dependencies.add(subproject.tasks.named("jacocoTestReport"))
+                            }
+                            if ("jacocoTestCoverageVerification" in subproject.tasks.names) {
+                                dependencies.add(subproject.tasks.named("jacocoTestCoverageVerification"))
+                            }
                         }
                     }
                 }
             }
-        }
+            dependencies
+        })
     }
 }
 
