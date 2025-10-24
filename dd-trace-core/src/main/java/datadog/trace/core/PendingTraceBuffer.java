@@ -72,6 +72,23 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private final LongRunningTracesTracker runningTracesTracker;
 
+    private void dumpTraces() {
+      if (worker.isAlive()) {
+        int count = dumpCounter.get();
+        int loop = 1;
+        boolean signaled = queue.offer(DUMP_ELEMENT);
+        while (!closed && !signaled) {
+          yieldOrSleep(loop++);
+          signaled = queue.offer(DUMP_ELEMENT);
+        }
+        int newCount = dumpCounter.get();
+        while (!closed && count >= newCount) {
+          yieldOrSleep(loop++);
+          newCount = dumpCounter.get();
+        }
+      }
+    }
+
     public boolean longRunningSpansEnabled() {
       return runningTracesTracker != null;
     }
@@ -134,6 +151,18 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           yieldOrSleep(loop++);
           newCount = flushCounter.get();
         }
+      }
+    }
+
+    private String getDumpJson() {
+      try (TraceDumpJsonExporter writer = new TraceDumpJsonExporter()) {
+        for (Element e : DumpDrain.DUMP_DRAIN.collectTraces()) {
+          if (e instanceof PendingTrace) {
+            PendingTrace trace = (PendingTrace) e;
+            writer.write(trace.getSpans());
+          }
+        }
+        return writer.getDumpJson();
       }
     }
 
@@ -355,32 +384,12 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void prepareForFlare() {
-      if (buffer.worker.isAlive()) {
-        int count = buffer.dumpCounter.get();
-        int loop = 1;
-        boolean signaled = buffer.queue.offer(DelayingPendingTraceBuffer.DUMP_ELEMENT);
-        while (!buffer.closed && !signaled) {
-          buffer.yieldOrSleep(loop++);
-          signaled = buffer.queue.offer(DelayingPendingTraceBuffer.DUMP_ELEMENT);
-        }
-        int newCount = buffer.dumpCounter.get();
-        while (!buffer.closed && count >= newCount) {
-          buffer.yieldOrSleep(loop++);
-          newCount = buffer.dumpCounter.get();
-        }
-      }
+      buffer.dumpTraces();
     }
 
     @Override
     public void addReportToFlare(ZipOutputStream zip) throws IOException {
-      TraceDumpJsonExporter writer = new TraceDumpJsonExporter(zip);
-      for (Element e : DelayingPendingTraceBuffer.DumpDrain.DUMP_DRAIN.collectTraces()) {
-        if (e instanceof PendingTrace) {
-          PendingTrace trace = (PendingTrace) e;
-          writer.write(trace.getSpans());
-        }
-      }
-      writer.flush();
+      TracerFlare.addText(zip, "pending_traces.txt", buffer.getDumpJson());
     }
   }
 }
