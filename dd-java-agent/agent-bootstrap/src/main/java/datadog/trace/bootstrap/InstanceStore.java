@@ -4,6 +4,7 @@ import datadog.trace.api.GenericClassValue;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * An {@code InstanceStore} is a class global map for registering instances. This can be useful when
@@ -12,7 +13,7 @@ import java.util.Map;
  *
  * <p>Instance keys are expected to be string literals, defined as constants in the helper classes.
  */
-public final class InstanceStore<T> implements ContextStore<String, T> {
+public final class InstanceStore<T> {
 
   private static final ClassValue<? super ContextStore<String, ?>> classInstanceStore =
       GenericClassValue.of(input -> new InstanceStore<>());
@@ -28,33 +29,45 @@ public final class InstanceStore<T> implements ContextStore<String, T> {
 
   private InstanceStore() {}
 
-  @Override
+  /**
+   * Gets the instance of {@code T} currently associated with the given key.
+   *
+   * @param key the instance key
+   * @return the associated instance
+   */
   public T get(String key) {
     return store.get(key);
   }
 
-  @Override
+  /**
+   * Unconditionally associates an instance of {@code T} with the given key.
+   *
+   * @param key the instance key
+   * @param instance the instance
+   */
   public void put(String key, T instance) {
     store.put(key, instance);
   }
 
-  @Override
-  public T putIfAbsent(String key, T instance) {
-    T existing = store.putIfAbsent(key, instance);
-    return existing != null ? existing : instance;
+  /**
+   * If the given key is not already associated with an instance, create one using the factory and
+   * associate it. Unlike {@link java.util.Map#putIfAbsent} this always returns the final associated
+   * instance.
+   *
+   * @param key the instance key
+   * @param instanceFactory the factory to create instances
+   * @return final associated instance
+   */
+  public T putIfAbsent(String key, Supplier<T> instanceFactory) {
+    return store.computeIfAbsent(key, k -> instanceFactory.get());
   }
 
-  @Override
-  public T putIfAbsent(String key, Factory<T> instanceFactory) {
-    return store.computeIfAbsent(key, instanceFactory::create);
-  }
-
-  @Override
-  public T computeIfAbsent(String key, KeyAwareFactory<? super String, T> instanceFactory) {
-    return store.computeIfAbsent(key, instanceFactory::create);
-  }
-
-  @Override
+  /**
+   * Removes the instance of {@code T} currently associated with the given key.
+   *
+   * @param key the instance key
+   * @return the previously associated instance; {@code null} if there was none
+   */
   public T remove(String key) {
     return store.remove(key);
   }
