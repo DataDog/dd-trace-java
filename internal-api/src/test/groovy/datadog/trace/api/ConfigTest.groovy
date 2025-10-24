@@ -1811,24 +1811,6 @@ class ConfigTest extends DDSpecification {
     // spotless:on
   }
 
-  // Static methods test:
-  def "configProvider.get* unit test"() {
-    setup:
-    def p = new Properties()
-    p.setProperty("i", "13")
-    p.setProperty("f", "42.42")
-    def configProvider = ConfigProvider.withPropertiesOverride(p)
-
-    expect:
-    configProvider.getDouble("i", 40) == 13
-    configProvider.getDouble("f", 41) == 42.42
-    configProvider.getFloat("i", 40) == 13
-    configProvider.getFloat("f", 41) == 42.42f
-    configProvider.getInteger("b", 61) == 61
-    configProvider.getInteger("i", 61) == 13
-    configProvider.getBoolean("a", true) == true
-  }
-
   def "valueOf positive test"() {
     expect:
     ConfigConverter.valueOf(value, tClass) == expected
@@ -2826,6 +2808,24 @@ class ConfigTest extends DDSpecification {
       ["alias-env", "baz"]    | 0.4f
       ["alias-prop", "foo"]   | 0.2f
       // spotless:on
+    }
+
+    // Static methods test:
+    def "configProvider.get* unit test"() {
+      setup:
+      def p = new Properties()
+      p.setProperty("i", "13")
+      p.setProperty("f", "42.42")
+      def configProvider = ConfigProvider.withPropertiesOverride(p)
+
+      expect:
+      configProvider.getDouble("i", 40) == 13
+      configProvider.getDouble("f", 41) == 42.42
+      configProvider.getFloat("i", 40) == 13
+      configProvider.getFloat("f", 41) == 42.42f
+      configProvider.getInteger("b", 61) == 61
+      configProvider.getInteger("i", 61) == 13
+      configProvider.getBoolean("a", true) == true
     }
   }
 }
