@@ -51,6 +51,9 @@ public class FeatureFlagEvaluatorImpl
 
   @Override
   public void addListener(final Listener listener) {
+    if (configuration.get() != null) {
+      listener.onInitialized();
+    }
     synchronized (listeners) {
       this.listeners.add(listener);
     }

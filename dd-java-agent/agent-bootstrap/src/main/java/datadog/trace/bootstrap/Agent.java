@@ -656,7 +656,7 @@ public class Agent {
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
       maybeStartAiGuard();
-      maybeStartFeatureFlag(instrumentation, scoClass, sco);
+      maybeStartFeatureFlag(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -1078,16 +1078,15 @@ public class Agent {
     }
   }
 
-  private static void maybeStartFeatureFlag(
-      final Instrumentation inst, final Class<?> scoClass, final Object sco) {
+  private static void maybeStartFeatureFlag(final Class<?> scoClass, final Object sco) {
     if (featureFlagEnabled) {
       StaticEventLogger.begin("Feature Flag");
 
       try {
         final Class<?> ffSysClass =
             AGENT_CLASSLOADER.loadClass("com.datadog.featureflag.FeatureFlagSystem");
-        final Method ffSysMethod = ffSysClass.getMethod("start", Instrumentation.class, scoClass);
-        ffSysMethod.invoke(null, inst, sco);
+        final Method ffSysMethod = ffSysClass.getMethod("start", scoClass);
+        ffSysMethod.invoke(null, sco);
       } catch (final Throwable e) {
         log.warn("Not starting Feature Flag subsystem", e);
       }

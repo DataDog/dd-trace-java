@@ -1,6 +1,7 @@
 package com.datadog.featureflag.evaluator
 
 import com.datadog.featureflag.FeatureFlagEvaluatorImpl
+import datadog.trace.api.featureflag.FeatureFlag
 import datadog.trace.api.openfeature.Provider
 import dev.openfeature.sdk.Client
 import dev.openfeature.sdk.EvaluationContext
@@ -15,18 +16,16 @@ class FeatureFlagEvaluatorTests extends BaseFeatureFlagsTest {
   @Shared
   protected Client client
 
-  @Shared
-  protected FeatureFlagEvaluatorImpl evaluator
-
   void setup() {
-    evaluator = new FeatureFlagEvaluatorImpl()
-    OpenFeatureAPI.getInstance().setProviderAndWait(new Provider(evaluator))
+    final evaluator = new FeatureFlagEvaluatorImpl()
+    evaluator.accept(configuration)
+    FeatureFlag.EVALUATOR = evaluator
+    OpenFeatureAPI.getInstance().setProviderAndWait(new Provider())
     client = OpenFeatureAPI.getInstance().getClient()
   }
 
   void 'test feature flag evaluation'() {
     setup:
-    evaluator.accept(configuration)
     final testCase = input["testCase"] as TestCase
     final context = buildContext(testCase)
 

@@ -11,6 +11,12 @@ val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
 
 description = "open-feature"
 
+idea {
+  module {
+    jdkName = "11"
+  }
+}
+
 dependencies {
   api(libs.slf4j)
   api(libs.openfeature.sdk)
@@ -21,8 +27,13 @@ fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVers
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
-listOf("compileJava", "compileTestJava").forEach {
-  tasks.named<JavaCompile>(it) {
+listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
+  tasks.withType(compileTaskType).configureEach {
     configureCompiler(11, JavaVersion.VERSION_11)
   }
+}
+
+tasks.withType<Javadoc>().configureEach {
+  // TODO ensure it uses JDK 11
+  enabled = false
 }

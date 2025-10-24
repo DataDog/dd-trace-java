@@ -1,6 +1,7 @@
 package datadog.trace.api.openfeature;
 
-import datadog.trace.api.featureflag.FeatureFlag;
+import static datadog.trace.api.featureflag.FeatureFlag.EVALUATOR;
+
 import datadog.trace.api.featureflag.FeatureFlagEvaluator;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -21,22 +22,8 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   private static final Logger LOGGER = LoggerFactory.getLogger(Provider.class);
   private static final String METADATA = "datadog-openfeature-provider";
 
-  private final FeatureFlagEvaluator evaluator;
-
   public Provider() {
-    this(FeatureFlag.EVALUATOR);
-  }
-
-  Provider(final FeatureFlagEvaluator evaluator) {
-    this.evaluator = evaluator;
-    this.evaluator.addListener(this);
-  }
-
-  @Override
-  public void onConfigurationChanged() {
-    emit(
-        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-        ProviderEventDetails.builder().message("New configuration received").build());
+    EVALUATOR.addListener(this);
   }
 
   @Override
@@ -44,6 +31,13 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
     emit(
         ProviderEvent.PROVIDER_READY,
         ProviderEventDetails.builder().message("Provider ready").build());
+  }
+
+  @Override
+  public void onConfigurationChanged() {
+    emit(
+        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
+        ProviderEventDetails.builder().message("New configuration received").build());
   }
 
   @Override
@@ -60,7 +54,7 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   public ProviderEvaluation<Boolean> getBooleanEvaluation(
       final String key, final Boolean defaultValue, final EvaluationContext ctx) {
     try {
-      return map(Boolean.class, evaluator.evaluate(key, defaultValue, new ContextAdapter(ctx)));
+      return map(Boolean.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
     } catch (final FeatureFlagEvaluator.EvaluationError e) {
       return fromError(e, defaultValue);
     }
@@ -70,7 +64,7 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   public ProviderEvaluation<String> getStringEvaluation(
       final String key, final String defaultValue, final EvaluationContext ctx) {
     try {
-      return map(String.class, evaluator.evaluate(key, defaultValue, new ContextAdapter(ctx)));
+      return map(String.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
     } catch (final FeatureFlagEvaluator.EvaluationError e) {
       return fromError(e, defaultValue);
     }
@@ -80,7 +74,7 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   public ProviderEvaluation<Integer> getIntegerEvaluation(
       final String key, final Integer defaultValue, final EvaluationContext ctx) {
     try {
-      return map(Integer.class, evaluator.evaluate(key, defaultValue, new ContextAdapter(ctx)));
+      return map(Integer.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
     } catch (final FeatureFlagEvaluator.EvaluationError e) {
       return fromError(e, defaultValue);
     }
@@ -90,7 +84,7 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   public ProviderEvaluation<Double> getDoubleEvaluation(
       final String key, final Double defaultValue, final EvaluationContext ctx) {
     try {
-      return map(Double.class, evaluator.evaluate(key, defaultValue, new ContextAdapter(ctx)));
+      return map(Double.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
     } catch (final FeatureFlagEvaluator.EvaluationError e) {
       return fromError(e, defaultValue);
     }
@@ -100,7 +94,7 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   public ProviderEvaluation<Value> getObjectEvaluation(
       final String key, final Value defaultValue, final EvaluationContext ctx) {
     try {
-      return map(Value.class, evaluator.evaluate(key, defaultValue, new ContextAdapter(ctx)));
+      return map(Value.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
     } catch (final FeatureFlagEvaluator.EvaluationError e) {
       return fromError(e, defaultValue);
     }
