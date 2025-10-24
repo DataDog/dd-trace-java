@@ -146,7 +146,7 @@ default:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   cache:
-    - key: dependency-$CACHE_TYPE # Dependencies cache
+    - key: dependency-mvn-test-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
@@ -160,7 +160,7 @@ default:
         - 'dependency-lib'
     - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
-        # Cached dependencies and wrappers for Gradle and Maven:
+        # Cached dependencies and wrappers for Gradle:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
