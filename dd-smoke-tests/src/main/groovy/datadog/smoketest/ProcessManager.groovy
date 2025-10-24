@@ -1,16 +1,12 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.utils.PortUtils
-import de.thetaphi.forbiddenapis.SuppressForbidden
-import groovy.transform.CompileStatic
-import spock.lang.AutoCleanup
-import spock.lang.Shared
-import spock.lang.Specification
-
-import java.nio.CharBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
+import spock.lang.AutoCleanup
+import spock.lang.Shared
+import spock.lang.Specification
 
 abstract class ProcessManager extends Specification {
 
@@ -20,8 +16,6 @@ abstract class ProcessManager extends Specification {
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
 
-  @Shared
-  protected String workingDirectory = System.getProperty("user.dir")
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
@@ -73,9 +67,7 @@ abstract class ProcessManager extends Specification {
   OutputThreads outputThreads = new OutputThreads()
 
   def setupSpec() {
-    if (buildDirectory == null || shadowJarPath == null) {
-      throw new AssertionError("Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.")
-    }
+    assert buildDirectory && shadowJarPath: 'Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.'
     assert Files.isDirectory(Paths.get(buildDirectory))
     assert Files.isRegularFile(Paths.get(shadowJarPath))
 
@@ -83,7 +75,6 @@ abstract class ProcessManager extends Specification {
 
     (0..<numberOfProcesses).each { idx ->
       ProcessBuilder processBuilder = createProcessBuilder(idx)
-
 
       processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
       processBuilder.environment().put("DD_API_KEY", apiKey())
@@ -101,7 +92,7 @@ abstract class ProcessManager extends Specification {
     (0..<numberOfProcesses).each { idx ->
       def curProc = testedProcesses[idx]
 
-      if ( !curProc.isAlive() && curProc.exitValue() != 0 ) {
+      if (!curProc.isAlive() && curProc.exitValue() != 0) {
         def exitCode = curProc.exitValue()
         def logFile = logFilePaths[idx]
 
@@ -124,7 +115,7 @@ abstract class ProcessManager extends Specification {
           exitValue = tp?.exitValue()
           break
         }
-        catch (Throwable e) {
+        catch (Throwable ignored) {
           if (attempt == 1) {
             System.out.println("Destroying instrumented process")
             tp.destroy()
@@ -212,8 +203,11 @@ abstract class ProcessManager extends Specification {
 
   void forEachLogLine(Closure checker) {
     for (String lfp : logFilePaths) {
-      ProcessManager.eachLine(new File(lfp)) {
-        checker(it)
+      def file = new File(lfp)
+      file.withReader { reader ->
+        reader.eachLine {
+          checker(it)
+        }
       }
     }
   }
@@ -240,7 +234,7 @@ abstract class ProcessManager extends Specification {
    * @param checker should return true if a match is found
    */
   void processTestLogLines(Closure<Boolean> checker) {
-    outputThreads.processTestLogLines {return checker(it) }
+    outputThreads.processTestLogLines { return checker(it) }
   }
 
   protected void beforeProcessBuilders() {}
@@ -258,34 +252,5 @@ abstract class ProcessManager extends Specification {
 
   String apiKey() {
     return "01234567890abcdef123456789ABCDEF"
-  }
-
-  @CompileStatic
-  @SuppressForbidden
-  private static void eachLine(File file, Closure closure) {
-    def reader = new InputStreamReader(new FileInputStream(file))
-    CharBuffer buffer = CharBuffer.allocate(OutputThreads.MAX_LINE_SIZE)
-    while (reader.read(buffer) != -1) {
-      buffer.flip()
-      while (buffer.hasRemaining()) {
-        char c = buffer.get()
-        if (c == '\n' || c == '\r') {
-          break
-        }
-      }
-      // we found the separator or we're out of data (max line size hit)
-      // either way, report a line
-      def str = buffer.duplicate().flip().toString().trim()
-      if (str) {
-        closure(str)
-      }
-
-      buffer.compact()
-    }
-    if (buffer.position() > 0) {
-      buffer.flip().toString().split('\r\n|\n').each {
-        closure.call(it.trim())
-      }
-    }
   }
 }
