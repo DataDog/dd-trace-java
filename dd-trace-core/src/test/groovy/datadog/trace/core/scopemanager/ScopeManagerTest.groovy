@@ -2,7 +2,7 @@ package datadog.trace.core.scopemanager
 
 import datadog.context.Context
 import datadog.context.ContextKey
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Stateful
 import datadog.trace.api.interceptor.MutableSpan
