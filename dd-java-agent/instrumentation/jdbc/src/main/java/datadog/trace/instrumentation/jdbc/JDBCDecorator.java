@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
+  private static final boolean FETCH_DB_METADATA = Config.get().isDbMetadataFetchingEnabled();
+  private static final boolean FETCH_DB_CLIENT_INFO = Config.get().isDbClientInfoFetchingEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -181,7 +184,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (Throwable ignore) {
         }
         if (dbInfo == null) {
-          // couldn't find DBInfo anywhere, so fall back to default
+          // couldn't find DBInfo from a previous call anywhere, so we try to fetch it from the DB
           dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
@@ -200,7 +203,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null) {
+    if (connection == null || !FETCH_DB_METADATA) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -209,16 +212,21 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final DatabaseMetaData metaData = connection.getMetaData();
       final String url;
       if (metaData != null && (url = metaData.getURL()) != null) {
-        try {
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
-        } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed.
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+        Properties clientInfo = null;
+        if (FETCH_DB_CLIENT_INFO) {
+          try {
+            clientInfo = connection.getClientInfo();
+          } catch (final Throwable ex) {
+            // getClientInfo is likely not allowed, we can still extract info from the url alone
+            log.debug("Could not get client info from DB", ex);
+          }
         }
+        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
     } catch (final SQLException se) {
+      log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
     return dbInfo;
