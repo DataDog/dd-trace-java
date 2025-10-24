@@ -1,5 +1,5 @@
-ci-visibility-test-environment:
-  stage: publish
+ci-visibility-tests-check:
+  stage: ci-visibility-tests
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   needs: [ publish-artifacts-to-s3 ]
@@ -28,10 +28,9 @@ ci-visibility-test-environment:
     max: 2
     when: always
 
-ci-visibility-test-environment-trigger:
+ci-visibility-tests-trigger:
   stage: ci-visibility-tests
-  needs:
-    - job: ci-visibility-test-environment
+  needs: [ci-visibility-tests-check]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -41,5 +40,5 @@ ci-visibility-test-environment-trigger:
   trigger:
     include:
       - artifact: ci-visibility-test-environment.yml
-        job: ci-visibility-test-environment
+        job: ci-visibility-tests-check
     strategy: depend

@@ -4,7 +4,7 @@ set -e
 
 add_dummy_job() {
   cat <<EOF >>ci-visibility-test-environment.yml
-skip-ci-visibility-test-environment:
+skip-ci-visibility-tests:
   stage: ci-visibility-tests
   tags: [ "arch:amd64" ]
   script:
@@ -62,7 +62,7 @@ fi
 echo "PR #$pr_number is a CI Visibility PR - triggering test environment"
 
 cat <<EOF >>ci-visibility-test-environment.yml
-run-ci-visibility-test-environment:
+ci-visibility-test-environment:
   stage: ci-visibility-tests
   trigger:
     project: DataDog/apm-reliability/test-environment
