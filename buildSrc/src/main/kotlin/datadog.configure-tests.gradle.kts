@@ -2,6 +2,8 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
+import org.gradle.testing.base.TestingExtension
+import org.gradle.api.plugins.jvm.JvmTestSuite
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
@@ -30,6 +32,13 @@ abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
 
 val forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", ForkedTestLimit::class.java) {
   maxParallelUsages.set(3)
+}
+
+extensions.findByType(TestingExtension::class.java)?.apply {
+  suites.withType(JvmTestSuite::class.java).configureEach {
+    // Use JUnit 5 to run tests
+    useJUnitJupiter()
+  }
 }
 
 // Use lazy providers to avoid evaluating the property until it is needed
