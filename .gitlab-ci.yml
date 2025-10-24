@@ -138,7 +138,7 @@ default:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-    CACHE_TYPE: lib #default
+    CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
 
@@ -146,7 +146,7 @@ default:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   cache:
-    - key: dependency-mvn-test-$CACHE_TYPE # Dependencies cache
+    - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
@@ -160,7 +160,6 @@ default:
         - 'dependency-lib'
     - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
-        # Cached dependencies and wrappers for Gradle:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
@@ -188,8 +187,6 @@ default:
     - rm -rf .gradle
     - mv .gradle-copy .gradle
     - ls -la
-    - ls -la .mvn/caches
-    - ls -la .gradle/caches
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
@@ -251,7 +248,7 @@ build:
   extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
-    CACHE_TYPE: lib
+    CACHE_TYPE: "lib"
     DEPENDENCY_CACHE_POLICY: pull
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
@@ -370,7 +367,7 @@ test_published_artifacts:
   stage: tests
   needs: [ build ]
   variables:
-    CACHE_TYPE: lib
+    CACHE_TYPE: "lib"
   script:
     - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
     - rm -rf "${mvn_local_repo}/com/datadoghq"
@@ -398,7 +395,7 @@ test_published_artifacts:
   needs: [ build ]
   stage: tests
   variables:
-    CACHE_TYPE: inst
+    CACHE_TYPE: "inst"
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
@@ -459,7 +456,7 @@ muzzle:
     matrix:
       - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
   variables:
-    CACHE_TYPE: inst
+    CACHE_TYPE: "inst"
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
@@ -481,7 +478,7 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    CACHE_TYPE: inst
+    CACHE_TYPE: "inst"
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
@@ -814,7 +811,7 @@ deploy_to_maven_central:
   stage: publish
   needs: [ build ]
   variables:
-    CACHE_TYPE: lib
+    CACHE_TYPE: "lib"
   rules:
     - if: '$POPULATE_CACHE'
       when: never
