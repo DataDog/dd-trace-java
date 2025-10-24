@@ -153,15 +153,11 @@ public abstract class AbstractSparkPlanSerializer {
           .getDeclaredMethod("simpleString", new Class[] {int.class})
           .invoke(value, MAX_LENGTH)
           .toString();
-    } catch (NullPointerException
-        | NoSuchMethodException
-        | IllegalAccessException
-        | InvocationTargetException exception) {
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
       try {
         // Attempt the Spark v2 `simpleString` signature
         return TreeNode.class.getDeclaredMethod("simpleString").invoke(value).toString();
-      } catch (NullPointerException
-          | NoSuchMethodException
+      } catch (NoSuchMethodException
           | IllegalAccessException
           | InvocationTargetException innerException) {
       }
