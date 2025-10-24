@@ -116,6 +116,7 @@ public class JMXFetch {
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
             .reporter(reporter)
+            .jmxfetchTelemetry(config.isTelemetryJmxEnabled())
             .connectionFactory(new AgentConnectionFactory());
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
