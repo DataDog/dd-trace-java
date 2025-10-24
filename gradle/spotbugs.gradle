@@ -5,10 +5,10 @@ spotbugs {
   excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
 }
 
-// configure spotbugs for Main tasks and disable it for all other
+// Configure spotbugs for Main tasks and disable it for all other
 // Can't use the class here due to being different class
 tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
-  // Need Java 11 min
+  // Needs Java 11+ to run spotbugs
   it.launcher = javaToolchains.launcherFor {
     it.languageVersion = JavaLanguageVersion.current()
   }
@@ -59,9 +59,5 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
 }
 
 dependencies {
-  compileOnly 'net.jcip:jcip-annotations:1.0'
   compileOnly libs.spotbugs.annotations
-
-  testImplementation 'net.jcip:jcip-annotations:1.0'
-  testImplementation libs.spotbugs.annotations
 }
