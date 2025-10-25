@@ -17,8 +17,6 @@ abstract class ProcessManager extends Specification {
   public static final String VERSION = "99"
 
   @Shared
-  protected String workingDirectory = System.getProperty("user.dir")
-  @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
   protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
@@ -69,9 +67,7 @@ abstract class ProcessManager extends Specification {
   OutputThreads outputThreads = new OutputThreads()
 
   def setupSpec() {
-    if (buildDirectory == null || shadowJarPath == null) {
-      throw new AssertionError("Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.")
-    }
+    assert buildDirectory && shadowJarPath: 'Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.'
     assert Files.isDirectory(Paths.get(buildDirectory))
     assert Files.isRegularFile(Paths.get(shadowJarPath))
 
@@ -79,7 +75,6 @@ abstract class ProcessManager extends Specification {
 
     (0..<numberOfProcesses).each { idx ->
       ProcessBuilder processBuilder = createProcessBuilder(idx)
-
 
       processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
       processBuilder.environment().put("DD_API_KEY", apiKey())
@@ -120,7 +115,7 @@ abstract class ProcessManager extends Specification {
           exitValue = tp?.exitValue()
           break
         }
-        catch (Throwable e) {
+        catch (Throwable ignored) {
           if (attempt == 1) {
             System.out.println("Destroying instrumented process")
             tp.destroy()
@@ -208,8 +203,8 @@ abstract class ProcessManager extends Specification {
 
   void forEachLogLine(Closure checker) {
     for (String lfp : logFilePaths) {
-      def f = new File(lfp)
-      f.withReader { reader ->
+      def file = new File(lfp)
+      file.withReader { reader ->
         reader.eachLine {
           checker(it)
         }

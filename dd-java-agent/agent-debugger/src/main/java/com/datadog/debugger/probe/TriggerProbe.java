@@ -96,7 +96,10 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
   @Override
   public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation location) {
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation location,
+      boolean singleProbe) {
 
     Sampling sampling = getSampling();
     if (sampling == null || !sampling.inCoolDown()) {

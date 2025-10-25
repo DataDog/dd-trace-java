@@ -311,7 +311,11 @@ public class DebuggerContext {
         }
         CapturedContext.Status status =
             context.evaluate(
-                probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation);
+                probeImplementation,
+                callingClass.getTypeName(),
+                startTimestamp,
+                methodLocation,
+                false);
         needFreeze |= status.shouldFreezeContext();
       }
       // only freeze the context when we have at lest one snapshot probe, and we should send
@@ -343,7 +347,11 @@ public class DebuggerContext {
       }
       CapturedContext.Status status =
           context.evaluate(
-              probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation);
+              probeImplementation,
+              callingClass.getTypeName(),
+              startTimestamp,
+              methodLocation,
+              true);
       boolean needFreeze = status.shouldFreezeContext();
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
@@ -371,7 +379,7 @@ public class DebuggerContext {
           continue;
         }
         context.evaluate(
-            probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+            probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT, false);
         probeImplementations.add(probeImplementation);
       }
       for (ProbeImplementation probeImplementation : probeImplementations) {
@@ -395,7 +403,8 @@ public class DebuggerContext {
       if (probeImplementation == null) {
         return;
       }
-      context.evaluate(probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+      context.evaluate(
+          probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT, true);
       probeImplementation.commit(context, line);
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
