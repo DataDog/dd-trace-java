@@ -49,8 +49,4 @@ dependencies {
   }
 }
 
-["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {taskName ->
-  tasks.named(taskName, GroovyCompile) {
-    configureCompiler(it, 11)
-  }
-}
+configureGroovyCompiler(11, "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy")

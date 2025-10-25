@@ -19,11 +19,7 @@ tasks.named("compileMain_java17Java", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 
-["compileTestGroovy", "compileLatestDepTestGroovy"].each {taskName ->
-  tasks.named(taskName, GroovyCompile) {
-    configureCompiler(it, 17)
-  }
-}
+configureGroovyCompiler(17, "compileTestGroovy", "compileLatestDepTestGroovy")
 
 configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {
   it.resolutionStrategy {

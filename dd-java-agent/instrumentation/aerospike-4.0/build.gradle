@@ -32,8 +32,4 @@ tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
 
-["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 21)
-  }
-}
+configureGroovyCompiler(21, "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy")

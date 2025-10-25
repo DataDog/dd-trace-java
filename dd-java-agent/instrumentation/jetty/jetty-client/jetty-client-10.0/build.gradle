@@ -31,16 +31,12 @@ tasks.named("compileMain_java11Java", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
-[
+configureGroovyCompiler(11,
   "compileTestGroovy",
   "compileJetty11TestGroovy",
   "compileLatestDepTestGroovy",
   "compileJetty10LatestDepTestGroovy"
-].each { taskName ->
-  tasks.named(taskName, GroovyCompile) {
-    configureCompiler(it, 11)
-  }
-}
+  )
 
 dependencies {
   main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'
