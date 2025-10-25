@@ -33,3 +33,10 @@ dependencies {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
+
+// TODO: strange workaround for Groovy?
+tasks.matching { it.name.startsWith('compileLatestDep') && it.name.endsWith('Groovy') }.configureEach {
+  javaLauncher = javaToolchains.launcherFor {
+    it.languageVersion = JavaLanguageVersion.of(21)
+  }
+}
