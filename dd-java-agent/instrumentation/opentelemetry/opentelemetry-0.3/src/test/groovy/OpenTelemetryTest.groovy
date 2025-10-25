@@ -50,7 +50,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
 
     expect:
     result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
+    (result as MutableSpan).getLocalRootSpan() == result.delegate
     tracer.currentSpan == null
 
     when:
@@ -108,7 +108,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
 
     expect:
     result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
+    (result as MutableSpan).getLocalRootSpan() == result.delegate
     (result as MutableSpan).isError() == (exception != null)
     tracer.currentSpan == null
 
@@ -150,7 +150,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
 
     expect:
     result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
+    (result as MutableSpan).getLocalRootSpan() == result.delegate
     tracer.currentSpan == null
 
     when:

@@ -171,7 +171,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     assertTraces(shadowGrpcSpans() ? 2 : 3, [
       compare            : { List<DDSpan> o1, List<DDSpan> o2 ->
         // trace will never be empty
-        o1[0].localRootSpan.getTag(Tags.SPAN_KIND) <=> o2[0].localRootSpan.getTag(Tags.SPAN_KIND)
+        o1[0].getLocalRootSpan().getTag(Tags.SPAN_KIND) <=> o2[0].getLocalRootSpan().getTag(Tags.SPAN_KIND)
       },
     ] as Comparator) {
       trace(shadowGrpcSpans() ? 2 : 3) {

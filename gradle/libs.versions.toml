@@ -7,7 +7,7 @@ okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
 spock = "2.4-M6-groovy-4.0"
-groovy = "4.0.28"
+groovy = "4.0.26"
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 logback = "1.2.13"

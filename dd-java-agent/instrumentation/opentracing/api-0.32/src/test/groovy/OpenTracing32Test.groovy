@@ -69,7 +69,7 @@ class OpenTracing32Test extends InstrumentationSpecification {
 
     expect:
     result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan.delegate == result.delegate
+    (result as MutableSpan).getLocalRootSpan().delegate == result.delegate
     (result as MutableSpan).isError() == (exception != null)
     tracer.activeSpan() == null
     result.context().baggageItems().isEmpty()

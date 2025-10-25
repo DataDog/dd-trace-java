@@ -98,7 +98,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
     int rootSpanTrace(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      def rootSpan = trace.get(0).localRootSpan
+      def rootSpan = trace.get(0).getLocalRootSpan()
       switch (rootSpan.operationName.toString()) {
         case "parent":
           return 3
