@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.micronaut;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpResponse;
@@ -20,7 +19,7 @@ public class WriteFinalNettyResponseAdvice {
       return;
     }
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = span.attach()) {
       DECORATE.onResponse(span, message);
       DECORATE.beforeFinish(scope.context());
       span.finish();

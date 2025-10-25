@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.finatra;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.DECORATE;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.FINATRA_CONTROLLER;
@@ -17,9 +17,9 @@ import com.google.auto.service.AutoService;
 import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
 import com.twitter.util.Future;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
@@ -61,7 +61,7 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
 
   public static class RouteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope nameSpan(
+    public static ContextScope nameSpan(
         @Advice.Argument(0) final Request request,
         @Advice.FieldValue("path") final String path,
         @Advice.FieldValue("clazz") final Class clazz) {
@@ -76,12 +76,12 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(clazz));
 
-      return activateSpan(span);
+      return span.attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void setupCallback(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final Some<Future<Response>> responseOption) {
 
@@ -89,7 +89,7 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromContext(scope.context());
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(scope.context());

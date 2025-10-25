@@ -27,12 +27,10 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = storedContext != null ? spanFromContext(storedContext) : null;
+    final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final AgentScope parentScope = activateSpan(parent)) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
-    }
+    ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parent.context());
 
     final boolean finishSpan = msg instanceof HttpResponse;
 
@@ -56,12 +54,11 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = storedContext != null ? spanFromContext(storedContext) : null;
+    final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final AgentScope parentScope = activateSpan(parent)) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
-    }
+    ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parent.context());
+
     if (span != null) {
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
@@ -83,12 +80,11 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = storedContext != null ? spanFromContext(storedContext) : null;
+    final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final AgentScope parentScope = activateSpan(parent)) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
-    }
+    ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parent.context());
+
     if (span != null && span != parent) {
       try (final AgentScope scope = activateSpan(span)) {
         DECORATE.beforeFinish(span);

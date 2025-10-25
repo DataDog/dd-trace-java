@@ -72,7 +72,7 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
       final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-      final AgentSpan channelSpan = storedContext != null ? spanFromContext(storedContext) : null;
+      final AgentSpan channelSpan = spanFromContext(storedContext);
       if (channelSpan == null || channelSpan == activeSpan()) {
         // don't modify the scope
         return noopScope();

@@ -77,13 +77,9 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         return false;
       }
       Context context = (Context) contextObj;
-      AgentSpan existingSpan = spanFromContext(context);
-      if (existingSpan == null) {
-        return false;
-      }
-      AgentSpan span = existingSpan;
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext == null) {
+      AgentSpan span = spanFromContext(context);
+      RequestContext requestContext;
+      if (span == null || (requestContext = span.getRequestContext()) == null) {
         return false;
       }
 

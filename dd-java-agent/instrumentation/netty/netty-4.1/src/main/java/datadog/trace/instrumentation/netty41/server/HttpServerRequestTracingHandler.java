@@ -87,12 +87,10 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     } finally {
       try {
         final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
-        if (storedContext != null) {
-          final AgentSpan span = spanFromContext(storedContext);
-          if (span != null && span.phasedFinish()) {
-            // at this point we can just publish this span to avoid loosing the rest of the trace
-            span.publish();
-          }
+        final AgentSpan span = spanFromContext(storedContext);
+        if (span != null && span.phasedFinish()) {
+          // at this point we can just publish this span to avoid loosing the rest of the trace
+          span.publish();
         }
       } catch (final Throwable ignored) {
       }

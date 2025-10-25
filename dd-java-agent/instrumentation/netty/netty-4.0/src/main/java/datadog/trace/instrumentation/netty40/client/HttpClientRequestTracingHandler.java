@@ -90,7 +90,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         DECORATE.injectContext(current(), request.headers(), SETTER);
       }
 
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(scope.context());
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(span.context());
 
       try {
         ctx.write(msg, prm);

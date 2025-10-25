@@ -61,7 +61,7 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
       if (result) {
         Context storedContext =
             stream.connection().channel().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get();
-        AgentSpan nettySpan = storedContext != null ? spanFromContext(storedContext) : null;
+        AgentSpan nettySpan = spanFromContext(storedContext);
         if (nettySpan != null) {
           try (final AgentScope scope = activateSpan(nettySpan)) {
             DECORATE.onError(scope, cause);

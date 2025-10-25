@@ -59,7 +59,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     Channel channel = ctx.channel();
 
     Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-    AgentSpan span = storedContext != null ? spanFromContext(storedContext) : null;
+    AgentSpan span = spanFromContext(storedContext);
     RequestContext requestContext;
     if (span == null
         || (requestContext = span.getRequestContext()) == null

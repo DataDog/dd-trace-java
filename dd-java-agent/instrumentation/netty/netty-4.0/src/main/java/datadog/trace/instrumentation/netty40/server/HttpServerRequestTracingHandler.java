@@ -28,7 +28,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     Channel channel = ctx.channel();
     if (!(msg instanceof HttpRequest)) {
       final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-      final AgentSpan span = storedContext != null ? spanFromContext(storedContext) : null;
+      final AgentSpan span = spanFromContext(storedContext);
       if (span == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
@@ -83,12 +83,10 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     } finally {
       try {
         final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
-        if (storedContext != null) {
-          final AgentSpan span = spanFromContext(storedContext);
-          if (span != null && span.phasedFinish()) {
-            // at this point we can just publish this span to avoid loosing the rest of the trace
-            span.publish();
-          }
+        final AgentSpan span = spanFromContext(storedContext);
+        if (span != null && span.phasedFinish()) {
+          // at this point we can just publish this span to avoid loosing the rest of the trace
+          span.publish();
         }
       } catch (final Throwable ignored) {
       }
