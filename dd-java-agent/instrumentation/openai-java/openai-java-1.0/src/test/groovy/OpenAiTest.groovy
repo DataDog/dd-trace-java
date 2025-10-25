@@ -2,13 +2,13 @@ import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.credential.BearerTokenCredential
-import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.llmobs.LlmObsSpecification
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 
-class OpenAiTest extends InstrumentationSpecification {
+class OpenAiTest extends LlmObsSpecification {
 
   // will use real openai backend when provided
   static String openAiToken() {
@@ -54,7 +54,7 @@ class OpenAiTest extends InstrumentationSpecification {
     }
   }
 
-  def setup() {
+  def setupSpec() {
     OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
     if (Strings.isNullOrEmpty(openAiToken())) {
       // mock backend

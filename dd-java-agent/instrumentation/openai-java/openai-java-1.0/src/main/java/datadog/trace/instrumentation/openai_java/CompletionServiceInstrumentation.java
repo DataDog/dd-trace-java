@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -31,15 +33,21 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
 
   public static class CreateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
+    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params, @Advice.Local("llmSpan") LLMObsSpan llmObsSpan) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorate(span, params);
+      String mlApp = "mlApp"; //Config.get().getLlmObsMlApp(); // TODO
+      String mlProvider = "openai"; // TODO
+      llmObsSpan =
+          LLMObs.startLLMSpan("OpenAI.createCompletion", params.model().toString(), mlProvider,mlApp, null);
+      // TODO decorate llmObsSpan (annotate I/O and set metadata, etc
+
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return Completion result, @Advice.Thrown final Throwable err) {
+    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return Completion result, @Advice.Thrown final Throwable err, @Advice.Local("llmSpan") LLMObsSpan llmObsSpan) {
       final AgentSpan span = scope.span();
       if (err != null) {
         DECORATE.onError(span, err);
@@ -50,6 +58,10 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
       DECORATE.beforeFinish(span);
       scope.close();
       span.finish();
+      if (llmObsSpan != null) {
+        // TODO decorate llmObsSpan
+        llmObsSpan.finish();
+      }
     }
   }
 }

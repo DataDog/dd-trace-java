@@ -126,6 +126,7 @@ include(
 // llm-observability
 include(
   ":dd-java-agent:agent-llmobs",
+  ":dd-java-agent:agent-llmobs:llmobs-test-fixtures",
 )
 
 // iast

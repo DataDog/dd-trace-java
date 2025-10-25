@@ -31,9 +31,6 @@ public class LLMObsSystem {
 
     sco.createRemaining(config);
 
-    LLMObsInternal.setLLMObsSpanFactory(
-        new LLMObsManualSpanFactory(config.getLlmObsMlApp(), config.getServiceName()));
-
     String mlApp = config.getLlmObsMlApp();
     LLMObsInternal.setLLMObsSpanFactory(
         new LLMObsManualSpanFactory(mlApp, config.getServiceName()));
