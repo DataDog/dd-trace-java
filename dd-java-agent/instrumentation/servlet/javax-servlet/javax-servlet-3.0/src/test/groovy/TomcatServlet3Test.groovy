@@ -219,7 +219,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
           }
         }
 
-        def ids = new Tuple2(trace(i).get(0).localRootSpan.traceId.toString(), trace(i).get(0).localRootSpan.spanId.toString())
+        def ids = new Tuple2(trace(i).get(0).getLocalRootSpan().traceId.toString(), trace(i).get(0).getLocalRootSpan().spanId.toString())
         assert ids in loggedSpanIds
       }
     }
