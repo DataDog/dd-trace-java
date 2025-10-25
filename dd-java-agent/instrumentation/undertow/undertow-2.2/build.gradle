@@ -48,3 +48,9 @@ dependencies {
     exclude group: 'io.undertow', module: 'undertow-websocket-jsr-jakarta'
   }
 }
+
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {taskName ->
+  tasks.named(taskName, GroovyCompile) {
+    configureCompiler(it, 11)
+  }
+}
