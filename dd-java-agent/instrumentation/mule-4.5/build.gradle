@@ -100,7 +100,7 @@ sourceSets {
   }
 }
 
-tasks.named("compileMain_java11Java") {
+tasks.named("compileMain_java11Java", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
@@ -207,15 +207,15 @@ def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
 
 // extract the enabled services into the mule base directory
 tasks.register('extractMuleServices', Sync) {
-  dependsOn configurations.muleServices
+  dependsOn configurations.named('muleServices')
   copyMuleArtifacts("muleServices", "$buildDir/mule/test", it)
 }
 tasks.register('extractMule46Services', Sync) {
-  dependsOn configurations.mule46Services
+  dependsOn configurations.named('mule46Services')
   copyMuleArtifacts("mule46Services", "$buildDir/mule/mule46ForkedTest", it)
 }
 tasks.register('extractLatestMuleServices', Sync) {
-  dependsOn configurations.latestMuleServices
+  dependsOn configurations.named('latestMuleServices')
   copyMuleArtifacts("latestMuleServices", "$buildDir/mule/latestDepForkedTest", it)
 }
 

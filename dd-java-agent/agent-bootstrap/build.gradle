@@ -9,7 +9,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
-tasks.named("compileJava", JavaCompile).configure {
+tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.* packages")
 }
 
@@ -27,6 +27,9 @@ dependencies {
   api project(':components:json')
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
+  api(variantOf(libs.instrumentjava, { classifier("all") })) {
+    transitive = false
+  }
 
   testImplementation project(':dd-java-agent:testing')
 }

@@ -19,17 +19,18 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 
-compileJersey3JettyTestGroovy {
-  javaLauncher = getJavaLauncherFor(11)
+tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
 }
-compileTestJava.configure {
+
+tasks.named("compileTestJava") {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
-jersey3JettyTest {
+tasks.named("jersey3JettyTest", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
-test {
+tasks.named("test", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
 
@@ -76,12 +77,15 @@ dependencies {
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jakarta-rs-annotations-3')
 }
 
-configurations.getByName('jersey3JettyTestRuntimeClasspath').resolutionStrategy {
-  force libs.slf4j
+configurations.named('jersey3JettyTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
+  }
 }
-configurations.getByName('jersey2JettyTestRuntimeClasspath').resolutionStrategy {
-  // override version in testImplementation
-  force "org.glassfish.jersey.core:jersey-common:${jersey2Version}"
-  force "org.eclipse.jetty:jetty-server:9.1.1.v20140108"
-
+configurations.named('jersey2JettyTestRuntimeClasspath') {
+  resolutionStrategy {
+    // override version in testImplementation
+    force "org.glassfish.jersey.core:jersey-common:${jersey2Version}"
+    force "org.eclipse.jetty:jetty-server:9.1.1.v20140108"
+  }
 }

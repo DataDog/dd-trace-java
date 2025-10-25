@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -29,14 +31,26 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
 
-  jvmArgs "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
 
-task testRuntimeActivation(type: Test) {
-  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
-    "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+tasks.register('testRuntimeActivation', Test) {
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive'
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
 
 tasks.named('check') {

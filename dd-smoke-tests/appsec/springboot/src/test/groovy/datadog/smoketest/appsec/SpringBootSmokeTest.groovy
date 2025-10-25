@@ -1,7 +1,8 @@
 package datadog.smoketest.appsec
 
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import groovy.json.JsonSlurper
 import okhttp3.FormBody
 import okhttp3.MediaType
@@ -650,6 +651,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def rootSpans = this.rootSpans.toList()
     rootSpans.size() == 1
     def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('error.message').contains(BlockingException.name) // ensure the block was propagated
     assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null

@@ -1,3 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
+plugins {
+  id 'org.jetbrains.kotlin.jvm'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
@@ -10,10 +17,18 @@ muzzle {
   }
 }
 
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
+}
+
 addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
 }
 
 dependencies {

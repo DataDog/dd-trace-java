@@ -41,7 +41,7 @@ tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution
-tasks.named("previewTest") {
+tasks.named("previewTest", Test) {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check

@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -26,7 +28,12 @@ tasks.withType(Test).configureEach {
   evaluationDependsOn ':dd-smoke-tests:springboot-grpc'
   dependsOn ':dd-smoke-tests:springboot-grpc:shadowJar'
 
-  Task shadowJarTask = project(':dd-smoke-tests:springboot-grpc').tasks['shadowJar']
+  def shadowJarTask = project(':dd-smoke-tests:springboot-grpc').tasks.named('shadowJar', ShadowJar)
 
-  jvmArgs "-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${shadowJarTask.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

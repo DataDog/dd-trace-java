@@ -72,14 +72,20 @@ sourceSets {
     java.srcDirs "${project.projectDir}/src/main/java_play27"
   }
 }
-jar {
+
+tasks.named("jar", Jar) {
   from sourceSets.main_play27.output
 }
-compileMain_play27Java.dependsOn compileJava
-project.afterEvaluate { p ->
-  instrumentJava.dependsOn compileMain_play27Java
-  forbiddenApisMain_play27.dependsOn instrumentMain_play27Java
+
+tasks.named("compileMain_play27Java", JavaCompile) {
+  dependsOn(compileJava)
 }
+
+project.afterEvaluate {
+  tasks.named('instrumentJava') { dependsOn 'compileMain_play27Java' }
+  tasks.named('forbiddenApisMain_play27') { dependsOn 'instrumentMain_play27Java' }
+}
+
 instrument {
   additionalClasspath = [
     instrumentJava: compileMain_play27Java.destinationDirectory
@@ -120,21 +126,24 @@ dependencies {
   }
   latestDepTestImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
 }
-configurations.matching({ it.name.startsWith('latestDepTest') }).each({
+
+configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
   it.resolutionStrategy {
     // logback-classic 1.4.11 doesn't like being loaded in the bootstrap classloader (NPE)
     force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
   }
 })
+
 tasks.named("compileLatestDepTestJava", JavaCompile) {
   configureCompiler(it, 11)
 }
-compileLatestDepTestScala {
-  javaLauncher = getJavaLauncherFor(11)
-  classpath = classpath + files(compileBaseTestJava.destinationDirectory)
-  dependsOn 'compileBaseTestJava'
+
+tasks.named("compileLatestDepTestScala", ScalaCompile) {
+  configureCompiler(it, 11)
+  classpath = classpath + files(tasks.named('compileBaseTestJava').map { it.destinationDirectory })
 }
-latestDepTest {
+
+tasks.named("latestDepTest", Test) {
   javaLauncher = getJavaLauncherFor(11)
   testClassesDirs = testClassesDirs + sourceSets.baseTest.output.classesDirs
 }
@@ -152,10 +161,12 @@ sourceSets {
     }
   }
 }
+
 dependencies {
   routeGeneratorImplementation libs.scala213
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.13", version: '2.+'
 }
+
 configurations {
   latestDepTestGeneratedCompileClasspath.extendsFrom(latestDepTestCompileClasspath)
 }
@@ -167,38 +178,35 @@ tasks.register('buildLatestDepTestRoutes', JavaExec) {
   it.inputs.file routesFile
   it.outputs.dir outputDir
 
-  it.mainClass.set 'generator.CompileRoutes'
+  it.mainClass = 'generator.CompileRoutes'
   it.args routesFile, outputDir.get().asFile.absolutePath
 
-  it.classpath configurations.routeGeneratorRuntimeClasspath
-  it.classpath compileRouteGeneratorScala.destinationDirectory
-  it.classpath compileLatestDepTestScala.destinationDirectory
+  it.classpath configurations.named('routeGeneratorRuntimeClasspath')
+  it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
+  it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
 
-  it.javaLauncher.set getJavaLauncherFor(11)
+  it.javaLauncher = getJavaLauncherFor(11)
+}
 
-  dependsOn compileRouteGeneratorScala, compileLatestDepTestScala
+tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
+  configureCompiler(it, 11)
+  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
+  dependsOn 'buildLatestDepTestRoutes'
 }
-compileLatestDepTestGeneratedScala {
-  javaLauncher = getJavaLauncherFor(11)
-  classpath = classpath + files(compileLatestDepTestScala.destinationDirectory)
-  dependsOn buildLatestDepTestRoutes, compileLatestDepTestScala
-}
-forbiddenApisLatestDepTestGenerated {
+
+tasks.named("forbiddenApisLatestDepTestGenerated") {
   enabled = false
 }
 
-compileLatestDepTestGroovy {
-  javaLauncher = getJavaLauncherFor(11)
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
   classpath = classpath +
-    files(compileLatestDepTestScala.destinationDirectory) +
-    files(compileBaseTestGroovy.destinationDirectory) +
-    files(compileBaseTestJava.destinationDirectory) +
-    files(compileLatestDepTestGeneratedScala.destinationDirectory)
-  dependsOn 'compileLatestDepTestScala'
-  dependsOn 'compileBaseTestGroovy'
-  dependsOn 'compileBaseTestJava'
-  dependsOn 'compileLatestDepTestGeneratedScala'
+    files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }) +
+    files(tasks.named('compileBaseTestGroovy').map { it.destinationDirectory }) +
+    files(tasks.named('compileBaseTestJava').map { it.destinationDirectory }) +
+    files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
 }
+
 dependencies {
   latestDepTestRuntimeOnly sourceSets.latestDepTestGenerated.output
 }

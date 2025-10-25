@@ -83,7 +83,7 @@ tasks.named("check") {
   dependsOn "oldPostgresTest"
 }
 
-tasks.named("latestDepJava11Test") {
+tasks.named("latestDepJava11Test", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
 

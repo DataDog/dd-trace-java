@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 public class TestDirContextSuite implements DirContextSuite {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TestInitialDirContextSuite.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TestDirContextSuite.class);
 
   private final DirContext ctx;
 

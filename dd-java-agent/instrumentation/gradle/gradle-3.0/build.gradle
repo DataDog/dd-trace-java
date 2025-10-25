@@ -10,6 +10,6 @@ dependencies {
   compileOnly gradleApi()
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }

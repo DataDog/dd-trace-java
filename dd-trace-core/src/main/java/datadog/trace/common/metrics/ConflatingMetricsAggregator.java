@@ -42,10 +42,10 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
@@ -90,8 +90,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
-  private final NonBlockingHashMap<MetricKey, Batch> pending;
-  private final NonBlockingHashMap<MetricKey, MetricKey> keys;
+  private final ConcurrentHashMap<MetricKey, Batch> pending;
+  private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
   private final MpscCompoundQueue<InboxItem> inbox;
   private final Sink sink;
@@ -178,8 +178,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.ignoredResources = ignoredResources;
     this.inbox = new MpscCompoundQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
-    this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
-    this.keys = new NonBlockingHashMap<>();
+    this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
+    this.keys = new ConcurrentHashMap<>();
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
@@ -319,11 +319,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
             getPeerTags(span, spanKind.toString()));
-    boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;
-      isNewKey = true;
     }
     long tag = (span.getError() > 0 ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
     long durationNanos = span.getDurationNano();
@@ -340,7 +338,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
       // recycle the older key
       key = batch.getKey();
-      isNewKey = false;
     }
     batch = newBatch(key);
     batch.add(tag, durationNanos);
@@ -349,8 +346,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     pending.put(key, batch);
     // must offer to the queue after adding to pending
     inbox.offer(batch);
-    // force keep keys we haven't seen before or errors
-    return isNewKey || span.getError() > 0;
+    // force keep keys if there are errors
+    return span.getError() > 0;
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {

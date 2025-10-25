@@ -207,8 +207,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     DBInfo dbInfo;
     try {
       final DatabaseMetaData metaData = connection.getMetaData();
-      final String url = metaData.getURL();
-      if (url != null) {
+      final String url;
+      if (metaData != null && (url = metaData.getURL()) != null) {
         try {
           dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
         } catch (final Throwable ex) {

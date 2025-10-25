@@ -23,13 +23,13 @@ dependencies {
   latestDepTestImplementation group: 'org.scalatest', name: 'scalatest_2.12', version: '+'
 }
 
-tasks.named("compileTestGroovy") {
-  dependsOn compileTestScala
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn 'compileTestScala'
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
-tasks.named("compileLatestDepTestGroovy") {
-  dependsOn compileLatestDepTestScala
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  dependsOn 'compileLatestDepTestScala'
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }
 

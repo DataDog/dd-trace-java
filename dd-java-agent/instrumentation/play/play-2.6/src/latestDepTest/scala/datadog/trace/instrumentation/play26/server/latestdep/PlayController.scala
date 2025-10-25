@@ -1,7 +1,11 @@
 package datadog.trace.instrumentation.play26.server.latestdep
 
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.base.HttpServerTest.{ServerEndpoint, getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE}
+import datadog.trace.agent.test.base.HttpServerTest.{
+  ServerEndpoint,
+  getIG_RESPONSE_HEADER,
+  getIG_RESPONSE_HEADER_VALUE
+}
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
 import datadog.trace.instrumentation.play26.server.latestdep.ImplicitConversions.MapExtensions
@@ -12,7 +16,8 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
 
-class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) extends AbstractController(cc) {
+class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext)
+    extends AbstractController(cc) {
   def success() = controller(ServerEndpoint.SUCCESS) { _ =>
     Results.Ok(ServerEndpoint.SUCCESS.getBody)
   }
@@ -22,7 +27,9 @@ class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) ex
   }
 
   def forwarded = controller(ServerEndpoint.FORWARDED) { request =>
-    Results.Status(ServerEndpoint.FORWARDED.getStatus)(request.headers.get("X-Forwarded-For").getOrElse("(no header)"))
+    Results.Status(ServerEndpoint.FORWARDED.getStatus)(
+      request.headers.get("X-Forwarded-For").getOrElse("(no header)")
+    )
   }
 
   def errorStatus = controller(ServerEndpoint.ERROR) { _ =>
@@ -73,7 +80,8 @@ class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) ex
   }
 
   def bodyMultipart = controller(ServerEndpoint.BODY_MULTIPART) { request =>
-    val body: Map[String, Seq[String]] = request.body.asMultipartFormData.map(_.asFormUrlEncoded).getOrElse(Map.empty)
+    val body: Map[String, Seq[String]] =
+      request.body.asMultipartFormData.map(_.asFormUrlEncoded).getOrElse(Map.empty)
     Results.Ok(body.toStringAsGroovy)
   }
 
@@ -83,17 +91,22 @@ class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) ex
   }
 
   def bodyXml = controller(ServerEndpoint.BODY_XML) { request =>
-    val body : NodeSeq = request.body.asXml.getOrElse(NodeSeq.Empty)
+    val body: NodeSeq = request.body.asXml.getOrElse(NodeSeq.Empty)
     Results.Ok(body.toString())
   }
 
-  private def controller(endpoint: ServerEndpoint)(block: Request[AnyContent] => Result) : Action[AnyContent] = {
+  private def controller(
+      endpoint: ServerEndpoint
+  )(block: Request[AnyContent] => Result): Action[AnyContent] = {
     Action.async { request =>
       Future {
-        HttpServerTest.controller(endpoint, new Closure[Result](this) {
-          def doCall() = block(request).withHeaders(
-            (getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
-        })
+        HttpServerTest.controller(
+          endpoint,
+          new Closure[Result](this) {
+            def doCall() =
+              block(request).withHeaders((getIG_RESPONSE_HEADER, getIG_RESPONSE_HEADER_VALUE))
+          }
+        )
       }
     }
   }

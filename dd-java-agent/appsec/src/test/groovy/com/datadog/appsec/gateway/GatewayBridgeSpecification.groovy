@@ -27,6 +27,7 @@ import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.LoginEvent
+import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -899,6 +900,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
     gatewayContext.isRasp == true
+    gatewayContext.raspRuleType == RuleType.SSRF_REQUEST
 
     where:
     sampled << [true, false]
@@ -932,7 +934,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
-    gatewayContext.isRasp == false
+    gatewayContext.isRasp == true
+    gatewayContext.raspRuleType == RuleType.SSRF_RESPONSE
 
     where:
     sampled << [true, false]

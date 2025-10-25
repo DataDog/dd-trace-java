@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
     permissions:
-      contents: write # Required to create new branch
+      contents: read
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -22,60 +22,56 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
         with:
           submodules: "recursive"
-      - name: Download ghcommit CLI
-        run: |
-          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
-          chmod +x /usr/local/bin/ghcommit
-      - name: Pick a branch name
-        run: echo "BRANCH_NAME=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_ENV
-      - name: Create branch
-        run: |
-          git checkout -b $BRANCH_NAME
-          git push -u origin $BRANCH_NAME --force
       - name: Update Gradle dependencies
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
+          find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
           JAVA_17_HOME=$JAVA_HOME_17_X64 \
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          JAVA_25_HOME=$JAVA_HOME_25_X64 \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
-      - name: Commit changes
-        env:
-          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
+      - name: Check if changes should be committed
+        id: check-changes
         run: |
-          GH_ADD_ARGS=""
-          COUNT=0
-          BRANCH_HEAD=$(git rev-parse HEAD)
-          for lockfile in $(git status --porcelain=v1 -- ':(glob)**/gradle.lockfile' | awk '{ print $NF }'); do
-            echo "Found lockfile: $lockfile"
-            GH_ADD_ARGS="$GH_ADD_ARGS --add $lockfile"
-            COUNT=$((COUNT+1))
-            if [ $COUNT -eq 10 ]; then
-              echo "Creating a commit to $BRANCH_NAME@$BRANCH_HEAD with $GH_ADD_ARGS"
-              OUTPUT=$(ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME --sha $BRANCH_HEAD $GH_ADD_ARGS --message "chore: Update Gradle dependencies" 2>&1)
-              echo $OUTPUT
-              if [[ $OUTPUT != *"Success. New commit"* ]]; then
-                exit 1
-              fi
-              BRANCH_HEAD=${OUTPUT##*/}
-              echo "ghcommit output: $OUTPUT"
-              GH_ADD_ARGS=""
-              COUNT=0
-            fi
-          done
-          # Check at uncommited files
-          echo "Checking uncommited files"
-          git status
-          # Create a PR from the created branch
-          if [ $COUNT -gt 0 ]; then
-            echo "Creating a commit to $BRANCH_NAME@$BRANCH_HEAD with $GH_ADD_ARGS"
-            ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME --sha $BRANCH_HEAD $GH_ADD_ARGS --message "chore: Update Gradle dependencies"
+          if [[ -z "$(git status -s)" ]]; then
+            echo "No changes to commit, exiting."
+            echo "commit_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            echo "commit_changes=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Pick a branch name
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        id: define-branch
+        run: echo "branch=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+      - name: Commit changes
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        id: create-commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore: Update Gradle dependencies"
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Push changes
+        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          # for scheduled runs, sha is the tip of the default branch
+          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          head-sha: "${{ github.sha }}"
+          create-branch: true
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
       - name: Create pull request
+        if: steps.check-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
@@ -83,7 +79,7 @@ jobs:
           echo -e "This PR updates the Gradle dependencies. ⚠️ Don't forget to squash commits before merging. ⚠️\n\n- [ ] Update PR title if a code change is needed to support one of those new dependencies" | \
             gh pr create --title "Update Gradle dependencies" \
             --base master \
-            --head $BRANCH_NAME \
+            --head ${{ steps.define-branch.outputs.branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
             --body-file -

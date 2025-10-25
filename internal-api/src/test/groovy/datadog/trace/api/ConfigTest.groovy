@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
-import org.junit.Rule
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -138,14 +137,10 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
-
-  static final String PREFIX = "dd."
-
-  @Rule
-  public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
-
+  private static final String PREFIX = "dd."
   private static final DD_API_KEY_ENV = "DD_API_KEY"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
   private static final DD_TRACE_ENABLED_ENV = "DD_TRACE_ENABLED"
@@ -178,6 +173,10 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
+
+  def setup() {
+    FixedCapturedEnvironment.useFixedEnv([:])
+  }
 
   def "specify overrides via properties"() {
     setup:
@@ -830,15 +829,14 @@ class ConfigTest extends DDSpecification {
 
   def "captured env props override default props"() {
     setup:
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "automatic service name")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "test service name"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
 
     then:
-    config.serviceName == "automatic service name"
+    config.serviceName == "test service name"
   }
 
   def "specify props override captured env props"() {
@@ -846,9 +844,8 @@ class ConfigTest extends DDSpecification {
     def prop = new Properties()
     prop.setProperty(SERVICE_NAME, "what actually wants")
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "something else"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = Config.get(prop)
@@ -861,9 +858,8 @@ class ConfigTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + SERVICE_NAME, "what actually wants")
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "something else"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
@@ -876,190 +872,14 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV, "what actually wants")
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "something else"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify rule config #name"() {
-    setup:
-    environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
-    environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.trace.test.enabled", "false")
-    System.setProperty("dd.trace.test-prop.enabled", "true")
-    System.setProperty("dd.trace.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isRuleEnabled(name) == enabled
-
-    where:
-    // spotless:off
-    name            | enabled
-    ""              | true
-    "invalid"       | true
-    "test-prop"     | true
-    "Test-Prop"     | true
-    "test-env"      | true
-    "Test-Env"      | true
-    "test"          | false
-    "TEST"          | false
-    "disabled-prop" | false
-    "Disabled-Prop" | false
-    "disabled-env"  | false
-    "Disabled-Env"  | false
-    // spotless:on
-  }
-
-  def "verify integration jmxfetch config"() {
-    setup:
-    environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_JMXFETCH_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_JMXFETCH_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.jmxfetch.order.enabled", "true")
-    System.setProperty("dd.jmxfetch.test-prop.enabled", "true")
-    System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
-  def "verify integration trace analytics config"() {
-    setup:
-    environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
-    environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
-    environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
-    // trace prefix form should take precedence over the old non-prefix form
-    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
-    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
-
-    System.setProperty("dd.order.analytics.enabled", "true")
-    System.setProperty("dd.test-prop.analytics.enabled", "true")
-    System.setProperty("dd.disabled-prop.analytics.enabled", "false")
-    // trace prefix form should take precedence over the old non-prefix form
-    System.setProperty("dd.alias-prop.analytics.enabled", "false")
-    System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
-
-    expect:
-    Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                           | defaultEnabled | expected
-    []                              | true           | true
-    []                              | false          | false
-    ["invalid"]                     | true           | true
-    ["invalid"]                     | false          | false
-    ["test-prop"]                   | false          | true
-    ["test-env"]                    | false          | true
-    ["disabled-prop"]               | true           | false
-    ["disabled-env"]                | true           | false
-    ["other", "test-prop"]          | false          | true
-    ["other", "test-env"]           | false          | true
-    ["order"]                       | false          | true
-    ["test-prop", "disabled-prop"]  | false          | true
-    ["disabled-env", "test-env"]    | false          | true
-    ["test-prop", "disabled-prop"]  | true           | false
-    ["disabled-env", "test-env"]    | true           | false
-    ["alias-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "alias-env"]   | false          | true
-    ["alias-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "alias-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
-  def "test getFloatSettingFromEnvironment(#name)"() {
-    setup:
-    environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
-    environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
-    environmentVariables.set("DD_FLOAT_TEST", "0.2")
-
-    System.setProperty("dd.prop.zero.test", "0")
-    System.setProperty("dd.prop.float.test", "0.3")
-    System.setProperty("dd.float.test", "0.4")
-    System.setProperty("dd.garbage.test", "garbage")
-    System.setProperty("dd.negative.test", "-1")
-
-    expect:
-    Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
-
-    where:
-    name              | expected
-    // spotless:off
-    "env.zero.test"   | 0.0
-    "prop.zero.test"  | 0
-    "env.float.test"  | 1.0
-    "prop.float.test" | 0.3
-    "float.test"      | 0.4
-    "negative.test"   | -1.0
-    "garbage.test"    | 10.0
-    "default.test"    | 10.0
-    // spotless:on
-
-    defaultValue = 10.0
-  }
-
-  def "test getDoubleSettingFromEnvironment(#name)"() {
-    setup:
-    environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
-    environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
-    environmentVariables.set("DD_FLOAT_TEST", "0.2")
-
-    System.setProperty("dd.prop.zero.test", "0")
-    System.setProperty("dd.prop.float.test", "0.3")
-    System.setProperty("dd.float.test", "0.4")
-    System.setProperty("dd.garbage.test", "garbage")
-    System.setProperty("dd.negative.test", "-1")
-
-    expect:
-    Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
-
-    where:
-    // spotless:off
-    name              | expected
-    "env.zero.test"   | 0.0
-    "prop.zero.test"  | 0
-    "env.float.test"  | 1.0
-    "prop.float.test" | 0.3
-    "float.test"      | 0.4
-    "negative.test"   | -1.0
-    "garbage.test"    | 10.0
-    "default.test"    | 10.0
-    // spotless:on
-
-    defaultValue = 10.0
   }
 
   def "verify mapping configs on tracer for #mapString"() {
@@ -1786,8 +1606,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     //check that env wasn't set:
-    System.getenv(DD_ENV_ENV) == null
-    System.getenv(DD_VERSION_ENV) == null
+    environmentVariables.get(DD_ENV_ENV) == null
+    environmentVariables.get(DD_VERSION_ENV) == null
     //actual guard:
     config.mergedSpanTags == ["env": "production"]
   }
@@ -1801,8 +1621,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     //check that env wasn't set:
-    System.getenv(DD_ENV_ENV) == null
-    System.getenv(DD_VERSION_ENV) == null
+    environmentVariables.get(DD_ENV_ENV) == null
+    environmentVariables.get(DD_VERSION_ENV) == null
     //actual guard:
     config.mergedSpanTags == [(VERSION): "42"]
   }
@@ -1815,7 +1635,7 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    System.getenv(DD_ENV_ENV) == null
+    environmentVariables.get(DD_ENV_ENV) == null
     config.mergedSpanTags.get("env") == null
     config.mergedSpanTags == [(VERSION): "3.2.1"]
   }
@@ -2593,9 +2413,8 @@ class ConfigTest extends DDSpecification {
     setup:
     AgentArgsInjector.injectAgentArgsConfig([(PREFIX + SERVICE_NAME): "args service name"])
 
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "captured props service name")
-    fixedCapturedEnvironment.load(capturedEnv)
+    def capturedEnv = [(SERVICE_NAME): "captured props service name"]
+    FixedCapturedEnvironment.useFixedEnv(capturedEnv)
 
     when:
     def config = new Config()
@@ -2799,5 +2618,214 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.CONTINUE
+  }
+
+  def "Intake client uses correct URL for site #site"() {
+    setup:
+    def config = Spy(Config.get())
+
+    when:
+    config.getSite() >> site
+
+    then:
+    config.getDefaultTelemetryUrl()
+
+    where:
+    site                | expectedUrl
+    "datadoghq.com"     | "https://instrumentation-telemetry-intake.datadoghq.com/api/v2/apmtelemetry"
+    "us3.datadoghq.com" | "https://instrumentation-telemetry-intake.us3.datadoghq.com/api/v2/apmtelemetry"
+    "us5.datadoghq.com" | "https://instrumentation-telemetry-intake.us5.datadoghq.com/api/v2/apmtelemetry"
+    "ap1.datadoghq.com" | "https://instrumentation-telemetry-intake.ap1.datadoghq.com/api/v2/apmtelemetry"
+    "datadoghq.eu"      | "https://instrumentation-telemetry-intake.datadoghq.eu/api/v2/apmtelemetry"
+    "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
+  }
+
+  static class ConfigTestWithFakes extends ConfigTest {
+
+    def strictness
+
+    def setup(){
+      strictness = ConfigHelper.get().configInversionStrictFlag()
+      ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+    }
+
+    def cleanup(){
+      ConfigHelper.get().setConfigInversionStrict(strictness)
+    }
+
+    def "verify rule config #name"() {
+      setup:
+      environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
+      environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
+      environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
+
+      System.setProperty("dd.trace.test.enabled", "false")
+      System.setProperty("dd.trace.test-prop.enabled", "true")
+      System.setProperty("dd.trace.disabled-prop.enabled", "false")
+
+      expect:
+      Config.get().isRuleEnabled(name) == enabled
+
+      where:
+      // spotless:off
+      name            | enabled
+      ""              | true
+      "invalid"       | true
+      "test-prop"     | true
+      "Test-Prop"     | true
+      "test-env"      | true
+      "Test-Env"      | true
+      "test"          | false
+      "TEST"          | false
+      "disabled-prop" | false
+      "Disabled-Prop" | false
+      "disabled-env"  | false
+      "Disabled-Env"  | false
+      // spotless:on
+    }
+
+    def "verify integration jmxfetch config"() {
+      setup:
+      environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")
+      environmentVariables.set("DD_JMXFETCH_TEST_ENV_ENABLED", "true")
+      environmentVariables.set("DD_JMXFETCH_DISABLED_ENV_ENABLED", "false")
+
+      System.setProperty("dd.jmxfetch.order.enabled", "true")
+      System.setProperty("dd.jmxfetch.test-prop.enabled", "true")
+      System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
+
+      expect:
+      Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+      where:
+      // spotless:off
+      names                          | defaultEnabled | expected
+      []                             | true           | true
+      []                             | false          | false
+      ["invalid"]                    | true           | true
+      ["invalid"]                    | false          | false
+      ["test-prop"]                  | false          | true
+      ["test-env"]                   | false          | true
+      ["disabled-prop"]              | true           | false
+      ["disabled-env"]               | true           | false
+      ["other", "test-prop"]         | false          | true
+      ["other", "test-env"]          | false          | true
+      ["order"]                      | false          | true
+      ["test-prop", "disabled-prop"] | false          | true
+      ["disabled-env", "test-env"]   | false          | true
+      ["test-prop", "disabled-prop"] | true           | false
+      ["disabled-env", "test-env"]   | true           | false
+      // spotless:on
+
+      integrationNames = new TreeSet<>(names)
+    }
+
+    def "verify integration trace analytics config"() {
+      setup:
+      environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
+      environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
+      environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
+      // trace prefix form should take precedence over the old non-prefix form
+      environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
+      environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
+
+      System.setProperty("dd.order.analytics.enabled", "true")
+      System.setProperty("dd.test-prop.analytics.enabled", "true")
+      System.setProperty("dd.disabled-prop.analytics.enabled", "false")
+      // trace prefix form should take precedence over the old non-prefix form
+      System.setProperty("dd.alias-prop.analytics.enabled", "false")
+      System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
+
+      expect:
+      Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+      where:
+      // spotless:off
+      names                           | defaultEnabled | expected
+      []                              | true           | true
+      []                              | false          | false
+      ["invalid"]                     | true           | true
+      ["invalid"]                     | false          | false
+      ["test-prop"]                   | false          | true
+      ["test-env"]                    | false          | true
+      ["disabled-prop"]               | true           | false
+      ["disabled-env"]                | true           | false
+      ["other", "test-prop"]          | false          | true
+      ["other", "test-env"]           | false          | true
+      ["order"]                       | false          | true
+      ["test-prop", "disabled-prop"]  | false          | true
+      ["disabled-env", "test-env"]    | false          | true
+      ["test-prop", "disabled-prop"]  | true           | false
+      ["disabled-env", "test-env"]    | true           | false
+      ["alias-prop", "disabled-prop"] | false          | true
+      ["disabled-env", "alias-env"]   | false          | true
+      ["alias-prop", "disabled-prop"] | true           | false
+      ["disabled-env", "alias-env"]   | true           | false
+      // spotless:on
+
+      integrationNames = new TreeSet<>(names)
+    }
+
+    def "test getFloatSettingFromEnvironment(#name)"() {
+      setup:
+      environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
+      environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
+      environmentVariables.set("DD_FLOAT_TEST", "0.2")
+
+      System.setProperty("dd.prop.zero.test", "0")
+      System.setProperty("dd.prop.float.test", "0.3")
+      System.setProperty("dd.float.test", "0.4")
+      System.setProperty("dd.garbage.test", "garbage")
+      System.setProperty("dd.negative.test", "-1")
+
+      expect:
+      Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
+
+      where:
+      name              | expected
+      // spotless:off
+      "env.zero.test"   | 0.0
+      "prop.zero.test"  | 0
+      "env.float.test"  | 1.0
+      "prop.float.test" | 0.3
+      "float.test"      | 0.4
+      "negative.test"   | -1.0
+      "garbage.test"    | 10.0
+      "default.test"    | 10.0
+      // spotless:on
+
+      defaultValue = 10.0
+    }
+
+    def "test getDoubleSettingFromEnvironment(#name)"() {
+      setup:
+      environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
+      environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
+      environmentVariables.set("DD_FLOAT_TEST", "0.2")
+
+      System.setProperty("dd.prop.zero.test", "0")
+      System.setProperty("dd.prop.float.test", "0.3")
+      System.setProperty("dd.float.test", "0.4")
+      System.setProperty("dd.garbage.test", "garbage")
+      System.setProperty("dd.negative.test", "-1")
+
+      expect:
+      Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
+
+      where:
+      // spotless:off
+      name              | expected
+      "env.zero.test"   | 0.0
+      "prop.zero.test"  | 0
+      "env.float.test"  | 1.0
+      "prop.float.test" | 0.3
+      "float.test"      | 0.4
+      "negative.test"   | -1.0
+      "garbage.test"    | 10.0
+      "default.test"    | 10.0
+      // spotless:on
+
+      defaultValue = 10.0
+    }
   }
 }
