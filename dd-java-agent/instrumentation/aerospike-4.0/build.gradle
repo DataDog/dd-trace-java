@@ -13,12 +13,10 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
-
 
 dependencies {
   compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
@@ -34,9 +32,8 @@ tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
 
-// TODO: strange workaround for Groovy?
-tasks.matching { it.name.startsWith('compileLatestDep') && it.name.endsWith('Groovy') }.configureEach {
-  javaLauncher = javaToolchains.launcherFor {
-    it.languageVersion = JavaLanguageVersion.of(21)
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    configureCompiler(it, 21)
   }
 }
