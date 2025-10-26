@@ -300,7 +300,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    *
    * @return true if root, false otherwise
    */
-  public final boolean isRootSpan() {
+  public final boolean checkRootSpan() {
     return context.getParentId() == DDSpanId.ZERO;
   }
 

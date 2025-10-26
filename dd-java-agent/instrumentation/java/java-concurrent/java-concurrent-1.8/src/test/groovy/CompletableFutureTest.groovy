@@ -127,7 +127,7 @@ class CompletableFutureTest extends InstrumentationSpecification {
       // The parent and the child spans can finish out of order since they run
       // on different threads concurrently
       trace(2) {
-        def pIndex = span(0).isRootSpan() ? 0 : 1
+        def pIndex = span(0).checkRootSpan() ? 0 : 1
         def cIndex = 1 - pIndex
         basicSpan(it, pIndex, "parent")
         basicSpan(it, cIndex, "child", span(pIndex))
