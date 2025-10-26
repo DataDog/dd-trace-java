@@ -6,10 +6,28 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Gradle Daemon Instrumentation Smoke Tests.'
 
 dependencies {
+  testImplementation 'org.codehaus.groovy:groovy-all:3.0.24'
+  testImplementation 'org.spockframework:spock-core:2.4-M6-groovy-3.0'
+  testImplementation 'org.objenesis:objenesis:3.3'
+
   testImplementation gradleTestKit()
   testImplementation project(':dd-smoke-tests:backend-mock')
   testImplementation project(':internal-api')
-  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
+  testImplementation(project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')) {
+    exclude group: "org.spockframework", module: "spock-core"
+  }
+}
+
+configurations {
+  testImplementation {
+    exclude group: 'org.apache.groovy'
+  }
+}
+
+configurations.named('testImplementation') {
+  resolutionStrategy {
+    force 'org.spockframework:spock-core:2.4-M6-groovy-3.0'
+  }
 }
 
 tasks.named("test", Test) {

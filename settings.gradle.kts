@@ -167,7 +167,7 @@ include(
   ":dd-smoke-tests:custom-systemloader",
   ":dd-smoke-tests:dynamic-config",
   ":dd-smoke-tests:field-injection",
-  // ":dd-smoke-tests:gradle", TODO fix incompatibility with Groovy 4.x: gradle uses Groovy 3.
+  ":dd-smoke-tests:gradle",
   ":dd-smoke-tests:grpc-1.5",
   ":dd-smoke-tests:java9-modules",
   ":dd-smoke-tests:jersey-2",
