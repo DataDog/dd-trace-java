@@ -24,7 +24,7 @@ class ValidatingRequestContextDecorator implements RequestContext {
     this.traceSegment = new PreconditionCheckTraceSegment(
       segment, {
         ->
-        if (useStrictTraceWrites && spiedAgentSpan.getLocalRootSpan().durationNano != 0) {
+        if (useStrictTraceWrites && spiedAgentSpan.localRootSpan.durationNano != 0) {
           throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
         }
       }

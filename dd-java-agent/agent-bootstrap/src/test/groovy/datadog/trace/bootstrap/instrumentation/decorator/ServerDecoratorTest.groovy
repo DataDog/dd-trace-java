@@ -39,7 +39,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     newDecorator().beforeFinish(span)
 
     then:
-    (0..1) * span.getLocalRootSpan()
+    (0..1) * span.localRootSpan
   }
 
   @Override

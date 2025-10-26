@@ -141,7 +141,7 @@ class ListWriterAssert {
 
     long traceStart(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      return trace.get(0).getLocalRootSpan().startTime
+      return trace.get(0).localRootSpan.startTime
     }
   }
 
@@ -153,7 +153,7 @@ class ListWriterAssert {
 
     long rootSpanId(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      return trace.get(0).getLocalRootSpan().spanId.toLong()
+      return trace.get(0).localRootSpan.spanId.toLong()
     }
   }
 
@@ -165,7 +165,7 @@ class ListWriterAssert {
 
     String rootSpanTrace(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      def rootSpan = trace.get(0).getLocalRootSpan()
+      def rootSpan = trace.get(0).localRootSpan
       return "${rootSpan.serviceName}/${rootSpan.operationName}/${rootSpan.resourceName}"
     }
   }

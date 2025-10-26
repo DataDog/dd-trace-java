@@ -304,8 +304,8 @@ class DDSpanTest extends DDCoreSpecification {
     def child = tracer.buildSpan("child").asChildOf(root).start()
 
     expect:
-    root.getLocalRootSpan() == root
-    child.getLocalRootSpan() == root
+    root.localRootSpan == root
+    child.localRootSpan == root
     // Checking for backward compatibility method names
     root.rootSpan == root
     child.rootSpan == root

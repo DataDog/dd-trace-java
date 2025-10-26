@@ -219,7 +219,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
           }
         }
 
-        def ids = new Tuple2(trace(i).get(0).getLocalRootSpan().traceId.toString(), trace(i).get(0).getLocalRootSpan().spanId.toString())
+        def ids = new Tuple2(trace(i).get(0).localRootSpan.traceId.toString(), trace(i).get(0).localRootSpan.spanId.toString())
         assert ids in loggedSpanIds
       }
     }
@@ -256,8 +256,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
       }
 
       def (String traceId, String spanId) = accessLogValue.loggedIds[0]
-      assert trace(0).get(0).getLocalRootSpan().traceId.toString() == traceId
-      assert trace(0).get(0).getLocalRootSpan().spanId.toString() == spanId
+      assert trace(0).get(0).localRootSpan.traceId.toString() == traceId
+      assert trace(0).get(0).localRootSpan.spanId.toString() == spanId
     }
 
     where:
