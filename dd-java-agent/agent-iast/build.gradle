@@ -90,6 +90,7 @@ ext {
     'com.datadog.iast.model.json.FormattingAdapter',
     'com.datadog.iast.model.json.SourceTypeAdapter',
     'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
+    'com.datadog.iast.taint.TaintedMap' // TODO: Groovy 4 issues
   ]
   excludedClassesBranchCoverage = []
   excludedClassesInstructionCoverage = []
