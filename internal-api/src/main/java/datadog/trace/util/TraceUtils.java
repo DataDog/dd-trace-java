@@ -88,17 +88,34 @@ public class TraceUtils {
   // spotless:off
 
   /**
-   * Normalizes a tag value:
+   * Normalizes a full tag (key:value):
    * - Only letters, digits, ":", ".", "-", "_" and "/" are allowed.
    * - If a non-valid char is found, it's replaced with "_". If it's the last char, it's removed.
    * - It must start with a letter or ":".
    * - It applies lower case.
    *
    * @param tag value
-   * @return normalized tag value
+   * @return normalized full tag
+   * See https://docs.datadoghq.com/getting_started/tagging/
    */
   // spotless:on
   public static String normalizeTag(final String tag) {
+    return doNormalize(tag, true);
+  }
+
+  /**
+   * Normalizes a tag value according to the datadog tag conventions - Only letters, digits, ":",
+   * ".", "-", "_" and "/" are allowed. - If a non-valid char is found, it's replaced with "_". If
+   * it's the last char, it's removed. - It applies lower case.
+   *
+   * @param tagValue the tag value
+   * @return normalized tag value See https://docs.datadoghq.com/getting_started/tagging/
+   */
+  public static String normalizeTagValue(final String tagValue) {
+    return doNormalize(tagValue, false);
+  }
+
+  private static String doNormalize(String tag, boolean skipNumericalPrefixes) {
     if (tag == null || tag.isEmpty()) {
       return "";
     }
@@ -127,8 +144,10 @@ public class TraceUtils {
         continue;
       }
       if (builder.length() == 0) {
-        // this character can't start the string, trim
-        continue;
+        if (skipNumericalPrefixes || !Character.isDigit(ch)) {
+          // this character can't start the string, trim
+          continue;
+        }
       }
       if (Character.isDigit(ch) || ch == '.' || ch == '/' || ch == '-') {
         isJumping = false;

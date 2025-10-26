@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -58,6 +59,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final long SLEEP_TIME_MS = 100;
     private static final CommandElement FLUSH_ELEMENT = new CommandElement();
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
+    private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
     private final MpscBlockingConsumerArrayQueue<Element> queue;
     private final Thread worker;
@@ -145,6 +147,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private static final class DumpDrain
         implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
+      private static final Logger LOGGER = LoggerFactory.getLogger(DumpDrain.class);
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
       private static final int MAX_DUMPED_TRACES = 50;
 
@@ -154,7 +157,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           element -> !(element instanceof PendingTrace);
 
       private volatile List<Element> data = new ArrayList<>();
-      private int index = 0;
+      private volatile int index = 0;
 
       @Override
       public void accept(Element pendingTrace) {
@@ -166,13 +169,21 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         if (index < data.size()) {
           return data.get(index++);
         }
-        return null; // Should never reach here or else queue may break according to
-        // MessagePassingQueue docs
+        // Should never reach here or else queue may break according to
+        // MessagePassingQueue docs if we return a null. Return a stand-in
+        // Element instead.
+        LOGGER.warn(
+            SEND_TELEMETRY,
+            "Index {} is out of bounds for data size {} in DumpDrain.get so returning filler CommandElement to prevent pending trace queue from breaking.",
+            index,
+            data.size());
+        return STAND_IN_ELEMENT;
       }
 
       public List<Element> collectTraces() {
         List<Element> traces = data;
         data = new ArrayList<>();
+        index = 0;
         traces.removeIf(NOT_PENDING_TRACE);
         // Storing oldest traces first
         traces.sort(TRACE_BY_START_TIME);

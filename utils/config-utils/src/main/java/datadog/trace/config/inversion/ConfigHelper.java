@@ -77,6 +77,14 @@ public class ConfigHelper {
     resetCache();
   }
 
+  public static Map<String, String> env() {
+    return get().getEnvironmentVariables();
+  }
+
+  public static String env(String key) {
+    return get().getEnvironmentVariable(key);
+  }
+
   public Map<String, String> getEnvironmentVariables() {
     if (!configs.isEmpty()) {
       return configs;
@@ -122,7 +130,7 @@ public class ConfigHelper {
   }
 
   public String getEnvironmentVariable(String name) {
-    if (configs.containsKey(name)) {
+    if (configs != null && configs.containsKey(name)) {
       return configs.get(name);
     }
 

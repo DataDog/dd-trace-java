@@ -1,7 +1,7 @@
 package utils
 
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.FailsWith
 import spock.lang.Shared

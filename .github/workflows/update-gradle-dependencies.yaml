@@ -26,6 +26,7 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
+          find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
@@ -54,7 +55,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -a -m "chore: Update Gradle dependencies"
+          git add --all
+          git commit -m "chore: Update Gradle dependencies"
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
         uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
@@ -64,7 +66,8 @@ jobs:
           branch: "${{ steps.define-branch.outputs.branch }}"
           # for scheduled runs, sha is the tip of the default branch
           # for dispatched runs, sha is the tip of the branch it was dispatched on
-          branch-from: "${{ github.sha }}"
+          head-sha: "${{ github.sha }}"
+          create-branch: true
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
       - name: Create pull request

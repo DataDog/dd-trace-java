@@ -3,7 +3,7 @@ include:
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
-  - local: ".gitlab/ci-visibility-tests.yml"
+  #  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
@@ -167,19 +167,13 @@ default:
   before_script:
     - source .gitlab/gitlab-utils.sh
     # Akka token added to SSM from https://account.akka.io/token
-    - export AKKA_REPO_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
+    - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    - |
-      # Don't put jvm args here as it will be picked up by child gradle processes used in tests
-      cat << EOF > $GRADLE_USER_HOME/gradle.properties
-      mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
-      gradlePluginProxy=$GRADLE_PLUGIN_PROXY
-      akkaRepositoryToken=$AKKA_REPO_TOKEN
-      EOF
-    - |
-      # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
-      sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
+    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
@@ -727,7 +721,7 @@ test_smoke_graalvm:
     NON_DEFAULT_JVMS: "true"
   parallel:
     matrix:
-      - testJvm: ["graalvm17", "graalvm21"]
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
   extends: .test_job
@@ -976,3 +970,16 @@ create_key:
     expire_in: 13 mos
     paths:
       - pubkeys
+
+validate_supported_configurations_local_file:
+  extends: .validate_supported_configurations_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+
+update_central_configurations_version_range:
+  extends: .update_central_configurations_version_range
+  variables:
+    LOCAL_REPO_NAME: "dd-trace-java"
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    LANGUAGE_NAME: "java"
+    MULTIPLE_RELEASE_LINES: "false"

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.smoketest.appsec.springboot.service.AsyncService;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -93,7 +94,9 @@ public class WebController {
   public String ssrfQuery(@RequestParam("domain") final String domain) {
     try {
       new URL("http://" + domain).openStream().close();
-    } catch (Throwable e) {
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Throwable e) {
       // ignore errors opening connection
     }
     return "EXECUTED";
@@ -105,7 +108,9 @@ public class WebController {
     try {
       final HttpGet request = new HttpGet("http://" + domain);
       client.execute(request);
-    } catch (Exception e) {
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
       // ignore errors opening connection
     }
     client.getConnectionManager().shutdown();
@@ -118,6 +123,8 @@ public class WebController {
     final HttpMethod method = new GetMethod("http://" + domain);
     try {
       client.executeMethod(method);
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       // ignore errors opening connection
     }
@@ -131,6 +138,8 @@ public class WebController {
     final Request request = new Request.Builder().url("http://" + domain).build();
     try {
       client.newCall(request).execute();
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       // ignore errors opening connection
     }
@@ -145,6 +154,8 @@ public class WebController {
     final okhttp3.Request request = new okhttp3.Request.Builder().url("http://" + domain).build();
     try {
       client.newCall(request).execute();
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       // ignore errors opening connection
     }

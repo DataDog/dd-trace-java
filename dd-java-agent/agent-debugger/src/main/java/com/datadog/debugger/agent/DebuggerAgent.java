@@ -394,7 +394,8 @@ public class DebuggerAgent {
       Config config, Instrumentation instrumentation, DebuggerSink debuggerSink) {
     LOGGER.info("install Instrument-The-World transformer");
     DebuggerTransformer transformer =
-        createTransformer(config, Configuration.builder().build(), null, debuggerSink);
+        createTransformer(
+            config, Configuration.builder().build(), null, new ProbeMetadata(), debuggerSink);
     DebuggerContext.initProbeResolver(transformer::instrumentTheWorldResolver);
     instrumentation.addTransformer(transformer);
     return transformer;
@@ -412,8 +413,9 @@ public class DebuggerAgent {
       Config config,
       Configuration configuration,
       DebuggerTransformer.InstrumentationListener listener,
+      ProbeMetadata probeMetadata,
       DebuggerSink debuggerSink) {
-    return new DebuggerTransformer(config, configuration, listener, debuggerSink);
+    return new DebuggerTransformer(config, configuration, listener, probeMetadata, debuggerSink);
   }
 
   static void stop() {

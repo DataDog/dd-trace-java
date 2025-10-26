@@ -1,5 +1,7 @@
+import aQute.bnd.gradle.Bundle
+
 plugins {
-  id 'biz.aQute.bnd.builder' version '6.1.0' apply false
+  id 'biz.aQute.bnd.builder' version '6.1.0' apply true
 }
 
 repositories {
@@ -12,14 +14,12 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'OSGi Application Smoke Tests.'
 
 configurations {
-  equinox
-  felix
-  knopflerfish
-  bundles
-}
-
-configurations.named('bundles') {
-  transitive = false
+  register('equinox')
+  register('felix')
+  register('knopflerfish')
+  register('bundles') {
+    transitive = false
+  }
 }
 
 dependencies {
@@ -42,13 +42,18 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-tasks.named("jar", Jar) {
+// The bnd builder plugin modifies the jar task to post process it with bnd.
+// Since this cannot be disabled, we disable the jar task and create another one.
+tasks.named('jar', Jar) {
+  enabled = false
+}
+
+def jarTask = tasks.register("appJar", Jar) {
+  from sourceSets.main.output
   include 'datadog/smoketest/osgi/app/**'
 }
 
-import aQute.bnd.gradle.Bundle
-
-tasks.register('commonBundle', Bundle) {
+def commonBundle = tasks.register('commonBundle', Bundle) {
   archiveClassifier = 'common'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/common/**'
@@ -57,7 +62,7 @@ tasks.register('commonBundle', Bundle) {
   }
 }
 
-tasks.register('clientBundle', Bundle) {
+def clientBundle = tasks.register('clientBundle', Bundle) {
   archiveClassifier = 'client'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/client/**'
@@ -66,7 +71,7 @@ tasks.register('clientBundle', Bundle) {
   }
 }
 
-tasks.register('messagingBundle', Bundle) {
+def messagingBundle = tasks.register('messagingBundle', Bundle) {
   archiveClassifier = 'messaging'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/messaging/**'
@@ -75,7 +80,7 @@ tasks.register('messagingBundle', Bundle) {
   }
 }
 
-tasks.register('publishingBundle', Bundle) {
+def publishingBundle = tasks.register('publishingBundle', Bundle) {
   archiveClassifier = 'publishing'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/publishing/**'
@@ -84,7 +89,7 @@ tasks.register('publishingBundle', Bundle) {
   }
 }
 
-tasks.register('subscribingBundle', Bundle) {
+def subscribingBundle = tasks.register('subscribingBundle', Bundle) {
   archiveClassifier = 'subscribing'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/subscribing/**'
@@ -94,18 +99,34 @@ tasks.register('subscribingBundle', Bundle) {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "commonBundle", "clientBundle", "messagingBundle", "publishingBundle", "subscribingBundle", "jar"
+  dependsOn commonBundle, clientBundle, messagingBundle, publishingBundle, subscribingBundle, jarTask
 
-  jvmArgs "-Ddatadog.smoketest.osgi.appJar.path=${tasks.jar.archiveFile.get()}"
-  jvmArgs "-Ddatadog.smoketest.osgi.equinoxJar.path=${configurations.equinox.first().path}"
-  jvmArgs "-Ddatadog.smoketest.osgi.felixJar.path=${configurations.felix.first().path}"
-  jvmArgs "-Ddatadog.smoketest.osgi.knopflerfishJar.path=${configurations.knopflerfish.first().path}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        // def jarTask = tasks.named('appJar', Jar).get()
+        def equinoxJar = configurations.named('equinox').get().first().path
+        def felixJar = configurations.named('felix').get().first().path
+        def knopflerfishJar = configurations.named('knopflerfish').get().first().path
 
-  jvmArgs "-Ddatadog.smoketest.osgi.bundle.paths=" +
-    "${tasks.commonBundle.archiveFile.get()}," +
-    "${tasks.clientBundle.archiveFile.get()}," +
-    "${tasks.messagingBundle.archiveFile.get()}," +
-    "${tasks.publishingBundle.archiveFile.get()}," +
-    "${tasks.subscribingBundle.archiveFile.get()}," +
-    "${configurations.bundles*.path.join(',')}"
+        def bundlePaths = [
+          commonBundle.get().archiveFile.get(),
+          clientBundle.get().archiveFile.get(),
+          messagingBundle.get().archiveFile.get(),
+          publishingBundle.get().archiveFile.get(),
+          subscribingBundle.get().archiveFile.get(),
+          *configurations.named('bundles').get().collect {
+            it.path
+          }
+        ].join(',')
+
+        return [
+          "-Ddatadog.smoketest.osgi.appJar.path=${jarTask.get().archiveFile.get()}",
+          "-Ddatadog.smoketest.osgi.equinoxJar.path=${equinoxJar}",
+          "-Ddatadog.smoketest.osgi.felixJar.path=${felixJar}",
+          "-Ddatadog.smoketest.osgi.knopflerfishJar.path=${knopflerfishJar}",
+          "-Ddatadog.smoketest.osgi.bundle.paths=${bundlePaths}"
+        ]
+      }
+    })
 }

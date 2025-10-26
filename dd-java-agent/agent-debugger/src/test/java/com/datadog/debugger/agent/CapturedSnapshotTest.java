@@ -50,6 +50,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -221,7 +222,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID1, CLASS_NAME, line);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver((encodedProbeId) -> null);
+    DebuggerContext.initProbeResolver(probeIndex -> null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -238,7 +239,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     TestSnapshotListener listener = installProbes(lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(
-        (encodedProbeId) -> {
+        probeIndex -> {
           throw new IllegalArgumentException("oops");
         });
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1772,7 +1773,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertFalse(probeImplementation.isCaptureSnapshot());
+    assertFalse(((CapturedContextProbe) probeImplementation).isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
