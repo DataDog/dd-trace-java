@@ -435,7 +435,7 @@ include(
   ":dd-java-agent:instrumentation:junit:junit-5.3",
   ":dd-java-agent:instrumentation:junit:junit-5.3:junit-5.8",
   ":dd-java-agent:instrumentation:junit:junit-5.3:cucumber-junit-5",
-  // ":dd-java-agent:instrumentation:junit:junit-5.3:spock-junit-5", TODO fix Groovy 4.x compatibility probably this module needs Groovy 3
+  ":dd-java-agent:instrumentation:junit:junit-5.3:spock-junit-5",
   ":dd-java-agent:instrumentation:kafka:kafka-clients-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-clients-3.8",
   ":dd-java-agent:instrumentation:kafka:kafka-common",
