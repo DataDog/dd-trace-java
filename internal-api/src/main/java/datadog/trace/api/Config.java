@@ -1936,8 +1936,8 @@ public class Config {
               OTEL_EXPORTER_OTLP_TIMEOUT, DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT);
     }
     otelExporterOtlpMetricsTimeout =
-        tmpOtelExporterOtlpMetricsTimeout < 0
-            ? DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT
+        (tmpOtelExporterOtlpMetricsTimeout < 0)
+            ? new Integer(DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT)
             : tmpOtelExporterOtlpMetricsTimeout;
 
     otelExporterOtlpMetricsTemporalityPreference =
