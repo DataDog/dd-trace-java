@@ -29,9 +29,11 @@ fun isTestingInstrumentation(project: Project): Boolean {
 
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
+// Forked tests will fail with OOM if the memory is set too high. Gitlab allows at least a limit of 3.
+val forkedTestsMemoryLimit = 3
 
 val forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", ForkedTestLimit::class.java) {
-  maxParallelUsages.set(3)
+  maxParallelUsages.set(forkedTestsMemoryLimit)
 }
 
 extensions.findByType(TestingExtension::class.java)?.apply {
