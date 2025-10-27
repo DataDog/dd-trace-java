@@ -13,12 +13,10 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
-
 
 dependencies {
   compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
