@@ -1190,46 +1190,6 @@ class ConfigTest extends DDSpecification {
     config.serviceName == 'unnamed-java-app'
   }
 
-  def "get analytics sample rate"() {
-    setup:
-    environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
-    environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
-    // trace prefix form should take precedence over the old non-prefix form
-    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
-    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
-
-    System.setProperty("dd.baz.analytics.sample-rate", "0.7")
-    System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
-    // trace prefix form should take precedence over the old non-prefix form
-    System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
-    System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
-
-    when:
-    String[] array = services.toArray(new String[0])
-    def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
-
-    then:
-    value == expected
-
-    where:
-    // spotless:off
-    services                | expected
-    ["foo"]                 | 0.5f
-    ["baz"]                 | 0.7f
-    ["doesnotexist"]        | 1.0f
-    ["doesnotexist", "foo"] | 0.5f
-    ["doesnotexist", "baz"] | 0.7f
-    ["foo", "bar"]          | 0.5f
-    ["bar", "foo"]          | 0.9f
-    ["baz", "buzz"]         | 0.7f
-    ["buzz", "baz"]         | 0.3f
-    ["foo", "baz"]          | 0.5f
-    ["baz", "foo"]          | 0.7f
-    ["alias-env", "baz"]    | 0.4f
-    ["alias-prop", "foo"]   | 0.2f
-    // spotless:on
-  }
-
   def "verify api key loaded from file: #path"() {
     setup:
     environmentVariables.set(DD_API_KEY_ENV, "default-api-key")
@@ -1849,24 +1809,6 @@ class ConfigTest extends DDSpecification {
     null                              | null      | null | null       | null         | null           | "1"          | true                   | false
     "example"                         | "example" | null | null       | "example"    | null           | null         | false                  | false
     // spotless:on
-  }
-
-  // Static methods test:
-  def "configProvider.get* unit test"() {
-    setup:
-    def p = new Properties()
-    p.setProperty("i", "13")
-    p.setProperty("f", "42.42")
-    def configProvider = ConfigProvider.withPropertiesOverride(p)
-
-    expect:
-    configProvider.getDouble("i", 40) == 13
-    configProvider.getDouble("f", 41) == 42.42
-    configProvider.getFloat("i", 40) == 13
-    configProvider.getFloat("f", 41) == 42.42f
-    configProvider.getInteger("b", 61) == 61
-    configProvider.getInteger("i", 61) == 13
-    configProvider.getBoolean("a", true) == true
   }
 
   def "valueOf positive test"() {
@@ -2640,6 +2582,7 @@ class ConfigTest extends DDSpecification {
     "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
   }
 
+  // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {
 
     def strictness
@@ -2826,6 +2769,64 @@ class ConfigTest extends DDSpecification {
       // spotless:on
 
       defaultValue = 10.0
+    }
+
+    def "get analytics sample rate"() {
+      setup:
+      environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
+      environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
+      // trace prefix form should take precedence over the old non-prefix form
+      environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
+      environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
+
+      System.setProperty("dd.baz.analytics.sample-rate", "0.7")
+      System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
+      // trace prefix form should take precedence over the old non-prefix form
+      System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
+      System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
+
+      when:
+      String[] array = services.toArray(new String[0])
+      def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
+
+      then:
+      value == expected
+
+      where:
+      // spotless:off
+      services                | expected
+      ["foo"]                 | 0.5f
+      ["baz"]                 | 0.7f
+      ["doesnotexist"]        | 1.0f
+      ["doesnotexist", "foo"] | 0.5f
+      ["doesnotexist", "baz"] | 0.7f
+      ["foo", "bar"]          | 0.5f
+      ["bar", "foo"]          | 0.9f
+      ["baz", "buzz"]         | 0.7f
+      ["buzz", "baz"]         | 0.3f
+      ["foo", "baz"]          | 0.5f
+      ["baz", "foo"]          | 0.7f
+      ["alias-env", "baz"]    | 0.4f
+      ["alias-prop", "foo"]   | 0.2f
+      // spotless:on
+    }
+
+    // Static methods test:
+    def "configProvider.get* unit test"() {
+      setup:
+      def p = new Properties()
+      p.setProperty("i", "13")
+      p.setProperty("f", "42.42")
+      def configProvider = ConfigProvider.withPropertiesOverride(p)
+
+      expect:
+      configProvider.getDouble("i", 40) == 13
+      configProvider.getDouble("f", 41) == 42.42
+      configProvider.getFloat("i", 40) == 13
+      configProvider.getFloat("f", 41) == 42.42f
+      configProvider.getInteger("b", 61) == 61
+      configProvider.getInteger("i", 61) == 13
+      configProvider.getBoolean("a", true) == true
     }
   }
 }
