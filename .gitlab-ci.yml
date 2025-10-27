@@ -647,7 +647,7 @@ test_flaky:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_PARAMS: "-PrunFlakyTests"
-    CACHE_TYPE: "base"
+    CACHE_TYPE: "smoke"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   rules:
