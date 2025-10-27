@@ -10,12 +10,12 @@ Default values for configurations live in `ConfigDefaults.java`.
 
 Configuration values are read and stored in `Config.java`, which utilizes helper methods in `ConfigProvider.java` to fetch the final value for a configuration after searching through all Configuration Sources and determining the final value based on Source priority. Below is the list of Sources that are queried for assigning Configuration values in order from highest to lowest priority:
 1. System Properties: JVM System Properties
-2. Stable Config - Fleet Automation: Now known as Declarative Configuration, this source reads a list of configurations set through Fleet Automation to take effect on all of a user's hosts.
+2. Stable Config - Fleet Automation: Now known as Declarative Configuration, this source reads a list of configurations through a `.yaml` file on Fleet Automation to take effect on all instances on a host.
 3. CI Environment Variables: Source for Configurations related to the `CiVisibility` product. 
 4. Environment Variables: JVM Environment Variables
 5. Properties File: By defining a filepath in `DD_TRACE_CONFIG`/`trace.config`, users can define Configuration key/value pairs in the file
 6. OpenTelemetry Environment Variables: A list of OpenTelemetry Configurations that are supported in the Java Library. See [OtelEnvironmentConfigSource.java](../utils/config-utils/src/main/java/datadog/trace/bootstrap/config/provider/OtelEnvironmentConfigSource.java) for a list of supported OpenTelemetry Configurations.
-7. Stable Config - Local File: Now known as Declarative Configuration, this source reads a list of configurations set through a local file set by the user.
+7. Stable Config - Local File: Now known as Declarative Configuration, this source reads a list of configurations through a local `.yaml` file on set by the user to take effect on all instances on a host.
 8. Captured Environment Variables: Auto-detects values for certain Configurations. Essentially setting "default" values for specific Configurations. 
 
 Additionally, `Config.java` also includes getters that can be used in other classes to get the value of a configuration. These getters should be the only method used to query the value of a configuration. Do **NOT** use `ConfigProvider.java` to re-query the values of a configuration.
