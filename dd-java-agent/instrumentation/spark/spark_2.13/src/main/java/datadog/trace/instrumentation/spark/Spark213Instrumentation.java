@@ -107,8 +107,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
                 planInfo.nodeName(),
                 planInfo.simpleString(),
                 planInfo.children(),
-                HashMap.from(
-                    JavaConverters.asScala(planUtils.extractFormattedProduct(plan)).toList()),
+                HashMap.from(JavaConverters.asScala(planUtils.extractFormattedProduct(plan))),
                 planInfo.metrics());
       }
     }

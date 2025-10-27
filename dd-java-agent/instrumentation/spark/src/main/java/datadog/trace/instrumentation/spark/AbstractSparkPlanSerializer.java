@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -27,7 +28,7 @@ public abstract class AbstractSparkPlanSerializer {
   private final String SPARK_PKG_NAME = "org.apache.spark";
 
   private final Set<String> SAFE_PARSE_TRAVERSE =
-      new HashSet<>(Arrays.asList(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning"));
+      Collections.singleton(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning");
   private final Set<String> SAFE_PARSE_STRING =
       new HashSet<>(
           Arrays.asList(

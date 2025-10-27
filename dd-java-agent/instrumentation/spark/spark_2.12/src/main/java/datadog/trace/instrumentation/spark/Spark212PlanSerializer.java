@@ -5,6 +5,6 @@ import org.apache.spark.sql.catalyst.trees.TreeNode;
 public class Spark212PlanSerializer extends AbstractSparkPlanSerializer {
   @Override
   public String getKey(int idx, TreeNode node) {
-    return String.format("_dd.unknown_key.%d", idx);
+    return "_dd.unknown_key." + idx;
   }
 }
