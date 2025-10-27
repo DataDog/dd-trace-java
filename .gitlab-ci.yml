@@ -395,7 +395,7 @@ test_published_artifacts:
   needs: [ build ]
   stage: tests
   variables:
-    CACHE_TYPE: "inst"
+    CACHE_TYPE: "lib"
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
@@ -431,6 +431,7 @@ check_inst:
   parallel: 4
   variables:
     GRADLE_TARGET: ":instrumentationCheck"
+    CACHE_TYPE: "inst"
 
 check_smoke:
   extends: .check_job
