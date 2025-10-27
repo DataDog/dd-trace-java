@@ -147,23 +147,27 @@ public abstract class AbstractSparkPlanSerializer {
   }
 
   private String getSimpleString(TreeNode value) {
+    Object simpleString = null;
     try {
       // in Spark v3+, the signature of `simpleString` includes an int parameter for `maxFields`
-      return TreeNode.class
-          .getDeclaredMethod("simpleString", new Class[] {int.class})
-          .invoke(value, MAX_LENGTH)
-          .toString();
+      simpleString =
+          TreeNode.class
+              .getDeclaredMethod("simpleString", new Class[] {int.class})
+              .invoke(value, MAX_LENGTH);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
       try {
         // Attempt the Spark v2 `simpleString` signature
-        return TreeNode.class.getDeclaredMethod("simpleString").invoke(value).toString();
+        simpleString = TreeNode.class.getDeclaredMethod("simpleString").invoke(value);
       } catch (NoSuchMethodException
           | IllegalAccessException
           | InvocationTargetException innerException) {
       }
-
-      return null;
     }
+
+    if (simpleString != null && simpleString instanceof String) {
+      return (String) simpleString;
+    }
+    return null;
   }
 
   // Matches a class to a set of expected classes. Returns true if the class or any
