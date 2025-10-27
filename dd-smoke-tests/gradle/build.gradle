@@ -24,12 +24,6 @@ configurations {
   }
 }
 
-configurations.named('testImplementation') {
-  resolutionStrategy {
-    force 'org.spockframework:spock-core:2.4-M6-groovy-3.0'
-  }
-}
-
 tasks.named("test", Test) {
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
