@@ -13,10 +13,12 @@ public class RingBufferPublishAdvice {
   public static AgentScope beginRequest(@Advice.Argument(0) Long sequence) {
 
     AgentScope scope = DECORATE.start();
-    if (scope==null){
-      scope = activeScope();
+    if (scope == null) {
+      // scope = activeSpan();
+      AgentSpan agentSpan = activeSpan();
+      scope = activateSpan(agentSpan);
     }
-    InstrumentationContext.get(Long.class, AgentSpan.class).put(sequence,scope.span());
+    InstrumentationContext.get(Long.class, AgentSpan.class).put(sequence, scope.span());
     return scope;
   }
 
@@ -32,5 +34,4 @@ public class RingBufferPublishAdvice {
     scope.close();
     scope.span().finish();
   }
-
 }
