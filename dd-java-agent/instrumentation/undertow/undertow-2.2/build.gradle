@@ -48,3 +48,5 @@ dependencies {
     exclude group: 'io.undertow', module: 'undertow-websocket-jsr-jakarta'
   }
 }
+
+configureGroovyCompiler(11, "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy")

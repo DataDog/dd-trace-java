@@ -11,6 +11,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.core.DDSpan
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
@@ -367,6 +368,7 @@ abstract class CiVisibilityTestUtils {
     return compiledPaths
   }
 
+  @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
   private static DynamicPath path(String rawPath, boolean unique = true) {
     return new DynamicPath(rawPath, JsonPath.compile(rawPath), unique)
   }

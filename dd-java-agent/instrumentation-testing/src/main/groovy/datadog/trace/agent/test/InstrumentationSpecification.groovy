@@ -512,7 +512,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       def sw = new StringWriter()
       PrintWriter pw = new PrintWriter(sw)
       entry.value.eachWithIndex { Exception e, int i ->
-        pw.write('\n' as char)
+        pw.write((char)'\n')
         pw.write "Location $i:\n"
         def st = e.stackTrace
         int loc = st.findIndexOf {

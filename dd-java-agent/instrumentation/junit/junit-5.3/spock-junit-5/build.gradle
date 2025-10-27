@@ -14,6 +14,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testImplementation 'org.codehaus.groovy:groovy-all:3.0.24'
   implementation project(':dd-java-agent:instrumentation:junit:junit-5.3')
 
   compileOnly group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.7.2'
@@ -26,6 +27,12 @@ dependencies {
   testImplementation group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
 
   latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.+'
+}
+
+configurations {
+  testImplementation {
+    exclude group: 'org.apache.groovy'
+  }
 }
 
 configurations.matching({ it.name.startsWith('test') }).configureEach({

@@ -23,11 +23,7 @@ configurations.configureEach {
   }
 }
 
-["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 11)
-  }
-}
+configureGroovyCompiler(11, "compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy")
 
 ["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each {
   tasks.named(it, JavaCompile) {
