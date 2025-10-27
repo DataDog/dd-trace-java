@@ -4,7 +4,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.ThreadLocalRandom
 
-import static datadog.trace.ThreadUtils.runConcurrently
+import static datadog.trace.test.util.ThreadUtils.runConcurrently
 
 class RadixTreeCacheTest extends DDSpecification {
 

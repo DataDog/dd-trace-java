@@ -2,9 +2,20 @@ package datadog.trace.bootstrap.config.provider
 import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files
 import java.nio.file.Path
+import datadog.trace.config.inversion.ConfigHelper
 
 class StableConfigParserTest extends DDSpecification {
 
+  def strictness
+
+  def setup(){
+    strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
+  def cleanup(){
+    ConfigHelper.get().setConfigInversionStrict(strictness)
+  }
   def "test parse valid"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")

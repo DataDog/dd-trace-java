@@ -109,6 +109,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
+  baseTestImplementation project(':utils:test-utils')
   baseTestImplementation libs.scala211
   // First 10.0.x version with a convenient way to test http2 support
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.10'
