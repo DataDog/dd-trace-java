@@ -61,13 +61,15 @@ allprojects {
   group = "com.datadoghq"
 
   if (isCI.isPresent) {
-    layout.buildDirectory = providers.provider {
-      val newProjectCIPath = projectDir.path.replace(
-        rootDir.path,
-        ""
-      )
-      rootDir.resolve("workspace/$newProjectCIPath/build/")
-    }
+    layout.buildDirectory =
+      providers.provider {
+        val newProjectCIPath =
+          projectDir.path.replace(
+            rootDir.path,
+            "",
+          )
+        rootDir.resolve("workspace/$newProjectCIPath/build/")
+      }
   }
 
   apply(from = rootDir.resolve("gradle/dependencies.gradle"))
@@ -84,7 +86,7 @@ allprojects {
       jvmArgs(
         "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
         "-XX:+HeapDumpOnOutOfMemoryError",
-        "-XX:HeapDumpPath=/tmp"
+        "-XX:HeapDumpPath=/tmp",
       )
     }
   }
@@ -123,15 +125,24 @@ nexusPublishing {
   }
 }
 
-val writeMainVersionFileTask = tasks.register("writeMainVersionFile") {
-  val versionFile = rootProject.layout.buildDirectory.file("main.version")
-  inputs.property("version", project.version)
-  outputs.file(versionFile)
-  doFirst {
-    require(versionFile.get().asFile.parentFile.mkdirs() || versionFile.get().asFile.parentFile.isDirectory)
-    versionFile.get().asFile.writeText(project.version.toString())
+val writeMainVersionFileTask =
+  tasks.register("writeMainVersionFile") {
+    val versionFile = rootProject.layout.buildDirectory.file("main.version")
+    inputs.property("version", project.version)
+    outputs.file(versionFile)
+    doFirst {
+      require(
+        versionFile
+          .get()
+          .asFile.parentFile
+          .mkdirs() ||
+          versionFile
+            .get()
+            .asFile.parentFile.isDirectory,
+      )
+      versionFile.get().asFile.writeText(project.version.toString())
+    }
   }
-}
 
 allprojects {
   tasks.withType<PublishToMavenLocal>().configureEach {
@@ -144,11 +155,12 @@ testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), empty
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
 testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
 testAggregate(
-  "base", listOf(":"),
+  "base",
+  listOf(":"),
   listOf(
     ":dd-java-agent:instrumentation",
     ":dd-smoke-tests",
     ":dd-java-agent:agent-profiling",
-    ":dd-java-agent:agent-debugger"
-  )
+    ":dd-java-agent:agent-debugger",
+  ),
 )

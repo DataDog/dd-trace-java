@@ -38,5 +38,4 @@ class JSONTokenerInstrumentationTest extends InstrumentationSpecification {
       new StringReader(JSON_STRING) // Reader input
     ]
   }
-
 }

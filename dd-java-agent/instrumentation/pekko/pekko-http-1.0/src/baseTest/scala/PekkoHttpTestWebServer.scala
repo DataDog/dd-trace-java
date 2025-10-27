@@ -158,8 +158,9 @@ object PekkoHttpTestWebServer {
       endpoint,
       new Closure[Future[RouteResult]](()) {
         def doCall(): Future[RouteResult] = {
-          try inner(())(ctx).fast
-            .recoverWith(handleException)(ctx.executionContext)
+          try
+            inner(())(ctx).fast
+              .recoverWith(handleException)(ctx.executionContext)
           catch {
             case NonFatal(e) =>
               handleException
@@ -244,7 +245,7 @@ object PekkoHttpTestWebServer {
                   resp.withHeaders(headers.Location(endpoint.getBody))
                 case ERROR     => resp.withEntity(endpoint.getBody)
                 case EXCEPTION => throw new Exception(endpoint.getBody)
-                case _ =>
+                case _         =>
                   if (path.startsWith("/injected-id/")) {
                     val groups = path.split('/')
                     if (groups.size == 4) { // The path starts with a / and has 3 segments

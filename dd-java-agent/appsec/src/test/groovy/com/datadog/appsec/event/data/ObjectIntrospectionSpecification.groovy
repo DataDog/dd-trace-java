@@ -176,7 +176,6 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     result3.size() == 127  // +1 for the map, 2 for each entry (key and value)
     2 * ctx.setWafTruncated()
     2 * wafMetricCollector.wafInputTruncated(false, true, false)
-
   }
 
   void 'max depth is honored — array version'() {

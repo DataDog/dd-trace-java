@@ -24,8 +24,8 @@ val excludedClassesCoverage by extra(
     "datadog.opentracing.OTSpanContext",
     "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
     // The builder is generated
-    "datadog.opentracing.DDTracer.DDTracerBuilder"
-  )
+    "datadog.opentracing.DDTracer.DDTracerBuilder",
+  ),
 )
 
 // Helper extensions for custom methods from Groovy DSL

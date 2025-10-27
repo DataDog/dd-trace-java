@@ -161,7 +161,8 @@ class CiVisibilityMetricCollectorTest extends Specification {
       def metricTags = metric.getTags()
 
       int cartesianProductSizeLimit = 2000 // limiting the number of combinations to avoid OOM/timeout
-      for (TagValue[] tags : cartesianProduct(metricTags, cartesianProductSizeLimit)) { // iterate over combinations of metric tags
+      for (TagValue[] tags : cartesianProduct(metricTags, cartesianProductSizeLimit)) {
+        // iterate over combinations of metric tags
         possibleMetrics += new PossibleMetric(metric, tags)
       }
     }
@@ -231,5 +232,4 @@ class CiVisibilityMetricCollectorTest extends Specification {
       this.tags = tags
     }
   }
-
 }
