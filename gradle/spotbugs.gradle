@@ -60,6 +60,7 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
 
 dependencies {
   compileOnly(libs.spotbugs.annotations)
+
   testImplementation(libs.spotbugs.annotations) {
     // Exclude conflicting JUnit5.
     exclude group: 'org.junit'
@@ -67,5 +68,7 @@ dependencies {
     exclude group: 'org.junit.platform'
     // Exclude conflicting logback.
     exclude group: 'ch.qos.logback'
+    // Exclude conflicting log4j.
+    exclude group: 'org.apache.logging.log4j'
   }
 }
