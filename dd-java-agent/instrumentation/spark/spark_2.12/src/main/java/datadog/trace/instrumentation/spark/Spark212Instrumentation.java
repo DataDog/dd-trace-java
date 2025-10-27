@@ -12,8 +12,8 @@ import org.apache.spark.sql.execution.SparkPlan;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Predef;
 import scala.collection.JavaConverters;
-import scala.collection.immutable.HashMap;
 
 @AutoService(InstrumenterModule.class)
 public class Spark212Instrumentation extends AbstractSparkInstrumentation {
@@ -101,14 +101,13 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark212PlanSerializer planUtils = new Spark212PlanSerializer();
-        HashMap<String, String> args = new HashMap<>();
         planInfo =
             new SparkPlanInfo(
                 planInfo.nodeName(),
                 planInfo.simpleString(),
                 planInfo.children(),
-                args.$plus$plus(
-                    JavaConverters.mapAsScalaMap(planUtils.extractFormattedProduct(plan))),
+                JavaConverters.mapAsScalaMap(planUtils.extractFormattedProduct(plan))
+                    .toMap(Predef.$conforms()),
                 planInfo.metrics());
       }
     }
