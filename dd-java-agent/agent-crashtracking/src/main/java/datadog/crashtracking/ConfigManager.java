@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -31,8 +32,10 @@ public class ConfigManager {
     final String tags;
     final String processTags;
     final String runtimeId;
+    final String reportUUID;
 
     StoredConfig(
+        String reportUUID,
         String service,
         String env,
         String version,
@@ -45,6 +48,7 @@ public class ConfigManager {
       this.tags = tags;
       this.processTags = processTags;
       this.runtimeId = runtimeId;
+      this.reportUUID = reportUUID;
     }
 
     public static class Builder {
@@ -54,6 +58,7 @@ public class ConfigManager {
       String tags;
       String processTags;
       String runtimeId;
+      String reportUUID;
 
       public Builder(Config config) {
         // get sane defaults
@@ -61,6 +66,7 @@ public class ConfigManager {
         this.env = config.getEnv();
         this.version = config.getVersion();
         this.runtimeId = config.getRuntimeId();
+        this.reportUUID = RandomUtils.randomUUID().toString();
       }
 
       public Builder service(String service) {
@@ -93,8 +99,14 @@ public class ConfigManager {
         return this;
       }
 
+      // @VisibleForTesting
+      Builder reportUUID(String reportUUID) {
+        this.reportUUID = reportUUID;
+        return this;
+      }
+
       public StoredConfig build() {
-        return new StoredConfig(service, env, version, tags, processTags, runtimeId);
+        return new StoredConfig(reportUUID, service, env, version, tags, processTags, runtimeId);
       }
     }
   }
