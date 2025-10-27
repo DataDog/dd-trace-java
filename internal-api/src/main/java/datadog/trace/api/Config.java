@@ -2382,7 +2382,7 @@ public class Config {
     remoteConfigMaxPayloadSize =
         configProvider.getInteger(
                 REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
-            * 1024;
+            * 1024L;
     remoteConfigTargetsKeyId =
         configProvider.getString(
             REMOTE_CONFIG_TARGETS_KEY_ID, DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID);
@@ -2442,7 +2442,7 @@ public class Config {
         configProvider.getInteger(
                 DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE,
                 DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE)
-            * 1024;
+            * 1024L;
     dynamicInstrumentationVerifyByteCode =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
