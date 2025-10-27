@@ -97,6 +97,8 @@ tasks.withType(Test::class.java).configureEach {
   timeout.set(Duration.of(20, ChronoUnit.MINUTES))
 }
 
+// Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
+// This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {
   dependsOn(providers.provider {
     tasks.withType<Test>().filter { testTask ->
@@ -105,6 +107,8 @@ tasks.register("allTests") {
   })
 }
 
+// Register a task "allLatestDepTests" that depends on all Test tasks whose names include 'latest'.
+// This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
   dependsOn(providers.provider {
     tasks.withType<Test>().filter { testTask ->
@@ -113,6 +117,8 @@ tasks.register("allLatestDepTests") {
   })
 }
 
+// Make the 'check' task depends on all Test tasks in the project.
+// This means that when running the 'check' task, all Test tasks will run as well.
 tasks.named("check") {
   dependsOn(tasks.withType<Test>())
 }
