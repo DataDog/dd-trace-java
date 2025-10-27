@@ -15,13 +15,14 @@ import java.util.function.Supplier;
  */
 public final class InstanceStore<T> {
 
-  private static final ClassValue<? super ContextStore<String, ?>> classInstanceStore =
-      GenericClassValue.of(input -> new InstanceStore<>());
+  @SuppressWarnings("rawtypes")
+  private static final ClassValue<InstanceStore> classInstanceStore =
+      GenericClassValue.of(type -> new InstanceStore<>());
 
   /** @return global store of instances with the same common type */
   @SuppressWarnings("unchecked")
   public static <T> InstanceStore<T> of(Class<T> type) {
-    return (InstanceStore<T>) classInstanceStore.get(type);
+    return classInstanceStore.get(type);
   }
 
   // simple approach; instance stores don't need highly concurrent access or weak keys
