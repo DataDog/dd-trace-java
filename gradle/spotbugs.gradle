@@ -49,9 +49,6 @@ afterEvaluate {
 }
 
 dependencies {
-  compileOnly 'net.jcip:jcip-annotations:1.0'
   compileOnly 'com.github.spotbugs:spotbugs-annotations:4.2.0'
-
-  testImplementation 'net.jcip:jcip-annotations:1.0'
-  testImplementation 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  testImplementation 'com.google.code.findbugs:jsr305'
 }
