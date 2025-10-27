@@ -22,7 +22,7 @@ spotless {
       // ignore embedded test projects and everything in build dir, e.g. generated sources
       targetExclude('src/test/resources/**', buildDirectoryFiles)
       // This is the last Google Java Format version that supports Java 8
-      googleJavaFormat('1.7')
+      googleJavaFormat('1.29.0')
     }
   }
 
@@ -46,7 +46,7 @@ spotless {
     target '*.gradle.kts'
     // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
     // Newer versions do not work well with the older version of kotlin in this build
-    ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    ktlint('1.7.1')
   }
 
   project.pluginManager.withPlugin('groovy') {
@@ -66,21 +66,21 @@ spotless {
     scala {
       toggleOffOn()
       targetExclude(buildDirectoryFiles)
-      scalafmt('2.7.5').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+      scalafmt('3.9.10').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
   format 'markdown', {
     toggleOffOn()
     target '*.md', '.github/**/*.md', 'src/**/*.md', 'application/**/*.md'
-    indentWithSpaces()
+    leadingTabsToSpaces()
     endWithNewline()
   }
 
   format 'misc', {
     toggleOffOn()
     target '.gitignore', '*.sh', 'tooling/*.sh', '.gitlab/*.sh'
-    indentWithSpaces()
+    leadingTabsToSpaces()
     trimTrailingWhitespace()
     endWithNewline()
   }
@@ -91,7 +91,7 @@ spotless {
       // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
       targetExclude(buildDirectoryFiles)
       // Newer versions do not work well with the older version of kotlin in this build
-      ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+      ktlint('1.7.1')
     }
   }
 }
