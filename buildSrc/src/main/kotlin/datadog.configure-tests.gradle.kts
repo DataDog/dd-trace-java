@@ -9,20 +9,20 @@ import java.time.temporal.ChronoUnit
 
 fun isTestingInstrumentation(project: Project): Boolean {
   return listOf(
-    "junit-4.10",
     "cucumber",
     "cucumber-junit-4",
+    "cucumber-junit-5",
+    "junit-4.10",
     "junit-4.13",
-    "munit-junit-4",
     "junit-5.3",
     "junit-5.8",
-    "cucumber-junit-5",
+    "karate",
+    "munit-junit-4",
+    "scalatest",
+    "selenium",
     "spock-junit-5",
     "testng-6",
     "testng-7",
-    "karate",
-    "scalatest",
-    "selenium",
     "weaver"
   ).contains(project.name)
 }
@@ -64,19 +64,19 @@ tasks.withType(Test::class.java).configureEach {
 
   // Avoid executing classes used to test testing frameworks instrumentation
   if (isTestingInstrumentation(project)) {
-    exclude("**/TestSucceed*")
+    exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
+    exclude("**/TestDisableTestTrace*")
+    exclude("**/TestError*")
+    exclude("**/TestFactory*")
     exclude("**/TestFailed*")
     exclude("**/TestFailedWithSuccessPercentage*")
-    exclude("**/TestError*")
-    exclude("**/TestSkipped*")
-    exclude("**/TestSkippedClass*")
     exclude("**/TestInheritance*", "**/BaseTestInheritance*")
-    exclude("**/TestFactory*")
     exclude("**/TestParameterized*")
     exclude("**/TestRepeated*")
+    exclude("**/TestSkipped*")
+    exclude("**/TestSkippedClass*")
+    exclude("**/TestSucceed*")
     exclude("**/TestTemplate*")
-    exclude("**/TestDisableTestTrace*")
-    exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
     exclude("**/TestUnskippable*")
     exclude("**/TestWithSetup*")
   }
