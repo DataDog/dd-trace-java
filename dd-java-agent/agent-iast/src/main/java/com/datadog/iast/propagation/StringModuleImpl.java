@@ -205,7 +205,7 @@ public class StringModuleImpl implements StringModule {
     int offset = 0;
     for (int item : recipeOffsets) {
       if (item < 0) {
-        offset += -item;
+        offset -= item;
       } else {
         final String argument = args[item];
         final Range[] ranges = getRanges(getTainted(taintedObjects, argument));

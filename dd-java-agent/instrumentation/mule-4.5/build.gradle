@@ -221,15 +221,29 @@ tasks.register('extractLatestMuleServices', Sync) {
 
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
-  workingDir "$appDir"
+  workingDir("$appDir")
   environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
-  commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
+
+  List<String> mvnArgs = [
+    "$rootDir/mvnw",
+    "-Ddatadog.builddir=$buildDir",
+    "-Ddatadog.name=mule-test-application",
+    "-Ddatadog.version=$version",
+    "package"
+  ]
+
+  // Specify caches folder on CI.
+  if (providers.environmentVariable("CI").isPresent()) {
+    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
+  }
+
+  commandLine(mvnArgs)
+
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")
   inputs.file("$appDir/pom.xml")
   inputs.file("$appDir/mule-artifact.json")
 }
-
 
 // generate a properties file so the test knows where to run mule, and what jar to deploy
 tasks.register('generateAppResources') {
