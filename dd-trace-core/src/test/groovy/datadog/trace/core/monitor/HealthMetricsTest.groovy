@@ -400,7 +400,7 @@ class HealthMetricsTest extends Specification {
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
     when:
-    healthMetrics.onLongRunningUpdate(3,10,1)
+    healthMetrics.onLongRunningUpdate(3,10,1,5)
     latch.await(10, TimeUnit.SECONDS)
     then:
     1 * statsD.count("long-running.write", 10, _)
