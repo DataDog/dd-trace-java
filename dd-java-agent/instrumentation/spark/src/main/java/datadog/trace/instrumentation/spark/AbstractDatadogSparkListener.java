@@ -43,8 +43,8 @@ import org.apache.spark.scheduler.*;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
-import org.apache.spark.sql.execution.streaming.MicroBatchExecution;
-import org.apache.spark.sql.execution.streaming.StreamExecution;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import org.apache.spark.sql.streaming.SourceProgress;
@@ -1242,8 +1242,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
-    Object queryId = properties.get(StreamExecution.QUERY_ID_KEY());
-    Object batchId = properties.get(MicroBatchExecution.BATCH_ID_KEY());
+    Object queryIdKey = getStreamExecutionQueryIdKey();
+    Object batchIdKey = getMicroBatchExecutionBatchIdKey();
+    Object queryId = queryIdKey != null ? properties.get(queryIdKey) : null;
+    Object batchId = batchIdKey != null ? properties.get(batchIdKey) : null;
 
     if (queryId == null || batchId == null) {
       return null;
@@ -1254,6 +1256,48 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static String getStreamingBatchKey(String queryId, String batchId) {
     return queryId + "." + batchId;
+  }
+
+  private static Object getStreamExecutionQueryIdKey() {
+    try {
+      Class<?> cls =
+          Class.forName("org.apache.spark.sql.execution.streaming.StreamExecution");
+      try {
+        Field f = cls.getDeclaredField("QUERY_ID_KEY");
+        f.setAccessible(true);
+        return f.get(null);
+      } catch (NoSuchFieldException e) {
+        try {
+          Method m = cls.getDeclaredMethod("QUERY_ID_KEY");
+          m.setAccessible(true);
+          return m.invoke(null);
+        } catch (Throwable ignored) {
+        }
+      }
+    } catch (Throwable ignored) {
+    }
+    return null;
+  }
+
+  private static Object getMicroBatchExecutionBatchIdKey() {
+    try {
+      Class<?> cls =
+          Class.forName("org.apache.spark.sql.execution.streaming.MicroBatchExecution");
+      try {
+        Field f = cls.getDeclaredField("BATCH_ID_KEY");
+        f.setAccessible(true);
+        return f.get(null);
+      } catch (NoSuchFieldException e) {
+        try {
+          Method m = cls.getDeclaredMethod("BATCH_ID_KEY");
+          m.setAccessible(true);
+          return m.invoke(null);
+        } catch (Throwable ignored) {
+        }
+      }
+    } catch (Throwable ignored) {
+    }
+    return null;
   }
 
   private static String getBatchIdFromBatchKey(String batchKey) {
