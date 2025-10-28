@@ -23,6 +23,8 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -43,8 +45,6 @@ import org.apache.spark.scheduler.*;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import org.apache.spark.sql.streaming.SourceProgress;
@@ -1260,8 +1260,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static Object getStreamExecutionQueryIdKey() {
     try {
-      Class<?> cls =
-          Class.forName("org.apache.spark.sql.execution.streaming.StreamExecution");
+      Class<?> cls = Class.forName("org.apache.spark.sql.execution.streaming.StreamExecution");
       try {
         Field f = cls.getDeclaredField("QUERY_ID_KEY");
         f.setAccessible(true);
@@ -1281,8 +1280,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static Object getMicroBatchExecutionBatchIdKey() {
     try {
-      Class<?> cls =
-          Class.forName("org.apache.spark.sql.execution.streaming.MicroBatchExecution");
+      Class<?> cls = Class.forName("org.apache.spark.sql.execution.streaming.MicroBatchExecution");
       try {
         Field f = cls.getDeclaredField("BATCH_ID_KEY");
         f.setAccessible(true);
