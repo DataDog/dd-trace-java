@@ -4,7 +4,6 @@ import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROB
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.METRIC_PROBE_PREFIX;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_DECORATION_PROBE_PREFIX;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PROBE_PREFIX;
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.ExceptionProbe;
@@ -252,11 +251,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
   public ProbeImplementation resolve(int probeIndex) {
-    ProbeImplementation probeImplementation = probeMetadata.getProbe(probeIndex);
-    if (probeImplementation == null) {
-      ratelimitedLogger.warn(SEND_TELEMETRY, "Cannot resolve probe index={}", probeIndex);
-    }
-    return probeImplementation;
+    return probeMetadata.getProbe(probeIndex);
   }
 
   private static void applyRateLimiter(
