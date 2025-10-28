@@ -1,11 +1,11 @@
 import annotatedsample.TracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.CountDownLatch
 
-class WithSpanAnnotationTest extends AgentTestRunner {
+class WithSpanAnnotationTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -30,6 +30,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -52,6 +53,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -75,18 +77,19 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" kindTag
           }
         }
       }
     }
 
     where:
-    kind       | type
-    'SERVER'   | DDSpanTypes.HTTP_SERVER
-    'CLIENT'   | DDSpanTypes.HTTP_CLIENT
-    'PRODUCER' | DDSpanTypes.MESSAGE_PRODUCER
-    'CONSUMER' | DDSpanTypes.MESSAGE_CONSUMER
-    'INTERNAL' | null
+    kind       | type                         | kindTag
+    'SERVER'   | DDSpanTypes.HTTP_SERVER      | Tags.SPAN_KIND_SERVER
+    'CLIENT'   | DDSpanTypes.HTTP_CLIENT      | Tags.SPAN_KIND_CLIENT
+    'PRODUCER' | DDSpanTypes.MESSAGE_PRODUCER | Tags.SPAN_KIND_PRODUCER
+    'CONSUMER' | DDSpanTypes.MESSAGE_CONSUMER | Tags.SPAN_KIND_CONSUMER
+    'INTERNAL' | null                         | Tags.SPAN_KIND_INTERNAL
     kindName = kind.substring(0, 1) + kind.substring(1).toLowerCase()
   }
 
@@ -109,6 +112,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(error.class, error.getMessage())
           }
         }
@@ -129,6 +133,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -156,6 +161,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -186,6 +192,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -214,6 +221,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -244,6 +252,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -267,6 +276,7 @@ class WithSpanAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

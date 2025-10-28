@@ -25,8 +25,10 @@ addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
 
-[compileJetty11TestGroovy, jetty11Test, compileJetty11LatestDepTestGroovy, jetty11LatestDepTest].each {
-  it.configure {
+configureGroovyCompiler(11, "compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy")
+
+["jetty11Test", "jetty11LatestDepTest"].each { name ->
+  tasks.named(name, Test) {
     javaLauncher = getJavaLauncherFor(11)
   }
 }
@@ -71,21 +73,19 @@ dependencies {
   jetty9LatestDepTestImplementation "org.eclipse.jetty:jetty-servlet:9.+",  {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-9'))
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-11'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0'))
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   // always mix everything up
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-11')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-util'))
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-appsec-9.3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-
-
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31'))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 }

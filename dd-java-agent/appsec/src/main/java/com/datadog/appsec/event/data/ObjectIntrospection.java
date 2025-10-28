@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -182,6 +183,11 @@ public final class ObjectIntrospection {
     // single char sequences are transformed to strings for ddwaf compatibility.
     if (obj instanceof Character) {
       return obj.toString();
+    }
+
+    // Date objects - avoid accessing private fastTime field
+    if (obj instanceof Date) {
+      return ((Date) obj).getTime();
     }
 
     // Jackson databind nodes (via reflection)

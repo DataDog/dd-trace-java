@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
@@ -6,7 +6,7 @@ import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 
-class SparkExecutorTest extends AgentTestRunner {
+class SparkExecutorTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

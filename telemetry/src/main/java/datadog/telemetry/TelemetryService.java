@@ -7,6 +7,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
@@ -84,11 +85,13 @@ public class TelemetryService {
     this.debug = debug;
   }
 
-  public boolean addConfiguration(Map<String, ConfigSetting> configuration) {
-    for (ConfigSetting cs : configuration.values()) {
-      extendedHeartbeatData.pushConfigSetting(cs);
-      if (!this.configurations.offer(cs)) {
-        return false;
+  public boolean addConfiguration(Map<ConfigOrigin, Map<String, ConfigSetting>> configuration) {
+    for (Map<String, ConfigSetting> settings : configuration.values()) {
+      for (ConfigSetting cs : settings.values()) {
+        extendedHeartbeatData.pushConfigSetting(cs);
+        if (!this.configurations.offer(cs)) {
+          return false;
+        }
       }
     }
     return true;

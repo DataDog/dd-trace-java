@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.GlobalTracer
 import org.apache.catalina.WebResource
 import org.apache.catalina.WebResourceRoot
 import org.apache.catalina.loader.ParallelWebappClassLoader
 
-class TomcatClassloadingTest extends AgentTestRunner {
+class TomcatClassloadingTest extends InstrumentationSpecification {
 
   WebResourceRoot resources = Mock(WebResourceRoot) {
     getResource(_) >> Mock(WebResource)

@@ -66,11 +66,14 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
 
+  public static final String DB_DBM_INJECT_SQL_BASEHASH = "dbm.inject.sql.basehash";
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
-
   public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+
+  public static final String JDBC_POOL_WAITING_ENABLED =
+      "trace.experimental.jdbc.pool.waiting.enabled";
 
   public static final String AKKA_FORK_JOIN_TASK_NAME = "trace.akka.fork.join.task.name";
   public static final String AKKA_FORK_JOIN_EXECUTOR_TASK_NAME =
@@ -127,6 +130,9 @@ public final class TraceInstrumentationConfig {
   public static final String GRPC_CLIENT_ERROR_STATUSES = "grpc.client.error.statuses";
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String HYSTRIX_MEASURED_ENABLED = "hystrix.measured.enabled";
+
+  public static final String RESILIENCE4J_MEASURED_ENABLED = "resilience4j.measured.enabled";
+  public static final String RESILIENCE4J_TAG_METRICS_ENABLED = "resilience4j.tag-metrics.enabled";
 
   public static final String IGNITE_CACHE_INCLUDE_KEYS = "ignite.cache.include_keys";
 

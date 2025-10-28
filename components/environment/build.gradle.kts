@@ -23,7 +23,8 @@ val excludedClassesCoverage by extra {
     "datadog.environment.JavaVirtualMachine", // depends on OS and JVM vendor
     "datadog.environment.JavaVirtualMachine.JvmOptionsHolder", // depends on OS and JVM vendor
     "datadog.environment.JvmOptions", // depends on OS and JVM vendor
-    "datadog.environment.OperatingSystem", // depends on OS
+    "datadog.environment.OperatingSystem**", // depends on OS
+    "datadog.environment.ThreadUtils", // depends on JVM version
   )
 }
 val excludedClassesBranchCoverage by extra {

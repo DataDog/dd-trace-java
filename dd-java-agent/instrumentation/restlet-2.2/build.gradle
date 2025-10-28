@@ -14,8 +14,8 @@ apply from: "$rootDir/gradle/java.gradle"
 repositories {
   maven {
     // only place that has 'org.restlet.jse:org.restlet' publicly accessible
-    name 'talend-restlet'
-    url 'https://maven.restlet.talend.com/'
+    name = 'talend-restlet'
+    url = 'https://maven.restlet.talend.com/'
   }
 }
 
@@ -23,7 +23,7 @@ repositories {
 addTestSuiteForDir('baseForkedTest', 'baseTest')
 addTestSuite('latestDepTest')
 
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn "baseForkedTest"
 }
 

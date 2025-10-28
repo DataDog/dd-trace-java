@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.iastinstrumenter
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.tooling.iast.stratum.Stratum
 import datadog.trace.agent.tooling.iast.stratum.StratumManager
 import datadog.trace.api.Pair
 
-class SourceMapperImplTest extends AgentTestRunner {
+class SourceMapperImplTest extends InstrumentationSpecification {
 
   void 'test is disabled by default'(){
     when:

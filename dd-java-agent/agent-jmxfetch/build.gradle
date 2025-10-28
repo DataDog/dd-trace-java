@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.stream.Collectors
@@ -23,13 +25,13 @@ dependencies {
   api project(':dd-java-agent:agent-bootstrap')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
 tasks.register("submodulesUpdate", Exec) {
-  group 'Build Setup'
-  description 'Initializes and updates integrations-core git submodule'
+  group = 'Build Setup'
+  description = 'Initializes and updates integrations-core git submodule'
   commandLine 'git', 'submodule', 'update', '--init', 'integrations-core'
   def submoduleHead = file("${project.rootDir}/.git/modules/dd-java-agent/agent-jmxfetch/integrations-core/HEAD")
   if (submoduleHead.exists()) {
@@ -93,13 +95,13 @@ abstract class CopyMetricConfigsTask extends DefaultTask {
 }
 
 tasks.register('copyMetricConfigs', CopyMetricConfigsTask) {
-  group 'Build Setup'
-  description 'Copy metrics.yaml files from integrations-core into resources'
+  group = 'Build Setup'
+  description = 'Copy metrics.yaml files from integrations-core into resources'
   inputDirectory = file("$projectDir/integrations-core")
   outputDirectory = file("$buildDir/integrations-core-resources")
 }
 
-processResources {
+tasks.named("processResources", ProcessResources) {
   dependsOn 'copyMetricConfigs'
   from("$buildDir/integrations-core-resources")
 }

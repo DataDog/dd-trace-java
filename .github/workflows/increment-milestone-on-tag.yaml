@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Close current milestone
         id: close-milestone
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # 7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # 8.0.0
         with:
           script: |
             // Get the milestone title ("X.Y.Z") from tag name ("vX.Y.Z")

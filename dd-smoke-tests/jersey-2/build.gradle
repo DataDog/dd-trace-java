@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
@@ -6,7 +8,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Jersey 2 Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes "Main-Class": "com.restserver.Main"
   }
@@ -25,5 +27,11 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.jersey2.jar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.jersey2.jar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

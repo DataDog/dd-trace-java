@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.InferredProxySpan;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
@@ -138,34 +139,46 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * Starts a span.
    *
    * @param carrier The request carrier.
-   * @param context The parent context of the span to create.
+   * @param parentContext The parent context of the span to create.
    * @return A new context bundling the span, child of the given parent context.
    */
-  public Context startSpan(REQUEST_CARRIER carrier, Context context) {
+  public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
     String[] instrumentationNames = instrumentationNames();
     String instrumentationName =
         instrumentationNames != null && instrumentationNames.length > 0
             ? instrumentationNames[0]
             : DEFAULT_INSTRUMENTATION_NAME;
-    AgentSpanContext.Extracted extracted = callIGCallbackStart(getExtractedSpanContext(context));
+    AgentSpanContext extracted = getExtractedSpanContext(parentContext);
+    // Call IG callbacks
+    extracted = callIGCallbackStart(extracted);
+    // Create gateway inferred span if needed
+    extracted = startInferredProxySpan(parentContext, extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+    // Apply RequestBlockingAction if any
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof RequestBlockingAction) {
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
+    // DSM Checkpoint
+    tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
+    return parentContext.with(span);
+  }
+
+  protected AgentSpanContext startInferredProxySpan(Context context, AgentSpanContext extracted) {
+    InferredProxySpan span;
+    if (!Config.get().isInferredProxyPropagationEnabled()
+        || (span = InferredProxySpan.fromContext(context)) == null) {
+      return extracted;
     }
-    return context.with(span);
+    return span.start(extracted);
   }
 
   public AgentSpan onRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
-      final Context context) {
+      final Context parentContext) {
     Config config = Config.get();
 
     if (APPSEC_ACTIVE) {
@@ -183,7 +196,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
-    AgentSpanContext.Extracted extracted = getExtractedSpanContext(context);
+    AgentSpanContext.Extracted extracted = getExtractedSpanContext(parentContext);
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
     if (extracted != null) {
@@ -316,9 +329,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  protected static AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
-    AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+  protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
+    AgentSpan extractedSpan = AgentSpan.fromContext(parentContext);
+    if (extractedSpan != null) {
+      AgentSpanContext extractedSpanContext = extractedSpan.context();
+      if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
+        return (AgentSpanContext.Extracted) extractedSpanContext;
+      } else {
+        log.warn("Expected AgentSpanContext.Extracted but found {}", extractedSpanContext);
+      }
+    }
+    return null;
   }
 
   protected BlockResponseFunction createBlockResponseFunction(
@@ -381,8 +402,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  private AgentSpanContext.Extracted callIGCallbackStart(
-      @Nullable final AgentSpanContext.Extracted extracted) {
+  private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -518,8 +538,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   @Override
   public AgentSpan beforeFinish(AgentSpan span) {
+    // TODO Migrate beforeFinish to Context API
     onRequestEndForInstrumentationGateway(span);
+    // Close Serverless Gateway Inferred Span if any
+    // finishInferredProxySpan(context);
     return super.beforeFinish(span);
+  }
+
+  protected void finishInferredProxySpan(Context context) {
+    InferredProxySpan span;
+    if ((span = InferredProxySpan.fromContext(context)) != null) {
+      span.finish();
+    }
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {

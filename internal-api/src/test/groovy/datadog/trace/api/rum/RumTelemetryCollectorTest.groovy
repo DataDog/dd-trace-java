@@ -25,14 +25,6 @@ class RumTelemetryCollectorTest extends Specification {
     noExceptionThrown()
   }
 
-  def "test default NO_OP summary returns an empty string"() {
-    when:
-    def summary = RumTelemetryCollector.NO_OP.summary()
-
-    then:
-    summary == ""
-  }
-
   def "test default NO_OP close method does not throw exception"() {
     when:
     RumTelemetryCollector.NO_OP.close()
@@ -71,15 +63,23 @@ class RumTelemetryCollectorTest extends Specification {
         @Override
         void onInjectionTime(String integrationVersion, long milliseconds) {
         }
+
+        @Override
+        java.util.Collection drain() {
+          return []
+        }
+
+        @Override
+        java.util.Collection drainDistributionSeries() {
+          return []
+        }
       }
 
     when:
     customCollector.close()
-    def summary = customCollector.summary()
 
     then:
     noExceptionThrown()
-    summary == ""
   }
 
   def "test multiple close calls do not throw exception"() {
@@ -92,15 +92,26 @@ class RumTelemetryCollectorTest extends Specification {
     noExceptionThrown()
   }
 
-  def "test multiple summary calls return the same empty string"() {
+  def "test default NO_OP drain methods return empty collections"() {
     when:
-    def summary1 = RumTelemetryCollector.NO_OP.summary()
-    def summary2 = RumTelemetryCollector.NO_OP.summary()
-    def summary3 = RumTelemetryCollector.NO_OP.summary()
+    def drainedCounts = RumTelemetryCollector.NO_OP.drain()
+    def drainedDistributions = RumTelemetryCollector.NO_OP.drainDistributionSeries()
 
     then:
-    summary1 == ""
-    summary1 == summary2
-    summary2 == summary3
+    drainedCounts != null
+    drainedCounts.isEmpty()
+    drainedDistributions != null
+    drainedDistributions.isEmpty()
+  }
+
+  def "test default NO_OP drain methods do not throw exception"() {
+    when:
+    RumTelemetryCollector.NO_OP.drain()
+    RumTelemetryCollector.NO_OP.drain()
+    RumTelemetryCollector.NO_OP.drainDistributionSeries()
+    RumTelemetryCollector.NO_OP.drainDistributionSeries()
+
+    then:
+    noExceptionThrown()
   }
 }

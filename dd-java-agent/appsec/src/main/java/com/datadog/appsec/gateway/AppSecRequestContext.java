@@ -15,7 +15,21 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.io.Closeable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,6 +42,8 @@ import org.slf4j.LoggerFactory;
 // or at least create separate interfaces
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
+
+  public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
 
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
@@ -75,6 +91,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
 
+  // headers related with authorization
+  public static final Set<String> AUTHORIZATION_HEADERS =
+      new TreeSet<>(
+          Arrays.asList(
+              "authorization",
+              "proxy-authorization",
+              "www-authenticate",
+              "proxy-authenticate",
+              "authentication-info",
+              "proxy-authentication-info",
+              "cookie",
+              "set-cookie"));
+
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
   }
@@ -97,6 +126,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int peerPort;
   private String inferredClientIp;
 
+  private boolean extendedDataCollection = false;
+  private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
+
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
 
@@ -108,7 +140,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private volatile Map<String, String> derivatives;
+  private volatile Map<String, Object> derivatives;
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
@@ -131,6 +163,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile boolean processedResponseBodySizeExceeded;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -146,10 +179,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
 
+  private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
+  private final Set<Long> sampledHttpClientRequests = new HashSet<>();
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+  private boolean manuallyKept = false;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -232,12 +269,48 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
+  public boolean sampleHttpClientRequest(final long id) {
+    httpClientRequestCount.incrementAndGet();
+    synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.size()
+          < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
+        sampledHttpClientRequests.add(id);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean isHttpClientRequestSampled(final long id) {
+    return sampledHttpClientRequests.contains(id);
+  }
+
+  public int getHttpClientRequestCount() {
+    return httpClientRequestCount.get();
+  }
+
   public int getWafTimeouts() {
     return wafTimeouts;
   }
 
   public int getRaspTimeouts() {
     return raspTimeouts;
+  }
+
+  public boolean isExtendedDataCollection() {
+    return extendedDataCollection;
+  }
+
+  public void setExtendedDataCollection(boolean extendedDataCollection) {
+    this.extendedDataCollection = extendedDataCollection;
+  }
+
+  public int getExtendedDataCollectionMaxHeaders() {
+    return extendedDataCollectionMaxHeaders;
+  }
+
+  public void setExtendedDataCollectionMaxHeaders(int extendedDataCollectionMaxHeaders) {
+    this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
   public WafContext getOrCreateWafContext(
@@ -645,24 +718,258 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return stackTraces;
   }
 
-  public void reportDerivatives(Map<String, String> data) {
+  /**
+   * Attempts to parse a string value as a number. Returns the parsed number if successful, null
+   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
+   */
+  private static Number convertToNumericAttribute(String value) {
+    if (value == null || value.isEmpty()) {
+      return null;
+    }
+    try {
+      // Check if it contains a decimal point to determine if it's a double
+      if (value.contains(".")) {
+        return Double.parseDouble(value);
+      } else {
+        // Try to parse as integer first
+        return Long.parseLong(value);
+      }
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  public void reportDerivatives(Map<String, Object> data) {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
+    // Store raw derivatives
     if (derivatives == null) {
-      derivatives = data;
-    } else {
-      derivatives.putAll(data);
+      derivatives = new HashMap<>();
     }
+
+    // Process each attribute according to the specification
+    for (Map.Entry<String, Object> entry : data.entrySet()) {
+      String attributeKey = entry.getKey();
+      Object attributeConfig = entry.getValue();
+
+      if (attributeConfig instanceof Map) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> config = (Map<String, Object>) attributeConfig;
+
+        // Check if it's a literal value schema
+        if (config.containsKey("value")) {
+          Object literalValue = config.get("value");
+          if (literalValue != null) {
+            // Preserve the original type - don't convert to string
+            derivatives.put(attributeKey, literalValue);
+            log.debug(
+                "Added literal attribute: {} = {} (type: {})",
+                attributeKey,
+                literalValue,
+                literalValue.getClass().getSimpleName());
+          }
+        }
+        // Check if it's a request data schema
+        else if (config.containsKey("address")) {
+          String address = (String) config.get("address");
+          @SuppressWarnings("unchecked")
+          List<String> keyPath = (List<String>) config.get("key_path");
+          @SuppressWarnings("unchecked")
+          List<String> transformers = (List<String>) config.get("transformers");
+
+          Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+          if (extractedValue != null) {
+            // For extracted values, convert to string as they come from request data
+            derivatives.put(attributeKey, extractedValue.toString());
+            log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+          }
+        }
+      } else {
+        // Handle plain string/numeric values
+        derivatives.put(attributeKey, attributeConfig);
+        log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+      }
+    }
+  }
+
+  /**
+   * Extracts a value from request data based on address, key path, and transformers.
+   *
+   * @param address The address to extract from (e.g., "server.request.headers")
+   * @param keyPath Optional key path to navigate the data structure
+   * @param transformers Optional list of transformers to apply
+   * @return The extracted value, or null if not found
+   */
+  private Object extractValueFromRequestData(
+      String address, List<String> keyPath, List<String> transformers) {
+    // Get the data from the address
+    Object data = getDataForAddress(address);
+    if (data == null) {
+      log.debug("No data found for address: {}", address);
+      return null;
+    }
+
+    // Navigate through the key path
+    Object currentValue = data;
+    if (keyPath != null && !keyPath.isEmpty()) {
+      currentValue = navigateKeyPath(currentValue, keyPath);
+      if (currentValue == null) {
+        log.debug("Could not navigate key path {} for address {}", keyPath, address);
+        return null;
+      }
+    }
+
+    // Apply transformers if specified
+    if (transformers != null && !transformers.isEmpty()) {
+      currentValue = applyTransformers(currentValue, transformers);
+    }
+
+    return currentValue;
+  }
+
+  /** Gets data for a specific address from the request context. */
+  private Object getDataForAddress(String address) {
+    // Map common addresses to our data structures
+    switch (address) {
+      case "server.request.headers":
+        return requestHeaders;
+      case "server.response.headers":
+        return responseHeaders;
+      case "server.request.cookies":
+        return collectedCookies;
+      case "server.request.uri.raw":
+        return savedRawURI;
+      case "server.request.method":
+        return method;
+      case "server.request.scheme":
+        return scheme;
+      case "server.request.route":
+        return route;
+      case "server.response.status":
+        return responseStatus;
+      case "server.request.body":
+        return getStoredRequestBody();
+      case "usr.id":
+        return userId;
+      case "usr.login":
+        return userLogin;
+      case "usr.session_id":
+        return sessionId;
+      default:
+        log.debug("Unknown address: {}", address);
+        return null;
+    }
+  }
+
+  /** Navigates through a data structure using a key path. */
+  private Object navigateKeyPath(Object data, List<String> keyPath) {
+    Object current = data;
+
+    for (String key : keyPath) {
+      if (current instanceof Map) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) current;
+        current = map.get(key);
+      } else if (current instanceof List) {
+        try {
+          int index = Integer.parseInt(key);
+          @SuppressWarnings("unchecked")
+          List<Object> list = (List<Object>) current;
+          if (index >= 0 && index < list.size()) {
+            current = list.get(index);
+          } else {
+            return null;
+          }
+        } catch (NumberFormatException e) {
+          log.debug("Invalid list index: {}", key);
+          return null;
+        }
+      } else {
+        log.debug("Cannot navigate key {} in data type: {}", key, current.getClass());
+        return null;
+      }
+
+      if (current == null) {
+        return null;
+      }
+    }
+
+    return current;
+  }
+
+  /** Applies transformers to a value. */
+  private Object applyTransformers(Object value, List<String> transformers) {
+    Object current = value;
+
+    for (String transformer : transformers) {
+      switch (transformer) {
+        case "lowercase":
+          if (current instanceof String) {
+            current = ((String) current).toLowerCase(Locale.ROOT);
+          }
+          break;
+        case "uppercase":
+          if (current instanceof String) {
+            current = ((String) current).toUpperCase(Locale.ROOT);
+          }
+          break;
+        case "trim":
+          if (current instanceof String) {
+            current = ((String) current).trim();
+          }
+          break;
+        case "length":
+          if (current instanceof String) {
+            current = ((String) current).length();
+          } else if (current instanceof Collection) {
+            current = ((Collection<?>) current).size();
+          } else if (current instanceof Map) {
+            current = ((Map<?, ?>) current).size();
+          }
+          break;
+        default:
+          log.debug("Unknown transformer: {}", transformer);
+          break;
+      }
+    }
+
+    return current;
   }
 
   public boolean commitDerivatives(TraceSegment traceSegment) {
     log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
-    if (traceSegment == null || derivatives == null) {
+    if (traceSegment == null) {
       return false;
     }
-    derivatives.forEach(traceSegment::setTagTop);
-    log.debug("Committed derivatives: {} for {}", derivatives, traceSegment);
+
+    // Process and commit derivatives directly
+    if (derivatives != null && !derivatives.isEmpty()) {
+      for (Map.Entry<String, Object> entry : derivatives.entrySet()) {
+        String key = entry.getKey();
+        Object value = entry.getValue();
+
+        // Handle different value types
+        if (value instanceof Number) {
+          traceSegment.setTagTop(key, (Number) value);
+        } else if (value instanceof String) {
+          // Try to parse as numeric, otherwise use as string
+          Number parsedNumber = convertToNumericAttribute((String) value);
+          if (parsedNumber != null) {
+            traceSegment.setTagTop(key, parsedNumber);
+          } else {
+            traceSegment.setTagTop(key, value);
+          }
+        } else if (value instanceof Boolean) {
+          traceSegment.setTagTop(key, value);
+        } else {
+          // Convert other types to string
+          traceSegment.setTagTop(key, value.toString());
+        }
+      }
+    }
+
+    // Clear all attribute maps
     derivatives = null;
     return true;
   }
@@ -696,11 +1003,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return processedRequestBody;
   }
 
+  public boolean isProcessedResponseBodySizeExceeded() {
+    return processedResponseBodySizeExceeded;
+  }
+
+  public void setProcessedResponseBodySizeExceeded(boolean processedResponseBodySizeExceeded) {
+    this.processedResponseBodySizeExceeded = processedResponseBodySizeExceeded;
+  }
+
   public boolean isRaspMatched() {
     return raspMatched;
   }
 
   public void setRaspMatched(boolean raspMatched) {
     this.raspMatched = raspMatched;
+  }
+
+  public boolean isManuallyKept() {
+    return manuallyKept;
+  }
+
+  public void setManuallyKept(boolean manuallyKept) {
+    this.manuallyKept = manuallyKept;
   }
 }

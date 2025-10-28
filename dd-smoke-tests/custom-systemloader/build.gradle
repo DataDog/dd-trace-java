@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -5,13 +7,13 @@ plugins {
 description = 'Check classes loaded by custom system class-loader are transformed'
 apply from: "$rootDir/gradle/java.gradle"
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'sample.app.App')
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   configurations = [project.configurations.runtimeClasspath]
 }
 
@@ -22,7 +24,12 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-
-  jvmArgs "-Ddatadog.smoketest.systemloader.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.systemloader.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

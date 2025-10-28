@@ -3,7 +3,6 @@ package com.datadog.debugger.exception;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_HASH;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID;
-import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.getValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +20,7 @@ import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.agent.DebuggerTransformer;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.MockSampler;
+import com.datadog.debugger.agent.ProbeMetadata;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -32,12 +32,15 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
+import datadog.trace.api.debugger.DebuggerConfigUpdater;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -98,10 +101,9 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
-    DebuggerContext.ProductConfigUpdater mockProductConfigUpdater =
-        mock(DebuggerContext.ProductConfigUpdater.class);
+    DebuggerConfigUpdater mockProductConfigUpdater = mock(DebuggerConfigUpdater.class);
     when(mockProductConfigUpdater.isExceptionReplayEnabled()).thenReturn(true);
-    DebuggerContext.initProductConfigUpdater(mockProductConfigUpdater);
+    DebuggerConfigBridge.setUpdater(mockProductConfigUpdater);
     setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
     setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
   }
@@ -112,6 +114,7 @@ public class ExceptionProbeInstrumentationTest {
       instr.removeTransformer(currentTransformer);
     }
     ProbeRateLimiter.setSamplerSupplier(null);
+    ProbeRateLimiter.resetAll();
   }
 
   @Test
@@ -157,7 +160,7 @@ public class ExceptionProbeInstrumentationTest {
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(fingerprint, span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_HASH));
-    assertEquals(Boolean.TRUE, span.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
+    assertEquals(Boolean.TRUE, span.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot0.getId(), span.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
@@ -198,11 +201,11 @@ public class ExceptionProbeInstrumentationTest {
     assertExceptionMsg("illegal argument", snapshot1);
     MutableSpan span0 = traceInterceptor.getAllTraces().get(0).get(0);
     assertEquals(snapshot0.getExceptionId(), span0.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
-    assertEquals(Boolean.TRUE, span0.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
+    assertEquals(Boolean.TRUE, span0.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot0.getId(), span0.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
     MutableSpan span1 = traceInterceptor.getAllTraces().get(1).get(0);
     assertEquals(snapshot1.getExceptionId(), span1.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
-    assertEquals(Boolean.TRUE, span1.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
+    assertEquals(Boolean.TRUE, span1.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot1.getId(), span1.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
   }
 
@@ -383,7 +386,7 @@ public class ExceptionProbeInstrumentationTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     DefaultExceptionDebugger exceptionDebugger =
         new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3);
+            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3, true);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;
@@ -405,9 +408,10 @@ public class ExceptionProbeInstrumentationTest {
       Config config,
       Configuration configuration,
       DebuggerTransformer.InstrumentationListener listener,
+      ProbeMetadata probeMetadata,
       DebuggerSink debuggerSink) {
     DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(config, configuration, listener, debuggerSink);
+        new DebuggerTransformer(config, configuration, listener, probeMetadata, debuggerSink);
     currentTransformer = debuggerTransformer;
     return debuggerTransformer;
   }

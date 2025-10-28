@@ -28,6 +28,14 @@ _Action:_ Check the pull request complies with [the contribution guidelines](htt
 
 _Recovery:_ Manually verify the guideline compliance.
 
+### check-pull-request-labels [🔗](check-pull-request-labels.yaml)
+
+_Trigger:_ When creating or updating a pull request.
+
+_Action:_ Check the pull request did not introduce unexpected label.
+
+_Recovery:_ Update the pull request or add a comment to trigger the action again.
+
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
 _Trigger:_ When creating a tag, or manually (providing a tag)
@@ -99,11 +107,11 @@ _Recovery:_ Manually trigger the action again.
 
 ### analyze-changes [🔗](analyze-changes.yaml)
 
-_Trigger:_ When pushing commits to `master`.
+_Trigger:_ Every day or manually.
 
 _Action:_
 
-* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab -- do not apply to pull request, only when pushing to `master`,
+* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab -- do not apply to pull request, only to `master`,
 * Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab and Datadog Code Analysis.
 
 _Notes:_ Results are sent on both production and staging environments.

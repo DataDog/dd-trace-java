@@ -78,7 +78,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
       .type(newTypeWiring("Book").dataFetcher("year", new DataFetcher<CompletionStage<Integer>>() {
         @Override
         CompletionStage<Integer> get(DataFetchingEnvironment environment) throws Exception {
-          return CompletableFuture.completedStage(2015)
+          return CompletableFuture.completedFuture(2015)
         }
       }))
       .build()

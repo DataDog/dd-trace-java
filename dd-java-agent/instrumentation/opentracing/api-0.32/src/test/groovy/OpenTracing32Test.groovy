@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -35,7 +35,7 @@ import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 
-class OpenTracing32Test extends AgentTestRunner {
+class OpenTracing32Test extends InstrumentationSpecification {
 
   @Subject
   def tracer = GlobalTracer.get()

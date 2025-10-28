@@ -1,14 +1,14 @@
 import annotatedsample.ReactorTracedMethods
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
-class ReactorAsyncResultExtensionTest extends AgentTestRunner {
+class ReactorAsyncResultExtensionTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -49,6 +49,7 @@ class ReactorAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -79,6 +80,7 @@ class ReactorAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -107,6 +109,7 @@ class ReactorAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -134,6 +137,7 @@ class ReactorAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -164,6 +168,7 @@ class ReactorAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -192,6 +197,7 @@ class ReactorAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

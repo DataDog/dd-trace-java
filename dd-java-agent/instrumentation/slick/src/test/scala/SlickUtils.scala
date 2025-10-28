@@ -1,6 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
+import datadog.trace.agent.test.InstrumentationSpecification.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{setAsyncPropagationEnabled, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  setAsyncPropagationEnabled,
+  activeSpan
+}
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._

@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
   id 'com.google.protobuf' version '0.8.18'
@@ -31,13 +33,13 @@ protobuf {
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootGrpcApplication')
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   configurations = [project.configurations.runtimeClasspath]
 }
 
@@ -53,7 +55,13 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
 
-  jvmArgs "-Ddatadog.smoketest.springboot-grpc.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot-grpc.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

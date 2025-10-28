@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -75,6 +76,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
+  private static final int OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS = 60;
 
   public volatile SparkListenerInterface openLineageSparkListener = null;
   public volatile SparkConf openLineageSparkConf = null;
@@ -180,9 +182,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           "_dd.trace_id:"
               + traceId.toString()
               + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
-              + sparkServiceName
+              + getServiceForOpenLineage(sparkConf, isRunningOnDatabricks)
+              + ";_dd.ol_intake.process_tags:"
+              + ProcessTags.getTagsForSerialization()
               + ";_dd.ol_app_id:"
               + appId);
+      setupOpenLineageCircuitBreaker();
       return;
     }
     log.debug(
@@ -408,6 +413,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withTag("query_id", sqlExecutionId)
             .withTag("description", queryStart.description())
             .withTag("details", queryStart.details())
+            .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
@@ -669,6 +675,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     }
 
+    // OpenLineage call should be prior to method return statements
+    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
+
     // Only sending failing tasks
     if (!(taskEnd.reason() instanceof TaskFailedReason)) {
       return;
@@ -687,8 +696,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     Properties props = stageProperties.get(stageSpanKey);
     sendTaskSpan(stageSpan, taskEnd, props);
-
-    notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
   }
 
   public static boolean classIsLoadable(String className) {
@@ -1290,6 +1297,59 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     return sparkAppName;
+  }
+
+  private static String getServiceForOpenLineage(SparkConf conf, boolean isRunningOnDatabricks) {
+    // Service for OpenLineage in Databricks is not supported yet
+    if (isRunningOnDatabricks) {
+      return null;
+    }
+
+    // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
+    String serviceName = Config.get().getServiceName();
+    if (Config.get().isServiceNameSetByUser()
+        && !"spark".equals(serviceName)
+        && !"hadoop".equals(serviceName)) {
+      log.debug(
+          "Service explicitly set by user, not using the application name. Service name: {}",
+          serviceName);
+      return serviceName;
+    }
+
+    String sparkAppName = conf.get("spark.app.name", null);
+    if (sparkAppName != null) {
+      log.debug(
+          "Using Spark application name as the Datadog service for OpenLineage. Spark application name: {}",
+          sparkAppName);
+    }
+
+    return sparkAppName;
+  }
+
+  private void setupOpenLineageCircuitBreaker() {
+    if (!Config.get().isDataJobsOpenLineageTimeoutEnabled()) {
+      log.debug("Data Jobs OpenLineage timeout is not enabled");
+      return;
+    }
+    if (!classIsLoadable("io.openlineage.client.circuitBreaker.TimeoutCircuitBreaker")) {
+      log.debug(
+          "OpenLineage version without timeout circuit breaker. Probably OL version < 1.35.0");
+      return;
+    }
+    if (openLineageSparkConf.contains("spark.openlineage.circuitBreaker.type")) {
+      log.debug(
+          "Other OpenLineage circuit breaker already configured: {}",
+          openLineageSparkConf.get("spark.openlineage.circuitBreaker.type"));
+      return;
+    }
+
+    openLineageSparkConf.set("spark.openlineage.circuitBreaker.type", "timeout");
+    openLineageSparkConf.setIfMissing(
+        "spark.openlineage.circuitBreaker.timeoutInSeconds",
+        String.valueOf(OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS));
+    log.debug(
+        "Setting OpenLineage circuit breaker with timeout {} seconds",
+        openLineageSparkConf.get("spark.openlineage.circuitBreaker.timeoutInSeconds"));
   }
 
   private static void reportKafkaOffsets(

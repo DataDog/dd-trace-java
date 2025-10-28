@@ -1,0 +1,3 @@
+<configuration>
+  <logger name="org.eclipse.jetty" level="INFO"/>
+</configuration>

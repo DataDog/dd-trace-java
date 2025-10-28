@@ -17,6 +17,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
@@ -156,6 +157,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         settings.isKnownTestsEnabled() ? KnownTestsEnabled.TRUE : null,
         settings.isImpactedTestsDetectionEnabled() ? ImpactedTestsDetectionEnabled.TRUE : null,
         settings.getTestManagementSettings().isEnabled() ? TestManagementEnabled.TRUE : null,
+        settings.isFailedTestReplayEnabled() ? FailedTestReplayEnabled.SettingsMetric.TRUE : null,
         settings.isGitUploadRequired() ? RequireGit.TRUE : null);
 
     return settings;

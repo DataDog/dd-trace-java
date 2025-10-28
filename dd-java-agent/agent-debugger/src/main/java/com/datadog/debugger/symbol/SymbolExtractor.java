@@ -237,8 +237,10 @@ public class SymbolExtractor {
               "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
       }
     }
-    // if class is an interface && method as code this is a default method
-    if ((classNode.access & Opcodes.ACC_INTERFACE) > 0 && methodNode.instructions.size() > 0) {
+    // if class is an interface && method has code && non-static this is a default method
+    if ((classNode.access & Opcodes.ACC_INTERFACE) > 0
+        && methodNode.instructions.size() > 0
+        && (methodNode.access & Opcodes.ACC_STATIC) == 0) {
       results.add("default");
     }
     return results;

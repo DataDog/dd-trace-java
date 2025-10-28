@@ -3,7 +3,7 @@ muzzle {
     group = "com.google.cloud"
     module = "google-cloud-pubsub"
     versions = "[1.116.0,)"
-    excludeDependency "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
+    excludeDependency 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
   }
 }
 apply from: "$rootDir/gradle/java.gradle"
@@ -17,7 +17,7 @@ dependencies {
   testImplementation group: 'org.testcontainers', name: 'gcloud', version: libs.versions.testcontainers.get()
   testImplementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'
   testImplementation project(":dd-java-agent:instrumentation:grpc-1.5")
-  testImplementation project(":dd-java-agent:instrumentation:guava-10")
+  testImplementation project(":dd-java-agent:instrumentation:guava-10.0")
   latestDepTestImplementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '+'
 }
 

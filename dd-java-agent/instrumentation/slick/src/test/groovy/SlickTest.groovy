@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-class SlickTest extends AgentTestRunner {
+class SlickTest extends InstrumentationSpecification {
 
   // Can't be @Shared, otherwise the work queue is initialized before the instrumentation is applied
   def database = new SlickUtils(TEST_WRITER)

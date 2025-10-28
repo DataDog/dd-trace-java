@@ -263,7 +263,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, kind).setTag("peer.hostname", "localhost").setTag("_dd.base_service", "test")
+      .setTag(SPAN_KIND, kind).setTag("peer.hostname", "localhost").setTag("_dd.base_service", UTF8BytesString.create("test"))
     ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
@@ -661,45 +661,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
-  def "aggregator should force keep the first of each key it sees"() {
-    setup:
-    int maxAggregates = 10
-    MetricWriter writer = Mock(MetricWriter)
-    Sink sink = Stub(Sink)
-    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
-    features.supportsMetrics() >> true
-    features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
-    long duration = 100
-    aggregator.start()
-
-    when:
-    def overrides = new boolean[10]
-    for (int i = 0; i < 5; ++i) {
-      overrides[i] = aggregator.publish([
-        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
-      ])
-    }
-    for (int i = 0; i < 5; ++i) {
-      overrides[i + 5] = aggregator.publish([
-        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
-      ])
-    }
-
-    then: "override only the first of each point in the interval"
-    for (int i = 0; i < 5; ++i) {
-      assert overrides[i]
-    }
-    // these were all repeats, so should be ignored
-    for (int i = 5; i < 10; ++i) {
-      assert !overrides[i]
-    }
-
-    cleanup:
-    aggregator.close()
-  }
-
   def "should be resilient to serialization errors"() {
     setup:
     int maxAggregates = 10
@@ -815,6 +776,48 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     notThrown(TimeoutException)
     flushed
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should not count partial snapshot(long running)"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 12345),
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, 100, HTTP_OK, true, 0)
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      true,
+      "",
+      []
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
     aggregator.close()

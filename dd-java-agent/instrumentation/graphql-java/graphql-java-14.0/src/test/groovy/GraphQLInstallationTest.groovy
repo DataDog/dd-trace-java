@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.graphqljava14.GraphQLInstrumentation
 import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.execution.instrumentation.SimpleInstrumentation
 
-class GraphQLInstallationTest extends AgentTestRunner {
+class GraphQLInstallationTest extends InstrumentationSpecification {
   static class TestInst extends SimpleInstrumentation {}
 
   def "install GraphQL instrumentation when there is no other instrumentation"() {

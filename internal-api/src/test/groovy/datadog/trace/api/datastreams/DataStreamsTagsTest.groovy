@@ -1,5 +1,6 @@
 package datadog.trace.api.datastreams
 
+import datadog.trace.api.BaseHash
 import spock.lang.Specification
 import java.nio.ByteBuffer
 
@@ -14,7 +15,6 @@ class DataStreamsTagsTest extends Specification {
   def 'test tags are properly set'() {
     setup:
     def tg = getTags(0)
-
 
     expect:
     tg.getBus() == DataStreamsTags.BUS_TAG + ":bus0"
@@ -80,7 +80,7 @@ class DataStreamsTagsTest extends Specification {
     DataStreamsTags.setServiceNameOverride(serviceName)
     def two = getTags(0)
 
-    DataStreamsTags.setGlobalBaseHash(12)
+    BaseHash.updateBaseHash(12)
     def three = getTags(0)
 
     expect:

@@ -1,128 +1,140 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'java-test-fixtures'
   id 'com.gradleup.shadow'
 }
 apply from: "$rootDir/gradle/java.gradle"
 
-String relAppDir = 'openliberty-jars/wlp/usr/servers/defaultServer/dropins/war/testapp'
+def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
+String testWebAppDir = 'wlp/usr/servers/defaultServer/dropins/war/testapp'
+
 sourceSets {
-  webapp {
+  register("webapp") {
     java {
-      destinationDirectory.value project.layout.buildDirectory.dir("$relAppDir/WEB-INF/classes")
+      destinationDirectory = openlibertyHomeDir.map {it.dir("$testWebAppDir/WEB-INF/classes") }
     }
-    output.resourcesDir = project.layout.buildDirectory.dir("$relAppDir/")
+    output.resourcesDir = openlibertyHomeDir.map { it.dir(testWebAppDir) }
   }
 }
 
 configurations {
-  zipped
-  testLogging
+  register("zipped")
+  register("testLogging")
 }
 
-evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-5'
+evaluationDependsOn ':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'
+
+// Since these tasks output are used in dependencies they have to be declared before, they can be configured later
+def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
+  extractDir.set(openlibertyHomeDir)
+}
+def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
+def shadowJar = tasks.named("shadowJar", ShadowJar)
 
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '22.0.0.1', ext: 'zip'
   testLogging libs.bundles.test.logging
 
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
-  compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
-  testImplementation files({ tasks.installOpenLibertyDeps.extractedJars })
+  compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
+  implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
-  implementation project(':dd-java-agent:instrumentation:servlet:request-5')
-  testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
-  testImplementation testFixtures(project(':dd-java-agent:appsec'))
+  testImplementation files(unpackOpenLiberty.map {it.extractedJars.get() })
+  testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
-  testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
+  testRuntimeOnly files(filterLogbackClassic.map { it.destinationDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:liberty-20')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
-  testRuntimeOnly files({ tasks.shadowJar.archiveFile })
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+  testRuntimeOnly files(shadowJar.map { it.archiveFile })
 
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
-  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
-  webappImplementation files(
-    project(':dd-java-agent:instrumentation:servlet:request-5')
-    .getTasksByName('testFixturesJar', false).archiveFile
-    )
+  add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))) {
+    transitive = false
+  }
   // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly libs.groovy
 }
-compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
 
-configurations.testRuntimeOnly {
+configurations.named("testRuntimeOnly") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
   exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
-configurations.webappRuntimeClasspath {
+configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
 
-//unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
-tasks.register('installOpenLibertyDeps', Copy) {
-  def extractDir = "${buildDir}/openliberty-jars"
-  ext.extractedJars = fileTree(extractDir) {
-    include "wlp/lib/com.ibm.ws.webcontainer.jakarta*.jar"
-    include "wlp/lib/com.ibm.ws.transport.http*.jar"
-    include "wlp/lib/com.ibm.ws.channelfw*.jar"
-    include "wlp/lib/com.ibm.ws.wsbytebuffer*.jar"
-    include "wlp/lib/com.ibm.ws.logging*.jar"
-    //include "wlp/lib/*.jar"
-    builtBy "installOpenLibertyDeps"
+// unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
+abstract class UnpackOpenLiberty extends Copy {
+  @Input
+  final Property<String> configurationName = project.objects.property(String).convention("zipped")
+
+  @OutputDirectory
+  final DirectoryProperty extractDir = project.objects.directoryProperty()
+
+  @OutputFiles
+  final Provider<FileTree> extractedJars = project.providers.provider {
+    project.fileTree(extractDir) {
+      include "wlp/lib/com.ibm.ws.webcontainer.jakarta*.jar"
+      include "wlp/lib/com.ibm.ws.transport.http*.jar"
+      include "wlp/lib/com.ibm.ws.channelfw*.jar"
+      include "wlp/lib/com.ibm.ws.wsbytebuffer*.jar"
+      include "wlp/lib/com.ibm.ws.logging*.jar"
+      //include "wlp/lib/*.jar"
+    }
   }
-  ext.wsServerJar = fileTree("$extractDir") {
-    include "wlp/lib/com.ibm.ws.kernel.boot*.jar"
-    include "wlp/bin/tools/ws-server.jar"
-    builtBy "installOpenLibertyDeps"
+
+  @OutputFiles
+  final Provider<FileTree> wsServerJar = project.providers.provider {
+    project.fileTree(extractDir) {
+      include "wlp/lib/com.ibm.ws.kernel.boot*.jar"
+      include "wlp/bin/tools/ws-server.jar"
+    }
   }
-  dependsOn configurations.zipped
-  // I didn't manage to get this to work correctly using a Sync task or Sync + outputs.upToDateWhen
-  // (files are updated when not needed, causing intellij to reindex or they are deemed up to date
-  // when the extraction was not done at all).
-  ext.serverXmlFile = file("$extractDir/wlp/usr/servers/defaultServer/server.xml")
-  onlyIf {
-    !ext.serverXmlFile.exists()
-  }
-  from {
-    configurations.zipped.collect { zipTree(it) }
-  }
-  eachFile { fcd ->
-    fcd.path = fcd.path.replaceAll(/\/templates\/(servers\/defaultServer\/.+)/, '/usr/$1')
-  }
-  into extractDir
-  outputs.file ext.serverXmlFile
-}
-[test, forkedTest]*.dependsOn webappClasses, installOpenLibertyDeps
-[test, forkedTest].each {
-  it.configure {
-    jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
+
+  @OutputFile
+  final Provider<File> serverXmlFile = project.providers.provider { extractDir.get().file("wlp/usr/servers/defaultServer/server.xml").asFile }
+
+  UnpackOpenLiberty() {
+    from project.zipTree(configurationName.map {project.configurations.named(it).map { it.singleFile } })
+    eachFile { FileCopyDetails fcd ->
+      fcd.path = fcd.path.replaceAll(/\/templates\/(servers\/defaultServer\/.+)/, '/usr/$1')
+    }
+    into extractDir
   }
 }
 
-tasks.register('webappCopyJars', Sync) {
-  from configurations.webappRuntimeClasspath.findAll { it.name.endsWith('.jar') }
-  into project.layout.buildDirectory.dir("$relAppDir/WEB-INF/lib")
-  dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
-}
-[test, forkedTest]*.dependsOn webappCopyJars
+def webappCopyJars = tasks.register('webappCopyJars', Sync) {
+  from configurations.named("webappRuntimeClasspath").map { Configuration config ->
+    config.filter { file ->
+      file.name.endsWith('.jar')
+    }
+  }
 
-tasks.register('filterLogbackClassic', Sync) {
-  ext.filteredLogbackDir = project.layout.buildDirectory.dir('filteredLogback')
-  from configurations.testLogging
-    .findAll { it.name.contains('logback-') }
-    .collect { zipTree(it) }
+  into openlibertyHomeDir.map { it.dir("$testWebAppDir/WEB-INF/lib") }
+}
+
+tasks.named('filterLogbackClassic', Sync) {
+  from configurations.named("testLogging").map {
+    it.filter {
+      it.name.contains('logback-')
+    }.collect {zipTree(it) }
+  }
+
   exclude 'META-INF/**'
-  into ext.filteredLogbackDir
+  into project.layout.buildDirectory.dir('tmp/filteredLogback')
 }
-[test, forkedTest]*.dependsOn filterLogbackClassic
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   configurations = [project.configurations.shadow]
-  zip64 true
+  zip64 = true
 
   archiveFileName = 'openliberty-shadow.jar'
 
@@ -141,9 +153,30 @@ shadowJar {
   exclude 'WEB-INF/**'
 
   // Include JAR files from the 'wlp/lib' directory
-  from("${buildDir}/openliberty-jars") {
+  from(openlibertyHomeDir) {
     include "wlp/lib/*.jar"
     include "wlp/dev/*.jar"
   }
 }
-[test, forkedTest]*.dependsOn shadowJar
+
+["test", "forkedTest"].each {
+  tasks.named(it, Test) {
+    dependsOn(
+      "webappClasses",
+      unpackOpenLiberty,
+      webappCopyJars,
+      filterLogbackClassic,
+      shadowJar
+      )
+    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          return unpackOpenLiberty.map {["-Dserver.xml=${it.serverXmlFile.get().absolutePath}"] }.get()
+        }
+      })
+  }
+}
+
+tasks.named("forbiddenApisWebapp") {
+  enabled = false
+}

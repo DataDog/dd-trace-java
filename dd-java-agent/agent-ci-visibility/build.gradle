@@ -1,33 +1,10 @@
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
-buildscript {
-  repositories {
-    mavenLocal()
-    if (project.rootProject.hasProperty("gradlePluginProxy")) {
-      maven {
-        url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol true
-      }
-    }
-    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
-      maven {
-        url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol true
-      }
-    }
-    gradlePluginPortal()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'java-test-fixtures'
+  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -42,41 +19,47 @@ dependencies {
   api libs.slf4j
 
   implementation libs.bundles.asm
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.12'
-  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.12'
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.14'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.14'
 
   implementation project(':communication')
   implementation project(':components:json')
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
 
-  testImplementation project(":utils:test-utils")
+  testImplementation project(':dd-java-agent:testing')
   testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
 
   testImplementation libs.scala
   testImplementation libs.kotlin
 
-  testFixturesApi project(':dd-java-agent:testing')
-  testFixturesApi project(':utils:test-utils')
-
-  testFixturesApi group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
-  testFixturesApi group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
-  testFixturesApi group: 'com.jayway.jsonpath', name: 'json-path', version: '2.8.0'
-  testFixturesApi group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
-  testFixturesApi group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
-  testFixturesApi group: 'org.xmlunit', name: 'xmlunit-core', version: '2.10.3'
-
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.2") // Required to update dependency lock files
+  testImplementation group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
+  testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
+  testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
-tasks.withType(Test).configureEach {
-  timeout = Duration.of(12, ChronoUnit.MINUTES)
+tasks.named("compileTestGroovy") {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Groovy generates synthetic accessors methods from superclass, we don't want that for `MisbehavingClassLoader`," +
+    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
+    )
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
 }

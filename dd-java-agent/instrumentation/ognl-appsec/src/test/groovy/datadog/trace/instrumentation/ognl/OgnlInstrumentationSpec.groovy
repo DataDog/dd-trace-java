@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.ognl
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import ognl.Ognl
 
-class OgnlInstrumentationSpec extends AgentTestRunner {
+class OgnlInstrumentationSpec extends InstrumentationSpecification {
   void 'creates a new span for ognl parsing expressions'() {
     when:
     AgentSpan span = AgentTracer.get().buildSpan("top-span").start()

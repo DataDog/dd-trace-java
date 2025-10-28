@@ -4,13 +4,17 @@ import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INV
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_DATA_SCANNERS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_PROCESSOR_OVERRIDES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_CMDI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI;
@@ -18,6 +22,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
@@ -47,10 +52,8 @@ import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
-import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
-import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -104,7 +107,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Set<String> ignoredConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
-  private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
+  private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
 
@@ -137,6 +140,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private long getRulesAndDataCapabilities() {
     long capabilities =
         CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_DD_MULTICONFIG
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
             | CAPABILITY_ASM_EXCLUSION_DATA
@@ -145,10 +149,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT;
+            | CAPABILITY_ASM_HEADER_FINGERPRINT
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES
+            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -210,7 +218,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
       final String key = configKey.toString();
       Map<String, Object> contentMap =
-          ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+          (Map<String, Object>)
+              ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
       if (contentMap == null || contentMap.isEmpty()) {
         ignoredConfigKeys.add(key);
       } else {
@@ -255,7 +264,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     @Override
     protected void beforeApply(final String key, final Map<String, Object> config) {
       if (defaultConfigActivated) { // if we get any config, remove the default one
-        log.debug("Removing default config");
+        log.debug("Removing default config ASM_DD/default");
         try {
           wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
         } catch (UnclassifiedWafException e) {
@@ -287,7 +296,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
 
       // TODO: Send diagnostics via telemetry
-      final LogCollector telemetryLogger = LogCollector.get();
 
       initReporter.setReportForPublication(wafDiagnostics);
       if (wafDiagnostics.rulesetVersion != null
@@ -512,6 +520,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.removeCapabilities(
         CAPABILITY_ASM_ACTIVATION
             | CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_DD_MULTICONFIG
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
             | CAPABILITY_ASM_EXCLUSION_DATA
@@ -520,6 +529,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
             | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ASM_RASP_SSRF
             | CAPABILITY_ASM_RASP_LFI
@@ -529,7 +540,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT);
+            | CAPABILITY_ASM_HEADER_FINGERPRINT
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES
+            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
@@ -563,7 +576,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       newState = asm.enabled;
       // Report AppSec activation change via telemetry when modified via remote config
-      ConfigCollector.get().put(APPSEC_ENABLED, asm.enabled, ConfigOrigin.REMOTE);
+      ConfigCollector.get().putRemote(APPSEC_ENABLED, asm.enabled);
     }
     if (AppSecSystem.isActive() != newState) {
       log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");

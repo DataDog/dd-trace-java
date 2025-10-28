@@ -51,14 +51,14 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
 
-  public static final String DBM_PROPAGATION_MODE = Config.get().getDBMPropagationMode();
+  public static final String DBM_PROPAGATION_MODE = Config.get().getDbmPropagationMode();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
-      Config.get().isDBMTracePreparedStatements();
+      Config.get().isDbmTracePreparedStatements();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -207,8 +207,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     DBInfo dbInfo;
     try {
       final DatabaseMetaData metaData = connection.getMetaData();
-      final String url = metaData.getURL();
-      if (url != null) {
+      final String url;
+      if (metaData != null && (url = metaData.getURL()) != null) {
         try {
           dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
         } catch (final Throwable ex) {
@@ -420,7 +420,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public boolean shouldInjectSQLComment() {
-    return Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-        || Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
+    return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
+        || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
   }
 }

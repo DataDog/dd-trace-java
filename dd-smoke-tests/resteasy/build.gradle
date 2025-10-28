@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
@@ -6,7 +8,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'RestEasy Smoke Test.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes "Main-Class": "smoketest.resteasy.Main"
   }
@@ -29,6 +31,12 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.resteasy.jar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.resteasy.jar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

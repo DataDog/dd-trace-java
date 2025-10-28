@@ -30,7 +30,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest'
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
+tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 
@@ -45,20 +45,29 @@ sourceSets {
   latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.test.scala.classesDirectory)
   dependsOn "compileTestScala"
 }
 
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
   dependsOn "compileLatestDepTestScala"
 }
 
-tasks.named("compileLatestDepForkedTestGroovy").configure {
+tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
   dependsOn "compileLatestDepForkedTestScala"
 }
+
+tasks.withType(ScalaCompile).configureEach {
+  // Despite the compatibility matrix, scala compiler doesn't properly
+  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+  // * https://github.com/gradle/gradle/issues/19456
+  configureCompiler(it, 8)
+}
+
 
 dependencies {
   // first version that works with the tests on JDK11 (without dependency problems):

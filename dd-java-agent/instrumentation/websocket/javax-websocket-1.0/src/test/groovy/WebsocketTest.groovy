@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.sampling.PrioritySampling
@@ -32,7 +32,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 
-class WebsocketTest extends AgentTestRunner {
+class WebsocketTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

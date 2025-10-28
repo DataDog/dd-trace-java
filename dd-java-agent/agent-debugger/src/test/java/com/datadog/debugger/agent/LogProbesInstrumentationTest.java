@@ -564,13 +564,12 @@ public class LogProbesInstrumentationTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    DebuggerContext.ProbeResolver resolver =
-        (encodedProbeId) -> resolver(encodedProbeId, configuration.getLogProbes());
-    currentTransformer = new DebuggerTransformer(config, configuration);
+    ProbeMetadata probeMetadata = new ProbeMetadata();
+    currentTransformer = new DebuggerTransformer(config, probeMetadata, configuration);
     instr.addTransformer(currentTransformer);
     TestSnapshotListener listener = new TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(resolver);
+    DebuggerContext.initProbeResolver(probeMetadata::getProbe);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     return listener;

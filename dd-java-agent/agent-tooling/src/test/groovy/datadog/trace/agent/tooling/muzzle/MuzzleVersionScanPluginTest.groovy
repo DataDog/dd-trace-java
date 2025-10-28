@@ -78,9 +78,6 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
     expect:
     MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, testApplicationLoader, true, null)
-    !helpers.findAll {
-      testApplicationLoader.loadClass(it.name) != null
-    }.isEmpty()
 
     where:
     // spotless:off

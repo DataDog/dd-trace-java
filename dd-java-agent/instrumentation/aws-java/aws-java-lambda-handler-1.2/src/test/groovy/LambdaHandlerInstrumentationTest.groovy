@@ -5,6 +5,12 @@ import com.amazonaws.services.lambda.runtime.Context
 abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
   def requestId = "test-request-id"
 
+  // Must set this env var before the Datadog integration is initialized.
+  // If present at load time, the integration auto-enables.
+  static {
+    environmentVariables.set("_HANDLER", "Handler")
+  }
+
   @Override
   String service() {
     null

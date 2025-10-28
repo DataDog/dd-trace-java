@@ -146,7 +146,7 @@ public class ProcessTags {
                 .map(
                     entry ->
                         UTF8BytesString.create(
-                            entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue())));
+                            entry.getKey() + ":" + TraceUtils.normalizeTagValue(entry.getValue())));
         utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
         stringListForm =
             Collections.unmodifiableList(
@@ -157,6 +157,10 @@ public class ProcessTags {
   }
 
   private ProcessTags() {}
+
+  public static boolean isEnabled() {
+    return enabled;
+  }
 
   // need to be synchronized on writing. As optimization, it does not need to be sync on read.
   public static void addTag(String key, String value) {

@@ -1,0 +1,43 @@
+// Set properties before any plugins get loaded
+ext {
+  // TODO Java 17: This version of vertx-web doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'io.vertx'
+    module = "vertx-web"
+    versions = "[3.8.1,)" // it won't fail on 5+ since won't apply
+    javaVersion = "11"
+    assertInverse = true
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+configurations {
+  testArtifacts
+}
+
+// Create test artifacts so vertx-rx can reuse the server test instrumentation and base class
+artifacts {
+  testArtifacts testJar
+}
+
+dependencies {
+  compileOnly group: 'io.vertx', name: 'vertx-web', version: '3.9.0'
+
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
+
+  testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.9.0'
+  testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.9.0'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+}

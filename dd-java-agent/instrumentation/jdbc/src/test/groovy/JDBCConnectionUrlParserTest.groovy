@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo
+
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo
 import spock.lang.Shared
 
-import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo
-
-class JDBCConnectionUrlParserTest extends AgentTestRunner {
+class JDBCConnectionUrlParserTest extends InstrumentationSpecification {
 
   @Shared
   def stdProps = {
@@ -207,6 +207,8 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     // sybase
     "jdbc:sybase:Tds:dbhostname:2638?ServiceName=demo"                                                                                                                                                                                          | null     | "sybase"     | "tds"         | null     | "dbhostname"                                                          | 2638    | "demo"                               | null
     "jdbc:sybase:Tds:dbhostname:2638/dbname"                                                                                                                                                                                                    | null     | "sybase"     | "tds"         | null     | "dbhostname"                                                          | 2638    | null                                 | "dbname"
+    // unknown DB type
+    "jdbc:testdb://myhost:9999/testdatabase" | null | "testdb" | null | null | "myhost" | 9999 | null | "testdatabase"
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }
 }

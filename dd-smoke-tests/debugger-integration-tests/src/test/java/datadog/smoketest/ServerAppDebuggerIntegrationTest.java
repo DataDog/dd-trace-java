@@ -2,20 +2,17 @@ package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.Snapshot;
-import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -82,16 +79,11 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     LOG.info("Stop done");
   }
 
-  protected List<Snapshot> waitForSnapshots() throws Exception {
-    RecordedRequest snapshotRequest = retrieveSnapshotRequest();
-    assertNotNull(snapshotRequest);
-    String bodyStr = snapshotRequest.getBody().readUtf8();
-    LOG.info("got snapshot: {}", bodyStr);
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
-    return intakeRequests.stream()
-        .map(intakeRequest -> intakeRequest.getDebugger().getSnapshot())
-        .collect(Collectors.toList());
+  protected Snapshot waitForOneSnapshot() throws Exception {
+    AtomicReference<Snapshot> snapshotReceived = new AtomicReference<>();
+    registerSnapshotListener(snapshotReceived::set);
+    processRequests(() -> snapshotReceived.get() != null);
+    return snapshotReceived.get();
   }
 
   protected void execute(String appUrl, String methodName) throws IOException {
@@ -107,25 +99,28 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void waitForInstrumentation(String appUrl) throws Exception {
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS);
+    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, true);
   }
 
-  protected void waitForInstrumentation(String appUrl, String className) throws Exception {
+  protected void waitForInstrumentation(
+      String appUrl, String className, boolean waitOnProbeStatuses) throws Exception {
     String url = String.format(appUrl + "/waitForInstrumentation?classname=%s", className);
     LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
-    AtomicBoolean received = new AtomicBoolean();
-    AtomicBoolean installed = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-            installed.set(true);
-          }
-        });
-    processRequests(() -> received.get() && installed.get());
+    if (waitOnProbeStatuses) {
+      AtomicBoolean received = new AtomicBoolean();
+      AtomicBoolean installed = new AtomicBoolean();
+      registerProbeStatusListener(
+          probeStatus -> {
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+              received.set(true);
+            }
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+              installed.set(true);
+            }
+          });
+      processRequests(() -> received.get() && installed.get());
+    }
     LOG.info("instrumentation done");
   }
 
