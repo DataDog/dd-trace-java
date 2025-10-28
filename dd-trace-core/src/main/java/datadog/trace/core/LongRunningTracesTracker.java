@@ -26,6 +26,7 @@ public class LongRunningTracesTracker {
   private int dropped = 0;
   private int write = 0;
   private int expired = 0;
+  private int droppedSampling = 0;
 
   public static final int NOT_TRACKED = -1;
   public static final int UNDEFINED = 0;
@@ -107,6 +108,7 @@ public class LongRunningTracesTracker {
       if (shouldFlush(nowMilli, trace)) {
         if (negativeOrNullPriority(trace)) {
           trace.compareAndSetLongRunningState(TRACKED, NOT_TRACKED);
+          droppedSampling++;
           cleanSlot(i);
           continue;
         }
@@ -151,9 +153,10 @@ public class LongRunningTracesTracker {
   }
 
   private void flushStats() {
-    healthMetrics.onLongRunningUpdate(dropped, write, expired);
+    healthMetrics.onLongRunningUpdate(dropped, write, expired, droppedSampling);
     dropped = 0;
     write = 0;
     expired = 0;
+    droppedSampling = 0;
   }
 }
