@@ -121,17 +121,14 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
   public static class LiveListenerBusAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     // If OL is disabled in tracer config but user set it up manually don't interfere
-    public static boolean enter(@Advice.Argument(0) Object listener) {
+    public static boolean enter(@Advice.Argument(0) SparkListenerInterface listener) {
       Logger log = LoggerFactory.getLogger("LiveListenerBusAdvice");
       if (Config.get().isDataJobsOpenLineageEnabled()
           && listener != null
           && "io.openlineage.spark.agent.OpenLineageSparkListener"
               .equals(listener.getClass().getCanonicalName())) {
         log.debug("Detected OpenLineage listener, skipping adding it to ListenerBus");
-        if (listener instanceof SparkListenerInterface) {
-          InstanceStore.of(SparkListenerInterface.class)
-              .put("openLineageListener", (SparkListenerInterface) listener);
-        }
+        InstanceStore.of(SparkListenerInterface.class).put("openLineageListener", listener);
         return true;
       }
       return false;
