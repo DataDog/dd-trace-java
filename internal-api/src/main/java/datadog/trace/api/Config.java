@@ -55,6 +55,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
@@ -508,6 +509,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.COUCHBASE_INTE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
@@ -1076,6 +1078,7 @@ public class Config {
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
   private final boolean dbmTracePreparedStatements;
+  private final boolean dbmAlwaysAppendSqlComment;
 
   private final boolean dynamicInstrumentationEnabled;
   private final String dynamicInstrumentationSnapshotUrl;
@@ -1638,6 +1641,10 @@ public class Config {
     dbmTracePreparedStatements =
         configProvider.getBoolean(
             DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
+
+    dbmAlwaysAppendSqlComment =
+        configProvider.getBoolean(
+            DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
     dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
 
@@ -5040,6 +5047,10 @@ public class Config {
 
   public boolean isDbmTracePreparedStatements() {
     return dbmTracePreparedStatements;
+  }
+
+  public boolean isDbmAlwaysAppendSqlComment() {
+    return dbmAlwaysAppendSqlComment;
   }
 
   public String getDbmPropagationMode() {
