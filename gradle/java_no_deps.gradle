@@ -125,6 +125,7 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 
 // Task for tests that want to run forked in their own separate JVM
 tasks.register('forkedTest', Test) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
   useJUnitPlatform()
 }
 
