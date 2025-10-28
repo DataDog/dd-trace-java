@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -809,7 +810,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public void attachWrapper(SpanWrapper wrapper) {
+  public void attachWrapper(@NonNull SpanWrapper wrapper) {
     WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
   }
 

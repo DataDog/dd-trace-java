@@ -243,7 +243,4 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   public AgentSpan asAgentSpan() {
     return delegate;
   }
-
-  @Override
-  public void onSpanFinished() {}
 }
