@@ -362,6 +362,9 @@ spotless:
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh
+    - gitlab_section_end "collect-reports"
 
 test_published_artifacts:
   extends: .gradle_build
