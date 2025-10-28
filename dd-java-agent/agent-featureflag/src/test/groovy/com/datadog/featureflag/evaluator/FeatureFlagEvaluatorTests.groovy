@@ -8,6 +8,7 @@ import dev.openfeature.sdk.EvaluationContext
 import dev.openfeature.sdk.FlagEvaluationDetails
 import dev.openfeature.sdk.MutableContext
 import dev.openfeature.sdk.OpenFeatureAPI
+import dev.openfeature.sdk.Structure
 import dev.openfeature.sdk.Value
 import spock.lang.Shared
 
@@ -44,8 +45,12 @@ class FeatureFlagEvaluatorTests extends BaseFeatureFlagsTest {
   protected static EvaluationContext buildContext(final TestCase testCase) {
     final context = new MutableContext().setTargetingKey(testCase.getTargetingKey())
     testCase.attributes?.each {
-      if (it.value instanceof Map || it.value instanceof List) {
-        context.add(it.key, Value.objectToValue(it.value))
+      if (it.value instanceof Map) {
+        context.add(it.key, Value.objectToValue(it.value).asStructure())
+      } else if (it.value instanceof List) {
+        context.add(it.key, Value.objectToValue(it.value).asList())
+      } else if (it.value == null) {
+        context.add(it.key, (Structure) null)
       } else {
         context.add(it.key, it.value)
       }

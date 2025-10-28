@@ -44,7 +44,25 @@ public interface FeatureFlagEvaluator {
   }
 
   enum ResolutionReason {
+    /** The resolved value is static (no dynamic evaluation occurred) */
+    STATIC,
+    /** The resolved value fell back to a default (no dynamic evaluation or it yielded no result) */
+    DEFAULT,
+    /** The resolved value resulted from dynamic evaluation (rule or user-targeting) */
+    TARGETING_MATCH,
+    /** The resolved value was determined through pseudorandom assignment */
+    SPLIT,
+    /** The resolved value was retrieved from a cache */
+    CACHED,
+    /** The flag is disabled in the management system */
+    DISABLED,
+    /** The reason for the resolved value could not be determined */
+    UNKNOWN,
+    /** The resolved value is non-authoritative or possibly out of date */
+    STALE,
+    /** The resolved value resulted from an error during evaluation */
     ERROR,
+    /** The provider has not been initialized (custom reason for this implementation) */
     NOT_INITIALIZED
   }
 
@@ -56,6 +74,22 @@ public interface FeatureFlagEvaluator {
 
     public Resolution(final R value) {
       this.value = value;
+    }
+
+    public static <R> Resolution<R> defaultResolution(final R value) {
+      return new Resolution<>(value).setReason(ResolutionReason.DEFAULT);
+    }
+
+    public static <R> Resolution<R> error(final R value) {
+      return new Resolution<>(value).setReason(ResolutionReason.ERROR);
+    }
+
+    public static <R> Resolution<R> targetingMatch(final R value) {
+      return new Resolution<>(value).setReason(ResolutionReason.TARGETING_MATCH);
+    }
+
+    public static <R> Resolution<R> notInitialized(final R value) {
+      return new Resolution<>(value).setReason(ResolutionReason.NOT_INITIALIZED);
     }
 
     public String getReason() {
