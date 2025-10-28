@@ -5,8 +5,7 @@ import test.TestConnection
 import test.TestPreparedStatement
 import test.TestStatement
 
-class DBMInjectionForkedTest extends InstrumentationSpecification {
-
+abstract class InjectionTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -21,7 +20,9 @@ class DBMInjectionForkedTest extends InstrumentationSpecification {
 
   static query = "SELECT 1"
   static serviceInjection = "ddps='my_service_name',dddbs='remapped_testdb',ddh='localhost'"
+}
 
+class DBMInjectionForkedTest extends InjectionTest {
   def "prepared stmt"() {
     setup:
     def connection = new TestConnection(false)
@@ -35,6 +36,20 @@ class DBMInjectionForkedTest extends InstrumentationSpecification {
     assert statement.sql == "/*${serviceInjection}*/ ${query}"
   }
 
+  def "single query"() {
+    setup:
+    def connection = new TestConnection(false)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.executeQuery(query)
+
+    then:
+    assert statement.sql == "/*${serviceInjection},traceparent='00-00000000000000000000000000000004-0000000000000003-01'*/ ${query}"
+  }
+}
+
+class DBMAppendInjectionForkedTest extends InjectionTest {
   def "append comment on prepared stmt"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT, "true")
@@ -49,18 +64,6 @@ class DBMInjectionForkedTest extends InstrumentationSpecification {
     assert statement.sql == "${query} /*${serviceInjection}*/"
   }
 
-  def "single query"() {
-    setup:
-    def connection = new TestConnection(false)
-
-    when:
-    def statement = connection.createStatement() as TestStatement
-    statement.executeQuery(query)
-
-    then:
-    assert statement.sql == "/*${serviceInjection},traceparent='00-00000000000000000000000000000006-0000000000000005-01'*/ ${query}"
-  }
-
   def "append comment on single query"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT, "true")
@@ -71,6 +74,6 @@ class DBMInjectionForkedTest extends InstrumentationSpecification {
     statement.executeQuery(query)
 
     then:
-    assert statement.sql == "${query} /*${serviceInjection},traceparent='00-00000000000000000000000000000008-0000000000000007-01'*/"
+    assert statement.sql == "${query} /*${serviceInjection},traceparent='00-00000000000000000000000000000004-0000000000000003-01'*/"
   }
 }

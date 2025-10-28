@@ -127,7 +127,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
 
           // prepend mode will prepend the SQL comment to the raw sql query
-          boolean appendComment = DECORATE.shouldAppendSqlComment();
+          boolean appendComment = DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT;
 
           // There is a bug in the SQL Server JDBC driver that prevents
           // the generated keys from being returned when the

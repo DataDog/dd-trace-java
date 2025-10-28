@@ -59,6 +59,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
+  public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
+      Config.get().isDbmAlwaysAppendSqlComment();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -422,9 +424,5 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public boolean shouldInjectSQLComment() {
     return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
         || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
-  }
-
-  public boolean shouldAppendSqlComment() {
-    return Config.get().isDbmAlwaysAppendSqlComment();
   }
 }
