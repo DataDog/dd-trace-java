@@ -1358,7 +1358,7 @@ class WAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd)
+    ret = waf.buildEvents(rwd, null)
 
     then:
     ret.isEmpty()
@@ -1370,7 +1370,7 @@ class WAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd)
+    ret = waf.buildEvents(rwd, null)
 
     then:
     ret.isEmpty()
@@ -1716,7 +1716,7 @@ class WAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd)
+    ret = waf.buildEvents(rwd, null)
 
     then:
     noExceptionThrown()
