@@ -1,0 +1,29 @@
+muzzle {
+  pass {
+    group = 'org.springframework.security'
+    module = 'spring-security-core'
+    versions = "[5.5.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir('latestDepTest', 'test')
+
+final springSecurityVersion = '5.8.2'
+final springBootVersion = '2.6.0'
+
+dependencies {
+  compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: springSecurityVersion
+
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: springBootVersion
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: springBootVersion
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.+'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
+}

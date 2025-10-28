@@ -64,7 +64,7 @@ public class BatchUploaderTest {
     when(config.getDynamicInstrumentationUploadTimeout())
         .thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy);
+    uploader = new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
   }
 
   @AfterEach
@@ -80,7 +80,7 @@ public class BatchUploaderTest {
   @Test
   void testUnixDomainSocket() {
     when(config.getAgentUnixDomainSocket()).thenReturn("/tmp/ddagent/agent.sock");
-    uploader = new BatchUploader(config, "http://localhost:8126", retryPolicy);
+    uploader = new BatchUploader("test", config, "http://localhost:8126", retryPolicy);
     assertEquals(
         "datadog.common.socket.UnixDomainSocketFactory",
         uploader.getClient().socketFactory().getClass().getTypeName());
@@ -88,7 +88,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
-    uploader = new BatchUploader(config, "http://example.com", retryPolicy);
+    uploader = new BatchUploader("test", config, "http://example.com", retryPolicy);
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
@@ -97,7 +97,7 @@ public class BatchUploaderTest {
 
   @Test
   void testOkHttpClientUsesDefaultConnspecsOverTLS() {
-    uploader = new BatchUploader(config, "https://example.com", retryPolicy);
+    uploader = new BatchUploader("test", config, "https://example.com", retryPolicy);
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
@@ -175,7 +175,7 @@ public class BatchUploaderTest {
     // test. So we specify insanely large timeout here.
     when(config.getDynamicInstrumentationUploadTimeout())
         .thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
-    uploader = new BatchUploader(config, url.toString(), retryPolicy);
+    uploader = new BatchUploader("test", config, url.toString(), retryPolicy);
 
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < BatchUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -216,7 +216,7 @@ public class BatchUploaderTest {
   @Test
   public void testEmptyUrl() {
     Assertions.assertThrows(
-        IllegalArgumentException.class, () -> new BatchUploader(config, "", retryPolicy));
+        IllegalArgumentException.class, () -> new BatchUploader("test", config, "", retryPolicy));
   }
 
   @Test
@@ -224,7 +224,8 @@ public class BatchUploaderTest {
     // we don't explicitly specify a container ID
     server.enqueue(RESPONSE_200);
     BatchUploader uploaderWithNoContainerId =
-        new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
+        new BatchUploader(
+            "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
 
     uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
     uploaderWithNoContainerId.shutdown();
@@ -239,6 +240,7 @@ public class BatchUploaderTest {
 
     BatchUploader uploaderWithContainerId =
         new BatchUploader(
+            "test",
             config,
             url.toString(),
             ratelimitedLogger,
@@ -259,7 +261,7 @@ public class BatchUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
     BatchUploader uploaderWithApiKey =
-        new BatchUploader(config, url.toString(), ratelimitedLogger, retryPolicy);
+        new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
     uploaderWithApiKey.upload(SNAPSHOT_BUFFER);
     uploaderWithApiKey.shutdown();
 

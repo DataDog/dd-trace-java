@@ -1,0 +1,280 @@
+ext {
+  forkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
+  mule46ForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
+  latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_17
+}
+def muleVersion = '4.5.0'
+def appDir = "$projectDir/application"
+
+muzzle {
+  extraRepository('mulesoft-releases', 'https://repository.mulesoft.org/releases')
+  extraRepository('mulesoft-public', 'https://repository.mulesoft.org/nexus/content/repositories/public')
+
+  pass {
+    group = 'org.mule.runtime'
+    module = 'mule-core'
+    versions = "[$muleVersion,)"
+    skipVersions = ['4.9.1'] // missing transitive dependency
+    javaVersion = "17"
+    excludeDependency 'om.google.guava:guava'
+    excludeDependency 'com.google.code.findbugs:jsr305'
+    additionalDependencies.add('org.mule.runtime:mule-tracer-customization-impl:' + muleVersion)
+  }
+  pass {
+    group = 'org.mule.runtime'
+    module = 'mule-tracer-customization-impl'
+    versions = "[$muleVersion,)"
+    skipVersions = ['4.9.1'] // missing transitive dependency
+    javaVersion = "17"
+    excludeDependency 'om.google.guava:guava'
+    excludeDependency 'com.google.code.findbugs:jsr305'
+    additionalDependencies.add('org.mule.runtime:mule-core:' + muleVersion)
+  }
+
+  fail {
+    name = 'before-4.5.0'
+    group = 'org.mule.runtime'
+    module = 'mule-core'
+    versions = "[, $muleVersion)"
+    excludeDependency 'om.google.guava:guava'
+    excludeDependency 'com.google.code.findbugs:jsr305'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+addTestSuiteForDir('mule46ForkedTest', 'test')
+addTestSuiteForDir('latestDepForkedTest', 'test')
+
+repositories {
+  maven {
+    name = "mulesoft-releases"
+    url = "https://repository.mulesoft.org/releases"
+    mavenContent {
+      releasesOnly()
+    }
+  }
+  maven {
+    name = "mulesoft-public"
+    url = "https://repository.mulesoft.org/nexus/content/repositories/public"
+    mavenContent {
+      releasesOnly()
+    }
+  }
+}
+
+configurations {
+  muleServices
+  mule46Services
+  latestMuleServices
+}
+
+configurations.configureEach {
+  exclude group: 'pull-parser', module: 'pull-parser'
+
+  resolutionStrategy {
+    // avoid bringing in logback based on java 11
+    force libs.logback.classic
+    force libs.logback.core
+
+    // mule depends specifically on byte-buddy 1.14
+    // https://docs.mulesoft.com/release-notes/mule-runtime/mule-4.5.0-release-notes
+    force 'net.bytebuddy:byte-buddy:1.14.18'
+  }
+}
+
+sourceSets {
+  main_java11 {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+  test {
+    output.dir("$buildDir/generated-resources/test", builtBy: 'generateAppResources')
+  }
+  mule46ForkedTest {
+    output.dir("$buildDir/generated-resources/mule46ForkedTest", builtBy: 'generateAppResources46')
+  }
+  latestDepForkedTest {
+    output.dir("$buildDir/generated-resources/latestDepForkedTest", builtBy: 'generateAppResourcesLatest')
+  }
+}
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+tasks.named("jar", Jar) {
+  from sourceSets.main_java11.output
+}
+
+tasks.named("forbiddenApisMain_java11") {
+  failOnMissingClasses = false
+}
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn 'mvnPackage', 'extractMuleServices'
+}
+
+tasks.named("compileMule46ForkedTestGroovy", GroovyCompile) {
+  dependsOn 'mvnPackage', 'extractMule46Services'
+}
+
+tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
+  dependsOn 'mvnPackage', 'extractLatestMuleServices'
+  configureCompiler(it, 17)
+}
+
+tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
+  configureCompiler(it, 17)
+}
+
+dependencies {
+  compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+  compileOnly group: 'org.mule.runtime', name: 'mule-tracer-customization-impl', version: muleVersion
+  compileOnly sourceSets.main_java11.output
+
+  main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly project(':dd-java-agent:agent-tooling')
+  main_java11CompileOnly project(':dd-java-agent:agent-bootstrap')
+
+  testImplementation sourceSets.main_java11.output
+  testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly:grizzly-2.0')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly:grizzly-http-2.3.20')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly:grizzly-client-1.9')
+  testImplementation project(':dd-java-agent:instrumentation:caffeine')
+  testImplementation project(':dd-java-agent:instrumentation:quartz-2.0')
+
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
+  //testImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: muleVersion
+  // this is needed for mule to find removed javax.* APIs on Java 11+
+  testImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-dwb-api', version: '2.5.0'
+  // testImplementation group: 'xml-apis', name: 'xml-apis', version: '1.4.01'
+  muleServices group: 'org.mule.services', name: 'mule-service-http', version: '1.5.21', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.5.0', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-weave', version: '2.5.0', classifier: 'mule-service'
+
+  mule46ForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: '4.6.0'
+  mule46ForkedTestImplementation group: 'org.mule.runtime', name: 'mule-core', version: '4.6.0'
+  mule46ForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.6.0'
+  mule46ForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.6.0'
+  // this is needed for mule to find removed javax.* APIs on Java 11+
+  mule46ForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: '4.6.0'
+  mule46Services group: 'org.mule.services', name: 'mule-service-http', version: '1.5.21', classifier: 'mule-service'
+  mule46Services group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.5.0', classifier: 'mule-service'
+  mule46Services group: 'org.mule.services', name: 'mule-service-weave', version: '2.5.0', classifier: 'mule-service'
+
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-core', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: '4.+'
+
+  /*
+   When testing with them, the mule container does not bootstrap because of:
+   None of [protected void java.lang.Object.finalize() throws java.lang.Throwable, public final void java.lang.Object.wait(long,int) throws java.lang.InterruptedException, public final void java.lang.Object.wait() throws java.lang.InterruptedException, public final native void java.lang.Object.wait(long) throws java.lang.InterruptedException, public boolean java.lang.Object.equals(java.lang.Object), public java.lang.String java.lang.Object.toString(), public native int java.lang.Object.hashCode(), public final native java.lang.Class java.lang.Object.getClass(), protected native java.lang.Object java.lang.Object.clone() throws java.lang.CloneNotSupportedException, public final native void java.lang.Object.notify(), public final native void java.lang.Object.notifyAll(), public abstract java.lang.Object java.lang.reflect.InvocationHandler.invoke(java.lang.Object,java.lang.reflect.Method,java.lang.Object[]) throws java.lang.Throwable] allows for delegation from public boolean org.springframework.beans.factory.SmartFactoryBean.isEagerInit()
+   */
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-extensions-soap-api', version: '1.8.+'
+
+  latestDepForkedTestImplementation group: 'jakarta.xml.ws', name: 'jakarta.xml.ws-api', version: '4.0.2'
+  // back to the future
+  latestDepForkedTestImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.0'
+  latestDepForkedTestImplementation group: 'com.sun.xml.bind', name: 'jaxb-impl', version: '2.3.0'
+  latestDepForkedTestImplementation group: 'com.sun.xml.bind', name: 'jaxb-core', version: '2.3.0'
+
+  latestMuleServices group: 'org.mule.services', name: 'mule-service-http', version: '1.+', classifier: 'mule-service'
+  latestMuleServices group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.+', classifier: 'mule-service'
+  latestMuleServices group: 'org.mule.services', name: 'mule-service-weave', version: '2.8.1', classifier: 'mule-service'
+}
+
+def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
+  configurations[configName].resolvedConfiguration.resolvedArtifacts.findAll {
+    it.classifier == "mule-service"
+  } collect { artifact ->
+    def id = artifact.moduleVersion.id
+    sync.from(zipTree(artifact.file)) {
+      into("${id.name}-${id.version}")
+    }
+  }
+  sync.into "$muleBaseDir/services"
+}
+
+// extract the enabled services into the mule base directory
+tasks.register('extractMuleServices', Sync) {
+  dependsOn configurations.named('muleServices')
+  copyMuleArtifacts("muleServices", "$buildDir/mule/test", it)
+}
+tasks.register('extractMule46Services', Sync) {
+  dependsOn configurations.named('mule46Services')
+  copyMuleArtifacts("mule46Services", "$buildDir/mule/mule46ForkedTest", it)
+}
+tasks.register('extractLatestMuleServices', Sync) {
+  dependsOn configurations.named('latestMuleServices')
+  copyMuleArtifacts("latestMuleServices", "$buildDir/mule/latestDepForkedTest", it)
+}
+
+// build the mule application via maven
+tasks.register('mvnPackage', Exec) {
+  workingDir("$appDir")
+  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
+
+  List<String> mvnArgs = [
+    "$rootDir/mvnw",
+    "-Ddatadog.builddir=$buildDir",
+    "-Ddatadog.name=mule-test-application",
+    "-Ddatadog.version=$version",
+    "package"
+  ]
+
+  // Specify caches folder on CI.
+  if (providers.environmentVariable("CI").isPresent()) {
+    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
+  }
+
+  commandLine(mvnArgs)
+
+  outputs.dir("$buildDir/target")
+  inputs.dir("$appDir/src")
+  inputs.file("$appDir/pom.xml")
+  inputs.file("$appDir/mule-artifact.json")
+}
+
+// generate a properties file so the test knows where to run mule, and what jar to deploy
+tasks.register('generateAppResources') {
+  createAppResourceTask(it, "test")
+}
+tasks.register('generateAppResources46') {
+  createAppResourceTask(it, "mule46ForkedTest")
+}
+tasks.register('generateAppResourcesLatest') {
+  createAppResourceTask(it, "latestDepForkedTest")
+}
+
+def createAppResourceTask(Task task, String name) {
+  def generatedResourcesDir = "$buildDir/generated-resources/$name"
+  task.outputs.dir generatedResourcesDir
+  task.doLast {
+    def generated = new File(generatedResourcesDir, "test-build.properties")
+    generated.text = """|mule.base=$buildDir/mule/$name
+                        |MuleTestApplicationConstants.jar=$buildDir/target/mule-test-application-$version-mule-application.jar
+                        |MuleTestApplicationConstants.name=mule-test-application-$version-mule-application""".stripMargin()
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

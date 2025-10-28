@@ -1,11 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class MDBTest extends AgentTestRunner {
+class MDBTest extends InstrumentationSpecification {
 
   @Shared
   def msg = new MDBJmsMsg()

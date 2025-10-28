@@ -79,12 +79,12 @@ class TelemetryRequestBodySpecification extends DDSpecification {
 
     then:
     drainToString(req) == ',"configuration":[' +
-      '{"name":"string","value":"bar","origin":"remote_config"},' +
-      '{"name":"int","value":"2342","origin":"default"},' +
-      '{"name":"double","value":"123.456","origin":"env_var"},' +
-      '{"name":"map","value":"key1:value1,key2:432.32,key3:324","origin":"jvm_prop"},' +
-      '{"name":"list","value":"1,2,3","origin":"default"},' +
-      '{"name":"null","value":null,"origin":"default"}]'
+      '{"name":"string","value":"bar","origin":"remote_config","seq_id":0},' +
+      '{"name":"int","value":"2342","origin":"default","seq_id":0},' +
+      '{"name":"double","value":"123.456","origin":"env_var","seq_id":0},' +
+      '{"name":"map","value":"key1:value1,key2:432.32,key3:324","origin":"jvm_prop","seq_id":0},' +
+      '{"name":"list","value":"1,2,3","origin":"default","seq_id":0},' +
+      '{"name":"null","value":null,"origin":"default","seq_id":0}]'
   }
 
   def 'use snake_case for setting keys'() {
@@ -102,7 +102,7 @@ class TelemetryRequestBodySpecification extends DDSpecification {
     req.endConfiguration()
 
     then:
-    drainToString(req) == ',"configuration":[{"name":"this_is_a_key","value":"value","origin":"remote_config"}]'
+    drainToString(req) == ',"configuration":[{"name":"this_is_a_key","value":"value","origin":"remote_config","seq_id":0}]'
   }
 
   def 'add debug flag'() {

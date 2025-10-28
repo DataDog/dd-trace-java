@@ -125,19 +125,11 @@ public final class RumInjector {
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 
-  /**
-   * Starts telemetry collection and reports metrics via StatsDClient.
-   *
-   * @param statsDClient The StatsDClient to report metrics to.
-   */
-  public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
-    if (statsDClient != null) {
-      RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
-      telemetryCollector = metrics;
-
-      if (INSTANCE.isEnabled()) {
-        telemetryCollector.onInitializationSucceed();
-      }
+  /** Starts telemetry collection if RUM injection is enabled. */
+  public static void enableTelemetry() {
+    if (INSTANCE.isEnabled()) {
+      telemetryCollector = new RumInjectorMetrics();
+      telemetryCollector.onInitializationSucceed();
     } else {
       telemetryCollector = RumTelemetryCollector.NO_OP;
     }

@@ -94,15 +94,6 @@ public class WriterFactory {
             "CI Visibility functionality is limited. Please upgrade to Agent v6.40+ or v7.40+ or enable Agentless mode.");
       }
     }
-    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isLlmObsEnabled())) {
-      featuresDiscovery.discoverIfOutdated();
-      if (featuresDiscovery.supportsEvpProxy() || config.isLlmObsAgentlessEnabled()) {
-        configuredType = DD_INTAKE_WRITER_TYPE;
-      } else {
-        log.info("LLM Observability functionality is limited.");
-        // TODO: add supported agent version to this log line for llm obs
-      }
-    }
 
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
@@ -152,7 +143,7 @@ public class WriterFactory {
 
       DDAgentApi ddAgentApi =
           new DDAgentApi(
-              commObjects.okHttpClient,
+              commObjects.agentHttpClient,
               commObjects.agentUrl,
               featuresDiscovery,
               commObjects.monitoring,
@@ -190,15 +181,30 @@ public class WriterFactory {
       TrackType trackType) {
     featuresDiscovery.discoverIfOutdated();
     boolean evpProxySupported = featuresDiscovery.supportsEvpProxy();
-    boolean useProxyApi =
-        (evpProxySupported && TrackType.LLMOBS == trackType && !config.isLlmObsAgentlessEnabled())
-            || (evpProxySupported
-                && (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType)
-                && !config.isCiVisibilityAgentlessEnabled());
+    boolean useProxyApi = false;
+
+    if (TrackType.LLMOBS == trackType) {
+      useProxyApi = evpProxySupported && !config.isLlmObsAgentlessEnabled();
+      if (!evpProxySupported && !config.isLlmObsAgentlessEnabled()) {
+        // Agentless is forced due to lack of evp proxy support
+        boolean agentRunning = null != featuresDiscovery.getTraceEndpoint();
+        if (agentRunning) {
+          log.info(
+              "LLM Observability configured to use agent proxy, but not compatible with agent version {}. Please upgrade to v7.55+.",
+              featuresDiscovery.getVersion());
+        } else {
+          log.info("LLM Observability configured to use agent proxy, but agent is not running.");
+        }
+        log.info("LLM Observability will use agentless data submission instead.");
+      }
+
+    } else if (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType) {
+      useProxyApi = evpProxySupported && !config.isCiVisibilityAgentlessEnabled();
+    }
 
     if (useProxyApi) {
       return DDEvpProxyApi.builder()
-          .httpClient(commObjects.okHttpClient)
+          .httpClient(commObjects.agentHttpClient)
           .agentUrl(commObjects.agentUrl)
           .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
           .trackType(trackType)
@@ -220,6 +226,7 @@ public class WriterFactory {
       }
       return DDIntakeApi.builder()
           .hostUrl(hostUrl)
+          .httpClient(commObjects.getIntakeHttpClient())
           .apiKey(config.getApiKey())
           .trackType(trackType)
           .build();

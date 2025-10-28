@@ -1,6 +1,6 @@
 package opentelemetry14.context
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
@@ -14,7 +14,7 @@ import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_ROOT_S
 import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 
-class ContextTest extends AgentTestRunner {
+class ContextTest extends InstrumentationSpecification {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("context-instrumentation")
 
@@ -32,25 +32,33 @@ class ContextTest extends AgentTestRunner {
 
     when:
     def currentSpan = Span.current()
+    def currentSpanFromContext = Span.fromContext(Context.current())
+    def currentSpanFromContextOrNull = Span.fromContextOrNull(Context.current())
 
-    then:
+    then: "current span must be invalid or null"
     currentSpan != null
-    currentSpan.spanContext.traceId == "00000000000000000000000000000000"
-    currentSpan.spanContext.spanId == "0000000000000000"
+    !currentSpan.spanContext.valid
+    currentSpanFromContext != null
+    !currentSpanFromContext.spanContext.valid
+    currentSpanFromContextOrNull == null
 
     when:
     def scope = otelSpan.makeCurrent()
     currentSpan = Span.current()
+    currentSpanFromContext = Span.fromContext(Context.current())
+    currentSpanFromContextOrNull = Span.fromContextOrNull(Context.current())
 
-    then:
+    then: "OTel span must be current span"
     currentSpan == otelSpan
+    currentSpanFromContext == otelSpan
+    currentSpanFromContextOrNull == otelSpan
 
     when:
     def ddSpan = TEST_TRACER.startSpan("dd-api", "other-name")
     def ddScope = TEST_TRACER.activateManualSpan(ddSpan)
     currentSpan = Span.current()
 
-    then:
+    then: "Datadog span must be current span"
     currentSpan.spanContext.traceId == ddSpan.traceId.toHexString()
     currentSpan.spanContext.spanId == DDSpanId.toHexStringPadded(ddSpan.spanId)
 

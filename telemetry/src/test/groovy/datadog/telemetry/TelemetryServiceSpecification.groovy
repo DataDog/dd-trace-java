@@ -1,12 +1,12 @@
 package datadog.telemetry
 
-import datadog.telemetry.dependency.Dependency
-import datadog.telemetry.api.Integration
 import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.LogMessageLevel
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.telemetry.dependency.Dependency
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
 import datadog.trace.api.config.AppSecConfig
@@ -15,11 +15,12 @@ import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 
 class TelemetryServiceSpecification extends DDSpecification {
-  def confKeyValue = ConfigSetting.of("confkey", "confvalue", ConfigOrigin.DEFAULT)
-  def configuration = [confkey: confKeyValue]
+  def confKeyOrigin = ConfigOrigin.DEFAULT
+  def confKeyValue = ConfigSetting.of("confkey", "confvalue", confKeyOrigin)
+  def configuration = [confKeyOrigin: [confkey: confKeyValue]]
   def integration = new Integration("integration", true)
   def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
@@ -317,7 +318,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     bodySize > 0
 
     when: 'sending first part of data'
-    telemetryService = new TelemetryService(testHttpClient, bodySize + 500, false)
+    telemetryService = new TelemetryService(testHttpClient, bodySize + 510, false)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -437,7 +438,8 @@ class TelemetryServiceSpecification extends DDSpecification {
     String instrKey = 'instrumentation_config_id'
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
-    telemetryService.addConfiguration(['${instrKey}': ConfigSetting.of(instrKey, id, ConfigOrigin.ENV)])
+    def configMap = [(instrKey): ConfigSetting.of(instrKey, id, ConfigOrigin.ENV)]
+    telemetryService.addConfiguration([(ConfigOrigin.ENV): configMap])
 
     when: 'first iteration'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
@@ -482,9 +484,9 @@ class TelemetryServiceSpecification extends DDSpecification {
 
   def 'app-started must include activated products info'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
-    injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
-    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig)
+    injectEnvConfig(ConfigStrings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
+    injectEnvConfig(ConfigStrings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
+    injectEnvConfig(ConfigStrings.toEnvVar(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), dynInstrConfig)
 
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)

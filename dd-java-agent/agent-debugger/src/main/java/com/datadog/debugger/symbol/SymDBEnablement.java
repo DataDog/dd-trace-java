@@ -58,7 +58,7 @@ public class SymDBEnablement implements ProductListener {
       SymDbRemoteConfigRecord symDb = deserializeSymDb(content);
       if (symDb.isUploadSymbols()) {
         // can be long, make it async
-        AgentTaskScheduler.INSTANCE.execute(this::startSymbolExtraction);
+        AgentTaskScheduler.get().execute(this::startSymbolExtraction);
       } else {
         stopSymbolExtraction();
       }

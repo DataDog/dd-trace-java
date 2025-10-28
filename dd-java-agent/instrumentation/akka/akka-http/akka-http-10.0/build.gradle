@@ -22,12 +22,12 @@ addTestSuiteForDir 'version101IastTest', 'iastTest'
 addTestSuiteForDir 'version102IastTest', 'iastTest'
 addTestSuiteForDir 'latestDepIastTest', 'iastTest'
 
-compileLagomTestJava {
+tasks.named("compileLagomTestJava", JavaCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-compileLagomTestGroovy {
+tasks.named("compileLagomTestGroovy", GroovyCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
@@ -109,6 +109,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
+  baseTestImplementation project(':utils:test-utils')
   baseTestImplementation libs.scala211
   // First 10.0.x version with a convenient way to test http2 support
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.10'
@@ -116,7 +117,7 @@ dependencies {
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.11', version: '10.0.10'
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.11', version: '10.0.10'
 
-  iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
@@ -131,13 +132,13 @@ dependencies {
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.1.+'
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.12', version: '10.1.+'
 
-  version101IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  version101IastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   version102IastTestImplementation libs.scala212
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.2.+'
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.6.+'
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.2.+'
-  version102IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  version102IastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   version102Scala213TestImplementation libs.scala213
   version102Scala213TestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.+'
@@ -161,7 +162,7 @@ dependencies {
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.8.+'
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-actor_2.13', version: '2.8.+'
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '[10.+,10.5.2)'
-  latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  latestDepIastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
 
   lagomTestImplementation libs.scala211
@@ -170,32 +171,26 @@ dependencies {
   lagomTestImplementation group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'
 }
 
-compileBaseTestGroovy {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+tasks.named("compileBaseTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
-compileBaseForkedTestGroovy {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+tasks.named("compileBaseForkedTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
-compileVersion101TestGroovy {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
-  dependsOn "compileVersion101TestScala"
+tasks.named("compileVersion101TestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 
-compileVersion101ForkedTestGroovy {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
-  dependsOn "compileVersion101TestScala"
+tasks.named("compileVersion101ForkedTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileVersion101TestScala').map { it.destinationDirectory })
 }
 
-compileVersion102Scala213TestGroovy {
-  classpath = classpath.plus(files(compileVersion102Scala213TestScala.destinationDirectory))
-  dependsOn "compileVersion102Scala213TestScala"
+tasks.named("compileVersion102Scala213TestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileVersion102Scala213TestScala').map { it.destinationDirectory })
 }
 
-compileLatestDepTestGroovy {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }

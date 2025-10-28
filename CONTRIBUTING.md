@@ -13,6 +13,10 @@ Check [Adding a New Instrumentation](docs/add_new_instrumentation.md) for instru
 
 Check [How Instrumentations Work](docs/how_instrumentations_work.md) for a deep dive into how instrumentations work.
 
+## Adding Configurations
+
+Check [Adding a New Configuration](docs/add_new_configurations.md) for instructions on adding a new configuration.
+
 ## Code contributions
 
 ### Development environment quick check
@@ -52,6 +56,7 @@ The default JVM to build and run tests from the command line should be Java 8.
   * `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 1.8` -> `Download`
 * Configure Java and Groovy import formatting:  
   * `Settings...` ->`Editor` > `Code Style` > `Java` > `Imports`
+    * `Use single class import`: checked
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
     * Use the following import layout to ensure consistency with google-java-format:

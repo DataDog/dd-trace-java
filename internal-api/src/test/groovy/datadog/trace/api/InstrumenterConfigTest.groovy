@@ -1,8 +1,20 @@
 package datadog.trace.api
 
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 
 class InstrumenterConfigTest extends DDSpecification {
+
+  def strictness
+
+  def setup(){
+    strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
+  def cleanup(){
+    ConfigHelper.get().setConfigInversionStrict(strictness)
+  }
 
   def "verify integration config"() {
     setup:

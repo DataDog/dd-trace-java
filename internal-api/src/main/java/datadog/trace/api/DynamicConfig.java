@@ -11,10 +11,11 @@ import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
+import static datadog.trace.util.ConfigStrings.normalizedHeaderTag;
+import static datadog.trace.util.ConfigStrings.trim;
 
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
-import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -248,11 +249,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   }
 
   static String key(Map.Entry<String, String> association) {
-    return Strings.trim(association.getKey());
+    return trim(association.getKey());
   }
 
   static String value(Map.Entry<String, String> association) {
-    return Strings.trim(association.getValue());
+    return trim(association.getValue());
   }
 
   static String lowerKey(Map.Entry<String, String> association) {
@@ -263,7 +264,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     String requestTag = value(association);
     if (requestTag.isEmpty()) {
       // normalization is only applied when generating default tag names; see ConfigConverter
-      requestTag = "http.request.headers." + Strings.normalizedHeaderTag(association.getKey());
+      requestTag = "http.request.headers." + normalizedHeaderTag(association.getKey());
     }
     return requestTag;
   }
@@ -272,7 +273,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     String responseTag = value(association);
     if (responseTag.isEmpty()) {
       // normalization is only applied when generating default tag names; see ConfigConverter
-      responseTag = "http.response.headers." + Strings.normalizedHeaderTag(association.getKey());
+      responseTag = "http.response.headers." + normalizedHeaderTag(association.getKey());
     }
     return responseTag;
   }
@@ -293,7 +294,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(TRACE_SAMPLING_RULES, newSnapshot.traceSamplingRulesJson);
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
 
-    ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
+    ConfigCollector.get().putRemote(update);
   }
 
   @SuppressWarnings("SameParameterValue")

@@ -1,0 +1,64 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+muzzle {
+  pass {
+    group = "org.apache.kafka"
+    module = "kafka-clients"
+    versions = "[3.8.0,)"
+    assertInverse = true
+    javaVersion = "17"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+  }
+}
+
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 17)
+}
+
+dependencies {
+  implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
+  implementation project(':dd-java-agent:instrumentation:span-origin')
+
+  main_java17CompileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
+  main_java17Implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
+
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.3.4', {
+    exclude group: 'org.apache.kafka'
+  }
+  testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.3.4', {
+    exclude group: 'org.apache.kafka'
+  }
+
+  testImplementation 'org.apache.kafka:kafka-server-common:3.8.0:test'
+
+  testImplementation 'org.apache.kafka:kafka-clients:3.8.0'
+  testImplementation 'org.apache.kafka:kafka-clients:3.8.0:test'
+
+  testImplementation 'org.apache.kafka:kafka_2.13:3.8.0'
+  testImplementation 'org.apache.kafka:kafka_2.13:3.8.0:test'
+
+  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
+
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
+  latestDepTestImplementation group: 'io.dropwizard.metrics', name: 'metrics-core', version: '+'
+  latestDepTestImplementation libs.guava
+}

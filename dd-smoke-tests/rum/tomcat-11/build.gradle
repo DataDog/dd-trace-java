@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -17,7 +19,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests:rum')
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'com.example.Main')
   }
@@ -28,13 +30,18 @@ java {
     languageVersion = JavaLanguageVersion.of(17)
   }
 }
+
 tasks.withType(JavaCompile).configureEach {
-  setJavaVersion(it, 17)
-  sourceCompatibility = JavaVersion.VERSION_17
-  targetCompatibility = JavaVersion.VERSION_17
+  configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.rum.tomcat11.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.rum.tomcat11.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

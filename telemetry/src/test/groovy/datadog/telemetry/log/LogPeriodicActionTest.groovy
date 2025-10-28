@@ -50,7 +50,7 @@ class LogPeriodicActionTest extends DDSpecification {
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
     logMessage.getMessage() == 'test'
-    logMessage.getStackTrace() == "${MutableException.canonicalName}: exception\n" +
+    logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
       "  at datadog.MyClass.method(file:42)\n"
   }
 

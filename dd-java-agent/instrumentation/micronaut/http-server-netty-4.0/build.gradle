@@ -14,17 +14,15 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-[compileMain_java17Java, compileTestJava, compileLatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
   }
 }
 
-[compileTestGroovy, compileLatestDepTestGroovy].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(17)
+["compileTestGroovy", "compileLatestDepTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, 17)
   }
 }
 
@@ -35,7 +33,7 @@ dependencies {
   // Added to ensure cross compatibility:
   testImplementation project(':dd-java-agent:instrumentation:micronaut:http-server-netty-2.0')
   testImplementation project(':dd-java-agent:instrumentation:micronaut:http-server-netty-3.0')
-  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:agent-debugger')
   testImplementation group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '4.0.0', {
     exclude group: 'org.slf4j', module: 'slf4j-api'

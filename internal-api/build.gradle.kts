@@ -5,8 +5,6 @@ plugins {
   id("me.champeau.jmh")
 }
 
-val skipSettingCompilerRelease by extra(true) // need access to sun.misc.SharedSecrets
-
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/tries.gradle")
 
@@ -16,18 +14,12 @@ java {
   }
 }
 
-tasks.compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
+tasks.withType<JavaCompile>().configureEach {
+  configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")
 }
 
-tasks.compileTestJava {
-  setJavaVersion(8)
-}
-
-fun AbstractCompile.setJavaVersion(javaVersionInteger: Int) {
-  (project.extra["setJavaVersion"] as Closure<*>).call(this, javaVersionInteger)
+fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
 val minimumBranchCoverage by extra(0.7)
@@ -65,6 +57,10 @@ val excludedClassesCoverage by extra(
     // These are almost fully abstract classes so nothing to test
     "datadog.trace.api.profiling.RecordingData",
     "datadog.trace.api.appsec.AppSecEventTracker",
+    // POJOs
+    "datadog.trace.api.appsec.HttpClientPayload",
+    "datadog.trace.api.appsec.HttpClientRequest",
+    "datadog.trace.api.appsec.HttpClientResponse",
     // A plain enum
     "datadog.trace.api.profiling.RecordingType",
     // Data Streams Monitoring
@@ -73,10 +69,11 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
     "datadog.trace.api.datastreams.NoopPathwayContext",
     "datadog.trace.api.datastreams.StatsPoint",
+    // Debugger
+    "datadog.trace.api.debugger.DebuggerConfigUpdate",
     // Bootstrap API
     "datadog.trace.bootstrap.ActiveSubsystems",
     "datadog.trace.bootstrap.ContextStore.Factory",
-    "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
     "datadog.trace.bootstrap.instrumentation.api.Tags",
     "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
@@ -121,6 +118,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.civisibility.config.TestSourceData",
     "datadog.trace.api.civisibility.config.LibraryCapability",
     "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
+    "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge.TotalProbeCount",
     "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
     "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
     "datadog.trace.api.civisibility.coverage.NoOpCoverageStore.Factory",
@@ -164,7 +162,6 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.Config",
     "datadog.trace.api.Config.HostNameHolder",
     "datadog.trace.api.Config.RuntimeIdHolder",
-    "datadog.trace.api.ConfigCollector",
     "datadog.trace.api.DynamicConfig",
     "datadog.trace.api.DynamicConfig.Builder",
     "datadog.trace.api.DynamicConfig.Snapshot",
@@ -246,9 +243,6 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
     "datadog.trace.util.stacktrace.HotSpotStackWalker",
     "datadog.trace.util.stacktrace.StackWalkerFactory",
-    // Tested using forked process
-    "datadog.trace.api.env.CapturedEnvironment",
-    "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
     // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
@@ -258,8 +252,6 @@ val excludedClassesBranchCoverage by extra(
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
     "datadog.trace.util.stacktrace.StackWalkerFactory"
   )
 )
@@ -276,6 +268,7 @@ dependencies {
   api(project(":components:environment"))
   api(project(":components:json"))
   api(project(":components:yaml"))
+  api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 
   // has to be loaded by system classloader:
@@ -284,12 +277,10 @@ dependencies {
 
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
-  testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation(libs.bundles.junit5)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
-  testImplementation(libs.truth)
 }
 
 jmh {

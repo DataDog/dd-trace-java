@@ -13,7 +13,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.test.scala.classesDirectory)
 }
 

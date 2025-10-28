@@ -1,14 +1,20 @@
 package datadog.trace.api.rum;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import java.util.concurrent.atomic.AtomicLong;
+import datadog.trace.api.telemetry.MetricCollector;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * This class implements the RumTelemetryCollector interface, which is used to collect telemetry
- * from the RumInjector. Metrics are then reported via StatsDClient with tagging.
+ * from the RumInjector. Metrics are then reported via the Datadog telemetry intake system.
  *
  * @see <a
  *     href="https://github.com/DataDog/dd-go/blob/prod/trace/apps/tracer-telemetry-intake/telemetry-metrics/static/common_metrics.json">common
@@ -16,30 +22,22 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class RumInjectorMetrics implements RumTelemetryCollector {
 
-  private final AtomicLong injectionSucceed = new AtomicLong();
-  private final AtomicLong injectionFailed = new AtomicLong();
-  private final AtomicLong injectionSkipped = new AtomicLong();
-  private final AtomicLong contentSecurityPolicyDetected = new AtomicLong();
-  private final AtomicLong initializationSucceed = new AtomicLong();
+  private final Queue<MetricCollector.Metric> metrics = new LinkedBlockingQueue<>(1024);
+  private final Queue<MetricCollector.DistributionSeriesPoint> distributions =
+      new LinkedBlockingQueue<>(1024);
 
-  private final StatsDClient statsd;
+  private final DDCache<String, List<String>> succeedTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, List<String>> skippedTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, List<String>> cspTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, List<String>> responseTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, List<String>> timeTagsCache = DDCaches.newFixedSizeCache(8);
+  private final DDCache<String, List<String>> failedTagsCache = DDCaches.newFixedSizeCache(16);
+  private final DDCache<String, List<String>> initTagsCache = DDCaches.newFixedSizeCache(1);
 
   private final String applicationId;
   private final String remoteConfigUsed;
 
-  // Cache dependent on servlet version and content encoding
-  private final DDCache<String, String[]> succeedTagsCache = DDCaches.newFixedSizeCache(8);
-  private final DDCache<String, String[]> skippedTagsCache = DDCaches.newFixedSizeCache(8);
-  private final DDCache<String, String[]> cspTagsCache = DDCaches.newFixedSizeCache(8);
-  private final DDCache<String, String[]> responseTagsCache = DDCaches.newFixedSizeCache(8);
-  private final DDCache<String, String[]> timeTagsCache = DDCaches.newFixedSizeCache(8);
-  private final DDCache<String, String[]> failedTagsCache = DDCaches.newFixedSizeCache(16);
-
-  private static final String[] INIT_TAGS =
-      new String[] {"integration_name:servlet", "integration_version:N/A"};
-
-  public RumInjectorMetrics(final StatsDClient statsd) {
-    this.statsd = statsd;
+  public RumInjectorMetrics() {
 
     // Get RUM config values (applicationId and remoteConfigUsed) for tagging
     RumInjector rumInjector = RumInjector.get();
@@ -55,146 +53,171 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
 
   @Override
   public void onInjectionSucceed(String servletVersion) {
-    injectionSucceed.incrementAndGet();
-
-    String[] tags =
+    List<String> tags =
         succeedTagsCache.computeIfAbsent(
             servletVersion,
             version ->
-                new String[] {
-                  "application_id:" + applicationId,
-                  "integration_name:servlet",
-                  "integration_version:" + version,
-                  "remote_config_used:" + remoteConfigUsed
-                });
+                Arrays.asList(
+                    "application_id:" + applicationId,
+                    "integration_name:servlet",
+                    "integration_version:" + version,
+                    "remote_config_used:" + remoteConfigUsed));
 
-    statsd.count("rum.injection.succeed", 1, tags);
+    MetricCollector.Metric metric =
+        new MetricCollector.Metric("rum", true, "injection.succeed", "count", 1, tags);
+    metrics.offer(metric);
   }
 
   @Override
   public void onInjectionFailed(String servletVersion, String contentEncoding) {
-    injectionFailed.incrementAndGet();
-
     String cacheKey = servletVersion + ":" + contentEncoding;
-    String[] tags =
+    List<String> tags =
         failedTagsCache.computeIfAbsent(
             cacheKey,
             key -> {
               if (contentEncoding != null) {
-                return new String[] {
-                  "application_id:" + applicationId,
-                  "content_encoding:" + contentEncoding,
-                  "integration_name:servlet",
-                  "integration_version:" + servletVersion,
-                  "reason:failed_to_return_response_wrapper",
-                  "remote_config_used:" + remoteConfigUsed
-                };
+                return Arrays.asList(
+                    "application_id:" + applicationId,
+                    "content_encoding:" + contentEncoding,
+                    "integration_name:servlet",
+                    "integration_version:" + servletVersion,
+                    "reason:failed_to_return_response_wrapper",
+                    "remote_config_used:" + remoteConfigUsed);
               } else {
-                return new String[] {
-                  "application_id:" + applicationId,
-                  "integration_name:servlet",
-                  "integration_version:" + servletVersion,
-                  "reason:failed_to_return_response_wrapper",
-                  "remote_config_used:" + remoteConfigUsed
-                };
+                return Arrays.asList(
+                    "application_id:" + applicationId,
+                    "integration_name:servlet",
+                    "integration_version:" + servletVersion,
+                    "reason:failed_to_return_response_wrapper",
+                    "remote_config_used:" + remoteConfigUsed);
               }
             });
 
-    statsd.count("rum.injection.failed", 1, tags);
+    MetricCollector.Metric metric =
+        new MetricCollector.Metric("rum", true, "injection.failed", "count", 1, tags);
+    metrics.offer(metric);
   }
 
   @Override
   public void onInjectionSkipped(String servletVersion) {
-    injectionSkipped.incrementAndGet();
-
-    String[] tags =
+    List<String> tags =
         skippedTagsCache.computeIfAbsent(
             servletVersion,
             version ->
-                new String[] {
-                  "application_id:" + applicationId,
-                  "integration_name:servlet",
-                  "integration_version:" + version,
-                  "reason:should_not_inject",
-                  "remote_config_used:" + remoteConfigUsed
-                });
+                Arrays.asList(
+                    "application_id:" + applicationId,
+                    "integration_name:servlet",
+                    "integration_version:" + version,
+                    "reason:should_not_inject",
+                    "remote_config_used:" + remoteConfigUsed));
 
-    statsd.count("rum.injection.skipped", 1, tags);
+    MetricCollector.Metric metric =
+        new MetricCollector.Metric("rum", true, "injection.skipped", "count", 1, tags);
+    metrics.offer(metric);
   }
 
   @Override
   public void onInitializationSucceed() {
-    initializationSucceed.incrementAndGet();
-    statsd.count("rum.injection.initialization.succeed", 1, INIT_TAGS);
+    List<String> tags =
+        initTagsCache.computeIfAbsent(
+            "init", key -> Arrays.asList("integration_name:servlet", "integration_version:N/A"));
+
+    MetricCollector.Metric metric =
+        new MetricCollector.Metric(
+            "rum", true, "injection.initialization.succeed", "count", 1, tags);
+    metrics.offer(metric);
   }
 
   @Override
   public void onContentSecurityPolicyDetected(String servletVersion) {
-    contentSecurityPolicyDetected.incrementAndGet();
-
-    String[] tags =
+    List<String> tags =
         cspTagsCache.computeIfAbsent(
             servletVersion,
             version ->
-                new String[] {
-                  "integration_name:servlet",
-                  "integration_version:" + version,
-                  "kind:header",
-                  "reason:csp_header_found",
-                  "status:seen"
-                });
-    statsd.count("rum.injection.content_security_policy", 1, tags);
+                Arrays.asList(
+                    "integration_name:servlet",
+                    "integration_version:" + version,
+                    "kind:header",
+                    "reason:csp_header_found",
+                    "status:seen"));
+
+    MetricCollector.Metric metric =
+        new MetricCollector.Metric(
+            "rum", true, "injection.content_security_policy", "count", 1, tags);
+    metrics.offer(metric);
   }
 
   @Override
   public void onInjectionResponseSize(String servletVersion, long bytes) {
-    String[] tags =
+    List<String> tags =
         responseTagsCache.computeIfAbsent(
             servletVersion,
             version ->
-                new String[] {
-                  "integration_name:servlet",
-                  "integration_version:" + version,
-                  "response_kind:header"
-                });
-    statsd.distribution("rum.injection.response.bytes", bytes, tags);
+                Arrays.asList(
+                    "integration_name:servlet",
+                    "integration_version:" + version,
+                    "response_kind:header"));
+
+    MetricCollector.DistributionSeriesPoint distribution =
+        new MetricCollector.DistributionSeriesPoint(
+            "injection.response.bytes", true, "rum", (int) bytes, tags);
+    distributions.offer(distribution);
   }
 
   @Override
   public void onInjectionTime(String servletVersion, long milliseconds) {
-    String[] tags =
+    List<String> tags =
         timeTagsCache.computeIfAbsent(
             servletVersion,
-            version -> new String[] {"integration_name:servlet", "integration_version:" + version});
-    statsd.distribution("rum.injection.ms", milliseconds, tags);
+            version -> Arrays.asList("integration_name:servlet", "integration_version:" + version));
+
+    MetricCollector.DistributionSeriesPoint distribution =
+        new MetricCollector.DistributionSeriesPoint(
+            "injection.ms", true, "rum", (int) milliseconds, tags);
+    distributions.offer(distribution);
   }
 
   @Override
   public void close() {
-    injectionSucceed.set(0);
-    injectionFailed.set(0);
-    injectionSkipped.set(0);
-    contentSecurityPolicyDetected.set(0);
-    initializationSucceed.set(0);
-
+    metrics.clear();
+    distributions.clear();
     succeedTagsCache.clear();
     skippedTagsCache.clear();
     cspTagsCache.clear();
     responseTagsCache.clear();
     timeTagsCache.clear();
     failedTagsCache.clear();
+    initTagsCache.clear();
   }
 
-  public String summary() {
-    return "\ninitializationSucceed="
-        + initializationSucceed.get()
-        + "\ninjectionSucceed="
-        + injectionSucceed.get()
-        + "\ninjectionFailed="
-        + injectionFailed.get()
-        + "\ninjectionSkipped="
-        + injectionSkipped.get()
-        + "\ncontentSecurityPolicyDetected="
-        + contentSecurityPolicyDetected.get();
+  /**
+   * Drains all count metrics.
+   *
+   * @return Collection of metrics sent via telemetry
+   */
+  public synchronized Collection<MetricCollector.Metric> drain() {
+    if (metrics.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<MetricCollector.Metric> drained = new ArrayList<>(metrics);
+    metrics.clear();
+    return drained;
+  }
+
+  /**
+   * Drains all distribution metrics.
+   *
+   * @return Collection of distribution points sent via telemetry
+   */
+  public synchronized Collection<MetricCollector.DistributionSeriesPoint>
+      drainDistributionSeries() {
+    if (distributions.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<MetricCollector.DistributionSeriesPoint> drained = new ArrayList<>(distributions);
+    distributions.clear();
+    return drained;
   }
 }

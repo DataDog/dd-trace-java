@@ -17,7 +17,10 @@ public interface ProbeImplementation {
   String getStrTags();
 
   void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation);
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation methodLocation,
+      boolean singleProbe);
 
   void commit(
       CapturedContext entryContext,
@@ -27,10 +30,6 @@ public interface ProbeImplementation {
   void commit(CapturedContext lineContext, int line);
 
   MethodLocation getEvaluateAt();
-
-  boolean isCaptureSnapshot();
-
-  boolean hasCondition();
 
   CapturedContext.Status createStatus();
 
@@ -86,7 +85,10 @@ public interface ProbeImplementation {
 
     @Override
     public void evaluate(
-        CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {}
+        CapturedContext context,
+        CapturedContext.Status status,
+        MethodLocation methodLocation,
+        boolean singleProbe) {}
 
     @Override
     public void commit(
@@ -100,16 +102,6 @@ public interface ProbeImplementation {
     @Override
     public MethodLocation getEvaluateAt() {
       return evaluateAt;
-    }
-
-    @Override
-    public boolean isCaptureSnapshot() {
-      return captureSnapshot;
-    }
-
-    @Override
-    public boolean hasCondition() {
-      return script != null;
     }
 
     @Override

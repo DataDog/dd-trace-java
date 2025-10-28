@@ -1,11 +1,11 @@
 package datadog.crashtracking;
 
+import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.RWXRWXRWX;
 import static datadog.crashtracking.Initializer.R_XR_XR_X;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
-import static datadog.crashtracking.Initializer.writeConfig;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
@@ -56,7 +56,7 @@ public final class CrashUploaderScriptInitializer {
       return;
     }
 
-    writeConfig(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
+    writeConfigToPath(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
   }
 
   private static boolean copyCrashUploaderScript(
@@ -67,28 +67,21 @@ public final class CrashUploaderScriptInitializer {
     } catch (UnsupportedOperationException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Unsupported permissions '"
-              + RWXRWXRWX
-              + "' for "
-              + scriptDirectory
-              + ". "
-              + SETUP_FAILURE_MESSAGE);
+          "Unsupported permissions '" + RWXRWXRWX + "' for {}. " + SETUP_FAILURE_MESSAGE,
+          scriptDirectory);
       return false;
     } catch (FileAlreadyExistsException ignored) {
       // can be safely ignored; if the folder exists we will just reuse it
       if (!Files.isWritable(scriptDirectory)) {
         LOG.warn(
-            SEND_TELEMETRY,
-            "Read only directory " + scriptDirectory + ". " + SETUP_FAILURE_MESSAGE);
+            SEND_TELEMETRY, "Read only directory {}. " + SETUP_FAILURE_MESSAGE, scriptDirectory);
         return false;
       }
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Failed to create writable crash tracking script folder "
-              + scriptDirectory
-              + ". "
-              + SETUP_FAILURE_MESSAGE);
+          "Failed to create writable crash tracking script folder {}. " + SETUP_FAILURE_MESSAGE,
+          scriptDirectory);
       return false;
     }
     try {
@@ -97,7 +90,8 @@ public final class CrashUploaderScriptInitializer {
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Failed to copy crash tracking script " + scriptPath + ". " + SETUP_FAILURE_MESSAGE);
+          "Failed to copy crash tracking script {}. " + SETUP_FAILURE_MESSAGE,
+          scriptPath);
       return false;
     }
     return true;

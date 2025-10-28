@@ -56,6 +56,7 @@ import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
 import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class CodeOriginTest extends CapturingTestBase {
@@ -212,6 +213,7 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @Test
+  @Disabled("Exit spans are disabled for now")
   public void testCaptureCodeOriginExit() {
     installProbes();
     CodeOriginProbe probe =

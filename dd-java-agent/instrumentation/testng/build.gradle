@@ -7,7 +7,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
-  testFixturesApi testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
   testFixturesImplementation group: 'org.testng', name: 'testng', version: '6.4'
   testFixturesApi group: 'org.apache.maven', name: 'maven-artifact', version: '3.9.9'
@@ -15,7 +15,7 @@ dependencies {
 
 // gradle can't downgrade the testng dependencies with `strictly` and IntelliJ IDEA reports
 // an error when importing the project, so pretty please DON'T change this back to strictly
-configurations.matching({ it.name.startsWith('test') }).each({
+configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.testng', name: 'testng', version: '6.4'
   }

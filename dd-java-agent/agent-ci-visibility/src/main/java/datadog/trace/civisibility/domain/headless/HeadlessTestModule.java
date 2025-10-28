@@ -153,6 +153,10 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(Tags.TEST_TEST_MANAGEMENT_ENABLED, true);
     }
 
+    if (executionResults.hasFailedTestReplayTests()) {
+      setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
+    }
+
     super.end(endTime);
   }
 

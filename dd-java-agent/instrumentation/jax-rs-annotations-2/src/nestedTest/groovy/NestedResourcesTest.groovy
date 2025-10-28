@@ -1,18 +1,16 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.dropwizard.testing.junit.ResourceTestRule
-import org.junit.ClassRule
+import io.dropwizard.testing.junit5.ResourceExtension
 import spock.lang.Shared
 
 import javax.ws.rs.core.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class NestedResourcesTest extends AgentTestRunner {
+class NestedResourcesTest extends InstrumentationSpecification {
   @Shared
-  @ClassRule
-  ResourceTestRule resources = ResourceTestRule.builder()
+  ResourceExtension resources = ResourceExtension.builder()
   .addResource(new KeyCloakResources.AdminRoot())
   .addResource(new KeyCloakResources.RealmsAdminResource())
   .addResource(new KeyCloakResources.RealmAdminResource())
@@ -20,15 +18,23 @@ class NestedResourcesTest extends AgentTestRunner {
   .addResource(new KeyCloakResources.UserResource())
   .build()
 
+  // Spock has no support for JUnit5 extension.
+  def setupSpec() {
+    resources.before()
+  }
+
+  def cleanupSpec() {
+    resources.after()
+  }
+
   def getClient() {
     resources.client()
   }
 
   def "test nested calls"() {
     when:
-    Response response
-    runUnderTrace("test.span") {
-      response = getClient().target("/admin/realms/realm1/users/53c82214-ca89-423b-a1f3-6a7784e61cf6").request().get()
+    Response response = runUnderTrace("test.span") {
+      getClient().target("/admin/realms/realm1/users/53c82214-ca89-423b-a1f3-6a7784e61cf6").request().get()
     }
 
     then:

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class LegacyAws2ClientForkedTest extends AgentTestRunner {
+class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

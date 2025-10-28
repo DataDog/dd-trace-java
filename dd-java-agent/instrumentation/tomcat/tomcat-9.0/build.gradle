@@ -1,0 +1,17 @@
+evaluationDependsOn ':dd-java-agent:instrumentation:tomcat:tomcat-5.5'
+
+muzzle {
+  pass {
+    group = 'org.apache.tomcat'
+    module = 'tomcat-catalina'
+    versions = '[9.0.0.M1,)'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '9.0.0.M1'
+}
+
+// testing happens in tomcat-5.5 module

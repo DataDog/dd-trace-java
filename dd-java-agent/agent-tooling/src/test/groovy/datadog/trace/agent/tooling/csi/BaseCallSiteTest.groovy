@@ -193,6 +193,14 @@ class BaseCallSiteTest extends DDSpecification {
   final CallSiteTransformer transformer,
   final ClassLoader loader = Thread.currentThread().contextClassLoader) {
     final classContent = loader.getResourceAsStream("${source.getInternalName()}.class").bytes
+    return transformType(source, classContent, target, transformer, loader)
+  }
+
+  protected static byte[] transformType(final Type source,
+  final byte[] classContent,
+  final Type target,
+  final CallSiteTransformer transformer,
+  final ClassLoader loader = Thread.currentThread().contextClassLoader) {
     final classFileTransformer = new AgentBuilder.Default()
     .type(named(source.className))
     .transform(new AgentBuilder.Transformer() {

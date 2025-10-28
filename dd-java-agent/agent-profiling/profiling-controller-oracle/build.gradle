@@ -5,8 +5,6 @@ ext {
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ORACLE8
   skipSettingTestJavaVersion = true
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -24,7 +22,6 @@ dependencies {
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
   testImplementation project(':dd-java-agent:agent-profiling')
 }

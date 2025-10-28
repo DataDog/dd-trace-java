@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import dd.test.trace.annotation.SayTracedHello
@@ -6,7 +6,7 @@ import dd.test.trace.annotation.TracedSubClass
 
 import java.util.concurrent.Callable
 
-class TraceAnnotationNewOpNameForkedTest extends AgentTestRunner {
+class TraceAnnotationNewOpNameForkedTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     injectSysConfig("dd.trace.annotations.legacy.tracing.enabled", "false")

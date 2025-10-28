@@ -1,5 +1,5 @@
 import datadog.opentelemetry.shim.trace.OtelSpanEvent
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -37,7 +37,7 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.NANOSECONDS
 
-class OpenTelemetry14Test extends AgentTestRunner {
+class OpenTelemetry14Test extends InstrumentationSpecification {
   static final TIME_MILLIS = 1723220824705
   static final TIME_NANO = TIME_MILLIS * 1_000_000L
 

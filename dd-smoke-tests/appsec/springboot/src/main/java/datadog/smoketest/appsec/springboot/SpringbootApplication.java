@@ -25,8 +25,9 @@ public class SpringbootApplication {
     Field appSecClassLoaderField = agentClass.getDeclaredField("AGENT_CLASSLOADER");
     appSecClassLoaderField.setAccessible(true);
     ClassLoader appSecClassLoader = (ClassLoader) appSecClassLoaderField.get(null);
-    Class<?> appSecSystemClass = appSecClassLoader.loadClass("com.datadog.appsec.AppSecSystem");
-    Field activeField = appSecSystemClass.getField("ACTIVE");
+    Class<?> appSecSystemClass =
+        appSecClassLoader.loadClass("datadog.trace.bootstrap.ActiveSubsystems");
+    Field activeField = appSecSystemClass.getField("APPSEC_ACTIVE");
     boolean curActiveValue = (boolean) activeField.get(null);
     if (curActiveValue) {
       System.out.println("AppSec is already active");

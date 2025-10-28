@@ -15,7 +15,7 @@ import com.amazonaws.services.rds.AmazonRDSClient
 import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.S3ClientOptions
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.AutoCleanup
@@ -27,7 +27,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class AWS0ClientTest extends AgentTestRunner {
+class AWS0ClientTest extends InstrumentationSpecification {
 
   private static final CREDENTIALS_PROVIDER_CHAIN = new AWSCredentialsProviderChain(
   new EnvironmentVariableCredentialsProvider(),

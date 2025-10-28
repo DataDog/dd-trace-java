@@ -12,8 +12,8 @@ import java.util.List;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
-  private static final byte[] SEQUENCE = "Seq".getBytes(ISO_8859_1);
-  private static final byte[] RUNTIME_ID = "RuntimeId".getBytes(ISO_8859_1);
+  private static final byte[] SEQUENCE = "Sequence".getBytes(ISO_8859_1);
+  private static final byte[] RUNTIME_ID = "RuntimeID".getBytes(ISO_8859_1);
   private static final byte[] HOSTNAME = "Hostname".getBytes(ISO_8859_1);
   private static final byte[] NAME = "Name".getBytes(ISO_8859_1);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
@@ -36,6 +36,10 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
 
+  // Constant declared here for compile-time folding
+  public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
+  public static final int TRISTATE_FALSE = TriState.FALSE.serialValue;
+
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
   private final Sink sink;
@@ -57,7 +61,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   public void startBucket(int metricCount, long start, long duration) {
     final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
     final boolean writeProcessTags = processTags != null;
-    writer.startMap(6 + (writeProcessTags ? 1 : 0));
+    writer.startMap(7 + (writeProcessTags ? 1 : 0));
 
     writer.writeUTF8(RUNTIME_ID);
     writer.writeUTF8(wellKnownTags.getRuntimeId());
@@ -67,6 +71,9 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     writer.writeUTF8(HOSTNAME);
     writer.writeUTF8(wellKnownTags.getHostname());
+
+    writer.writeUTF8(SERVICE);
+    writer.writeUTF8(wellKnownTags.getService());
 
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -118,7 +125,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBoolean(key.isSynthetics());
 
     writer.writeUTF8(IS_TRACE_ROOT);
-    writer.writeInt(key.isTraceRoot() ? 1 : 2); // tristate (0 unknown, 1 true, 2 false)
+    writer.writeInt(key.isTraceRoot() ? TRISTATE_TRUE : TRISTATE_FALSE);
 
     writer.writeUTF8(SPAN_KIND);
     writer.writeUTF8(key.getSpanKind());

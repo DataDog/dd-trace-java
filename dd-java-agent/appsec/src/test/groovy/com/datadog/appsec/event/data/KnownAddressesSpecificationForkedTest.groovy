@@ -42,6 +42,12 @@ class KnownAddressesSpecificationForkedTest extends Specification {
       'server.business_logic.users.login.success',
       'server.business_logic.users.signup',
       'server.io.net.url',
+      'server.io.net.request.headers',
+      'server.io.net.request.method',
+      'server.io.net.request.body',
+      'server.io.net.response.status',
+      'server.io.net.response.headers',
+      'server.io.net.response.body',
       'server.io.fs.file',
       'server.sys.exec.cmd',
       'server.sys.shell.cmd',
@@ -51,7 +57,7 @@ class KnownAddressesSpecificationForkedTest extends Specification {
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 39
+    Address.instanceCount() == 45
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }

@@ -88,7 +88,7 @@ public class ScriptInitializerTest {
     return Stream.of(
         Arguments.of("dd_crash_uploader.sh", ""),
         Arguments.of("dd_crash_uploader.bat", ""),
-        Arguments.of("dd_crash_uploader.sh", " %p"),
+        Arguments.of("dd_CrAsH_uploader.sh", " %p"),
         Arguments.of("dd_crash_uploader.bat", " %p"));
   }
 

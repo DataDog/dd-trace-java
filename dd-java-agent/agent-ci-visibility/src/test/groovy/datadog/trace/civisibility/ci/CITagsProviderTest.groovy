@@ -8,46 +8,37 @@ import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
 import datadog.trace.civisibility.git.tree.GitClient
-import datadog.trace.util.Strings
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
+import datadog.trace.test.util.ControllableEnvironmentVariables
 import spock.lang.Specification
 
 import java.nio.file.Path
 import java.nio.file.Paths
 
-abstract class CITagsProviderTest extends Specification {
+import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName
 
+abstract class CITagsProviderTest extends Specification {
   static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
   static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
 
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
+  protected ControllableEnvironmentVariables env = ControllableEnvironmentVariables.setup()
 
   protected final String localFSGitWorkspace = resolve(CI_WORKSPACE_PATH_FOR_TESTS)
 
-  def setup() {
-    // Clear all environment variables to avoid clashes between
-    // real CI/Git environment variables and the spec CI/Git
-    // environment variables.
-    environmentVariables.clear(System.getenv().keySet() as String[])
+  void cleanup() {
+    env.clear()
   }
 
   def "test ci provider info is set properly: #ciSpec.providerName #ciSpec.idx #ciSpec.testCaseName"() {
     setup:
     ciSpec.env.each {
-      environmentVariables.set(it.key, it.value.toString())
+      env.set(it.key, it.value.toString())
       if (it.key == "HOME") {
         System.setProperty("user.home", it.value)
       }
     }
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def prInfo = ciProviderInfo.buildPullRequestInfo()
@@ -67,13 +58,13 @@ abstract class CITagsProviderTest extends Specification {
   def "test user supplied commit hash takes precedence over auto-detected git info"() {
     setup:
     buildRemoteGitInfoEmpty().each {
-      environmentVariables.set(it.key, it.value)
+      env.set(it.key, it.value)
     }
 
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA), "1234567890123456789012345678901234567890")
+    env.set(propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA), "1234567890123456789012345678901234567890")
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -86,13 +77,13 @@ abstract class CITagsProviderTest extends Specification {
   def "test user supplied repo url takes precedence over auto-detected git info"() {
     setup:
     buildRemoteGitInfoEmpty().each {
-      environmentVariables.set(it.key, it.value)
+      env.set(it.key, it.value)
     }
 
-    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL), "local supplied repo url")
+    env.set(propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL), "local supplied repo url")
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -105,11 +96,11 @@ abstract class CITagsProviderTest extends Specification {
   def "test set local git info if remote git info is not present"() {
     setup:
     buildRemoteGitInfoEmpty().each {
-      environmentVariables.set(it.key, it.value)
+      env.set(it.key, it.value)
     }
 
     when:
-    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+    CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def ciTagsProvider = ciTagsProvider()
@@ -133,7 +124,7 @@ abstract class CITagsProviderTest extends Specification {
   def "test avoid setting local git info if remote commit does not match"() {
     setup:
     buildRemoteGitInfoMismatchLocalGit().each {
-      environmentVariables.set(it.key, it.value)
+      env.set(it.key, it.value)
     }
 
     when:
@@ -141,7 +132,7 @@ abstract class CITagsProviderTest extends Specification {
 
     then:
     if (isCi()) {
-      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(env.getAll()))
       def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
       def ciInfo = ciProviderInfo.buildCIInfo()
       def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
@@ -175,7 +166,7 @@ abstract class CITagsProviderTest extends Specification {
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(new UserSuppliedGitInfoBuilder())
-    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(Config.get(), new CiEnvironmentImpl(System.getenv())))
+    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(Config.get(), new CiEnvironmentImpl(env.getAll())))
     gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_FOR_TESTS))
     return new CITagsProvider(gitInfoProvider)
   }

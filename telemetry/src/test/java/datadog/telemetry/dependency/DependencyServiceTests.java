@@ -1,9 +1,8 @@
 package datadog.telemetry.dependency;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class DependencyServiceTests {
-
   DependencyService depService = new DependencyService();
   Closeable assemblyHandle;
   TempFileProvider tempFileProvider;
@@ -96,14 +94,14 @@ public class DependencyServiceTests {
     assembly.add("/groovy.jar", virtualDir.getChild("groovy-manifest.jar"));
 
     Dependency dep = identifyDependency(t, "assembly.jar/groovy.jar");
-    assertThat(dep, notNullValue());
+    assertNotNull(dep);
 
     // XXX: This should be `groovy` instead of `groovy-manifest` (ideally). However, we only
     // have the bundle symbolic name with `groovy` and it is not always reliable.
-    assertThat(dep.name, equalTo("groovy-manifest"));
-    assertThat(dep.version, equalTo("2.4.12"));
-    assertThat(dep.source, equalTo("groovy-manifest.jar"));
-    assertThat(dep.hash, equalTo("04DF0875A66F111880217FE1C5C59CA877403239"));
+    assertEquals("groovy-manifest", dep.name);
+    assertEquals("2.4.12", dep.version);
+    assertEquals("groovy-manifest.jar", dep.source);
+    assertEquals("04DF0875A66F111880217FE1C5C59CA877403239", dep.hash);
   }
 
   @Test
@@ -120,12 +118,12 @@ public class DependencyServiceTests {
     assemblyHandle = VFS.mountZip(zipFile, mountPoint, tempFileProvider);
 
     Dependency dep = identifyDependency(t, "foo.zip/junit-4.12.jar");
-    assertThat(dep, notNullValue());
+    assertNotNull(dep);
 
-    assertThat(dep.name, equalTo("junit"));
-    assertThat(dep.version, equalTo("4.12"));
-    assertThat(dep.source, equalTo("junit-4.12.jar"));
-    assertThat(dep.hash, equalTo("4376590587C49AC6DA6935564233F36B092412AE"));
+    assertEquals("junit", dep.name);
+    assertEquals("4.12", dep.version);
+    assertEquals("junit-4.12.jar", dep.source);
+    assertEquals("4376590587C49AC6DA6935564233F36B092412AE", dep.hash);
   }
 
   @Test
@@ -137,6 +135,6 @@ public class DependencyServiceTests {
     assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
 
     Dependency dep = identifyDependency(t, "assembly.jar/nonexistent-1.2.3.jar");
-    assertThat(dep, nullValue());
+    assertNull(dep);
   }
 }

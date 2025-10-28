@@ -1,11 +1,11 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import test.TestConnection
 import test.TestPreparedStatement
 import test.TestStatement
 
-class DBMInjectionForkedTest extends AgentTestRunner {
+class DBMInjectionForkedTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {
@@ -20,7 +20,7 @@ class DBMInjectionForkedTest extends AgentTestRunner {
   }
 
   static query = "SELECT 1"
-  static serviceInjection = "ddps='my_service_name',dddbs='remapped_testdb'"
+  static serviceInjection = "ddps='my_service_name',dddbs='remapped_testdb',ddh='localhost'"
   static fullInjection = serviceInjection + ",traceparent='00-00000000000000000000000000000004-0000000000000003-01'"
 
   def "prepared stmt"() {

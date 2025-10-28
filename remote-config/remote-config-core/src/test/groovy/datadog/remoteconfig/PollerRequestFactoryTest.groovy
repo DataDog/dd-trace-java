@@ -58,8 +58,8 @@ class PollerRequestFactoryTest extends DDSpecification {
 
   void 'remote config provides process tags when enabled  = #enabled'() {
     setup:
-    if (enabled) {
-      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    if (!enabled) {
+      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     }
     ProcessTags.reset()
     PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null)

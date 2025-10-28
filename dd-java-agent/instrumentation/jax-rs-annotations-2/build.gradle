@@ -27,14 +27,13 @@ addTestSuite('nestedTest')
 dependencies {
   compileOnly group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
   testImplementation project(':dd-java-agent:instrumentation:jax-rs-annotations-2:filter-jersey')
   testImplementation project(':dd-java-agent:instrumentation:jax-rs-annotations-2:filter-resteasy-3.0')
   testImplementation project(':dd-java-agent:instrumentation:jax-rs-annotations-2:filter-resteasy-3.1')
 
   // Jersey
-  // First version with DropwizardTestSupport:
-  testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.8.0'
+  testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.3.29' // Version compatible with Java 8 and JUnit5.
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.1'
   testImplementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: '2.9.10'
 
@@ -54,7 +53,7 @@ dependencies {
   latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '+'
 }
 
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn "resteasy31Test"
   dependsOn "nestedTest"
 }

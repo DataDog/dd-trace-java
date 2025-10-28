@@ -123,10 +123,9 @@ public class HttpRetryPolicy implements AutoCloseable {
       return Long.parseLong(rateLimitHeader);
     } catch (NumberFormatException e) {
       log.error(
-          "Could not parse "
-              + X_RATELIMIT_RESET_HTTP_HEADER
-              + " header contents: "
-              + rateLimitHeader,
+          "Could not parse {} header contents: {}",
+          X_RATELIMIT_RESET_HTTP_HEADER,
+          rateLimitHeader,
           e);
       return RATE_LIMIT_RESET_TIME_UNDEFINED;
     }

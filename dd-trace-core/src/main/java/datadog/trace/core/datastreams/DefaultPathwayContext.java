@@ -8,9 +8,6 @@ import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.context.propagation.CarrierVisitor;
-import datadog.trace.api.Config;
-import datadog.trace.api.ProcessTags;
-import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -27,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
-  private final long hashOfKnownTags;
   private final TimeSource timeSource;
   private final String serviceNameOverride;
   private final GrowingByteArrayOutput outputBuffer =
@@ -47,22 +43,19 @@ public class DefaultPathwayContext implements PathwayContext {
   private long closestOppositeDirectionHash;
   private DataStreamsTags.Direction previousDirection;
 
-  public DefaultPathwayContext(
-      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
+  public DefaultPathwayContext(TimeSource timeSource, String serviceNameOverride) {
     this.timeSource = timeSource;
-    this.hashOfKnownTags = hashOfKnownTags;
     this.serviceNameOverride = serviceNameOverride;
   }
 
   private DefaultPathwayContext(
       TimeSource timeSource,
-      long hashOfKnownTags,
       long pathwayStartNanos,
       long pathwayStartNanoTicks,
       long edgeStartNanoTicks,
       long hash,
       String serviceNameOverride) {
-    this(timeSource, hashOfKnownTags, serviceNameOverride);
+    this(timeSource, serviceNameOverride);
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
@@ -197,14 +190,11 @@ public class DefaultPathwayContext implements PathwayContext {
 
   private static class PathwayContextExtractor implements BiConsumer<String, String> {
     private final TimeSource timeSource;
-    private final long hashOfKnownTags;
     private final String serviceNameOverride;
     private DefaultPathwayContext extractedContext;
 
-    PathwayContextExtractor(
-        TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride) {
+    PathwayContextExtractor(TimeSource timeSource, String serviceNameOverride) {
       this.timeSource = timeSource;
-      this.hashOfKnownTags = hashOfKnownTags;
       this.serviceNameOverride = serviceNameOverride;
     }
 
@@ -212,7 +202,7 @@ public class DefaultPathwayContext implements PathwayContext {
     public void accept(String key, String value) {
       if (PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
+          extractedContext = decode(timeSource, serviceNameOverride, value);
         } catch (IOException ignored) {
         }
       }
@@ -220,25 +210,20 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   static <C> DefaultPathwayContext extract(
-      C carrier,
-      CarrierVisitor<C> getter,
-      TimeSource timeSource,
-      long hashOfKnownTags,
-      String serviceNameOverride) {
-    PathwayContextExtractor pathwayContextExtractor =
-        new PathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
-    getter.forEachKeyValue(carrier, pathwayContextExtractor);
-    if (pathwayContextExtractor.extractedContext == null) {
+      C carrier, CarrierVisitor<C> getter, TimeSource timeSource, String serviceNameOverride) {
+    PathwayContextExtractor extractor =
+        new PathwayContextExtractor(timeSource, serviceNameOverride);
+    getter.forEachKeyValue(carrier, extractor);
+    if (extractor.extractedContext == null) {
       log.debug("No context extracted");
     } else {
-      log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
+      log.debug("Extracted context: {} ", extractor.extractedContext);
     }
-    return pathwayContextExtractor.extractedContext;
+    return extractor.extractedContext;
   }
 
-  private static DefaultPathwayContext decode(
-      TimeSource timeSource, long hashOfKnownTags, String serviceNameOverride, String base64)
-      throws IOException {
+  protected static DefaultPathwayContext decode(
+      TimeSource timeSource, String serviceNameOverride, String base64) throws IOException {
     byte[] base64Bytes = base64.getBytes(UTF_8);
     byte[] bytes = Base64.getDecoder().decode(base64Bytes);
     ByteArrayInput input = ByteArrayInput.wrap(bytes);
@@ -260,28 +245,11 @@ public class DefaultPathwayContext implements PathwayContext {
 
     return new DefaultPathwayContext(
         timeSource,
-        hashOfKnownTags,
         pathwayStartNanos,
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
         hash,
         serviceNameOverride);
-  }
-
-  public static long getBaseHash(WellKnownTags wellKnownTags) {
-    StringBuilder builder = new StringBuilder();
-    builder.append(wellKnownTags.getService());
-    builder.append(wellKnownTags.getEnv());
-
-    String primaryTag = Config.get().getPrimaryTag();
-    if (primaryTag != null) {
-      builder.append(primaryTag);
-    }
-    CharSequence processTags = ProcessTags.getTagsForSerialization();
-    if (processTags != null) {
-      builder.append(processTags);
-    }
-    return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {

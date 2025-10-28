@@ -1,5 +1,8 @@
 package datadog.environment;
 
+import static datadog.environment.OperatingSystem.Type.LINUX;
+import static datadog.environment.OperatingSystem.Type.MACOS;
+import static datadog.environment.OperatingSystem.Type.WINDOWS;
 import static java.util.Locale.ROOT;
 
 import java.io.BufferedReader;
@@ -10,11 +13,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /** Detects operating systems and libc library. */
 public final class OperatingSystem {
   private static final String OS_NAME_PROPERTY = "os.name";
   private static final String OS_ARCH_PROPERTY = "os.arch";
+  private static final Type TYPE = Type.current();
+  private static final Architecture ARCHITECTURE = Architecture.current();
 
   private OperatingSystem() {}
 
@@ -24,7 +31,7 @@ public final class OperatingSystem {
    * @return @{@code true} if operating system is Linux based, {@code false} otherwise.
    */
   public static boolean isLinux() {
-    return propertyContains(OS_NAME_PROPERTY, "linux");
+    return TYPE == LINUX;
   }
 
   /**
@@ -33,8 +40,7 @@ public final class OperatingSystem {
    * @return @{@code true} if operating system is Windows, {@code false} otherwise.
    */
   public static boolean isWindows() {
-    // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    return propertyContains(OS_NAME_PROPERTY, "win");
+    return TYPE == WINDOWS;
   }
 
   /**
@@ -43,20 +49,21 @@ public final class OperatingSystem {
    * @return @{@code true} if operating system is macOS, {@code false} otherwise.
    */
   public static boolean isMacOs() {
-    return propertyContains(OS_NAME_PROPERTY, "mac");
+    return TYPE == MACOS;
   }
 
   /**
-   * Checks whether the architecture is AArch64.
+   * Gets the operating system type.
    *
-   * @return {@code true} if the architecture is AArch64, {@code false} otherwise.
+   * @return The operating system type, {@link Type#UNKNOWN} if not properly detected or supported.
    */
-  public static boolean isAarch64() {
-    return propertyContains(OS_ARCH_PROPERTY, "aarch64");
+  public static Type type() {
+    return TYPE;
   }
 
-  private static boolean propertyContains(String property, String content) {
-    return SystemProperties.getOrDefault(property, "").toLowerCase(ROOT).contains(content);
+  /** Gets the operating system architecture . */
+  public static Architecture architecture() {
+    return ARCHITECTURE;
   }
 
   /**
@@ -145,5 +152,66 @@ public final class OperatingSystem {
       }
     }
     return true;
+  }
+
+  public enum Type {
+    WINDOWS("Windows"),
+    MACOS("MacOS"),
+    LINUX("Linux"),
+    UNKNOWN("unknown");
+
+    private final String name;
+
+    Type(String name) {
+      this.name = name;
+    }
+
+    static Type current() {
+      String property = SystemProperties.getOrDefault(OS_NAME_PROPERTY, "").toLowerCase(ROOT);
+      // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
+      if (property.contains("linux")) {
+        return LINUX;
+      } else if (property.contains("win")) {
+        return WINDOWS;
+      } else if (property.contains("mac")) {
+        return MACOS;
+      } else {
+        return UNKNOWN;
+      }
+    }
+
+    @Override
+    public String toString() {
+      return this.name;
+    }
+  }
+
+  /** Detects the operating system architecture. */
+  public enum Architecture {
+    X64("x86_64", "amd64", "k8"),
+    X86("x86", "i386", "i486", "i586", "i686"),
+    ARM("arm", "aarch32"),
+    ARM64("arm64", "aarch64"),
+    UNKNOWN();
+
+    private final Set<String> identifiers;
+
+    Architecture(String... identifiers) {
+      this.identifiers = new HashSet<>(Arrays.asList(identifiers));
+    }
+
+    static Architecture of(String identifier) {
+      for (Architecture architecture : Architecture.values()) {
+        if (architecture.identifiers.contains(identifier)) {
+          return architecture;
+        }
+      }
+      return UNKNOWN;
+    }
+
+    static Architecture current() {
+      String property = SystemProperties.getOrDefault(OS_ARCH_PROPERTY, "").toLowerCase(ROOT);
+      return Architecture.of(property);
+    }
   }
 }

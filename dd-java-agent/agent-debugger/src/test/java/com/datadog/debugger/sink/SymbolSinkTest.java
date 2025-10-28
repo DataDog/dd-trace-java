@@ -35,6 +35,7 @@ class SymbolSinkTest {
     String strEventContent = new String(eventContent.getContent());
     assertTrue(strEventContent.contains("\"ddsource\": \"dd_debugger\""));
     assertTrue(strEventContent.contains("\"service\": \"service1\""));
+    assertTrue(strEventContent.contains("\"type\": \"symdb\""));
     BatchUploader.MultiPartContent symbolContent = symbolUploaderMock.multiPartContents.get(1);
     assertEquals("file", symbolContent.getPartName());
     assertEquals("file.json", symbolContent.getFileName());
@@ -241,7 +242,7 @@ class SymbolSinkTest {
     final List<MultiPartContent> multiPartContents = new ArrayList<>();
 
     public SymbolUploaderMock() {
-      super(Config.get(), "http://localhost", SymbolSink.RETRY_POLICY);
+      super("mock", Config.get(), "http://localhost", SymbolSink.RETRY_POLICY);
     }
 
     @Override

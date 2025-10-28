@@ -1,8 +1,8 @@
 import annotatedsample.TracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-class SpanAttributeAnnotationTest extends AgentTestRunner {
+class SpanAttributeAnnotationTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -26,6 +26,7 @@ class SpanAttributeAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             "custom-tag" value
           }
         }
@@ -57,6 +58,7 @@ class SpanAttributeAnnotationTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             "custom-tag1" "param1"
             "custom-tag2" "param2"
           }

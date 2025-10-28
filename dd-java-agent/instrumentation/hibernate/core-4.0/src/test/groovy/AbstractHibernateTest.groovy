@@ -1,10 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.hibernate.Session
 import org.hibernate.SessionFactory
 import org.hibernate.cfg.Configuration
 import spock.lang.Shared
 
-abstract class AbstractHibernateTest extends AgentTestRunner {
+abstract class AbstractHibernateTest extends InstrumentationSpecification {
 
   @Shared
   protected SessionFactory sessionFactory

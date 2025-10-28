@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id "com.gradleup.shadow"
 }
@@ -7,12 +9,12 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   // This module provides the ddprof library as an api dependency
   // so that other modules can easily depend on it.
-  implementation project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
+  implementation project.hasProperty('ddprof.jar') ? files(project.findProperty('ddprof.jar')) : libs.ddprof
   api project(':internal-api')
   api project(':dd-trace-api')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies {
     deps.excludeShared
     exclude '**/*.debug'
@@ -29,4 +31,6 @@ shadowJar {
   }
 }
 
-build.dependsOn shadowJar
+tasks.named("build") {
+  dependsOn tasks.named("shadowJar")
+}

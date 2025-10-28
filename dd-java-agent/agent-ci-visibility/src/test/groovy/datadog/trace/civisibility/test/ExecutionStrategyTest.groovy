@@ -98,15 +98,24 @@ class ExecutionStrategyTest extends Specification {
     executionSettings.isKnownTestsDataAvailable() >> true
     executionSettings.isKnown(testFQN) >> false
 
+    when:
     def strategy = givenAnExecutionStrategy(executionSettings)
     def policy = strategy.executionPolicy(testID, TestSourceData.UNKNOWN, [])
 
-    // register one execution to get the retry reason
-    policy.registerExecution(TestStatus.pass, 0)
-
-    expect:
+    then:
     policy.class == RunNTimes
-    policy.currentExecutionRetryReason() == RetryReason.attemptToFix
+
+    when:
+    def outcome = policy.registerExecution(TestStatus.pass, 0)
+
+    then:
+    outcome.retryReason() == null // first execution is not a retry
+
+    when:
+    def secondOutcome = policy.registerExecution(TestStatus.pass, 0)
+
+    then:
+    secondOutcome.retryReason() == RetryReason.attemptToFix
   }
 
   private ExecutionStrategy givenAnExecutionStrategy(ExecutionSettings executionSettings = ExecutionSettings.EMPTY) {

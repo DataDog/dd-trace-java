@@ -1,4 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.h2.Driver
@@ -7,14 +10,11 @@ import test.TestPreparedStatement
 import test.WrappedConnection
 import test.WrappedPreparedStatement
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
 /**
  * This tests all combinations of wrapped/unwrapped connections and prepared statements
  * H2 classes are called out because the don't implement the Wrapper interface.  They are based an older spec leading to AbstractMethodError
  */
-class JDBCWrappedInterfacesTest extends AgentTestRunner {
+class JDBCWrappedInterfacesTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {
@@ -255,6 +255,9 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
           childOfPrevious()
           errored false
           tags {
+            if (database == "testdb") {
+              "$Tags.PEER_HOSTNAME" "localhost"
+            }
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "${database}"

@@ -36,7 +36,6 @@ excludedClassesCoverage += [
   'datadog.trace.common.writer.TraceProcessingWorker.NonDaemonTraceSerializingHandler',
   // Interface with an empty defender method
   'datadog.trace.core.propagation.HttpCodec.Extractor',
-  'datadog.trace.core.flare.*',
   'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper',
   'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper.PayloadV1',
   // FIXME(DSM): test coverage needed
@@ -58,7 +57,7 @@ excludedClassesCoverage += [
 
 addTestSuite('traceAgentTest')
 
-tasks.withType(Test).findByName('forkedTest').configure {
+tasks.named('forkedTest', Test) {
   // Needed for FootprintForkedTest on Java 17
   jvmArgs += ['-Djol.magicFieldOffset=true']
 }

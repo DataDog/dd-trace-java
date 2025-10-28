@@ -23,10 +23,13 @@ import java.util.zip.ZipInputStream
  */
 class TracerFlareSmokeTest extends AbstractSmokeTest {
 
-  // Time in seconds after which flare is triggered
-  private static final int FLARE_TRIGGER_SECONDS = 15
+
+  // Time in seconds after which flare is triggered.
+  // We delay the profiler start on Oracle JDK 8, so increase the wait time to at least 25s. We've seen ≤20 seconds
+  // cause rare test flakes.
+  private static final int FLARE_TRIGGER_SECONDS = 25
   // Number of processes to run in parallel for testing
-  private static final int NUMBER_OF_PROCESSES = 2
+  private static final int NUMBER_OF_PROCESSES = 3
 
   protected int numberOfProcesses() {
     NUMBER_OF_PROCESSES
@@ -35,7 +38,8 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
   @Shared
   final flareDirs = [
     File.createTempDir("flare-test-profiling-enabled-", ""),
-    File.createTempDir("flare-test-profiling-disabled-", "")
+    File.createTempDir("flare-test-profiling-disabled-", ""),
+    File.createTempDir("flare-test-profiling-with-override-", "")
   ]
 
   def cleanupSpec() {
@@ -53,16 +57,28 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
 
     def command = [javaPath()]
 
-    if (processIndex == 0) {
+    switch (processIndex) {
+      case 0:
       // Process 0: Profiling enabled (default)
-      command.addAll(defaultJavaProperties)
-    } else {
+        command.addAll(defaultJavaProperties)
+        break
+      case 1:
       // Process 1: Profiling disabled
-      def filteredProperties = defaultJavaProperties.findAll { prop ->
-        !prop.startsWith("-Ddd.profiling.")
-      }
-      command.addAll(filteredProperties)
-      command.add("-Ddd.profiling.enabled=false")
+        def filteredProperties = defaultJavaProperties.findAll { prop ->
+          !prop.startsWith("-Ddd.profiling.")
+        }
+        command.addAll(filteredProperties)
+        command.add("-Ddd.profiling.enabled=false")
+        break
+      case 2:
+      // Process 2: Profiling enabled with template override
+        command.addAll(defaultJavaProperties)
+      // Create a temp file with the override content
+        def tempOverrideFile = File.createTempFile("test-override-", ".jfp")
+        tempOverrideFile.deleteOnExit()
+        tempOverrideFile.text = "datadog.ExceptionSample#enabled=false" // Arbitrary event choice
+        command.add("-Ddd.profiling.jfr-template-override-file=" + tempOverrideFile.absolutePath)
+        break
     }
 
     // Configure flare generation
@@ -113,14 +129,17 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     // Alternative log format
     "flare_errors.txt",
     // Only if there were errors
-    "pending_traces.txt"      // Only if there were traces pending transmission
+    "pending_traces.txt",
+    // Only if there were traces pending transmission
+    "profiling_template_override.jfp",
+    // Only if template override is configured
+    "profiler_log.txt"
+    // Only if there are any profiler issues reported
   ] as Set<String>
 
   // Profiling-related files
-  private static final PROFILING_FILES = [
-    "profiler_config.txt",
+  private static final PROFILING_FILES = ["profiler_config.txt", "profiler_env.txt"
     // Only if profiling is enabled
-    "profiling_template_override.jfp"  // Only if template override is configured
   ] as Set<String>
 
   // Flare file naming pattern constants
@@ -147,8 +166,9 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
       assert file in zipContents : "Missing required core file: ${file}"
     }
 
-    // Verify profiling files are present (profiling is enabled in defaultJavaProperties)
-    assert "profiler_config.txt" in zipContents : "Missing profiler_config.txt when profiling is enabled"
+    PROFILING_FILES.each { file ->
+      assert (file in zipContents) : "Didn't find profiling file '${file}' when profiling is enabled"
+    }
 
     // Check for unexpected files and fail if found
     validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES + PROFILING_FILES)
@@ -174,6 +194,29 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
 
     // Check for unexpected files and fail if found (profiling files excluded from expected)
     validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES)
+  }
+
+  def "tracer generates flare with profiling template override"() {
+    when:
+    // Wait for flare file to be created for process 2 (profiling with template override)
+    def flareFile = waitForFlareFile(flareDirs[2])
+    def zipContents = extractZipContents(flareFile)
+
+    then:
+    // Verify core files are present
+    CORE_FILES.each { file ->
+      assert file in zipContents : "Missing required core file: ${file}"
+    }
+
+    PROFILING_FILES.each { file ->
+      assert (file in zipContents) : "Didn't find profiling file '${file}' when profiling is enabled"
+    }
+
+    // Verify no template override file when not configured (the typical scenario)
+    assert "profiling_template_override.jfp" in zipContents : "Didn't find profiling_template_override.jfp when override was configured"
+
+    // Check for unexpected files and fail if found
+    validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES + PROFILING_FILES)
   }
 
   private static void validateNoUnexpectedFiles(Set<String> zipContents, Set<String> expectedFiles) {

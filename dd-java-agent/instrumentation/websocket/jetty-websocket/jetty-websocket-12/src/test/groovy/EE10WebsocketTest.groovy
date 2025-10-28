@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 import org.eclipse.jetty.ee10.websocket.jakarta.common.UpgradeRequest
 import org.eclipse.jetty.ee10.websocket.jakarta.server.JakartaWebSocketServerContainer
@@ -21,7 +21,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL
 
-class EE10WebsocketTest extends AgentTestRunner {
+class EE10WebsocketTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

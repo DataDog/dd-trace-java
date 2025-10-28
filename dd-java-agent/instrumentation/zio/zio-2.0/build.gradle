@@ -29,9 +29,17 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
-tasks.named("compileLatestDepTestGroovy").configure {
-  dependsOn "compileLatestDepTestScala"
-  classpath += files(compileLatestDepTestScala.destinationDirectory)
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  // Despite the compatibility matrix, scala compiler doesn't properly
+  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+  // * https://github.com/gradle/gradle/issues/19456
+  configureCompiler(it, 8)
 }
 
 dependencies {
