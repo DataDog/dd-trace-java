@@ -65,6 +65,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private final MpscBlockingConsumerArrayQueue<Element> queue;
     private final Thread worker;
     private final TimeSource timeSource;
+    private final HealthMetrics healthMetrics;
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
@@ -103,6 +104,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           if (!pendingTrace.writeOnBufferFull()) {
             return;
           }
+          healthMetrics.onPendingWriteAround();
           pendingTrace.write();
         }
       }
@@ -336,6 +338,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
+      this.healthMetrics = healthMetrics;
       boolean runningSpansEnabled = config.isLongRunningTraceEnabled();
       this.runningTracesTracker =
           runningSpansEnabled
