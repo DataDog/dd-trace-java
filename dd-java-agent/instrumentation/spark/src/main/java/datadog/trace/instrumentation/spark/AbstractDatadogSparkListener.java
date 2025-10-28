@@ -1258,6 +1258,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return queryId + "." + batchId;
   }
 
+  @SuppressForbidden
   private static Object getStreamExecutionQueryIdKey() {
     try {
       Class<?> cls = Class.forName("org.apache.spark.sql.execution.streaming.StreamExecution");
@@ -1278,6 +1279,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return null;
   }
 
+  @SuppressForbidden
   private static Object getMicroBatchExecutionBatchIdKey() {
     try {
       Class<?> cls = Class.forName("org.apache.spark.sql.execution.streaming.MicroBatchExecution");
