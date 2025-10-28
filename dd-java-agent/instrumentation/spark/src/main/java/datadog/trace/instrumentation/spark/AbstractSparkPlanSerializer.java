@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.spark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.trace.util.MethodHandles;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,7 +27,6 @@ public abstract class AbstractSparkPlanSerializer {
   private final ObjectMapper mapper = AbstractDatadogSparkListener.objectMapper;
 
   private final String SPARK_PKG_NAME = "org.apache.spark";
-
   private final Set<String> SAFE_PARSE_TRAVERSE =
       Collections.singleton(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning");
   private final Set<String> SAFE_PARSE_STRING =
@@ -57,6 +57,12 @@ public abstract class AbstractSparkPlanSerializer {
               SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
               SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
               SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
+
+  private final MethodHandles methodLoader = new MethodHandles(ClassLoader.getSystemClassLoader());
+  private final MethodHandle getSimpleString =
+      methodLoader.method(TreeNode.class, "simpleString", new Class[] {int.class});
+  private final MethodHandle getSimpleStringLegacy =
+      methodLoader.method(TreeNode.class, "simpleString");
 
   public abstract String getKey(int idx, TreeNode node);
 
@@ -123,7 +129,9 @@ public abstract class AbstractSparkPlanSerializer {
       ArrayList<Object> list = new ArrayList<>();
       for (Object item : JavaConverters.asJavaIterable((Iterable) value)) {
         Object res = safeParseObjectToJson(item, depth + 1);
-        if (list.size() < MAX_LENGTH && res != null) {
+        if (list.size() >= MAX_LENGTH) {
+          break;
+        } else if (res != null) {
           list.add(res);
         }
       }
@@ -149,19 +157,18 @@ public abstract class AbstractSparkPlanSerializer {
 
   private String getSimpleString(TreeNode value) {
     Object simpleString = null;
-    try {
-      // in Spark v3+, the signature of `simpleString` includes an int parameter for `maxFields`
-      simpleString =
-          TreeNode.class
-              .getDeclaredMethod("simpleString", new Class[] {int.class})
-              .invoke(value, MAX_LENGTH);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
+
+    if (getSimpleString != null) {
       try {
-        // Attempt the Spark v2 `simpleString` signature
-        simpleString = TreeNode.class.getDeclaredMethod("simpleString").invoke(value);
-      } catch (NoSuchMethodException
-          | IllegalAccessException
-          | InvocationTargetException innerException) {
+        simpleString = getSimpleString.invoke(value, MAX_LENGTH);
+      } catch (Throwable e) {
+      }
+    }
+
+    if (getSimpleStringLegacy != null) {
+      try {
+        simpleString = getSimpleStringLegacy.invoke(value);
+      } catch (Throwable e) {
       }
     }
 
