@@ -22,7 +22,7 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "disabled")
 
     when:
-    String comment = MongoCommentInjector.getComment(null, null)
+    String comment = MongoCommentInjector.getComment(null, null, null)
 
     then:
     comment == null

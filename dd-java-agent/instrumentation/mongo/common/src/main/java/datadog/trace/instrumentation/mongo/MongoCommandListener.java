@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.mongo;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import com.mongodb.ServerAddress;
@@ -122,7 +123,11 @@ public final class MongoCommandListener implements CommandListener {
     if (listenerAccessor != null) {
       listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
     }
-    final AgentSpan span = startSpan(MongoDecorator.OPERATION_NAME);
+    AgentSpan span = activeSpan();
+    if (span == null || span.getSpanName() != MongoDecorator.OPERATION_NAME) {
+      span = startSpan(MongoDecorator.OPERATION_NAME);
+    }
+
     try (final AgentScope scope = activateSpan(span)) {
       decorator.afterStart(span);
       decorator.onConnection(span, event);
@@ -146,15 +151,6 @@ public final class MongoCommandListener implements CommandListener {
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));
       }
 
-      BsonDocument commandToExecute = event.getCommand();
-
-      // Comment injection
-      String dbmComment = MongoCommentInjector.getComment(span, event);
-      if (dbmComment != null) {
-        commandToExecute = MongoCommentInjector.injectComment(dbmComment, event);
-      }
-
-      decorator.onStatement(span, commandToExecute, byteBufAccessor);
       spanMap.put(event.getRequestId(), new SpanEntry(span));
     }
   }
