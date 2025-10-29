@@ -74,6 +74,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    codeOriginSetup()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
     if (hasClientMessageSpans()) {
@@ -688,12 +689,6 @@ class GrpcDataStreamsEnabledV0Test extends GrpcDataStreamsEnabledForkedTest {
 }
 
 class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTest {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    codeOriginSetup()
-  }
 
   @Override
   int version() {
