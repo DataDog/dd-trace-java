@@ -23,8 +23,6 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -1258,23 +1256,27 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return queryId + "." + batchId;
   }
 
-  @SuppressForbidden
   private static Object getMicroBatchExecutionBatchIdKey() {
+    String microBatchExecutionClass =
+        "org.apache.spark.sql.execution.streaming.MicroBatchExecution";
+
+    if (!classIsLoadable(microBatchExecutionClass)) {
+      return null;
+    }
+
     try {
-      Class<?> cls = Class.forName("org.apache.spark.sql.execution.streaming.MicroBatchExecution");
-      try {
-        Field f = cls.getDeclaredField("BATCH_ID_KEY");
-        f.setAccessible(true);
-        return f.get(null);
-      } catch (NoSuchFieldException e) {
-        try {
-          Method m = cls.getDeclaredMethod("BATCH_ID_KEY");
-          m.setAccessible(true);
-          return m.invoke(null);
-        } catch (Throwable ignored) {
-        }
-      }
-    } catch (Throwable ignored) {
+      @SuppressForbidden Class<?> cls = Class.forName(microBatchExecutionClass);
+      Object module = cls.getField("MODULE$").get(null);
+
+      // Access BATCH_ID_KEY via Reflection
+      java.lang.reflect.Method method = cls.getMethod("BATCH_ID_KEY");
+      return (String) method.invoke(module);
+    } catch (ClassNotFoundException
+        | NoSuchFieldException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      // ignore
     }
     return null;
   }
