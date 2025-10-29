@@ -438,6 +438,7 @@ check_smoke:
   parallel: 4
   variables:
     GRADLE_TARGET: ":smokeCheck"
+    CACHE_TYPE: "smoke"
 
 check_profiling:
   extends: .check_job
