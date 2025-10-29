@@ -122,10 +122,9 @@ if (gitBaseRefProvider.isPresent) {
 }
 
 tasks.register("runMuzzle") {
-  dependsOn(providers.provider {
-    subprojects.filter { p ->
-      val activePartition = p.extra.get("activePartition") as Boolean
-      activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("muzzle")
-    }.map { p -> "${p.path}:muzzle" }
-  })
+  val muzzleSubprojects = subprojects.filter { p ->
+    val activePartition = p.extra.get("activePartition") as Boolean
+    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("muzzle")
+  }
+  dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }
