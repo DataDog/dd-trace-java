@@ -6,6 +6,9 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
+import java.io.File
+import java.nio.file.FileVisitResult
+import java.nio.file.Paths
 
 import static com.datadog.iast.model.VulnerabilityType.ADMIN_CONSOLE_ACTIVE
 import static com.datadog.iast.model.VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID
@@ -137,5 +140,19 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
       assert evidence.value == expectedEvidence
     }
     assert vuln.location.line == line
+  }
+
+  void 'insecure jsp visitor handles root directory without name'() {
+    given:
+    def visitorClass = ApplicationModuleImpl.declaredClasses.find { it.simpleName == 'InsecureJspFolderVisitor' }
+    def constructor = visitorClass.getDeclaredConstructor()
+    constructor.accessible = true
+    def visitor = constructor.newInstance()
+
+    when:
+    def result = visitor.preVisitDirectory(Paths.get(File.separator), null)
+
+    then:
+    result == FileVisitResult.CONTINUE
   }
 }
