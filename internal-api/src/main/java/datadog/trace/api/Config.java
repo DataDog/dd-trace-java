@@ -4342,7 +4342,7 @@ public class Config {
     } else if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
-      throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
+      return getFinalDebuggerBaseUrl() + "/debugger/v1/diagnostics";
     }
   }
 
