@@ -5,7 +5,7 @@ import org.gradle.api.Task
 import org.gradle.kotlin.dsl.extra
 
 /**
- * Returns the affected task path, given affected projects, if this task or its dependencies are affected by git changes.
+ * Returns the task's path, given affected projects, if this task or its dependencies are affected by git changes.
  */
 internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project, Set<String>>): String? {
   val visited = mutableSetOf<Task>()
