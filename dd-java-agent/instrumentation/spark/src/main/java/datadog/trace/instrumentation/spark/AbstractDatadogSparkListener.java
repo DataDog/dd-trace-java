@@ -1257,16 +1257,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return queryId + "." + batchId;
   }
 
+  @SuppressForbidden
   private static Object getMicroBatchExecutionBatchIdKey() {
-    String microBatchExecutionClass =
-        "org.apache.spark.sql.execution.streaming.MicroBatchExecution";
 
-    if (!classIsLoadable(microBatchExecutionClass)) {
+    if (!classIsLoadable("org.apache.spark.sql.execution.streaming.MicroBatchExecution")) {
       return null;
     }
 
     try {
-      @SuppressForbidden Class<?> cls = Class.forName(microBatchExecutionClass);
+      Class<?> cls = Class.forName("org.apache.spark.sql.execution.streaming.MicroBatchExecution");
       Object module = cls.getField("MODULE$").get(null);
 
       // Access BATCH_ID_KEY via Reflection
