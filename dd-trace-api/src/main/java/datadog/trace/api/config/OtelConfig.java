@@ -22,9 +22,9 @@ public final class OtelConfig {
   public static final String OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otel.exporter.otlp.metrics.temporality.preference";
 
-  public static final String OTEL_METRIC_ENDPOINT_SUFFIX = "v1/metrics";
-  public static final String OTEL_METRIC_ENDPOINT_HTTP_PORT = "4318";
-  public static final String OTEL_METRIC_ENDPOINT_GRPC_PORT = "4317";
+  public static final String OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX = "v1/metrics";
+  public static final String OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT = "4318";
+  public static final String OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT = "4317";
 
   public enum Temporality {
     CUMULATIVE,

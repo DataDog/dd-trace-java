@@ -449,9 +449,9 @@ import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_TIM
 import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_PROTOCOL;
 import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_TIMEOUT;
 import static datadog.trace.api.config.OtelConfig.OTEL_METRICS_EXPORTER;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_ENDPOINT_GRPC_PORT;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_ENDPOINT_HTTP_PORT;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_ENDPOINT_SUFFIX;
+import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT;
+import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT;
+import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX;
 import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_EXPORT_INTERVAL;
 import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_EXPORT_TIMEOUT;
 import static datadog.trace.api.config.OtelConfig.OTEL_RESOURCE_ATTRIBUTES;
@@ -1862,17 +1862,15 @@ public class Config {
         configProvider.getEnum(
             OTEL_METRICS_EXPORTER, OtelConfig.Exporter.class, DEFAULT_OTEL_METRICS_EXPORTER, false);
 
-    int tmpOtelMetricExportTimeout =
-        configProvider.getInteger(OTEL_METRIC_EXPORT_TIMEOUT, DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT);
+    Integer tmpOtelMetricExportTimeout = configProvider.getInteger(OTEL_METRIC_EXPORT_TIMEOUT);
     otelMetricExportTimeout =
-        (tmpOtelMetricExportTimeout < 0)
+        (tmpOtelMetricExportTimeout == null || tmpOtelMetricExportTimeout < 0)
             ? DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT
             : tmpOtelMetricExportTimeout;
 
-    int tmpOtelMetricExportInterval =
-        configProvider.getInteger(OTEL_METRIC_EXPORT_INTERVAL, DEFAULT_OTEL_METRIC_EXPORT_INTERVAL);
+    Integer tmpOtelMetricExportInterval = configProvider.getInteger(OTEL_METRIC_EXPORT_INTERVAL);
     otelMetricExportInterval =
-        (tmpOtelMetricExportInterval < 0)
+        (tmpOtelMetricExportInterval == null || tmpOtelMetricExportInterval < 0)
             ? DEFAULT_OTEL_METRIC_EXPORT_INTERVAL
             : tmpOtelMetricExportInterval;
 
@@ -1915,14 +1913,14 @@ public class Config {
                 ? "http://"
                     + endpointHost
                     + ":"
-                    + OTEL_METRIC_ENDPOINT_HTTP_PORT
+                    + OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT
                     + "/"
-                    + OTEL_METRIC_ENDPOINT_SUFFIX
-                : "http://" + endpointHost + ":" + OTEL_METRIC_ENDPOINT_GRPC_PORT;
+                    + OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX
+                : "http://" + endpointHost + ":" + OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT;
       } else {
         tmpOtelExporterOtlpMetricsEndpoint =
             isHttp
-                ? tmpOtelExporterOtlpEndpoint.concat(OTEL_METRIC_ENDPOINT_SUFFIX)
+                ? tmpOtelExporterOtlpEndpoint.concat(OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX)
                 : tmpOtelExporterOtlpEndpoint;
       }
     }
@@ -1931,12 +1929,10 @@ public class Config {
     Integer tmpOtelExporterOtlpMetricsTimeout =
         configProvider.getInteger(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT);
     if (null == tmpOtelExporterOtlpMetricsTimeout) {
-      tmpOtelExporterOtlpMetricsTimeout =
-          configProvider.getInteger(
-              OTEL_EXPORTER_OTLP_TIMEOUT, DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT);
+      tmpOtelExporterOtlpMetricsTimeout = configProvider.getInteger(OTEL_EXPORTER_OTLP_TIMEOUT);
     }
     otelExporterOtlpMetricsTimeout =
-        (tmpOtelExporterOtlpMetricsTimeout < 0)
+        (tmpOtelExporterOtlpMetricsTimeout == null || tmpOtelExporterOtlpMetricsTimeout < 0)
             ? new Integer(DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT)
             : tmpOtelExporterOtlpMetricsTimeout;
 
