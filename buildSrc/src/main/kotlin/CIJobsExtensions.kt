@@ -5,9 +5,9 @@ import org.gradle.api.Task
 import org.gradle.kotlin.dsl.extra
 
 /**
- * Checks if a task is affected by git changes
+ * Returns the affected task path, given affected projects, if this task or its dependencies are affected by git changes.
  */
-internal fun isAffectedBy(baseTask: Task, affectedProjects: Map<Project, Set<String>>): String? {
+internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project, Set<String>>): String? {
   val visited = mutableSetOf<Task>()
   val queue = mutableListOf(baseTask)
   
@@ -60,9 +60,9 @@ private fun Project.createRootTask(
           if (useGitChanges) {
             @Suppress("UNCHECKED_CAST")
             val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
-            val fileTrigger = isAffectedBy(testTask, affectedProjects)
-            if (fileTrigger != null) {
-              logger.warn("Selecting ${subproject.path}:$subProjTaskName (triggered by $fileTrigger)")
+            val affectedTaskPath = findAffectedTaskPath(testTask, affectedProjects)
+            if (affectedTaskPath != null) {
+              logger.warn("Selecting ${subproject.path}:$subProjTaskName (affected by $affectedTaskPath)")
             } else {
               logger.warn("Skipping ${subproject.path}:$subProjTaskName (not affected by changed files)")
               isAffected = false

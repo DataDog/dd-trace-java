@@ -4,7 +4,7 @@
  * with -PgitBaseRef.
  */
 
-import datadog.gradle.plugin.ci.isAffectedBy
+import datadog.gradle.plugin.ci.findAffectedTaskPath
 import java.io.File
 import kotlin.math.abs
 
