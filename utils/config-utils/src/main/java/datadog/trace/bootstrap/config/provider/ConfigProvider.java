@@ -347,6 +347,10 @@ public final class ConfigProvider {
   }
 
   public Map<String, String> getMergedMap(String key, String... aliases) {
+    return getMergedMap(key, ':', aliases);
+  }
+
+  public Map<String, String> getMergedMap(String key, char keyValueDelimiter, String... aliases) {
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
     int seqId = NON_DEFAULT_SEQ_ID;
 
@@ -356,7 +360,7 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key, aliases);
-      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key, keyValueDelimiter);
 
       if (!parsedMap.isEmpty()) {
         if (collectConfig) {

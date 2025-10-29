@@ -493,11 +493,8 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.otelResourceAttributes.size() == 2
-    config.otelResourceAttributes["service.name"] == "my=app=56"
-    config.otelResourceAttributes["version"] == "1.0.0"
-    config.otelExporterOtlpMetricsHeaders.size() == 1
-    config.otelExporterOtlpMetricsHeaders["key"] == "key"
+    config.otelResourceAttributes.size() == 0
+    config.otelExporterOtlpMetricsHeaders.size() == 0
   }
 
 
@@ -822,6 +819,7 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == ["*":"http.request.headers."]
     config.responseHeaderTags == ["*":"http.response.headers."]
     config.metricsOtelEnabled
+    config.otelResourceAttributes.size() == 3
     config.otelResourceAttributes["service.name"] == "my=app"
     config.otelResourceAttributes["service.version"] == "1.0.0"
     config.otelResourceAttributes["deployment.environment"] == "production"

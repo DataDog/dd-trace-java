@@ -1856,8 +1856,8 @@ public class Config {
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-    otelResourceAttributes =
-        getHashMap(configProvider.getList(OTEL_RESOURCE_ATTRIBUTES), OTEL_RESOURCE_ATTRIBUTES, "=");
+    otelResourceAttributes = configProvider.getMergedMap(OTEL_RESOURCE_ATTRIBUTES, '=');
+
     otelMetricsExporter =
         configProvider.getEnum(
             OTEL_METRICS_EXPORTER, OtelConfig.Exporter.class, DEFAULT_OTEL_METRICS_EXPORTER, false);
@@ -1874,14 +1874,13 @@ public class Config {
             ? DEFAULT_OTEL_METRIC_EXPORT_INTERVAL
             : tmpOtelMetricExportInterval;
 
-    List<String> tmpOtelExporterOtlpMetricsHeaders =
-        configProvider.getList(OTEL_EXPORTER_OTLP_METRICS_HEADERS);
-    otelExporterOtlpMetricsHeaders =
-        tmpOtelExporterOtlpMetricsHeaders.isEmpty()
-            ? getHashMap(
-                configProvider.getList(OTEL_EXPORTER_OTLP_HEADERS), OTEL_EXPORTER_OTLP_HEADERS, "=")
-            : getHashMap(
-                tmpOtelExporterOtlpMetricsHeaders, OTEL_EXPORTER_OTLP_METRICS_HEADERS, "=");
+    Map<String, String> tmpOtelExporterOtlpMetricsHeaders =
+        configProvider.getMergedMap(OTEL_EXPORTER_OTLP_METRICS_HEADERS, '=');
+    if (tmpOtelExporterOtlpMetricsHeaders.isEmpty()) {
+      tmpOtelExporterOtlpMetricsHeaders =
+          configProvider.getMergedMap(OTEL_EXPORTER_OTLP_HEADERS, '=');
+    }
+    otelExporterOtlpMetricsHeaders = tmpOtelExporterOtlpMetricsHeaders;
 
     OtelConfig.Protocol tmpOtelExporterOtlpMetricsProtocol =
         configProvider.getEnum(
@@ -5493,30 +5492,6 @@ public class Config {
       }
     }
     return Collections.unmodifiableSet(result);
-  }
-
-  private static Map<String, String> getHashMap(
-      List<String> inputAsList, String key, String delimiter) {
-    Map<String, String> finalValue = new HashMap<>();
-    if (!inputAsList.isEmpty()) {
-      boolean error = false;
-      for (String keyvalue : inputAsList) {
-        int indexOfSplit = keyvalue.indexOf(delimiter);
-        if (indexOfSplit < 0) {
-          error = true;
-          continue;
-        }
-        finalValue.put(keyvalue.substring(0, indexOfSplit), keyvalue.substring(indexOfSplit + 1));
-      }
-      if (error) {
-        log.debug(
-            "Parsing error occurs for {}, value provided: {}; value taken into account: {}",
-            key,
-            inputAsList,
-            finalValue);
-      }
-    }
-    return finalValue;
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
