@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.execution.SparkPlan;
 import org.apache.spark.sql.execution.SparkPlanInfo;
@@ -95,6 +96,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
 
   public static class SparkPlanInfoAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @SuppressForbidden
     public static void exit(
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
         @Advice.Argument(0) SparkPlan plan) {
@@ -102,13 +104,29 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark213PlanSerializer planUtils = new Spark213PlanSerializer();
-        planInfo =
-            new SparkPlanInfo(
-                planInfo.nodeName(),
-                planInfo.simpleString(),
-                planInfo.children(),
-                HashMap.from(JavaConverters.asScala(planUtils.extractFormattedProduct(plan))),
-                planInfo.metrics());
+        scala.collection.immutable.Map<String, String> meta =
+            HashMap.from(JavaConverters.asScala(planUtils.extractFormattedProduct(plan)));
+        try {
+          Class<?> spiClass = Class.forName("org.apache.spark.sql.execution.SparkPlanInfo");
+          java.lang.reflect.Constructor<?> targetCtor = null;
+          for (java.lang.reflect.Constructor<?> c : spiClass.getConstructors()) {
+            if (c.getParameterCount() == 5) {
+              targetCtor = c;
+              break;
+            }
+          }
+          if (targetCtor != null) {
+            Object newInst =
+                targetCtor.newInstance(
+                    planInfo.nodeName(),
+                    planInfo.simpleString(),
+                    planInfo.children(),
+                    meta,
+                    planInfo.metrics());
+            planInfo = (SparkPlanInfo) newInst;
+          }
+        } catch (Throwable ignored) {
+        }
       }
     }
   }

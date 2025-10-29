@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -69,8 +68,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
     // LiveListenerBus class is used to manage spark listeners
     transformer.applyAdvice(
         isMethod()
-            .and(named("addToSharedQueue").or(named("addToQueue")))
-            .and(takesArguments(1))
+            .and(named("addToSharedQueue"))
+            .and(takesArgument(0, named("org.apache.spark.scheduler.SparkListenerInterface")))
             .and(isDeclaredBy(named("org.apache.spark.scheduler.LiveListenerBus"))),
         AbstractSparkInstrumentation.class.getName() + "$LiveListenerBusAdvice");
   }
