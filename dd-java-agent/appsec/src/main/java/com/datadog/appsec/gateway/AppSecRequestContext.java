@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -140,7 +139,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private volatile Map<String, Object> derivatives;
+  private Map<String, Object> derivatives;
   private final Object derivativesLock = new Object();
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
@@ -651,10 +650,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       responseHeaders.clear();
       persistentData.clear();
       synchronized (derivativesLock) {
-        if (derivatives != null) {
-          derivatives.clear();
-          derivatives = null;
-        }
+        derivatives = null;
       }
     }
   }
@@ -795,9 +791,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     if (!newDerivatives.isEmpty()) {
       synchronized (derivativesLock) {
         if (derivatives == null) {
-          derivatives = new HashMap<>();
+          derivatives = newDerivatives;
+        } else {
+          derivatives.putAll(newDerivatives);
         }
-        derivatives.putAll(newDerivatives);
       }
     }
   }
@@ -954,7 +951,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
     Map<String, Object> derivativesSnapshot;
     synchronized (derivativesLock) {
-      if (derivatives == null || derivatives.isEmpty()) {
+      if (derivatives == null) {
+        return true;
+      }
+      if (derivatives.isEmpty()) {
         derivatives = null;
         return true;
       }
