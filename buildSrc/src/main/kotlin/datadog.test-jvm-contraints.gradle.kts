@@ -8,8 +8,9 @@ import org.gradle.kotlin.dsl.*
 
 plugins {
   java
-  jacoco apply false
 }
+
+val projectExtension = extensions.create<TestJvmConstraintsExtension>(TestJvmConstraintsExtension.NAME)
 
 val testJvmJavaLauncher = TestJvmJavaLauncher(project)
 
@@ -20,34 +21,44 @@ tasks.withType<Test>().configureEach {
 
   inputs.property("testJvm", providers.gradleProperty("testJvm"))
 
-  val extension = project.objects.newInstance<TestJvmConstraintsExtension>(name, project.objects, project.providers, project)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.allowReflectiveAccessToJdk", extension.allowReflectiveAccessToJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.excludeJdk", extension.excludeJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.forceJdk", extension.forceJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.minJavaVersionForTests", extension.minJavaVersionForTests)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.maxJavaVersionForTests", extension.maxJavaVersionForTests)
+  val taskExtension = project.objects.newInstance<TestJvmConstraintsExtension>().also {
+    configureConventions(it, projectExtension)
+  }
 
-  extensions.add(TestJvmConstraintsExtension.NAME, extension)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.allowReflectiveAccessToJdk", taskExtension.allowReflectiveAccessToJdk).optional(true)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.excludeJdk", taskExtension.excludeJdk)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.forceJdk", taskExtension.forceJdk)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.minJavaVersionForTests", taskExtension.minJavaVersionForTests).optional(true)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.maxJavaVersionForTests", taskExtension.maxJavaVersionForTests).optional(true)
 
-  configureTestJvm(extension)
+  extensions.add(TestJvmConstraintsExtension.NAME, taskExtension)
+
+  configureTestJvm(taskExtension)
 }
 
 // TODO make this part of the testJvm test task extension
+/**
+ * Provide arguments if condition is met.
+ */
 fun Test.configureJvmArgs(
   applyFromVersion: JavaVersion,
   jvmArgsToApply: List<String>,
-  additionalCondition: Provider<Boolean>? = null
+  additionalCondition: Provider<Boolean> = project.providers.provider { true }
 ) {
   jvmArgumentProviders.add(
     ProvideJvmArgsOnJvmLauncherVersion(
       this,
       applyFromVersion,
       jvmArgsToApply,
-      additionalCondition ?: project.providers.provider { true }
+      additionalCondition
     )
   )
 }
 
+/**
+ * Configure the jvm launcher of the test task and ensure the test task
+ * can be run with the test task launcher.
+ */
 fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
   if (testJvmJavaLauncher.javaTestLauncher.isPresent) {
     javaLauncher = testJvmJavaLauncher.javaTestLauncher
@@ -55,16 +66,6 @@ fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
       !extension.isJdkExcluded(testJvmJavaLauncher.normalizedTestJvm.get()) &&
         (extension.isJavaLauncherAllowed(testJvmJavaLauncher.javaTestLauncher.get()) ||
           extension.isJdkForced(testJvmJavaLauncher.normalizedTestJvm.get()))
-    }
-
-    // TODO refactor out ?
-    // Disable jacoco for additional 'testJvm' tests to speed things up a bit
-    extensions.configure<JacocoTaskExtension> {
-      val hasCoverage: Boolean by project.extra
-      // TODO read enabled ?
-      if (hasCoverage) {
-        isEnabled = false
-      }
     }
   } else {
     onlyIf("Is current Daemon JVM  allowed") {
@@ -83,3 +84,48 @@ fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
   )
 }
 
+// Jacoco plugin is not applied on every project
+pluginManager.withPlugin("org.gradle.jacoco") {
+  tasks.withType<Test>().configureEach {
+    // Disable jacoco for additional 'testJvm' tests to speed things up a bit
+    if (testJvmJavaLauncher.javaTestLauncher.isPresent) {
+      extensions.configure<JacocoTaskExtension> {
+        isEnabled = false
+      }
+    }
+  }
+}
+
+/**
+ * Configures the convention, this tells Gradle where to look for values.
+ *
+ * Currently, the extension is still configured to look at project's _extra_ properties.
+ */
+private fun Test.configureConventions(
+  taskExtension: TestJvmConstraintsExtension,
+  projectExtension: TestJvmConstraintsExtension
+) {
+  taskExtension.minJavaVersionForTests.convention(projectExtension.minJavaVersionForTests
+    .orElse(providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
+    .orElse(providers.provider { project.findProperty("minJavaVersionForTests") as? JavaVersion })
+  )
+  taskExtension.maxJavaVersionForTests.convention(projectExtension.maxJavaVersionForTests
+    .orElse(providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
+    .orElse(providers.provider { project.findProperty("maxJavaVersionForTests") as? JavaVersion })
+  )
+  taskExtension.forceJdk.convention(projectExtension.forceJdk
+    .orElse(providers.provider {
+      @Suppress("UNCHECKED_CAST")
+      project.findProperty("forceJdk") as? List<String> ?: emptyList()
+    })
+  )
+  taskExtension.excludeJdk.convention(projectExtension.excludeJdk
+    .orElse(providers.provider {
+      @Suppress("UNCHECKED_CAST")
+      project.findProperty("excludeJdk") as? List<String> ?: emptyList()
+    })
+  )
+  taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk
+    .orElse(providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
+  )
+}

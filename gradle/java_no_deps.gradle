@@ -14,34 +14,17 @@ apply from: "$rootDir/gradle/test-suites.gradle"
 
 @CompileStatic
 class TracerJavaExtension {
-  // TODO handle this style as well
-  // ext {
-  //   forkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  //   mule46ForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  //   latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  //   latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_17
-  // }
+  public static String NAME = "tracerJava";
+  private Project project
 
   Property<Boolean> skipSettingTestJavaVersion
-  // Property<JavaVersion> minJavaVersionForTests
-  // Property<JavaVersion> maxJavaVersionForTests
-  // MapProperty<String, JavaVersion> minJavaVersionForTestTasks
-  // ListProperty<String> forceJdk
-  // ListProperty<String> excludeJdk
 
   TracerJavaExtension(ObjectFactory objects, ProviderFactory providers, Project project) {
-    skipSettingTestJavaVersion = objects.property(Boolean)//.convention(providers.provider { project.findProperty('skipSettingTestJavaVersion') as Boolean })
-  //   minJavaVersionForTests = objects.property(JavaVersion) //.convention(providers.provider { project.findProperty('minJavaVersionForTests') as JavaVersion })
-  //   maxJavaVersionForTests = objects.property(JavaVersion)//.convention(providers.provider { project.findProperty('maxJavaVersionForTests') as JavaVersion })
-  //   forceJdk = objects.listProperty(String).convention([]) //.convention(providers.provider { project.findProperty('forceJdk') as List<String> })
-  //   excludeJdk = objects.listProperty(String).convention([]) //.convention(providers.provider { project.findProperty('excludeJdk') as List<String> })
-  }
-
-  def configureSourceSet(JavaVersion javaVersion) {
-    // TODO configure source sets and co
+    this.project = project
+    this.skipSettingTestJavaVersion = objects.property(Boolean).convention(providers.provider { project.findProperty('skipSettingTestJavaVersion') as Boolean })
   }
 }
-def tracerJavaExtension = extensions.create("tracerJava", TracerJavaExtension, objects, providers, project)
+def tracerJavaExtension = extensions.create(TracerJavaExtension.NAME, TracerJavaExtension, objects, providers, project)
 
 
 
@@ -67,6 +50,8 @@ def applyCodeCoverage = !(
 
 ext.applyCodeCoverage = applyCodeCoverage
 
+// https://stackoverflow.com/questions/42501869/gradle-skip-jacoco-during-test
+// https://poetengineer.postach.io/post/how-to-conditionally-enable-disable-jacoco-in-gradle-build
 if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
 }
@@ -81,17 +66,6 @@ java {
   withJavadocJar()
   withSourcesJar()
 }
-
-// TODO source set config, below is pseudo code based on tracerJavaExtension.minJavaVersionForTests
-// sourceSets {
-//   def wanted_version = tracerJavaExtension.minJavaVersionForTests.orNull
-//   if (wanted_version) {
-//     println("source set config ${project.path}")
-//     register("${SourceSet.MAIN_SOURCE_SET_NAME}2_java${wanted_version.majorVersion}") {
-//       java.srcDirs = ["${project.projectDir}/src/main/yaj${wanted_version.majorVersion}"]
-//     }
-//   }
-// }
 
 // TODO configures the source sets via the extension
 if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
@@ -122,6 +96,8 @@ if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJa
   }
 
   // TODO configure this via extension
+  //  If unset (hasProperty is false), or value is explicitly set to false (case not seen), then
+  //  sets the compiler to `minJavaVersionForTests` version
   // In some cases we would like to avoid setting java version to `minJavaVersionForTests`.
   // For example we would like to be able to run profiling tests with ZULU8, but we cannot run it with other JDK8 implementations at the moment
   def skipSettingTestJavaVersion = project.hasProperty('skipSettingTestJavaVersion') && project.findProperty('skipSettingTestJavaVersion')

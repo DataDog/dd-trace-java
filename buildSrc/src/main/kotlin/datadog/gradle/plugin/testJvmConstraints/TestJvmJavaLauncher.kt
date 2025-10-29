@@ -10,7 +10,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 class TestJvmJavaLauncher(val project: Project) {
-  val currentJavaHomePath = System.getProperty("java.home").normalizeToJDKJavaHome()
+  private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
   val normalizedTestJvm = project.providers.gradleProperty("testJvm").map { testJvm ->
     if (testJvm.isBlank()) {
       throw GradleException("testJvm property is blank")
@@ -54,7 +54,7 @@ class TestJvmJavaLauncher(val project: Project) {
 
   val javaTestLauncher = project.providers.zip(testJvmHomePath, normalizedTestJvm) { testJvmHome, testJvm ->
     // Only change test JVM if it's not the one we are running the gradle build with
-    if (currentJavaHomePath == testJvmHome) {
+    if (currentJavaHomePath.get() == testJvmHome) {
       project.providers.provider<JavaLauncher?> { null }
     } else {
       // This is using internal APIs
