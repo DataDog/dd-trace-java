@@ -8,8 +8,12 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
+import org.apache.spark.sql.execution.SparkPlan;
+import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
+import scala.collection.immutable.HashMap;
 
 @AutoService(InstrumenterModule.class)
 public class Spark213Instrumentation extends AbstractSparkInstrumentation {
@@ -17,6 +21,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
+      packageName + ".AbstractSparkPlanSerializer",
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark213Listener",
@@ -27,6 +32,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
+      packageName + ".Spark213PlanSerializer"
     };
   }
 
@@ -40,6 +46,13 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
             .and(isDeclaredBy(named("org.apache.spark.SparkContext")))
             .and(takesNoArguments()),
         Spark213Instrumentation.class.getName() + "$InjectListener");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("fromSparkPlan"))
+            .and(takesArgument(0, named("org.apache.spark.sql.execution.SparkPlan")))
+            .and(isDeclaredBy(named("org.apache.spark.sql.execution.SparkPlanInfo$"))),
+        Spark213Instrumentation.class.getName() + "$SparkPlanInfoAdvice");
   }
 
   public static class InjectListener {
@@ -77,6 +90,26 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
           new DatadogSpark213Listener(
               sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
+    }
+  }
+
+  public static class SparkPlanInfoAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit(
+        @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
+        @Advice.Argument(0) SparkPlan plan) {
+      if (planInfo.metadata().size() == 0
+          && (Config.get().isDataJobsParseSparkPlanEnabled()
+              || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
+        Spark213PlanSerializer planUtils = new Spark213PlanSerializer();
+        planInfo =
+            new SparkPlanInfo(
+                planInfo.nodeName(),
+                planInfo.simpleString(),
+                planInfo.children(),
+                HashMap.from(JavaConverters.asScala(planUtils.extractFormattedProduct(plan))),
+                planInfo.metrics());
+      }
     }
   }
 }

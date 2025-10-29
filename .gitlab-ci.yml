@@ -3,7 +3,7 @@ include:
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
-  #  - local: ".gitlab/ci-visibility-tests.yml"
+  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
@@ -448,6 +448,7 @@ check_smoke:
   parallel: 4
   variables:
     GRADLE_TARGET: ":smokeCheck"
+    CACHE_TYPE: "smoke"
 
 check_profiling:
   extends: .check_job
@@ -657,7 +658,7 @@ test_flaky:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_PARAMS: "-PrunFlakyTests"
-    CACHE_TYPE: "base"
+    CACHE_TYPE: "smoke"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   rules:

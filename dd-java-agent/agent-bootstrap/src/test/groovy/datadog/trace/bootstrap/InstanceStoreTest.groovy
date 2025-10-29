@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap
 
 import datadog.trace.test.util.DDSpecification
+import java.util.function.Supplier
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,27 +16,34 @@ class InstanceStoreTest extends DDSpecification {
     "key-${counter.incrementAndGet()}"
   }
 
-  def "test returns existing value"() {
+  def "test basic operation"() {
     setup:
     def someStore = InstanceStore.of(Some)
     def some1 = new Some()
     def some2 = new Some()
     def key = nextKey()
+    def current
+
+    when:
     someStore.put(key, some1)
-
-    when:
-    def current = someStore.putIfAbsent(key, some2)
+    current = someStore.get(key)
 
     then:
     current == some1
-    current != some2
 
     when:
-    current = someStore.putIfAbsent(key, some2)
+    someStore.put(key, some2)
+    current = someStore.get(key)
 
     then:
-    current == some1
-    current != some2
+    current == some2
+
+    when:
+    someStore.remove(key)
+    current = someStore.get(key)
+
+    then:
+    current == null
   }
 
   def "test returns existing store"() {
@@ -45,13 +53,13 @@ class InstanceStoreTest extends DDSpecification {
     InstanceStore.of(Some).put(key, some1)
 
     when:
-    def current = InstanceStore.of(Some).putIfAbsent(key, new Some())
+    def current = InstanceStore.of(Some).putIfAbsent(key, Some::new)
 
     then:
     current == some1
 
     when:
-    current = InstanceStore.of(Some).putIfAbsent(key, new Some())
+    current = InstanceStore.of(Some).putIfAbsent(key, Some::new)
 
     then:
     current == some1
@@ -63,13 +71,13 @@ class InstanceStoreTest extends DDSpecification {
     def key = nextKey()
 
     when:
-    def current = someStore.putIfAbsent(key, some1)
+    def current = someStore.putIfAbsent(key, () -> some1)
 
     then:
     current == some1
 
     when:
-    current = someStore.putIfAbsent(key, new Some())
+    current = someStore.putIfAbsent(key, Some::new)
 
     then:
     current == some1
@@ -113,7 +121,7 @@ class InstanceStoreTest extends DDSpecification {
 
   static class Some {}
 
-  static class Creator implements ContextStore.Factory<Some> {
+  static class Creator implements Supplier<Some> {
     private AtomicInteger invocations
     private Some some
 
@@ -127,7 +135,7 @@ class InstanceStoreTest extends DDSpecification {
     }
 
     @Override
-    Some create() {
+    Some get() {
       invocations.incrementAndGet()
       return some
     }

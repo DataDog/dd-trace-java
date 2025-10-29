@@ -80,7 +80,7 @@ import scala.collection.JavaConverters;
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
-  private static final ObjectMapper objectMapper = new ObjectMapper();
+  protected static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
 
   public static volatile boolean finishTraceOnApplicationEnd = true;

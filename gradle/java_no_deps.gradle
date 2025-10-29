@@ -427,6 +427,14 @@ ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion c
   }
 } as Closure<Void>
 
+ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
+  taskNames.each { taskName ->
+    tasks.named(taskName, GroovyCompile) {
+      configureCompiler(it, toolchainVersion)
+    }
+  }
+} as Closure<Void>
+
 ext.getJavaLauncherFor = (javaVersionInteger) -> {
   def launcher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)

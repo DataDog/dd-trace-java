@@ -31,11 +31,7 @@ addTestSuiteExtendingForDir("boot2LatestDepForkedTest", "boot2LatestDepTest", "t
 addTestSuiteExtendingForDir("boot3ForkedTest", "boot3Test", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
-["compileLatestDepTestGroovy", "compileBoot3TestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 17)
-  }
-}
+configureGroovyCompiler(17, "compileLatestDepTestGroovy", "compileBoot3TestGroovy")
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:span-origin')

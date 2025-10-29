@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.undertow;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,13 +22,13 @@ public class UndertowDecorator
       UTF8BytesString.create("undertow-http-server");
 
   @SuppressWarnings("rawtypes")
-  private static final ContextStore<String, AttachmentKey> attachmentStore =
+  private static final InstanceStore<AttachmentKey> attachmentStore =
       InstanceStore.of(AttachmentKey.class);
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<AgentScope.Continuation> DD_UNDERTOW_CONTINUATION =
       attachmentStore.putIfAbsent(
-          "DD_UNDERTOW_CONTINUATION", AttachmentKey.create(AgentScope.Continuation.class));
+          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(AgentScope.Continuation.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
   public static final CharSequence UNDERTOW_REQUEST =
