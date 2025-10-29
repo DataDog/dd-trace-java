@@ -153,6 +153,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_RETRY_BACKOFF_INITIAL_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_RETRY_BACKOFF_MAX_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_RETRY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_RETRY_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
@@ -606,6 +610,10 @@ import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERA
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_RETRY_BACKOFF_INITIAL_MS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_RETRY_BACKOFF_MAX_MS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_RETRY_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_RETRY_QUEUE_SIZE;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
@@ -807,6 +815,10 @@ public class Config {
   private final String agentUnixDomainSocket;
   private final String agentNamedPipe;
   private final int agentTimeout;
+  private final boolean retryEnabled;
+  private final int retryQueueSize;
+  private final long retryBackoffInitialMs;
+  private final long retryBackoffMaxMs;
   /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
   private final boolean forceClearTextHttpForIntakeClient;
 
@@ -1497,6 +1509,18 @@ public class Config {
             && agentNamedPipe == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
+
+    retryEnabled =
+        configProvider.getBoolean(TRACE_AGENT_RETRY_ENABLED, DEFAULT_TRACE_AGENT_RETRY_ENABLED);
+    retryQueueSize =
+        configProvider.getInteger(
+            TRACE_AGENT_RETRY_QUEUE_SIZE, DEFAULT_TRACE_AGENT_RETRY_QUEUE_SIZE);
+    retryBackoffInitialMs =
+        configProvider.getLong(
+            TRACE_AGENT_RETRY_BACKOFF_INITIAL_MS, DEFAULT_TRACE_AGENT_RETRY_BACKOFF_INITIAL_MS);
+    retryBackoffMaxMs =
+        configProvider.getLong(
+            TRACE_AGENT_RETRY_BACKOFF_MAX_MS, DEFAULT_TRACE_AGENT_RETRY_BACKOFF_MAX_MS);
 
     forceClearTextHttpForIntakeClient =
         configProvider.getBoolean(FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT, false);
@@ -3023,6 +3047,22 @@ public class Config {
 
   public int getAgentTimeout() {
     return agentTimeout;
+  }
+
+  public boolean isRetryEnabled() {
+    return retryEnabled;
+  }
+
+  public int getRetryQueueSize() {
+    return retryQueueSize;
+  }
+
+  public long getRetryBackoffInitialMs() {
+    return retryBackoffInitialMs;
+  }
+
+  public long getRetryBackoffMaxMs() {
+    return retryBackoffMaxMs;
   }
 
   public boolean isForceClearTextHttpForIntakeClient() {

@@ -6,6 +6,7 @@ import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.Config;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.nio.ByteBuffer;
@@ -24,6 +25,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
   private final RemoteMapperDiscovery mapperDiscovery;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
+  private final TraceRetryManager retryManager;
 
   private Recording batchTimer;
   private RemoteMapper mapper;
@@ -41,6 +43,11 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.monitoring = monitoring;
+
+    // Initialize retry manager
+    Config config = Config.get();
+    this.retryManager = new TraceRetryManager(api, config);
+    this.retryManager.start();
   }
 
   @Override
@@ -109,6 +116,14 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       healthMetrics.onSerialize(sizeInBytes);
       RemoteApi.Response response = api.sendSerializedTraces(payload);
       mapper.reset();
+
+      // Check if we should retry on 429
+      if (retryManager != null && response.retryable()) {
+        // Agent returned 429 (backpressure), enqueue for retry
+        retryManager.enqueue(payload, 0); // 0 indicates first retry attempt
+        return;
+      }
+
       if (response.success()) {
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);

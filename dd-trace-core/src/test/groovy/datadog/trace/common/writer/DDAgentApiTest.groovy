@@ -448,6 +448,126 @@ class DDAgentApiTest extends DDCoreSpecification {
     }
   }
 
+  def "opt-in header is sent on all requests"() {
+    setup:
+    def headerReceived = null
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          headerReceived = request.headers.get("Datadog-Send-Real-Http-Status")
+          response.status(200).send()
+        }
+      }
+    }
+    def client = createAgentApi(agent.address.toString())[1]
+    def payload = prepareTraces("v0.4/traces", [])
+
+    when:
+    client.sendSerializedTraces(payload)
+
+    then:
+    headerReceived == "true"
+
+    cleanup:
+    agent.close()
+  }
+
+  def "429 response is classified as RETRY_429"() {
+    setup:
+    def agent = httpServer {
+      handlers {
+        put("v0.3/traces") {
+          response.status(429).send()
+        }
+        put("v0.4/traces") {
+          response.status(429).send()
+        }
+        put("v0.5/traces") {
+          response.status(429).send()
+        }
+      }
+    }
+    def client = createAgentApi(agent.address.toString())[1]
+    def payload = prepareTraces("v0.4/traces", [])
+
+    when:
+    def response = client.sendSerializedTraces(payload)
+    def result = client.classifyResponse(response)
+
+    then:
+    !response.success()
+    response.status().asInt == 429
+    result == DDAgentApi.SubmitResult.RETRY_429
+
+    cleanup:
+    agent.close()
+  }
+
+  def "200 response is classified as OK"() {
+    setup:
+    def agent = httpServer {
+      handlers {
+        put("v0.3/traces") {
+          response.status(200).send()
+        }
+        put("v0.4/traces") {
+          response.status(200).send()
+        }
+        put("v0.5/traces") {
+          response.status(200).send()
+        }
+      }
+    }
+    def client = createAgentApi(agent.address.toString())[1]
+    def payload = prepareTraces("v0.4/traces", [])
+
+    when:
+    def response = client.sendSerializedTraces(payload)
+    def result = client.classifyResponse(response)
+
+    then:
+    response.success()
+    response.status().asInt == 200
+    result == DDAgentApi.SubmitResult.OK
+
+    cleanup:
+    agent.close()
+  }
+
+  def "non-429 error response is classified as ERROR"() {
+    setup:
+    def agent = httpServer {
+      handlers {
+        put("v0.3/traces") {
+          response.status(errorCode).send()
+        }
+        put("v0.4/traces") {
+          response.status(errorCode).send()
+        }
+        put("v0.5/traces") {
+          response.status(errorCode).send()
+        }
+      }
+    }
+    def client = createAgentApi(agent.address.toString())[1]
+    def payload = prepareTraces("v0.4/traces", [])
+
+    when:
+    def response = client.sendSerializedTraces(payload)
+    def result = client.classifyResponse(response)
+
+    then:
+    !response.success()
+    response.status().asInt == errorCode
+    result == DDAgentApi.SubmitResult.ERROR
+
+    cleanup:
+    agent.close()
+
+    where:
+    errorCode << [400, 404, 500, 503]
+  }
+
   def createAgentApi(String url) {
     HttpUrl agentUrl = HttpUrl.get(url)
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)

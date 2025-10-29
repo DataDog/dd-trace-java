@@ -365,5 +365,10 @@ public final class ConfigDefaults {
           "$.Credentials.SessionToken",
           "$.InventoryConfigurationList[*].Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
 
+  static final boolean DEFAULT_TRACE_AGENT_RETRY_ENABLED = true;
+  static final int DEFAULT_TRACE_AGENT_RETRY_QUEUE_SIZE = 5000;
+  static final long DEFAULT_TRACE_AGENT_RETRY_BACKOFF_INITIAL_MS = 1000L;
+  static final long DEFAULT_TRACE_AGENT_RETRY_BACKOFF_MAX_MS = 60000L;
+
   private ConfigDefaults() {}
 }
