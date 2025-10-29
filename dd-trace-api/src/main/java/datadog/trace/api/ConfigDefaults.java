@@ -73,6 +73,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
+  static final boolean DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT = false;
   // Default value is set to 0, it disables the latency trace interceptor
   static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
@@ -242,6 +243,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
+  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds

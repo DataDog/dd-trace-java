@@ -4,6 +4,17 @@ import com.squareup.moshi.Json;
 import java.util.List;
 
 public class Scope {
+
+  public static class LineRange {
+    final int start;
+    final int end;
+
+    public LineRange(int start, int end) {
+      this.start = start;
+      this.end = end;
+    }
+  }
+
   @Json(name = "scope_type")
   private final ScopeType scopeType;
 
@@ -15,6 +26,12 @@ public class Scope {
 
   @Json(name = "end_line")
   private final int endLine;
+
+  @Json(name = "has_injectible_lines")
+  private final boolean hasInjectibleLines;
+
+  @Json(name = "injectible_lines")
+  private final List<LineRange> injectibleLines;
 
   private final String name;
 
@@ -30,6 +47,8 @@ public class Scope {
       int startLine,
       int endLine,
       String name,
+      boolean hasInjectibleLines,
+      List<LineRange> injectibleLines,
       LanguageSpecifics languageSpecifics,
       List<Symbol> symbols,
       List<Scope> scopes) {
@@ -38,6 +57,8 @@ public class Scope {
     this.startLine = startLine;
     this.endLine = endLine;
     this.name = name;
+    this.hasInjectibleLines = hasInjectibleLines;
+    this.injectibleLines = injectibleLines;
     this.languageSpecifics = languageSpecifics;
     this.symbols = symbols;
     this.scopes = scopes;
@@ -61,6 +82,14 @@ public class Scope {
 
   public String getName() {
     return name;
+  }
+
+  public boolean hasInjectibleLines() {
+    return hasInjectibleLines;
+  }
+
+  public List<LineRange> getInjectibleLines() {
+    return injectibleLines;
   }
 
   public LanguageSpecifics getLanguageSpecifics() {
@@ -110,6 +139,8 @@ public class Scope {
     private final int startLine;
     private final int endLine;
     private String name;
+    private boolean hasInjectibleLines;
+    private List<LineRange> injectibleLines;
     private LanguageSpecifics languageSpecifics;
     private List<Symbol> symbols;
     private List<Scope> scopes;
@@ -123,6 +154,16 @@ public class Scope {
 
     public Builder name(String name) {
       this.name = name;
+      return this;
+    }
+
+    public Builder hasInjectibleLines(boolean hasInjectibleLines) {
+      this.hasInjectibleLines = hasInjectibleLines;
+      return this;
+    }
+
+    public Builder injectibleLines(List<LineRange> injectibleLines) {
+      this.injectibleLines = injectibleLines;
       return this;
     }
 
@@ -143,7 +184,16 @@ public class Scope {
 
     public Scope build() {
       return new Scope(
-          scopeType, sourceFile, startLine, endLine, name, languageSpecifics, symbols, scopes);
+          scopeType,
+          sourceFile,
+          startLine,
+          endLine,
+          name,
+          hasInjectibleLines,
+          injectibleLines,
+          languageSpecifics,
+          symbols,
+          scopes);
     }
   }
 }

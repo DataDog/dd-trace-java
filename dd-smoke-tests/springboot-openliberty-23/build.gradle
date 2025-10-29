@@ -13,9 +13,18 @@ def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 
 // compile the Open liberty spring boot server
 tasks.register('mvnStage', Exec) {
-  workingDir "$appDir"
+  workingDir("$appDir")
   environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
-  commandLine "$rootDir/${mvnwCommand}", 'package', "-Dtarget.dir=${buildDir}/application/target"
+
+  List<String> mvnArgs = ["$rootDir/${mvnwCommand}", "-Dtarget.dir=${buildDir}/application/target", "package"]
+
+  // Specify caches folder on CI.
+  if (providers.environmentVariable("CI").isPresent()) {
+    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
+  }
+
+  commandLine(mvnArgs)
+
   inputs.dir "$appDir/src"
   inputs.file "$appDir/pom.xml"
   outputs.file jarPath
