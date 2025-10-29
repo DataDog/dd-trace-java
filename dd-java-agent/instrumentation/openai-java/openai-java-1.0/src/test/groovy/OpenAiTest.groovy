@@ -8,10 +8,11 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 
-class OpenAiTest extends LlmObsSpecification {
+abstract class OpenAiTest extends LlmObsSpecification {
 
-  // will use real openai backend when provided
-  static String openAiToken() {
+  // openai token - will use real openai backend
+  // null - will use mockOpenAiBackend
+  String openAiToken() {
     return null
   }
 
@@ -24,9 +25,6 @@ class OpenAiTest extends LlmObsSpecification {
   def mockOpenAiBackend = TestHttpServer.httpServer {
     handlers {
       prefix("/completions") {
-        redirect("/v1/completions")
-      }
-      prefix("/v1/completions") {
         response.status(200).send(
             """
                   {

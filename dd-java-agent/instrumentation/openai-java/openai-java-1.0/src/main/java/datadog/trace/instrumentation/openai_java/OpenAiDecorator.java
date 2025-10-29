@@ -30,7 +30,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
   @Override
   protected CharSequence spanType() {
-    return InternalSpanTypes.HTTP_CLIENT;
+    return InternalSpanTypes.LLMOBS;
   }
 
   @Override
