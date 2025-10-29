@@ -11,6 +11,10 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
