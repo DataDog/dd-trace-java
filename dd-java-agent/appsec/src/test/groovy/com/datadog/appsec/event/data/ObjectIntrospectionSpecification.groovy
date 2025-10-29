@@ -354,6 +354,14 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('{"key": "value"}')            || [key: 'value']
   }
 
+  void 'jackson text nodes with null textual value are handled gracefully'() {
+    given:
+    def node = new com.fasterxml.jackson.databind.node.NullTextJsonNode()
+
+    expect:
+    convert(node, ctx) == null
+  }
+
   void 'jackson nested structures'() {
     when:
     final result = convert(input, ctx)
