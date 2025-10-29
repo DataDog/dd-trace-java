@@ -428,7 +428,8 @@ ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion c
 } as Closure<Void>
 
 ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
-  taskNames.each { taskName ->
+  taskNames.each {
+    taskName ->
     tasks.named(taskName, GroovyCompile) {
       configureCompiler(it, toolchainVersion)
     }
