@@ -360,6 +360,16 @@ spotless:
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
+  after_script:
+    - *cgroup_info
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
 
 test_published_artifacts:
   extends: .gradle_build

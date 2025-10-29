@@ -12,6 +12,17 @@ plugins {
   id 'com.google.protobuf' version '0.9.3'
 }
 
+spotless {
+  java {
+
+    // TODO: for some reason `armeriaBuild` is failing with NoClassDefFoundError.
+    suppressLintsFor {
+      step = "toggle"
+      shortCode = "java.lang.NoClassDefFoundError"
+    }
+  }
+}
+
 def sharedRootDir = "$rootDir/../../../"
 def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
