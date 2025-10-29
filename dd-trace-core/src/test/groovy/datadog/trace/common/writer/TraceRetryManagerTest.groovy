@@ -4,7 +4,6 @@ import datadog.trace.api.Config
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 @Timeout(10)
