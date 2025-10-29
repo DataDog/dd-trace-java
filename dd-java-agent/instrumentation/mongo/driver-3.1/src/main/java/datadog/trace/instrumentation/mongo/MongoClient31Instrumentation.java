@@ -57,8 +57,6 @@ public final class MongoClient31Instrumentation extends InstrumenterModule.Traci
       packageName + ".MongoDecorator",
       packageName + ".MongoDecorator31",
       packageName + ".Context",
-      packageName + ".MongoCommentInjector",
-      "datadog.trace.core.database.SharedDBCommenter",
       packageName + ".MongoCommandListener",
       packageName + ".MongoCommandListener$SpanEntry"
     };

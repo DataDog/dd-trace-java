@@ -1,14 +1,12 @@
-package datadog.trace.instrumentation.mongo
-
-import com.mongodb.event.CommandStartedEvent
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.instrumentation.mongo.MongoCommentInjector
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.RawBsonDocument
 
-class MongoCommentInjectorTest extends InstrumentationSpecification {
+abstract class BaseMongoCommentInjectorTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -16,18 +14,9 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
     injectSysConfig("dd.env", "test")
     injectSysConfig("dd.version", "1.0.0")
   }
+}
 
-  def "getComment returns null when INJECT_COMMENT is false"() {
-    setup:
-    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "disabled")
-
-    when:
-    String comment = MongoCommentInjector.getComment(null, null)
-
-    then:
-    comment == null
-  }
-
+class MongoCommentInjectorTest extends BaseMongoCommentInjectorTest {
   def "buildTraceParent with sampled flag (SAMPLER_KEEP)"() {
     setup:
     def span = TEST_TRACER.buildSpan("test-op").start()
@@ -101,7 +90,22 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
     comment.contains("ddh='localhost'")
     comment.contains("dddb='testdb'")
   }
+}
 
+class MongoCommentInjectorDisabledModeForkedTest extends BaseMongoCommentInjectorTest {
+  def "getComment returns null when INJECT_COMMENT is false"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "disabled")
+
+    when:
+    String comment = MongoCommentInjector.getComment(null, null, null)
+
+    then:
+    comment == null
+  }
+}
+
+class MongoCommentInjectorServiceModeForkedTest extends BaseMongoCommentInjectorTest {
   def "injectComment handles immutable RawBsonDocument"() {
     setup:
     // Enable DBM propagation for this test
@@ -120,17 +124,8 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
     thrown(UnsupportedOperationException)
 
     when:
-    // Create CommandStartedEvent with RawBsonDocument
-    def event = new CommandStartedEvent(
-      1,  // requestId
-      null,  // connectionDescription
-      "testdb",  // databaseName
-      "find",  // commandName
-      rawDoc  // command (immutable)
-      )
-
     // This should NOT throw UnsupportedOperationException with the fix
-    BsonDocument result = MongoCommentInjector.injectComment(dbmComment, event)
+    BsonDocument result = MongoCommentInjector.injectComment(dbmComment, rawDoc)
 
     then:
     // Should successfully inject comment
@@ -149,16 +144,8 @@ class MongoCommentInjectorTest extends InstrumentationSpecification {
     def originalCommand = new BsonDocument("find", new BsonString("collection"))
     def dbmComment = "dddbs='test-service',dde='test'"
 
-    def event = new CommandStartedEvent(
-      1,  // requestId
-      null,  // connectionDescription
-      "testdb",  // databaseName
-      "find",  // commandName
-      originalCommand  // command (mutable)
-      )
-
     when:
-    BsonDocument result = MongoCommentInjector.injectComment(dbmComment, event)
+    BsonDocument result = MongoCommentInjector.injectComment(dbmComment, originalCommand)
 
     then:
     result != null

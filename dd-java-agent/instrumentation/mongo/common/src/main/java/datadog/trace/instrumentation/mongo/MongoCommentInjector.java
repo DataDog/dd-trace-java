@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.mongo;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 
-import com.mongodb.connection.ConnectionDescription;
-import com.mongodb.event.CommandStartedEvent;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.database.SharedDBCommenter;
@@ -22,16 +20,18 @@ import org.slf4j.LoggerFactory;
 public class MongoCommentInjector {
   private static final Logger log = LoggerFactory.getLogger(MongoCommentInjector.class);
 
+  public static final boolean INJECT_COMMENT = Config.get().isDbmCommentInjectionEnabled();
+
   /** Main entry point for MongoDB command comment injection */
-  public static BsonDocument injectComment(String dbmComment, CommandStartedEvent event) {
-    if (!Config.get().isDbmCommentInjectionEnabled() || dbmComment == null || event == null) {
-      return event != null ? event.getCommand() : null;
+  public static BsonDocument injectComment(String dbmComment, BsonDocument originalBsonDocument) {
+    if (!INJECT_COMMENT) {
+      return originalBsonDocument;
     }
 
     // Create a mutable copy by constructing a new BsonDocument and copying all entries
     // This handles both regular BsonDocument and immutable RawBsonDocument/ByteBufBsonDocument
     BsonDocument command = new BsonDocument();
-    command.putAll(event.getCommand());
+    command.putAll(originalBsonDocument);
 
     try {
       for (String commentKey : new String[] {"comment", "$comment"}) {
@@ -49,14 +49,18 @@ public class MongoCommentInjector {
       log.warn(
           "Linking Database Monitoring profiles to spans is not supported for the following query type: {}. "
               + "To disable this feature please set the following environment variable: DD_DBM_PROPAGATION_MODE=disabled",
-          event.getCommand().getClass().getSimpleName());
-      return event.getCommand();
+          originalBsonDocument.getClass().getSimpleName());
+      return originalBsonDocument;
     }
   }
 
   /** Build comment content using SharedDBCommenter */
-  public static String getComment(AgentSpan dbSpan, CommandStartedEvent event) {
-    if (!Config.get().isDbmCommentInjectionEnabled()) {
+  public static String getComment(AgentSpan dbSpan, String hostname, String dbName) {
+    if (!INJECT_COMMENT) {
+      return null;
+    }
+
+    if (dbSpan.forceSamplingDecision() == null) {
       return null;
     }
 
@@ -65,8 +69,6 @@ public class MongoCommentInjector {
 
     // Extract connection details
     String dbService = dbSpan.getServiceName();
-    String hostname = getHostnameFromEvent(event);
-    String dbName = event.getDatabaseName();
     String traceParent =
         Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
             ? buildTraceParent(dbSpan)
@@ -107,22 +109,15 @@ public class MongoCommentInjector {
     return existingComment;
   }
 
-  private static String getHostnameFromEvent(CommandStartedEvent event) {
-    ConnectionDescription connectionDescription = event.getConnectionDescription();
-    if (connectionDescription != null && connectionDescription.getServerAddress() != null) {
-      return connectionDescription.getServerAddress().getHost();
-    }
-    return null;
-  }
-
   static String buildTraceParent(AgentSpan span) {
     // W3C traceparent format: version-traceId-spanId-flags
-    StringBuilder sb = new StringBuilder(2 + 1 + 32 + 1 + 16 + 1 + 2);
-    sb.append("00-"); // version
-    sb.append(span.getTraceId().toHexStringPadded(32)); // traceId
-    sb.append("-");
-    sb.append(String.format("%016x", span.getSpanId())); // spanId
-    sb.append(span.context().getSamplingPriority() > 0 ? "-01" : "-00");
-    return sb.toString();
+    return "00-"
+        + // version
+        span.getTraceId().toHexStringPadded(32)
+        + // traceId
+        '-'
+        + String.format("%016x", span.getSpanId())
+        + // spanId
+        (span.context().getSamplingPriority() > 0 ? "-01" : "-00");
   }
 }
