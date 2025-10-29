@@ -6,7 +6,6 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
-import java.io.File
 import java.nio.file.FileVisitResult
 import java.nio.file.Paths
 
