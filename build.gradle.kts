@@ -8,7 +8,7 @@ plugins {
   id("datadog.dump-hanged-test")
   id("datadog.ci-jobs")
 
-  id("com.diffplug.spotless") version "6.13.0"
+  id("com.diffplug.spotless") version "8.0.0"
   id("com.github.spotbugs") version "6.4.4"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
@@ -35,7 +35,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
 
     // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.7")
+    googleJavaFormat("1.29.0")
   }
   groovyGradle {
     greclipse()
@@ -44,13 +44,13 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     greclipse()
   }
   kotlinGradle {
-    ktlint("0.41.0")
+    ktlint("1.7.1")
   }
   kotlin {
-    ktlint("0.41.0")
+    ktlint("1.7.1")
   }
   scala {
-    scalafmt("2.7.5")
+    scalafmt("3.9.10")
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
