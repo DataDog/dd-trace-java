@@ -11,6 +11,11 @@ apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/test-suites.gradle"
 
+// Glue code for Groovy DSL.
+// TODO this extension need to go away once we move to convention plugins
+ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion compatibilityVersion = null, String unsetReleaseFlagReason = null) -> {
+  configureCompiler(it, toolchainVersion, compatibilityVersion, unsetReleaseFlagReason)
+} as Closure<Void>
 
 @CompileStatic
 class TracerJavaExtension {
@@ -22,6 +27,44 @@ class TracerJavaExtension {
   TracerJavaExtension(ObjectFactory objects, ProviderFactory providers, Project project) {
     this.project = project
     this.skipSettingTestJavaVersion = objects.property(Boolean).convention(providers.provider { project.findProperty('skipSettingTestJavaVersion') as Boolean })
+  }
+
+  /**
+   * Adds the source set `src/main/javaXX`, configures its compilation and its test jvm constraints.
+   *
+   * @param javaVersion The wanted java version for these source.
+   * @param compileOnly Whether the compilation output is added as compileOnly.
+   * @return
+   */
+  def addSourceSetFor(JavaVersion javaVersion, Boolean compileOnly = false) {
+    project.extensions.getByType(TestJvmConstraintsExtension).minJavaVersionForTests.set(javaVersion)
+
+    def version = javaVersion
+    def name = "java${version.majorVersion}"
+    def sourceSets = project.extensions.getByType(SourceSetContainer)
+
+    def mainForJavaVersionSourceSet = sourceSets.create("${SourceSet.MAIN_SOURCE_SET_NAME}_$name") {
+      (it as SourceSet).java.srcDirs = ["${project.projectDir}/src/${SourceSet.MAIN_SOURCE_SET_NAME}/$name"]
+    }
+
+    project.tasks.named(mainForJavaVersionSourceSet.compileJavaTaskName, JavaCompile) {
+      // TODO Make 'configureCompiler' a general utility method
+      def cl = project.extensions.getByType(ExtraPropertiesExtension).get("configureCompiler") as Closure
+      cl.call(it, version.majorVersion.toInteger().intValue(), version)
+    }
+
+    // "socket-utils" is only set to compileOnly because the implementation dependency incorrectly adds Java17 classes to all jar prefixes.
+    // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
+    if (compileOnly) {
+      project.dependencies.add("compileOnly", mainForJavaVersionSourceSet.output)
+    } else {
+      project.dependencies.add("compileOnly", project.files(mainForJavaVersionSourceSet.compileClasspath))
+      project.dependencies.add("implementation", mainForJavaVersionSourceSet.output)
+    }
+
+    project.tasks.named("jar", Jar) {
+      it.from(mainForJavaVersionSourceSet.output)
+    }
   }
 }
 def tracerJavaExtension = extensions.create(TracerJavaExtension.NAME, TracerJavaExtension, objects, providers, project)
@@ -67,33 +110,8 @@ java {
   withSourcesJar()
 }
 
-// TODO configures the source sets via the extension
 if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
-  def version = JavaVersion.toVersion(project.findProperty('minJavaVersionForTests'))
-  def name = "java${version.majorVersion}"
-  def mainForJavaVersionSourceSet = sourceSets.create("main_$name") {
-    java.srcDirs = ["${project.projectDir}/src/main/$name"]
-  }
-
-  // Task name is registered when source set was created
-  tasks.named(mainForJavaVersionSourceSet.compileJavaTaskName, JavaCompile) {
-    configureCompiler(it, version.majorVersion.toInteger().intValue(), version)
-  }
-
-  // "socket-utils" is only set to compileOnly because the implementation dependency incorrectly adds Java17 classes to all jar prefixes.
-  // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
-  dependencies {
-    if ("${project.projectDir}".endsWith("socket-utils")) {
-      compileOnly(files(project.sourceSets."main_$name".output))
-    } else {
-      compileOnly(files(project.sourceSets."main_$name".compileClasspath))
-      implementation(files(project.sourceSets."main_$name".output))
-    }
-  }
-
-  tasks.named("jar", Jar) {
-    from sourceSets."main_$name".output
-  }
+  tracerJavaExtension.addSourceSetFor(project.findProperty('minJavaVersionForTests'))
 
   // TODO configure this via extension
   //  If unset (hasProperty is false), or value is explicitly set to false (case not seen), then
@@ -259,8 +277,10 @@ tasks.withType(JavaCompile).configureEach {
  * For java changes the compiler from the toolchain, and adapts its configuration.
  *
  * For Groovy and Scala compile tasks only sets the launcher.
+ *
+ * NOTE: This function is exposed via a closure
  */
-ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion compatibilityVersion = null, String unsetReleaseFlagReason = null) -> {
+def configureCompiler(AbstractCompile it, int toolchainVersion, JavaVersion compatibilityVersion = null, String unsetReleaseFlagReason = null) {
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(toolchainVersion)
   }
@@ -309,7 +329,7 @@ ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion c
   } catch (NoSuchElementException ignored) {
     throw new GradleException("Unable to find compiler for Java $toolchainVersion. Have you set JAVA_${toolchainVersion}_HOME?")
   }
-} as Closure<Void>
+}
 
 ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
   taskNames.each { taskName ->
