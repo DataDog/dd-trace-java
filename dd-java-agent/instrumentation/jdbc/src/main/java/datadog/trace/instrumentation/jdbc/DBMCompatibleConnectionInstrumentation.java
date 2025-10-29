@@ -126,7 +126,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         dbService =
             traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
       }
-      boolean append = "sqlserver".equals(dbInfo.getType());
+
+      boolean append =
+          DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT || "sqlserver".equals(dbInfo.getType());
       sql =
           SQLCommenter.inject(
               sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
