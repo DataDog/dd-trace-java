@@ -18,6 +18,7 @@ dependencies {
   implementation libs.okhttp
 
   api project(':dd-trace-api')
+  api project(':utils:version-utils')
   implementation project(':internal-api')
   implementation project(':communication')
 
