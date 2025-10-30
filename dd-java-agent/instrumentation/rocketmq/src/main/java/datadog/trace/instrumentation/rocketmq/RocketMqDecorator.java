@@ -58,7 +58,7 @@ public class RocketMqDecorator extends BaseDecorator {
     MessageExt ext = context.getMsgList().get(0);
     AgentSpanContext parentContext = extractContextAndGetSpanContext(ext, GETTER);
     UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " receive");
-    final AgentSpan span = startSpan(name, parentContext);
+    final AgentSpan span = startSpan(name.toString(), ROCKETMQ_NAME, parentContext);
     span.setResourceName(name);
 
     span.setServiceName(LOCAL_SERVICE_NAME);
@@ -81,6 +81,12 @@ public class RocketMqDecorator extends BaseDecorator {
     if (log.isDebugEnabled()) {
       log.debug("consumer span start topic:{}", ext.getTopic());
     }
+    log.info(
+        "start consume message topic: {}  message id:{}  offset :{}  properties={}",
+        ext.getTopic(),
+        ext.getMsgId(),
+        ext.getQueueOffset(),
+        ext.getProperties());
     return scope;
   }
 
@@ -97,12 +103,14 @@ public class RocketMqDecorator extends BaseDecorator {
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
     }
+
+    log.info("span end topic:{}", span.getTag(TOPIC));
   }
 
   public AgentScope start(SendMessageContext context) {
     String topic = context.getMessage().getTopic();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " send");
-    final AgentSpan span = startSpan(spanName);
+    final AgentSpan span = startSpan("rocketmq", spanName);
     span.setResourceName(spanName);
 
     span.setTag(BROKER_HOST, context.getBornHost());
