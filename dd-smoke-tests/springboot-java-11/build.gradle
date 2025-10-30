@@ -25,7 +25,6 @@ dependencies {
   implementation project(':dd-smoke-tests:iast-util:iast-util-11')
 
   // open feature flag provider
-  implementation(libs.openfeature.sdk)
   api(project(':dd-trace-api:openfeature'))
 }
 

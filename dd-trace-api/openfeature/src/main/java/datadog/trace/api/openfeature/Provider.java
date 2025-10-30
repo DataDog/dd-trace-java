@@ -110,8 +110,7 @@ public class Provider extends EventProvider
             builder.addInteger(key, (Integer) value);
           } else if (value instanceof Float) {
             builder.addFloat(key, (Float) value);
-          }
-          if (value instanceof Long) {
+          } else if (value instanceof Long) {
             builder.addLong(key, (Long) value);
           } else if (value instanceof Double) {
             builder.addDouble(key, (Double) value);
@@ -120,7 +119,7 @@ public class Provider extends EventProvider
           } else if (value instanceof Boolean) {
             builder.addBoolean(key, (Boolean) value);
           } else {
-            LOGGER.warn(
+            LOGGER.debug(
                 "Invalid key provided in metadata {}:{}",
                 key,
                 value == null ? "null" : value.getClass());
@@ -142,10 +141,12 @@ public class Provider extends EventProvider
             .reason(result.getReason())
             .variant(result.getVariant())
             .flagMetadata(mapFlagMetadata(result.getFlagMetadata()))
+            .errorCode(mapErrorCode(result.getErrorCode()))
+            .errorMessage(result.getErrorMessage())
             .build();
   }
 
-  private static ErrorCode errorCode(final ResolutionError code) {
+  private static ErrorCode mapErrorCode(final ResolutionError code) {
     try {
       return ErrorCode.valueOf(code.name());
     } catch (final IllegalArgumentException e) {

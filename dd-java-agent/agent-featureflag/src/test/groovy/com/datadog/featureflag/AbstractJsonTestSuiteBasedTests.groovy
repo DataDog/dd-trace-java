@@ -1,4 +1,4 @@
-package com.datadog.featureflag.utils
+package com.datadog.featureflag
 
 import static com.datadog.featureflag.utils.TestUtils.EvaluationTest
 import static com.datadog.featureflag.utils.TestUtils.parseConfiguration

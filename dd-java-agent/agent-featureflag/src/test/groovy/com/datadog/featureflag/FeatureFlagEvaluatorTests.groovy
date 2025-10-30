@@ -2,7 +2,6 @@ package com.datadog.featureflag
 
 import static com.datadog.featureflag.utils.TestUtils.parseConfiguration
 
-import com.datadog.featureflag.utils.AbstractJsonTestSuiteBasedTests
 import com.datadog.featureflag.utils.TestUtils
 import datadog.trace.api.featureflag.FeatureFlagEvaluator
 

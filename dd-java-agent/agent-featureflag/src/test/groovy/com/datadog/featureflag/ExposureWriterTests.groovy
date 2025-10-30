@@ -4,7 +4,6 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 import com.datadog.featureflag.exposure.ExposureEvent
 import com.datadog.featureflag.exposure.ExposuresRequest
-import com.datadog.featureflag.utils.AbstractJsonTestSuiteBasedTests
 import com.datadog.featureflag.utils.TestUtils
 import com.squareup.moshi.Moshi
 import datadog.trace.agent.test.server.http.TestHttpServer
