@@ -2,11 +2,12 @@ plugins {
   id 'java-test-fixtures'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Security Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project

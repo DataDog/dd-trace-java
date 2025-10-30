@@ -1,10 +1,9 @@
-// Set properties before any plugins get loaded
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   // TODO Java 17: This version of vertx-web doesn't support Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {

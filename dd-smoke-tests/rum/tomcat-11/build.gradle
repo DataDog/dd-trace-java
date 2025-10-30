@@ -4,11 +4,12 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'RUM Tomcat 11 Smoke Tests'
 
 dependencies {

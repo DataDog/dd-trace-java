@@ -2,12 +2,12 @@ plugins {
   id 'idea'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'call-site-instrumentation'
+
+testJvmConstraint {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
 
 muzzle {
   pass {

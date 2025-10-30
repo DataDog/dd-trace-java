@@ -1,10 +1,9 @@
-// Set properties before any plugins get loaded
-// asynchttpclient is not compatible with Java 11
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
+  // asynchttpclient is not compatible with Java 11
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {

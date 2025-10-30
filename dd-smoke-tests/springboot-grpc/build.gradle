@@ -5,12 +5,13 @@ plugins {
   id 'com.google.protobuf' version '0.8.18'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   // TODO Java 17: This version of spring-boot doesn't support Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot/gRPC combined Smoke Tests.'
 
 protobuf {

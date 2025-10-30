@@ -1,7 +1,3 @@
-ext {
-  maxJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 muzzle {
   pass {
     group = 'org.glassfish.main.extras'
@@ -13,6 +9,10 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
+  maxJavaVersionForTests = JavaVersion.VERSION_1_8
+}
 
 addTestSuiteForDir('latestDepTest', 'test')
 

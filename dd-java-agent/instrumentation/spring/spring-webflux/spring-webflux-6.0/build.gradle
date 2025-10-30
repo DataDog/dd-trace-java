@@ -1,8 +1,8 @@
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 // test that webflux5 instrumentation works for webflux6 too
 addTestSuite('iastTest')

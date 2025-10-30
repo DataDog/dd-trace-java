@@ -1,4 +1,3 @@
-
 muzzle {
   pass {
     group = 'org.springframework'
@@ -8,11 +7,11 @@ muzzle {
   }
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

@@ -1,9 +1,8 @@
-// Set properties before any plugins get loaded
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {

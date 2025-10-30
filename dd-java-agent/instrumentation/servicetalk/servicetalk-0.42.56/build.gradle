@@ -16,11 +16,11 @@ muzzle {
   }
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 //addTestSuiteForDir('latestDepTest', 'test')
 // TODO currently 0.42.56 is the latest version. Enable this once the next (0.42.57) is out, add 'latestDepTest'
