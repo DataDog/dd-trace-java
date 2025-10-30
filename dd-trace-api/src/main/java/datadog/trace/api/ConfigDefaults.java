@@ -5,7 +5,8 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
 
-import datadog.trace.api.config.OtelConfig;
+import datadog.trace.api.config.OtelConfig.Exporter;
+import datadog.trace.api.config.OtelConfig.Protocol;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
