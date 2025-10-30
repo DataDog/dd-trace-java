@@ -35,11 +35,10 @@ tasks.withType<Test>().configureEach {
   configureTestJvm(taskExtension)
 }
 
-// TODO make this part of the testJvm test task extension
 /**
  * Provide arguments if condition is met.
  */
-fun Test.configureJvmArgs(
+fun Test.conditionalJvmArgs(
   applyFromVersion: JavaVersion,
   jvmArgsToApply: List<String>,
   additionalCondition: Provider<Boolean> = project.providers.provider { true }
@@ -58,7 +57,7 @@ fun Test.configureJvmArgs(
  * Configure the jvm launcher of the test task and ensure the test task
  * can be run with the test task launcher.
  */
-fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
+private fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
   if (testJvmSpec.javaTestLauncher.isPresent) {
     javaLauncher = testJvmSpec.javaTestLauncher
     onlyIf("Allowed or forced JDK") {
@@ -71,7 +70,7 @@ fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
   }
 
   // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
-  configureJvmArgs(
+  conditionalJvmArgs(
     JavaVersion.VERSION_16,
     listOf(
       "--add-opens=java.base/java.lang=ALL-UNNAMED",

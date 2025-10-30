@@ -56,7 +56,7 @@ idea {
 }
 
 tasks.withType(Test).configureEach {
-  configureJvmArgs(
+  conditionalJvmArgs(
     it,
     JavaVersion.VERSION_1_9,
     [

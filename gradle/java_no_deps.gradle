@@ -138,8 +138,6 @@ def applyCodeCoverage = !(
   project.path.startsWith(":dd-java-agent:instrumentation") ||
   project.path.startsWith(":dd-java-agent:appsec:weblog:"))
 
-ext.applyCodeCoverage = applyCodeCoverage
-
 // https://stackoverflow.com/questions/42501869/gradle-skip-jacoco-during-test
 // https://poetengineer.postach.io/post/how-to-conditionally-enable-disable-jacoco-in-gradle-build
 if (applyCodeCoverage) {
@@ -212,7 +210,7 @@ tasks.named("javadoc", Javadoc) {
   }
 }
 
-ext.configureJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<String> jvmArgsToApply, Provider<Boolean> additionalCondition = null) -> {
+ext.conditionalJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<String> jvmArgsToApply, Provider<Boolean> additionalCondition = null) -> {
   testTask.jvmArgumentProviders.add(new ProvideJvmArgsOnJvmLauncherVersion(
   testTask,
   applyFromVersion,

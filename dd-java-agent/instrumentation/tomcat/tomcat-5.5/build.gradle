@@ -140,7 +140,7 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
-  configureJvmArgs(
+  conditionalJvmArgs(
     it,
     JavaVersion.VERSION_16,
     ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
