@@ -125,7 +125,11 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     boolean executed = false
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
-    .overrideConfiguration({ watch(it, { executed = true }) })
+    .overrideConfiguration({
+      watch(it, {
+        executed = true
+      })
+    })
     .endpointOverride(server.address)
     .region(Region.AP_NORTHEAST_1)
     .credentialsProvider(CREDENTIALS_PROVIDER)
@@ -148,11 +152,14 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
 
     and:
     conditions.eventually {
-      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll {
+        it.parentHash == 0
+      }
       assert results.size() >= 1
       def pathwayLatencyCount = 0
       def edgeLatencyCount = 0
-      results.each { group ->
+      results.each {
+        group ->
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
@@ -192,7 +199,9 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.stream.name" "somestream"
             "streamname" "somestream"
-            "$DDTags.PATHWAY_HASH" { String }
+            "$DDTags.PATHWAY_HASH" {
+              String
+            }
             peerServiceFrom("aws.stream.name")
             checkPeerService = true
             defaultTags(false, checkPeerService)
@@ -206,7 +215,9 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
 
     where:
     service   | operation    | dsmDirection | dsmStatCount | method | path | requestId                              | builder                 | call                                                                                                                                                                                                                                                                                            | body
-    "Kinesis" | "GetRecords" | "in"         | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisClient.builder() | { KinesisClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build()) }                                                                                                                                                                               | """{
+    "Kinesis" | "GetRecords" | "in"         | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisClient.builder() | {
+      KinesisClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build())
+    }                                                                                                                                                                               | """{
   "MillisBehindLatest": 2100,
   "NextShardIterator": "AAA",
   "Records": [
@@ -218,7 +229,9 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     }
   ]
 }"""
-    "Kinesis" | "GetRecords" | "in"         | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisClient.builder() | { KinesisClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build()) }                                                                                                                                                                               | """{
+    "Kinesis" | "GetRecords" | "in"         | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisClient.builder() | {
+      KinesisClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build())
+    }                                                                                                                                                                               | """{
   "MillisBehindLatest": 2100,
   "NextShardIterator": "AAA",
   "Records": [
@@ -236,9 +249,15 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     }
   ]
 }"""
-    "Kinesis" | "PutRecord"  | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisClient.builder() | { KinesisClient c -> c.putRecord(PutRecordRequest.builder().streamARN("arnprefix:stream/somestream").data(SdkBytes.fromUtf8String("message")).build()) }                                                                                                                                        | ""
-    "Kinesis" | "PutRecords" | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisClient.builder() | { KinesisClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build()) }                                                                                    | ""
-    "Kinesis" | "PutRecords" | "out"        | 2            | "POST" | "/"  | "UNKNOWN"                              | KinesisClient.builder() | { KinesisClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build(), PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build()) } | ""
+    "Kinesis" | "PutRecord"  | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisClient.builder() | {
+      KinesisClient c -> c.putRecord(PutRecordRequest.builder().streamARN("arnprefix:stream/somestream").data(SdkBytes.fromUtf8String("message")).build())
+    }                                                                                                                                        | ""
+    "Kinesis" | "PutRecords" | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisClient.builder() | {
+      KinesisClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build())
+    }                                                                                    | ""
+    "Kinesis" | "PutRecords" | "out"        | 2            | "POST" | "/"  | "UNKNOWN"                              | KinesisClient.builder() | {
+      KinesisClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build(), PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build())
+    } | ""
   }
 
   def "send #operation async request with builder #builder.class.getSimpleName() mocked response"() {
@@ -247,7 +266,11 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     boolean executed = false
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
-    .overrideConfiguration({ watch(it, { executed = true }) })
+    .overrideConfiguration({
+      watch(it, {
+        executed = true
+      })
+    })
     .endpointOverride(server.address)
     .region(Region.AP_NORTHEAST_1)
     .credentialsProvider(CREDENTIALS_PROVIDER)
@@ -269,11 +292,14 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
 
     and:
     conditions.eventually {
-      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll {
+        it.parentHash == 0
+      }
       assert results.size() >= 1
       def pathwayLatencyCount = 0
       def edgeLatencyCount = 0
-      results.each { group ->
+      results.each {
+        group ->
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
@@ -312,7 +338,9 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.stream.name" "somestream"
             "streamname" "somestream"
-            "$DDTags.PATHWAY_HASH" { String }
+            "$DDTags.PATHWAY_HASH" {
+              String
+            }
             peerServiceFrom("aws.stream.name")
             defaultTags(false, true)
           }
@@ -325,7 +353,9 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
 
     where:
     service   | operation    | dsmDirection | dsmStatCount | method | path | requestId                              | builder                      | call                                                                                                                                                                                                                                                                                                 | body
-    "Kinesis" | "GetRecords" | "in"         | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisAsyncClient.builder() | { KinesisAsyncClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build()) }                                                                                                                                                                               | """{
+    "Kinesis" | "GetRecords" | "in"         | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisAsyncClient.builder() | {
+      KinesisAsyncClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build())
+    }                                                                                                                                                                               | """{
   "MillisBehindLatest": 2100,
   "NextShardIterator": "AAA",
   "Records": [
@@ -337,7 +367,9 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     }
   ]
 }"""
-    "Kinesis" | "GetRecords" | "in"         | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisAsyncClient.builder() | { KinesisAsyncClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build()) }                                                                                                                                                                               | """{
+    "Kinesis" | "GetRecords" | "in"         | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | KinesisAsyncClient.builder() | {
+      KinesisAsyncClient c -> c.getRecords(GetRecordsRequest.builder().streamARN("arnprefix:stream/somestream").build())
+    }                                                                                                                                                                               | """{
   "MillisBehindLatest": 2100,
   "NextShardIterator": "AAA",
   "Records": [
@@ -355,9 +387,15 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     }
   ]
 }"""
-    "Kinesis" | "PutRecord"  | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisAsyncClient.builder() | { KinesisAsyncClient c -> c.putRecord(PutRecordRequest.builder().streamARN("arnprefix:stream/somestream").data(SdkBytes.fromUtf8String("message")).build()) }                                                                                                                                        | ""
-    "Kinesis" | "PutRecords" | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisAsyncClient.builder() | { KinesisAsyncClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build()) }                                                                                    | ""
-    "Kinesis" | "PutRecords" | "out"        | 2            | "POST" | "/"  | "UNKNOWN"                              | KinesisAsyncClient.builder() | { KinesisAsyncClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build(), PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build()) } | ""
+    "Kinesis" | "PutRecord"  | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisAsyncClient.builder() | {
+      KinesisAsyncClient c -> c.putRecord(PutRecordRequest.builder().streamARN("arnprefix:stream/somestream").data(SdkBytes.fromUtf8String("message")).build())
+    }                                                                                                                                        | ""
+    "Kinesis" | "PutRecords" | "out"        | 1            | "POST" | "/"  | "UNKNOWN"                              | KinesisAsyncClient.builder() | {
+      KinesisAsyncClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build())
+    }                                                                                    | ""
+    "Kinesis" | "PutRecords" | "out"        | 2            | "POST" | "/"  | "UNKNOWN"                              | KinesisAsyncClient.builder() | {
+      KinesisAsyncClient c -> c.putRecords(PutRecordsRequest.builder().streamARN("arnprefix:stream/somestream").records(PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build(), PutRecordsRequestEntry.builder().data(SdkBytes.fromUtf8String("message")).build()).build())
+    } | ""
   }
 }
 

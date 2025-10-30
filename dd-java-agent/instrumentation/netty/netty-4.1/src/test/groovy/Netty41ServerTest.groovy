@@ -287,11 +287,9 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
 }
 
 class Netty41ServerV0Test extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV0 {
-
 }
 
 class Netty41ServerV1ForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
-
 }
 
 

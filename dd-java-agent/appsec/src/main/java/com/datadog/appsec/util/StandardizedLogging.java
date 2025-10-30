@@ -66,6 +66,7 @@ public class StandardizedLogging {
         return "invalid JSON file";
       }
     };
+
     //   ALL_RULES_INVALID {
     //      @Override
     //      public String toString() {

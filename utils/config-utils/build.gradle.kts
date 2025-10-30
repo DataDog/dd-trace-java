@@ -32,8 +32,8 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.StableConfigParser",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource"
-  )
+    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+  ),
 )
 
 val excludedClassesBranchCoverage by extra(
@@ -41,16 +41,16 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.bootstrap.config.provider.AgentArgsInjector",
     // Enum
     "datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy",
-    "datadog.trace.util.ConfigStrings"
-  )
+    "datadog.trace.util.ConfigStrings",
+  ),
 )
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
     "datadog.trace.api.telemetry.NoOpConfigInversionMetricCollector",
     "datadog.trace.config.inversion.GeneratedSupportedConfigurations",
-    "datadog.trace.config.inversion.SupportedConfigurationSource"
-  )
+    "datadog.trace.config.inversion.SupportedConfigurationSource",
+  ),
 )
 
 dependencies {

@@ -121,7 +121,6 @@ class InstrumenterConfigTest extends DDSpecification {
 
     then:
     randomIntegrationEnabled() == true
-
   }
 
   def "valid resolver presets"() {

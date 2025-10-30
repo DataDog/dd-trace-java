@@ -173,24 +173,32 @@ ext.configureJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<String
   testTask,
   applyFromVersion,
   jvmArgsToApply,
-  additionalCondition ?: testTask.project.providers.provider { true }
+  additionalCondition ?: testTask.project.providers.provider {
+    true
+  }
   ))
 }
 
 
 def configureTestJvm(Project project, boolean applyCodeCoverage) {
   def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
-  def normalizedTestJvm = project.providers.gradleProperty("testJvm").map { testJvm ->
+  def normalizedTestJvm = project.providers.gradleProperty("testJvm").map {
+    testJvm ->
     if (testJvm.isBlank()) {
       throw new GradleException("testJvm property is blank")
     }
 
     // "stable" is calculated as the largest X found in JAVA_X_HOME
     if (testJvm == "stable") {
-      def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
+      def javaVersions = providers.environmentVariablesPrefixedBy("JAVA_").map {
+        javaHomes ->
         javaHomes
-        .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
-        .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+        .findAll {
+          it.key =~ /^JAVA_[0-9]+_HOME$/
+        }
+        .collect {
+          (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer
+        }
       }.get()
 
       if (javaVersions.isEmpty()) {
@@ -201,7 +209,9 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
     } else {
       testJvm
     }
-  }.map { logger.info("normalized testJvm: " + it); it }
+  }.map {
+    logger.info("normalized testJvm: " + it); it
+  }
 
   def testJvmHomePath = normalizedTestJvm.map {
     if (Files.exists(Paths.get(it))) {
@@ -220,9 +230,12 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
 
       getJavaHomePath(testJvmHome)
     }
-  }.map { logger.info("testJvm home path: " + it); it }
+  }.map {
+    logger.info("testJvm home path: " + it); it
+  }
 
-  def javaTestLauncher = testJvmHomePath.zip(normalizedTestJvm) { testJvmHome, testJvm ->
+  def javaTestLauncher = testJvmHomePath.zip(normalizedTestJvm) {
+    testJvmHome, testJvm ->
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath == testJvmHome) {
       null
@@ -234,10 +247,15 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
         throw new GradleException("Unable to find launcher for Java $testJvm. Does '$testJvmHome' point to a JDK?")
       })
     }
-  }.flatMap { it }.map { logger.info("testJvm launcher: " + it.executablePath); it }
+  }.flatMap {
+    it
+  }.map {
+    logger.info("testJvm launcher: " + it.executablePath); it
+  }
 
   // Apply the launcher
-  tasks.withType(Test).configureEach { Test testTask ->
+  tasks.withType(Test).configureEach {
+    Test testTask ->
     if (javaTestLauncher.isPresent()) {
       javaLauncher = javaTestLauncher
       onlyIf("Allowed or forced JDK") {
@@ -252,7 +270,9 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
         }
       }
     } else {
-      onlyIf("is current Daemon JVM  allowed") { isJavaVersionAllowed(JavaVersion.current(), testTask.name) }
+      onlyIf("is current Daemon JVM  allowed") {
+        isJavaVersionAllowed(JavaVersion.current(), testTask.name)
+      }
     }
 
     // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
@@ -260,7 +280,9 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
     testTask,
     JavaVersion.VERSION_16,
     ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED'],
-    project.providers.provider { project.properties['allowReflectiveAccessToJdk'] as Boolean }.orElse(true)
+    project.providers.provider {
+      project.properties['allowReflectiveAccessToJdk'] as Boolean
+    }.orElse(true)
     )
 
     if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
@@ -275,7 +297,8 @@ def configureTestJvm(Project project, boolean applyCodeCoverage) {
 configureTestJvm(project, applyCodeCoverage)
 
 
-[JavaCompile, ScalaCompile, GroovyCompile].each { type ->
+[JavaCompile, ScalaCompile, GroovyCompile].each {
+  type ->
   tasks.withType(type).configureEach {
     if (options.fork) {
       options.forkOptions.with {
@@ -286,7 +309,8 @@ configureTestJvm(project, applyCodeCoverage)
 }
 
 if (project.plugins.hasPlugin('kotlin')) {
-  ['compileKotlin', 'compileTestKotlin'].each { type ->
+  ['compileKotlin', 'compileTestKotlin'].each {
+    type ->
     tasks.named(type) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
@@ -404,7 +428,8 @@ ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion c
 } as Closure<Void>
 
 ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
-  taskNames.each { taskName ->
+  taskNames.each {
+    taskName ->
     tasks.named(taskName, GroovyCompile) {
       configureCompiler(it, toolchainVersion)
     }
@@ -456,11 +481,15 @@ def isJavaLanguageVersionAllowed(JavaLanguageVersion languageVersion, String tes
 }
 
 def isJdkForced(String javaName) {
-  return (project.hasProperty('forceJdk') && project.findProperty('forceJdk').any { it.equalsIgnoreCase(javaName) })
+  return (project.hasProperty('forceJdk') && project.findProperty('forceJdk').any {
+    it.equalsIgnoreCase(javaName)
+  })
 }
 
 def isJdkExcluded(String javaName) {
-  return (project.hasProperty('excludeJdk') && project.findProperty('excludeJdk').any { it.equalsIgnoreCase(javaName) })
+  return (project.hasProperty('excludeJdk') && project.findProperty('excludeJdk').any {
+    it.equalsIgnoreCase(javaName)
+  })
 }
 
 def getJavaHomePath(String path) {

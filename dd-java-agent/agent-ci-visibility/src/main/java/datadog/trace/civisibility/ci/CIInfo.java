@@ -232,7 +232,9 @@ public class CIInfo {
         : (realCiWorkspace.substring(0, realCiWorkspace.length() - 1));
   }
 
-  /** @return Workspace path without the trailing separator */
+  /**
+   * @return Workspace path without the trailing separator
+   */
   public String getCiWorkspace() {
     return ciWorkspace;
   }

@@ -40,5 +40,4 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework', name: 'spring-messaging', version: '6.+', {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
-
 }

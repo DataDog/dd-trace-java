@@ -50,7 +50,9 @@ class AdaptiveSamplerTest {
   private static final class PoissonWindowEventsSupplier implements IntSupplier {
     private final PoissonDistribution distribution;
 
-    /** @param eventsPerWindowMean the average number of events per window */
+    /**
+     * @param eventsPerWindowMean the average number of events per window
+     */
     PoissonWindowEventsSupplier(final int eventsPerWindowMean) {
       distribution = new PoissonDistribution(eventsPerWindowMean);
       distribution.reseedRandomGenerator(12345671);
@@ -121,7 +123,9 @@ class AdaptiveSamplerTest {
   private static final class ConstantWindowsEventsSupplier implements IntSupplier {
     private final int events;
 
-    /** @param events number of events per window */
+    /**
+     * @param events number of events per window
+     */
     ConstantWindowsEventsSupplier(final int events) {
       this.events = events;
     }
@@ -142,7 +146,9 @@ class AdaptiveSamplerTest {
     private final int[] eventsCounts;
     private int pointer = 0;
 
-    /** @param windowEvents an array of number of events per each window in the sequence */
+    /**
+     * @param windowEvents an array of number of events per each window in the sequence
+     */
     RepeatingWindowsEventsSupplier(final int... windowEvents) {
       this.eventsCounts = Arrays.copyOf(windowEvents, windowEvents.length);
     }

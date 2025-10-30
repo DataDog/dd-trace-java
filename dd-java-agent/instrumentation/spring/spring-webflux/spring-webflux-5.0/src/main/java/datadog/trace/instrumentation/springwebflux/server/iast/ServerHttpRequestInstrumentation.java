@@ -12,7 +12,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** @see org.springframework.http.server.reactive.ServerHttpRequest */
+/**
+ * @see org.springframework.http.server.reactive.ServerHttpRequest
+ */
 @AutoService(InstrumenterModule.class)
 public class ServerHttpRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {

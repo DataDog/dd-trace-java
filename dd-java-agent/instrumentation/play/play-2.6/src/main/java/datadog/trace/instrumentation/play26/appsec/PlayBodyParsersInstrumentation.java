@@ -20,7 +20,9 @@ import scala.collection.Seq;
 import scala.collection.immutable.Map;
 import scala.xml.NodeSeq;
 
-/** @see play.api.mvc.PlayBodyParsers$class#tolerantFormUrlEncoded(PlayBodyParsers, int) */
+/**
+ * @see play.api.mvc.PlayBodyParsers$class#tolerantFormUrlEncoded(PlayBodyParsers, int)
+ */
 @AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {

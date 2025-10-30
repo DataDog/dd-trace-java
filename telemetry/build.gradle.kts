@@ -18,15 +18,15 @@ val excludedClassesCoverage by extra(
     "datadog.telemetry.RequestBuilderSupplier",
     "datadog.telemetry.TelemetrySystem",
     "datadog.telemetry.api.*",
-    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
-  )
+    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
+  ),
 )
 val excludedClassesBranchCoverage by extra(
   listOf(
     "datadog.telemetry.PolymorphicAdapterFactory.1",
     "datadog.telemetry.HostInfo",
-    "datadog.telemetry.HostInfo.Os"
-  )
+    "datadog.telemetry.HostInfo.Os",
+  ),
 )
 val excludedClassesInstructionCoverage by extra(emptyList<String>())
 

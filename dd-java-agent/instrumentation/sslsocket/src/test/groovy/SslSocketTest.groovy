@@ -74,7 +74,8 @@ class SslSocketTest extends InstrumentationSpecification {
         def str = new String(it)
         str.length() > 0
         str.startsWith("POST") || str.startsWith("HTTP")
-      }}, _, _)
+      }
+    }, _, _)
     (1.._) * extractorMock.send(null) // `getRequestMessage` mock returns `null` so we expect to get it in send
 
     where:
