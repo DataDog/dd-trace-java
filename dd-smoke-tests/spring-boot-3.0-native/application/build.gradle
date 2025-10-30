@@ -10,7 +10,6 @@ def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
-apply from: "$sharedConfigDirectory/spotless.gradle"
 
 ext.withProfiler = hasProperty('profiler')
 
