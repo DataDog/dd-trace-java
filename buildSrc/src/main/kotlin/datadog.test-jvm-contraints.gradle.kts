@@ -17,7 +17,7 @@ tasks.withType<Test>().configureEach {
     return@configureEach
   }
 
-  inputs.property("testJvm", providers.gradleProperty("testJvm"))
+  inputs.property("testJvm", testJvmSpec.testJvmProperty).optional(true)
 
   val taskExtension = project.objects.newInstance<TestJvmConstraintsExtension>().also {
     configureConventions(it, projectExtension)

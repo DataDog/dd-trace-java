@@ -9,9 +9,17 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+
 class TestJvmSpec(val project: Project) {
+  companion object {
+    const val TEST_JVM = "testJvm"
+  }
+
   private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
-  val normalizedTestJvm = project.providers.gradleProperty("testJvm").map { testJvm ->
+  
+  val testJvmProperty = project.providers.gradleProperty(TEST_JVM)
+
+  val normalizedTestJvm = testJvmProperty.map { testJvm ->
     if (testJvm.isBlank()) {
       throw GradleException("testJvm property is blank")
     }
