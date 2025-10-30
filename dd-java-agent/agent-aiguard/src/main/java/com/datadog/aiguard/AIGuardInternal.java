@@ -1,5 +1,7 @@
 package com.datadog.aiguard;
 
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
 import static java.util.Collections.singletonMap;
 
@@ -8,6 +10,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.aiguard.AIGuard;
@@ -21,6 +24,7 @@ import datadog.trace.api.aiguard.AIGuard.ToolCall;
 import datadog.trace.api.aiguard.AIGuard.ToolCall.Function;
 import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -79,7 +83,18 @@ public class AIGuardInternal implements Evaluator {
     if (isBlank(endpoint)) {
       endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
-    final Map<String, String> headers = mapOf("DD-API-KEY", apiKey, "DD-APPLICATION-KEY", appKey);
+    final Map<String, String> headers =
+        mapOf(
+            "DD-API-KEY",
+            apiKey,
+            "DD-APPLICATION-KEY",
+            appKey,
+            "DD-AI-GUARD-VERSION",
+            VersionInfo.VERSION,
+            "DD-AI-GUARD-SOURCE",
+            "SDK",
+            "DD-AI-GUARD-LANGUAGE",
+            "jvm");
     final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
     final int timeout = config.getAiGuardTimeout();
     final OkHttpClient client = buildClient(url, timeout);
@@ -113,12 +128,17 @@ public class AIGuardInternal implements Evaluator {
   private static List<Message> messagesForMetaStruct(List<Message> messages) {
     final Config config = Config.get();
     final int size = Math.min(messages.size(), config.getAiGuardMaxMessagesLength());
+    if (size < messages.size()) {
+      WafMetricCollector.get().aiGuardTruncated(MESSAGES);
+    }
     final List<Message> result = new ArrayList<>(size);
     final int maxContent = config.getAiGuardMaxContentSize();
+    boolean contentTruncated = false;
     for (int i = 0; i < size; i++) {
       Message source = messages.get(i);
       final String content = source.getContent();
       if (content != null && content.length() > maxContent) {
+        contentTruncated = true;
         source =
             new Message(
                 source.getRole(),
@@ -127,6 +147,9 @@ public class AIGuardInternal implements Evaluator {
                 source.getToolCallId());
       }
       result.add(source);
+    }
+    if (contentTruncated) {
+      WafMetricCollector.get().aiGuardTruncated(CONTENT);
     }
     return result;
   }
@@ -203,20 +226,27 @@ public class AIGuardInternal implements Evaluator {
         final String reason = (String) result.get("reason");
         span.setTag(ACTION_TAG, action);
         span.setTag(REASON_TAG, reason);
-        final boolean blockingEnabled =
-            isBlockingEnabled(options, result.get("is_blocking_enabled"));
-        if (blockingEnabled && action != Action.ALLOW) {
+        final boolean shouldBlock =
+            isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
+        WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
+        if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
           throw new AIGuardAbortError(action, reason);
         }
         return new Evaluation(action, reason);
       }
-    } catch (AIGuardAbortError | AIGuardClientError e) {
+    } catch (AIGuardAbortError e) {
+      span.addThrowable(e);
+      throw e;
+    } catch (AIGuardClientError e) {
+      WafMetricCollector.get().aiGuardError();
       span.addThrowable(e);
       throw e;
     } catch (final Exception e) {
+      WafMetricCollector.get().aiGuardError();
       final AIGuardClientError error =
-          new AIGuardClientError("AI Guard service returned unexpected response", e);
+          new AIGuardClientError(
+              "AI Guard service returned unexpected response: " + e.getMessage(), e);
       span.addThrowable(error);
       throw error;
     } finally {
@@ -248,11 +278,12 @@ public class AIGuardInternal implements Evaluator {
     return OkHttpUtils.buildHttpClient(url, timeout).newBuilder().build();
   }
 
-  private static Map<String, String> mapOf(
-      final String key1, final String prop1, final String key2, final String prop2) {
-    final Map<String, String> map = new HashMap<>(2);
-    map.put(key1, prop1);
-    map.put(key2, prop2);
+  private static Map<String, String> mapOf(final String... props) {
+    final Map<String, String> map = new HashMap<>(props.length << 1);
+    int index = 0;
+    while (index < props.length) {
+      map.put(props[index++], props[index++]);
+    }
     return map;
   }
 
