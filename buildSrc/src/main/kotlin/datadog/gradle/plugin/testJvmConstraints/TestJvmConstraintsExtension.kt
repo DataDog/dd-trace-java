@@ -19,6 +19,6 @@ interface TestJvmConstraintsExtension {
   val allowReflectiveAccessToJdk: Property<Boolean>
 
   companion object {
-    const val NAME = "jvmConstraint"
+    const val NAME = "testJvmConstraint"
   }
 }

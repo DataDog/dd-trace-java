@@ -107,7 +107,7 @@ tasks.named("forbiddenApisMain_java11") {
 }
 
 tasks.named("forkedTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     maxJavaVersionForTests = JavaVersion.VERSION_11
   }
 }
@@ -130,13 +130,13 @@ tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
 }
 
 tasks.named("mule46ForkedTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     maxJavaVersionForTests = JavaVersion.VERSION_11
   }
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
     maxJavaVersionForTests = JavaVersion.VERSION_17
   }

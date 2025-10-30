@@ -1,6 +1,6 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import groovy.transform.CompileStatic
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
+import groovy.transform.CompileStatic
 
 apply plugin: 'java-library'
 apply plugin: 'datadog.test-jvm-contraints'

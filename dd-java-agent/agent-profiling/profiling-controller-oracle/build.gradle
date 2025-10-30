@@ -1,7 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  // Need to force Oracle JDK 8 since it is the only JDK compatible with this implementation
-  forceJdk = ['ORACLE8']
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ORACLE8
   skipSettingTestJavaVersion = true

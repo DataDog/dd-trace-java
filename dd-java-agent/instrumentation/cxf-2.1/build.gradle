@@ -20,13 +20,13 @@ addTestSuite('latestDepTest')
 addTestSuiteForDir('cxf3LatestDepTest', 'test')
 
 tasks.named("cxf3LatestDepTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_11
   }
 }
 
 tasks.named("latestDepTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
 }

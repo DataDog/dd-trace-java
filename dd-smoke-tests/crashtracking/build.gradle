@@ -4,11 +4,11 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraint {
   excludeJdk = ['IBM8']
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Crashtracking Integration Tests.'
 

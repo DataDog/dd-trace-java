@@ -27,6 +27,10 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('ignite216Test', 'test')
 addTestSuiteExtendingForDir('ignite216ForkedTest', 'ignite216Test', 'test')
 
+testJvmConstraint {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 dependencies {
   compileOnly group: 'org.apache.ignite', name: 'ignite-core', version: '2.0.0'
 
@@ -45,16 +49,3 @@ for (task in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroovy'])
     configureCompiler(it, 11)
   }
 }
-
-tasks.named("latestDepTest", Test) {
-  jvmConstraint {
-    minJavaVersionForTests = JavaVersion.VERSION_11
-  }
-}
-
-tasks.named("latestDepForkedTest", Test) {
-  jvmConstraint {
-    minJavaVersionForTests = JavaVersion.VERSION_11
-  }
-}
-

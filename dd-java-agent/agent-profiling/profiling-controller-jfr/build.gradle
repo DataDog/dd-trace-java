@@ -1,16 +1,15 @@
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
-// Set properties before any plugins get loaded
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+testJvmConstraint {
   // the tests need Java 11 because the JFR writer got compiled with a version
   // of ByteBuffer.position(int) which is binary incompatible with Java 8 ¯\_(ツ)_/¯
   minJavaVersionForTests = JavaVersion.VERSION_11
 
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')

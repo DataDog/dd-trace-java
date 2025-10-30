@@ -47,25 +47,25 @@ dependencies {
 }
 
 tasks.named("latestDepTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
 }
 
 tasks.named("boot3Test", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
 }
 
 tasks.named("boot3ForkedTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
 }

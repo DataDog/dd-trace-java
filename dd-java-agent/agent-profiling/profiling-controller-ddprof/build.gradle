@@ -1,14 +1,17 @@
 // Set properties before any plugins get loaded
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ZULU8
   skipSettingTestJavaVersion = true
-  excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
+
+testJvmConstraint {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+  excludeJdk = ['SEMERU11', 'SEMERU17']
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7

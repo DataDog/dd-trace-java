@@ -108,7 +108,7 @@ tasks.named("forkedTest", Test) {
 }
 
 tasks.named("latestDepTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
   dependsOn 'extractLatestWildfly'
@@ -171,7 +171,7 @@ tasks.named("forkedTest", Test) {
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  jvmConstraint {
+  testJvmConstraint {
     minJavaVersionForTests = JavaVersion.VERSION_17
   }
   jvmArgumentProviders.add(

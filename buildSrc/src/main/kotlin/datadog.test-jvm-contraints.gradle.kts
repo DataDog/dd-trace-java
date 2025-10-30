@@ -1,10 +1,10 @@
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.TestJvmJavaLauncher
-import datadog.gradle.plugin.testJvmConstraints.*
-import org.gradle.api.JavaVersion
-import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.*
+import datadog.gradle.plugin.testJvmConstraints.isJavaLauncherAllowed
+import datadog.gradle.plugin.testJvmConstraints.isJavaVersionAllowed
+import datadog.gradle.plugin.testJvmConstraints.isJdkExcluded
+import datadog.gradle.plugin.testJvmConstraints.isJdkForced
 
 plugins {
   java
