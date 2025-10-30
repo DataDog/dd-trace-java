@@ -181,24 +181,26 @@ public class WriterFactory {
       TrackType trackType) {
     featuresDiscovery.discoverIfOutdated();
     boolean evpProxySupported = featuresDiscovery.supportsEvpProxy();
+    boolean useProxyApi = false;
 
-    boolean useLlmObsAgentless = config.isLlmObsAgentlessEnabled() || !evpProxySupported;
-    if (useLlmObsAgentless && !config.isLlmObsAgentlessEnabled()) {
-      boolean agentRunning = null != featuresDiscovery.getTraceEndpoint();
-      log.info(
-          "LLM Observability configured to use agent proxy, but is not compatible or agent is not running (agentRunning={}, compatible={})",
-          agentRunning,
-          evpProxySupported);
-      log.info(
-          "LLM Observability will use agentless data submission instead. Compatible agent versions are >=7.55.0 (found version={}",
-          featuresDiscovery.getVersion());
+    if (TrackType.LLMOBS == trackType) {
+      useProxyApi = evpProxySupported && !config.isLlmObsAgentlessEnabled();
+      if (!evpProxySupported && !config.isLlmObsAgentlessEnabled()) {
+        // Agentless is forced due to lack of evp proxy support
+        boolean agentRunning = null != featuresDiscovery.getTraceEndpoint();
+        if (agentRunning) {
+          log.info(
+              "LLM Observability configured to use agent proxy, but not compatible with agent version {}. Please upgrade to v7.55+.",
+              featuresDiscovery.getVersion());
+        } else {
+          log.info("LLM Observability configured to use agent proxy, but agent is not running.");
+        }
+        log.info("LLM Observability will use agentless data submission instead.");
+      }
+
+    } else if (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType) {
+      useProxyApi = evpProxySupported && !config.isCiVisibilityAgentlessEnabled();
     }
-
-    boolean useProxyApi =
-        (TrackType.LLMOBS == trackType && !useLlmObsAgentless)
-            || (evpProxySupported
-                && (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType)
-                && !config.isCiVisibilityAgentlessEnabled());
 
     if (useProxyApi) {
       return DDEvpProxyApi.builder()

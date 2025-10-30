@@ -13,6 +13,10 @@ Check [Adding a New Instrumentation](docs/add_new_instrumentation.md) for instru
 
 Check [How Instrumentations Work](docs/how_instrumentations_work.md) for a deep dive into how instrumentations work.
 
+## Adding Configurations
+
+Check [Adding a New Configuration](docs/add_new_configurations.md) for instructions on adding a new configuration.
+
 ## Code contributions
 
 ### Development environment quick check
