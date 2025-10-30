@@ -4,6 +4,7 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmJavaLauncher
 import datadog.gradle.plugin.testJvmConstraints.isJavaLauncherAllowed
 import datadog.gradle.plugin.testJvmConstraints.isJavaVersionAllowed
 import datadog.gradle.plugin.testJvmConstraints.isJdkExcluded
+import datadog.gradle.plugin.testJvmConstraints.isJdkIncluded
 import datadog.gradle.plugin.testJvmConstraints.isJdkForced
 
 plugins {
@@ -27,6 +28,7 @@ tasks.withType<Test>().configureEach {
 
   inputs.property("${TestJvmConstraintsExtension.NAME}.allowReflectiveAccessToJdk", taskExtension.allowReflectiveAccessToJdk).optional(true)
   inputs.property("${TestJvmConstraintsExtension.NAME}.excludeJdk", taskExtension.excludeJdk)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.includeJdk", taskExtension.includeJdk)
   inputs.property("${TestJvmConstraintsExtension.NAME}.forceJdk", taskExtension.forceJdk)
   inputs.property("${TestJvmConstraintsExtension.NAME}.minJavaVersionForTests", taskExtension.minJavaVersionForTests).optional(true)
   inputs.property("${TestJvmConstraintsExtension.NAME}.maxJavaVersionForTests", taskExtension.maxJavaVersionForTests).optional(true)
@@ -63,6 +65,7 @@ fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
   if (testJvmJavaLauncher.javaTestLauncher.isPresent) {
     javaLauncher = testJvmJavaLauncher.javaTestLauncher
     onlyIf("Allowed or forced JDK") {
+      extension.isJdkIncluded(testJvmJavaLauncher.normalizedTestJvm.get()) &&
       !extension.isJdkExcluded(testJvmJavaLauncher.normalizedTestJvm.get()) &&
         (extension.isJavaLauncherAllowed(testJvmJavaLauncher.javaTestLauncher.get()) ||
           extension.isJdkForced(testJvmJavaLauncher.normalizedTestJvm.get()))

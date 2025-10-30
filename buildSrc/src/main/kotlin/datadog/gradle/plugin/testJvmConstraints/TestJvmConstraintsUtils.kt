@@ -36,9 +36,17 @@ internal fun TestJvmConstraintsExtension.isJavaLauncherAllowed(javaLauncher: Jav
 }
 
 internal fun TestJvmConstraintsExtension.isJdkForced(javaName: String): Boolean {
-  return forceJdk.get().any { it.equals(javaName, ignoreCase = true) }
+  return forceJdk.orNull?.any { it.equals(javaName, ignoreCase = true) } ?: false
 }
 
 internal fun TestJvmConstraintsExtension.isJdkExcluded(javaName: String): Boolean {
   return excludeJdk.get().any { it.equals(javaName, ignoreCase = true) }
+}
+
+internal fun TestJvmConstraintsExtension.isJdkIncluded(javaName: String): Boolean {
+  val included = includeJdk.get()
+  return when {
+      included.isEmpty() -> true
+      else -> included.any { it.equals(javaName, ignoreCase = true) }
+  }
 }
