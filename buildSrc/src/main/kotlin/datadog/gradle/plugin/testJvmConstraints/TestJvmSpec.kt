@@ -9,7 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class TestJvmJavaLauncher(val project: Project) {
+class TestJvmSpec(val project: Project) {
   private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
   val normalizedTestJvm = project.providers.gradleProperty("testJvm").map { testJvm ->
     if (testJvm.isBlank()) {

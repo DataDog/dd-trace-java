@@ -1,11 +1,8 @@
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import datadog.gradle.plugin.testJvmConstraints.TestJvmJavaLauncher
-import datadog.gradle.plugin.testJvmConstraints.isJavaLauncherAllowed
+import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
 import datadog.gradle.plugin.testJvmConstraints.isJavaVersionAllowed
-import datadog.gradle.plugin.testJvmConstraints.isJdkExcluded
-import datadog.gradle.plugin.testJvmConstraints.isJdkIncluded
-import datadog.gradle.plugin.testJvmConstraints.isJdkForced
+import datadog.gradle.plugin.testJvmConstraints.isTestJvmAllowed
 
 plugins {
   java
@@ -13,7 +10,7 @@ plugins {
 
 val projectExtension = extensions.create<TestJvmConstraintsExtension>(TestJvmConstraintsExtension.NAME)
 
-val testJvmJavaLauncher = TestJvmJavaLauncher(project)
+val testJvmSpec = TestJvmSpec(project)
 
 tasks.withType<Test>().configureEach {
   if (extensions.findByName(TestJvmConstraintsExtension.NAME) != null) {
@@ -62,13 +59,10 @@ fun Test.configureJvmArgs(
  * can be run with the test task launcher.
  */
 fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
-  if (testJvmJavaLauncher.javaTestLauncher.isPresent) {
-    javaLauncher = testJvmJavaLauncher.javaTestLauncher
+  if (testJvmSpec.javaTestLauncher.isPresent) {
+    javaLauncher = testJvmSpec.javaTestLauncher
     onlyIf("Allowed or forced JDK") {
-      extension.isJdkIncluded(testJvmJavaLauncher.normalizedTestJvm.get()) &&
-      !extension.isJdkExcluded(testJvmJavaLauncher.normalizedTestJvm.get()) &&
-        (extension.isJavaLauncherAllowed(testJvmJavaLauncher.javaTestLauncher.get()) ||
-          extension.isJdkForced(testJvmJavaLauncher.normalizedTestJvm.get()))
+      extension.isTestJvmAllowed(testJvmSpec)
     }
   } else {
     onlyIf("Is current Daemon JVM  allowed") {
@@ -91,7 +85,7 @@ fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
 pluginManager.withPlugin("org.gradle.jacoco") {
   tasks.withType<Test>().configureEach {
     // Disable jacoco for additional 'testJvm' tests to speed things up a bit
-    if (testJvmJavaLauncher.javaTestLauncher.isPresent) {
+    if (testJvmSpec.javaTestLauncher.isPresent) {
       extensions.configure<JacocoTaskExtension> {
         isEnabled = false
       }
