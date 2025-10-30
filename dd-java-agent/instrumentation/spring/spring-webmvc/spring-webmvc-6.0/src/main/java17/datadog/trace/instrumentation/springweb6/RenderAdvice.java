@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 
 import datadog.context.ContextScope;
@@ -15,7 +16,7 @@ public class RenderAdvice {
     final AgentSpan span = startSpan(SpringWebHttpServerDecorator.RESPONSE_RENDER);
     SpringWebHttpServerDecorator.DECORATE_RENDER.afterStart(span);
     SpringWebHttpServerDecorator.DECORATE_RENDER.onRender(span, mv);
-    return span.attach();
+    return getCurrentContext().with(span).attach();
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
