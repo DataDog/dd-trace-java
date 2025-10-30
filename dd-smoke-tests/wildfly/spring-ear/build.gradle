@@ -1,13 +1,6 @@
 plugins {
   id 'java'
   id 'ear'
-  id 'com.diffplug.spotless' version '8.0.0'
-}
-
-java {
-  toolchain {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
 }
 
 def sharedRootDir = "$rootDir/../../../"
@@ -15,7 +8,6 @@ def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
-apply from: "$sharedConfigDirectory/spotless.gradle"
 apply plugin: 'ear'
 
 if (hasProperty('appBuildDir')) {

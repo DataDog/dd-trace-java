@@ -8,7 +8,6 @@ def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
-apply from: "$sharedConfigDirectory/spotless.gradle"
 
 if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
