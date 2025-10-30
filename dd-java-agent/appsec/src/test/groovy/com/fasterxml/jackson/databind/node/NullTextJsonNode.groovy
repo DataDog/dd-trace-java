@@ -6,7 +6,6 @@ import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
-import java.io.IOException
 
 class NullTextJsonNode extends BaseJsonNode {
   @Override
@@ -41,9 +40,10 @@ class NullTextJsonNode extends BaseJsonNode {
 
   @Override
   boolean equals(Object o) {
-    if (this.is(o)) return true
-    if (o == null || getClass() != o.class) return false
-    return true
+    if (this.is(o)) {
+      return true
+    }
+    return o != null && getClass() == o.class
   }
 
   @Override
@@ -72,6 +72,7 @@ class NullTextJsonNode extends BaseJsonNode {
   }
 
   @Override
+  @SuppressWarnings('MethodName') // Inherited from Jackson's BaseJsonNode
   protected JsonNode _at(JsonPointer ptr) {
     return MissingNode.getInstance()
   }
