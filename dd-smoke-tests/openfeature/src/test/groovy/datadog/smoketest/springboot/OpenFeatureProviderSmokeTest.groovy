@@ -17,22 +17,19 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
-    final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
+    setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
 
+    final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
     final command = [javaPath()]
+    command.add('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005')
     command.addAll(defaultJavaProperties)
     command.add('-Ddd.trace.debug=true')
     command.add('-Ddd.remote_config.enabled=true')
-    command.add('-Ddd.remote_config.poll_interval.seconds=1')
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
     command.addAll(['-jar', springBootShadowJar, "--server.port=${httpPort}".toString()])
     final builder = new ProcessBuilder(command).directory(new File(buildDirectory))
     builder.environment().put('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED', 'true')
     return builder
-  }
-
-  def setup() {
-    setRemoteConfig("datadog/2/FFE_FLAGS/${System.nanoTime()}/config", rcPayload)
   }
 
   void 'test open feature provider metadata'() {

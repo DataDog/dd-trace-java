@@ -8,25 +8,25 @@ import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.PollingRateHinter
 import datadog.remoteconfig.Product
 import datadog.trace.api.featureflag.FeatureFlag
+import datadog.trace.api.featureflag.FeatureFlagConfigListener
 import datadog.trace.test.util.DDSpecification
-import java.util.function.Consumer
 
 class FeatureFlagRemoteConfigServiceTest extends DDSpecification {
 
-  private Consumer<ServerConfiguration> consumer
+  private FeatureFlagConfigListener listener
 
   void setup() {
-    consumer = Mock(Consumer<ServerConfiguration>)
+    listener = Mock(FeatureFlagConfigListener)
   }
 
   void cleanup() {
-    FeatureFlag.removeConfigListener {consumer}
+    FeatureFlag.removeListener(listener)
   }
 
   void 'test new config received'() {
     setup:
     final poller = Mock(ConfigurationPoller)
-    FeatureFlag.addConfigListener(consumer)
+    FeatureFlag.addListener(listener)
     final service = new FeatureFlagRemoteConfigServiceImpl(poller)
     final config = fetchConfiguration( 'data/flags-v1.json').bytes
     ConfigurationDeserializer<ServerConfiguration> deserializer = null
@@ -43,7 +43,7 @@ class FeatureFlagRemoteConfigServiceTest extends DDSpecification {
     service.accept('test', deserializer.deserialize(config), Mock(PollingRateHinter))
 
     then:
-    1 * consumer.accept({
+    1 * listener.onConfigurationChanged({
       ServerConfiguration ufc ->
       ufc.createdAt == '2024-04-17T19:40:53.716Z'
       && ufc.format == 'SERVER'

@@ -1,7 +1,5 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.featureflag.FeatureFlag.getConfigListeners;
-
 import com.datadog.featureflag.ufc.v1.ServerConfiguration;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -11,6 +9,7 @@ import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
+import datadog.trace.api.featureflag.FeatureFlag;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -45,7 +44,7 @@ public class FeatureFlagRemoteConfigServiceImpl
       final String configKey,
       @Nullable final ServerConfiguration configuration,
       final PollingRateHinter pollingRateHinter) {
-    getConfigListeners().forEach(consumer -> consumer.accept(configuration));
+    FeatureFlag.dispatch(configuration);
   }
 
   private static class UniversalFlagConfigDeserializer

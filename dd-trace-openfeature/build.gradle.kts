@@ -9,7 +9,7 @@ apply(from = "$rootDir/gradle/java.gradle")
 
 val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
 
-description = "open-feature"
+description = "openfeature"
 
 idea {
   module {

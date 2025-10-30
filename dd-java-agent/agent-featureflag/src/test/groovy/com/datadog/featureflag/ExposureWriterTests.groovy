@@ -42,7 +42,7 @@ class ExposureWriterTests extends AbstractJsonTestSuiteBasedTests {
     setup:
     def writer = Mock(ExposureWriter)
     def evaluator = new FeatureFlagEvaluatorImpl()
-    evaluator.accept(configuration)
+    evaluator.onConfigurationChanged(configuration)
     evaluator = new ExposureWriterEvaluatorAdapter(writer, evaluator)
     final context = buildContext(evaluation)
 
@@ -65,7 +65,7 @@ class ExposureWriterTests extends AbstractJsonTestSuiteBasedTests {
     def writer = Mock(ExposureWriter)
     final cacheCapacity = 5
     def evaluator = new FeatureFlagEvaluatorImpl()
-    evaluator.accept(configuration)
+    evaluator.onConfigurationChanged(configuration)
     evaluator = new ExposureWriterEvaluatorAdapter(cacheCapacity, writer, evaluator)
 
     when: 'populating the cache'
@@ -95,7 +95,7 @@ class ExposureWriterTests extends AbstractJsonTestSuiteBasedTests {
     def writer = new ExposureWriterImpl(100_000, 100L, TimeUnit.MILLISECONDS, HttpUrl.get(server.address), Config.get())
     writer.init()
     def evaluator = new FeatureFlagEvaluatorImpl()
-    evaluator.accept(configuration)
+    evaluator.onConfigurationChanged(configuration)
     evaluator = new ExposureWriterEvaluatorAdapter(writer, evaluator)
     def evaluations = testCases.findAll {
       it.result?.flagMetadata?.doLog == true

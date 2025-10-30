@@ -48,7 +48,7 @@ rootProject.name = "dd-trace-java"
 // external apis
 include(
   ":dd-trace-api",
-  ":dd-trace-api:openfeature",
+  ":dd-trace-openfeature",
   ":dd-trace-ot",
   ":dd-trace-ot:correlation-id-injection",
 )
@@ -185,6 +185,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",

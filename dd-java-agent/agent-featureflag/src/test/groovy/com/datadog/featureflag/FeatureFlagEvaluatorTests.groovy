@@ -24,7 +24,7 @@ class FeatureFlagEvaluatorTests extends AbstractJsonTestSuiteBasedTests {
   void 'test no context'() {
     setup:
     final evaluator = new FeatureFlagEvaluatorImpl()
-    evaluator.accept(configuration)
+    evaluator.onConfigurationChanged(configuration)
     final testCase = testCases.first()
 
     when:
@@ -39,7 +39,7 @@ class FeatureFlagEvaluatorTests extends AbstractJsonTestSuiteBasedTests {
   void 'test feature flag evaluation'() {
     setup:
     final evaluator = new FeatureFlagEvaluatorImpl()
-    evaluator.accept(configuration)
+    evaluator.onConfigurationChanged(configuration)
     final context = buildContext(evaluation)
 
     when:
@@ -52,10 +52,10 @@ class FeatureFlagEvaluatorTests extends AbstractJsonTestSuiteBasedTests {
     evaluation << testCases
   }
 
-  void 'test feature flag dates format'() {
+  void 'test feature flag date parsing'() {
     setup:
     final evaluator = new FeatureFlagEvaluatorImpl()
-    evaluator.accept(parseConfiguration('data/flags-dates-v1.json'))
+    evaluator.onConfigurationChanged(parseConfiguration('data/flags-dates-v1.json'))
     final evaluation = new TestUtils.EvaluationTest(
       flag: 'start-and-end-date-test',
       variationType: 'STRING',

@@ -29,18 +29,15 @@ public class OpenFeatureController {
 
   private final Client client;
 
-  static {
-    OpenFeatureAPI.getInstance().setProvider(new datadog.trace.api.openfeature.Provider());
-  }
-
   public OpenFeatureController() {
-    this.client = OpenFeatureAPI.getInstance().getClient();
+    OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    api.setProviderAndWait(new datadog.trace.api.openfeature.Provider());
+    this.client = api.getClient();
   }
 
   @GetMapping("/provider-metadata")
   public Map<String, Object> getProviderMetadata() {
     FeatureProvider provider = OpenFeatureAPI.getInstance().getProvider();
-
     Map<String, Object> response = new HashMap<>();
     response.put("providerClass", provider.getClass());
     response.put("metadata", provider.getMetadata().getName());

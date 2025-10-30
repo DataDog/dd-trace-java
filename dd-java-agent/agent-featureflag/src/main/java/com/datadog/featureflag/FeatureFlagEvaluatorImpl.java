@@ -10,7 +10,8 @@ import com.datadog.featureflag.ufc.v1.Shard;
 import com.datadog.featureflag.ufc.v1.ShardRange;
 import com.datadog.featureflag.ufc.v1.Split;
 import com.datadog.featureflag.ufc.v1.Variant;
-import datadog.trace.api.featureflag.FeatureFlagConfiguration;
+import datadog.trace.api.featureflag.FeatureFlagConfig;
+import datadog.trace.api.featureflag.FeatureFlagConfigListener;
 import datadog.trace.api.featureflag.FeatureFlagEvaluator;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,19 +26,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FeatureFlagEvaluatorImpl
-    implements FeatureFlagEvaluator, Consumer<FeatureFlagConfiguration> {
+public class FeatureFlagEvaluatorImpl implements FeatureFlagEvaluator, FeatureFlagConfigListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagEvaluatorImpl.class);
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
 
   @Override
-  public void accept(final FeatureFlagConfiguration serverConfiguration) {
+  public void onConfigurationChanged(final FeatureFlagConfig serverConfiguration) {
     configuration.getAndSet((ServerConfiguration) serverConfiguration);
   }
 
@@ -344,10 +343,14 @@ public class FeatureFlagEvaluatorImpl
       return (T) Boolean.valueOf(value.toString());
     }
     if (target == Integer.class) {
-      return (T) ((Integer) Double.valueOf(value.toString()).intValue());
+      final Number number =
+          value instanceof Number ? ((Number) value) : Double.valueOf(value.toString());
+      return (T) ((Integer) number.intValue());
     }
     if (target == Double.class) {
-      return (T) Double.valueOf(value.toString());
+      final Number number =
+          value instanceof Number ? ((Number) value) : Double.valueOf(value.toString());
+      return (T) ((Double) number.doubleValue());
     }
     return (T) value;
   }

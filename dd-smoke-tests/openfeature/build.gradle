@@ -4,7 +4,6 @@ plugins {
   id 'java'
   id 'org.springframework.boot' version '2.7.15'
   id 'io.spring.dependency-management' version '1.0.15.RELEASE'
-  id 'java-test-fixtures'
 }
 
 ext {
@@ -13,24 +12,16 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
-description = 'SpringBoot Java 11 Smoke Tests.'
-
-dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
-
-  testImplementation project(':dd-smoke-tests')
-  testImplementation testFixtures(project(":dd-smoke-tests:iast-util:iast-util-11"))
-  testImplementation testFixtures(project(':dd-smoke-tests:iast-util'))
-
-  implementation project(':dd-smoke-tests:iast-util:iast-util-11')
-}
+description = 'Open Feature provider Smoke Tests.'
 
 tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
+dependencies {
+  implementation project(':dd-trace-openfeature')
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {

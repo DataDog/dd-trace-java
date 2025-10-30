@@ -1,9 +1,9 @@
 package com.datadog.featureflag.ufc.v1;
 
-import datadog.trace.api.featureflag.FeatureFlagConfiguration;
+import datadog.trace.api.featureflag.FeatureFlagConfig;
 import java.util.Map;
 
-public class ServerConfiguration implements FeatureFlagConfiguration {
+public class ServerConfiguration implements FeatureFlagConfig {
   public final String createdAt;
   public final String format;
   public final Environment environment;

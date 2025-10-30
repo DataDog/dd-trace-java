@@ -3,7 +3,8 @@ package datadog.trace.api.openfeature;
 import static datadog.trace.api.featureflag.FeatureFlag.getEvaluator;
 
 import datadog.trace.api.featureflag.FeatureFlag;
-import datadog.trace.api.featureflag.FeatureFlagConfiguration;
+import datadog.trace.api.featureflag.FeatureFlagConfig;
+import datadog.trace.api.featureflag.FeatureFlagConfigListener;
 import datadog.trace.api.featureflag.FeatureFlagEvaluator;
 import datadog.trace.api.featureflag.FeatureFlagEvaluator.Resolution;
 import datadog.trace.api.featureflag.FeatureFlagEvaluator.ResolutionError;
@@ -18,40 +19,37 @@ import dev.openfeature.sdk.ProviderEventDetails;
 import dev.openfeature.sdk.Value;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Provider extends EventProvider
-    implements Metadata, Consumer<FeatureFlagConfiguration> {
+public class Provider extends EventProvider implements Metadata, FeatureFlagConfigListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Provider.class);
   private static final String METADATA = "datadog-openfeature-provider";
 
-  private final AtomicBoolean initialized = new AtomicBoolean();
+  private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   @Override
   public void initialize(final EvaluationContext evaluationContext) throws Exception {
-    FeatureFlag.addConfigListener(this);
+    FeatureFlag.addListener(this);
+    initializationLatch.await(); // await for initialization
+    emit(
+        ProviderEvent.PROVIDER_READY,
+        ProviderEventDetails.builder().message("Provider ready").build());
   }
 
   @Override
   public void shutdown() {
-    FeatureFlag.removeConfigListener(this);
+    FeatureFlag.removeListener(this);
   }
 
   @Override
-  public void accept(final FeatureFlagConfiguration config) {
-    if (!initialized.getAndSet(true)) {
-      emit(
-          ProviderEvent.PROVIDER_READY,
-          ProviderEventDetails.builder().message("Provider ready").build());
-    } else {
-      emit(
-          ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-          ProviderEventDetails.builder().message("New configuration received").build());
-    }
+  public void onConfigurationChanged(final FeatureFlagConfig config) {
+    initializationLatch.countDown();
+    emit(
+        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
+        ProviderEventDetails.builder().message("New configuration received").build());
   }
 
   @Override
@@ -147,6 +145,9 @@ public class Provider extends EventProvider
   }
 
   private static ErrorCode mapErrorCode(final ResolutionError code) {
+    if (code == null) {
+      return null;
+    }
     try {
       return ErrorCode.valueOf(code.name());
     } catch (final IllegalArgumentException e) {

@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FeatureFlagSystem {
+public class FeatureFlagSystem extends FeatureFlag {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagSystem.class);
   private static final int EXPOSURE_WRITER_CAPACITY = 100_000;
@@ -35,8 +35,8 @@ public class FeatureFlagSystem {
             sco.agentUrl,
             config);
     final FeatureFlagEvaluatorImpl evaluator = new FeatureFlagEvaluatorImpl();
-    FeatureFlag.addConfigListener(evaluator);
-    FeatureFlag.init(new ExposureWriterEvaluatorAdapter(EXPOSURE_WRITER, evaluator));
+    FeatureFlag.addListener(evaluator);
+    FeatureFlag.setEvaluator(new ExposureWriterEvaluatorAdapter(EXPOSURE_WRITER, evaluator));
 
     CONFIG_SERVICE = new FeatureFlagRemoteConfigServiceImpl(poller);
     CONFIG_SERVICE.init();
