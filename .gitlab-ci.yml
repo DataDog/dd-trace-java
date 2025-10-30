@@ -289,7 +289,7 @@ build_tests:
         CACHE_TYPE: "latestdep"
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
-        MAVEN_OPTS: "-Xms64M -Xmx512M -Dorg.slf4j.simpleLogger.defaultLogLevel=debug" # FIXME: Build :smokeTest build fails unless mvn debug logging is on
+        MAVEN_OPTS: "-Xms64M -Xmx512M"
 
   script:
     - *gitlab_base_ref_params
@@ -438,6 +438,7 @@ check_smoke:
   parallel: 4
   variables:
     GRADLE_TARGET: ":smokeCheck"
+    CACHE_TYPE: "smoke"
 
 check_profiling:
   extends: .check_job
@@ -647,7 +648,7 @@ test_flaky:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_PARAMS: "-PrunFlakyTests"
-    CACHE_TYPE: "base"
+    CACHE_TYPE: "smoke"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   rules:

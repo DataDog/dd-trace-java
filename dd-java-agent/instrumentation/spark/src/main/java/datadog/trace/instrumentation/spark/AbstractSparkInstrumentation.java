@@ -36,7 +36,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       "org.apache.spark.deploy.yarn.ApplicationMaster",
       "org.apache.spark.util.Utils",
       "org.apache.spark.util.SparkClassUtils",
-      "org.apache.spark.scheduler.LiveListenerBus"
+      "org.apache.spark.scheduler.LiveListenerBus",
+      "org.apache.spark.sql.execution.SparkPlanInfo$"
     };
   }
 
