@@ -103,7 +103,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
   static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
-  static final OtelConfig.Exporter DEFAULT_OTEL_METRICS_EXPORTER = OtelConfig.Exporter.OTLP;
+  static final Exporter DEFAULT_OTEL_METRICS_EXPORTER = Exporter.OTLP;
   // WARNING: This defies the OpenTelemetry specification’s default value of 60000 (60s)
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_INTERVAL = 10000;
   // WARNING: This defies the OpenTelemetry specification’s default value of 30000 (30s)
