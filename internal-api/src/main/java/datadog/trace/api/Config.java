@@ -2760,10 +2760,21 @@ public class Config {
     this.cloudPayloadTaggingServices =
         configProvider.getSet(
             TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES, DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES);
-    this.cloudRequestPayloadTagging =
+
+    List<String> cloudReqPayloadTaggingConf =
         configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
-    this.cloudResponsePayloadTagging =
+    this.cloudRequestPayloadTagging =
+        cloudReqPayloadTaggingConf != null && cloudReqPayloadTaggingConf.isEmpty()
+            ? null
+            : cloudReqPayloadTaggingConf;
+
+    List<String> cloudRespPayloadTaggingConf =
         configProvider.getList(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+    this.cloudResponsePayloadTagging =
+        cloudRespPayloadTaggingConf != null && cloudRespPayloadTaggingConf.isEmpty()
+            ? null
+            : cloudRespPayloadTaggingConf;
+
     this.cloudPayloadTaggingMaxDepth =
         configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
     this.cloudPayloadTaggingMaxTags =
