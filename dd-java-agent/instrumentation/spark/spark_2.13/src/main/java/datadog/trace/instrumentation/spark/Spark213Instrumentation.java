@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.reflect.Constructor;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.execution.SparkPlan;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.JavaConverters;
 import scala.collection.immutable.HashMap;
+import scala.collection.immutable.Map;
 
 @AutoService(InstrumenterModule.class)
 public class Spark213Instrumentation extends AbstractSparkInstrumentation {
@@ -104,12 +106,11 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark213PlanSerializer planUtils = new Spark213PlanSerializer();
-        scala.collection.immutable.Map<String, String> meta =
+        Map<String, String> meta =
             HashMap.from(JavaConverters.asScala(planUtils.extractFormattedProduct(plan)));
         try {
-          Class<?> spiClass = Class.forName("org.apache.spark.sql.execution.SparkPlanInfo");
-          java.lang.reflect.Constructor<?> targetCtor = null;
-          for (java.lang.reflect.Constructor<?> c : spiClass.getConstructors()) {
+          Constructor<?> targetCtor = null;
+          for (Constructor<?> c : SparkPlanInfo.class.getConstructors()) {
             if (c.getParameterCount() == 5) {
               targetCtor = c;
               break;
