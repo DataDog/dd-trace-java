@@ -19,25 +19,61 @@ ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion c
 } as Closure<Void>
 
 @CompileStatic
+interface TracerSourceSetConfig {
+  /**
+   * Additional sourceSet output is added as `compileOnly` rather than `implementation`.
+   *
+   * This is useful to avoid some classes to be added to add classes to the wrog jar prefix.
+   */
+  Property<Boolean> getCompileOnly()
+
+  /**
+   * Whether to apply or not the JavaVersion to tests sources, default to `true`.
+   *
+   * In some cases we would like to avoid setting java version to for tests.
+   * For example we would like to be able to run profiling tests with `ZULU8`,
+   * but we cannot run it with other JDK8 implementations at the moment
+   */
+  Property<Boolean> getApplyForTestSources()
+}
+
+@CompileStatic
 class TracerJavaExtension {
   public static String NAME = "tracerJava";
+  private ObjectFactory objects
   private Project project
-
-  Property<Boolean> skipSettingTestJavaVersion
 
   TracerJavaExtension(ObjectFactory objects, ProviderFactory providers, Project project) {
     this.project = project
-    this.skipSettingTestJavaVersion = objects.property(Boolean).convention(providers.provider { project.findProperty('skipSettingTestJavaVersion') as Boolean })
+    this.objects = objects
+  }
+
+  /**
+   * Same as [addSourceSetFor] used for compatibility when used in kotlin scripts within `withGroovyBuilder`.
+   *
+   * Once moved to convention plugins this can go away.
+   *
+   * @param javaVersion The wanted java version for these source.
+   * @param sourceSetOptions
+   */
+  def addSourceSetFor(JavaVersion javaVersion, Map<String, Boolean> sourceSetOptions) {
+    addSourceSetFor(javaVersion) {
+      it.compileOnly.set(sourceSetOptions.getOrDefault('compileOnly', false))
+      it.applyForTestSources.set(sourceSetOptions.getOrDefault('applyForTestSources', true))
+    }
   }
 
   /**
    * Adds the source set `src/main/javaXX`, configures its compilation and its test jvm constraints.
    *
    * @param javaVersion The wanted java version for these source.
-   * @param compileOnly Whether the compilation output is added as compileOnly.
-   * @return
+   * @param sourceSetConfigurer Options for this source set.
    */
-  def addSourceSetFor(JavaVersion javaVersion, Boolean compileOnly = false) {
+  def addSourceSetFor(JavaVersion javaVersion, Action<? super TracerSourceSetConfig> sourceSetConfigurer = null) {
+    def sourceSetConfig = objects.newInstance(TracerSourceSetConfig)
+    if (sourceSetConfigurer != null) {
+      sourceSetConfigurer.execute(sourceSetConfig)
+    }
     project.extensions.getByType(TestJvmConstraintsExtension).minJavaVersionForTests.set(javaVersion)
 
     def version = javaVersion
@@ -54,9 +90,19 @@ class TracerJavaExtension {
       cl.call(it, version.majorVersion.toInteger().intValue(), version)
     }
 
+    if (sourceSetConfig.applyForTestSources.orElse(true)) {
+      // configures all test tasks
+      project.tasks.withType(JavaCompile).configureEach {
+        if (it.name.toLowerCase().contains("test")) {
+          it.sourceCompatibility = version
+          it.targetCompatibility = version
+        }
+      }
+    }
+
     // "socket-utils" is only set to compileOnly because the implementation dependency incorrectly adds Java17 classes to all jar prefixes.
     // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
-    if (compileOnly) {
+    if (sourceSetConfig.compileOnly.orElse(false).get()) {
       project.dependencies.add("compileOnly", mainForJavaVersionSourceSet.output)
     } else {
       project.dependencies.add("compileOnly", project.files(mainForJavaVersionSourceSet.compileClasspath))
@@ -113,21 +159,6 @@ java {
 
 if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
   tracerJavaExtension.addSourceSetFor(project.findProperty('minJavaVersionForTests'))
-
-  // TODO configure this via extension
-  //  If unset (hasProperty is false), or value is explicitly set to false (case not seen), then
-  //  sets the compiler to `minJavaVersionForTests` version
-  // In some cases we would like to avoid setting java version to `minJavaVersionForTests`.
-  // For example we would like to be able to run profiling tests with ZULU8, but we cannot run it with other JDK8 implementations at the moment
-  def skipSettingTestJavaVersion = project.hasProperty('skipSettingTestJavaVersion') && project.findProperty('skipSettingTestJavaVersion')
-  if (!skipSettingTestJavaVersion) {
-    tasks.withType(JavaCompile).configureEach {
-      if (it.name.toLowerCase().contains("test")) {
-        sourceCompatibility = version
-        targetCompatibility = version
-      }
-    }
-  }
 }
 
 tasks.named("jar", Jar) {

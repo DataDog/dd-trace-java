@@ -1,11 +1,12 @@
-// Set properties before any plugins get loaded
-ext {
-  // By default tests with be compiled for `minJavaVersionForTests` version,
-  // but in this case we would like to avoid this since we would like to run with ORACLE8
-  skipSettingTestJavaVersion = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11) {
+    // By default tests with be compiled for `minJavaVersionForTests` version,
+    // but in this case we would like to avoid this since we would like to run with ZULU8
+    applyForTestSources = false
+  }
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7

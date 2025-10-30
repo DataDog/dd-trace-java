@@ -10,7 +10,7 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 
 extensions.getByName("tracerJava").withGroovyBuilder {
-  this.invokeMethod("addSourceSetFor", arrayOf(JavaVersion.VERSION_17, true))
+  invokeMethod("addSourceSetFor", arrayOf(JavaVersion.VERSION_17, mapOf("compileOnly" to true)))
 }
 
 dependencies {

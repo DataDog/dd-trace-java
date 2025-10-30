@@ -1,14 +1,12 @@
-ext {
-  // By default tests with be compiled for `minJavaVersionForTests` version,
-  // but in this case we would like to avoid this since we would like to run with ZULU8
-  skipSettingTestJavaVersion = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11)
+  addSourceSetFor(JavaVersion.VERSION_11) {
+    // By default tests with be compiled for `minJavaVersionForTests` version,
+    // but in this case we would like to avoid this since we would like to run with ZULU8
+    applyForTestSources = false
+  }
 }
 
 testJvmConstraint {
