@@ -10,6 +10,7 @@ import com.datadog.featureflag.ufc.v1.Shard;
 import com.datadog.featureflag.ufc.v1.ShardRange;
 import com.datadog.featureflag.ufc.v1.Split;
 import com.datadog.featureflag.ufc.v1.Variant;
+import datadog.trace.api.featureflag.FeatureFlagConfiguration;
 import datadog.trace.api.featureflag.FeatureFlagEvaluator;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,122 +18,136 @@ import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.TimeZone;
-import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FeatureFlagEvaluatorImpl
-    implements FeatureFlagEvaluator, Consumer<ServerConfiguration> {
+    implements FeatureFlagEvaluator, Consumer<FeatureFlagConfiguration> {
 
-  private final Set<Listener> listeners = Collections.newSetFromMap(new WeakHashMap<>());
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagEvaluatorImpl.class);
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
+
+  @Override
+  public void accept(final FeatureFlagConfiguration serverConfiguration) {
+    configuration.getAndSet((ServerConfiguration) serverConfiguration);
+  }
 
   @Override
   public Resolution<Boolean> evaluate(
       final String key, final Boolean defaultValue, final Context context) {
-    return evaluateInternal(key, defaultValue, context);
+    return evaluateInternal(Boolean.class, key, defaultValue, context);
   }
 
   @Override
   public Resolution<Integer> evaluate(
       final String key, final Integer defaultValue, final Context context) {
-    return evaluateInternal(key, defaultValue, context);
+    return evaluateInternal(Integer.class, key, defaultValue, context);
   }
 
   @Override
   public Resolution<Double> evaluate(
       final String key, final Double defaultValue, final Context context) {
-    return evaluateInternal(key, defaultValue, context);
+    return evaluateInternal(Double.class, key, defaultValue, context);
   }
 
   @Override
   public Resolution<String> evaluate(
       final String key, final String defaultValue, final Context context) {
-    return evaluateInternal(key, defaultValue, context);
+    return evaluateInternal(String.class, key, defaultValue, context);
   }
 
   @Override
   public Resolution<Object> evaluate(
       final String key, final Object defaultValue, final Context context) {
-    return evaluateInternal(key, defaultValue, context);
+    return evaluateInternal(Object.class, key, defaultValue, context);
   }
 
   private <T> Resolution<T> evaluateInternal(
-      final String key, final T defaultValue, final Context context) {
-    final ServerConfiguration config = configuration.get();
-
-    if (config == null) {
-      // TODO: log warning and telemetry
-      return Resolution.notInitialized(defaultValue);
-    }
-
-    if (context == null || context.getTargetingKey() == null) {
-      // TODO: log error and telemetry
-      return Resolution.error(defaultValue);
-    }
-
-    final Flag flag = config.flags.get(key);
-    if (flag == null) {
-      // TODO: log warning and telemetry
-      return Resolution.defaultResolution(defaultValue);
-    }
-
-    if (!flag.enabled) {
-      // TODO: log warning and telemetry
-      return new Resolution<>(defaultValue).setReason(ResolutionReason.DISABLED);
-    }
-
-    if (flag.allocations == null || flag.allocations.isEmpty()) {
-      // TODO: log warning and telemetry
-      return Resolution.defaultResolution(defaultValue);
-    }
-
-    final Date now = new Date();
-    final String targetingKey = context.getTargetingKey();
-
-    for (final Allocation allocation : flag.allocations) {
-      if (!isAllocationActive(allocation, now)) {
-        continue;
+      final Class<T> target, final String key, final T defaultValue, final Context context) {
+    try {
+      final ServerConfiguration config = configuration.get();
+      if (config == null) {
+        return Resolution.providerNotReady(key, defaultValue);
       }
 
-      if (allocation.rules != null && !allocation.rules.isEmpty()) {
-        if (!evaluateRules(allocation.rules, context)) {
+      if (context == null) {
+        return Resolution.invalidContext(key, defaultValue);
+      }
+
+      if (context.getTargetingKey() == null) {
+        return Resolution.targetingKeyMissing(key, defaultValue);
+      }
+
+      final Flag flag = config.flags.get(key);
+      if (flag == null) {
+        return Resolution.flagNotFound(key, defaultValue);
+      }
+
+      if (!flag.enabled) {
+        return Resolution.disabled(key, defaultValue);
+      }
+
+      if (flag.allocations == null || flag.allocations.isEmpty()) {
+        return Resolution.generalError(
+            key, defaultValue, "Missing allocations in flag " + flag.key);
+      }
+
+      final Date now = new Date();
+      final String targetingKey = context.getTargetingKey();
+
+      for (final Allocation allocation : flag.allocations) {
+        if (!isAllocationActive(allocation, now)) {
           continue;
         }
-      }
 
-      if (allocation.splits != null) {
-        for (final Split split : allocation.splits) {
-          if (split.shards != null) {
-            if (split.shards.isEmpty()) {
-              return resolveVariant(flag, split.variationKey, allocation);
-            }
+        if (allocation.rules != null && !allocation.rules.isEmpty()) {
+          if (!evaluateRules(allocation.rules, context)) {
+            continue;
+          }
+        }
 
-            // To match a split, subject must match ALL underlying shards
-            boolean allShardsMatch = true;
-            for (final Shard shard : split.shards) {
-              if (!matchesShard(shard, targetingKey)) {
-                allShardsMatch = false;
-                break;
+        if (allocation.splits != null) {
+          for (final Split split : allocation.splits) {
+            if (split.shards != null) {
+              if (split.shards.isEmpty()) {
+                return resolveVariant(
+                    target, key, defaultValue, flag, split.variationKey, allocation);
               }
-            }
-            if (allShardsMatch) {
-              return resolveVariant(flag, split.variationKey, allocation);
+
+              // To match a split, subject must match ALL underlying shards
+              boolean allShardsMatch = true;
+              for (final Shard shard : split.shards) {
+                if (!matchesShard(shard, targetingKey)) {
+                  allShardsMatch = false;
+                  break;
+                }
+              }
+              if (allShardsMatch) {
+                return resolveVariant(
+                    target, key, defaultValue, flag, split.variationKey, allocation);
+              }
             }
           }
         }
       }
-    }
 
-    return Resolution.defaultResolution(defaultValue);
+      return Resolution.defaultResolution(key, defaultValue);
+    } catch (final NumberFormatException e) {
+      LOGGER.debug("Evaluation failed for key {}", key, e);
+      return Resolution.typeMissmatch(key, defaultValue, e.getMessage());
+    } catch (final Exception e) {
+      LOGGER.debug("Evaluation failed for key {}", key, e);
+      return Resolution.generalError(key, defaultValue, e.getMessage());
+    }
   }
 
   private boolean isAllocationActive(final Allocation allocation, final Date now) {
@@ -236,44 +251,22 @@ public class FeatureFlagEvaluatorImpl
   }
 
   private boolean valuesEqual(final Object a, final Object b) {
-    if (a == null && b == null) {
+    if (Objects.equals(a, b)) {
       return true;
-    }
-    if (a == null || b == null) {
-      return false;
     }
 
     if (a instanceof Number || b instanceof Number) {
-      return numbersEqual(a, b);
+      return compareNumber(a, b, (first, second) -> first == second);
     }
 
     return String.valueOf(a).equals(String.valueOf(b));
   }
 
-  private boolean numbersEqual(final Object a, final Object b) {
-    try {
-      return toDouble(a) == toDouble(b);
-    } catch (Exception e) {
-      return String.valueOf(a).equals(String.valueOf(b));
-    }
-  }
-
   private boolean compareNumber(
       final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    try {
-      final double a = toDouble(attributeValue);
-      final double b = toDouble(conditionValue);
-      return comparator.compare(a, b);
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
-  private double toDouble(final Object value) {
-    if (value instanceof Number) {
-      return ((Number) value).doubleValue();
-    }
-    return Double.parseDouble(String.valueOf(value));
+    final double a = mapValue(Double.class, attributeValue);
+    final double b = mapValue(Double.class, conditionValue);
+    return comparator.compare(a, b);
   }
 
   private boolean matchesShard(final Shard shard, final String targetingKey) {
@@ -312,12 +305,16 @@ public class FeatureFlagEvaluatorImpl
     }
   }
 
-  @SuppressWarnings("unchecked")
   private <T> Resolution<T> resolveVariant(
-      final Flag flag, final String variationKey, final Allocation allocation) {
+      final Class<T> target,
+      final String key,
+      final T defaultValue,
+      final Flag flag,
+      final String variationKey,
+      final Allocation allocation) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
-      return Resolution.error((T) null);
+      return Resolution.generalError(key, defaultValue, "Variation not found for: " + variationKey);
     }
 
     final Map<String, Object> metadata = new HashMap<>();
@@ -327,15 +324,35 @@ public class FeatureFlagEvaluatorImpl
       metadata.put("allocationKey", allocation.key);
     }
 
-    return Resolution.targetingMatch((T) variant.value)
+    return Resolution.targetingMatch(key, mapValue(target, variant.value))
         .setVariant(variant.key)
         .setFlagMetadata(metadata);
   }
 
-  private Date parseDate(final String dateString) {
-    if (dateString == null) {
+  @SuppressWarnings("unchecked")
+  private <T> T mapValue(final Class<T> target, final Object value) {
+    if (value == null) {
       return null;
     }
+    if (target.isInstance(value)) {
+      return target.cast(value);
+    }
+    if (target == String.class) {
+      return (T) String.valueOf(value);
+    }
+    if (target == Boolean.class) {
+      return (T) Boolean.valueOf(value.toString());
+    }
+    if (target == Integer.class) {
+      return (T) ((Integer) Double.valueOf(value.toString()).intValue());
+    }
+    if (target == Double.class) {
+      return (T) Double.valueOf(value.toString());
+    }
+    return (T) value;
+  }
+
+  private Date parseDate(final String dateString) {
     try {
       final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
       sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -362,27 +379,5 @@ public class FeatureFlagEvaluatorImpl
       return context.getTargetingKey();
     }
     return context.getValue(name);
-  }
-
-  @Override
-  public void addListener(final Listener listener) {
-    if (configuration.get() != null) {
-      listener.onInitialized();
-    }
-    synchronized (listeners) {
-      this.listeners.add(listener);
-    }
-  }
-
-  @Override
-  public void accept(final ServerConfiguration serverConfiguration) {
-    final boolean init = configuration.getAndSet(serverConfiguration) == null;
-    synchronized (listeners) {
-      if (init) {
-        listeners.forEach(Listener::onInitialized);
-      } else {
-        listeners.forEach(Listener::onConfigurationChanged);
-      }
-    }
   }
 }

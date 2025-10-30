@@ -11,9 +11,11 @@ import org.slf4j.LoggerFactory;
 public class FeatureFlagSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagSystem.class);
+  private static final int EXPOSURE_WRITER_CAPACITY = 100_000;
+  private static final int EXPOSURE_WRITER_FLUSH_INTERVAL_SECONDS = 1;
 
-  private static FeatureFlagRemoteConfigService CONFIG_SERVICE;
-  private static ExposureWriter EXPOSURE_WRITER;
+  private static volatile FeatureFlagRemoteConfigService CONFIG_SERVICE;
+  private static volatile ExposureWriter EXPOSURE_WRITER;
 
   public static void start(final SharedCommunicationObjects sco) {
     LOGGER.debug("Feature Flag system starting");
@@ -25,12 +27,18 @@ public class FeatureFlagSystem {
           "Feature flags evaluation won't be started, remote config is likely disabled");
     }
 
-    EXPOSURE_WRITER = new ExposureWriterImpl(1, 1, TimeUnit.SECONDS, sco, config);
+    EXPOSURE_WRITER =
+        new ExposureWriterImpl(
+            EXPOSURE_WRITER_CAPACITY,
+            EXPOSURE_WRITER_FLUSH_INTERVAL_SECONDS,
+            TimeUnit.SECONDS,
+            sco.agentUrl,
+            config);
     final FeatureFlagEvaluatorImpl evaluator = new FeatureFlagEvaluatorImpl();
-    FeatureFlag.EVALUATOR = new ExposureEvaluatorAdapter(EXPOSURE_WRITER, evaluator);
+    FeatureFlag.addConfigListener(evaluator);
+    FeatureFlag.init(new ExposureWriterEvaluatorAdapter(EXPOSURE_WRITER, evaluator));
 
     CONFIG_SERVICE = new FeatureFlagRemoteConfigServiceImpl(poller);
-    CONFIG_SERVICE.addConsumer(evaluator);
     CONFIG_SERVICE.init();
 
     LOGGER.debug("Feature Flag system started");

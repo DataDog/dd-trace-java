@@ -3,26 +3,36 @@ package datadog.smoketest.springboot
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
 import datadog.smoketest.AbstractServerSmokeTest
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
+import spock.lang.Shared
 
 class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
+
+  @Shared
+  private final rcPayload = JsonOutput.toJson(new JsonSlurper().parse(Thread.currentThread().contextClassLoader.getResource("ffe/flags-v1.json")))
 
   @Override
   ProcessBuilder createProcessBuilder() {
     final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
 
     final command = [javaPath()]
-    command.add('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005')
     command.addAll(defaultJavaProperties)
+    command.add('-Ddd.trace.debug=true')
+    command.add('-Ddd.remote_config.enabled=true')
+    command.add('-Ddd.remote_config.poll_interval.seconds=1')
+    command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
     command.addAll(['-jar', springBootShadowJar, "--server.port=${httpPort}".toString()])
     final builder = new ProcessBuilder(command).directory(new File(buildDirectory))
     builder.environment().put('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED', 'true')
     return builder
   }
 
-  void setup() {
-    setRemoteConfig()
+  def setup() {
+    setRemoteConfig("datadog/2/FFE_FLAGS/${System.nanoTime()}/config", rcPayload)
   }
 
   void 'test open feature provider metadata'() {
@@ -44,7 +54,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   void 'test remote config'() {
     when:
     final rcRequest = waitForRcClientRequest {req ->
-      decodeProducts(req).find { Product.FFE_FLAGS } != null
+      decodeProducts(req).find {it == Product.FFE_FLAGS } != null
     }
 
     then:
@@ -54,11 +64,10 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   void 'test open feature evaluation'() {
     setup:
-    final url = "http://localhost:${httpPort}/openfeature/${type}?flagKey=${flag}&defaultValue=${defaultValue}"
+    final url = "http://localhost:${httpPort}/openfeature/evaluate"
     final request = new Request.Builder()
       .url(url)
-      .header('X-User-Id', user)
-      .get()
+      .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson(testCase)))
       .build()
 
     when:
@@ -67,17 +76,11 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     then:
     response.code() == 200
     final responseBody = new JsonSlurper().parse(response.body().byteStream())
-    responseBody['metadata'] == 'datadog-openfeature-provider'
-    responseBody['providerClass'] == 'datadog.trace.api.openfeature.Provider'
-    responseBody != null
+    final value = responseBody.value
+    assert value == testCase.result.value
 
     where:
-    user     | type      | flag           | defaultValue
-    'user_1' | 'integer' | 'int-flag'     | 23
-    'user_1' | 'double'  | 'double-flag'  | 3.14D
-    'user_1' | 'boolean' | 'boolean-flag' | true
-    'user_1' | 'string'  | 'string-flag'  | 'defaultString'
-    'user_1' | 'object'  | 'object-flag'  | [hello: 'World!']
+    testCase << new JsonSlurper().parse(Thread.currentThread().contextClassLoader.getResource("ffe/test-cases.json"))
   }
 
   private static Set<Product> decodeProducts(final Map<String, Object> request) {

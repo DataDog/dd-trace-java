@@ -7,14 +7,33 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 java {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
+
+excludedClassesCoverage += [
+  // Exposure POJO classes
+  'com.datadog.featureflag.exposure.Allocation',
+  'com.datadog.featureflag.exposure.ExposureEvent',
+  'com.datadog.featureflag.exposure.ExposuresRequest',
+  'com.datadog.featureflag.exposure.Flag',
+  'com.datadog.featureflag.exposure.Subject',
+  'com.datadog.featureflag.exposure.Variant',
+  // UFC v1 POJO classes
+  'com.datadog.featureflag.ufc.v1.Allocation',
+  'com.datadog.featureflag.ufc.v1.ConditionConfiguration',
+  'com.datadog.featureflag.ufc.v1.ConditionOperator',
+  'com.datadog.featureflag.ufc.v1.Environment',
+  'com.datadog.featureflag.ufc.v1.Flag',
+  'com.datadog.featureflag.ufc.v1.Rule',
+  'com.datadog.featureflag.ufc.v1.ServerConfiguration',
+  'com.datadog.featureflag.ufc.v1.Shard',
+  'com.datadog.featureflag.ufc.v1.ShardRange',
+  'com.datadog.featureflag.ufc.v1.Split',
+  'com.datadog.featureflag.ufc.v1.ValueType',
+  'com.datadog.featureflag.ufc.v1.Variant'
+]
 
 dependencies {
   api libs.slf4j
@@ -22,12 +41,12 @@ dependencies {
   implementation libs.jctools
 
   api project(':dd-trace-api')
+  compileOnly project(':dd-trace-core')
   implementation project(':internal-api')
   implementation project(':communication')
 
   testImplementation project(':utils:test-utils')
-  testImplementation project(':dd-trace-api:openfeature')
-  testImplementation(libs.openfeature.sdk)
+  testImplementation project(':dd-java-agent:testing')
 }
 
 tasks.named("shadowJar", ShadowJar) {
@@ -36,11 +55,5 @@ tasks.named("shadowJar", ShadowJar) {
 
 tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
-}
-
-[GroovyCompile].each {
-  tasks.withType(it).configureEach {
-    configureCompiler(it, 11, JavaVersion.VERSION_11)
-  }
 }
 

@@ -11,12 +11,12 @@ public class Allocation {
   public final Boolean doLog;
 
   public Allocation(
-      String key,
-      List<Rule> rules,
-      String startAt,
-      String endAt,
-      List<Split> splits,
-      Boolean doLog) {
+      final String key,
+      final List<Rule> rules,
+      final String startAt,
+      final String endAt,
+      final List<Split> splits,
+      final Boolean doLog) {
     this.key = key;
     this.rules = rules;
     this.startAt = startAt;

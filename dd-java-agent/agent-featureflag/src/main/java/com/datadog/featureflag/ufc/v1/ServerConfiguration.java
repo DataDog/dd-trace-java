@@ -1,15 +1,19 @@
 package com.datadog.featureflag.ufc.v1;
 
+import datadog.trace.api.featureflag.FeatureFlagConfiguration;
 import java.util.Map;
 
-public class ServerConfiguration {
+public class ServerConfiguration implements FeatureFlagConfiguration {
   public final String createdAt;
   public final String format;
   public final Environment environment;
   public final Map<String, Flag> flags;
 
   public ServerConfiguration(
-      String createdAt, String format, Environment environment, Map<String, Flag> flags) {
+      final String createdAt,
+      final String format,
+      final Environment environment,
+      final Map<String, Flag> flags) {
     this.createdAt = createdAt;
     this.format = format;
     this.environment = environment;

@@ -1,5 +1,7 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.featureflag.FeatureFlag.getConfigListeners;
+
 import com.datadog.featureflag.ufc.v1.ServerConfiguration;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -11,9 +13,6 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import okio.Okio;
 
@@ -22,7 +21,6 @@ public class FeatureFlagRemoteConfigServiceImpl
         ConfigurationChangesTypedListener<ServerConfiguration> {
 
   private final ConfigurationPoller configurationPoller;
-  private final List<Consumer<ServerConfiguration>> consumers = new CopyOnWriteArrayList<>();
 
   public FeatureFlagRemoteConfigServiceImpl(final ConfigurationPoller poller) {
     configurationPoller = poller;
@@ -43,16 +41,11 @@ public class FeatureFlagRemoteConfigServiceImpl
   }
 
   @Override
-  public void addConsumer(final Consumer<ServerConfiguration> consumer) {
-    this.consumers.add(consumer);
-  }
-
-  @Override
   public void accept(
       final String configKey,
       @Nullable final ServerConfiguration configuration,
       final PollingRateHinter pollingRateHinter) {
-    consumers.forEach(consumer -> consumer.accept(configuration));
+    getConfigListeners().forEach(consumer -> consumer.accept(configuration));
   }
 
   private static class UniversalFlagConfigDeserializer

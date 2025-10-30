@@ -1,69 +1,69 @@
-package com.datadog.featureflag.evaluator
-
+package com.datadog.featureflag.utils
 
 import com.datadog.featureflag.ufc.v1.ServerConfiguration
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
 import java.nio.file.Paths
 import okio.Okio
-import spock.lang.Shared
 
-abstract class BaseFeatureFlagsTest extends DDSpecification {
+class TestUtils {
 
-  @Shared
-  protected static ServerConfiguration configuration
-
-  void setupSpec() {
-    configuration = parseConfiguration()
+  static String fetchConfiguration(String file) {
+    final flags = new JsonSlurper().parse(resourceFor(file))
+    return JsonOutput.toJson(flags.data.attributes)
   }
 
-  protected static ServerConfiguration parseConfiguration() {
-    final flags = new JsonSlurper().parse(resourceFor('data/flags-v1.json'))
-    final config = JsonOutput.toJson(flags.data.attributes)
+  static ServerConfiguration parseConfiguration(String file) {
+    final config = fetchConfiguration(file)
     final deserializer = new Moshi.Builder().build().adapter(ServerConfiguration)
     return deserializer.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(config.bytes))))
   }
 
-  protected static URL resourceFor(String url) {
+  static URL resourceFor(String url) {
     return Thread.currentThread().getContextClassLoader().getResource(url)
   }
 
-  protected static List<?> testCases() {
+  static List<EvaluationTest> testCases() {
     final folder = resourceFor('data/tests')
     final uri = folder.toURI()
     final testsPath = Paths.get(uri)
     final files = Files.list(testsPath)
     .filter(path -> path.toString().endsWith('.json'))
     final result = []
-    final moshi = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, TestCase))
+    final moshi = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, EvaluationTest))
     files.each {
       path ->
-      final testCases = moshi.fromJson(Okio.buffer(Okio.source(path.toFile())))
+      final testCases = moshi.fromJson(Okio.buffer(Okio.source(path.toFile()))) as List<EvaluationTest>
       testCases.eachWithIndex {
         testCase, index ->
-        result.add([name: path.fileName, index: index, testCase: testCase])
+        testCase.fileName = path.fileName.toString()
+        testCase.index = index
       }
+      result.addAll(testCases)
     }
     return result
   }
 
-  protected static class TestCase {
+  static class EvaluationTest {
+    String fileName
+    int index
     String flag
     String variationType
     Object defaultValue
     String targetingKey
     Map<String, ?> attributes
-    TestResult result
+    EvaluationResult result
 
 
     @Override
     String toString() {
       return "{" +
-      "flag:'" + flag + '\'' +
+      "fileName:'" + fileName + '\'' +
+      ", index:'" + index + '\'' +
+      ", flag:'" + flag + '\'' +
       ", variationType:'" + variationType + '\'' +
       ", targetingKey:'" + targetingKey + '\'' +
       ", defaultValue:" + defaultValue +
@@ -71,7 +71,7 @@ abstract class BaseFeatureFlagsTest extends DDSpecification {
     }
   }
 
-  protected static class TestResult {
+  static class EvaluationResult {
     Object value
     String variant
     Map<String, ?> flagMetadata

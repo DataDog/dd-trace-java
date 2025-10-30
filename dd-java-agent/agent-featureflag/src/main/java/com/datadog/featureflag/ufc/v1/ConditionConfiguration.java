@@ -5,7 +5,8 @@ public class ConditionConfiguration {
   public final String attribute;
   public final Object value;
 
-  public ConditionConfiguration(ConditionOperator operator, String attribute, Object value) {
+  public ConditionConfiguration(
+      final ConditionOperator operator, final String attribute, final Object value) {
     this.operator = operator;
     this.attribute = attribute;
     this.value = value;

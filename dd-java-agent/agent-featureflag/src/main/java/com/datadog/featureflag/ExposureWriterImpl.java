@@ -8,12 +8,9 @@ import com.datadog.featureflag.exposure.ExposuresRequest;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
-import datadog.trace.api.featureflag.FeatureFlagEvaluator.Context;
-import datadog.trace.api.featureflag.FeatureFlagEvaluator.Resolution;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 public class ExposureWriterImpl implements ExposureWriter {
 
-  private static final String EXPOSURES_API_PATH = "/api/v2/exposures";
+  private static final String EXPOSURES_API_PATH = "api/v2/exposures";
   private static final String EVP_SUBDOMAIN_HEADER_NAME = "X-Datadog-EVP-Subdomain";
   private static final String EVP_SUBDOMAIN_HEADER_VALUE = "event-platform-intake";
 
@@ -43,13 +40,13 @@ public class ExposureWriterImpl implements ExposureWriter {
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final SharedCommunicationObjects sco,
-      Config config) {
+      final HttpUrl agentUrl,
+      final Config config) {
     this.queue = new MpscBlockingConsumerArrayQueue<>(capacity);
     final Headers headers = Headers.of(EVP_SUBDOMAIN_HEADER_NAME, EVP_SUBDOMAIN_HEADER_VALUE);
     final HttpUrl url =
         HttpUrl.get(
-            sco.agentUrl.toString()
+            agentUrl.toString()
                 + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
                 + EXPOSURES_API_PATH);
     final Map<String, String> context = new HashMap<>();
@@ -71,11 +68,13 @@ public class ExposureWriterImpl implements ExposureWriter {
   }
 
   @Override
-  public void close() {}
+  public void close() {
+    this.serializerThread.interrupt();
+  }
 
   @Override
-  public void write(final String flag, final Context context, final Resolution<?> resolution) {
-    final long timestamp = System.currentTimeMillis();
+  public void write(final ExposureEvent event) {
+    queue.offer(event);
   }
 
   private static class ExposureSerializingHandler implements Runnable {
@@ -122,8 +121,8 @@ public class ExposureWriterImpl implements ExposureWriter {
         Thread.currentThread().interrupt();
       }
       log.debug(
-          "exposure processor worker exited. submitting explosures stopped. unsubmitted evals left: "
-              + !queuesAreEmpty());
+          "exposure processor worker exited. submitting exposures stopped. unsubmitted exposures left: {}",
+          !queuesAreEmpty());
     }
 
     private void runDutyCycle() throws InterruptedException {

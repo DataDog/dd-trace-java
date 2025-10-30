@@ -7,7 +7,7 @@ public class Shard {
   public final List<ShardRange> ranges;
   public final int totalShards;
 
-  public Shard(String salt, List<ShardRange> ranges, int totalShards) {
+  public Shard(final String salt, final List<ShardRange> ranges, final int totalShards) {
     this.salt = salt;
     this.ranges = ranges;
     this.totalShards = totalShards;

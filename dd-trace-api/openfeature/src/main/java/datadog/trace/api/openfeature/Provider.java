@@ -1,8 +1,12 @@
 package datadog.trace.api.openfeature;
 
-import static datadog.trace.api.featureflag.FeatureFlag.EVALUATOR;
+import static datadog.trace.api.featureflag.FeatureFlag.getEvaluator;
 
+import datadog.trace.api.featureflag.FeatureFlag;
+import datadog.trace.api.featureflag.FeatureFlagConfiguration;
 import datadog.trace.api.featureflag.FeatureFlagEvaluator;
+import datadog.trace.api.featureflag.FeatureFlagEvaluator.Resolution;
+import datadog.trace.api.featureflag.FeatureFlagEvaluator.ResolutionError;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
@@ -14,30 +18,40 @@ import dev.openfeature.sdk.ProviderEventDetails;
 import dev.openfeature.sdk.Value;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Provider extends EventProvider implements Metadata, FeatureFlagEvaluator.Listener {
+public class Provider extends EventProvider
+    implements Metadata, Consumer<FeatureFlagConfiguration> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Provider.class);
   private static final String METADATA = "datadog-openfeature-provider";
 
-  public Provider() {
-    EVALUATOR.addListener(this);
+  private final AtomicBoolean initialized = new AtomicBoolean();
+
+  @Override
+  public void initialize(final EvaluationContext evaluationContext) throws Exception {
+    FeatureFlag.addConfigListener(this);
   }
 
   @Override
-  public void onInitialized() {
-    emit(
-        ProviderEvent.PROVIDER_READY,
-        ProviderEventDetails.builder().message("Provider ready").build());
+  public void shutdown() {
+    FeatureFlag.removeConfigListener(this);
   }
 
   @Override
-  public void onConfigurationChanged() {
-    emit(
-        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-        ProviderEventDetails.builder().message("New configuration received").build());
+  public void accept(final FeatureFlagConfiguration config) {
+    if (!initialized.getAndSet(true)) {
+      emit(
+          ProviderEvent.PROVIDER_READY,
+          ProviderEventDetails.builder().message("Provider ready").build());
+    } else {
+      emit(
+          ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
+          ProviderEventDetails.builder().message("New configuration received").build());
+    }
   }
 
   @Override
@@ -53,70 +67,42 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   @Override
   public ProviderEvaluation<Boolean> getBooleanEvaluation(
       final String key, final Boolean defaultValue, final EvaluationContext ctx) {
-    try {
-      return map(Boolean.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
-    } catch (final FeatureFlagEvaluator.EvaluationError e) {
-      return fromError(e, defaultValue);
-    }
+    return mapResolution(
+        Boolean.class, getEvaluator().evaluate(key, defaultValue, new ContextAdapter(ctx)));
   }
 
   @Override
   public ProviderEvaluation<String> getStringEvaluation(
       final String key, final String defaultValue, final EvaluationContext ctx) {
-    try {
-      return map(String.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
-    } catch (final FeatureFlagEvaluator.EvaluationError e) {
-      return fromError(e, defaultValue);
-    }
+    return mapResolution(
+        String.class, getEvaluator().evaluate(key, defaultValue, new ContextAdapter(ctx)));
   }
 
   @Override
   public ProviderEvaluation<Integer> getIntegerEvaluation(
       final String key, final Integer defaultValue, final EvaluationContext ctx) {
-    try {
-      return map(Integer.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
-    } catch (final FeatureFlagEvaluator.EvaluationError e) {
-      return fromError(e, defaultValue);
-    }
+    return mapResolution(
+        Integer.class, getEvaluator().evaluate(key, defaultValue, new ContextAdapter(ctx)));
   }
 
   @Override
   public ProviderEvaluation<Double> getDoubleEvaluation(
       final String key, final Double defaultValue, final EvaluationContext ctx) {
-    try {
-      return map(Double.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
-    } catch (final FeatureFlagEvaluator.EvaluationError e) {
-      return fromError(e, defaultValue);
-    }
+    return mapResolution(
+        Double.class, getEvaluator().evaluate(key, defaultValue, new ContextAdapter(ctx)));
   }
 
   @Override
   public ProviderEvaluation<Value> getObjectEvaluation(
       final String key, final Value defaultValue, final EvaluationContext ctx) {
-    try {
-      return map(Value.class, EVALUATOR.evaluate(key, defaultValue, new ContextAdapter(ctx)));
-    } catch (final FeatureFlagEvaluator.EvaluationError e) {
-      return fromError(e, defaultValue);
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private <V, R> ProviderEvaluation<V> map(
-      final Class<V> evalClass, final FeatureFlagEvaluator.Resolution<R> result) {
-    Object value = result.getValue();
-    if (evalClass == Value.class) {
-      value = value instanceof Value ? value : Value.objectToValue(value);
-    }
-    return (ProviderEvaluation<V>)
-        ProviderEvaluation.builder()
-            .value(value)
-            .reason(result.getReason())
-            .variant(result.getVariant())
-            .flagMetadata(mapFlagMetadata(result.getFlagMetadata()))
-            .build();
+    return mapResolution(
+        Value.class, getEvaluator().evaluate(key, defaultValue, new ContextAdapter(ctx)));
   }
 
   private ImmutableMetadata mapFlagMetadata(final Map<String, Object> metadata) {
+    if (metadata == null) {
+      return null;
+    }
     final ImmutableMetadata.ImmutableMetadataBuilder builder = ImmutableMetadata.builder();
     metadata.forEach(
         (key, value) -> {
@@ -144,20 +130,24 @@ public class Provider extends EventProvider implements Metadata, FeatureFlagEval
   }
 
   @SuppressWarnings("unchecked")
-  private <V> ProviderEvaluation<V> fromError(
-      final FeatureFlagEvaluator.EvaluationError error, final V defaultValue) {
+  private <V, R> ProviderEvaluation<V> mapResolution(
+      final Class<V> target, final Resolution<R> result) {
+    Object value = result.getValue();
+    if (target == Value.class) {
+      value = value instanceof Value ? value : Value.objectToValue(value);
+    }
     return (ProviderEvaluation<V>)
         ProviderEvaluation.builder()
-            .value(defaultValue)
-            .errorCode(errorCode(error.getErrorCode()))
-            .errorMessage(error.getErrorMessage())
-            .reason(FeatureFlagEvaluator.ResolutionReason.ERROR.name())
+            .value(value)
+            .reason(result.getReason())
+            .variant(result.getVariant())
+            .flagMetadata(mapFlagMetadata(result.getFlagMetadata()))
             .build();
   }
 
-  private static ErrorCode errorCode(final String code) {
+  private static ErrorCode errorCode(final ResolutionError code) {
     try {
-      return ErrorCode.valueOf(code);
+      return ErrorCode.valueOf(code.name());
     } catch (final IllegalArgumentException e) {
       return ErrorCode.PROVIDER_FATAL;
     }

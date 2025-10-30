@@ -4,7 +4,7 @@ public class ShardRange {
   public final int start;
   public final int end;
 
-  public ShardRange(int start, int end) {
+  public ShardRange(final int start, final int end) {
     this.start = start;
     this.end = end;
   }

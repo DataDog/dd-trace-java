@@ -11,11 +11,11 @@ public class Flag {
   public final List<Allocation> allocations;
 
   public Flag(
-      String key,
-      boolean enabled,
-      ValueType variationType,
-      Map<String, Variant> variations,
-      List<Allocation> allocations) {
+      final String key,
+      final boolean enabled,
+      final ValueType variationType,
+      final Map<String, Variant> variations,
+      final List<Allocation> allocations) {
     this.key = key;
     this.enabled = enabled;
     this.variationType = variationType;

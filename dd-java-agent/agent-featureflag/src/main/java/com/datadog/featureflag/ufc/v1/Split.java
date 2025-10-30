@@ -8,7 +8,8 @@ public class Split {
   public final String variationKey;
   public final Map<String, String> extraLogging;
 
-  public Split(List<Shard> shards, String variationKey, Map<String, String> extraLogging) {
+  public Split(
+      final List<Shard> shards, final String variationKey, final Map<String, String> extraLogging) {
     this.shards = shards;
     this.variationKey = variationKey;
     this.extraLogging = extraLogging;

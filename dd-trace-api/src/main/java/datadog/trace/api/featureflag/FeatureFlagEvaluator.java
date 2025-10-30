@@ -15,34 +15,6 @@ public interface FeatureFlagEvaluator {
 
   Resolution<Object> evaluate(String key, Object defaultValue, Context context);
 
-  void addListener(Listener listener);
-
-  class EvaluationError extends RuntimeException {
-
-    private final String errorCode;
-    private final String errorMessage;
-
-    public EvaluationError(final String errorCode, final String errorMessage) {
-      this.errorCode = errorCode;
-      this.errorMessage = errorMessage;
-    }
-
-    public String getErrorCode() {
-      return errorCode;
-    }
-
-    public String getErrorMessage() {
-      return errorMessage;
-    }
-  }
-
-  interface Listener {
-
-    void onInitialized();
-
-    void onConfigurationChanged();
-  }
-
   enum ResolutionReason {
     /** The resolved value is static (no dynamic evaluation occurred) */
     STATIC,
@@ -62,34 +34,77 @@ public interface FeatureFlagEvaluator {
     STALE,
     /** The resolved value resulted from an error during evaluation */
     ERROR,
-    /** The provider has not been initialized (custom reason for this implementation) */
-    NOT_INITIALIZED
+  }
+
+  enum ResolutionError {
+    PROVIDER_NOT_READY,
+    FLAG_NOT_FOUND,
+    PARSE_ERROR,
+    TYPE_MISMATCH,
+    TARGETING_KEY_MISSING,
+    INVALID_CONTEXT,
+    GENERAL,
+    PROVIDER_FATAL
   }
 
   class Resolution<R> {
+    private final String flagKey;
     private final R value;
     private String variant;
     private String reason;
     private Map<String, Object> flagMetadata;
+    private ResolutionError errorCode;
+    private String errorMessage;
 
-    public Resolution(final R value) {
+    public Resolution(final String flag, final R value) {
+      this.flagKey = flag;
       this.value = value;
     }
 
-    public static <R> Resolution<R> defaultResolution(final R value) {
-      return new Resolution<>(value).setReason(ResolutionReason.DEFAULT);
+    public static <R> Resolution<R> defaultResolution(final String flag, final R value) {
+      return new Resolution<>(flag, value).setReason(ResolutionReason.DEFAULT);
     }
 
-    public static <R> Resolution<R> error(final R value) {
-      return new Resolution<>(value).setReason(ResolutionReason.ERROR);
+    public static <R> Resolution<R> targetingMatch(final String flag, final R value) {
+      return new Resolution<>(flag, value).setReason(ResolutionReason.TARGETING_MATCH);
     }
 
-    public static <R> Resolution<R> targetingMatch(final R value) {
-      return new Resolution<>(value).setReason(ResolutionReason.TARGETING_MATCH);
+    public static <R> Resolution<R> disabled(final String flag, final R value) {
+      return new Resolution<>(flag, value).setReason(ResolutionReason.DISABLED);
     }
 
-    public static <R> Resolution<R> notInitialized(final R value) {
-      return new Resolution<>(value).setReason(ResolutionReason.NOT_INITIALIZED);
+    public static <R> Resolution<R> providerNotReady(final String flag, final R value) {
+      return new Resolution<>(flag, value).setErrorCode(ResolutionError.PROVIDER_NOT_READY);
+    }
+
+    public static <R> Resolution<R> invalidContext(final String flag, final R value) {
+      return new Resolution<>(flag, value).setErrorCode(ResolutionError.INVALID_CONTEXT);
+    }
+
+    public static <R> Resolution<R> targetingKeyMissing(final String flag, final R value) {
+      return new Resolution<>(flag, value).setErrorCode(ResolutionError.TARGETING_KEY_MISSING);
+    }
+
+    public static <R> Resolution<R> flagNotFound(final String flag, final R value) {
+      return new Resolution<>(flag, value).setErrorCode(ResolutionError.FLAG_NOT_FOUND);
+    }
+
+    public static <R> Resolution<R> generalError(
+        final String flag, final R value, final String message) {
+      return new Resolution<>(flag, value)
+          .setErrorCode(ResolutionError.GENERAL)
+          .setErrorMessage(message);
+    }
+
+    public static <R> Resolution<R> typeMissmatch(
+        final String flag, final R value, final String message) {
+      return new Resolution<>(flag, value)
+          .setErrorCode(ResolutionError.TYPE_MISMATCH)
+          .setErrorMessage(message);
+    }
+
+    public String getFlagKey() {
+      return flagKey;
     }
 
     public String getReason() {
@@ -108,13 +123,26 @@ public interface FeatureFlagEvaluator {
       return flagMetadata;
     }
 
-    public Resolution<R> setReason(final String reason) {
-      this.reason = reason;
+    public ResolutionError getErrorCode() {
+      return errorCode;
+    }
+
+    public String getErrorMessage() {
+      return errorMessage;
+    }
+
+    public Resolution<R> setReason(final ResolutionReason reason) {
+      this.reason = reason.name();
       return this;
     }
 
-    public Resolution<R> setReason(final Enum<?> reason) {
-      this.reason = reason.name();
+    public Resolution<R> setErrorCode(final ResolutionError error) {
+      this.errorCode = error;
+      return this;
+    }
+
+    public Resolution<R> setErrorMessage(final String message) {
+      this.errorMessage = message;
       return this;
     }
 
