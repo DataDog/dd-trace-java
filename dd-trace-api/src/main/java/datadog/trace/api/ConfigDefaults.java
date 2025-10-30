@@ -109,8 +109,7 @@ public final class ConfigDefaults {
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_INTERVAL = 10000;
   // WARNING: This defies the OpenTelemetry specification’s default value of 30000 (30s)
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT = 7500;
-  static final Protocol DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL =
-      Protocol.GRPC;
+  static final Protocol DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL = Protocol.GRPC;
   static final int DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT = 10000;
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
