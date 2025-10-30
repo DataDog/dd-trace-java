@@ -944,7 +944,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean commitDerivatives(TraceSegment traceSegment) {
-    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null) {
       return false;
     }
@@ -961,6 +960,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       derivativesSnapshot = new LinkedHashMap<>(derivatives);
       derivatives = null;
     }
+
+    log.debug("Committing derivatives: {} for {}", derivativesSnapshot, traceSegment);
 
     // Process and commit derivatives directly
     for (Map.Entry<String, Object> entry : derivativesSnapshot.entrySet()) {
