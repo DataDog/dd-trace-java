@@ -137,6 +137,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING
+import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING
 import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
@@ -173,6 +175,8 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
+  private static final DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING"
+  private static final DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING"
 
   def setup() {
     FixedCapturedEnvironment.useFixedEnv([:])
@@ -271,6 +275,9 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
+    prop.setProperty(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    prop.setProperty(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+
     when:
     Config config = Config.get(prop)
 
@@ -366,6 +373,8 @@ class ConfigTest extends DDSpecification {
     config.debuggerExceptionEnabled == true
     config.jdkSocketEnabled == false
 
+    config.cloudRequestPayloadTagging == ["all"]
+    config.cloudResponsePayloadTagging == ["all"]
     config.xDatadogTagsMaxLength == 128
   }
 
@@ -460,6 +469,9 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+
     when:
     Config config = new Config()
 
@@ -551,6 +563,9 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
 
+    config.cloudRequestPayloadTagging == ["all"]
+    config.cloudResponsePayloadTagging == ["all"]
+
     config.xDatadogTagsMaxLength == 128
   }
 
@@ -570,6 +585,8 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "true")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL, "81")
     environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "all")
 
     when:
     def config = new Config()
@@ -591,6 +608,8 @@ class ConfigTest extends DDSpecification {
     config.getLongRunningTraceFlushInterval() == 81
     config.requestHeaderTags == ["*":"http.request.headers."]
     config.responseHeaderTags == ["*":"http.response.headers."]
+    config.cloudRequestPayloadTagging == ["all"]
+    config.cloudResponsePayloadTagging == ["all"]
   }
 
   def "sys props override env vars"() {
@@ -600,6 +619,8 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_TRACE_AGENT_PORT_ENV, "777")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "false")
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "all")
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
     System.setProperty(PREFIX + WRITER_TYPE, "DDAgentWriter")
@@ -607,6 +628,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "\$.path1,\$.path2")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.path3,\$.path4")
 
     when:
     def config = new Config()
@@ -619,6 +642,8 @@ class ConfigTest extends DDSpecification {
     config.agentUrl == "http://somewhere:123"
     config.longRunningTraceEnabled
     config.longRunningTraceFlushInterval == 120
+    config.cloudRequestPayloadTagging == ["\$.path1", "\$.path2"]
+    config.cloudResponsePayloadTagging == ["\$.path3", "\$.path4"]
   }
 
   def "default when configured incorrectly"() {
@@ -2594,6 +2619,25 @@ class ConfigTest extends DDSpecification {
 
     def cleanup(){
       ConfigHelper.get().setConfigInversionStrict(strictness)
+    }
+
+    def "set cloud payload tagging to null if invalid or empty value is passed as env"() {
+      setup:
+      environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "")
+      environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "")
+
+      when:
+      def config = new Config()
+
+      then:
+      config.cloudRequestPayloadTagging == []
+      config.@cloudRequestPayloadTagging == null
+
+      config.cloudResponsePayloadTagging == []
+      config.@cloudResponsePayloadTagging == null
+
+      !config.isCloudRequestPayloadTaggingEnabled()
+      !config.isCloudResponsePayloadTaggingEnabled()
     }
 
     def "verify rule config #name"() {
