@@ -64,10 +64,10 @@ dependencies {
 
 tasks.matching {
   it.name in [
-      "latestDepTest",
-      "latestDepForkedTest",
-      "graphql21LatestDepTest",
-      "graphql21LatestDepForkedTest"
+    "latestDepTest",
+    "latestDepForkedTest",
+    "graphql21LatestDepTest",
+    "graphql21LatestDepForkedTest"
   ]
 }.configureEach {
   testJvmConstraint {

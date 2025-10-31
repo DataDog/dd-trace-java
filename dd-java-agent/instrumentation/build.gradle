@@ -36,12 +36,12 @@ subprojects { Project subProj ->
 
     // Configures base dependencies for additional sourceSet
     configurations
-        .matching { it.name.matches("${SourceSet.MAIN_SOURCE_SET_NAME}_java\\d+${JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
-        .configureEach {
-          it.dependencies.add(project.dependencyFactory.create(project(':dd-trace-api')))
-          it.dependencies.add(project.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
-          it.dependencies.addLater(libs.bytebuddy)
-        }
+      .matching { it.name.matches("${SourceSet.MAIN_SOURCE_SET_NAME}_java\\d+${JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
+      .configureEach {
+        it.dependencies.add(project.dependencyFactory.create(project(':dd-trace-api')))
+        it.dependencies.add(project.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
+        it.dependencies.addLater(libs.bytebuddy)
+      }
 
     configurations.named('muzzleBootstrap') {
       exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar

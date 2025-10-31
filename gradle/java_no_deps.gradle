@@ -39,7 +39,7 @@ interface TracerSourceSetConfig {
 
 @CompileStatic
 class TracerJavaExtension {
-  public static String NAME = "tracerJava";
+  public static String NAME = "tracerJava"
   private ObjectFactory objects
   private Project project
 
@@ -131,12 +131,12 @@ if (tasks.matching({ it.name == 'forkedTest' }).empty) {
 }
 
 def applyCodeCoverage = !(
-  project.path.startsWith(":dd-smoke-tests") ||
-  project.path == ":dd-java-agent" ||
-  project.path == ":dd-java-agent:load-generator" ||
-  project.path.startsWith(":dd-java-agent:benchmark") ||
-  project.path.startsWith(":dd-java-agent:instrumentation") ||
-  project.path.startsWith(":dd-java-agent:appsec:weblog:"))
+project.path.startsWith(":dd-smoke-tests") ||
+project.path == ":dd-java-agent" ||
+project.path == ":dd-java-agent:load-generator" ||
+project.path.startsWith(":dd-java-agent:benchmark") ||
+project.path.startsWith(":dd-java-agent:instrumentation") ||
+project.path.startsWith(":dd-java-agent:appsec:weblog:"))
 
 // https://stackoverflow.com/questions/42501869/gradle-skip-jacoco-during-test
 // https://poetengineer.postach.io/post/how-to-conditionally-enable-disable-jacoco-in-gradle-build
@@ -171,11 +171,11 @@ tasks.named("jar", Jar) {
 
   manifest {
     attributes(
-      "Implementation-Title": project.name,
-      "Implementation-Version": project.version,
-      "Implementation-Vendor": "Datadog",
-      "Implementation-URL": "https://github.com/datadog/dd-trace-java",
-      )
+    "Implementation-Title": project.name,
+    "Implementation-Version": project.version,
+    "Implementation-Vendor": "Datadog",
+    "Implementation-URL": "https://github.com/datadog/dd-trace-java",
+    )
   }
 }
 

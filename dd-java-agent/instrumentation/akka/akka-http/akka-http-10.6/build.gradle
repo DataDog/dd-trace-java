@@ -21,7 +21,6 @@ muzzle {
 
     assertInverse = true
   }
-
 }
 
 repositories {
