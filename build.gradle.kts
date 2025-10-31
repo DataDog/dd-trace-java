@@ -50,7 +50,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     ktlint("1.7.1")
   }
   scala {
-    scalafmt("3.9.10")
+    scalafmt("3.8.1")
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
