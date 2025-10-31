@@ -357,6 +357,9 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    GRADLE_WORKERS: 1
+    GRADLE_MEM: 4000M
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
