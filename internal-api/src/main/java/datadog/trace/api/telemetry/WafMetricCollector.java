@@ -387,13 +387,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     for (final AIGuard.Action action : AIGuard.Action.values()) {
       final long blocked = aiGuardRequests.getAndSet(action.ordinal() * 2 + 1, 0);
       if (blocked > 0) {
-        if (!rawMetricsQueue.offer(new AIGuardRequests(blocked, action, true))) {
+        if (!rawMetricsQueue.offer(AIGuardRequests.success(blocked, action, true))) {
           break;
         }
       }
       final long nonBlocked = aiGuardRequests.getAndSet(action.ordinal() * 2, 0);
       if (nonBlocked > 0) {
-        if (!rawMetricsQueue.offer(new AIGuardRequests(nonBlocked, action, false))) {
+        if (!rawMetricsQueue.offer(AIGuardRequests.success(nonBlocked, action, false))) {
           break;
         }
       }
@@ -402,7 +402,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     // AI Guard failed requests
     final int aiGuardErrorRequests = aiGuardErrors.getAndSet(0);
     if (aiGuardErrorRequests > 0) {
-      if (!rawMetricsQueue.offer(new AIGuardRequests(aiGuardErrorRequests, true))) {
+      if (!rawMetricsQueue.offer(AIGuardRequests.error(aiGuardErrorRequests))) {
         return;
       }
     }
@@ -632,12 +632,17 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   }
 
   public static class AIGuardRequests extends WafMetric {
-    public AIGuardRequests(final long count, final AIGuard.Action action, final boolean block) {
-      super("ai_guard.requests", count, "action:" + action, "block:" + block);
+    private AIGuardRequests(final long count, final String... tags) {
+      super("ai_guard.requests", count, tags);
     }
 
-    public AIGuardRequests(final long count, final boolean error) {
-      super("ai_guard.requests", count, "error:" + error);
+    public static AIGuardRequests success(
+        final long count, final AIGuard.Action action, final boolean block) {
+      return new AIGuardRequests(count, "action:" + action, "block:" + block, "error:false");
+    }
+
+    public static AIGuardRequests error(final long count) {
+      return new AIGuardRequests(count, "error:true");
     }
   }
 
@@ -652,7 +657,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     CONTENT("content");
     public final String tagValue;
 
-    AIGuardTruncationType(String tagValue) {
+    AIGuardTruncationType(final String tagValue) {
       this.tagValue = tagValue;
     }
   }

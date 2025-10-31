@@ -204,7 +204,7 @@ class AIGuardInternalTests extends DDSpecification {
       eval.action == suite.action
       eval.reason == suite.reason
     }
-    assertTelemetry("ai_guard.requests", "action:$suite.action", "block:$throwAbortError")
+    assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
 
     where:
     suite << TestSuite.build()
@@ -234,7 +234,7 @@ class AIGuardInternalTests extends DDSpecification {
     final exception = thrown(AIGuard.AIGuardClientError)
     exception.errors == errors
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
-    assertTelemetry("ai_guard.requests", "error:true")
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with invalid JSON'() {
@@ -259,7 +259,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
-    assertTelemetry("ai_guard.requests", "error:true")
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with missing action'() {
@@ -284,7 +284,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
-    assertTelemetry("ai_guard.requests", "error:true")
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with non JSON response'() {
@@ -309,7 +309,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
-    assertTelemetry("ai_guard.requests", "error:true")
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with empty response'() {
@@ -334,7 +334,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
-    assertTelemetry("ai_guard.requests", "error:true")
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test message length truncation'() {
@@ -366,7 +366,7 @@ class AIGuardInternalTests extends DDSpecification {
       assert received.size() == maxMessages
       assert received.size() < messages.size()
     }
-    assertTelemetry("ai_guard.truncated", "type:messages")
+    assertTelemetry('ai_guard.truncated', 'type:messages')
   }
 
   void 'test message content truncation'() {
@@ -398,7 +398,7 @@ class AIGuardInternalTests extends DDSpecification {
         assert it.content.length() < message.content.length()
       }
     }
-    assertTelemetry("ai_guard.truncated", "type:content")
+    assertTelemetry('ai_guard.truncated', 'type:content')
   }
 
   void 'test no messages'() {
