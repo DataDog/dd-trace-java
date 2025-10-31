@@ -369,7 +369,7 @@ spotless:
   artifacts:
     when: always
     paths:
-      - ./check_reports
+      - ./reports
 
 test_published_artifacts:
   extends: .gradle_build
