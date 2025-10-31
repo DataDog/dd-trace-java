@@ -104,6 +104,21 @@ public final class ConfigProvider {
   }
 
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
+    return getEnum(key, enumType, defaultValue, true);
+  }
+
+  public <T extends Enum<T>> T getEnum(
+      String key, Class<T> enumType, T defaultValue, boolean isValueCaseSensitive) {
+    return getEnum(key, enumType, defaultValue, isValueCaseSensitive, "", "");
+  }
+
+  public <T extends Enum<T>> T getEnum(
+      String key,
+      Class<T> enumType,
+      T defaultValue,
+      boolean isValueCaseSensitive,
+      String charToReplaceInRawValue,
+      String newCharInValue) {
     if (collectConfig) {
       String defaultValueString = defaultValue == null ? null : defaultValue.name();
       reportDefault(key, defaultValueString);
@@ -111,7 +126,11 @@ public final class ConfigProvider {
     String value = getStringInternal(key);
     if (null != value) {
       try {
-        return Enum.valueOf(enumType, value);
+        return Enum.valueOf(
+            enumType,
+            isValueCaseSensitive
+                ? value.replace(charToReplaceInRawValue, newCharInValue)
+                : value.toUpperCase().replace(charToReplaceInRawValue, newCharInValue));
       } catch (Exception ignoreAndUseDefault) {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
@@ -328,6 +347,10 @@ public final class ConfigProvider {
   }
 
   public Map<String, String> getMergedMap(String key, String... aliases) {
+    return getMergedMap(key, ':', aliases);
+  }
+
+  public Map<String, String> getMergedMap(String key, char keyValueDelimiter, String... aliases) {
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
     int seqId = NON_DEFAULT_SEQ_ID;
 
@@ -337,7 +360,7 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key, aliases);
-      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key, keyValueDelimiter);
 
       if (!parsedMap.isEmpty()) {
         if (collectConfig) {
