@@ -797,7 +797,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     if (isStreamingJob) {
-      log.debug("Not emitting event when running on databricks or on streaming jobs");
+      log.debug("Not emitting event when running on streaming jobs");
       return;
     }
     if (openLineageSparkListener != null) {
