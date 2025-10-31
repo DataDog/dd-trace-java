@@ -290,6 +290,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   @Override
   public void finish() {
+    LOGGER.debug("FINISHING LLM OBS SPAN {}", this);
     if (finished) {
       return;
     }
