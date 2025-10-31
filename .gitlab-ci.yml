@@ -358,8 +358,9 @@ spotless:
   stage: tests
   needs: []
   variables:
-    GRADLE_WORKERS: 1
-    GRADLE_MEM: 4000M
+    GRADLE_MEM: 8G
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
