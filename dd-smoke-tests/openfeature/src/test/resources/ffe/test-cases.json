@@ -1,0 +1,39 @@
+[
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "number": 1
+    },
+    "result": {
+      "value": 1
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": 3
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "one_of_flag": true
+    },
+    "result": {
+      "value": 1
+    }
+  }
+]

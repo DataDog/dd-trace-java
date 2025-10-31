@@ -1,0 +1,40 @@
+{
+  "data": {
+    "type": "universal-flag-configuration",
+    "id": "1",
+    "attributes": {
+      "createdAt": "2024-04-17T19:40:53.716Z",
+      "format": "SERVER",
+      "environment": {
+        "name": "Test"
+      },
+      "flags": {
+        "start-and-end-date-test": {
+          "key": "start-and-end-date-test",
+          "enabled": true,
+          "variationType": "STRING",
+          "variations": {
+            "invalid": {
+              "key": "invalid",
+              "value": "invalid"
+            }
+          },
+          "allocations": [
+            {
+              "key": "invalid-dates",
+              "splits": [
+                {
+                  "variationKey": "invalid",
+                  "shards": []
+                }
+              ],
+              "startAt": "2002-10-31T09:00:00Z",
+              "endAt": 23,
+              "doLog": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

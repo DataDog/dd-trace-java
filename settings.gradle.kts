@@ -48,6 +48,7 @@ rootProject.name = "dd-trace-java"
 // external apis
 include(
   ":dd-trace-api",
+  ":dd-trace-openfeature",
   ":dd-trace-ot",
   ":dd-trace-ot:correlation-id-injection",
 )
@@ -141,6 +142,11 @@ include(
 // AI Guard
 include(":dd-java-agent:agent-aiguard")
 
+// Feature Flag
+include(
+  ":dd-java-agent:agent-featureflag"
+)
+
 // misc
 include(
   ":dd-java-agent:testing",
@@ -179,6 +185,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",
