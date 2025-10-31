@@ -35,7 +35,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
       packageName + ".Spark213PlanSerializer",
-      packageName + ".SparkPlanInfoUtils"
+      packageName + ".Spark213PlanUtils"
     };
   }
 
@@ -109,8 +109,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
         Map<String, String> meta =
             HashMap.from(JavaConverters.asScala(planSerializer.extractFormattedProduct(plan)));
 
-        SparkPlanInfoUtils planUtils = new SparkPlanInfoUtils();
-        SparkPlanInfo newPlanInfo = planUtils.upsertSparkPlanInfoMetadata(planInfo, meta);
+        SparkPlanInfo newPlanInfo = Spark213PlanUtils.upsertSparkPlanInfoMetadata(planInfo, meta);
         if (newPlanInfo != null) {
           planInfo = newPlanInfo;
         }
