@@ -2,7 +2,6 @@ package datadog.gradle.plugin.testJvmConstraints
 
 import org.gradle.api.JavaVersion
 import org.gradle.api.logging.Logging
-import org.gradle.jvm.toolchain.JavaLauncher
 
 private val logger = Logging.getLogger("TestJvmConstraintsUtils")
 
@@ -32,16 +31,16 @@ internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSp
 }
 
 private fun TestJvmConstraintsExtension.isWithinAllowedRange(currentJvmVersion: JavaVersion): Boolean {
-  val definedMin = minJavaVersionForTests.isPresent
-  val definedMax = maxJavaVersionForTests.isPresent
+  val definedMin = minJavaVersion.isPresent
+  val definedMax = maxJavaVersion.isPresent
 
-  if (definedMin && (minJavaVersionForTests.get()) > currentJvmVersion) {
-    logger.info("isJavaVersionAllowedForProperty returns false b/o minProp=${minJavaVersionForTests.get()} is defined and greater than version=$currentJvmVersion")
+  if (definedMin && (minJavaVersion.get()) > currentJvmVersion) {
+    logger.info("isWithinAllowedRange returns false b/o minProp=${minJavaVersion.get()} is defined and greater than version=$currentJvmVersion")
     return false
   }
 
-  if (definedMax && (maxJavaVersionForTests.get()) < currentJvmVersion) {
-    logger.info("isJavaVersionAllowedForProperty returns false b/o maxProp=${maxJavaVersionForTests.get()} is defined and lower than version=$currentJvmVersion")
+  if (definedMax && (maxJavaVersion.get()) < currentJvmVersion) {
+    logger.info("isWithinAllowedRange returns false b/o maxProp=${maxJavaVersion.get()} is defined and lower than version=$currentJvmVersion")
     return false
   }
 

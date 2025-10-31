@@ -12,7 +12,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
 apply from: "$rootDir/gradle/configure_tests.gradle"

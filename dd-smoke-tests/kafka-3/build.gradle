@@ -2,7 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'java-test-fixtures'
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
 description = 'Kafka 3.x Smoke Tests.'

@@ -23,7 +23,7 @@ repositories {
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  maxJavaVersionForTests = JavaVersion.VERSION_11
+  maxJavaVersion = JavaVersion.VERSION_11
 }
 
 description = 'Wildfly Smoke Tests.'

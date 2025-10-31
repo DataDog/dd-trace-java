@@ -59,6 +59,6 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
 
 tasks.named("latestDepTest", Test) {
   testJvmConstraint {
-    minJavaVersionForTests = JavaVersion.VERSION_17
+    minJavaVersion = JavaVersion.VERSION_17
   }
 }

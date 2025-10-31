@@ -7,7 +7,7 @@ apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
 
 testJvmConstraint {
   // TODO Java 17: This version of play doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+  maxJavaVersion = JavaVersion.VERSION_15
 }
 
 def playVer = "2.7.9"

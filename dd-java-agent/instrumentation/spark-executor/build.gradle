@@ -27,7 +27,7 @@ testJvmConstraint {
   excludeJdk = ['SEMERU8', 'SEMERU11']
 
   // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
-  maxJavaVersionForTests = JavaVersion.VERSION_11
+  maxJavaVersion = JavaVersion.VERSION_11
 }
 
 dependencies {

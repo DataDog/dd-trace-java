@@ -2,7 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersionForTests` version,
+    // By default tests with be compiled for `minJavaVersion` version,
     // but in this case we would like to avoid this since we would like to run with ZULU8
     applyForTestSources = false
   }

@@ -74,7 +74,7 @@ class TracerJavaExtension {
     if (sourceSetConfigurer != null) {
       sourceSetConfigurer.execute(sourceSetConfig)
     }
-    project.extensions.getByType(TestJvmConstraintsExtension).minJavaVersionForTests.set(javaVersion)
+    project.extensions.getByType(TestJvmConstraintsExtension).minJavaVersion.set(javaVersion)
 
     def version = javaVersion
     def name = "java${version.majorVersion}"
@@ -153,10 +153,6 @@ java {
   disableAutoTargetJvm()
   withJavadocJar()
   withSourcesJar()
-}
-
-if (project.hasProperty('minJavaVersionForTests') && project.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
-  tracerJavaExtension.addSourceSetFor(project.findProperty('minJavaVersionForTests'))
 }
 
 tasks.named("jar", Jar) {

@@ -1,26 +1,19 @@
 package datadog.gradle.plugin.testJvmConstraints
 
 import org.gradle.api.JavaVersion
-import org.gradle.api.Project
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.ProviderFactory
-import org.gradle.kotlin.dsl.extra
-import org.gradle.kotlin.dsl.listProperty
-import org.gradle.kotlin.dsl.property
-import javax.inject.Inject
 
 interface TestJvmConstraintsExtension {
   /**
    * Sets an explicit minimum bound to allowed JDK version
    */
-  val minJavaVersionForTests: Property<JavaVersion>
+  val minJavaVersion: Property<JavaVersion>
 
   /**
    * Sets an explicit maximum bound to allowed JDK version
    */
-  val maxJavaVersionForTests: Property<JavaVersion>
+  val maxJavaVersion: Property<JavaVersion>
 
   /**
    * List of allowed JDK names (passed through the `testJvm` property).

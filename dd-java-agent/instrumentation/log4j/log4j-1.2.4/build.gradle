@@ -15,7 +15,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
   // Log4j 1.x reached EOL in 2015 and is not compatible with Java 25+: https://endoflife.date/log4j
-  maxJavaVersionForTests = JavaVersion.VERSION_24
+  maxJavaVersion = JavaVersion.VERSION_24
 }
 addTestSuiteForDir('latestDepTest', 'test')
 

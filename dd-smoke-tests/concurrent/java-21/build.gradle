@@ -8,8 +8,8 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_21
-  maxJavaVersionForTests = JavaVersion.VERSION_25
+  minJavaVersion = JavaVersion.VERSION_21
+  maxJavaVersion = JavaVersion.VERSION_25
 }
 
 description = 'JDK 21 Concurrent Integration Tests'

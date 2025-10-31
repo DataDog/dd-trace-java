@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
   // TODO Java 17: The necessary packages are not opened on Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+  maxJavaVersion = JavaVersion.VERSION_15
 }
 
 tasks.withType(JavaCompile).configureEach {

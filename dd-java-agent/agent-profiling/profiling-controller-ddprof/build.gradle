@@ -3,14 +3,14 @@ apply plugin: 'idea'
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersionForTests` version,
+    // By default tests with be compiled for `minJavaVersion` version,
     // but in this case we would like to avoid this since we would like to run with ZULU8
     applyForTestSources = false
   }
 }
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+  minJavaVersion = JavaVersion.VERSION_11
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 

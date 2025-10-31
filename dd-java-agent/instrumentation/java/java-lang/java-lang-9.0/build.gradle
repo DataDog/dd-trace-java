@@ -6,7 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'call-site-instrumentation'
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_1_9
+  minJavaVersion = JavaVersion.VERSION_1_9
 }
 
 muzzle {

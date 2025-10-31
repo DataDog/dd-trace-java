@@ -17,7 +17,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
 addTestSuiteForDir("latestDepTest", "test")
@@ -109,7 +109,7 @@ tasks.named("forkedTest", Test) {
 
 tasks.named("latestDepTest", Test) {
   testJvmConstraint {
-    minJavaVersionForTests = JavaVersion.VERSION_17
+    minJavaVersion = JavaVersion.VERSION_17
   }
   dependsOn 'extractLatestWildfly'
 }
@@ -172,7 +172,7 @@ tasks.named("forkedTest", Test) {
 
 tasks.named("latestDepForkedTest", Test) {
   testJvmConstraint {
-    minJavaVersionForTests = JavaVersion.VERSION_17
+    minJavaVersion = JavaVersion.VERSION_17
   }
   jvmArgumentProviders.add(
     objects.newInstance(DistributionLocationProvider).tap {

@@ -19,7 +19,7 @@ addTestSuiteForDir 'latestDepIastTest', 'iastTest'
 
 tasks.named("lagomTest", Test) {
   testJvmConstraint {
-    maxJavaVersionForTests = JavaVersion.VERSION_1_8
+    maxJavaVersion = JavaVersion.VERSION_1_8
   }
 }
 

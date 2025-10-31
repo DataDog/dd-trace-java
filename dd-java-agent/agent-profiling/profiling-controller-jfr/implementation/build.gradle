@@ -5,7 +5,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
+  minJavaVersion = JavaVersion.VERSION_1_8
 }
 
 sourceSets {

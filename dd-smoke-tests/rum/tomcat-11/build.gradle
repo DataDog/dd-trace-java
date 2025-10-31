@@ -7,7 +7,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
 description = 'RUM Tomcat 11 Smoke Tests'

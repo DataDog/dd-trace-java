@@ -12,8 +12,8 @@ testJvmConstraint {
   // But the groovy testing framework cannot run on Java 25
   // Using Java 8 for now and runs a JVM 25 when forking tests process.
   // Relying on forked JVM 25 is hardcoded in the test suites (see createProcessBuilder()).
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-  maxJavaVersionForTests = JavaVersion.VERSION_1_8
+  minJavaVersion = JavaVersion.VERSION_1_8
+  maxJavaVersion = JavaVersion.VERSION_1_8
   // Only runs on Temurin build as it spawns a Temurin 25 for test process.
   excludeJdk = ['IBM8', 'SEMERU8']
 }

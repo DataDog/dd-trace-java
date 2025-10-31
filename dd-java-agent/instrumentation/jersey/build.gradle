@@ -10,7 +10,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
 // there are tests with jersey2 and grizzly on the grizzly-http-2.3.20 module

@@ -27,8 +27,8 @@ tasks.withType<Test>().configureEach {
   inputs.property("${TestJvmConstraintsExtension.NAME}.excludeJdk", taskExtension.excludeJdk)
   inputs.property("${TestJvmConstraintsExtension.NAME}.includeJdk", taskExtension.includeJdk)
   inputs.property("${TestJvmConstraintsExtension.NAME}.forceJdk", taskExtension.forceJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.minJavaVersionForTests", taskExtension.minJavaVersionForTests).optional(true)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.maxJavaVersionForTests", taskExtension.maxJavaVersionForTests).optional(true)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.minJavaVersion", taskExtension.minJavaVersion).optional(true)
+  inputs.property("${TestJvmConstraintsExtension.NAME}.maxJavaVersion", taskExtension.maxJavaVersion).optional(true)
 
   extensions.add(TestJvmConstraintsExtension.NAME, taskExtension)
 
@@ -101,13 +101,13 @@ private fun Test.configureConventions(
   taskExtension: TestJvmConstraintsExtension,
   projectExtension: TestJvmConstraintsExtension
 ) {
-  taskExtension.minJavaVersionForTests.convention(projectExtension.minJavaVersionForTests
+  taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion
     .orElse(providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
-    .orElse(providers.provider { project.findProperty("minJavaVersionForTests") as? JavaVersion })
+    .orElse(providers.provider { project.findProperty("minJavaVersion") as? JavaVersion })
   )
-  taskExtension.maxJavaVersionForTests.convention(projectExtension.maxJavaVersionForTests
+  taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion
     .orElse(providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
-    .orElse(providers.provider { project.findProperty("maxJavaVersionForTests") as? JavaVersion })
+    .orElse(providers.provider { project.findProperty("maxJavaVersion") as? JavaVersion })
   )
   taskExtension.forceJdk.convention(projectExtension.forceJdk
     .orElse(providers.provider {

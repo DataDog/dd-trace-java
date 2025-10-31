@@ -18,7 +18,7 @@ apply from: "$rootDir/gradle/java.gradle"
 testJvmConstraint {
   // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
   // FIXME: Because of this condition, tests only run in Java 8, and latestDepTest never run, as they require Java 11+.
-  maxJavaVersionForTests = JavaVersion.VERSION_1_8
+  maxJavaVersion = JavaVersion.VERSION_1_8
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -50,7 +50,7 @@ for (taskName in ['latestDepTest', 'latestDepForkedTest']) {
   tasks.named(taskName, Test) {
     testJvmConstraint {
       // ignite 2.17.0+ requires Java 11+
-      minJavaVersionForTests = JavaVersion.VERSION_11
+      minJavaVersion = JavaVersion.VERSION_11
     }
   }
 }

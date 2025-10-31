@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraint {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
 description = 'Spring Boot 3.0 Webflux Smoke Tests.'
