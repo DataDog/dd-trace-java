@@ -7,7 +7,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.lang.reflect.Constructor;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.execution.SparkPlan;
@@ -35,7 +34,8 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
-      packageName + ".Spark213PlanSerializer"
+      packageName + ".Spark213PlanSerializer",
+      packageName + ".Spark213PlanUtils"
     };
   }
 
@@ -105,28 +105,13 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       if (planInfo.metadata().size() == 0
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
-        Spark213PlanSerializer planUtils = new Spark213PlanSerializer();
+        Spark213PlanSerializer planSerializer = new Spark213PlanSerializer();
         Map<String, String> meta =
-            HashMap.from(JavaConverters.asScala(planUtils.extractFormattedProduct(plan)));
-        try {
-          Constructor<?> targetCtor = null;
-          for (Constructor<?> c : SparkPlanInfo.class.getConstructors()) {
-            if (c.getParameterCount() == 5) {
-              targetCtor = c;
-              break;
-            }
-          }
-          if (targetCtor != null) {
-            Object newInst =
-                targetCtor.newInstance(
-                    planInfo.nodeName(),
-                    planInfo.simpleString(),
-                    planInfo.children(),
-                    meta,
-                    planInfo.metrics());
-            planInfo = (SparkPlanInfo) newInst;
-          }
-        } catch (Throwable ignored) {
+            HashMap.from(JavaConverters.asScala(planSerializer.extractFormattedProduct(plan)));
+
+        SparkPlanInfo newPlanInfo = Spark213PlanUtils.upsertSparkPlanInfoMetadata(planInfo, meta);
+        if (newPlanInfo != null) {
+          planInfo = newPlanInfo;
         }
       }
     }

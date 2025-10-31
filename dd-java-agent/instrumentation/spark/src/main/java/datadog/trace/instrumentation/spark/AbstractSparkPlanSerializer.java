@@ -60,7 +60,7 @@ public abstract class AbstractSparkPlanSerializer {
 
   private final MethodHandles methodLoader = new MethodHandles(ClassLoader.getSystemClassLoader());
   private final MethodHandle getSimpleString =
-      methodLoader.method(TreeNode.class, "simpleString", new Class[] {int.class});
+      methodLoader.method(TreeNode.class, "simpleString", int.class);
   private final MethodHandle getSimpleStringLegacy =
       methodLoader.method(TreeNode.class, "simpleString");
 
@@ -156,25 +156,20 @@ public abstract class AbstractSparkPlanSerializer {
   }
 
   private String getSimpleString(TreeNode value) {
-    Object simpleString = null;
-
     if (getSimpleString != null) {
-      try {
-        simpleString = getSimpleString.invoke(value, MAX_LENGTH);
-      } catch (Throwable e) {
+      String simpleString = methodLoader.invoke(getSimpleString, value, MAX_LENGTH);
+      if (simpleString != null) {
+        return simpleString;
       }
     }
 
     if (getSimpleStringLegacy != null) {
-      try {
-        simpleString = getSimpleStringLegacy.invoke(value);
-      } catch (Throwable e) {
+      String simpleString = methodLoader.invoke(getSimpleStringLegacy, value);
+      if (simpleString != null) {
+        return simpleString;
       }
     }
 
-    if (simpleString != null && simpleString instanceof String) {
-      return (String) simpleString;
-    }
     return null;
   }
 
