@@ -366,8 +366,6 @@ spotless:
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
     - gitlab_section_end "collect-reports"
-    - ls ./reports
-    - ls /reports
     - ls /tmp
   artifacts:
     when: always
