@@ -7,9 +7,11 @@ plugins {
   idea
 }
 
-val minJavaVersionForTests by extra(JavaVersion.VERSION_17)
-
 apply(from = "$rootDir/gradle/java.gradle")
+
+extensions.getByName("tracerJava").withGroovyBuilder {
+  invokeMethod("addSourceSetFor", arrayOf(JavaVersion.VERSION_17, mapOf("compileOnly" to true)))
+}
 
 dependencies {
   implementation(libs.slf4j)
