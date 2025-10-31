@@ -11,6 +11,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ public class SharedCommunicationObjects {
    * HTTP client for making requests to Datadog agent. Depending on configuration, this client may
    * use regular HTTP, UDS or named pipe.
    */
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public OkHttpClient agentHttpClient;
 
   /**
@@ -39,10 +41,18 @@ public class SharedCommunicationObjects {
    */
   private volatile OkHttpClient intakeHttpClient;
 
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public long httpClientTimeout;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public boolean forceClearTextHttpForIntakeClient;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public HttpUrl agentUrl;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public Monitoring monitoring;
+
   private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
 

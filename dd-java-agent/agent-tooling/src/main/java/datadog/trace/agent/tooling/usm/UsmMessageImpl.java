@@ -22,7 +22,7 @@ public abstract class UsmMessageImpl {
   private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
 
   // TODO: sync with systemprobe code
-  static final NativeLong USM_IOCTL_ID = new NativeLong(0xda7ad09L);;
+  static final NativeLong USM_IOCTL_ID = new NativeLong(0xda7ad09L);
 
   abstract static class BaseUsmMessage implements UsmMessage {
 

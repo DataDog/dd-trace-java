@@ -63,7 +63,7 @@ dependencies {
 
   iastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.12', version: '2.1.0'
   iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
+  iastTestCompileOnly libs.forbiddenapis
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')

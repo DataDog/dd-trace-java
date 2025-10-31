@@ -37,6 +37,8 @@ cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
 jmh = "1.37"
 jackson = "2.20.0"
+forbiddenapis = "3.10"
+spotbugs_annotations = "4.9.8"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -57,14 +59,14 @@ asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
 asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
 asmcommons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
 dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
-jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
+jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket" }
 
 cafe-crypto-ed25519 = { module = "cafe.cryptography:ed25519-elisabeth", version.ref = "cafe_crypto" }
 cafe-crypto-curve25519 = { module = "cafe.cryptography:curve25519-elisabeth", version.ref = "cafe_crypto" }
 
 lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 # aircompressor v3 requires Java 22
-aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2'}
+aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2' }
 
 # Testing
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
@@ -102,7 +104,10 @@ coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
 
-jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+
+forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 [bundles]
 asm = ["asm", "asmcommons"]

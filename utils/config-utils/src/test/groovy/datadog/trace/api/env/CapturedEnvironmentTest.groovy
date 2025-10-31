@@ -1,9 +1,9 @@
 package datadog.trace.api.env
 
+import static java.io.File.separator
+
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.DDSpecification
-
-import static java.io.File.separator
 
 class CapturedEnvironmentTest extends DDSpecification {
   def "non autodetected service.name with null command"() {
@@ -143,7 +143,7 @@ class CapturedEnvironmentTest extends DDSpecification {
           System.setProperty('sun.java.command', sunJavaCommand)
         }
       }
-      def capturedEnv = new CapturedEnvironment()
+      def capturedEnv = CapturedEnvironment.get()
       def props = capturedEnv.properties
       println props.get(GeneralConfig.SERVICE_NAME)
     }
