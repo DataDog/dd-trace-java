@@ -1,5 +1,9 @@
 apply from: "$rootDir/gradle/java.gradle"
 
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
 testJvmConstraint {
   minJavaVersion = JavaVersion.VERSION_11
 }
@@ -55,3 +59,4 @@ dependencies {
 tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
+
