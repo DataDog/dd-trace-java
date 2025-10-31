@@ -6,6 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.reflect.Constructor;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.execution.SparkPlan;
@@ -14,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Predef;
 import scala.collection.JavaConverters;
+import scala.collection.immutable.Map;
 
 @AutoService(InstrumenterModule.class)
 public class Spark212Instrumentation extends AbstractSparkInstrumentation {
@@ -94,6 +97,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
 
   public static class SparkPlanInfoAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @SuppressForbidden
     public static void exit(
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
         @Advice.Argument(0) SparkPlan plan) {
@@ -101,14 +105,29 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark212PlanSerializer planUtils = new Spark212PlanSerializer();
-        planInfo =
-            new SparkPlanInfo(
-                planInfo.nodeName(),
-                planInfo.simpleString(),
-                planInfo.children(),
-                JavaConverters.mapAsScalaMap(planUtils.extractFormattedProduct(plan))
-                    .toMap(Predef.$conforms()),
-                planInfo.metrics());
+        Map<String, String> meta =
+            JavaConverters.mapAsScalaMap(planUtils.extractFormattedProduct(plan))
+                .toMap(Predef.$conforms());
+        try {
+          Constructor<?> targetCtor = null;
+          for (Constructor<?> c : SparkPlanInfo.class.getConstructors()) {
+            if (c.getParameterCount() == 5) {
+              targetCtor = c;
+              break;
+            }
+          }
+          if (targetCtor != null) {
+            Object newInst =
+                targetCtor.newInstance(
+                    planInfo.nodeName(),
+                    planInfo.simpleString(),
+                    planInfo.children(),
+                    meta,
+                    planInfo.metrics());
+            planInfo = (SparkPlanInfo) newInst;
+          }
+        } catch (Throwable ignored) {
+        }
       }
     }
   }
