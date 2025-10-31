@@ -416,7 +416,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
     @Override
     public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs) {
-      final String folder = dir.getFileName().toString();
+      final Path fileName = dir.getFileName();
+      if (fileName == null) {
+        return FileVisitResult.CONTINUE;
+      }
+      final String folder = fileName.toString();
       if (endsWithIgnoreCase(folder, WEB_INF)) {
         return FileVisitResult.SKIP_SUBTREE;
       }

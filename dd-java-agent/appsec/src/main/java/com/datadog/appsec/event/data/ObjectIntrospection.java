@@ -345,6 +345,9 @@ public final class ObjectIntrospection {
   }
 
   private static String checkStringLength(final String str, final State state) {
+    if (str == null) {
+      return null;
+    }
     if (str.length() > MAX_STRING_SIZE) {
       state.stringTooLong = true;
       return str.substring(0, MAX_STRING_SIZE);

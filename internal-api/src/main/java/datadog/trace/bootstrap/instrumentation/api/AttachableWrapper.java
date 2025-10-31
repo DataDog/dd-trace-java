@@ -7,9 +7,9 @@ import javax.annotation.Nullable;
 public interface AttachableWrapper {
 
   /** Attaches a OT/OTel wrapper to a tracer object. */
-  void attachWrapper(@Nonnull Object wrapper);
+  void attachWrapper(@Nonnull SpanWrapper wrapper);
 
   /** Returns an attached OT/OTel wrapper or null. */
   @Nullable
-  Object getWrapper();
+  SpanWrapper getWrapper();
 }
