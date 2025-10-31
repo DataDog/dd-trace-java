@@ -84,18 +84,17 @@ class TracerJavaExtension {
       (it as SourceSet).java.srcDirs = ["${project.projectDir}/src/${SourceSet.MAIN_SOURCE_SET_NAME}/$name"]
     }
 
+    // TODO Make 'configureCompiler' a general utility method
+    def configureCompilerCl = project.extensions.getByType(ExtraPropertiesExtension).get("configureCompiler") as Closure
     project.tasks.named(mainForJavaVersionSourceSet.compileJavaTaskName, JavaCompile) {
-      // TODO Make 'configureCompiler' a general utility method
-      def cl = project.extensions.getByType(ExtraPropertiesExtension).get("configureCompiler") as Closure
-      cl.call(it, version.majorVersion.toInteger().intValue(), version)
+      configureCompilerCl.call(it, version.majorVersion.toInteger().intValue(), version)
     }
 
     if (sourceSetConfig.applyForTestSources.orElse(true)) {
       // configures all test tasks
       project.tasks.withType(JavaCompile).configureEach {
         if (it.name.toLowerCase().contains("test")) {
-          it.sourceCompatibility = version
-          it.targetCompatibility = version
+          configureCompilerCl.call(it, version.majorVersion.toInteger().intValue(), version)
         }
       }
     }
