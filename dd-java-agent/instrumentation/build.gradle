@@ -10,48 +10,51 @@ tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: 'instrument'
-  apply plugin: 'muzzle'
+  subProj.pluginManager.withPlugin("instrument") {
+    subProj.extensions.configure(InstrumentExtension) {
+      it.plugins.addAll(
+        'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+        'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
+        'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
+      )
+    }
 
-  configurations {
-    instrumentPluginClasspath {
-      visible = false
-      canBeConsumed = false
-      canBeResolved = true
+    subProj.configurations.register("instrumentPluginClasspath") {
+      it.visible = false
+      it.canBeConsumed = false
+      it.canBeResolved = true
+
+      it.dependencies.add(subProj.dependencies.project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath'))
     }
   }
 
-  instrument.plugins = [
-    'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
-  ]
+  subProj.pluginManager.withPlugin("java") {
+    subProj.pluginManager.withPlugin("muzzle") {
+      subProj.configurations.matching { it.name == "muzzleBootstrap" }.configureEach {
+        exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
+      }
+    }
 
-  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+    subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
-  subProj.afterEvaluate {
-    if (!plugins.hasPlugin("java")) {
-      return
+    if (subProj.hasProperty('minJavaVersionForTests') && subProj.findProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
+      def version = JavaVersion.toVersion(subProj.findProperty('minJavaVersionForTests'))
+      def mainJavaConfigName = "main_name${version.majorVersion}Implementation"
+
+      configurations
+        .matching {it.name == mainJavaConfigName }
+        .configureEach {
+          it.dependencies.add(subProj.dependencies.project(path: ':dd-trace-api'))
+          it.dependencies.add(subProj.dependencies.project(path: ':dd-java-agent:agent-tooling'))
+          it.dependencies.addLater(libs.bytebuddy)
+      }
     }
-    String jdkCompile = null
-    if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
-      def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
-      def name = "java$version.majorVersion"
-      jdkCompile = "main_${name}Implementation"
-    }
-    configurations.named('muzzleBootstrap') {
-      exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
-    }
+
     dependencies {
       // Apply common dependencies for instrumentation.
       implementation project(':dd-trace-api')
       implementation project(':dd-java-agent:agent-tooling')
       implementation libs.bytebuddy
-      if (jdkCompile) {
-        "$jdkCompile" project(':dd-trace-api')
-        "$jdkCompile" project(':dd-java-agent:agent-tooling')
-        "$jdkCompile" libs.bytebuddy
-      }
 
       annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
       annotationProcessor libs.autoservice.processor
@@ -66,8 +69,6 @@ subprojects { Project subProj ->
       testImplementation project(':dd-java-agent:instrumentation-testing')
       testAnnotationProcessor libs.autoservice.processor
       testCompileOnly libs.autoservice.annotation
-
-      instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->
@@ -75,17 +76,17 @@ subprojects { Project subProj ->
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }
     }
-  }
 
-  def path = subProj.getPath()
-  subProj.plugins.withId("java") {
-    if (!path.equals(':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs')) {
-      // don't include the redis RequestImpl stub
+    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs') {
+      // don't include the redis RequestImpl stubs
       parent_project.dependencies {
-        implementation project(path)
+        addProvider("implementation", providers.provider { project(subProj.path) })
       }
     }
   }
+
+  subProj.apply plugin: 'instrument'
+  subProj.apply plugin: 'muzzle'
 }
 
 dependencies {
