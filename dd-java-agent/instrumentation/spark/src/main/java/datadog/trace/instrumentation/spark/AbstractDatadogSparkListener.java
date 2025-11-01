@@ -43,7 +43,6 @@ import org.apache.spark.scheduler.*;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
-import org.apache.spark.sql.execution.streaming.MicroBatchExecution;
 import org.apache.spark.sql.execution.streaming.StreamExecution;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
@@ -1243,7 +1242,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     Object queryId = properties.get(StreamExecution.QUERY_ID_KEY());
-    Object batchId = properties.get(MicroBatchExecution.BATCH_ID_KEY());
+    Object batchId = properties.get("streaming.sql.batchId");
 
     if (queryId == null || batchId == null) {
       return null;
