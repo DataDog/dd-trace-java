@@ -29,10 +29,8 @@ dependencies {
   testImplementation(
     group = "com.squareup.okhttp3",
     name = "mockwebserver",
-    version =
-      libs.versions.okhttp.legacy
-        .get(),
     // actually a version range
+    version = libs.versions.okhttp.legacy.get()
   )
 }
 

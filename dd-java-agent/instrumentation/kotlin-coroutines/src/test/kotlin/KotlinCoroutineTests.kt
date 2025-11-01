@@ -12,29 +12,28 @@ class KotlinCoroutineTests(
   dispatcher: CoroutineDispatcher,
 ) : CoreKotlinCoroutineTests(dispatcher) {
   @Trace
-  fun tracedAcrossChannels(): Int =
-    runTest {
-      val producer =
-        produce(jobName("producer")) {
-          repeat(3) {
-            tracedChild("produce_$it")
-            send(it)
-          }
+  fun tracedAcrossChannels(): Int = runTest {
+    val producer =
+      produce(jobName("producer")) {
+        repeat(3) {
+          tracedChild("produce_$it")
+          send(it)
         }
+      }
 
-      val actor =
-        actor<Int>(jobName("consumer")) {
-          consumeEach {
-            tracedChild("consume_$it")
-          }
+    val actor =
+      actor<Int>(jobName("consumer")) {
+        consumeEach {
+          tracedChild("consume_$it")
         }
+      }
 
-      @Suppress("DEPRECATION_ERROR")
-      producer.toChannel(actor)
-      actor.close()
+    @Suppress("DEPRECATION_ERROR")
+    producer.toChannel(actor)
+    actor.close()
 
-      7
-    }
+    7
+  }
 
   @Trace
   override fun tracePreventedByCancellation(): Int = super.tracePreventedByCancellation()

@@ -12,49 +12,47 @@ class KotlinCoroutineTests(
   dispatcher: CoroutineDispatcher,
 ) : CoreKotlinCoroutineTests(dispatcher) {
   @Trace
-  fun tracedAcrossFlows(withModifiedContext: Boolean): Int =
-    runTest {
-      val producer =
-        flow {
-          repeat(3) {
-            tracedChild("produce_$it")
-            if (withModifiedContext) {
-              withTimeout(100) {
-                emit(it)
-              }
-            } else {
+  fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
+    val producer =
+      flow {
+        repeat(3) {
+          tracedChild("produce_$it")
+          if (withModifiedContext) {
+            withTimeout(100) {
               emit(it)
             }
+          } else {
+            emit(it)
           }
-        }.flowOn(jobName("producer"))
-
-      launch(jobName("consumer")) {
-        producer.collect {
-          tracedChild("consume_$it")
         }
-      }
+      }.flowOn(jobName("producer"))
 
-      7
+    launch(jobName("consumer")) {
+      producer.collect {
+        tracedChild("consume_$it")
+      }
     }
+
+    7
+  }
 
   @Trace
-  fun traceAfterFlow(): Int =
-    runTest {
-      val f =
-        flow {
-          childSpan("inside-flow").activateAndUse {
-            println("insideFlowSpan")
-          }
-          emit(1)
-        }.flowOn(Dispatchers.IO)
-      val ff = f.single()
+  fun traceAfterFlow(): Int = runTest {
+    val f =
+      flow {
+        childSpan("inside-flow").activateAndUse {
+          println("insideFlowSpan")
+        }
+        emit(1)
+      }.flowOn(Dispatchers.IO)
+    val ff = f.single()
 
-      childSpan("outside-flow").activateAndUse {
-        println("hello $ff")
-      }
-
-      3
+    childSpan("outside-flow").activateAndUse {
+      println("hello $ff")
     }
+
+    3
+  }
 
   @Trace
   override fun tracePreventedByCancellation(): Int = super.tracePreventedByCancellation()

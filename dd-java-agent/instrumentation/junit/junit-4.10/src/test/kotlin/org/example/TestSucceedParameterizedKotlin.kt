@@ -14,11 +14,10 @@ class TestSucceedParameterizedKotlin(
   companion object {
     @JvmStatic
     @Parameterized.Parameters(name = "{1}")
-    fun data(): Collection<Array<Any>> =
-      listOf(
-        arrayOf(ParamObject(), "str1", 0),
-        arrayOf(ParamObject(), "str2", 1),
-      )
+    fun data(): Collection<Array<Any>> = listOf(
+      arrayOf(ParamObject(), "str1", 0),
+      arrayOf(ParamObject(), "str2", 1)
+    )
   }
 
   @Test

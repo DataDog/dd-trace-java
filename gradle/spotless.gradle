@@ -46,7 +46,11 @@ spotless {
     target '*.gradle.kts'
     // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
     // Newer versions do not work well with the older version of kotlin in this build
-    ktlint('1.7.1')
+    ktlint('1.7.1').editorConfigOverride([
+      // Disable trailing comma rules
+      'ktlint_standard_trailing-comma-on-call-site': 'disabled',
+      'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
+    ])
   }
 
   project.pluginManager.withPlugin('groovy') {
@@ -91,7 +95,11 @@ spotless {
       // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
       targetExclude(buildDirectoryFiles)
       // Newer versions do not work well with the older version of kotlin in this build
-      ktlint('1.7.1')
+      ktlint('1.7.1').editorConfigOverride([
+        // Disable trailing comma rules
+        'ktlint_standard_trailing-comma-on-call-site': 'disabled',
+        'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
+      ])
     }
   }
 }
