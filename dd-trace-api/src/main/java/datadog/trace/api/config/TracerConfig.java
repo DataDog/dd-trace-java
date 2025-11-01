@@ -165,5 +165,11 @@ public final class TracerConfig {
       "trace.cloud.payload.tagging.max-tags";
   public static final String TRACE_SERVICE_DISCOVERY_ENABLED = "trace.service.discovery.enabled";
 
+  public static final String TRACE_AGENT_RETRY_ENABLED = "trace.agent.retry.enabled";
+  public static final String TRACE_AGENT_RETRY_QUEUE_SIZE = "trace.agent.retry.queue.size";
+  public static final String TRACE_AGENT_RETRY_BACKOFF_INITIAL_MS =
+      "trace.agent.retry.backoff.initial.ms";
+  public static final String TRACE_AGENT_RETRY_BACKOFF_MAX_MS = "trace.agent.retry.backoff.max.ms";
+
   private TracerConfig() {}
 }
