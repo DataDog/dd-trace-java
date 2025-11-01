@@ -137,6 +137,7 @@ public final class TracerConfig {
       "trace.experimental.long-running.initial.flush.interval";
   public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
       "trace.experimental.long-running.flush.interval";
+  public static final String TELEMETRY_JMX_ENABLED = "telemetry.jmx.enabled";
 
   public static final String TRACE_PEER_HOSTNAME_ENABLED = "trace.peer.hostname.enabled";
 

@@ -602,6 +602,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TELEMETRY_JMX_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
@@ -1214,6 +1215,7 @@ public class Config {
   private final boolean isTelemetryDependencyServiceEnabled;
   private final boolean telemetryMetricsEnabled;
   private final boolean isTelemetryLogCollectionEnabled;
+  private final boolean isTelemetryJmxEnabled;
   private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
@@ -2070,6 +2072,8 @@ public class Config {
         instrumenterConfig.isTelemetryEnabled()
             && configProvider.getBoolean(
                 TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+
+    isTelemetryJmxEnabled = configProvider.getBoolean(TELEMETRY_JMX_ENABLED, false);
 
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
@@ -3595,6 +3599,10 @@ public class Config {
 
   public boolean isTelemetryLogCollectionEnabled() {
     return isTelemetryLogCollectionEnabled;
+  }
+
+  public boolean isTelemetryJmxEnabled() {
+    return isTelemetryJmxEnabled;
   }
 
   public int getTelemetryDependencyResolutionQueueSize() {
