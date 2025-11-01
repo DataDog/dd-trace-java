@@ -143,7 +143,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     0 * _
 
-    assertAppSecSdkEvent(CUSTOM, V2)
+    assertAppSecSdkEvent(CUSTOM, V1)
   }
 
   def 'test track login success event V2 (SDK)'() {
@@ -198,6 +198,8 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
     0 * _
+
+    assertAppSecSdkEvent(CUSTOM, V2)
   }
 
   def 'test track user (SDK)'() {
