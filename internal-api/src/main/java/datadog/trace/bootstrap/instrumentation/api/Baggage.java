@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 public class Baggage implements ImplicitContextKeyed {
   private static final ContextKey<Baggage> CONTEXT_KEY = named("baggage-key");
   private final Map<String, String> items;
+
   /**
    * The <a href="https://www.w3.org/TR/baggage/">W3C Baggage header representation</a> of the
    * baggage instance, {@code null} if not in sync with the current baggage items.

@@ -260,8 +260,8 @@ class ReactorCoreTest extends InstrumentationSpecification {
   def "Publisher chain spans have the correct parents from subscription time"() {
     when:
     def mono = Mono.just(42)
-      .map(addOne)
-      .map(addTwo)
+    .map(addOne)
+    .map(addTwo)
 
     runUnderTrace("trace-parent") {
       mono.block()
@@ -365,12 +365,12 @@ class ReactorCoreTest extends InstrumentationSpecification {
   def "Fluxes produce the right number of results on '#schedulerName' scheduler"() {
     when:
     List<String> values = Flux.fromIterable(Arrays.asList(1, 2, 3, 4))
-      .parallel()
-      .runOn(scheduler)
-      .flatMap({ num -> Mono.just(num.toString() + " on " + Thread.currentThread().getName()) })
-      .sequential()
-      .collectList()
-      .block()
+    .parallel()
+    .runOn(scheduler)
+    .flatMap({ num -> Mono.just(num.toString() + " on " + Thread.currentThread().getName()) })
+    .sequential()
+    .collectList()
+    .block()
 
     then:
     values.size() == 4
@@ -390,7 +390,9 @@ class ReactorCoreTest extends InstrumentationSpecification {
         def span = buildSpan()
         Mono.just(0)
         .contextWrite(Context.of("dd.span", span))
-        .doFinally { ignored -> finishSpan(span) }
+        .doFinally {
+          ignored -> finishSpan(span)
+        }
       }
       .map(this::addOneFunc)
       .block()
@@ -399,7 +401,9 @@ class ReactorCoreTest extends InstrumentationSpecification {
     assertTraces(1, {
       trace(3) {
         basicSpan(it, "parent")
-        basicSpan(it, "contextual", span(0), null, ['span.kind': { true }]) // otel spans sets span.kind
+        basicSpan(it, "contextual", span(0), null, ['span.kind': {
+            true
+          }]) // otel spans sets span.kind
         span {
           operationName "addOne"
           childOfPrevious()
@@ -412,9 +416,21 @@ class ReactorCoreTest extends InstrumentationSpecification {
     })
     where:
     spanType      | buildSpan                                                                                                                      | finishSpan
-    "datadog"     | { TEST_TRACER.buildSpan("contextual").start() }                                                                                | { AgentSpan span -> span.finish() }
-    "opentracing" | { GlobalTracer.get().buildSpan("contextual").start() }                                                                         | { io.opentracing.Span span -> span.finish() }
-    "otel"        | { GlobalOpenTelemetry.get().getTracer("").spanBuilder("contextual").setAttribute("operation.name", "contextual").startSpan() } | { Span span -> span.end() }
+    "datadog"     | {
+      TEST_TRACER.buildSpan("contextual").start()
+    }                                                                                | {
+      AgentSpan span -> span.finish()
+    }
+    "opentracing" | {
+      GlobalTracer.get().buildSpan("contextual").start()
+    }                                                                         | {
+      io.opentracing.Span span -> span.finish()
+    }
+    "otel"        | {
+      GlobalOpenTelemetry.get().getTracer("").spanBuilder("contextual").setAttribute("operation.name", "contextual").startSpan()
+    } | {
+      Span span -> span.end()
+    }
   }
 
   def "Bad values for dd.span are tolerated"() {
@@ -508,19 +524,19 @@ class ReactorCoreTest extends InstrumentationSpecification {
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {
-        void onSubscribe(Subscription subscription) {
-          subscription.cancel()
-        }
+      void onSubscribe(Subscription subscription) {
+        subscription.cancel()
+      }
 
-        void onNext(Integer t) {
-        }
+      void onNext(Integer t) {
+      }
 
-        void onError(Throwable error) {
-        }
+      void onError(Throwable error) {
+      }
 
-        void onComplete() {
-        }
-      })
+      void onComplete() {
+      }
+    })
 
     scope.close()
     span.finish()

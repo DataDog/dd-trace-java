@@ -41,15 +41,15 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     LOCALSTACK.start()
     def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
     snsClient = SnsClient.builder()
-      .endpointOverride(URI.create(endPoint))
-      .region(Region.of("us-east-1"))
-      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
-      .build()
+    .endpointOverride(URI.create(endPoint))
+    .region(Region.of("us-east-1"))
+    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
+    .build()
     sqsClient = SqsClient.builder()
-      .endpointOverride(URI.create(endPoint))
-      .region(Region.of("us-east-1"))
-      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
-      .build()
+    .endpointOverride(URI.create(endPoint))
+    .region(Region.of("us-east-1"))
+    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
+    .build()
     testQueueURL = sqsClient.createQueue {  it.queueName("testqueue") }.queueUrl()
     testQueueARN = sqsClient.getQueueAttributes {it.queueUrl(testQueueURL).attributeNames(QueueAttributeName.QUEUE_ARN)}.attributes().get(QueueAttributeName.QUEUE_ARN)
     testTopicARN = snsClient.createTopic { it.name("testtopic") }.topicArn()
@@ -91,7 +91,9 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     def readonlyHeaders = Collections.unmodifiableMap(headers)
     snsClient.publish(b -> b.message("sometext").topicArn(testTopicARN).messageAttributes(readonlyHeaders))
 
-    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+    def message = sqsClient.receiveMessage {
+      it.queueUrl(testQueueURL).waitTimeSeconds(3)
+    }.messages().get(0)
 
     def messageBody = new JsonSlurper().parseText(message.body())
 
@@ -193,7 +195,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
     snsClient.publish { req ->
       req.message("test message")
-        .topicArn(testTopicARN)
+      .topicArn(testTopicARN)
     }
 
     def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)

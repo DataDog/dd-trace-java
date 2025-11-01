@@ -250,7 +250,6 @@ class JettyServlet3SyncRumInjectionForkedTest extends JettyServlet3TestSync {
 }
 
 class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class JettyServlet3TestAsync extends JettyServlet3Test {
@@ -273,7 +272,6 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
 }
 
 class JettyServlet3ASyncV1ForkedTest extends JettyServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
@@ -614,5 +612,4 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
     0 * appModule.checkSessionTrackingModes(_)
     0 * _
   }
-
 }

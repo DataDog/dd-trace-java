@@ -144,7 +144,8 @@ testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), empty
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
 testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
 testAggregate(
-  "base", listOf(":"),
+  "base",
+  listOf(":"),
   listOf(
     ":dd-java-agent:instrumentation",
     ":dd-smoke-tests",

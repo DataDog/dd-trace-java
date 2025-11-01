@@ -33,44 +33,28 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
   }
 
   @Trace
-  override fun tracePreventedByCancellation(): Int {
-    return super.tracePreventedByCancellation()
-  }
+  override fun tracePreventedByCancellation(): Int = super.tracePreventedByCancellation()
 
   @Trace
-  override fun tracedAcrossThreadsWithNested(): Int {
-    return super.tracedAcrossThreadsWithNested()
-  }
+  override fun tracedAcrossThreadsWithNested(): Int = super.tracedAcrossThreadsWithNested()
 
   @Trace
-  override fun traceWithDeferred(): Int {
-    return super.traceWithDeferred()
-  }
+  override fun traceWithDeferred(): Int = super.traceWithDeferred()
 
   @Trace
-  override fun tracedWithDeferredFirstCompletions(): Int {
-    return super.tracedWithDeferredFirstCompletions()
-  }
+  override fun tracedWithDeferredFirstCompletions(): Int = super.tracedWithDeferredFirstCompletions()
 
   @Trace
-  override fun tracedWithSuspendingCoroutines(): Int {
-    return super.tracedWithSuspendingCoroutines()
-  }
+  override fun tracedWithSuspendingCoroutines(): Int = super.tracedWithSuspendingCoroutines()
 
   @Trace
-  override fun tracedWithLazyStarting(): Int {
-    return super.tracedWithLazyStarting()
-  }
+  override fun tracedWithLazyStarting(): Int = super.tracedWithLazyStarting()
 
   @Trace
-  override fun traceAfterTimeout(): Int {
-    return super.traceAfterTimeout()
-  }
+  override fun traceAfterTimeout(): Int = super.traceAfterTimeout()
 
   @Trace
-  override fun traceAfterDelay(): Int {
-    return super.traceAfterDelay()
-  }
+  override fun traceAfterDelay(): Int = super.traceAfterDelay()
 
   @Trace
   override fun tracedChild(opName: String) {
