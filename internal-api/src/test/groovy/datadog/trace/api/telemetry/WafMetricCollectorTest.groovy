@@ -1,5 +1,11 @@
 package datadog.trace.api.telemetry
 
+import static datadog.trace.api.aiguard.AIGuard.Action.ABORT
+import static datadog.trace.api.aiguard.AIGuard.Action.ALLOW
+import static datadog.trace.api.aiguard.AIGuard.Action.DENY
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES
+
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.CountDownLatch
@@ -505,6 +511,78 @@ class WafMetricCollectorTest extends DDSpecification {
     metric.namespace == 'appsec'
     metric.value == 8
     metric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1'].toSet()
+  }
+
+  void 'test ai guard request'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.aiGuardRequest(action, block)
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain()
+    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.requests' }
+
+    final metric = configErrorMetrics[0]
+    metric.type == 'count'
+    metric.metricName == 'ai_guard.requests'
+    metric.namespace == 'appsec'
+    metric.value == 1
+    metric.tags.toSet() == ["action:${action.name()}", "block:${block}", 'error:false'].toSet()
+
+    where:
+    action | block
+    ALLOW  | true
+    ALLOW  | false
+    DENY   | true
+    DENY   | false
+    ABORT  | true
+    ABORT  | false
+  }
+
+  void 'test ai guard error'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.aiGuardError()
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain()
+    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.requests' }
+
+    final metric = configErrorMetrics[0]
+    metric.type == 'count'
+    metric.metricName == 'ai_guard.requests'
+    metric.namespace == 'appsec'
+    metric.value == 1
+    metric.tags.toSet() == ['error:true'].toSet()
+  }
+
+  void 'test ai guard truncated'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.aiGuardTruncated(type)
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain()
+    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.truncated' }
+
+    final metric = configErrorMetrics[0]
+    metric.type == 'count'
+    metric.metricName == 'ai_guard.truncated'
+    metric.namespace == 'appsec'
+    metric.value == 1
+    metric.tags.toSet() == ["type:${type.tagValue}"].toSet()
+
+    where:
+    type << [MESSAGES, CONTENT]
   }
 
   /**

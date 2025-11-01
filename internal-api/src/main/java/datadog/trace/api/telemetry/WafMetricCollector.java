@@ -1,5 +1,6 @@
 package datadog.trace.api.telemetry;
 
+import datadog.trace.api.aiguard.AIGuard;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +61,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicLongArray appSecSdkEventQueue =
       new AtomicLongArray(LoginEvent.getNumValues() * LoginVersion.getNumValues());
   private static final AtomicInteger wafConfigErrorCounter = new AtomicInteger();
+  private static final AtomicLongArray aiGuardRequests =
+      new AtomicLongArray(AIGuard.Action.values().length * 2); // 3 actions * block
+  private static final AtomicInteger aiGuardErrors = new AtomicInteger();
+  private static final AtomicLongArray aiGuardTruncated =
+      new AtomicLongArray(AIGuardTruncationType.values().length);
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -193,6 +199,18 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public void appSecSdkEvent(final LoginEvent event, final LoginVersion version) {
     final int index = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
     appSecSdkEventQueue.incrementAndGet(index);
+  }
+
+  public void aiGuardRequest(final AIGuard.Action action, final boolean block) {
+    aiGuardRequests.incrementAndGet(action.ordinal() * 2 + (block ? 1 : 0));
+  }
+
+  public void aiGuardError() {
+    aiGuardErrors.incrementAndGet();
+  }
+
+  public void aiGuardTruncated(final AIGuardTruncationType type) {
+    aiGuardTruncated.incrementAndGet(type.ordinal());
   }
 
   @Override
@@ -362,6 +380,40 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           new WafConfigError(
               configErrors, WafMetricCollector.wafVersion, WafMetricCollector.rulesVersion))) {
         return;
+      }
+    }
+
+    // AI Guard successful requests
+    for (final AIGuard.Action action : AIGuard.Action.values()) {
+      final long blocked = aiGuardRequests.getAndSet(action.ordinal() * 2 + 1, 0);
+      if (blocked > 0) {
+        if (!rawMetricsQueue.offer(AIGuardRequests.success(blocked, action, true))) {
+          break;
+        }
+      }
+      final long nonBlocked = aiGuardRequests.getAndSet(action.ordinal() * 2, 0);
+      if (nonBlocked > 0) {
+        if (!rawMetricsQueue.offer(AIGuardRequests.success(nonBlocked, action, false))) {
+          break;
+        }
+      }
+    }
+
+    // AI Guard failed requests
+    final int aiGuardErrorRequests = aiGuardErrors.getAndSet(0);
+    if (aiGuardErrorRequests > 0) {
+      if (!rawMetricsQueue.offer(AIGuardRequests.error(aiGuardErrorRequests))) {
+        return;
+      }
+    }
+
+    // AI Guard truncated messages
+    for (final AIGuardTruncationType type : AIGuardTruncationType.values()) {
+      final long count = aiGuardTruncated.getAndSet(type.ordinal(), 0);
+      if (count > 0) {
+        if (!rawMetricsQueue.offer(new AIGuardTruncated(count, type))) {
+          return;
+        }
       }
     }
   }
@@ -576,6 +628,37 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public static class WafInputTruncated extends WafMetric {
     public WafInputTruncated(final long counter, final int bitfield) {
       super("waf.input_truncated", counter, "truncation_reason:" + bitfield);
+    }
+  }
+
+  public static class AIGuardRequests extends WafMetric {
+    private AIGuardRequests(final long count, final String... tags) {
+      super("ai_guard.requests", count, tags);
+    }
+
+    public static AIGuardRequests success(
+        final long count, final AIGuard.Action action, final boolean block) {
+      return new AIGuardRequests(count, "action:" + action, "block:" + block, "error:false");
+    }
+
+    public static AIGuardRequests error(final long count) {
+      return new AIGuardRequests(count, "error:true");
+    }
+  }
+
+  public static class AIGuardTruncated extends WafMetric {
+    public AIGuardTruncated(final long count, final AIGuardTruncationType type) {
+      super("ai_guard.truncated", count, "type:" + type.tagValue);
+    }
+  }
+
+  public enum AIGuardTruncationType {
+    MESSAGES("messages"),
+    CONTENT("content");
+    public final String tagValue;
+
+    AIGuardTruncationType(final String tagValue) {
+      this.tagValue = tagValue;
     }
   }
 
