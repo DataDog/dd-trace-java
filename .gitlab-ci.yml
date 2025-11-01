@@ -357,6 +357,11 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    GRADLE_MEM: 4G
+    GRADLE_WORKERS: 3
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -366,10 +371,11 @@ spotless:
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
     - gitlab_section_end "collect-reports"
+    - ls /tmp
   artifacts:
     when: always
     paths:
-      - ./check_reports
+      - ./reports
 
 test_published_artifacts:
   extends: .gradle_build
