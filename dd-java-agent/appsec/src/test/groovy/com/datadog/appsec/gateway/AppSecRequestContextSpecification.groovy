@@ -11,11 +11,15 @@ import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.api.Config
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.stacktrace.StackTraceEvent
 import datadog.trace.util.stacktrace.StackTraceFrame
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import okio.Okio
 
 class AppSecRequestContextSpecification extends DDSpecification {
@@ -395,6 +399,83 @@ class AppSecRequestContextSpecification extends DDSpecification {
     keys.contains("_dd.appsec.s.res.content_type")
     keys.contains("_dd.appsec.s.res.user_agent_lower")
     keys.contains("_dd.appsec.s.res.content_type_upper")
+  }
+
+  void testCommitDerivativesNormalizesAttributeTypes() {
+    given:
+    def context = new AppSecRequestContext()
+    context.reportDerivatives([
+      numeric: [value: "42"],
+      string: [value: "value"],
+      bool: true,
+      list: [value: [1, 2]]
+    ])
+    def traceSegment = Mock(TraceSegment)
+
+    when:
+    context.commitDerivatives(traceSegment)
+
+    then:
+    1 * traceSegment.setTagTop("numeric", 42L)
+    1 * traceSegment.setTagTop("string", "value")
+    1 * traceSegment.setTagTop("bool", true)
+    1 * traceSegment.setTagTop("list", "[1, 2]")
+    0 * _
+    context.getDerivativeKeys().isEmpty()
+  }
+
+  void testCommitDerivativesHandlesConcurrentUpdates() {
+    given:
+    def context = new AppSecRequestContext()
+    def start = new CountDownLatch(1)
+    def done = new CountDownLatch(6)
+    def errors = new ConcurrentLinkedQueue<Throwable>()
+    def traceSegment = TraceSegment.NoOp.INSTANCE
+
+    def reporters = []
+    for (int n = 0; n < 3; n++) {
+      reporters.add(Thread.start({
+        try {
+          start.await()
+          for (int idx = 0; idx < 100; idx++) {
+            def key = "key-${Thread.currentThread().id}-${idx}" as String
+            def val = [value: idx as String]
+            context.reportDerivatives([(key): val])
+          }
+        } catch (Throwable t) {
+          errors.add(t)
+        } finally {
+          done.countDown()
+        }
+      }))
+    }
+
+    def committers = []
+    for (int n = 0; n < 3; n++) {
+      committers.add(Thread.start({
+        try {
+          start.await()
+          for (int i = 0; i < 100; i++) {
+            context.commitDerivatives(traceSegment)
+          }
+        } catch (Throwable t) {
+          errors.add(t)
+        } finally {
+          done.countDown()
+        }
+      }))
+    }
+
+    when:
+    start.countDown()
+    def completed = done.await(10, TimeUnit.SECONDS)
+    (reporters + committers)*.join()
+    context.commitDerivatives(traceSegment)
+
+    then:
+    completed
+    errors.isEmpty()
+    context.getDerivativeKeys().isEmpty()
   }
 
   def "test attribute handling with unknown address"() {
