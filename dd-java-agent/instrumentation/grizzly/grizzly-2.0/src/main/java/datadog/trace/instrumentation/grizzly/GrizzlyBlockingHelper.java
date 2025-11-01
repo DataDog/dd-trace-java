@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.grizzly;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -35,14 +37,14 @@ public class GrizzlyBlockingHelper {
   private GrizzlyBlockingHelper() {}
 
   public static boolean block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, AgentSpan span) {
+      Request request, Response response, Flow.Action.RequestBlockingAction rba, Context context) {
     return block(
         request,
         response,
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders(),
-        span);
+        context);
   }
 
   public static boolean block(
@@ -51,11 +53,12 @@ public class GrizzlyBlockingHelper {
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      AgentSpan span) {
+      Context context) {
     if (GET_OUTPUT_STREAM == null) {
       return false;
     }
 
+    AgentSpan span = spanFromContext(context);
     try {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
       response.setStatus(BlockingActionHelper.getHttpCode(statusCode));
@@ -76,13 +79,17 @@ public class GrizzlyBlockingHelper {
       os.close();
       response.finish();
 
-      span.getRequestContext().getTraceSegment().effectivelyBlocked();
+      if (span != null) {
+        span.getRequestContext().getTraceSegment().effectivelyBlocked();
+      }
       SpanClosingListener.LISTENER.onAfterService(request);
     } catch (Throwable e) {
       log.info("Error committing blocking response", e);
-      DECORATE.onError(span, e);
-      DECORATE.beforeFinish(span);
-      span.finish();
+      if (span != null) {
+        DECORATE.onError(span, e);
+        DECORATE.beforeFinish(context);
+        span.finish();
+      }
     }
 
     return true;

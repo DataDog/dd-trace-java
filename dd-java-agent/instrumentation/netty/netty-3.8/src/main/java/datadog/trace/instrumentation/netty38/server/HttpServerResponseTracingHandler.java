@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.netty38.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
@@ -36,7 +35,7 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
       return;
     }
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = span.attach()) {
       final HttpResponse response = (HttpResponse) msg.getMessage();
 
       try {
@@ -58,7 +57,7 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
           && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
               || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
       }
     }

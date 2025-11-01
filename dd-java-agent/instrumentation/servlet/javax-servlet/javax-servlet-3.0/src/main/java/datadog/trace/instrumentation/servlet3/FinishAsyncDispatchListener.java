@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIMEOUT;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
@@ -26,14 +28,16 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   private final AtomicBoolean activated;
   private final AgentSpan span;
   private final boolean doOnResponse;
+  private final ContextScope scope;
 
-  public FinishAsyncDispatchListener(final AgentSpan span, boolean doOnResponse) {
-    this(span, new AtomicBoolean(), doOnResponse);
+  public FinishAsyncDispatchListener(final ContextScope scope, boolean doOnResponse) {
+    this(scope, new AtomicBoolean(), doOnResponse);
   }
 
   public FinishAsyncDispatchListener(
-      final AgentSpan span, AtomicBoolean activated, boolean doOnResponse) {
-    this.span = span;
+      final ContextScope scope, AtomicBoolean activated, boolean doOnResponse) {
+    this.scope = scope;
+    this.span = spanFromContext(scope.context());
     this.activated = activated;
     this.doOnResponse = doOnResponse;
   }
@@ -54,7 +58,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
           DECORATE.onError(span, (Throwable) error);
         }
       }
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       maybeFinishSpan();
     }
   }
@@ -62,7 +66,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   @Override
   public void run() {
     if (activated.compareAndSet(false, true)) {
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       maybeFinishSpan();
     }
   }
@@ -74,7 +78,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
         span.setError(true);
       }
       span.setTag(TIMEOUT, event.getAsyncContext().getTimeout());
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       maybeFinishSpan();
     }
   }
@@ -83,7 +87,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   public void onError(final AsyncEvent event) throws IOException {
     if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
       DECORATE.onError(span, event.getThrowable());
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       maybeFinishSpan();
     }
   }

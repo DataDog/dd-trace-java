@@ -70,7 +70,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
         ctx.sendUpstream(msg);
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }

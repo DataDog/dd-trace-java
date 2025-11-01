@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.ratpack;
 
 import static datadog.context.Context.root;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
 
 import com.google.common.reflect.TypeToken;
@@ -24,16 +25,17 @@ public final class TracingHandler implements Handler {
       Types.token(Flow.Action.RequestBlockingAction.class);
 
   /** This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys. */
-  public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
-      AttributeKey.valueOf(DD_SPAN_ATTRIBUTE);
+  public static final AttributeKey<datadog.context.Context> SERVER_CONTEXT_ATTRIBUTE_KEY =
+      AttributeKey.valueOf(DD_CONTEXT_ATTRIBUTE);
 
   @Override
   public void handle(final Context ctx) {
     final Request request = ctx.getRequest();
 
-    final Attribute<AgentSpan> spanAttribute =
-        ctx.getDirectChannelAccess().getChannel().attr(SERVER_ATTRIBUTE_KEY);
-    final AgentSpan nettySpan = spanAttribute.get();
+    final Attribute<datadog.context.Context> contextAttribute =
+        ctx.getDirectChannelAccess().getChannel().attr(SERVER_CONTEXT_ATTRIBUTE_KEY);
+    final datadog.context.Context nettyContext = contextAttribute.get();
+    final AgentSpan nettySpan = nettyContext != null ? fromContext(nettyContext) : null;
 
     // Relying on executor instrumentation to assume the netty span is in context as the parent.
     final AgentSpan ratpackSpan = startSpan(DECORATE.spanName()).setMeasured(true);

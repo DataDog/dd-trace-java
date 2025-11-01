@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import akka.http.scaladsl.util.FastFuture$;
 import akka.stream.Materializer;
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,7 +30,8 @@ public class DatadogAsyncHandlerWrapper
   @Override
   public Future<HttpResponse> apply(final HttpRequest request) {
     final ContextScope scope = DatadogWrapperHelper.createSpan(request);
-    final AgentSpan span = fromContext(scope.context());
+    final Context context = scope.context();
+    final AgentSpan span = fromContext(context);
     Future<HttpResponse> futureResponse;
 
     // handle blocking in the beginning of the request
@@ -38,7 +40,7 @@ public class DatadogAsyncHandlerWrapper
       request.discardEntityBytes(materializer);
       HttpResponse response = BlockingResponseHelper.maybeCreateBlockingResponse(rba, request);
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      DatadogWrapperHelper.finishSpan(span, response);
+      DatadogWrapperHelper.finishSpan(context, response);
       return FastFuture$.MODULE$.<HttpResponse>successful().apply(response);
     }
 
@@ -46,7 +48,7 @@ public class DatadogAsyncHandlerWrapper
       futureResponse = userHandler.apply(request);
     } catch (final Throwable t) {
       scope.close();
-      DatadogWrapperHelper.finishSpan(span, t);
+      DatadogWrapperHelper.finishSpan(context, t);
       throw t;
     }
 
@@ -67,14 +69,14 @@ public class DatadogAsyncHandlerWrapper
                       response = newResponse;
                     }
 
-                    DatadogWrapperHelper.finishSpan(span, response);
+                    DatadogWrapperHelper.finishSpan(context, response);
                     return response;
                   }
                 },
                 new AbstractFunction1<Throwable, Throwable>() {
                   @Override
                   public Throwable apply(final Throwable t) {
-                    DatadogWrapperHelper.finishSpan(span, t);
+                    DatadogWrapperHelper.finishSpan(context, t);
                     return t;
                   }
                 },

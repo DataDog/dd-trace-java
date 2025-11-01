@@ -4,14 +4,16 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DD_SERVLET_PATH_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -69,11 +71,15 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     public static void updateContextPath(
         @Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
       if (contextPath != null) {
-        Object span = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
         // Don't want to update while being dispatched to new servlet
-        if (span instanceof AgentSpan && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
-          ((AgentSpan) span).setTag(SERVLET_CONTEXT, contextPath);
-          req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
+        if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+          Context context = (Context) contextObj;
+          AgentSpan span = spanFromContext(context);
+          if (span != null) {
+            span.setTag(SERVLET_CONTEXT, contextPath);
+            req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
+          }
         }
       }
     }
@@ -88,11 +94,15 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     public static void updateServletPath(
         @Advice.This final Request req, @Advice.Argument(0) final String servletPath) {
       if (servletPath != null && !servletPath.isEmpty()) { // bypass cleanup
-        Object span = req.getAttribute(DD_SPAN_ATTRIBUTE);
+        Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
         // Don't want to update while being dispatched to new servlet
-        if (span instanceof AgentSpan && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
-          ((AgentSpan) span).setTag(SERVLET_PATH, servletPath);
-          req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
+        if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+          Context context = (Context) contextObj;
+          AgentSpan span = spanFromContext(context);
+          if (span != null) {
+            span.setTag(SERVLET_PATH, servletPath);
+            req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
+          }
         }
       }
     }

@@ -1,13 +1,15 @@
 package datadog.trace.instrumentation.jetty70;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -70,13 +72,14 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         return false;
       }
 
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (!(existingSpan instanceof AgentSpan)) {
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (!(contextObj instanceof Context)) {
         return false;
       }
-      AgentSpan span = (AgentSpan) existingSpan;
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext == null) {
+      Context context = (Context) contextObj;
+      AgentSpan span = spanFromContext(context);
+      RequestContext requestContext;
+      if (span == null || (requestContext = span.getRequestContext()) == null) {
         return false;
       }
 
