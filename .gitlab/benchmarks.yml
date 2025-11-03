@@ -1,7 +1,7 @@
 .benchmarks:
   stage: benchmarks
   interruptible: true
-  timeout: 1h
+  timeout: 2h
   tags: ["runner:apm-k8s-tweaked-metal"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
   needs: [ "build", "publish-artifacts-to-s3" ]
