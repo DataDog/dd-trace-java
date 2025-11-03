@@ -16,7 +16,7 @@ public class DubboFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
 
   public DubboFilterInstrumentation() {
-    super("apache-dubbo");
+    super("apache-dubbo-filter","apache-dubbo-filter");
   }
 
 //  public static final String CLASS_NAME = "org.apache.dubbo.monitor.support.MonitorFilter";
