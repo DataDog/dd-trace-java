@@ -12,7 +12,6 @@ minimumInstructionCoverage = 0.0
 
 dependencies {
   api libs.slf4j
-  implementation libs.jctools
 
   implementation project(':communication')
   implementation project(':components:json')
