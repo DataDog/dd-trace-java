@@ -50,6 +50,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     ktlint("1.7.1")
   }
   scala {
+    // TODO: For some reason Scala format is working correctly with this version only.
     scalafmt("3.8.6")
   }
 }

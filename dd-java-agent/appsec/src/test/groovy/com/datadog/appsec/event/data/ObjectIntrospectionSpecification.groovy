@@ -2,6 +2,7 @@ package com.datadog.appsec.event.data
 
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.NullTextJsonNode
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonBuilder
@@ -351,6 +352,14 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('{}')                          || [:]
     MAPPER.readTree('[1, 2, 3]')                   || [1, 2, 3]
     MAPPER.readTree('{"key": "value"}')            || [key: 'value']
+  }
+
+  void 'jackson text nodes with null textual value are handled gracefully'() {
+    given:
+    def node = new NullTextJsonNode()
+
+    expect:
+    convert(node, ctx) == null
   }
 
   void 'jackson nested structures'() {
