@@ -443,23 +443,22 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
-import static datadog.trace.api.config.OtelConfig.METRICS_OTEL_ENABLED;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_ENDPOINT;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_HEADERS;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_PROTOCOL;
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_TIMEOUT;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRICS_EXPORTER;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_EXPORT_INTERVAL;
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_EXPORT_TIMEOUT;
-import static datadog.trace.api.config.OtelConfig.OTEL_RESOURCE_ATTRIBUTES;
+import static datadog.trace.api.config.OtelMetricsConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_ENDPOINT;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_HEADERS;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_PROTOCOL;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_TIMEOUT;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRICS_EXPORTER;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_INTERVAL;
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -688,7 +687,7 @@ import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.config.OtelConfig;
+import datadog.trace.api.config.OtelMetricsConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.IastContext;
@@ -914,15 +913,14 @@ public class Config {
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
   private final boolean metricsOtelEnabled;
-  private final Map<String, String> otelResourceAttributes;
-  private final OtelConfig.Exporter otelMetricsExporter;
+  private final OtelMetricsConfig.Exporter otelMetricsExporter;
   private final Integer otelMetricExportInterval;
   private final Integer otelMetricExportTimeout;
   private final String otelExporterOtlpMetricsEndpoint;
   private final Map<String, String> otelExporterOtlpMetricsHeaders;
-  private final OtelConfig.Protocol otelExporterOtlpMetricsProtocol;
+  private final OtelMetricsConfig.Protocol otelExporterOtlpMetricsProtocol;
   private final Integer otelExporterOtlpMetricsTimeout;
-  private final OtelConfig.Temporality otelExporterOtlpMetricsTemporalityPreference;
+  private final OtelMetricsConfig.Temporality otelExporterOtlpMetricsTemporalityPreference;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -1869,11 +1867,10 @@ public class Config {
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-    otelResourceAttributes = configProvider.getMergedMap(OTEL_RESOURCE_ATTRIBUTES, '=');
 
     otelMetricsExporter =
         configProvider.getEnum(
-            OTEL_METRICS_EXPORTER, OtelConfig.Exporter.class, DEFAULT_OTEL_METRICS_EXPORTER, false);
+            OTEL_METRICS_EXPORTER, OtelMetricsConfig.Exporter.class, DEFAULT_OTEL_METRICS_EXPORTER, false);
 
     Integer tmpOtelMetricExportTimeout = configProvider.getInteger(OTEL_METRIC_EXPORT_TIMEOUT);
     otelMetricExportTimeout =
@@ -1895,14 +1892,14 @@ public class Config {
     }
     otelExporterOtlpMetricsHeaders = tmpOtelExporterOtlpMetricsHeaders;
 
-    OtelConfig.Protocol tmpOtelExporterOtlpMetricsProtocol =
+    OtelMetricsConfig.Protocol tmpOtelExporterOtlpMetricsProtocol =
         configProvider.getEnum(
-            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OtelConfig.Protocol.class, null, false, "/", "_");
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OtelMetricsConfig.Protocol.class, null, false, "/", "_");
     if (tmpOtelExporterOtlpMetricsProtocol == null) {
       tmpOtelExporterOtlpMetricsProtocol =
           configProvider.getEnum(
               OTEL_EXPORTER_OTLP_PROTOCOL,
-              OtelConfig.Protocol.class,
+              OtelMetricsConfig.Protocol.class,
               DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
               false,
               "/",
@@ -1916,7 +1913,7 @@ public class Config {
     String tmpOtelExporterOtlpMetricsEndpoint =
         configProvider.getString(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT);
     if (tmpOtelExporterOtlpMetricsEndpoint == null) {
-      boolean isHttp = !otelExporterOtlpMetricsProtocol.equals(OtelConfig.Protocol.GRPC);
+      boolean isHttp = !otelExporterOtlpMetricsProtocol.equals(OtelMetricsConfig.Protocol.GRPC);
       String tmpOtelExporterOtlpEndpoint = configProvider.getString(OTEL_EXPORTER_OTLP_ENDPOINT);
       if (null == tmpOtelExporterOtlpEndpoint) {
         String endpointHost = agentHost.isEmpty() ? DEFAULT_AGENT_HOST : agentHost;
@@ -1951,14 +1948,12 @@ public class Config {
     otelExporterOtlpMetricsTemporalityPreference =
         configProvider.getEnum(
             OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
-            OtelConfig.Temporality.class,
-            OtelConfig.Temporality.DELTA,
+            OtelMetricsConfig.Temporality.class,
+            OtelMetricsConfig.Temporality.DELTA,
             false);
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
-    runtimeMetricsEnabled =
-        (!metricsOtelEnabled || !otelMetricsExporter.equals(OtelConfig.Exporter.NONE))
-            && configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -5100,11 +5095,7 @@ public class Config {
     return metricsOtelEnabled;
   }
 
-  public Map<String, String> getOtelResourceAttributes() {
-    return otelResourceAttributes;
-  }
-
-  public OtelConfig.Exporter getOtelMetricsExporter() {
+  public OtelMetricsConfig.Exporter getOtelMetricsExporter() {
     return otelMetricsExporter;
   }
 
@@ -5124,7 +5115,7 @@ public class Config {
     return otelExporterOtlpMetricsHeaders;
   }
 
-  public OtelConfig.Protocol getOtelExporterOtlpMetricsProtocol() {
+  public OtelMetricsConfig.Protocol getOtelExporterOtlpMetricsProtocol() {
     return otelExporterOtlpMetricsProtocol;
   }
 
@@ -5132,7 +5123,7 @@ public class Config {
     return otelExporterOtlpMetricsTimeout;
   }
 
-  public OtelConfig.Temporality getOtelExporterOtlpMetricsTemporalityPreference() {
+  public OtelMetricsConfig.Temporality getOtelExporterOtlpMetricsTemporalityPreference() {
     return otelExporterOtlpMetricsTemporalityPreference;
   }
 
@@ -6126,8 +6117,6 @@ public class Config {
         + aiGuardEndpoint
         + ", metricsOtelEnabled="
         + metricsOtelEnabled
-        + ", otelResourceAttributes="
-        + otelResourceAttributes
         + ", otelMetricsExporter="
         + otelMetricsExporter
         + ", otelMetricExportInterval="

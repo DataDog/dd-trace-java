@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
@@ -7,6 +8,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtelMetricsConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
@@ -71,32 +73,26 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
-    this.enabled = traceOtelEnabled();
+    this.enabled = traceOtelEnabled() || metricsOtelEnabled();
     this.datadogConfigFile = datadogConfigFile;
 
     if (enabled) {
-      setupOteEnvironment();
+      setupOtelEnvironment();
     }
   }
 
-  private void setupOteEnvironment() {
+  private void setupOtelEnvironment() {
 
-    // only applies when OTEL is enabled by default (otherwise TRACE_OTEL_ENABLED takes precedence)
+    // only applies when OTEL is enabled by default
     String sdkDisabled = getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
     if ("true".equalsIgnoreCase(sdkDisabled)) {
       capture(TRACE_OTEL_ENABLED, "false");
+      capture(METRICS_OTEL_ENABLED, "false");
       return;
     }
-
-    String serviceName = getOtelProperty("otel.service.name", "dd." + SERVICE_NAME);
     String logLevel = getOtelProperty("otel.log.level", "dd." + LOG_LEVEL);
-    String propagators = getOtelProperty("otel.propagators", "dd." + TRACE_PROPAGATION_STYLE);
-    String tracesSampler = getOtelProperty("otel.traces.sampler", "dd." + TRACE_SAMPLE_RATE);
     String resourceAttributes = getOtelProperty("otel.resource.attributes", "dd." + TAGS);
-    String requestHeaders = getOtelHeaders("request-headers", "dd." + REQUEST_HEADER_TAGS);
-    String responseHeaders = getOtelHeaders("response-headers", "dd." + RESPONSE_HEADER_TAGS);
-    String extensions = getOtelProperty("otel.javaagent.extensions", "dd." + TRACE_EXTENSIONS_PATH);
-
+    String serviceName = getOtelProperty("otel.service.name", "dd." + SERVICE_NAME);
     if (null != resourceAttributes) {
       Map<String, String> attributeMap = parseOtelMap(resourceAttributes);
       capture(SERVICE_NAME, attributeMap.remove("service.name"));
@@ -104,20 +100,37 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       capture(ENV, attributeMap.remove("deployment.environment"));
       capture(TAGS, renderDatadogMap(attributeMap, 10));
     }
-
     capture(LOG_LEVEL, logLevel);
     capture(SERVICE_NAME, serviceName);
+    mapDataCollection("logs"); // check setting, but no need to capture it
+
+    if (traceOtelEnabled()) {
+      setupOtelTraceEnvironment();
+    }
+    if (metricsOtelEnabled()) {
+      setupOtelMetricsEnvironment();
+    }
+  }
+
+  private void setupOtelTraceEnvironment() {
+    String propagators = getOtelProperty("otel.propagators", "dd." + TRACE_PROPAGATION_STYLE);
+    String tracesSampler = getOtelProperty("otel.traces.sampler", "dd." + TRACE_SAMPLE_RATE);
+
+    String requestHeaders = getOtelHeaders("request-headers", "dd." + REQUEST_HEADER_TAGS);
+    String responseHeaders = getOtelHeaders("response-headers", "dd." + RESPONSE_HEADER_TAGS);
+    String extensions = getOtelProperty("otel.javaagent.extensions", "dd." + TRACE_EXTENSIONS_PATH);
     capture(TRACE_PROPAGATION_STYLE, mapPropagationStyle(propagators));
     capture(TRACE_SAMPLE_RATE, mapSampleRate(tracesSampler));
-
     capture(TRACE_ENABLED, mapDataCollection("traces"));
-    capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
-    mapDataCollection("logs"); // check setting, but no need to capture it
 
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
 
     capture(TRACE_EXTENSIONS_PATH, extensions);
+  }
+
+  private void setupOtelMetricsEnvironment() {
+    capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
   }
 
   private boolean traceOtelEnabled() {
@@ -126,6 +139,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return Boolean.parseBoolean(enabled);
     } else {
       return DEFAULT_TRACE_OTEL_ENABLED;
+    }
+  }
+
+  private boolean metricsOtelEnabled() {
+    String enabled = getDatadogProperty("dd." + METRICS_OTEL_ENABLED);
+    if (null != enabled) {
+      return Boolean.parseBoolean(enabled);
+    } else {
+      return DEFAULT_METRICS_OTEL_ENABLED;
     }
   }
 

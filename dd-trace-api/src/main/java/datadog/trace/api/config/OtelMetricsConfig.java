@@ -1,6 +1,6 @@
 package datadog.trace.api.config;
 
-public final class OtelConfig {
+public final class OtelMetricsConfig {
 
   public static final String METRICS_OTEL_ENABLED = "metrics.otel.enabled";
   public static final String OTEL_RESOURCE_ATTRIBUTES = "otel.resource.attributes";
@@ -43,5 +43,5 @@ public final class OtelConfig {
     HTTP_JSON;
   }
 
-  private OtelConfig() {}
+  private OtelMetricsConfig() {}
 }

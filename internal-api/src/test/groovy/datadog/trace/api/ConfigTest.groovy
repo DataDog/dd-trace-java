@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
-
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
@@ -58,7 +58,6 @@ import static datadog.trace.api.config.GeneralConfig.SITE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
-import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
@@ -138,26 +137,26 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.api.config.OtelConfig.Protocol.GRPC
-import static datadog.trace.api.config.OtelConfig.Protocol.HTTP_PROTOBUF
-import static datadog.trace.api.config.OtelConfig.Protocol.HTTP_JSON
-import static datadog.trace.api.config.OtelConfig.Exporter.OTLP
-import static datadog.trace.api.config.OtelConfig.Temporality.CUMULATIVE
-import static datadog.trace.api.config.OtelConfig.Temporality.DELTA
-import static datadog.trace.api.config.OtelConfig.METRICS_OTEL_ENABLED
-import static datadog.trace.api.config.OtelConfig.OTEL_RESOURCE_ATTRIBUTES
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_ENDPOINT
-import static datadog.trace.api.config.OtelConfig.OTEL_METRICS_EXPORTER
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_EXPORT_INTERVAL
-import static datadog.trace.api.config.OtelConfig.OTEL_METRIC_EXPORT_TIMEOUT
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_PROTOCOL
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_TIMEOUT
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_HEADERS
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT
-import static datadog.trace.api.config.OtelConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+import static datadog.trace.api.config.OtelMetricsConfig.Protocol.GRPC
+import static datadog.trace.api.config.OtelMetricsConfig.Protocol.HTTP_PROTOBUF
+import static datadog.trace.api.config.OtelMetricsConfig.Protocol.HTTP_JSON
+import static datadog.trace.api.config.OtelMetricsConfig.Exporter.OTLP
+import static datadog.trace.api.config.OtelMetricsConfig.Temporality.CUMULATIVE
+import static datadog.trace.api.config.OtelMetricsConfig.Temporality.DELTA
+import static datadog.trace.api.config.OtelMetricsConfig.METRICS_OTEL_ENABLED
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_RESOURCE_ATTRIBUTES
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_ENDPOINT
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRICS_EXPORTER
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_INTERVAL
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_TIMEOUT
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_PROTOCOL
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_TIMEOUT
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_HEADERS
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT
+import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
 import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
@@ -308,7 +307,6 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
     prop.setProperty(METRICS_OTEL_ENABLED, "True")
-    prop.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
     prop.setProperty(OTEL_METRICS_EXPORTER, "otlp")
     prop.setProperty(OTEL_METRIC_EXPORT_INTERVAL, "11000")
     prop.setProperty(OTEL_METRIC_EXPORT_TIMEOUT, "9000")
@@ -415,9 +413,6 @@ class ConfigTest extends DDSpecification {
     config.jdkSocketEnabled == false
 
     config.metricsOtelEnabled
-    config.otelResourceAttributes["service.name"] == "my=app"
-    config.otelResourceAttributes["service.version"] == "1.0.0"
-    config.otelResourceAttributes["deployment.environment"] == "production"
     config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000
@@ -435,7 +430,6 @@ class ConfigTest extends DDSpecification {
     def prop = new Properties()
 
     prop.setProperty(METRICS_OTEL_ENABLED, "youhou")
-    prop.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service")
     prop.setProperty(OTEL_METRICS_EXPORTER, "invalid")
     prop.setProperty(OTEL_METRIC_EXPORT_INTERVAL, "-1")
     prop.setProperty(OTEL_METRIC_EXPORT_TIMEOUT, "invalid")
@@ -450,7 +444,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.otelResourceAttributes == [:]
     config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 10000
     config.otelMetricExportTimeout == 7500
@@ -461,7 +454,6 @@ class ConfigTest extends DDSpecification {
     config.otelExporterOtlpMetricsTemporalityPreference == DELTA
   }
 
-
   def "otel metrics: default values when not set"() {
     setup:
     def prop = new Properties()
@@ -471,7 +463,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.otelResourceAttributes == [:]
     config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 10000
     config.otelMetricExportTimeout == 7500
@@ -486,30 +477,92 @@ class ConfigTest extends DDSpecification {
   def "otel metrics: check syntax for attributes and headers"() {
     setup:
     def prop = new Properties()
-    prop.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app=56,version=1.0.0,deployment:environment")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "api,key=key")
 
     when:
     Config config = Config.get(prop)
 
     then:
-    config.otelResourceAttributes.size() == 0
     config.otelExporterOtlpMetricsHeaders.size() == 0
   }
 
-
-  def  "otel metrics enabled, exporter none => runtime metrics should be disabled "() {
+  def "otel generic config via system properties - metrics enabled"() {
     setup:
-    def prop = new Properties()
-    prop.setProperty(METRICS_OTEL_ENABLED, "true")
-    prop.setProperty(OTEL_METRICS_EXPORTER, "none")
-    prop.setProperty(PREFIX + RUNTIME_METRICS_ENABLED, "true")
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty("otel.log.level", "warning")
 
     when:
-    Config config = Config.get(prop)
+    Config config = new Config()
 
     then:
-    !config.runtimeMetricsEnabled
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "warning"
+  }
+
+  def "otel generic config via system properties - trace enabled"() {
+    setup:
+    System.setProperty(PREFIX + TRACE_OTEL_ENABLED, "true")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty("otel.log.level", "warning")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "warning"
+  }
+
+
+  def "otel generic config via env var - metrics enabled"() {
+    setup:
+    environmentVariables.set(DD_METRICS_OTEL_ENABLED_ENV, "true")
+    environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    environmentVariables.set("OTEL_LOG_LEVEL", "error")
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "error"
+  }
+
+  def "otel generic config via env var - traces enabled"() {
+    setup:
+    environmentVariables.set("DD_TRACE_OTEL_ENABLED", "true")
+    environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    environmentVariables.set("OTEL_LOG_LEVEL", "error")
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "error"
   }
 
   def "otel metrics: fallback keys"() {
@@ -531,6 +584,7 @@ class ConfigTest extends DDSpecification {
     config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
     config.otelExporterOtlpMetricsTimeout == 1000
   }
+
   def "otel metrics: fallback key endpoint"() {
     setup:
     def prop = new Properties()
@@ -679,8 +733,8 @@ class ConfigTest extends DDSpecification {
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
-    config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [b: "2", c: "3", env: "production", version:"1.0.0"]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, env: "production", version:"1.0.0"]
     config.requestHeaderTags == [e: "five"]
     config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
@@ -720,7 +774,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE, env: "production", version:"1.0.0"]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -757,9 +811,8 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 128
 
     config.metricsOtelEnabled
-    config.otelResourceAttributes["service.name"] == "my=app"
-    config.otelResourceAttributes["service.version"] == "1.0.0"
-    config.otelResourceAttributes["deployment.environment"] == "production"
+    config.version == "1.0.0"
+    config.env ==  "production"
     config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000
@@ -819,10 +872,10 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == ["*":"http.request.headers."]
     config.responseHeaderTags == ["*":"http.response.headers."]
     config.metricsOtelEnabled
-    config.otelResourceAttributes.size() == 3
-    config.otelResourceAttributes["service.name"] == "my=app"
-    config.otelResourceAttributes["service.version"] == "1.0.0"
-    config.otelResourceAttributes["deployment.environment"] == "production"
+    //config.otelResourceAttributes.size() == 3
+    //config.otelResourceAttributes["service.name"] == "my=app"
+    //config.otelResourceAttributes["service.version"] == "1.0.0"
+    //config.otelResourceAttributes["deployment.environment"] == "production"
     config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000
