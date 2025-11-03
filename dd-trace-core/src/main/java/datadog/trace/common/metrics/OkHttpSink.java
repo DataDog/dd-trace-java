@@ -10,6 +10,7 @@ import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.queue.SpscArrayQueue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -23,7 +24,6 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +36,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
   private final List<EventListener> listeners;
-  private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(10);
+  private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(16);
   private final AtomicLong lastRequestTime = new AtomicLong();
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final boolean bufferingEnabled;

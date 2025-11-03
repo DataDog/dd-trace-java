@@ -4,6 +4,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
+import datadog.trace.util.queue.MpscArrayQueue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
 import java.util.Map;
@@ -11,8 +12,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscCompoundQueue;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +23,7 @@ final class Aggregator implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final Queue<Batch> batchPool;
-  private final MpscCompoundQueue<InboxItem> inbox;
+  private final MpscArrayQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final ConcurrentMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
@@ -43,7 +43,7 @@ final class Aggregator implements Runnable {
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      MpscCompoundQueue<InboxItem> inbox,
+      MpscArrayQueue<InboxItem> inbox,
       ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
@@ -64,7 +64,7 @@ final class Aggregator implements Runnable {
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      MpscCompoundQueue<InboxItem> inbox,
+      MpscArrayQueue<InboxItem> inbox,
       ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
@@ -107,7 +107,7 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private final class Drainer implements MessagePassingQueue.Consumer<InboxItem> {
+  private final class Drainer implements Consumer<InboxItem> {
 
     boolean stopped = false;
 

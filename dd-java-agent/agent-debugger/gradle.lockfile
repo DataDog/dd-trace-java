@@ -120,7 +120,6 @@ org.jacoco:org.jacoco.agent:0.8.14=jacocoAgent,jacocoAnt
 org.jacoco:org.jacoco.ant:0.8.14=jacocoAnt
 org.jacoco:org.jacoco.core:0.8.14=jacocoAnt
 org.jacoco:org.jacoco.report:0.8.14=jacocoAnt
-org.jctools:jctools-core:3.3.0=testRuntimeClasspath
 org.jetbrains.intellij.deps:trove4j:1.0.20200330=testRuntimeClasspath
 org.jetbrains.kotlin:kotlin-compiler-embeddable:2.1.21=testCompileClasspath,testRuntimeClasspath
 org.jetbrains.kotlin:kotlin-daemon-embeddable:2.1.21=testRuntimeClasspath
