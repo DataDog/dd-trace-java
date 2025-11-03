@@ -1,5 +1,6 @@
 package com.datadog.aiguard;
 
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
@@ -10,7 +11,6 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.aiguard.AIGuard;
@@ -90,7 +90,7 @@ public class AIGuardInternal implements Evaluator {
             "DD-APPLICATION-KEY",
             appKey,
             "DD-AI-GUARD-VERSION",
-            VersionInfo.VERSION,
+            TRACER_VERSION,
             "DD-AI-GUARD-SOURCE",
             "SDK",
             "DD-AI-GUARD-LANGUAGE",
@@ -279,10 +279,12 @@ public class AIGuardInternal implements Evaluator {
   }
 
   private static Map<String, String> mapOf(final String... props) {
+    if (props.length % 2 != 0) {
+      throw new IllegalArgumentException("Props must be even");
+    }
     final Map<String, String> map = new HashMap<>(props.length << 1);
-    int index = 0;
-    while (index < props.length) {
-      map.put(props[index++], props[index++]);
+    for (int i = 0; i < props.length; ) {
+      map.put(props[i++], props[i++]);
     }
     return map;
   }
