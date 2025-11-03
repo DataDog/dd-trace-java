@@ -35,6 +35,7 @@ final class TypeOutline extends WithName {
   private final List<FieldDescription.InDefinedShape> declaredFields = new ArrayList<>();
   private final List<MethodDescription.InDefinedShape> declaredMethods = new ArrayList<>();
 
+  // comment to trigger CI
   TypeOutline(int access, String internalName, String superName, String[] interfaces) {
     super(internalName.replace('/', '.'));
     this.modifiers = access & ALLOWED_TYPE_MODIFIERS;
