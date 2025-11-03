@@ -40,7 +40,6 @@ cp /tmp/java_pid*.hprof $REPORTS_DIR 2>/dev/null || true
 cp /tmp/javacore.* $REPORTS_DIR 2>/dev/null || true
 cp /tmp/*.trc $REPORTS_DIR 2>/dev/null || true
 cp /tmp/*.dmp $REPORTS_DIR 2>/dev/null || true
-cp /tmp/*.hprof $REPORTS_DIR 2>/dev/null || true
 cp /tmp/dd-profiler/*.jfr $REPORTS_DIR 2>/dev/null || true
 
 function process_reports () {

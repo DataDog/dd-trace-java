@@ -45,7 +45,7 @@ spotless {
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
     ktlint('1.7.1').editorConfigOverride([
-       // Disable trailing comma rules to minimize diff.
+      // Disable trailing comma rules to minimize diff.
       'ktlint_standard_trailing-comma-on-call-site': 'disabled',
       'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
     ])
@@ -68,7 +68,7 @@ spotless {
     scala {
       toggleOffOn()
       targetExclude(buildDirectoryFiles)
-      // TODO: For some reason Scala format is not working for latest versions.
+      // TODO: For some reason Scala format is working correctly with this version only.
       scalafmt('3.8.6').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
