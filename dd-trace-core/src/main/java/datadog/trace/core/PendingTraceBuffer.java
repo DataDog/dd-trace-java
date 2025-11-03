@@ -12,16 +12,17 @@ import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.util.queue.MpscBlockingConsumerArrayQueue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.zip.ZipOutputStream;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,7 +137,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    private static final class WriteDrain implements MessagePassingQueue.Consumer<Element> {
+    private static final class WriteDrain implements Consumer<Element> {
       private static final WriteDrain WRITE_DRAIN = new WriteDrain();
 
       @Override
@@ -145,8 +146,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    private static final class DumpDrain
-        implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
+    private static final class DumpDrain implements Consumer<Element>, Supplier<Element> {
       private static final Logger LOGGER = LoggerFactory.getLogger(DumpDrain.class);
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
       private static final int MAX_DUMPED_TRACES = 50;

@@ -74,7 +74,6 @@ dependencies {
 
   implementation libs.slf4j
   implementation libs.moshi
-  implementation libs.jctools
 
   implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
 

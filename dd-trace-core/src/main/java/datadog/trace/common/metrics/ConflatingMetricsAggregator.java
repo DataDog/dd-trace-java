@@ -33,6 +33,8 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.queue.MpscArrayQueue;
+import datadog.trace.util.queue.SpmcArrayQueue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,8 +49,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
-import org.jctools.queues.MpscCompoundQueue;
-import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +94,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final MpscCompoundQueue<InboxItem> inbox;
+  private final MpscArrayQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
@@ -177,7 +177,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       long reportingInterval,
       TimeUnit timeUnit) {
     this.ignoredResources = ignoredResources;
-    this.inbox = new MpscCompoundQueue<>(queueSize);
+    this.inbox = new MpscArrayQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
     this.keys = new ConcurrentHashMap<>();

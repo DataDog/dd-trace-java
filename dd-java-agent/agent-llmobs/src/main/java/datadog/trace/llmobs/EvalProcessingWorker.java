@@ -12,6 +12,7 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.llmobs.domain.LLMObsEval;
+import datadog.trace.util.queue.MpscArrayQueue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -20,7 +21,6 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ public class EvalProcessingWorker implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(EvalProcessingWorker.class);
 
-  private final MpscBlockingConsumerArrayQueue<LLMObsEval> queue;
+  private final MpscArrayQueue<LLMObsEval> queue;
   private final Thread serializerThread;
 
   public EvalProcessingWorker(
@@ -43,7 +43,7 @@ public class EvalProcessingWorker implements AutoCloseable {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       Config config) {
-    this.queue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.queue = new MpscArrayQueue<>(capacity);
 
     boolean isAgentless = config.isLlmObsAgentlessEnabled();
     if (isAgentless && (config.getApiKey() == null || config.getApiKey().isEmpty())) {
@@ -98,7 +98,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(EvalSerializingHandler.class);
     private static final int FLUSH_THRESHOLD = 50;
 
-    private final MpscBlockingConsumerArrayQueue<LLMObsEval> queue;
+    private final MpscArrayQueue<LLMObsEval> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
 
@@ -111,7 +111,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private final List<LLMObsEval> buffer = new ArrayList<>();
 
     public EvalSerializingHandler(
-        final MpscBlockingConsumerArrayQueue<LLMObsEval> queue,
+        final MpscArrayQueue<LLMObsEval> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,
