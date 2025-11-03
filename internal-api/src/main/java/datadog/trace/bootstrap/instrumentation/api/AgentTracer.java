@@ -6,6 +6,7 @@ import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.NoopDataStreamsMonitoring;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -796,6 +797,11 @@ public class AgentTracer {
     @Override
     public List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
       return Collections.emptyList();
+    }
+
+    @Override
+    public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
+      return null;
     }
   }
 }

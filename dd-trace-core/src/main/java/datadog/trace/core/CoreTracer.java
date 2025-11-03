@@ -86,6 +86,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
+import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -679,6 +680,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     } else {
       traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
     }
+
+    DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
+    String dataStreamsTransactionExtractorsJson = config.getDataStreamsTransactionExtractors();
+    if (dataStreamsTransactionExtractorsJson == null) {
+      dataStreamsTransactionExtractors = DataStreamsTransactionExtractors.EMPTY;
+    } else {
+      dataStreamsTransactionExtractors =
+          DataStreamsTransactionExtractors.deserialize(dataStreamsTransactionExtractorsJson);
+    }
+
     // Get initial Span Sampling Rules from config
     String spanSamplingRulesJson = config.getSpanSamplingRules();
     String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
@@ -708,6 +719,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
             .setTracingTags(config.getMergedSpanTags())
+            .setDataStreamsTransactionExtractors(
+                dataStreamsTransactionExtractors.getExtractors(),
+                dataStreamsTransactionExtractorsJson)
             .apply();
 
     this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
