@@ -1,16 +1,17 @@
 package datadog.trace.instrumentation.rocketmq;
 
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+
 import org.apache.rocketmq.client.hook.ConsumeMessageContext;
 import org.apache.rocketmq.client.hook.ConsumeMessageHook;
+
+import static datadog.trace.instrumentation.rocketmq.RocketMqDecorator.CONSUMER_DECORATE;
 
 public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
   private final RocketMqDecorator rocketMqDecorator;
   //private final ContextStore<ConsumeMessageContext,AgentScope> scopeAccessor;
 
   TracingConsumeMessageHookImpl() {
-    this.rocketMqDecorator = new RocketMqDecorator();
+    this.rocketMqDecorator = CONSUMER_DECORATE;
  //   this.scopeAccessor = scopeAccessor;
   }
 
