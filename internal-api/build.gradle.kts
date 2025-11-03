@@ -121,6 +121,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
     "datadog.trace.bootstrap.instrumentation.api.ScopedContext",
     "datadog.trace.bootstrap.instrumentation.api.ScopedContextKey",
+    "datadog.trace.bootstrap.instrumentation.api.SpanWrapper",
     "datadog.trace.bootstrap.instrumentation.api.TagContext",
     "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
     "datadog.trace.api.civisibility.config.TestIdentifier",
