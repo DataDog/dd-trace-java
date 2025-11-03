@@ -102,35 +102,26 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
     capture(LOG_LEVEL, logLevel);
     capture(SERVICE_NAME, serviceName);
+    capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
     mapDataCollection("logs"); // check setting, but no need to capture it
 
     if (traceOtelEnabled()) {
       setupOtelTraceEnvironment();
-    }
-    if (metricsOtelEnabled()) {
-      setupOtelMetricsEnvironment();
     }
   }
 
   private void setupOtelTraceEnvironment() {
     String propagators = getOtelProperty("otel.propagators", "dd." + TRACE_PROPAGATION_STYLE);
     String tracesSampler = getOtelProperty("otel.traces.sampler", "dd." + TRACE_SAMPLE_RATE);
-
     String requestHeaders = getOtelHeaders("request-headers", "dd." + REQUEST_HEADER_TAGS);
     String responseHeaders = getOtelHeaders("response-headers", "dd." + RESPONSE_HEADER_TAGS);
     String extensions = getOtelProperty("otel.javaagent.extensions", "dd." + TRACE_EXTENSIONS_PATH);
     capture(TRACE_PROPAGATION_STYLE, mapPropagationStyle(propagators));
     capture(TRACE_SAMPLE_RATE, mapSampleRate(tracesSampler));
     capture(TRACE_ENABLED, mapDataCollection("traces"));
-
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
-
     capture(TRACE_EXTENSIONS_PATH, extensions);
-  }
-
-  private void setupOtelMetricsEnvironment() {
-    capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
   }
 
   private boolean traceOtelEnabled() {
