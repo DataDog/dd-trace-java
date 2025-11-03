@@ -9,11 +9,10 @@ import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.util.queue.MpscBlockingConsumerArrayQueue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,7 +171,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
         }
       }
 
-      private void consumeBatch(MessagePassingQueue<Object> queue) {
+      private void consumeBatch(MpscBlockingConsumerArrayQueue<Object> queue) {
         queue.drain(this::onEvent, queue.size());
       }
     }
