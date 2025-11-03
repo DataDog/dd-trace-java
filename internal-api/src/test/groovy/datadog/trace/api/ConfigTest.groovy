@@ -872,10 +872,6 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == ["*":"http.request.headers."]
     config.responseHeaderTags == ["*":"http.response.headers."]
     config.metricsOtelEnabled
-    //config.otelResourceAttributes.size() == 3
-    //config.otelResourceAttributes["service.name"] == "my=app"
-    //config.otelResourceAttributes["service.version"] == "1.0.0"
-    //config.otelResourceAttributes["deployment.environment"] == "production"
     config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000

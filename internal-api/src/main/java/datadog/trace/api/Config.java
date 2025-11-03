@@ -1870,7 +1870,10 @@ public class Config {
 
     otelMetricsExporter =
         configProvider.getEnum(
-            OTEL_METRICS_EXPORTER, OtelMetricsConfig.Exporter.class, DEFAULT_OTEL_METRICS_EXPORTER, false);
+            OTEL_METRICS_EXPORTER,
+            OtelMetricsConfig.Exporter.class,
+            DEFAULT_OTEL_METRICS_EXPORTER,
+            false);
 
     Integer tmpOtelMetricExportTimeout = configProvider.getInteger(OTEL_METRIC_EXPORT_TIMEOUT);
     otelMetricExportTimeout =
@@ -1894,7 +1897,12 @@ public class Config {
 
     OtelMetricsConfig.Protocol tmpOtelExporterOtlpMetricsProtocol =
         configProvider.getEnum(
-            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OtelMetricsConfig.Protocol.class, null, false, "/", "_");
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            OtelMetricsConfig.Protocol.class,
+            null,
+            false,
+            "/",
+            "_");
     if (tmpOtelExporterOtlpMetricsProtocol == null) {
       tmpOtelExporterOtlpMetricsProtocol =
           configProvider.getEnum(
