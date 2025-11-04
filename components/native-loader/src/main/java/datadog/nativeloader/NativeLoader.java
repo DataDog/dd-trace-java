@@ -11,6 +11,9 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -26,6 +29,7 @@ public final class NativeLoader {
     private String[] preloadedLibNames;
     private LibraryResolver libResolver;
     private PathLocator pathLocator;
+    private List<LibraryLoadingListener> listeners = new ArrayList<>();
 
     Builder() {}
 
@@ -138,6 +142,16 @@ public final class NativeLoader {
       return this.tempDir(Paths.get(tmpPath));
     }
 
+    public Builder addListener(LibraryLoadingListener listener) {
+      this.listeners.add(listener);
+      return this;
+    }
+
+    public Builder addListeners(LibraryLoadingListener... listeners) {
+      this.listeners.addAll(Arrays.asList(listeners));
+      return this;
+    }
+
     /** Constructs and returns the {@link NativeLoader} */
     public NativeLoader build() {
       return new NativeLoader(this);
@@ -149,6 +163,12 @@ public final class NativeLoader {
 
     PathLocator pathLocator() {
       return (this.pathLocator == null) ? PathLocators.defaultPathLocator() : this.pathLocator;
+    }
+
+    SafeLibraryLoadingListener listeners() {
+      return this.listeners.isEmpty()
+          ? NopLibraryLoadingListener.INSTANCE
+          : new CompositeLibraryLoadingListener(this.listeners);
     }
 
     LibraryResolver libResolver() {
@@ -172,12 +192,14 @@ public final class NativeLoader {
   private final PlatformSpec defaultPlatformSpec;
   private final LibraryResolver libResolver;
   private final PathLocator pathResolver;
+  private final SafeLibraryLoadingListener listeners;
   private final Path tempDir;
 
   private NativeLoader(Builder builder) {
     this.defaultPlatformSpec = builder.platformSpec();
     this.libResolver = builder.libResolver();
     this.pathResolver = builder.pathLocator();
+    this.listeners = builder.listeners();
     this.tempDir = builder.tempDir();
   }
 
@@ -193,24 +215,32 @@ public final class NativeLoader {
 
   /** Loads a library */
   public void load(String libName) throws LibraryLoadException {
-    this.load(null, libName);
+    this.loadImpl(null, libName, null);
+  }
+
+  public void load(String libName, LibraryLoadingListener listener) throws LibraryLoadException {
+    this.loadImpl(null, libName, listener);
   }
 
   /** Loads a library associated with an associated component */
-  public void load(String component, String libName) throws LibraryLoadException {
-    try (LibFile libFile = this.resolveDynamic(component, libName)) {
+  public void load(String component, String libName) throws LibraryLoadException {}
+
+  private void loadImpl(String component, String libName, LibraryLoadingListener listener)
+      throws LibraryLoadException {
+    try (LibFile libFile =
+        this.resolveDynamicImpl(this.defaultPlatformSpec, component, libName, listener)) {
       libFile.load();
     }
   }
 
   /** Resolves a library to a LibFile - creating a temporary file if necessary */
   public LibFile resolveDynamic(String libName) throws LibraryLoadException {
-    return this.resolveDynamic((String) null, libName);
+    return this.resolveDynamicImpl(this.defaultPlatformSpec, null, libName, null);
   }
 
   /** Resolves a library with an associated component */
   public LibFile resolveDynamic(String component, String libName) throws LibraryLoadException {
-    return this.resolveDynamic(component, this.defaultPlatformSpec, libName);
+    return this.resolveDynamicImpl(this.defaultPlatformSpec, component, libName, null);
   }
 
   /**
@@ -219,62 +249,93 @@ public final class NativeLoader {
    */
   public LibFile resolveDynamic(PlatformSpec platformSpec, String libName)
       throws LibraryLoadException {
-    return this.resolveDynamic(null, platformSpec, libName);
+    return this.resolveDynamicImpl(platformSpec, null, libName, null);
   }
 
   /**
    * Resolves a library with an associated component with a different {@link PlatformSpec} than the
    * default
    */
-  public LibFile resolveDynamic(String component, PlatformSpec platformSpec, String libName)
+  public LibFile resolveDynamic(PlatformSpec platformSpec, String component, String libName)
       throws LibraryLoadException {
+    return this.resolveDynamicImpl(platformSpec, component, libName, null);
+  }
+
+  private LibFile resolveDynamicImpl(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      LibraryLoadingListener listener)
+      throws LibraryLoadException {
+    SafeLibraryLoadingListener listeners =
+        (listener == null) ? this.listeners : this.listeners.join(listener);
+
     if (platformSpec.isUnknownOs() || platformSpec.isUnknownArch()) {
-      throw new LibraryLoadException(libName, "Unsupported platform");
+      LibraryLoadException ex = new LibraryLoadException(libName, "Unsupported platform");
+      listeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, ex);
+      throw ex;
     }
 
     if (this.isPreloaded(platformSpec, libName)) {
-      return LibFile.preloaded(libName);
+      return LibFile.preloaded(platformSpec, optionalComponent, libName, listeners);
     }
 
     URL url;
     try {
-      url = this.libResolver.resolve(this.pathResolver, component, platformSpec, libName);
+      url = this.libResolver.resolve(this.pathResolver, optionalComponent, platformSpec, libName);
     } catch (LibraryLoadException e) {
       // don't wrap if it is already a LibraryLoadException
+      listeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, e);
       throw e;
     } catch (Throwable t) {
-      throw new LibraryLoadException(libName, t);
+      LibraryLoadException ex = new LibraryLoadException(libName, t);
+      listeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, ex);
+      throw ex;
     }
 
     if (url == null) {
-      throw new LibraryLoadException(libName);
+      LibraryLoadException ex = new LibraryLoadException(libName);
+      listeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, ex);
+      throw ex;
     }
-    return toLibFile(platformSpec, libName, url);
+
+    listeners.onResolveDynamic(platformSpec, optionalComponent, libName, url);
+    return this.toLibFile(platformSpec, optionalComponent, libName, url, listeners);
   }
 
-  private LibFile toLibFile(PlatformSpec platformSpec, String libName, URL url)
+  private LibFile toLibFile(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      URL url,
+      SafeLibraryLoadingListener listeners)
       throws LibraryLoadException {
     if (url.getProtocol().equals("file")) {
-      return LibFile.fromFile(libName, new File(url.getPath()));
+      return LibFile.fromFile(
+          platformSpec, optionalComponent, libName, new File(url.getPath()), listeners);
     } else {
       String libExt = PathUtils.dynamicLibExtension(platformSpec);
 
+      Path tempFile = null;
       try {
-        Path tempFile = TempFileHelper.createTempFile(this.tempDir, libName, libExt);
+        tempFile = TempFileHelper.createTempFile(this.tempDir, libName, libExt);
 
         try (InputStream in = url.openStream()) {
           Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
         }
 
-        return LibFile.fromTempFile(libName, tempFile.toFile());
+        return LibFile.fromTempFile(
+            platformSpec, optionalComponent, libName, tempFile.toFile(), listeners);
       } catch (Throwable t) {
+        listeners.onTempFileCreationFailure(
+            platformSpec, optionalComponent, libName, this.tempDir, libExt, tempFile, t);
         throw new LibraryLoadException(libName, t);
       }
     }
   }
 
-  static void delete(File tempFile) {
-    TempFileHelper.delete(tempFile);
+  static boolean delete(File tempFile) {
+    return TempFileHelper.delete(tempFile);
   }
 
   static final class TempFileHelper {
@@ -296,9 +357,10 @@ public final class NativeLoader {
       }
     }
 
-    static void delete(File tempFile) {
+    static boolean delete(File tempFile) {
       boolean deleted = tempFile.delete();
       if (!deleted) tempFile.deleteOnExit();
+      return deleted;
     }
   }
 }
