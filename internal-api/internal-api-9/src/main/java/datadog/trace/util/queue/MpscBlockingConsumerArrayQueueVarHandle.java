@@ -1,7 +1,8 @@
 package datadog.trace.util.queue;
 
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * JCtools-like MpscBlockingConsumerArrayQueue implemented without Unsafe.
@@ -9,10 +10,21 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>It features nonblocking offer/poll methods and blocking (condition based) take/put.
  */
 public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E> {
-  // Blocking controls
-  private final ReentrantLock lock = new ReentrantLock();
-  private final Condition notEmpty = lock.newCondition();
-  private final Condition notFull = lock.newCondition();
+  /** Consumer thread reference for wake-up. */
+  private volatile Thread consumerThread;
+
+  private static final VarHandle CONSUMER_THREAD_HANDLE;
+
+  static {
+    try {
+      MethodHandles.Lookup l = MethodHandles.lookup();
+      CONSUMER_THREAD_HANDLE =
+          l.findVarHandle(
+              MpscBlockingConsumerArrayQueueVarHandle.class, "consumerThread", Thread.class);
+    } catch (Throwable t) {
+      throw new IllegalStateException(t);
+    }
+  }
 
   public MpscBlockingConsumerArrayQueueVarHandle(int capacity) {
     super(capacity);
@@ -22,71 +34,34 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
   public boolean offer(E e) {
     final boolean success = super.offer(e);
     if (success) {
-      signalNotEmpty();
+      Thread c = (Thread) CONSUMER_THREAD_HANDLE.getVolatile(this);
+      if (c != null) LockSupport.unpark(c);
     }
     return success;
   }
 
   public void put(E e) throws InterruptedException {
-    while (!offer(e)) {
-      awaitNotFull();
-    }
+    // in this variant we should not use a blocking put since we do not support blocking producers
+    throw new UnsupportedOperationException();
   }
 
-  @Override
-  public E poll() {
-    final E ret = super.poll();
-    if (ret != null) {
-      signalNotFull();
-    }
-    return ret;
-  }
-
+  /**
+   * Retrieves and removes the head element, waiting if necessary until one becomes available.
+   *
+   * @return the next element (never null)
+   * @throws InterruptedException if interrupted while waiting
+   */
   public E take() throws InterruptedException {
-    E e;
-    while ((e = poll()) == null) {
-      awaitNotEmpty();
-    }
-    return e;
-  }
+    consumerThread = Thread.currentThread();
+    while (true) {
+      E e = poll();
+      if (e != null) return e;
 
-  private void signalNotEmpty() {
-    lock.lock();
-    try {
-      notEmpty.signal();
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void signalNotFull() {
-    lock.lock();
-    try {
-      notFull.signal();
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void awaitNotEmpty() throws InterruptedException {
-    lock.lockInterruptibly();
-    try {
-      while (isEmpty()) {
-        notEmpty.await();
+      if (Thread.interrupted()) {
+        throw new InterruptedException();
       }
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void awaitNotFull() throws InterruptedException {
-    lock.lockInterruptibly();
-    try {
-      while (size() == capacity) {
-        notFull.await();
-      }
-    } finally {
-      lock.unlock();
+      // Block until producer unparks us
+      LockSupport.park(this);
     }
   }
 }
