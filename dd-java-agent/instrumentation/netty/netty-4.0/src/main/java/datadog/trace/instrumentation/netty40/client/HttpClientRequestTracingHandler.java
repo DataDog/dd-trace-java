@@ -4,6 +4,7 @@ import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
@@ -79,7 +80,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     final AgentSpan span = startSpan("netty", NETTY_CLIENT_REQUEST);
     final Context spanContext;
-    try (final ContextScope contextScope = span.attach()) {
+    try (final ContextScope contextScope = getCurrentContext().with(span).attach()) {
       spanContext = contextScope.context();
     }
     try (final AgentScope scope = activateSpan(span)) {

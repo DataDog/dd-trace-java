@@ -31,7 +31,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = parent.attach()) {
+    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
     }
 
@@ -60,7 +60,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = parent.attach()) {
+    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
     }
 
@@ -88,7 +88,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = parent.attach()) {
+    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
     }
 

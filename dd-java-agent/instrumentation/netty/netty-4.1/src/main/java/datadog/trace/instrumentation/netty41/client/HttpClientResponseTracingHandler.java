@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty41.client;
 
+import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
@@ -33,7 +34,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = parent.attach()) {
+    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
     }
 
@@ -50,7 +51,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
           span.finish();
         }
       } else {
-        try (final ContextScope contextScope = span.attach()) {
+        try (final ContextScope contextScope = current().with(span).attach()) {
           ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(contextScope.context());
         }
       }
@@ -71,7 +72,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = parent.attach()) {
+    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
     }
 
@@ -99,7 +100,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality  as getAndSet(parent)
-    try (final ContextScope parentScope = parent.attach()) {
+    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
     }
 
