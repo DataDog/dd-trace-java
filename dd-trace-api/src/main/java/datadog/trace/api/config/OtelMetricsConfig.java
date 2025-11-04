@@ -23,10 +23,6 @@ public final class OtelMetricsConfig {
   public static final String OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otel.exporter.otlp.metrics.temporality.preference";
 
-  public static final String DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX = "v1/metrics";
-  public static final String DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT = "4318";
-  public static final String DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT = "4317";
-
   public enum Temporality {
     CUMULATIVE,
     DELTA,

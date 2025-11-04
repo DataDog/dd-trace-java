@@ -109,6 +109,9 @@ public final class ConfigDefaults {
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_INTERVAL = 10000;
   // WARNING: This defies the OpenTelemetry specification’s default value of 30000 (30s)
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT = 7500;
+  static final String DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX = "v1/metrics";
+  static final String DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT = "4318";
+  static final String DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT = "4317";
   static final Protocol DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL = Protocol.GRPC;
   static final int DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT = 10000;
 
