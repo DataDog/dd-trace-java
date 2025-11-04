@@ -33,8 +33,8 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.MpscArrayQueue;
-import datadog.trace.util.queue.SpmcArrayQueue;
+import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -94,7 +94,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final MpscArrayQueue<InboxItem> inbox;
+  private final BaseQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
@@ -177,8 +177,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       long reportingInterval,
       TimeUnit timeUnit) {
     this.ignoredResources = ignoredResources;
-    this.inbox = new MpscArrayQueue<>(queueSize);
-    this.batchPool = new SpmcArrayQueue<>(maxAggregates);
+    this.inbox = Queues.mpscArrayQueue(queueSize);
+    this.batchPool = Queues.spmcArrayQueue(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
     this.keys = new ConcurrentHashMap<>();
     this.features = features;

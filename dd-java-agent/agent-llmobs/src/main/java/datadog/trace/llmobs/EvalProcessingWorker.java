@@ -12,7 +12,8 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.llmobs.domain.LLMObsEval;
-import datadog.trace.util.queue.MpscArrayQueue;
+import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +35,7 @@ public class EvalProcessingWorker implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(EvalProcessingWorker.class);
 
-  private final MpscArrayQueue<LLMObsEval> queue;
+  private final BaseQueue<LLMObsEval> queue;
   private final Thread serializerThread;
 
   public EvalProcessingWorker(
@@ -43,7 +44,7 @@ public class EvalProcessingWorker implements AutoCloseable {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       Config config) {
-    this.queue = new MpscArrayQueue<>(capacity);
+    this.queue = Queues.mpscArrayQueue(capacity);
 
     boolean isAgentless = config.isLlmObsAgentlessEnabled();
     if (isAgentless && (config.getApiKey() == null || config.getApiKey().isEmpty())) {
@@ -98,7 +99,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(EvalSerializingHandler.class);
     private static final int FLUSH_THRESHOLD = 50;
 
-    private final MpscArrayQueue<LLMObsEval> queue;
+    private final BaseQueue<LLMObsEval> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
 
@@ -111,7 +112,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private final List<LLMObsEval> buffer = new ArrayList<>();
 
     public EvalSerializingHandler(
-        final MpscArrayQueue<LLMObsEval> queue,
+        final BaseQueue<LLMObsEval> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,

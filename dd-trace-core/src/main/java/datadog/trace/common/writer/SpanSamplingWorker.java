@@ -9,7 +9,8 @@ import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.MpscBlockingConsumerArrayQueue;
+import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -44,7 +45,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
 
     private final Thread spanSamplingThread;
     private final SamplingHandler samplingHandler;
-    private final MpscBlockingConsumerArrayQueue<Object> spanSamplingQueue;
+    private final BaseQueue<Object> spanSamplingQueue;
     private final Queue<Object> primaryQueue;
     private final Queue<Object> secondaryQueue;
     private final SingleSpanSampler singleSpanSampler;
@@ -61,7 +62,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
         DroppingPolicy droppingPolicy) {
       this.samplingHandler = new SamplingHandler();
       this.spanSamplingThread = newAgentThread(SPAN_SAMPLING_PROCESSOR, samplingHandler);
-      this.spanSamplingQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
+      this.spanSamplingQueue = Queues.mpscBlockingConsumerArrayQueue(capacity);
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.singleSpanSampler = singleSpanSampler;
@@ -171,7 +172,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
         }
       }
 
-      private void consumeBatch(MpscBlockingConsumerArrayQueue<Object> queue) {
+      private void consumeBatch(BaseQueue<Object> queue) {
         queue.drain(this::onEvent, queue.size());
       }
     }

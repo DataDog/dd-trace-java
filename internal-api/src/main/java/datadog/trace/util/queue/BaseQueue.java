@@ -3,14 +3,16 @@ package datadog.trace.util.queue;
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
 
 import java.util.AbstractQueue;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
-public abstract class BaseQueue<E> extends AbstractQueue<E> {
+public abstract class BaseQueue<E> extends AbstractQueue<E> implements BlockingQueue<E> {
   /** The capacity of the queue (must be a power of two) */
   protected final int capacity;
 
@@ -193,5 +195,25 @@ public abstract class BaseQueue<E> extends AbstractQueue<E> {
    */
   public int capacity() {
     return capacity;
+  }
+
+  @Override
+  public void put(E e) throws InterruptedException {
+    throw new UnsupportedOperationException("Not implementing blocking operations for producers");
+  }
+
+  @Override
+  public E take() throws InterruptedException {
+    throw new UnsupportedOperationException("Not implementing blocking operations for consumers");
+  }
+
+  @Override
+  public int drainTo(Collection<? super E> c) {
+    return drainTo(c, Integer.MAX_VALUE);
+  }
+
+  @Override
+  public int drainTo(Collection<? super E> c, int maxElements) {
+    return drain(c::add, maxElements);
   }
 }

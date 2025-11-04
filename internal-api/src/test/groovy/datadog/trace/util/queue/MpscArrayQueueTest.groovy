@@ -12,7 +12,7 @@ class MpscArrayQueueTest extends AbstractQueueTest<MpscArrayQueue> {
     given:
     int total = 1000
     int producers = 4
-    queue = new MpscArrayQueue<>(1024)
+    queue = datadog.trace.util.queue.Queues.
     def results = Collections.synchronizedList([])
     def executor = Executors.newFixedThreadPool(producers)
     def latch = new CountDownLatch(producers)
