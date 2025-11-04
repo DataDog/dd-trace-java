@@ -1,15 +1,8 @@
 package datadog.trace.util.queue;
 
-import static datadog.trace.util.BitUtils.nextPowerOfTwo;
-
-import java.util.AbstractQueue;
-import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.LockSupport;
-import java.util.function.Consumer;
-import javax.annotation.Nonnull;
 
 /**
  * Multiple-Producer, Single-Consumer (MPSC) bounded queue based on a circular array.
@@ -23,14 +16,7 @@ import javax.annotation.Nonnull;
  *
  * @param <E> the type of elements held in this queue
  */
-public class MpscArrayQueue<E> extends AbstractQueue<E> {
-
-  /** Capacity of the queue, always a power of two for efficient modulo indexing */
-  protected final int capacity;
-
-  /** Mask used to convert a sequence number to a circular array index (index = pos & mask) */
-  private final int mask;
-
+public class MpscArrayQueue<E> extends BaseQueue<E> {
   /** Array buffer to store the elements; uses AtomicReferenceArray for atomic slot updates */
   private final AtomicReferenceArray<E> buffer;
 
@@ -60,8 +46,6 @@ public class MpscArrayQueue<E> extends AbstractQueue<E> {
   @SuppressWarnings("unused")
   private long q10, q11, q12, q13, q14, q15, q16;
 
-  // ======================== Constructor ========================
-
   /**
    * Creates a new MPSC queue with the specified capacity. Capacity will be rounded up to the next
    * power of two for efficient modulo operations.
@@ -69,12 +53,9 @@ public class MpscArrayQueue<E> extends AbstractQueue<E> {
    * @param capacity the desired maximum number of elements
    */
   public MpscArrayQueue(int capacity) {
-    this.capacity = nextPowerOfTwo(capacity);
-    this.mask = this.capacity - 1;
+    super(capacity);
     this.buffer = new AtomicReferenceArray<>(this.capacity);
   }
-
-  // ======================== OFFER ========================
 
   /**
    * Adds the specified element to the queue if space is available.
@@ -116,50 +97,6 @@ public class MpscArrayQueue<E> extends AbstractQueue<E> {
   }
 
   /**
-   * Timed offer with progressive backoff.
-   *
-   * <p>Tries to insert an element into the queue within the given timeout. Uses a spin → yield →
-   * park backoff strategy to reduce CPU usage under contention.
-   *
-   * @param e the element to insert
-   * @param timeout maximum time to wait
-   * @param unit time unit of timeout
-   * @return {@code true} if inserted, {@code false} if timeout expires
-   * @throws InterruptedException if interrupted while waiting
-   */
-  public boolean offer(E e, long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
-    final long deadline = System.nanoTime() + unit.toNanos(timeout);
-    int idleCount = 0;
-
-    while (true) {
-      if (offer(e)) {
-        return true; // successfully inserted
-      }
-
-      long remaining = deadline - System.nanoTime();
-      if (remaining <= 0) {
-        return false; // timeout
-      }
-
-      // Progressive backoff
-      if (idleCount < 100) {
-        // spin (busy-wait)
-      } else if (idleCount < 1_000) {
-        Thread.yield(); // give up CPU to other threads
-      } else {
-        // park for a short duration, up to 1 ms
-        LockSupport.parkNanos(Math.min(remaining, 1_000_000L));
-      }
-
-      idleCount++;
-
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
-    }
-  }
-
-  /**
    * Removes and returns the head of the queue, or null if empty.
    *
    * <p>Only a single consumer may call this. Advances the head and frees the slot.
@@ -182,45 +119,6 @@ public class MpscArrayQueue<E> extends AbstractQueue<E> {
     return value;
   }
 
-  /**
-   * Polls with a timeout using progressive backoff.
-   *
-   * @param timeout max wait time
-   * @param unit time unit
-   * @return the head element, or null if timed out
-   * @throws InterruptedException if interrupted
-   */
-  public E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
-    final long deadline = System.nanoTime() + unit.toNanos(timeout);
-    int idleCount = 0;
-
-    while (true) {
-      E value = poll();
-      if (value != null) {
-        return value;
-      }
-
-      long remaining = deadline - System.nanoTime();
-      if (remaining <= 0) {
-        return null;
-      }
-
-      // Progressive backoff
-      if (idleCount < 100) {
-        // spin
-      } else if (idleCount < 1_000) {
-        Thread.yield();
-      } else {
-        LockSupport.parkNanos(Math.min(remaining, 1_000_000L));
-      }
-      idleCount++;
-
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
-    }
-  }
-
   /** Returns but does not remove the head element. */
   @Override
   public E peek() {
@@ -233,52 +131,5 @@ public class MpscArrayQueue<E> extends AbstractQueue<E> {
     long currentTail = tail;
     long currentHead = head;
     return (int) (currentTail - currentHead);
-  }
-
-  /**
-   * Drains all available elements from the queue to a consumer.
-   *
-   * <p>This is efficient since it avoids repeated size() checks and returns immediately when empty.
-   *
-   * @param consumer a consumer to accept elements
-   * @return number of elements drained
-   */
-  public int drain(Consumer<E> consumer) {
-    return drain(consumer, Integer.MAX_VALUE);
-  }
-
-  /**
-   * Drains up to {@code limit} elements from the queue to a consumer.
-   *
-   * <p>This method is useful for batch processing.
-   *
-   * <p>Each element is removed atomically using poll() and passed to the consumer.
-   *
-   * @param consumer a consumer to accept elements
-   * @param limit maximum number of elements to drain
-   * @return number of elements drained
-   */
-  public int drain(Consumer<E> consumer, int limit) {
-    int count = 0;
-    E e;
-    while (count < limit && (e = poll()) != null) {
-      consumer.accept(e);
-      count++;
-    }
-    return count;
-  }
-
-  /**
-   * Returns the remaining capacity.
-   *
-   * @return number of additional elements this queue can accept
-   */
-  public int remainingCapacity() {
-    return capacity - (int) (tail - head);
-  }
-
-  @Override
-  public Iterator<E> iterator() {
-    throw new UnsupportedOperationException();
   }
 }
