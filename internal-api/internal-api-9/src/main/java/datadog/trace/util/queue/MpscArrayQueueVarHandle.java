@@ -80,22 +80,22 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     }
 
     while (true) {
-      long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-      int index = (int) (currentTail & mask);
+      final long currentTail = (long) TAIL_HANDLE.getVolatile(this);
+      final long wrapPoint = currentTail - capacity;
+      final long currentHead = (long) HEAD_HANDLE.getVolatile(this);
 
-      Object existing = ARRAY_HANDLE.getVolatile(buffer, index);
-      if (existing != null) {
-        return false; // queue full
+      if (wrapPoint >= currentHead) {
+        return false; // full
       }
 
-      // CAS tail to claim the slot
       if (TAIL_HANDLE.compareAndSet(this, currentTail, currentTail + 1)) {
-        ARRAY_HANDLE.setRelease(buffer, index, e); // publish with release semantics
+        final int index = (int) (currentTail & mask);
+        ARRAY_HANDLE.setRelease(buffer, index, e);
         return true;
       }
 
-      // CAS failed → short backoff to reduce contention
-      LockSupport.parkNanos(1);
+      // Backoff on contention
+      LockSupport.parkNanos(1L);
     }
   }
 
@@ -110,30 +110,30 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-    int index = (int) (currentHead & mask);
+    final long currentHead = (long) HEAD_HANDLE.getOpaque(this);
+    final int index = (int) (currentHead & mask);
 
-    Object value = ARRAY_HANDLE.getVolatile(buffer, index);
+    Object value = ARRAY_HANDLE.getAcquire(buffer, index);
     if (value == null) {
-      return null; // empty
+      return null;
     }
 
-    ARRAY_HANDLE.setRelease(buffer, index, null); // mark slot free
-    HEAD_HANDLE.setVolatile(this, currentHead + 1); // advance head
+    ARRAY_HANDLE.setOpaque(buffer, index, null); // clear slot
+    HEAD_HANDLE.setOpaque(this, currentHead + 1);
     return (E) value;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    int index = (int) ((long) HEAD_HANDLE.getVolatile(this) & mask);
+    final int index = (int) ((long) HEAD_HANDLE.getOpaque(this) & mask);
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 
   @Override
   public int size() {
+    long currentHead = head; // non-volatile read
     long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
     return (int) (currentTail - currentHead);
   }
 }

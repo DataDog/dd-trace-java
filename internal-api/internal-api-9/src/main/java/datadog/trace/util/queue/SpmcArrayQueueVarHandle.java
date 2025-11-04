@@ -2,7 +2,6 @@ package datadog.trace.util.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * A Single-Producer, Multiple-Consumer (SPMC) bounded, lock-free queue based on a circular array.
@@ -79,21 +78,16 @@ public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
       throw new NullPointerException();
     }
 
-    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-    int index = (int) (currentTail & mask);
-
-    // Check if slot is still occupied (queue full)
-    Object existing = ARRAY_HANDLE.getVolatile(buffer, index);
-    if (existing != null) {
-      return false; // full
+    long currentTail = tail;
+    long wrapPoint = currentTail - capacity;
+    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    if (wrapPoint >= currentHead) {
+      return false; // queue full
     }
 
-    // Publish the element (release ensures write is visible to consumers)
+    int index = (int) (currentTail & mask);
     ARRAY_HANDLE.setRelease(buffer, index, e);
-
-    // Advance tail (release ensures the enqueue is visible to consumers)
-    TAIL_HANDLE.setRelease(this, currentTail + 1);
-
+    tail = currentTail + 1;
     return true;
   }
 
@@ -114,32 +108,40 @@ public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
 
       Object value = ARRAY_HANDLE.getAcquire(buffer, index);
       if (value == null) {
-        return null; // queue empty or not yet visible
+        // Possibly empty
+        long currentTail = tail; // producer thread only writes
+        if (currentHead >= currentTail) {
+          return null; // queue empty
+        } else {
+          // Not yet visible, retry
+          Thread.onSpinWait();
+          continue;
+        }
       }
 
-      // Attempt to claim the element
+      // Try to claim this slot
       if (HEAD_HANDLE.compareAndSet(this, currentHead, currentHead + 1)) {
-        // CAS succeeded: this consumer owns the slot
-        ARRAY_HANDLE.setRelease(buffer, index, null); // mark slot free
+        ARRAY_HANDLE.setOpaque(buffer, index, null);
         return (E) value;
       }
 
-      // CAS failed — another consumer took it, retry
-      LockSupport.parkNanos(1L);
+      // Lost race to another consumer
+      Thread.onSpinWait();
     }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    int index = (int) ((long) HEAD_HANDLE.getVolatile(this) & mask);
+    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    int index = (int) (currentHead & mask);
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 
   @Override
   public int size() {
-    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    long currentTail = tail;
     return (int) (currentTail - currentHead);
   }
 }
