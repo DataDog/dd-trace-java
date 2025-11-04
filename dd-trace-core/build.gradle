@@ -81,6 +81,8 @@ dependencies {
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
+  jmhImplementation(libs.jctools)
+
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor
   testCompileOnly libs.autoservice.annotation
