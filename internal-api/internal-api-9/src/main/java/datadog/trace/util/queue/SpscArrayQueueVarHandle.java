@@ -2,6 +2,8 @@ package datadog.trace.util.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 
 /**
  * A high-performance Single-Producer, Single-Consumer (SPSC) bounded queue using a circular buffer
@@ -35,6 +37,10 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   @SuppressWarnings("unused")
   private long q10, q11, q12, q13, q14, q15, q16;
 
+  // These caches eliminate redundant volatile reads
+  private long cachedHead = 0L; // visible only to producer
+  private long cachedTail = 0L; // visible only to consumer
+
   private static final VarHandle HEAD_HANDLE;
   private static final VarHandle TAIL_HANDLE;
   private static final VarHandle ARRAY_HANDLE;
@@ -65,8 +71,8 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   /**
    * Enqueues an element if space is available.
    *
-   * <p>Since only one producer exists, this method uses simple volatile semantics and never
-   * contends or retries.
+   * <p>Uses cached head to minimize volatile reads. Only refreshes the head when the queue looks
+   * full. Writes use release semantics for publication.
    *
    * @param e the element to enqueue
    * @return {@code true} if enqueued, {@code false} if the queue is full
@@ -78,20 +84,19 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       throw new NullPointerException();
     }
 
-    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-    int index = (int) (currentTail & mask);
+    final long currentTail = (long) TAIL_HANDLE.getOpaque(this);
+    final int index = (int) (currentTail & mask);
 
-    // Check if the next slot is still occupied
-    Object existing = ARRAY_HANDLE.getVolatile(buffer, index);
-    if (existing != null) {
-      return false; // queue full
+    if (currentTail - cachedHead >= capacity) {
+      // Refresh cached head (read from consumer side)
+      cachedHead = (long) HEAD_HANDLE.getVolatile(this);
+      if (currentTail - cachedHead >= capacity) {
+        return false; // still full
+      }
     }
 
-    // Publish element (release semantics)
-    ARRAY_HANDLE.setRelease(buffer, index, e);
-
-    // Advance tail (release ensures enqueue visibility)
-    TAIL_HANDLE.setRelease(this, currentTail + 1);
+    ARRAY_HANDLE.setRelease(buffer, index, e); // publish value
+    TAIL_HANDLE.setOpaque(this, currentTail + 1); // relaxed tail update
     return true;
   }
 
@@ -106,27 +111,27 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-    int index = (int) (currentHead & mask);
+    final long currentHead = (long) HEAD_HANDLE.getOpaque(this);
+    final int index = (int) (currentHead & mask);
 
-    Object value = ARRAY_HANDLE.getAcquire(buffer, index);
-    if (value == null) {
-      return null; // queue empty
+    if (currentHead >= cachedTail) {
+      // refresh tail cache
+      cachedTail = (long) TAIL_HANDLE.getVolatile(this);
+      if (currentHead >= cachedTail) {
+        return null; // still empty
+      }
     }
 
-    // Clear slot (release to make it visible to producer)
-    ARRAY_HANDLE.setRelease(buffer, index, null);
-
-    // Advance head (release to ensure ordering)
-    HEAD_HANDLE.setRelease(this, currentHead + 1);
-
+    Object value = ARRAY_HANDLE.getAcquire(buffer, index);
+    ARRAY_HANDLE.setOpaque(buffer, index, null); // clear slot
+    HEAD_HANDLE.setOpaque(this, currentHead + 1); // relaxed head update
     return (E) value;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    int index = (int) ((long) HEAD_HANDLE.getVolatile(this) & mask);
+    final int index = (int) ((long) HEAD_HANDLE.getOpaque(this) & mask);
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 
@@ -135,5 +140,85 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     long currentTail = (long) TAIL_HANDLE.getVolatile(this);
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
     return (int) (currentTail - currentHead);
+  }
+
+  /**
+   * Timed offer with progressive backoff.
+   *
+   * <p>Tries to insert an element into the queue within the given timeout. Uses a spin → yield →
+   * park backoff strategy to reduce CPU usage under contention.
+   *
+   * @param e the element to insert
+   * @param timeout maximum time to wait
+   * @param unit time unit of timeout
+   * @return {@code true} if inserted, {@code false} if timeout expires
+   * @throws InterruptedException if interrupted while waiting
+   */
+  @Override
+  public boolean offer(E e, long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
+    long deadline = System.nanoTime() + unit.toNanos(timeout);
+    int idle = 0;
+
+    while (true) {
+      if (offer(e)) return true;
+
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0) return false;
+
+      // progressive spin/yield
+      if (idle < 100) {
+        // spin
+      } else if (idle < 1_000) {
+        Thread.yield();
+      } else {
+        Thread.onSpinWait();
+      }
+      if (Thread.interrupted()) {
+        throw new InterruptedException();
+      }
+      idle++;
+    }
+  }
+
+  /**
+   * Polls with a timeout using progressive backoff.
+   *
+   * @param timeout max wait time
+   * @param unit time unit
+   * @return the head element, or null if timed out
+   * @throws InterruptedException if interrupted
+   */
+  @Override
+  public E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
+    if (timeout <= 0) {
+      return poll();
+    }
+
+    final long deadline = System.nanoTime() + unit.toNanos(timeout);
+    int idleCount = 0;
+
+    while (true) {
+      E e = poll();
+      if (e != null) {
+        return e;
+      }
+
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0) {
+        return null;
+      }
+
+      if (idleCount < 100) {
+        // spin
+      } else if (idleCount < 1_000) {
+        Thread.yield();
+      } else {
+        Thread.onSpinWait();
+      }
+      if (Thread.interrupted()) {
+        throw new InterruptedException();
+      }
+      idleCount++;
+    }
   }
 }

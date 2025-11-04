@@ -5,14 +5,14 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import spock.lang.Timeout
 
-class MpscArrayQueueTest extends AbstractQueueTest<MpscArrayQueue> {
+class MpscArrayQueueVarHandleTest extends AbstractQueueTest<MpscArrayQueueVarHandle> {
 
   @Timeout(10)
   def "multiple producers single consumer should consume all elements without duplication or loss"() {
     given:
     int total = 1000
     int producers = 4
-    queue = new MpscArrayQueue<>(1024)
+    queue = new MpscArrayQueueVarHandle<>(1024)
     def results = Collections.synchronizedList([])
     def executor = Executors.newFixedThreadPool(producers)
     def latch = new CountDownLatch(producers)
@@ -55,7 +55,7 @@ class MpscArrayQueueTest extends AbstractQueueTest<MpscArrayQueue> {
   }
 
   @Override
-  MpscArrayQueue<Integer> createQueue(int capacity) {
-    return new MpscArrayQueue<Integer>(capacity)
+  MpscArrayQueueVarHandle<Integer> createQueue(int capacity) {
+    return new MpscArrayQueueVarHandle<Integer>(capacity)
   }
 }
