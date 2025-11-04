@@ -2817,17 +2817,17 @@ class ConfigTest extends DDSpecification {
   def "db metadata fetching enabled with sys = #sys env = #env"() {
     setup:
     if (sys != null) {
-      System.setProperty("dd.trace.db.metadata.fetching.enabled", sys)
+      System.setProperty("dd.trace.db.metadata.fetching.on.query", sys)
     }
     if (env != null) {
-      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ENABLED", env)
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ON_QUERY", env)
     }
 
     when:
     def config = new Config()
 
     then:
-    config.isDbMetadataFetchingEnabled() == expected
+    config.isDbMetadataFetchingOnQueryEnabled() == expected
 
     where:
     sys     | env     | expected
@@ -2843,17 +2843,17 @@ class ConfigTest extends DDSpecification {
   def "db client info fetching enabled with sys = #sys env = #env"() {
     setup:
     if (sys != null) {
-      System.setProperty("dd.trace.db.client.info.fetching.enabled", sys)
+      System.setProperty("dd.trace.db.metadata.fetching.on.connect", sys)
     }
     if (env != null) {
-      environmentVariables.set("DD_TRACE_DB_CLIENT_INFO_FETCHING_ENABLED", env)
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ON_CONNECT", env)
     }
 
     when:
     def config = new Config()
 
     then:
-    config.isDbClientInfoFetchingEnabled() == expected
+    config.isDbMetadataFetchingOnConnectEnabled() == expected
 
     where:
     sys     | env     | expected

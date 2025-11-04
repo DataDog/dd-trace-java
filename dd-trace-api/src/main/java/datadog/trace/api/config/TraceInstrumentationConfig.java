@@ -63,9 +63,9 @@ public final class TraceInstrumentationConfig {
       "trace.db.client.split-by-instance.type.suffix";
   public static final String DB_CLIENT_HOST_SPLIT_BY_HOST = "trace.db.client.split-by-host";
 
-  public static final String DB_METADATA_FETCHING_ENABLED = "trace.db.metadata.fetching.enabled";
-  public static final String DB_CLIENT_INFO_FETCHING_ENABLED =
-      "trace.db.client.info.fetching.enabled";
+  public static final String DB_METADATA_FETCHING_ON_QUERY = "trace.db.metadata.fetching.on.query";
+  public static final String DB_METADATA_FETCHING_ON_CONNECT =
+      "trace.db.metadata.fetching.on.connect";
 
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";

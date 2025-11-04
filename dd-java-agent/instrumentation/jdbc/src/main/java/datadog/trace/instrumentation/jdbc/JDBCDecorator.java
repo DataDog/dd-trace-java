@@ -60,8 +60,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
-  private static final boolean FETCH_DB_METADATA = Config.get().isDbMetadataFetchingEnabled();
-  private static final boolean FETCH_DB_CLIENT_INFO = Config.get().isDbClientInfoFetchingEnabled();
+  private static final boolean FETCH_DB_METADATA_ON_QUERY =
+      Config.get().isDbMetadataFetchingOnQueryEnabled();
+  public static final boolean FETCH_DB_METADATA_ON_CONNECT =
+      Config.get().isDbMetadataFetchingOnConnectEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -203,7 +205,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null || !FETCH_DB_METADATA) {
+    if (connection == null || !FETCH_DB_METADATA_ON_QUERY) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -213,13 +215,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final String url;
       if (metaData != null && (url = metaData.getURL()) != null) {
         Properties clientInfo = null;
-        if (FETCH_DB_CLIENT_INFO) {
-          try {
-            clientInfo = connection.getClientInfo();
-          } catch (final Throwable ex) {
-            // getClientInfo is likely not allowed, we can still extract info from the url alone
-            log.debug("Could not get client info from DB", ex);
-          }
+        try {
+          clientInfo = connection.getClientInfo();
+        } catch (final Throwable ex) {
+          // getClientInfo is likely not allowed, we can still extract info from the url alone
+          log.debug("Could not get client info from DB", ex);
         }
         dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
