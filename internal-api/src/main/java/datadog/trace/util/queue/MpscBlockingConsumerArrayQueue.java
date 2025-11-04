@@ -1,16 +1,17 @@
 package datadog.trace.util.queue;
 
+import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 
 /**
  * JCtools-like MpscBlockingConsumerArrayQueue implemented without Unsafe.
  *
  * <p>It features nonblocking offer/poll methods and blocking (condition based) take/put.
  */
-public class MpscBlockingConsumerArrayQueue<E> extends MpscArrayQueue<E> {
+public class MpscBlockingConsumerArrayQueue<E> extends MpscArrayQueue<E>
+    implements BlockingQueue<E> {
   // Blocking controls
   private final ReentrantLock lock = new ReentrantLock();
   private final Condition notEmpty = lock.newCondition();
@@ -52,35 +53,6 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscArrayQueue<E> {
     return e;
   }
 
-  /**
-   * Fills the queue with elements provided by the supplier until either: - the queue is full, or -
-   * the supplier runs out of elements (returns null)
-   *
-   * @param supplier a supplier of elements
-   * @param limit maximum number of elements to attempt to insert
-   * @return number of elements successfully enqueued
-   */
-  public int fill(@Nonnull Supplier<? extends E> supplier, int limit) {
-    if (limit <= 0) {
-      return 0;
-    }
-
-    int added = 0;
-    while (added < limit) {
-      E e = supplier.get();
-      if (e == null) {
-        break; // stop if supplier exhausted
-      }
-
-      if (offer(e)) {
-        added++;
-      } else {
-        break; // queue is full
-      }
-    }
-    return added;
-  }
-
   private void signalNotEmpty() {
     lock.lock();
     try {
@@ -119,5 +91,15 @@ public class MpscBlockingConsumerArrayQueue<E> extends MpscArrayQueue<E> {
     } finally {
       lock.unlock();
     }
+  }
+
+  @Override
+  public int drainTo(Collection<? super E> c) {
+    return drainTo(c, Integer.MAX_VALUE);
+  }
+
+  @Override
+  public int drainTo(Collection<? super E> c, int maxElements) {
+    return drain(c::add, maxElements);
   }
 }

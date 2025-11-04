@@ -1,13 +1,8 @@
 package datadog.trace.util.queue;
 
-import static datadog.trace.util.BitUtils.nextPowerOfTwo;
-
-import java.util.AbstractQueue;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.LockSupport;
-import java.util.function.Consumer;
 
 /**
  * A Single-Producer, Multiple-Consumer (SPMC) bounded queue based on a circular array.
@@ -21,14 +16,7 @@ import java.util.function.Consumer;
  *
  * @param <E> the type of elements held in this queue
  */
-public class SpmcArrayQueue<E> extends AbstractQueue<E> {
-
-  /** The capacity of the queue (must be a power of two) */
-  protected final int capacity;
-
-  /** Mask for fast modulo operation (index = pos & mask) */
-  private final int mask;
-
+public class SpmcArrayQueue<E> extends BaseQueue<E> {
   /** Array buffer storing elements */
   private final AtomicReferenceArray<E> buffer;
 
@@ -60,9 +48,8 @@ public class SpmcArrayQueue<E> extends AbstractQueue<E> {
    * @param capacity the desired maximum number of elements
    */
   public SpmcArrayQueue(int capacity) {
-    this.capacity = nextPowerOfTwo(capacity);
-    this.mask = capacity - 1;
-    this.buffer = new AtomicReferenceArray<>(capacity);
+    super(capacity);
+    this.buffer = new AtomicReferenceArray<>(this.capacity);
   }
 
   /**
@@ -146,47 +133,5 @@ public class SpmcArrayQueue<E> extends AbstractQueue<E> {
   @Override
   public int size() {
     return (int) (tail - head);
-  }
-
-  /**
-   * Iterator is not supported.
-   *
-   * @throws UnsupportedOperationException always
-   */
-  @Override
-  public Iterator<E> iterator() {
-    throw new UnsupportedOperationException();
-  }
-
-  /**
-   * Drains all available elements from the queue to the specified consumer.
-   *
-   * <p>This method repeatedly calls {@link #poll()} until the queue is empty.
-   *
-   * @param consumer the consumer to accept elements
-   * @return number of elements drained
-   */
-  public int drain(Consumer<E> consumer) {
-    return drain(consumer, Integer.MAX_VALUE);
-  }
-
-  /**
-   * Drains up to {@code limit} elements from the queue to the specified consumer.
-   *
-   * <p>Useful for batch processing. This avoids frequent CAS operations by handling multiple
-   * elements in a single call.
-   *
-   * @param consumer the consumer to accept elements
-   * @param limit maximum number of elements to drain
-   * @return number of elements drained
-   */
-  public int drain(Consumer<E> consumer, int limit) {
-    int count = 0;
-    E e;
-    while (count < limit && (e = poll()) != null) {
-      consumer.accept(e);
-      count++;
-    }
-    return count;
   }
 }
