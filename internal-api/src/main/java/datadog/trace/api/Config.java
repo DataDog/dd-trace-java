@@ -1935,7 +1935,7 @@ public class Config {
       } else {
         tmpOtelExporterOtlpMetricsEndpoint =
             isHttp
-                ? tmpOtelExporterOtlpEndpoint.concat(DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX)
+                ? tmpOtelExporterOtlpEndpoint + DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX
                 : tmpOtelExporterOtlpEndpoint;
       }
     }
