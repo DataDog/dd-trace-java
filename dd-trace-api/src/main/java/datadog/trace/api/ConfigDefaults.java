@@ -105,9 +105,9 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   static final Exporter DEFAULT_OTEL_METRICS_EXPORTER = Exporter.OTLP;
-  // WARNING: This defies the OpenTelemetry specification’s default value of 60000 (60s)
+  // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_INTERVAL = 10000;
-  // WARNING: This defies the OpenTelemetry specification’s default value of 30000 (30s)
+  // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT = 7500;
   static final String DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX = "v1/metrics";
   static final String DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT = "4318";

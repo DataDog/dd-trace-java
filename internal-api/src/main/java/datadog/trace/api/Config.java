@@ -1914,9 +1914,7 @@ public class Config {
               "_");
     }
     otelExporterOtlpMetricsProtocol = tmpOtelExporterOtlpMetricsProtocol;
-    // TO DO
-    // Add some error log and switch the protocol to the default value if we don't support the
-    // selected protocol
+    // TODO: log warning and switch protocol to default if we don't support the selected protocol?
 
     String tmpOtelExporterOtlpMetricsEndpoint =
         configProvider.getString(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT);
