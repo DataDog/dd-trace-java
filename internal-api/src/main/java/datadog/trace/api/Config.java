@@ -454,9 +454,9 @@ import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METR
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_PROTOCOL;
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_TIMEOUT;
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRICS_EXPORTER;
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT;
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT;
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX;
+import static datadog.trace.api.config.OtelMetricsConfig.DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT;
+import static datadog.trace.api.config.OtelMetricsConfig.DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT;
+import static datadog.trace.api.config.OtelMetricsConfig.DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX;
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_INTERVAL;
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
@@ -1930,14 +1930,14 @@ public class Config {
                 ? "http://"
                     + endpointHost
                     + ":"
-                    + OTEL_METRIC_DEFAULT_ENDPOINT_HTTP_PORT
+                    + DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT
                     + "/"
-                    + OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX
-                : "http://" + endpointHost + ":" + OTEL_METRIC_DEFAULT_ENDPOINT_GRPC_PORT;
+                    + DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX
+                : "http://" + endpointHost + ":" + DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT;
       } else {
         tmpOtelExporterOtlpMetricsEndpoint =
             isHttp
-                ? tmpOtelExporterOtlpEndpoint.concat(OTEL_METRIC_DEFAULT_ENDPOINT_SUFFIX)
+                ? tmpOtelExporterOtlpEndpoint.concat(DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX)
                 : tmpOtelExporterOtlpEndpoint;
       }
     }

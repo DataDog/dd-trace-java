@@ -144,7 +144,6 @@ import static datadog.trace.api.config.OtelMetricsConfig.Exporter.OTLP
 import static datadog.trace.api.config.OtelMetricsConfig.Temporality.CUMULATIVE
 import static datadog.trace.api.config.OtelMetricsConfig.Temporality.DELTA
 import static datadog.trace.api.config.OtelMetricsConfig.METRICS_OTEL_ENABLED
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_RESOURCE_ATTRIBUTES
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_ENDPOINT
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRICS_EXPORTER
 import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_INTERVAL
@@ -194,10 +193,10 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
 
-
+  private static final OTEL_RESOURCE_ATTRIBUTES_PROP = "otel.resource.attributes"
+  private static final OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES"
 
   private static final DD_METRICS_OTEL_ENABLED_ENV = "DD_METRICS_OTEL_ENABLED"
-  private static final OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES"
   private static final OTEL_METRICS_EXPORTER_ENV = "OTEL_METRICS_EXPORTER"
   private static final OTEL_METRIC_EXPORT_TIMEOUT_ENV = "OTEL_METRIC_EXPORT_TIMEOUT"
   private static final OTEL_METRIC_EXPORT_INTERVAL_ENV = "OTEL_METRIC_EXPORT_INTERVAL"
@@ -206,8 +205,6 @@ class ConfigTest extends DDSpecification {
   private static final OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_ENV = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"
   private static final OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_ENV = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT"
   private static final OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_ENV = "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE"
-
-
 
   def setup() {
     FixedCapturedEnvironment.useFixedEnv([:])
@@ -489,7 +486,7 @@ class ConfigTest extends DDSpecification {
   def "otel generic config via system properties - metrics enabled"() {
     setup:
     System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
     when:
@@ -509,7 +506,7 @@ class ConfigTest extends DDSpecification {
   def "otel generic config via system properties - trace enabled"() {
     setup:
     System.setProperty(PREFIX + TRACE_OTEL_ENABLED, "true")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
     when:
@@ -707,7 +704,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "True")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
     System.setProperty(OTEL_METRICS_EXPORTER, "otlp")
     System.setProperty(OTEL_METRIC_EXPORT_INTERVAL, "11000")
     System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT, "9000")
