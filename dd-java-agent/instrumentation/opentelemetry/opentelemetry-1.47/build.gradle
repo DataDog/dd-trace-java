@@ -1,10 +1,10 @@
-def openTelemetryVersion = '1.4.0'
+def openTelemetryVersion = '1.47.0'
 
 muzzle {
   pass {
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
-    versions = "[$openTelemetryVersion,1.46.0)"
+    versions = "[$openTelemetryVersion,)"
   }
 }
 

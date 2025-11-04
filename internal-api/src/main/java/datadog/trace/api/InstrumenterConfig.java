@@ -89,6 +89,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+// import static datadog.trace.api.config.OtelConfig.METRICS_OTEL_ENABLED;
+// import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
+
 /**
  * This config is needed before instrumentation is applied
  *
@@ -114,6 +117,7 @@ public class InstrumenterConfig {
   private final boolean codeOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
+  // private final boolean metricsOtelEnabled;
   private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -204,6 +208,8 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
+    // metricsOtelEnabled = configProvider.getBoolean(METRICS_OTEL_ENABLED,
+    // DEFAULT_METRICS_OTEL_ENABLED);
 
     profilingEnabled =
         ProfilingEnablement.of(
@@ -364,6 +370,10 @@ public class InstrumenterConfig {
   public boolean isTraceOtelEnabled() {
     return traceOtelEnabled;
   }
+
+  // public boolean isMetricsOtelEnabled() {
+  //   return metricsOtelEnabled;
+  // }
 
   public boolean isProfilingEnabled() {
     return profilingEnabled.isActive();
@@ -610,6 +620,8 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
+        // + ", metricsOtelEnabled="
+        // + metricsOtelEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
