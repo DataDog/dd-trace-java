@@ -8,13 +8,13 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>It features nonblocking offer/poll methods and blocking (condition based) take/put.
  */
-public class MpscBlockingConsumerArrayQueue<E> extends MpscArrayQueue<E> {
+public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E> {
   // Blocking controls
   private final ReentrantLock lock = new ReentrantLock();
   private final Condition notEmpty = lock.newCondition();
   private final Condition notFull = lock.newCondition();
 
-  public MpscBlockingConsumerArrayQueue(int capacity) {
+  public MpscBlockingConsumerArrayQueueVarHandle(int capacity) {
     super(capacity);
   }
 

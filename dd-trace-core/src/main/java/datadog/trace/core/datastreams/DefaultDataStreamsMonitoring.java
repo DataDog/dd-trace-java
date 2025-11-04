@@ -29,7 +29,8 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.MpscArrayQueue;
+import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.Queues;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -53,7 +54,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
 
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
-  private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
+  private final BaseQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
