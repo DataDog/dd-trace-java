@@ -12,7 +12,8 @@ import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.MpscBlockingConsumerArrayQueue;
+import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.Queues;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,7 +63,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
     private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
-    private final MpscBlockingConsumerArrayQueue<Element> queue;
+    private final BaseQueue<Element> queue;
     private final Thread worker;
     private final TimeSource timeSource;
 
@@ -292,7 +293,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         Config config,
         SharedCommunicationObjects sharedCommunicationObjects,
         HealthMetrics healthMetrics) {
-      this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
+      this.queue = Queues.mpscBlockingConsumerArrayQueue(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTraceEnabled();

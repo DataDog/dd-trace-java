@@ -66,6 +66,7 @@ dependencies {
   api project(':dd-trace-api')
   api project(':communication')
   api project(':internal-api')
+  api project(':internal-api:internal-api-9')
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')

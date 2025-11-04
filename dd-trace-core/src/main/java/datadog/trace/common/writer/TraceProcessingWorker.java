@@ -15,7 +15,8 @@ import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.MpscArrayQueue;
+import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.Queues;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -35,8 +36,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private static final Logger log = LoggerFactory.getLogger(TraceProcessingWorker.class);
 
   private final PrioritizationStrategy prioritizationStrategy;
-  private final MpscArrayQueue<Object> primaryQueue;
-  private final MpscArrayQueue<Object> secondaryQueue;
+  private final BaseQueue<Object> primaryQueue;
+  private final BaseQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
@@ -120,14 +121,14 @@ public class TraceProcessingWorker implements AutoCloseable {
     return primaryQueue.remainingCapacity();
   }
 
-  private static MpscArrayQueue<Object> createQueue(int capacity) {
-    return new MpscArrayQueue<>(capacity);
+  private static BaseQueue<Object> createQueue(int capacity) {
+    return Queues.mpscArrayQueue(capacity);
   }
 
   public static class TraceSerializingHandler implements Runnable {
 
-    private final MpscArrayQueue<Object> primaryQueue;
-    private final MpscArrayQueue<Object> secondaryQueue;
+    private final BaseQueue<Object> primaryQueue;
+    private final BaseQueue<Object> secondaryQueue;
     private final HealthMetrics healthMetrics;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
@@ -135,8 +136,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     private long lastTicks;
 
     public TraceSerializingHandler(
-        final MpscArrayQueue<Object> primaryQueue,
-        final MpscArrayQueue<Object> secondaryQueue,
+        final BaseQueue<Object> primaryQueue,
+        final BaseQueue<Object> secondaryQueue,
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
@@ -237,7 +238,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       return false;
     }
 
-    private void consumeBatch(MpscArrayQueue<Object> queue) {
+    private void consumeBatch(BaseQueue<Object> queue) {
       queue.drain(this::onEvent, queue.size());
     }
 
