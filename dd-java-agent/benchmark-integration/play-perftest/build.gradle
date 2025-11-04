@@ -1,8 +1,8 @@
-import com.github.spotbugs.snom.SpotBugsTask
-
 plugins {
   id 'org.gradle.playframework'
 }
+
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
 
 def playVer = "2.6.20"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.12")
