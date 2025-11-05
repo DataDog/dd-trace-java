@@ -113,7 +113,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     String preferredServiceName;
     List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
-    String dataStreamsTransactionExtractorsJson;
 
     Builder() {}
 
@@ -138,7 +137,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.preferredServiceName = snapshot.preferredServiceName;
       this.dataStreamsTransactionExtractors = snapshot.dataStreamsTransactionExtractors;
-      this.dataStreamsTransactionExtractorsJson = snapshot.dataStreamsTransactionExtractorsJson;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -157,10 +155,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setDataStreamsTransactionExtractors(
-        List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors,
-        String dataStreamsTransactionExtractorsJson) {
+        List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors) {
       this.dataStreamsTransactionExtractors = dataStreamsTransactionExtractors;
-      this.dataStreamsTransactionExtractorsJson = dataStreamsTransactionExtractorsJson;
       return this;
     }
 
@@ -338,7 +334,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     final String preferredServiceName;
     final List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
-    final String dataStreamsTransactionExtractorsJson;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
@@ -361,7 +356,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.preferredServiceName = builder.preferredServiceName;
       this.dataStreamsTransactionExtractors = builder.dataStreamsTransactionExtractors;
-      this.dataStreamsTransactionExtractorsJson = builder.dataStreamsTransactionExtractorsJson;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {

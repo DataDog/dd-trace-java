@@ -61,7 +61,7 @@ public class DataStreamsTransactionExtractors {
   private static final class DataStreamsTransactionExtractorAdapter {
     private static DataStreamsTransactionExtractor create(
         JsonDataStreamsTransactionExtractor jsonExtractor) {
-      return new DataStreamsTransactionExtractor(
+      return new DataStreamsTransactionExtractorImpl(
           jsonExtractor.name, jsonExtractor.type, jsonExtractor.value);
     }
 
@@ -73,6 +73,32 @@ public class DataStreamsTransactionExtractors {
     @ToJson
     JsonDataStreamsTransactionExtractor toJson(DataStreamsTransactionExtractor extractor) {
       throw new UnsupportedOperationException();
+    }
+  }
+
+  private static final class DataStreamsTransactionExtractorImpl
+      implements DataStreamsTransactionExtractor {
+    private final String name;
+    private final String type;
+    private final String value;
+
+    public DataStreamsTransactionExtractorImpl(
+        final String name, final String type, final String value) {
+      this.name = name;
+      this.type = type;
+      this.value = value;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public String getValue() {
+      return value;
     }
   }
 }

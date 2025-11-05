@@ -12,6 +12,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_MULTICONF
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RATE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TRACING_ENABLED;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.sampling.SamplingRule.normalizeGlob;
 
 import com.squareup.moshi.FromJson;
@@ -31,6 +32,7 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.sampling.SamplingRule;
+import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
@@ -78,7 +80,8 @@ final class TracingConfigPoller {
               | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
               | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
               | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
-              | CAPABILITY_APM_TRACING_MULTICONFIG);
+              | CAPABILITY_APM_TRACING_MULTICONFIG
+              | CAPABILITY_DATA_STREAMS_TRANSACTION_EXTRACTORS);
     }
     stopPolling = new Updater().register(config, configPoller);
   }
@@ -238,6 +241,10 @@ final class TracingConfigPoller {
 
     maybeOverride(builder::setServiceMapping, libConfig.serviceMapping);
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
+    if (null != libConfig.dataStreamsTransactionExtractors) {
+      builder.setDataStreamsTransactionExtractors(
+          libConfig.dataStreamsTransactionExtractors.getExtractors());
+    }
 
     if (null != libConfig.tracingSamplingRules) {
       builder.setTraceSamplingRules(
@@ -406,6 +413,8 @@ final class TracingConfigPoller {
     @Json(name = "live_debugging_enabled")
     public Boolean liveDebuggingEnabled;
 
+    @Json(name = "data_streams_transaction_extractors")
+    public DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
     /**
      * Merges a list of LibConfig objects by taking the first non-null value for each field.
      *
@@ -453,6 +462,9 @@ final class TracingConfigPoller {
         }
         if (merged.tracingSamplingRules == null) {
           merged.tracingSamplingRules = config.tracingSamplingRules;
+        }
+        if (merged.dataStreamsTransactionExtractors == null) {
+          merged.dataStreamsTransactionExtractors = config.dataStreamsTransactionExtractors;
         }
         if (merged.dynamicInstrumentationEnabled == null) {
           merged.dynamicInstrumentationEnabled = config.dynamicInstrumentationEnabled;

@@ -719,9 +719,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
             .setTracingTags(config.getMergedSpanTags())
-            .setDataStreamsTransactionExtractors(
-                dataStreamsTransactionExtractors.getExtractors(),
-                dataStreamsTransactionExtractorsJson)
+            .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
             .apply();
 
     this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();

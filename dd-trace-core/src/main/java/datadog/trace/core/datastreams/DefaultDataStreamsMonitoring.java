@@ -16,7 +16,14 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.datastreams.*;
+import datadog.trace.api.datastreams.Backlog;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.InboxItem;
+import datadog.trace.api.datastreams.NoopPathwayContext;
+import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -433,6 +440,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private void checkDynamicConfig() {
     configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+
+    List<DataStreamsTransactionExtractor> extractors =
+        traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+    for (DataStreamsTransactionExtractor extractor : extractors) {
+      log.info(
+          "#### Got extractor with name {}, type {}, value {}",
+          extractor.getName(),
+          extractor.getType(),
+          extractor.getValue());
+    }
   }
 
   private void checkFeatures() {
