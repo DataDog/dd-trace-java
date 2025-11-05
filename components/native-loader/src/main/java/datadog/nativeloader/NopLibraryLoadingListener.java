@@ -1,6 +1,6 @@
 package datadog.nativeloader;
 
-import java.util.Collections;
+import java.util.Arrays;
 
 final class NopLibraryLoadingListener extends SafeLibraryLoadingListener {
   static final NopLibraryLoadingListener INSTANCE = new NopLibraryLoadingListener();
@@ -13,7 +13,7 @@ final class NopLibraryLoadingListener extends SafeLibraryLoadingListener {
   }
 
   @Override
-  public SafeLibraryLoadingListener join(LibraryLoadingListener listener) {
-    return new CompositeLibraryLoadingListener(Collections.singletonList(listener));
+  public SafeLibraryLoadingListener join(LibraryLoadingListener... listeners) {
+    return new CompositeLibraryLoadingListener(Arrays.asList(listeners));
   }
 }

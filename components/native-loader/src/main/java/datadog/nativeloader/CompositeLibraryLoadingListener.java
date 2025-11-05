@@ -21,6 +21,10 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
   public boolean isNop() {
     return this.listeners.isEmpty();
   }
+  
+  int size() {
+	return this.listeners.size();
+  }
 
   @Override
   public void onResolveDynamic(
@@ -114,10 +118,10 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
   }
 
   @Override
-  public SafeLibraryLoadingListener join(LibraryLoadingListener listener) {
-    ArrayList<LibraryLoadingListener> listeners = new ArrayList<>(this.listeners.size() + 1);
-    listeners.addAll(this.listeners);
-    listeners.add(listener);
-    return new CompositeLibraryLoadingListener(listeners);
+  public CompositeLibraryLoadingListener join(LibraryLoadingListener... listeners) {
+    ArrayList<LibraryLoadingListener> combinedListeners = new ArrayList<>(this.listeners.size() + listeners.length);
+    combinedListeners.addAll(this.listeners);
+    combinedListeners.addAll(Arrays.asList(listeners));
+    return new CompositeLibraryLoadingListener(combinedListeners);
   }
 }

@@ -30,14 +30,14 @@ import org.junit.jupiter.api.Test;
 public class NativeLoaderTest {
   @Test
   public void preloaded() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().preloaded("dne1", "dne2").build();
+    NativeLoader loader = NativeLoader.builder().preloaded("preloaded1", "preloaded2").build();
 
-    assertTrue(loader.isPreloaded("dne1"));
-    assertTrue(loader.isPreloaded("dne2"));
+    assertTrue(loader.isPreloaded("preloaded1"));
+    assertTrue(loader.isPreloaded("preloaded2"));
 
-    assertFalse(loader.isPreloaded("dne3"));
+    assertFalse(loader.isPreloaded("dne"));
 
-    try (LibFile lib = loader.resolveDynamic("dne1")) {
+    try (LibFile lib = loader.resolveDynamic("preloaded1")) {
       assertPreloaded(lib);
 
       // already considered loaded -- so this is a nop
@@ -45,10 +45,62 @@ public class NativeLoaderTest {
     }
 
     // already considered loaded -- so this is a nop
-    loader.load("dne2");
+    loader.load("preloaded2");
 
     // not already loaded - so passes through to underlying resolver
-    assertThrows(LibraryLoadException.class, () -> loader.load("dne3"));
+    assertThrows(LibraryLoadException.class, () -> loader.load("dne"));
+  }
+  
+  @Test
+  public void preloaded_listenerSupport() throws LibraryLoadException {
+	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+	  
+	NativeLoader loader = NativeLoader.builder().preloaded("preloaded1", "preloaded2").addListener(sharedListener).build();
+
+	// debatable - but no listener calls just for checking
+    assertTrue(loader.isPreloaded("preloaded1"));
+    assertTrue(loader.isPreloaded("preloaded2"));
+    
+    
+    
+    sharedListener.expectResolvePreloaded("preloaded1");
+    sharedListener.expectLoadPreloaded("preloaded1");
+    
+    TestLibraryLoadingListener scopedListener1 = new TestLibraryLoadingListener().
+      expectResolvePreloaded("preloaded1").
+      expectLoadPreloaded("preloaded1");
+	
+	try (LibFile lib = loader.resolveDynamic("preloaded1", scopedListener1)) {
+	  lib.load();
+	}
+	
+	sharedListener.assertDone();
+	scopedListener1.assertDone();	
+	
+	sharedListener.expectResolvePreloaded("preloaded2");
+	sharedListener.expectLoadPreloaded("preloaded2");
+	
+	TestLibraryLoadingListener scopedListener2 = new TestLibraryLoadingListener().
+	  expectResolvePreloaded("preloaded2").
+	  expectLoadPreloaded("preloaded2");
+	
+	// load is just convenience for resolve & load
+	loader.load("preloaded2", scopedListener2);
+	
+	sharedListener.assertDone();
+	scopedListener2.assertDone();
+	
+	
+	sharedListener.expectResolveDynamicFailure("dne");
+	
+	TestLibraryLoadingListener scopedListener3 = new TestLibraryLoadingListener().
+	  expectResolveDynamicFailure("dne");
+	
+    // not already loaded - so passes through to underlying resolver
+    assertThrows(LibraryLoadException.class, () -> loader.load("dne", scopedListener3));
+    
+    sharedListener.assertDone();
+    scopedListener3.assertDone();
   }
 
   @Test

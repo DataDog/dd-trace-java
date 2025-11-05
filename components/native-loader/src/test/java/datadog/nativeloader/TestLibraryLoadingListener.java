@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.LinkedList;
 
 public final class TestLibraryLoadingListener implements LibraryLoadingListener {
@@ -31,6 +32,23 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               URL optionalUrl) {
             assertNull(optionalComponent);
             assertEquals(libName, expectedLibName);
+          }
+        });
+  }
+  
+  public TestLibraryLoadingListener expectResolvePreloaded(String expectedLibName) {
+    return this.addCheck(
+        new Check("onResolveDynamic:preloaded %s", expectedLibName) {
+          @Override
+          public void onResolveDynamic(
+              PlatformSpec platformSpec,
+              String optionalComponent,
+              String libName,
+              boolean isPreloaded,
+              URL optionalUrl) {
+            assertNull(optionalComponent);
+            assertEquals(libName, expectedLibName);
+            assertTrue(isPreloaded);
           }
         });
   }
@@ -62,6 +80,23 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               Path optionalLibPath) {
             assertNull(optionalComponent);
             assertEquals(libName, expectedLibName);
+          }
+        });
+  }
+  
+  public TestLibraryLoadingListener expectLoadPreloaded(String expectedLibName) {
+    return this.addCheck(
+        new Check("onLoad:preloaded %s", expectedLibName) {
+          @Override
+          public void onLoad(
+              PlatformSpec platformSpec,
+              String optionalComponent,
+              String libName,
+              boolean isPreloaded,
+              Path optionalLibPath) {
+            assertNull(optionalComponent);
+            assertEquals(libName, expectedLibName);
+            assertTrue(isPreloaded);
           }
         });
   }
@@ -129,7 +164,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public void assertDone() {
-    assertTrue(this.checks.isEmpty());
+	// written this way for better debugging
+    assertEquals(Collections.emptyList(), this.checks);
   }
 
   @Override

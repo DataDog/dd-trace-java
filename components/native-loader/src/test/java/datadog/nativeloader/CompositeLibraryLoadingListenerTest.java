@@ -1,5 +1,7 @@
 package datadog.nativeloader;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -104,6 +106,38 @@ public final class CompositeLibraryLoadingListenerTest {
 
     listener1.assertDone();
     listener2.assertDone();
+  }
+  
+  @Test
+  public void join() {
+	TestLibraryLoadingListener listener1 = new TestLibraryLoadingListener().
+		expectLoad("foo");
+	
+	CompositeLibraryLoadingListener composite = new CompositeLibraryLoadingListener(listener1);
+	assertEquals(1, composite.size());
+	
+	TestLibraryLoadingListener listener2 = listener1.copy();
+	
+	CompositeLibraryLoadingListener composite2 = composite.join(listener2);
+	assertEquals(2, composite2.size());
+	
+	TestLibraryLoadingListener listener3 = listener1.copy();
+	TestLibraryLoadingListener listener4 = listener1.copy();
+	
+	CompositeLibraryLoadingListener finalComposite = composite2.join(listener3, listener4);
+	assertEquals(4, finalComposite.size());
+	
+	finalComposite.onLoad(
+		PlatformSpec.defaultPlatformSpec(),
+		null,
+		"foo",
+		false,
+		Paths.get("/tmp/foo.dll"));
+	
+    listener1.assertDone();
+    listener2.assertDone();
+    listener3.assertDone();
+    listener4.assertDone();
   }
 
   /*
