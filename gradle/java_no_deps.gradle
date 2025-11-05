@@ -3,6 +3,7 @@ import java.nio.file.Paths
 import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
+apply plugin: 'datadog.configure-tests'
 apply plugin: 'java-library'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
@@ -465,5 +466,3 @@ tasks.register('testJar', Jar) {
   from(sourceSets.test.output)
   archiveClassifier = 'test'
 }
-
-apply plugin: 'datadog.configure-tests'

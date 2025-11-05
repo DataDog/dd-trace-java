@@ -53,7 +53,7 @@ val activePartitionProvider = providers.provider {
 }
 
 // Go through the Test tasks and configure them
-tasks.withType(Test::class.java).configureEach {
+tasks.withType<Test>().configureEach {
   enabled = activePartitionProvider.get()
   
   // Disable all tests if skipTests property was specified
@@ -102,20 +102,16 @@ tasks.withType(Test::class.java).configureEach {
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
 // This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {
-  dependsOn(providers.provider {
-    tasks.withType<Test>().filter { testTask ->
-      !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
-    }
+  dependsOn(tasks.withType<Test>().matching { testTask ->
+    !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
   })
 }
 
 // Register a task "allLatestDepTests" that depends on all Test tasks whose names include 'latest'.
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
-  dependsOn(providers.provider {
-    tasks.withType<Test>().filter { testTask ->
-      testTask.name.contains("latest", ignoreCase = true)
-    }
+  dependsOn(tasks.withType<Test>().matching { testTask ->
+    !testTask.name.contains("latest", ignoreCase = true)
   })
 }
 
@@ -125,7 +121,7 @@ tasks.named("check") {
   dependsOn(tasks.withType<Test>())
 }
 
-tasks.withType(Test::class.java).configureEach {
+tasks.withType<Test>().configureEach {
   // Flaky tests management for JUnit 5
   if (testFramework is JUnitPlatformOptions) {
     val junitPlatform = testFramework as JUnitPlatformOptions
