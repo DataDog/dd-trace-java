@@ -61,9 +61,7 @@ public class JcToolsMPSCQueueBenchmark {
     } catch (InterruptedException ignored) {
     }
 
-    // bounded attempt: try once, then yield if full
-    boolean offered = state.queue.offer(0);
-    if (!offered) {
+    while (!state.queue.offer(0)) {
       Thread.yield();
     }
   }
@@ -76,6 +74,8 @@ public class JcToolsMPSCQueueBenchmark {
     Integer v = state.queue.poll();
     if (v != null) {
       bh.consume(v);
+    } else {
+      Thread.yield();
     }
   }
 }

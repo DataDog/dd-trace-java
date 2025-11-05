@@ -3,6 +3,7 @@ package datadog.trace.util.queue;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.VarHandle;
+import java.util.Objects;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -17,6 +18,7 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   private static final VarHandle ARRAY_HANDLE;
   private static final VarHandle HEAD_HANDLE;
   private static final VarHandle TAIL_HANDLE;
+  private static final VarHandle PRODUCER_LIMIT_HANDLE;
 
   static {
     try {
@@ -24,6 +26,8 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       TAIL_HANDLE = lookup.findVarHandle(MpscArrayQueueVarHandle.class, "tail", long.class);
       HEAD_HANDLE = lookup.findVarHandle(MpscArrayQueueVarHandle.class, "head", long.class);
       ARRAY_HANDLE = MethodHandles.arrayElementVarHandle(Object[].class);
+      PRODUCER_LIMIT_HANDLE =
+          lookup.findVarHandle(MpscArrayQueueVarHandle.class, "producerLimit", long.class);
     } catch (Throwable t) {
       throw new IllegalStateException(t);
     }
@@ -32,97 +36,139 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   /** The backing array (plain Java array for VarHandle access) */
   private final Object[] buffer;
 
-  // Padding
+  // Padding to prevent false sharing
   @SuppressWarnings("unused")
   private long p0, p1, p2, p3, p4, p5, p6;
 
-  /** The next free slot for producers */
+  /** Next free slot for producers (multi-threaded) */
   private volatile long tail = 0L;
 
-  // Padding
+  // Padding around tail
   @SuppressWarnings("unused")
   private long q0, q1, q2, q3, q4, q5, q6;
 
-  // Padding
-  @SuppressWarnings("unused")
-  private long p10, p11, p12, p13, p14, p15, p16;
+  /** Cached producer limit to reduce volatile head reads */
+  private volatile long producerLimit = 0L;
 
-  /** The next slot to consume (single-threaded) */
+  // Padding around producerLimit
+  @SuppressWarnings("unused")
+  private long r0, r1, r2, r3, r4, r5, r6;
+
+  /** Next slot to consume (single-threaded) */
   private volatile long head = 0L;
 
-  // Padding
-  private long q10, q11, q12, q13, q14, q15, q16;
+  // Padding around head
+  @SuppressWarnings("unused")
+  private long s0, s1, s2, s3, s4, s5, s6;
 
   /**
    * Creates a new MPSC queue.
    *
-   * @param requestedCapacity the desired capacity, rounded up to the next power of two if needed
+   * @param requestedCapacity the desired capacity, rounded up to next power of two
    */
   public MpscArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
     this.buffer = new Object[capacity];
+    this.producerLimit = capacity;
   }
 
   /**
    * Attempts to add an element to the queue.
    *
-   * <p>This method uses a CAS loop on {@code tail} to allow multiple producers to safely claim
-   * distinct slots. The producer then performs a release-store into the buffer using {@code
-   * ARRAY_HANDLE.setRelease()}.
-   *
    * @param e the element to add (must be non-null)
-   * @return {@code true} if the element was enqueued, {@code false} if the queue is full
+   * @return true if element was enqueued, false if queue is full
    */
   @Override
   public boolean offer(E e) {
-    if (e == null) {
-      throw new NullPointerException();
+    Objects.requireNonNull(e);
+
+    // jctools does the same local copy to have the jitter optimise the accesses
+    final Object[] localBuffer = this.buffer;
+
+    // depending on the thread id, choose a different backoff strategy.
+    // Note: it reduces fairness but also the contention on the cas.
+    boolean s0 = false, s1 = false, s2 = false;
+    switch ((int) (Thread.currentThread().getId() & 3)) {
+      case 0:
+        s0 = true;
+        break;
+      case 1:
+        s1 = true;
+        break;
+      case 2:
+        s2 = true;
+        break;
+      default:
+        break;
     }
 
-    while (true) {
-      final long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-      final long wrapPoint = currentTail - capacity;
-      final long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    long localProducerLimit = (long) PRODUCER_LIMIT_HANDLE.getVolatile(this);
+    long cachedHead = 0L; // Local cache of head to reduce volatile reads
 
-      if (wrapPoint >= currentHead) {
-        return false; // full
+    while (true) {
+      long currentTail = (long) TAIL_HANDLE.getVolatile(this);
+
+      // Check if producer limit exceeded
+      if (currentTail >= localProducerLimit) {
+        // Refresh head only when necessary
+        cachedHead = (long) HEAD_HANDLE.getVolatile(this);
+        localProducerLimit = cachedHead + capacity;
+
+        if (currentTail >= localProducerLimit) return false; // queue full
+
+        // Update producerLimit so other producers also benefit
+        PRODUCER_LIMIT_HANDLE.setVolatile(this, localProducerLimit);
       }
 
+      // Attempt to claim a slot
       if (TAIL_HANDLE.compareAndSet(this, currentTail, currentTail + 1)) {
         final int index = (int) (currentTail & mask);
-        ARRAY_HANDLE.setRelease(buffer, index, e);
+
+        // Release-store ensures producer's write is visible to consumer
+        ARRAY_HANDLE.setRelease(localBuffer, index, e);
         return true;
       }
 
-      // Backoff on contention
-      LockSupport.parkNanos(1L);
+      // Backoff to reduce contention
+      if (s0) Thread.onSpinWait();
+      else if (s1) Thread.yield();
+      else if (s2) LockSupport.parkNanos(1);
     }
   }
 
   /**
-   * Removes and returns the next element, or {@code null} if the queue is empty.
+   * Removes and returns the next element, or null if empty.
    *
-   * <p>This method is single-threaded (one consumer). It performs a volatile read of the buffer,
-   * and then uses {@code setRelease(null)} to free the slot.
-   *
-   * @return the dequeued element, or null if the queue is empty
+   * @return dequeued element, or null if queue empty
    */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
-    final long currentHead = (long) HEAD_HANDLE.getOpaque(this);
+    final Object[] localBuffer = this.buffer;
+
+    long currentHead = (long) HEAD_HANDLE.getOpaque(this);
     final int index = (int) (currentHead & mask);
 
-    Object value = ARRAY_HANDLE.getAcquire(buffer, index);
-    if (value == null) {
-      return null;
-    }
+    // Acquire-load ensures visibility of producer write
+    Object value = ARRAY_HANDLE.getAcquire(localBuffer, index);
+    if (value == null) return null;
 
-    ARRAY_HANDLE.setOpaque(buffer, index, null); // clear slot
+    // Clear the slot without additional fence
+    ARRAY_HANDLE.setOpaque(localBuffer, index, null);
+
+    // Advance head using opaque write (consumer-only)
     HEAD_HANDLE.setOpaque(this, currentHead + 1);
+
     return (E) value;
   }
 
+  /**
+   * Returns next element without removing it.
+   *
+   * <p>The memory visibility is only correct if the consumer calls it.
+   *
+   * @return next element or null if empty
+   */
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
@@ -130,9 +176,16 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 
+  /**
+   * Returns number of elements in queue.
+   *
+   * <p>Volatile reads of tail and head ensure accurate result in multi-threaded context.
+   *
+   * @return current size
+   */
   @Override
   public int size() {
-    long currentHead = head; // non-volatile read
+    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
     long currentTail = (long) TAIL_HANDLE.getVolatile(this);
     return (int) (currentTail - currentHead);
   }
