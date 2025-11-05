@@ -46,8 +46,16 @@ public interface LibraryLoadingListener {
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}
 }
 
+/**
+ * "safe" listeners are used inside NativeLoader to avoid exceptions leaking out
+ *
+ * <p>The "safe" listeners are {@link CompositeLibraryLoadingListener} used to wrap regular
+ * listeners and {@link NopLibraryLoadingListener} used to optimize the nop case.
+ */
 abstract class SafeLibraryLoadingListener implements LibraryLoadingListener {
+  /** Used to create a new safe listener with the provided listeners append onto this one */
   public abstract SafeLibraryLoadingListener join(LibraryLoadingListener... listeners);
 
+  /** Indicates if all listener operates are nops */
   public abstract boolean isNop();
 }
