@@ -2,6 +2,8 @@ plugins {
   id 'org.gradle.playframework'
 }
 
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
+
 def playVer = "2.6.20"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.12")
 
@@ -12,6 +14,14 @@ play {
     javaVersion = JavaVersion.VERSION_1_8
   }
   injectedRoutesGenerator = true
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  // Despite the compatibility matrix, scala compiler doesn't properly
+  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+  // * https://github.com/gradle/gradle/issues/19456
+  configureCompiler(it, 8)
 }
 
 dependencies {
@@ -30,26 +40,26 @@ repositories {
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
-      allowInsecureProtocol true
+      allowInsecureProtocol = true
     }
   }
   mavenCentral()
   maven {
-    name "lightbend-maven-releases"
-    url "https://repo.lightbend.com/lightbend/maven-release"
+    name = "lightbend-maven-releases"
+    url = "https://repo.lightbend.com/lightbend/maven-release"
   }
   ivy {
-    name "lightbend-ivy-release"
-    url "https://repo.lightbend.com/lightbend/ivy-releases"
-    layout "ivy"
+    name = "lightbend-ivy-release"
+    url = "https://repo.lightbend.com/lightbend/ivy-releases"
+    layout("ivy")
   }
 }
 
 spotless {
   java {
-    target "**/*.java"
+    target("**/*.java")
   }
   scala {
-    target "**/*.scala"
+    target("**/*.scala")
   }
 }

@@ -1,0 +1,82 @@
+name: Validate PR Label Format
+on:
+  pull_request:
+    types: [opened, edited, ready_for_review, labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check_pr_labels:
+    name: Check pull request labels
+    permissions:
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check pull request labels
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # 8.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Skip draft pull requests
+            if (context.payload.pull_request.draft) {
+              return
+            }
+            // Define valid label categories
+            const validCategories = [
+              'type:',
+              'comp:',
+              'inst:',
+              'tag:',
+              'performance:',  // To refactor to 'ci: ' in the future
+              'run-tests:'     // Unused since GitLab migration
+            ]
+            // Look for invalid labels
+            const invalidLabels = context.payload.pull_request.labels
+              .map(label => label.name)
+              .filter(label => validCategories.every(prefix => !label.startsWith(prefix)))
+            const hasInvalidLabels = invalidLabels.length > 0
+            // Get existing comments to check for blocking comment
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            })
+            const commentMarker = '<!-- dd-trace-java-check-pr-labels-workflow -->'
+            const blockingComment = comments.data.find(comment => comment.body.includes(commentMarker))
+            // Create or update blocking comment if there are invalid labels
+            if (hasInvalidLabels) {
+              const commentBody = '**PR Blocked - Invalid Label**\n\n' +
+                `The pull request introduced unexpected labels:\n\n` +
+                invalidLabels.map(label => `* \`${label}\``).join('\n') + '\n\n' +
+                '**This PR is blocked until:**\n' +
+                '1. The invalid labels are deleted, and\n' +
+                '2. A maintainer deletes this comment to unblock the PR\n\n' +
+                '**Note:** Simply removing labels from the pull request is not enough - a maintainer must remove the label and delete this comment to remove the block.\n\n' +
+                commentMarker
+
+              if (blockingComment) {
+                // Update existing blocking comment
+                await github.rest.issues.updateComment({
+                  comment_id: blockingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                })
+              } else {
+                // Create new blocking comment
+                await github.rest.issues.createComment({
+                  issue_number: context.payload.pull_request.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: commentBody
+                })
+              }
+              blockingComment = true
+            }
+            if (blockingComment) {
+              // Block the PR by failing the workflow
+              core.setFailed(`PR blocked: Invalid labels detected: (${invalidLabels.join(', ')}). A maintainer must delete the blocking comment after fixing the labels to allow merging.`)
+            }

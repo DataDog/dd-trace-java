@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import scala.concurrent.ExecutionContext
 import spock.lang.IgnoreIf
@@ -7,7 +7,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-abstract class ScalaUnitPromiseTestBase extends AgentTestRunner {
+abstract class ScalaUnitPromiseTestBase extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

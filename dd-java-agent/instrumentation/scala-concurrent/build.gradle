@@ -19,16 +19,16 @@ addTestSuite('latestDepTest')
 addTestSuiteForDir('latest12Test', 'latestDepTest')
 addTestSuiteForDir('latest11Test', 'test')
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.test.scala.classesDirectory)
 }
-tasks.named("compileLatest12TestGroovy").configure {
+tasks.named("compileLatest12TestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latest12Test.scala.classesDirectory)
 }
-tasks.named("compileLatest11TestGroovy").configure {
+tasks.named("compileLatest11TestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latest11Test.scala.classesDirectory)
 }
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
@@ -45,7 +45,7 @@ dependencies {
   latestDepTestImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 }
 
-tasks.named("latestDepTest").configure {
+tasks.named("latestDepTest", Test) {
   dependsOn "latest11Test"
   dependsOn "latest12Test"
 }

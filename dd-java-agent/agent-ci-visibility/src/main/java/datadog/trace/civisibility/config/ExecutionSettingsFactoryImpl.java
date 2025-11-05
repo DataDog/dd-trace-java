@@ -182,6 +182,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             settings,
             CiVisibilitySettings::isCoverageReportUploadEnabled,
             Config::isCiVisibilityCodeCoverageReportUploadEnabled);
+    boolean failedTestReplayEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isFailedTestReplayEnabled,
+            Config::isCiVisibilityFailedTestReplayEnabled);
 
     TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
 
@@ -195,7 +200,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Known tests marking - {},\n"
             + "Auto test retries - {},\n"
             + "Test Management - {},\n"
-            + "Code coverage report upload - {}",
+            + "Code coverage report upload - {},\n"
+            + "Failed Test Replay - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -208,7 +214,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         knownTestsRequest,
         flakyTestRetriesEnabled,
         testManagementSettings.isEnabled(),
-        codeCoverageReportUpload);
+        codeCoverageReportUpload,
+        failedTestReplayEnabled);
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
@@ -261,6 +268,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               flakyTestRetriesEnabled,
               impactedTestsEnabled,
               codeCoverageReportUpload,
+              failedTestReplayEnabled,
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -8,7 +8,7 @@ import dd.test.trace.annotation.TracedSubClass
 
 import java.util.concurrent.Callable
 
-class TraceAnnotationsTest extends AgentTestRunner {
+class TraceAnnotationsTest extends InstrumentationSpecification {
 
   def "test simple case annotations"() {
     setup:

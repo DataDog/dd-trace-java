@@ -135,7 +135,7 @@ public class ProductState {
         listener.remove(configKey, hinter);
       }
     } catch (Exception ex) {
-      ratelimitedLogger.warn("Error handling configuration removal for " + configKey, ex);
+      ratelimitedLogger.warn("Error handling configuration removal for {}", configKey, ex);
     }
     cachedTargetFiles.remove(configKey);
     configStates.remove(configKey);

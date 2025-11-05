@@ -34,7 +34,7 @@ public class CapturedContext implements ValueReferenceResolver {
   private String thisClassName;
   private long duration;
   private final Map<String, Status> statusByProbeId = new LinkedHashMap<>();
-  private Map<String, CapturedValue> watches;
+  private Map<String, CapturedValue> captureExpressions;
 
   public CapturedContext() {}
 
@@ -260,8 +260,8 @@ public class CapturedContext implements ValueReferenceResolver {
     return staticFields;
   }
 
-  public Map<String, CapturedValue> getWatches() {
-    return watches;
+  public Map<String, CapturedValue> getCaptureExpressions() {
+    return captureExpressions;
   }
 
   public Limits getLimits() {
@@ -277,9 +277,9 @@ public class CapturedContext implements ValueReferenceResolver {
    * instance representation into the corresponding string value.
    */
   public void freeze(TimeoutChecker timeoutChecker) {
-    if (watches != null) {
-      // freeze only watches
-      watches.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+    if (captureExpressions != null) {
+      // freeze only capture expressions
+      captureExpressions.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
       return;
     }
     if (arguments != null) {
@@ -294,13 +294,15 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   public Status evaluate(
-      String encodedProbeId,
       ProbeImplementation probeImplementation,
       String thisClassName,
       long startTimestamp,
-      MethodLocation methodLocation) {
+      MethodLocation methodLocation,
+      boolean singleProbe) {
     Status status =
-        statusByProbeId.computeIfAbsent(encodedProbeId, key -> probeImplementation.createStatus());
+        statusByProbeId.computeIfAbsent(
+            probeImplementation.getProbeId().getEncodedId(),
+            key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT && startTimestamp > 0) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
@@ -310,7 +312,7 @@ public class CapturedContext implements ValueReferenceResolver {
     boolean shouldEvaluate =
         MethodLocation.isSame(methodLocation, probeImplementation.getEvaluateAt());
     if (shouldEvaluate) {
-      probeImplementation.evaluate(this, status, methodLocation);
+      probeImplementation.evaluate(this, status, methodLocation, singleProbe);
     }
     return status;
   }
@@ -322,6 +324,18 @@ public class CapturedContext implements ValueReferenceResolver {
       if (result == null) {
         return Status.EMPTY_STATUS;
       }
+    }
+    return result;
+  }
+
+  public Status getStatus(int probeIndex) {
+    ProbeImplementation probeImplementation = DebuggerContext.resolveProbe(probeIndex);
+    if (probeImplementation != null) {
+      return getStatus(probeImplementation.getProbeId().getEncodedId());
+    }
+    Status result = statusByProbeId.get(ProbeImplementation.UNKNOWN.getProbeId().getEncodedId());
+    if (result == null) {
+      return Status.EMPTY_STATUS;
     }
     return result;
   }
@@ -377,11 +391,11 @@ public class CapturedContext implements ValueReferenceResolver {
     staticFields.put(name, value);
   }
 
-  public void addWatch(CapturedValue value) {
-    if (watches == null) {
-      watches = new HashMap<>();
+  public void addCaptureExpression(CapturedValue value) {
+    if (captureExpressions == null) {
+      captureExpressions = new HashMap<>();
     }
-    watches.put(value.name, value);
+    captureExpressions.put(value.name, value);
   }
 
   public static class Status {

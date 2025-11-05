@@ -57,7 +57,7 @@ dependencies {
   }
 
 
-  testImplementation project(':dd-java-agent:instrumentation:guava-10')
+  testImplementation project(':dd-java-agent:instrumentation:guava-10.0')
 
   latestDepTestImplementation group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.7+'
 }

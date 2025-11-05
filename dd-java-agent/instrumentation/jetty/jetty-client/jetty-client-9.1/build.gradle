@@ -1,0 +1,63 @@
+muzzle {
+  /**
+   * Jetty Client 10+ passes if muzzle is run with Java 11 but fails otherwise because it
+   * is compiled with Java 11, so we can't validate with muzzle which uses Java 8.
+   */
+  pass {
+    name = "client"
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[9.1,10)"
+  }
+  pass {
+    name = "listener"
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[9.1,10)"
+  }
+  fail {
+    name = "client"
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[10,12)"
+    javaVersion = "11"
+  }
+  pass {
+    name = "listener"
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[10,12)"
+    javaVersion = "11"
+  }
+  fail {
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[,9.1)"
+  }
+
+  fail {
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[12,)"
+    javaVersion = "17"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
+  implementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-common')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
+    // explicitly declared below.
+    exclude group: 'org.eclipse.jetty'
+  }
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.1.0.v20131115'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.+'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
+}

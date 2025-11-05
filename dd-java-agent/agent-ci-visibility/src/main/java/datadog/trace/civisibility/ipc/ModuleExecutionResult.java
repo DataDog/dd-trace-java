@@ -13,12 +13,14 @@ public class ModuleExecutionResult extends ModuleSignal {
   private static final int EARLY_FLAKE_DETECTION_ENABLED_FLAG = 4;
   private static final int EARLY_FLAKE_DETECTION_FAULTY_FLAG = 8;
   private static final int TEST_MANAGEMENT_ENABLED_FLAG = 16;
+  private static final int HAS_FAILED_TEST_REPLAY_TESTS_FLAG = 32;
 
   private final boolean coverageEnabled;
   private final boolean testSkippingEnabled;
   private final boolean earlyFlakeDetectionEnabled;
   private final boolean earlyFlakeDetectionFaulty;
   private final boolean testManagementEnabled;
+  private final boolean hasFailedTestReplayTests;
   private final long testsSkippedTotal;
   private final Collection<TestFramework> testFrameworks;
 
@@ -30,6 +32,7 @@ public class ModuleExecutionResult extends ModuleSignal {
       boolean earlyFlakeDetectionEnabled,
       boolean earlyFlakeDetectionFaulty,
       boolean testManagementEnabled,
+      boolean hasFailedTestReplayTests,
       long testsSkippedTotal,
       Collection<TestFramework> testFrameworks) {
     super(sessionId, moduleId);
@@ -38,6 +41,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     this.earlyFlakeDetectionEnabled = earlyFlakeDetectionEnabled;
     this.earlyFlakeDetectionFaulty = earlyFlakeDetectionFaulty;
     this.testManagementEnabled = testManagementEnabled;
+    this.hasFailedTestReplayTests = hasFailedTestReplayTests;
     this.testsSkippedTotal = testsSkippedTotal;
     this.testFrameworks = testFrameworks;
   }
@@ -62,6 +66,10 @@ public class ModuleExecutionResult extends ModuleSignal {
     return testManagementEnabled;
   }
 
+  public boolean hasFailedTestReplayTests() {
+    return hasFailedTestReplayTests;
+  }
+
   public long getTestsSkippedTotal() {
     return testsSkippedTotal;
   }
@@ -84,6 +92,7 @@ public class ModuleExecutionResult extends ModuleSignal {
         && moduleId == that.moduleId
         && coverageEnabled == that.coverageEnabled
         && testSkippingEnabled == that.testSkippingEnabled
+        && hasFailedTestReplayTests == that.hasFailedTestReplayTests
         && testsSkippedTotal == that.testsSkippedTotal
         && Objects.equals(testFrameworks, that.testFrameworks);
   }
@@ -95,6 +104,7 @@ public class ModuleExecutionResult extends ModuleSignal {
         moduleId,
         coverageEnabled,
         testSkippingEnabled,
+        hasFailedTestReplayTests,
         testsSkippedTotal,
         testFrameworks);
   }
@@ -108,6 +118,8 @@ public class ModuleExecutionResult extends ModuleSignal {
         + moduleId
         + ", coverageEnabled="
         + coverageEnabled
+        + ", hasFailedTestReplayTests="
+        + hasFailedTestReplayTests
         + ", testSkippingEnabled="
         + testSkippingEnabled
         + ", itrTestsSkipped="
@@ -142,6 +154,9 @@ public class ModuleExecutionResult extends ModuleSignal {
     if (testManagementEnabled) {
       flags |= TEST_MANAGEMENT_ENABLED_FLAG;
     }
+    if (hasFailedTestReplayTests) {
+      flags |= HAS_FAILED_TEST_REPLAY_TESTS_FLAG;
+    }
     s.write(flags);
 
     s.write(testsSkippedTotal);
@@ -160,6 +175,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     boolean earlyFlakeDetectionEnabled = (flags & EARLY_FLAKE_DETECTION_ENABLED_FLAG) != 0;
     boolean earlyFlakeDetectionFaulty = (flags & EARLY_FLAKE_DETECTION_FAULTY_FLAG) != 0;
     boolean testManagementEnabled = (flags & TEST_MANAGEMENT_ENABLED_FLAG) != 0;
+    boolean hasFailedTestReplayTests = (flags & HAS_FAILED_TEST_REPLAY_TESTS_FLAG) != 0;
 
     long testsSkippedTotal = Serializer.readLong(buffer);
     Collection<TestFramework> testFrameworks =
@@ -173,6 +189,7 @@ public class ModuleExecutionResult extends ModuleSignal {
         earlyFlakeDetectionEnabled,
         earlyFlakeDetectionFaulty,
         testManagementEnabled,
+        hasFailedTestReplayTests,
         testsSkippedTotal,
         testFrameworks);
   }

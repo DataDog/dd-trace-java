@@ -72,6 +72,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
+  static final boolean DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT = false;
   // Default value is set to 0, it disables the latency trace interceptor
   static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
@@ -117,14 +118,16 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = true;
   static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
-  // TODO: change to true once the RFC is approved
-  static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = false;
+  static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = true;
   static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
+  static final double DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE = 0.5D;
+  static final int DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS = 1;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final int DEFAULT_APPSEC_MAX_COLLECTED_HEADERS = 50;
+  static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -163,7 +166,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.4";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.13";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.14";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -230,6 +233,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
+  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
@@ -244,6 +250,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
+
+  static final boolean DEFAULT_SERVICE_DISCOVERY_ENABLED = true;
 
   static final boolean DEFAULT_RUM_ENABLED = false;
   public static final String DEFAULT_RUM_SITE = DEFAULT_SITE;

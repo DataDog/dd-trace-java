@@ -75,7 +75,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       Supplier<TraceConfig> traceConfigSupplier) {
     this(
         new OkHttpSink(
-            sharedCommunicationObjects.okHttpClient,
+            sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
             V01_DATASTREAMS_ENDPOINT,
             false,
@@ -128,8 +128,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void start() {
     checkDynamicConfig();
     cancellation =
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                new ReportTask(),
+                this,
+                bucketDurationNanos,
+                bucketDurationNanos,
+                TimeUnit.NANOSECONDS);
     thread.start();
   }
 

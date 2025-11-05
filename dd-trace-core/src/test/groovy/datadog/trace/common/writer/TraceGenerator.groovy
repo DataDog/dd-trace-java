@@ -430,5 +430,10 @@ class TraceGenerator {
       }
       return this
     }
+
+    @Override
+    int getLongRunningVersion() {
+      return 0
+    }
   }
 }

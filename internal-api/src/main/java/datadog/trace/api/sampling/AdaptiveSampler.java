@@ -173,7 +173,7 @@ public class AdaptiveSampler implements Sampler {
         averageLookback,
         budgetLookback,
         null,
-        AgentTaskScheduler.INSTANCE,
+        AgentTaskScheduler.get(),
         startSampler);
   }
 
@@ -199,7 +199,7 @@ public class AdaptiveSampler implements Sampler {
         averageLookback,
         budgetLookback,
         listener,
-        AgentTaskScheduler.INSTANCE,
+        AgentTaskScheduler.get(),
         true);
   }
 

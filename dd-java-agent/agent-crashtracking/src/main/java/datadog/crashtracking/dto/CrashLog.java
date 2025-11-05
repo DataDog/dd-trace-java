@@ -17,7 +17,11 @@ public final class CrashLog {
     ADAPTER = moshi.adapter(CrashLog.class);
   }
 
-  public final String uuid = RandomUtils.randomUUID().toString();
+  public final String uuid;
+
+  @Json(name = "data_schema_version")
+  public final String dataSchemaVersion;
+
   public final String timestamp;
   public final boolean incomplete;
   public final ErrorData error;
@@ -33,18 +37,22 @@ public final class CrashLog {
   public final int version = VERSION;
 
   public CrashLog(
+      String uuid,
       boolean incomplete,
       String timestamp,
       ErrorData error,
       Metadata metadata,
       OSInfo osInfo,
-      ProcInfo procInfo) {
+      ProcInfo procInfo,
+      String dataSchemaVersion) {
+    this.uuid = uuid != null ? uuid : RandomUtils.randomUUID().toString();
     this.incomplete = incomplete;
     this.timestamp = timestamp;
     this.error = error;
     this.metadata = metadata;
     this.osInfo = osInfo;
     this.procInfo = procInfo;
+    this.dataSchemaVersion = dataSchemaVersion;
   }
 
   public String toJson() {
@@ -65,22 +73,23 @@ public final class CrashLog {
     }
     CrashLog crashLog = (CrashLog) o;
     return incomplete == crashLog.incomplete
-        && version == crashLog.version
         && Objects.equals(uuid, crashLog.uuid)
         && Objects.equals(timestamp, crashLog.timestamp)
         && Objects.equals(error, crashLog.error)
         && Objects.equals(metadata, crashLog.metadata)
         && Objects.equals(osInfo, crashLog.osInfo)
-        && Objects.equals(procInfo, crashLog.procInfo);
+        && Objects.equals(procInfo, crashLog.procInfo)
+        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(uuid, timestamp, incomplete, error, metadata, osInfo, procInfo, version);
+    return Objects.hash(
+        uuid, timestamp, incomplete, error, metadata, osInfo, procInfo, version, dataSchemaVersion);
   }
 
   public boolean equalsForTest(Object o) {
-    // for tests, we need to ignore UUID, OSInfo and Metadata part
+    // for tests, we need to ignore OSInfo and Metadata part
     if (this == o) {
       return true;
     }
@@ -90,8 +99,10 @@ public final class CrashLog {
     CrashLog crashLog = (CrashLog) o;
     return incomplete == crashLog.incomplete
         && version == crashLog.version
+        && Objects.equals(uuid, crashLog.uuid)
         && Objects.equals(timestamp, crashLog.timestamp)
         && Objects.equals(error, crashLog.error)
-        && Objects.equals(procInfo, crashLog.procInfo);
+        && Objects.equals(procInfo, crashLog.procInfo)
+        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
   }
 }

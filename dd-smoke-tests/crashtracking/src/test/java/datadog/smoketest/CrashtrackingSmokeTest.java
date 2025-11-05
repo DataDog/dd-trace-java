@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -12,7 +11,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
-import datadog.libs.ddprof.DdprofLibraryLoader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -51,15 +50,12 @@ public class CrashtrackingSmokeTest {
   private MockWebServer tracingServer;
   private TestUDPServer udpServer;
   private final BlockingQueue<CrashTelemetryData> crashEvents = new LinkedBlockingQueue<>();
+  private final Moshi moshi = new Moshi.Builder().build();
 
   @BeforeAll
   static void setupAll() {
     // Only Hotspot based implementation are supported
     assumeFalse(JavaVirtualMachine.isJ9());
-    // Currently, we require the ddprof java library for crash-tracking; bail out if not supported
-    assumeTrue(
-        DdprofLibraryLoader.jvmAccess().getReasonNotLoaded() == null,
-        "JVM Access is not available");
   }
 
   private Path tempDir;
@@ -70,7 +66,6 @@ public class CrashtrackingSmokeTest {
 
     crashEvents.clear();
 
-    Moshi moshi = new Moshi.Builder().build();
     tracingServer = new MockWebServer();
     tracingServer.setDispatcher(
         new Dispatcher() {
@@ -205,7 +200,7 @@ public class CrashtrackingSmokeTest {
     OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
 
     assertExpectedCrash(p);
-    assertCrashData();
+    assertCrashData(assertCrashPing());
   }
 
   /*
@@ -241,7 +236,7 @@ public class CrashtrackingSmokeTest {
 
     assertExpectedCrash(p);
 
-    assertCrashData();
+    assertCrashData(assertCrashPing());
   }
 
   /*
@@ -320,7 +315,7 @@ public class CrashtrackingSmokeTest {
     OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
 
     assertExpectedCrash(p);
-    assertCrashData();
+    assertCrashData(assertCrashPing());
     assertOOMEvent();
   }
 
@@ -330,11 +325,24 @@ public class CrashtrackingSmokeTest {
     assertTrue(p.waitFor() > 0, "Application should have crashed");
   }
 
-  private void assertCrashData() throws InterruptedException {
+  private String assertCrashPing() throws InterruptedException, IOException {
+    CrashTelemetryData crashData = crashEvents.poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    assertNotNull(crashData, "Crash ping not sent");
+    assertTrue(crashData.payload.get(0).tags.contains("is_crash_ping:true"), "Not a crash ping");
+    final Map<?, ?> map = moshi.adapter(Map.class).fromJson(crashData.payload.get(0).message);
+    final Object uuid = map.get("crash_uuid");
+    assertNotNull(uuid, "crash uuid not found");
+    return uuid.toString();
+  }
+
+  private void assertCrashData(String uuid) throws InterruptedException, IOException {
     CrashTelemetryData crashData = crashEvents.poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     assertNotNull(crashData, "Crash data not uploaded");
-    assertThat(crashData.payload.get(0).message, containsString("OutOfMemory"));
-    assertThat(crashData.payload.get(0).tags, containsString("severity:crash"));
+    assertTrue(crashData.payload.get(0).message.contains("OutOfMemory"));
+    assertTrue(crashData.payload.get(0).tags.contains("severity:crash"));
+    final Map<?, ?> map = moshi.adapter(Map.class).fromJson(crashData.payload.get(0).message);
+    final Object receivedUuid = map.get("uuid");
+    assertEquals(uuid, receivedUuid, "crash uuid should match the one sent with the ping");
   }
 
   private void assertOOMEvent() throws InterruptedException {
@@ -345,8 +353,8 @@ public class CrashtrackingSmokeTest {
 
     assertNotNull(event, "OOM Event not received");
 
-    assertThat(event, containsString(":OutOfMemoryError"));
-    assertThat(event, containsString("t:error"));
-    assertThat(event, containsString("s:java"));
+    assertTrue(event.contains(":OutOfMemoryError"));
+    assertTrue(event.contains("t:error"));
+    assertTrue(event.contains("s:java"));
   }
 }

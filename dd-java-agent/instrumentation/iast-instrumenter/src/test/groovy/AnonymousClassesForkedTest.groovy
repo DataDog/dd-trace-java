@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators
 import datadog.trace.agent.tooling.bytebuddy.outline.OutlineTypeParser
 import datadog.trace.agent.tooling.bytebuddy.outline.FullTypeParser
@@ -6,7 +6,7 @@ import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
 import net.bytebuddy.description.type.TypeDescription
 
-class AnonymousClassesForkedTest extends AgentTestRunner {
+class AnonymousClassesForkedTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

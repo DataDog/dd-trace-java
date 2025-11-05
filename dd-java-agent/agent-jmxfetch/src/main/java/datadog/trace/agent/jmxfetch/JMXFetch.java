@@ -160,6 +160,8 @@ public class JMXFetch {
                   try {
                     Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
                   } catch (final InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
+                    break;
                   }
                 }
               }

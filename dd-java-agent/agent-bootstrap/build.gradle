@@ -1,16 +1,17 @@
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
+
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
 }
 
-ext {
-  // need access to sun.* packages
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
+
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.* packages")
+}
 
 // FIXME: Improve test coverage.
 minimumBranchCoverage = 0.0
@@ -26,6 +27,9 @@ dependencies {
   api project(':components:json')
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
+  api(variantOf(libs.instrumentjava, { classifier("all") })) {
+    transitive = false
+  }
 
   testImplementation project(':dd-java-agent:testing')
 }
@@ -37,10 +41,8 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 dependencies {
@@ -48,11 +50,11 @@ dependencies {
   main_java11CompileOnly sourceSets.main.output
 }
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11", CheckForbiddenApis) {
   failOnMissingClasses = false
 }
 
@@ -63,14 +65,15 @@ idea {
 }
 
 jmh {
-  jmhVersion = libs.versions.jmh.get()
+  jmhVersion = libs.versions.jmh
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-      jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
-    }
-  }
+tasks.withType(Test).configureEach {
+  configureJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
+    )
+
 }

@@ -13,7 +13,7 @@ public abstract class ServiceSupport extends LogSupport {
       log.info("Started " + this);
       started = true;
     } catch (Exception e) {
-      log.warn("Problem starting " + this, e);
+      log.warn("Problem starting {}" + this, e);
       throw e;
     }
   }
@@ -26,7 +26,7 @@ public abstract class ServiceSupport extends LogSupport {
       log.info("Stopped " + this);
       started = false;
     } catch (Exception e) {
-      log.warn("Problem stopping " + this, e);
+      log.warn("Problem stopping {}" + this, e);
       throw e;
     }
   }

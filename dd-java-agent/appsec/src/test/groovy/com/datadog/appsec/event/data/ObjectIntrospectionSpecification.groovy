@@ -2,6 +2,7 @@ package com.datadog.appsec.event.data
 
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.NullTextJsonNode
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonBuilder
@@ -303,7 +304,11 @@ class ObjectIntrospectionSpecification extends DDSpecification {
   void 'conversion of an element throws'() {
     setup:
     def cs = new CharSequence() {
-      @Delegate String s = ''
+      // When run on JDK8 this prevents `NoClassDefFoundError` of `java.lang.constant.Constable`.
+      // Since JDK12 types like Integer, String implement Constable, and groovy capture this
+      // in the enclosing class, which fails on JDK8 when it is loaded,
+      // see https://github.com/groovy/groovy-eclipse/issues/1436
+      @Delegate(interfaces = false) String s = ''
 
       @Override
       String toString() {
@@ -348,6 +353,14 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('{}')                          || [:]
     MAPPER.readTree('[1, 2, 3]')                   || [1, 2, 3]
     MAPPER.readTree('{"key": "value"}')            || [key: 'value']
+  }
+
+  void 'jackson text nodes with null textual value are handled gracefully'() {
+    given:
+    def node = new NullTextJsonNode()
+
+    expect:
+    convert(node, ctx) == null
   }
 
   void 'jackson nested structures'() {

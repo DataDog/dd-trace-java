@@ -19,19 +19,18 @@ dependencies {
 }
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
-[compileMain_java11Java, compileTestJava].each {
-  setJavaVersion(it, 11)
-  it.sourceCompatibility = JavaVersion.VERSION_1_8
-  it.targetCompatibility = JavaVersion.VERSION_1_8
-  it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+["compileMain_java11Java", "compileTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
+    configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)")
+    it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+  }
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 
-test {
-  useJUnit()
+tasks.named("test", Test) {
   useJUnitPlatform()
 }
 

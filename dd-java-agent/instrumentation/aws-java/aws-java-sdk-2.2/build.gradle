@@ -33,7 +33,7 @@ dependencies {
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
   // Also include netty instrumentation because it is used by aws async client
-  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 's3', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'rds', version: '2.2.0'
@@ -44,8 +44,7 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
   testImplementation group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
 
-
-  testImplementation group: 'org.testcontainers', name: 'localstack', version: libs.versions.testcontainers.get()
+  testImplementation libs.testcontainers.localstack
 
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS
@@ -70,7 +69,7 @@ dependencies {
   latestPayloadTaggingTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.18.40'
 
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: fixedSdkVersion
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'apigateway', version: fixedSdkVersion

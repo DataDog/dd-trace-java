@@ -6,7 +6,7 @@ repositories {
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
-      allowInsecureProtocol true
+      allowInsecureProtocol = true
     }
   }
   mavenCentral()
@@ -20,17 +20,17 @@ repositories {
       snapshotsOnly()
     }
     // see https://central.sonatype.org/publish/publish-portal-snapshots/#consuming-via-gradle
-    url 'https://central.sonatype.com/repository/maven-snapshots/'
+    url = 'https://central.sonatype.com/repository/maven-snapshots/'
   }
   maven {
-    url 'https://packages.confluent.io/maven/'
+    url = 'https://packages.confluent.io/maven/'
     content {
       includeGroupAndSubgroups "io.confluent"
       includeGroupAndSubgroups "org.apache.kafka"
     }
   }
   maven {
-    url 'https://repo.spring.io/libs-milestone'
+    url = 'https://repo.spring.io/libs-milestone'
     content {
       includeGroupAndSubgroups "org.springframework"
     }

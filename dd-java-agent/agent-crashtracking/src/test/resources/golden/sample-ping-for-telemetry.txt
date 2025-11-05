@@ -1,0 +1,1 @@
+{"crash_uuid":"a4194cd6-8cb3-45fd-9bd9-3af83e0a3ad3","kind":"Crash ping","current_schema_version":"1.0","message":"Crashtracker crash ping: crash processing started"}

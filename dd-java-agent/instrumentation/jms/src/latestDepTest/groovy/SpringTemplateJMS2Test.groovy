@@ -1,5 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
 import org.hornetq.api.jms.HornetQJMSClient
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 import static JMS2Test.consumerTrace
 import static JMS2Test.producerTrace
 
-class SpringTemplateJMS2Test extends AgentTestRunner {
+class SpringTemplateJMS2Test extends InstrumentationSpecification {
   @Shared
   HornetQServer server
   @Shared

@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.jersey
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import jakarta.ws.rs.core.NewCookie
 import jakarta.ws.rs.core.Response
 
-class JakartaWSResponseInstrumentationTest extends AgentTestRunner {
+class JakartaWSResponseInstrumentationTest extends InstrumentationSpecification {
 
 
   @Override

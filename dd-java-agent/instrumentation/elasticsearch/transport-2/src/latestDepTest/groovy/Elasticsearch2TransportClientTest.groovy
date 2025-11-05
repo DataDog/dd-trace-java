@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -17,7 +17,7 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Flaky
-class Elasticsearch2TransportClientTest extends AgentTestRunner {
+class Elasticsearch2TransportClientTest extends InstrumentationSpecification {
   public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared

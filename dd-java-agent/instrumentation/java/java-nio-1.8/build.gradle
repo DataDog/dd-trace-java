@@ -1,0 +1,30 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+  excludeJdk = ['SEMERU11', 'SEMERU17']
+}
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+// Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
+["compileMain_java11Java", "compileTestJava"].each { name ->
+  tasks.named(name, JavaCompile) {
+    configureCompiler(it, 11, JavaVersion.VERSION_11, "Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)")
+    it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+  }
+}
+
+tasks.named("forbiddenApisMain_java11") {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

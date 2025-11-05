@@ -27,7 +27,7 @@ dependencies {
   // Force 0.3.3 because 0.3.0 has a version parsing bug that fails on jdk 15
   testImplementation group: 'com.github.jbellis', name: "jamm", version: '0.3.3'
 
-  testImplementation project(':dd-java-agent:instrumentation:guava-10')
+  testImplementation project(':dd-java-agent:instrumentation:guava-10.0')
 
   latestDepTestImplementation group: 'com.datastax.oss', name: 'java-driver-core', version: '+'
 }

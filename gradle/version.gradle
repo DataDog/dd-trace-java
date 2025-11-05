@@ -1,25 +1,34 @@
-def getGitHash = {
-  ->
-  def stdout = new ByteArrayOutputStream()
-  exec {
-    commandLine 'git', 'rev-parse', '--short', 'HEAD'
-    standardOutput = stdout
+abstract class WriteVersionNumberFile extends DefaultTask {
+  @Input
+  abstract Property<String> getVersion()
+
+  @Input
+  abstract Property<String> getGitHash()
+
+  @OutputDirectory
+  abstract DirectoryProperty getOutputDirectory()
+
+  WriteVersionNumberFile() {
+    // Set conventions (defaults)
+    this.version.convention(project.provider { project.version.toString() })
+    this.gitHash.convention(project.provider {
+      def stdout = new ByteArrayOutputStream()
+      project.exec {
+        commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        standardOutput = stdout
+      }
+      return stdout.toString().trim()
+    })
+    this.outputDirectory.convention(project.layout.buildDirectory.dir("generated/version"))
   }
-  return stdout.toString().trim()
-}
 
-tasks.register("writeVersionNumberFile") {
-
-  def versionFile = file("${sourceSets.main.output.resourcesDir}/${project.name}.version")
-  inputs.property "version", project.version
-  outputs.file versionFile
-
-  doFirst {
-    assert versionFile.parentFile.mkdirs() || versionFile.parentFile.directory
-    versionFile.text = "${project.version}~${getGitHash()}"
+  @TaskAction
+  void writeVersionFile() {
+    def versionFile = outputDirectory.file("${project.name}.version").get().asFile
+    versionFile.parentFile.mkdirs()
+    versionFile.text = "${version.get()}~${gitHash.get()}"
   }
 }
 
-tasks.withType(JavaCompile).configureEach {
-  dependsOn "writeVersionNumberFile"
-}
+def versionTask = tasks.register("writeVersionNumberFile", WriteVersionNumberFile)
+sourceSets.main.resources.srcDir(versionTask)

@@ -1,0 +1,26 @@
+apply from: "$rootDir/gradle/java.gradle"
+description = 'JUnit Console Smoke Tests.'
+
+dependencies {
+  implementation group: 'org.junit.platform', name: 'junit-platform-console-standalone', version: '1.13.4'
+
+  testImplementation project(':dd-smoke-tests:backend-mock')
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def consoleJarFile = configurations.named("runtimeClasspath")
+          .get()
+          .find { it.name.contains("junit-platform-console-standalone") }
+
+        return ["-Ddatadog.smoketest.junit.console.jar.path=${consoleJarFile}"]
+      }
+    })
+
+  if (project.hasProperty("mavenRepositoryProxy")) {
+    // propagate proxy URL to tests, to then propagate it to nested Gradle builds
+    environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
+  }
+}

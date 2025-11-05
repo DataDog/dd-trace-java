@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.thymeleaf
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
 import org.thymeleaf.TemplateEngine
 import org.thymeleaf.context.Context
 
-class ThymeleafXssTest extends AgentTestRunner {
+class ThymeleafXssTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

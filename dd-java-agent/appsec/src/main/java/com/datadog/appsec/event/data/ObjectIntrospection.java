@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -184,6 +185,11 @@ public final class ObjectIntrospection {
       return obj.toString();
     }
 
+    // Date objects - avoid accessing private fastTime field
+    if (obj instanceof Date) {
+      return ((Date) obj).getTime();
+    }
+
     // Jackson databind nodes (via reflection)
     Class<?> clazz = obj.getClass();
     if (clazz.getName().startsWith("com.fasterxml.jackson.databind.node.")) {
@@ -339,6 +345,9 @@ public final class ObjectIntrospection {
   }
 
   private static String checkStringLength(final String str, final State state) {
+    if (str == null) {
+      return null;
+    }
     if (str.length() > MAX_STRING_SIZE) {
       state.stringTooLong = true;
       return str.substring(0, MAX_STRING_SIZE);

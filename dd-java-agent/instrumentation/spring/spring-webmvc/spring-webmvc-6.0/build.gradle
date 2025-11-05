@@ -1,0 +1,64 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-webmvc'
+    versions = "[6,)"
+    javaVersion = "17"
+    extraDependency "jakarta.servlet:jakarta.servlet-api:5.0.0"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir("latestDepTest", "test")
+
+["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+  }
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 17)
+  groovyOptions.setParameters(true)
+}
+
+dependencies {
+  main_java17CompileOnly(group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0')
+  main_java17CompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
+
+  implementation project(':dd-java-agent:instrumentation:span-origin')
+  main_java17Implementation project(':dd-java-agent:instrumentation:span-origin')
+
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
+    exclude(module: 'jetty-server') // incompatible servlet api
+  }
+
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-5.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
+
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
+  testImplementation group: 'org.springframework', name: 'spring-websocket', version: '6.0.2'
+  testImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.+'
+}
+
+

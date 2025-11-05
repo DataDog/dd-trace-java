@@ -34,13 +34,13 @@ public class IastController {
 
   public IastController(
       @Qualifier("iastStringTemplate")
-      final ReplyingKafkaTemplate<String, String, String> stringTemplate,
+          final ReplyingKafkaTemplate<String, String, String> stringTemplate,
       @Qualifier("iastByteArrayTemplate")
-      final ReplyingKafkaTemplate<byte[], byte[], String> byteArrayTemplate,
+          final ReplyingKafkaTemplate<byte[], byte[], String> byteArrayTemplate,
       @Qualifier("iastByteBufferTemplate")
-      final ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> byteBufferTemplate,
+          final ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> byteBufferTemplate,
       @Qualifier("iastJsonTemplate")
-      final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate) {
+          final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate) {
     this.stringTemplate = stringTemplate;
     this.byteArrayTemplate = byteArrayTemplate;
     this.byteBufferTemplate = byteBufferTemplate;

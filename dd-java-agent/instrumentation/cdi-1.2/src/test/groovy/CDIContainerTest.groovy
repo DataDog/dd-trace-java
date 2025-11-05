@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import org.jboss.weld.environment.se.Weld
 import org.jboss.weld.environment.se.WeldContainer
 import org.jboss.weld.environment.se.threading.RunnableDecorator
 
-class CDIContainerTest extends AgentTestRunner {
+class CDIContainerTest extends InstrumentationSpecification {
 
   def "CDI container starts with agent"() {
     given:

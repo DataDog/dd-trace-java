@@ -1,7 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.core.DDSpan
 
-class ScalaInstrumentationTest extends AgentTestRunner {
+class ScalaInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   boolean useStrictTraceWrites() {

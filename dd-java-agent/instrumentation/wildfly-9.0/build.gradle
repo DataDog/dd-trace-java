@@ -1,0 +1,184 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+repositories {
+  maven {
+    url = 'https://maven.repository.redhat.com/ga/'
+  }
+}
+
+muzzle {
+  extraRepository('redhat-ga', 'https://maven.repository.redhat.com/ga/')
+  pass {
+    group = 'org.wildfly'
+    module = 'wildfly-ee'
+    versions = '[9.0.0.Final,)'
+    excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir("latestDepTest", "test")
+addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
+
+configurations {
+  wildflyTest
+  wildflyLatestDepTest
+}
+
+dependencies {
+  compileOnly group: 'org.wildfly', name: 'wildfly-ee', version: '9.0.0.Final'
+
+  testImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+  testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.0.0'
+
+  testImplementation group: 'org.wildfly.core', name: 'wildfly-embedded', version: '21.1.0.Final'
+  testImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '21.1.0.Final'
+  testImplementation group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-api', version: '1.2.6'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jboss:jboss-modules-1.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.2')
+  testRuntimeOnly group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-spi', version: '1.2.6'
+  testRuntimeOnly group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-impl-base', version: '1.2.6'
+
+  wildflyTest "org.wildfly:wildfly-dist:21.0.0.Final@zip"
+
+  latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-embedded', version: '+'
+  latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '+'
+  wildflyLatestDepTest "org.wildfly:wildfly-dist:+@zip"
+
+  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+}
+
+def extractWildfly(NamedDomainObjectProvider<Configuration> config, String zipFileNamePrefix, Copy sync) {
+  def zipPath = config.map { Configuration c ->
+    c.filter { File file ->
+      file.name.startsWith(zipFileNamePrefix)
+    }.singleFile
+  }.orElse(providers.provider { throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix) })
+
+  sync.from(zipTree(zipPath)) {
+    // Strip the first path segment
+    eachFile { FileCopyDetails f ->
+      def segments = f.relativePath.segments
+      if (segments.length > 1) {
+        f.relativePath = new RelativePath(!f.directory, segments[1..-1] as String[])
+      } else {
+        f.exclude()
+      }
+    }
+  }
+  sync.into(layout.buildDirectory.dir("tmp/wildfly-dist-${config.name}"))
+  sync.doFirst {
+    delete(sync.destinationDir)
+  }
+}
+
+def extractWildflyTask = tasks.register("extractWildfly", Copy) {
+  dependsOn configurations.named('wildflyTest')
+  mustRunAfter 'compileTestGroovy'
+  extractWildfly(configurations.named("wildflyTest"), "wildfly-dist", it)
+
+  // When tests are disabled this would still be run, so disable this manually
+  onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
+  mustRunAfter 'compileLatestDepTestGroovy'
+  mustRunAfter 'compileLatestDepForkedTestGroovy'
+  mustRunAfter 'compileLatestDepTestJava'
+  mustRunAfter 'compileLatestDepForkedTestJava'
+  mustRunAfter 'compileJava'
+  extractWildfly(configurations.named("wildflyLatestDepTest"), "wildfly", it)
+
+  // When tests are disabled this would still be run, so disable this manually
+  onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+tasks.named("test", Test) {
+  dependsOn 'extractWildfly'
+}
+
+tasks.named("forkedTest", Test) {
+  dependsOn 'extractWildfly'
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  dependsOn 'extractLatestWildfly'
+}
+
+tasks.named("latestDepTest", Test) {
+  dependsOn 'extractLatestWildfly'
+}
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
+}
+
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, 17)}
+}
+
+tasks.named("compileTestJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+  }
+}
+
+tasks.named("processTestResources", ProcessResources) {
+  filesMatching('**/WEB-INF/web.xml') {
+    expand(
+      'servletClass': 'test.TestServlet',
+      )
+  }
+}
+
+["processLatestDepTestResources", "processLatestDepForkedTestResources"].each {
+  tasks.named(it, ProcessResources) {
+    filesMatching('**/WEB-INF/web.xml') {
+      expand(
+        'servletClass': 'test.JakartaTestServlet',
+        )
+    }
+  }
+}
+
+abstract class DistributionLocationProvider implements CommandLineArgumentProvider {
+  @InputDirectory
+  @PathSensitive(PathSensitivity.RELATIVE)
+  abstract Property<File> getDistribution()
+
+  @Override
+  Iterable<String> asArguments() {
+    ["-Dtest.jboss.home=${distribution.get()}"]
+  }
+}
+
+tasks.named("forkedTest", Test) {
+  jvmArgumentProviders.add(
+    objects.newInstance(DistributionLocationProvider).tap {
+      distribution = extractWildflyTask.map { it.destinationDir }
+    }
+    )
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  jvmArgumentProviders.add(
+    objects.newInstance(DistributionLocationProvider).tap {
+      distribution = extractLatestWildfly.map { it.destinationDir }
+    }
+    )
+}
+
+

@@ -16,7 +16,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.sparkjava', name: 'spark-core', version: '2.3'
 
-  testImplementation project(':dd-java-agent:instrumentation:jetty-9')
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
 
   testImplementation group: 'com.sparkjava', name: 'spark-core', version: '2.4'
 

@@ -17,7 +17,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class SerializingMetricWriterTest extends DDSpecification {
-
   def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {
     setup:
     if (withProcessTags) {
@@ -126,13 +125,15 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      assert mapSize == (6 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0))
-      assert unpacker.unpackString() == "RuntimeId"
+      assert mapSize == (7 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0))
+      assert unpacker.unpackString() == "RuntimeID"
       assert unpacker.unpackString() == wellKnownTags.getRuntimeId() as String
-      assert unpacker.unpackString() == "Seq"
+      assert unpacker.unpackString() == "Sequence"
       assert unpacker.unpackLong() == 0L
       assert unpacker.unpackString() == "Hostname"
       assert unpacker.unpackString() == wellKnownTags.getHostname() as String
+      assert unpacker.unpackString() == "Service"
+      assert unpacker.unpackString() == wellKnownTags.getService() as String
       assert unpacker.unpackString() == "Env"
       assert unpacker.unpackString() == wellKnownTags.getEnv() as String
       assert unpacker.unpackString() == "Version"
@@ -177,7 +178,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackBoolean() == key.isSynthetics()
         ++elementCount
         assert unpacker.unpackString() == "IsTraceRoot"
-        assert unpacker.unpackInt() == (key.isTraceRoot() ? 1 : 2)
+        assert unpacker.unpackInt() == (key.isTraceRoot() ? TriState.TRUE.serialValue : TriState.FALSE.serialValue)
         ++elementCount
         assert unpacker.unpackString() == "SpanKind"
         assert unpacker.unpackString() == key.getSpanKind() as String

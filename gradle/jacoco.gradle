@@ -1,7 +1,7 @@
 apply plugin: 'jacoco'
 
 jacoco {
-  toolVersion = '0.8.13'
+  toolVersion = '0.8.14'
 }
 
 tasks.register('forkedTestJacocoData') {
@@ -19,7 +19,7 @@ tasks.register('forkedTestJacocoData') {
   }
 }
 
-tasks.named('jacocoTestReport').configure {
+tasks.named('jacocoTestReport') {
   dependsOn('test', 'forkedTestJacocoData')
   reports {
     xml.required = true
@@ -52,7 +52,7 @@ afterEvaluate {
     }
   }
 
-  jacocoTestCoverageVerification {
+  tasks.named("jacocoTestCoverageVerification", JacocoCoverageVerification) {
     violationRules {
       rule {
         element = 'CLASS'
@@ -77,10 +77,10 @@ afterEvaluate {
     onlyIf { !project.rootProject.hasProperty('skipTests') }
   }
 
-  tasks.named('jacocoTestCoverageVerification').configure {
+  tasks.named('jacocoTestCoverageVerification') {
     dependsOn('jacocoTestReport')
   }
-  tasks.named('check').configure {
+  tasks.named('check') {
     dependsOn('jacocoTestCoverageVerification')
   }
 }

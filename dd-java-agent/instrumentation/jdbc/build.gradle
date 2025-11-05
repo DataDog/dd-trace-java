@@ -3,6 +3,10 @@ plugins {
   id 'me.champeau.jmh'
 }
 
+ext {
+  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -21,12 +25,13 @@ addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
-  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   // jdbc unit testing
   testImplementation group: 'com.h2database', name: 'h2', version: '[1.3.168,1.3.169]'// first jdk 1.6 compatible
   testImplementation group: 'org.apache.derby', name: 'derby', version: '10.6.1.0'
   testImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.0.0'
+  testImplementation group: 'org.apache.commons', name: 'commons-dbcp2', version: '2.10.0'
 
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-jdbc', version: '7.0.19'
   // tomcat needs this to run
@@ -73,13 +78,22 @@ dependencies {
   latestDepJava11TestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
 }
 
-tasks.named("check").configure {
+tasks.named("check") {
   dependsOn "oldH2Test"
   dependsOn "oldPostgresTest"
 }
 
-tasks.named("latestDepJava11Test").configure {
+tasks.named("latestDepJava11Test", Test) {
   javaLauncher = getJavaLauncherFor(11)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Connection has new methods with new types introduced in Java 9 that are not available on Java 8."
+    )
 }
 
 tasks.withType(Test).configureEach {

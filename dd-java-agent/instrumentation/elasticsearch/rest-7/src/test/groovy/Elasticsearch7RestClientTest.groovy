@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
@@ -23,7 +23,7 @@ import java.util.concurrent.CountDownLatch
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class Elasticsearch7RestClientTest extends AgentTestRunner {
+class Elasticsearch7RestClientTest extends InstrumentationSpecification {
   @Shared
   TransportAddress httpTransportAddress
   @Shared

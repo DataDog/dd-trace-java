@@ -1,0 +1,14 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
+
+  testImplementation project(':dd-java-agent:instrumentation-testing'), {
+    exclude group: 'org.eclipse.jetty'
+  }
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
+}

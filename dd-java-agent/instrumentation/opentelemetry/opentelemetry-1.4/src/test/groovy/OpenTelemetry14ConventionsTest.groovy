@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
@@ -18,7 +18,7 @@ import static io.opentelemetry.api.trace.SpanKind.INTERNAL
 import static io.opentelemetry.api.trace.SpanKind.PRODUCER
 import static io.opentelemetry.api.trace.SpanKind.SERVER
 
-class OpenTelemetry14ConventionsTest extends AgentTestRunner {
+class OpenTelemetry14ConventionsTest extends InstrumentationSpecification {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("conventions")
 

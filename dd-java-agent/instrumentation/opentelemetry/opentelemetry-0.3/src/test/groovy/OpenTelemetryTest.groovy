@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -19,7 +19,7 @@ import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
 
-class OpenTelemetryTest extends AgentTestRunner {
+class OpenTelemetryTest extends InstrumentationSpecification {
   @Subject
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")
   def httpPropagator = OpenTelemetry.getPropagators().httpTextFormat

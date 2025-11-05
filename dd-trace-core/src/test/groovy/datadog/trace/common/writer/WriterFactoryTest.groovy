@@ -5,6 +5,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.Config
+import datadog.trace.api.intake.TrackType
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Prioritization
@@ -50,7 +51,7 @@ class WriterFactoryTest extends DDSpecification {
 
     // Create SharedCommunicationObjects with mocked HTTP client
     def sharedComm = new SharedCommunicationObjects()
-    sharedComm.okHttpClient = mockHttpClient
+    sharedComm.agentHttpClient = mockHttpClient
     sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
     sharedComm.createRemaining(config)
 
@@ -97,6 +98,73 @@ class WriterFactoryTest extends DDSpecification {
     "not-found"                                | false       | false                       | false                          | DDAgentWriter        | [DDAgentApi]       | false
   }
 
+  def "test writer creation for #configuredType when agentHasEvpProxy=#hasEvpProxy llmObsAgentless=#isLlmObsAgentlessEnabled for LLM Observability"() {
+    setup:
+    def config = Mock(Config)
+    config.apiKey >> "my-api-key"
+    config.agentUrl >> "http://my-agent.url"
+    config.getEnumValue(PRIORITIZATION_TYPE, _, _) >> Prioritization.FAST_LANE
+    config.tracerMetricsEnabled >> true
+    config.isLlmObsEnabled() >> true
+
+    // Mock agent info response
+    def response
+    if (agentRunning) {
+      response = buildHttpResponse(hasEvpProxy, true, HttpUrl.parse(config.agentUrl + "/info"))
+    } else {
+      response = buildHttpResponseNotOk(HttpUrl.parse(config.agentUrl + "/info"))
+    }
+
+    // Mock HTTP client that simulates delayed response for async feature discovery
+    def mockCall = Mock(Call)
+    def mockHttpClient = Mock(OkHttpClient)
+    mockCall.execute() >> {
+      // Add a delay
+      sleep(400)
+      return response
+    }
+    mockHttpClient.newCall(_ as Request) >> mockCall
+
+    // Create SharedCommunicationObjects with mocked HTTP client
+    def sharedComm = new SharedCommunicationObjects()
+    sharedComm.agentHttpClient = mockHttpClient
+    sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
+    sharedComm.createRemaining(config)
+
+    def sampler = Mock(Sampler)
+
+    when:
+    config.llmObsAgentlessEnabled >> isLlmObsAgentlessEnabled
+
+    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType)
+    def llmObsApiClasses = ((RemoteWriter) writer).apis
+    .stream()
+    .filter(api -> {
+      try {
+        def trackTypeField = api.class.getDeclaredField("trackType")
+        trackTypeField.setAccessible(true)
+        return trackTypeField.get(api) == TrackType.LLMOBS
+      } catch (Exception e) {
+        return false
+      }
+    })
+    .map(Object::getClass)
+    .collect(Collectors.toList())
+
+    then:
+    writer.class == expectedWriterClass
+    llmObsApiClasses == expectedLlmObsApiClasses
+
+    where:
+    configuredType                             | agentRunning | hasEvpProxy | isLlmObsAgentlessEnabled |expectedWriterClass  | expectedLlmObsApiClasses
+    "DDIntakeWriter"                           | true         | true        | false                    | DDIntakeWriter      | [DDEvpProxyApi]
+    "DDIntakeWriter"                           | true         | false       | false                    | DDIntakeWriter      | [DDIntakeApi]
+    "DDIntakeWriter"                           | false        | false       | false                    | DDIntakeWriter      | [DDIntakeApi]
+    "DDIntakeWriter"                           | true         | true        | true                     | DDIntakeWriter      | [DDIntakeApi]
+    "DDIntakeWriter"                           | true         | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
+    "DDIntakeWriter"                           | false        | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
+  }
+
   Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {
     def endpoints = []
     if (hasEvpProxy && evpProxySupportsCompression) {
@@ -118,6 +186,15 @@ class WriterFactoryTest extends DDSpecification {
       .protocol(Protocol.HTTP_1_1)
       .request(new Request.Builder().url(agentUrl.resolve("/info")).build())
       .body(ResponseBody.create(MediaType.parse("application/json"), new JsonBuilder(response).toString()))
+    return builder.build()
+  }
+
+  Response buildHttpResponseNotOk(HttpUrl agentUrl) {
+    def builder = new Response.Builder()
+      .code(500)
+      .message("ERROR")
+      .protocol(Protocol.HTTP_1_1)
+      .request(new Request.Builder().url(agentUrl.resolve("/info")).build())
     return builder.build()
   }
 }

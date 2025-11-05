@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
 plugins {
   id 'java'
   id 'org.springframework.boot' version '2.7.15'
@@ -10,6 +12,7 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Java 17 Smoke Tests.'
 
 dependencies {
@@ -22,17 +25,21 @@ dependencies {
   implementation project(':dd-smoke-tests:iast-util:iast-util-17')
 }
 
-tasks.named("compileJava", JavaCompile).configure {
-  setJavaVersion(it, 17)
-  sourceCompatibility = JavaVersion.VERSION_17
-  targetCompatibility = JavaVersion.VERSION_17
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 
 tasks.withType(Test).configureEach {
   dependsOn "bootJar"
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+  def bootJarTask = tasks.named('bootJar', BootJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

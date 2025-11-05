@@ -15,12 +15,54 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.*;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_EXECUTOR_TASK_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_POOL_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPLE_METHOD_GRAPH;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_DEFER;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOURCES_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS_FILE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHOD_PACKAGES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -73,6 +115,7 @@ public class InstrumenterConfig {
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
+  private final boolean jdbcPoolWaitingEnabled;
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
@@ -118,6 +161,11 @@ public class InstrumenterConfig {
   private final Collection<String> additionalJaxRsAnnotations;
 
   private final boolean rumEnabled;
+
+  static {
+    // Bind telemetry collector to config module before initializing ConfigProvider
+    OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
+  }
 
   private InstrumenterConfig() {
     this(ConfigProvider.createDefault());
@@ -182,6 +230,7 @@ public class InstrumenterConfig {
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
+    jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
@@ -415,6 +464,10 @@ public class InstrumenterConfig {
     return jdbcConnectionClassName;
   }
 
+  public boolean isJdbcPoolWaitingEnabled() {
+    return jdbcPoolWaitingEnabled;
+  }
+
   public String getHttpURLConnectionClassName() {
     return httpURLConnectionClassName;
   }
@@ -632,6 +685,8 @@ public class InstrumenterConfig {
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
         + '\''
+        + ", jdbcPoolWaitingEnabled="
+        + jdbcPoolWaitingEnabled
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''

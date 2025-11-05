@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootWar
+
 plugins {
   id 'java'
   id 'war'
@@ -7,6 +9,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Tomcat JSP Smoke Tests.'
 
 java {
@@ -33,5 +36,12 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "war", "bootWar"
-  jvmArgs "-Ddatadog.smoketest.springboot.war.path=${tasks.bootWar.archiveFile.get().getAsFile()}"
+
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def bootWarTask = tasks.named('bootWar', BootWar).get()
+        return ["-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}"]
+      }
+    })
 }

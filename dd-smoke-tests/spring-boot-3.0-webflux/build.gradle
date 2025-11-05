@@ -35,14 +35,14 @@ tasks.register('webfluxBuild30', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-webfluxBuild30 {
+tasks.named("webfluxBuild30", Exec) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'webfluxBuild30'
   outputs.upToDateWhen {
-    !webfluxBuild30.didWork
+    !tasks.named('webfluxBuild30').get().didWork
   }
 }
 

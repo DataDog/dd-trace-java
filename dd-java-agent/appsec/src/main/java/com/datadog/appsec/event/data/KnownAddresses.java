@@ -118,6 +118,26 @@ public interface KnownAddresses {
   /** The URL of a network resource being requested (outgoing request) */
   Address<String> IO_NET_URL = new Address<>("server.io.net.url");
 
+  /** The headers of a network resource being requested (outgoing request) */
+  Address<Map<String, List<String>>> IO_NET_REQUEST_HEADERS =
+      new Address<>("server.io.net.request.headers");
+
+  /** The method of a network resource being requested (outgoing request) */
+  Address<String> IO_NET_REQUEST_METHOD = new Address<>("server.io.net.request.method");
+
+  /** The body of a network resource being requested (outgoing request) */
+  Address<Object> IO_NET_REQUEST_BODY = new Address<>("server.io.net.request.body");
+
+  /** The status of a network resource being requested (outgoing request) */
+  Address<String> IO_NET_RESPONSE_STATUS = new Address<>("server.io.net.response.status");
+
+  /** The response headers of a network resource being requested (outgoing request) */
+  Address<Map<String, List<String>>> IO_NET_RESPONSE_HEADERS =
+      new Address<>("server.io.net.response.headers");
+
+  /** The response body of a network resource being requested (outgoing request) */
+  Address<Object> IO_NET_RESPONSE_BODY = new Address<>("server.io.net.response.body");
+
   /** The representation of opened file on the filesystem */
   Address<String> IO_FS_FILE = new Address<>("server.io.fs.file");
 
@@ -206,6 +226,18 @@ public interface KnownAddresses {
         return SESSION_ID;
       case "server.io.net.url":
         return IO_NET_URL;
+      case "server.io.net.request.headers":
+        return IO_NET_REQUEST_HEADERS;
+      case "server.io.net.request.method":
+        return IO_NET_REQUEST_METHOD;
+      case "server.io.net.request.body":
+        return IO_NET_REQUEST_BODY;
+      case "server.io.net.response.status":
+        return IO_NET_RESPONSE_STATUS;
+      case "server.io.net.response.headers":
+        return IO_NET_RESPONSE_HEADERS;
+      case "server.io.net.response.body":
+        return IO_NET_RESPONSE_BODY;
       case "server.io.fs.file":
         return IO_FS_FILE;
       case "server.db.system":

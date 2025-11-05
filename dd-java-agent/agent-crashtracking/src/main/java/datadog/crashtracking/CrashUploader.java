@@ -6,6 +6,9 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_USERNAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.TraceUtils.normalizeServiceName;
+import static datadog.trace.util.TraceUtils.normalizeTagValue;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
@@ -17,8 +20,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
-import datadog.trace.util.RandomUtils;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +30,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -61,34 +63,38 @@ public final class CrashUploader {
 
   private static final MediaType APPLICATION_JSON =
       MediaType.get("application/json; charset=utf-8");
-  private static final MediaType APPLICATION_OCTET_STREAM =
-      MediaType.parse("application/octet-stream");
 
   private final Config config;
+  private final ConfigManager.StoredConfig storedConfig;
 
   private final OkHttpClient telemetryClient;
   private final HttpUrl telemetryUrl;
   private final boolean agentless;
   private final String tags;
 
-  public CrashUploader() {
-    this(Config.get());
+  public CrashUploader(@Nonnull final ConfigManager.StoredConfig storedConfig) {
+    this(Config.get(), storedConfig);
   }
 
-  CrashUploader(final Config config) {
+  CrashUploader(
+      @NonNull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
     this.config = config;
+    this.storedConfig = storedConfig;
 
     telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
     agentless = config.isCrashTrackingAgentless();
 
-    final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
-    tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
+    final StringBuilder tagsBuilder =
+        new StringBuilder(storedConfig.tags != null ? storedConfig.tags : "");
+    if (!tagsBuilder.toString().isEmpty()) {
+      tagsBuilder.append(",");
+    }
+    tagsBuilder.append(VersionInfo.LIBRARY_VERSION_TAG).append('=').append(VersionInfo.VERSION);
     // PID can be empty if we cannot find it out from the system
     if (!PidHelper.getPid().isEmpty()) {
-      tagsMap.put(DDTags.PID_TAG, PidHelper.getPid());
+      tagsBuilder.append(",").append(DDTags.PID_TAG).append('=').append(PidHelper.getPid());
     }
-    // Comma separated tags string for V2.4 format
-    tags = tagsToString(tagsMap);
+    tags = tagsBuilder.toString();
 
     ConfigProvider configProvider = config.configProvider();
 
@@ -108,18 +114,30 @@ public final class CrashUploader {
                     CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT)));
   }
 
-  private String tagsToString(final Map<String, String> tags) {
-    return tags.entrySet().stream()
-        .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
-        .map(e -> e.getKey() + ":" + e.getValue())
-        .collect(Collectors.joining(","));
+  public void notifyCrashStarted(String error) {
+    // send a ping message to the telemetry to notify that the crash report started
+    try (Buffer buf = new Buffer();
+        JsonWriter writer = JsonWriter.of(buf)) {
+      writer.beginObject();
+      writer.name("crash_uuid").value(storedConfig.reportUUID);
+      writer.name("kind").value("Crash ping");
+      writer.name("current_schema_version").value("1.0");
+      writer
+          .name("message")
+          .value(
+              "Crashtracker crash ping: " + (error != null ? error : "crash processing started"));
+      writer.endObject();
+      handleCall(makeTelemetryRequest(makeTelemetryRequestBody(buf.readUtf8(), true)), "ping");
+
+    } catch (Throwable t) {
+      log.error("Failed to send crash ping", t);
+    }
   }
 
-  public void upload(@Nonnull List<Path> files) throws IOException {
-    for (Path file : files) {
-      uploadToLogs(file);
-      uploadToTelemetry(file);
-    }
+  public void upload(@Nonnull Path file) throws IOException {
+    String uuid = storedConfig.reportUUID;
+    uploadToLogs(file);
+    uploadToTelemetry(file, uuid);
   }
 
   @SuppressForbidden
@@ -141,7 +159,9 @@ public final class CrashUploader {
         writer.name("ddsource").value("crashtracker");
         writer.name("ddtags").value(tags);
         writer.name("hostname").value(config.getHostName());
-        writer.name("service").value(config.getServiceName());
+        writer.name("service").value(storedConfig.service);
+        writer.name("version").value(storedConfig.version);
+        writer.name("env").value(storedConfig.env);
         writer.name("message").value(message);
         writer.name("level").value("ERROR");
         writer.name("error");
@@ -235,24 +255,23 @@ public final class CrashUploader {
     return "";
   }
 
-  private String extractErrorStackTrace(String fileContent) {
-    return extractErrorStackTrace(fileContent, true);
-  }
-
-  boolean uploadToTelemetry(@Nonnull Path file) {
+  boolean uploadToTelemetry(@Nonnull Path file, String uuid) {
     try {
       String content = new String(Files.readAllBytes(file), Charset.defaultCharset());
-      handleCall(makeTelemetryRequest(content));
-    } catch (IOException e) {
-      log.error("Failed to upload crash file: {}", file, e);
+      CrashLog crashLog = CrashLogParser.fromHotspotCrashLog(uuid, content);
+      if (crashLog == null) {
+        log.error(SEND_TELEMETRY, "Failed to parse crash log with uuid {} ", uuid);
+        return false;
+      }
+      handleCall(makeTelemetryRequest(makeTelemetryRequestBody(crashLog.toJson(), false)), "crash");
+    } catch (Throwable t) {
+      log.error("Failed to upload crash file: {}", file, t);
       return false;
     }
     return true;
   }
 
-  private Call makeTelemetryRequest(@Nonnull String content) throws IOException {
-    final RequestBody requestBody = makeTelemetryRequestBody(content);
-
+  private Call makeTelemetryRequest(@Nonnull RequestBody requestBody) throws IOException {
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
     MediaType contentType = requestBody.contentType();
@@ -272,43 +291,48 @@ public final class CrashUploader {
             .build());
   }
 
-  private RequestBody makeTelemetryRequestBody(@Nonnull String content) throws IOException {
-    CrashLog crashLog = CrashLogParser.fromHotspotCrashLog(content);
-    if (crashLog == null) {
-      throw new IOException("Failed to parse crash log");
-    }
+  private RequestBody makeTelemetryRequestBody(@Nonnull String payload, boolean isPing)
+      throws IOException {
+
     try (Buffer buf = new Buffer()) {
       try (JsonWriter writer = JsonWriter.of(buf)) {
         writer.beginObject();
         writer.name("api_version").value(TELEMETRY_API_VERSION);
         writer.name("request_type").value("logs");
-        writer
-            .name("runtime_id")
-            // this is unknowable at this point because the process has crashed
-            // though we may be able to save it in the tmpdir
-            .value(RandomUtils.randomUUID().toString());
+        writer.name("runtime_id").value(storedConfig.runtimeId);
         writer.name("tracer_time").value(Instant.now().getEpochSecond());
         writer.name("seq_id").value(1);
         writer.name("debug").value(true);
+        writer.name("origin").value("crashtracker");
         writer.name("payload");
         writer.beginArray();
         writer.beginObject();
-        writer.name("message").value(crashLog.toJson());
-        writer.name("level").value("ERROR");
-        writer.name("tags").value("severity:crash");
-        writer.name("is_sensitive").value(true);
+        writer.name("message").value(payload);
+        if (isPing) {
+          writer.name("level").value("DEBUG");
+          writer.name("is_sensitive").value(false);
+          writer.name("tags").value(tagsForPing(storedConfig.reportUUID));
+        } else {
+          writer.name("level").value("ERROR");
+          writer.name("tags").value("severity:crash");
+          writer.name("is_sensitive").value(true);
+          writer.name("is_crash").value(true);
+        }
         writer.endObject();
         writer.endArray();
         writer.name("application");
         writer.beginObject();
-        writer.name("env").value(config.getEnv());
+        writer.name("env").value(storedConfig.env);
         writer.name("language_name").value("jvm");
         writer
             .name("language_version")
             .value(SystemProperties.getOrDefault("java.version", "unknown"));
-        writer.name("service_name").value(config.getServiceName());
-        writer.name("service_version").value(config.getVersion());
+        writer.name("service_name").value(storedConfig.service);
+        writer.name("service_version").value(storedConfig.version);
         writer.name("tracer_version").value(VersionInfo.VERSION);
+        if (storedConfig.processTags != null) {
+          writer.name("process_tags").value(storedConfig.processTags);
+        }
         writer.endObject();
         writer.name("host");
         writer.beginObject();
@@ -316,7 +340,7 @@ public final class CrashUploader {
           writer.name("container_id").value(ContainerInfo.get().getContainerId());
         }
         writer.name("hostname").value(config.getHostName());
-        writer.name("env").value(config.getEnv());
+        writer.name("env").value(storedConfig.env);
         writer.endObject();
         writer.endObject();
       }
@@ -325,36 +349,39 @@ public final class CrashUploader {
     }
   }
 
-  private String readContent(InputStream file) throws IOException {
-    try (InputStreamReader reader = new InputStreamReader(file, StandardCharsets.UTF_8)) {
-      int read;
-      char[] buffer = new char[1 << 14];
-      StringBuilder sb = new StringBuilder();
-      while ((read = reader.read(buffer, 0, buffer.length)) > 0) {
-        sb.append(buffer, 0, read);
-      }
-      return sb.toString();
-    }
+  private String tagsForPing(String uuid) {
+    final StringBuilder tags = new StringBuilder("is_crash_ping:true");
+    tags.append(",").append("language_name:jvm");
+    tags.append(",").append("service:").append(normalizeServiceName(storedConfig.service));
+    tags.append(",")
+        .append("language_version:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
+    tags.append(",").append("uuid:").append(uuid);
+    return (tags.toString());
   }
 
-  private void handleCall(final Call call) {
+  private void handleCall(final Call call, String kind) {
     try (Response response = call.execute()) {
-      handleSuccess(call, response);
-    } catch (IOException e) {
-      handleFailure(call, e);
+      handleSuccess(call, response, kind);
+    } catch (Throwable t) {
+      handleFailure(t, kind);
     }
   }
 
-  private void handleSuccess(final Call call, final Response response) throws IOException {
+  private void handleSuccess(final Call call, final Response response, String kind)
+      throws IOException {
     if (response.isSuccessful()) {
       log.info(
-          "Successfully uploaded the crash files to {}, code = {} \"{}\"",
+          "Successfully uploaded the crash {} to {}, code = {} \"{}\"",
+          kind,
           call.request().url(),
           response.code(),
           response.message());
     } else {
       log.error(
-          "Failed to upload crash files to {}, code = {} \"{}\", body = \"{}\"",
+          "Failed to upload crash {} to {}, code = {} \"{}\", body = \"{}\"",
+          kind,
           call.request().url(),
           response.code(),
           response.message(),
@@ -362,7 +389,7 @@ public final class CrashUploader {
     }
   }
 
-  private void handleFailure(final Call call, final IOException exception) {
-    log.error("Failed to upload crash files, got exception: {}", exception.getMessage(), exception);
+  private void handleFailure(final Throwable exception, String kind) {
+    log.error("Failed to upload crash {}, got exception", kind, exception);
   }
 }

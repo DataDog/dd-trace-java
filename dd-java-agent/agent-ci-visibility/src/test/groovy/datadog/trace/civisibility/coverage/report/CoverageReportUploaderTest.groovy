@@ -2,11 +2,11 @@ package datadog.trace.civisibility.coverage.report
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.BackendApi
-import datadog.communication.BackendApiFactory
 import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.intake.Intake
 import datadog.trace.test.util.MultipartRequestParser
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -79,7 +79,7 @@ class CoverageReportUploaderTest extends Specification {
   }
 
   private BackendApi givenIntakeApi() {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", server.address.toString(), BackendApiFactory.Intake.CI_INTAKE.version))
+    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", server.address.toString(), Intake.CI_INTAKE.version))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"

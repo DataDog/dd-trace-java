@@ -1,9 +1,9 @@
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.instrumentation.aws.v2.dynamodb.DynamoDbUtil
-import org.junit.Test
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import org.junit.jupiter.api.Test
 import software.amazon.awssdk.core.SdkBytes
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 
 class DynamoDbUtilTest {
   static createMockSpan() {

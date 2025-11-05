@@ -13,7 +13,7 @@ muzzle {
     assertInverse = true
   }
 }
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 apply from: "$rootDir/gradle/java.gradle"
@@ -58,7 +58,7 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
 }
 
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn "test_spark24"
   dependsOn "test_spark32"
 }

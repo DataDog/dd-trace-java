@@ -97,7 +97,7 @@ public class StaticEventLogger {
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);
       }
-    } catch (IOException e) {
+    } catch (Throwable ignored) {
       // swallow exception
       return null;
     }

@@ -12,8 +12,6 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 
 /** Serializes snapshots in Json using Moshi */
 public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
-  private static final String DD_TRACE_ID = "dd.trace_id";
-  private static final String DD_SPAN_ID = "dd.span_id";
   private static final JsonAdapter<IntakeRequest> ADAPTER =
       MoshiHelper.createMoshiSnapshot().adapter(IntakeRequest.class);
   private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
@@ -54,6 +52,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
     private final DebuggerIntakeRequestData debugger;
     private final String ddsource = "dd_debugger";
     private final String message;
+    private final String type = "snapshot";
 
     private final String ddtags;
 
@@ -145,6 +144,10 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
 
     public String getProcessTags() {
       return processTags;
+    }
+
+    public String getType() {
+      return type;
     }
   }
 

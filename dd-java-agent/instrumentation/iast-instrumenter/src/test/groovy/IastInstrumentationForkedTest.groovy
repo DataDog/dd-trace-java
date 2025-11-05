@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.api.Config
 import datadog.trace.api.ProductActivation
@@ -7,7 +7,7 @@ import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
 import spock.lang.Shared
 
-class IastInstrumentationForkedTest extends AgentTestRunner {
+class IastInstrumentationForkedTest extends InstrumentationSpecification {
 
   @Shared
   boolean iastEnabled = false
