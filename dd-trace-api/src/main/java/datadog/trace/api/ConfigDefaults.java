@@ -5,8 +5,7 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
 
-import datadog.trace.api.config.OtelMetricsConfig.Exporter;
-import datadog.trace.api.config.OtelMetricsConfig.Protocol;
+import datadog.trace.api.config.OtlpConfig.Protocol;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -104,7 +103,6 @@ public final class ConfigDefaults {
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
-  static final Exporter DEFAULT_OTEL_METRICS_EXPORTER = Exporter.OTLP;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
   static final Integer DEFAULT_OTEL_METRIC_EXPORT_INTERVAL = 10000;
   // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)

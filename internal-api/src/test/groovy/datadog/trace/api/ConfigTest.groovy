@@ -137,25 +137,24 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.api.config.OtelMetricsConfig.Protocol.GRPC
-import static datadog.trace.api.config.OtelMetricsConfig.Protocol.HTTP_PROTOBUF
-import static datadog.trace.api.config.OtelMetricsConfig.Protocol.HTTP_JSON
-import static datadog.trace.api.config.OtelMetricsConfig.Exporter.OTLP
-import static datadog.trace.api.config.OtelMetricsConfig.Temporality.CUMULATIVE
-import static datadog.trace.api.config.OtelMetricsConfig.Temporality.DELTA
-import static datadog.trace.api.config.OtelMetricsConfig.METRICS_OTEL_ENABLED
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_ENDPOINT
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRICS_EXPORTER
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_INTERVAL
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_METRIC_EXPORT_TIMEOUT
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_PROTOCOL
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_TIMEOUT
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_HEADERS
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT
-import static datadog.trace.api.config.OtelMetricsConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+import static datadog.trace.api.config.OtlpConfig.Protocol.GRPC
+import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_PROTOBUF
+import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
+import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
+import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_ENDPOINT
+import static datadog.trace.api.config.OtlpConfig.OTEL_METRICS_EXPORTER
+import static datadog.trace.api.config.OtlpConfig.OTEL_METRIC_EXPORT_INTERVAL
+import static datadog.trace.api.config.OtlpConfig.OTEL_METRIC_EXPORT_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_PROTOCOL
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_HEADERS
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
 import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
@@ -410,7 +409,6 @@ class ConfigTest extends DDSpecification {
     config.jdkSocketEnabled == false
 
     config.metricsOtelEnabled
-    config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
@@ -441,7 +439,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 10000
     config.otelMetricExportTimeout == 7500
     config.otelExporterOtlpMetricsEndpoint == "invalid"
@@ -460,7 +457,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 10000
     config.otelMetricExportTimeout == 7500
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4317"
@@ -810,7 +806,6 @@ class ConfigTest extends DDSpecification {
     config.metricsOtelEnabled
     config.version == "1.0.0"
     config.env ==  "production"
-    config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
@@ -869,7 +864,6 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == ["*":"http.request.headers."]
     config.responseHeaderTags == ["*":"http.response.headers."]
     config.metricsOtelEnabled
-    config.otelMetricsExporter == OTLP
     config.otelMetricExportInterval == 11000
     config.otelMetricExportTimeout == 9000
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"

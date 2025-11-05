@@ -1,10 +1,9 @@
 package datadog.trace.api.config;
 
-public final class OtelMetricsConfig {
+public final class OtlpConfig {
 
   public static final String METRICS_OTEL_ENABLED = "metrics.otel.enabled";
 
-  public static final String OTEL_METRICS_EXPORTER = "otel.metrics.exporter";
   public static final String OTEL_METRIC_EXPORT_INTERVAL = "otel.metric.export.interval";
   public static final String OTEL_METRIC_EXPORT_TIMEOUT = "otel.metric.export.timeout";
 
@@ -23,22 +22,17 @@ public final class OtelMetricsConfig {
   public static final String OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otel.exporter.otlp.metrics.temporality.preference";
 
-  public enum Temporality {
-    CUMULATIVE,
-    DELTA,
-    LOWMEMORY
-  }
-
-  public enum Exporter {
-    OTLP,
-    NONE
-  }
-
   public enum Protocol {
     GRPC,
     HTTP_PROTOBUF,
     HTTP_JSON
   }
 
-  private OtelMetricsConfig() {}
+  public enum Temporality {
+    CUMULATIVE,
+    DELTA,
+    LOWMEMORY
+  }
+
+  private OtlpConfig() {}
 }
