@@ -9,7 +9,8 @@ import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.BlockingConsumerNonBlockingQueue;
+import datadog.trace.util.queue.NonBlockingQueue;
 import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +46,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
 
     private final Thread spanSamplingThread;
     private final SamplingHandler samplingHandler;
-    private final BaseQueue<Object> spanSamplingQueue;
+    private final BlockingConsumerNonBlockingQueue<Object> spanSamplingQueue;
     private final Queue<Object> primaryQueue;
     private final Queue<Object> secondaryQueue;
     private final SingleSpanSampler singleSpanSampler;
@@ -172,7 +173,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
         }
       }
 
-      private void consumeBatch(BaseQueue<Object> queue) {
+      private void consumeBatch(NonBlockingQueue<Object> queue) {
         queue.drain(this::onEvent, queue.size());
       }
     }
