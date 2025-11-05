@@ -646,9 +646,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         closeWafContext();
       }
       collectedCookies = null;
-      requestHeaders.clear();
-      responseHeaders.clear();
-      persistentData.clear();
+      if (requestHeaders != null) {
+        requestHeaders.clear();
+      }
+      if (responseHeaders != null) {
+        responseHeaders.clear();
+      }
+      if (persistentData != null) {
+        persistentData.clear();
+      }
       if (derivatives != null) {
         derivatives.clear();
         derivatives = null;

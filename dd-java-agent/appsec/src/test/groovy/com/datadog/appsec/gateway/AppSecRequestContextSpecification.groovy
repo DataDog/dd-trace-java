@@ -451,4 +451,44 @@ class AppSecRequestContextSpecification extends DDSpecification {
       assert context.isHttpClientRequestSampled(requestId) == sampled
     }
   }
+
+  void 'close is idempotent and can be called multiple times'() {
+    given:
+    def ctx = new AppSecRequestContext()
+    ctx.addRequestHeader('test', 'value')
+    ctx.addResponseHeader('content-type', 'text/plain')
+
+    when:
+    ctx.close()
+    ctx.close()
+    ctx.close()
+
+    then:
+    notThrown(Exception)
+  }
+
+  void 'close handles null internal fields gracefully'() {
+    given:
+    def ctx = new AppSecRequestContext()
+
+    // Use reflection to simulate the scenario where fields might be null
+    // (e.g., due to bytecode instrumentation or unusual initialization)
+    def requestHeadersField = AppSecRequestContext.getDeclaredField('requestHeaders')
+    requestHeadersField.setAccessible(true)
+    requestHeadersField.set(ctx, null)
+
+    def responseHeadersField = AppSecRequestContext.getDeclaredField('responseHeaders')
+    responseHeadersField.setAccessible(true)
+    responseHeadersField.set(ctx, null)
+
+    def persistentDataField = AppSecRequestContext.getDeclaredField('persistentData')
+    persistentDataField.setAccessible(true)
+    persistentDataField.set(ctx, null)
+
+    when:
+    ctx.close()
+
+    then:
+    notThrown(Exception)
+  }
 }
