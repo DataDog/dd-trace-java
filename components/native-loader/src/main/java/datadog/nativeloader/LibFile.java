@@ -7,9 +7,9 @@ import java.nio.file.Path;
  * Represents a resolved library
  *
  * <ul>
- *   <li>library may be preloaded - with no backing optionalFile
- *   <li>regular optionalFile - that doesn't require clean-up
- *   <li>temporary optionalFile - copying from another source - that does require clean-up
+ *   <li>library may be preloaded - with no backing file
+ *   <li>regular file - that doesn't require clean-up
+ *   <li>temporary file - copying from another source - that does require clean-up
  * </ul>
  */
 public final class LibFile implements AutoCloseable {
