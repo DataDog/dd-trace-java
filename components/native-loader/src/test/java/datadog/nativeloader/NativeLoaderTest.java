@@ -320,11 +320,19 @@ public class NativeLoaderTest {
     Path jar = jar("test-data");
     try {
       try (URLClassLoader classLoader = createClassLoader(jar)) {
-        NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
-        try (LibFile lib = loader.resolveDynamic("dummy")) {
+    	NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
+        
+    	TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
+    	  expectResolveDynamic("dummy").
+    	  expectTempFileCreated("dummy").
+    	  expectTempFileCleanup("dummy");
+    	    	
+    	try (LibFile lib = loader.resolveDynamic("dummy", scopedListener)) {
           // loaded from a jar, so copied to temp file
           assertTempFile(lib);
         }
+    	
+    	scopedListener.assertDone();
       }
     } finally {
       deleteHelper(jar);

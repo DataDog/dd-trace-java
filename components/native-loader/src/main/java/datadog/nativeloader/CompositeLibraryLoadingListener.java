@@ -125,4 +125,9 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
     combinedListeners.addAll(Arrays.asList(listeners));
     return new CompositeLibraryLoadingListener(combinedListeners);
   }
+  
+  @Override
+  public String toString() {
+	return this.getClass().getSimpleName() + ":" + this.listeners.toString();
+  }
 }

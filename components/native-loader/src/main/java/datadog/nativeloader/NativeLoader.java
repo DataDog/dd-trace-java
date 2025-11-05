@@ -331,35 +331,40 @@ public final class NativeLoader {
     }
 
     allListeners.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, url);
-    return this.toLibFile(platformSpec, optionalComponent, libName, url, allListeners);
+    return toLibFile(this.tempDir, platformSpec, optionalComponent, libName, url, allListeners);
   }
 
-  private LibFile toLibFile(
-      PlatformSpec platformSpec,
+  private static LibFile toLibFile(
+      Path tempDir,
+	  PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
       URL url,
-      SafeLibraryLoadingListener listeners)
+      SafeLibraryLoadingListener allListeners)
       throws LibraryLoadException {
     if (url.getProtocol().equals("file")) {
       return LibFile.fromFile(
-          platformSpec, optionalComponent, libName, new File(url.getPath()), listeners);
+          platformSpec, optionalComponent, libName, new File(url.getPath()), allListeners);
     } else {
       String libExt = PathUtils.dynamicLibExtension(platformSpec);
 
       Path tempFile = null;
       try {
-        tempFile = TempFileHelper.createTempFile(this.tempDir, libName, libExt);
+        tempFile = TempFileHelper.createTempFile(tempDir, libName, libExt);
 
         try (InputStream in = url.openStream()) {
           Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
         }
 
+        allListeners.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
+        
         return LibFile.fromTempFile(
-            platformSpec, optionalComponent, libName, tempFile.toFile(), listeners);
+            platformSpec, optionalComponent, libName, tempFile.toFile(), allListeners);
+        
       } catch (Throwable t) {
-        listeners.onTempFileCreationFailure(
-            platformSpec, optionalComponent, libName, this.tempDir, libExt, tempFile, t);
+    	allListeners.onTempFileCreationFailure(
+            platformSpec, optionalComponent, libName, tempDir, libExt, tempFile, t);
+    	
         throw new LibraryLoadException(libName, t);
       }
     }

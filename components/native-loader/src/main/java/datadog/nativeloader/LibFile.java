@@ -118,8 +118,8 @@ public final class LibFile implements AutoCloseable {
   @Override
   public void close() {
     if (this.needsCleanup) {
-      boolean done = NativeLoader.delete(this.optionalFile);
-      if (done) {
+      boolean deleted = NativeLoader.delete(this.optionalFile);
+      if (deleted) {
         this.listeners.onTempFileCleanup(
             this.platformSpec, this.optionalComponent, this.libName, this.optionalFile.toPath());
       }

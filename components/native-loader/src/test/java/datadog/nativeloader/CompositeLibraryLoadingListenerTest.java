@@ -50,8 +50,7 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onResolveDynamicFailure(
-            PlatformSpec.defaultPlatformSpec(), null, "foo", new LibraryLoadException("foo"));
+        .onLoad(PlatformSpec.defaultPlatformSpec(), null, "foo", false, null);
 
     listener1.assertDone();
     listener2.assertDone();

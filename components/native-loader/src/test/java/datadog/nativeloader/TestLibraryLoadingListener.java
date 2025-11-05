@@ -3,6 +3,7 @@ package datadog.nativeloader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URL;
 import java.nio.file.Path;
@@ -11,6 +12,9 @@ import java.util.LinkedList;
 
 public final class TestLibraryLoadingListener implements LibraryLoadingListener {
   private final LinkedList<Check> checks;
+  
+  private Check failedCheck = null;
+  private Throwable failedCause = null;
 
   TestLibraryLoadingListener() {
     this.checks = new LinkedList<>();
@@ -190,6 +194,16 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public void assertDone() {
+	if ( this.failedCheck != null ) {
+	  try {
+		fail("check failed: " + this.failedCheck, this.failedCause);
+	  } catch ( AssertionError e ) {
+		e.initCause(this.failedCause);
+		
+		throw e;
+	  }
+	}
+	
     // written this way for better debugging
     assertEquals(Collections.emptyList(), this.checks);
   }
@@ -201,8 +215,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libName,
       boolean isPreloaded,
       URL optionalUrl) {
-    this.nextCheck()
-        .onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, optionalUrl);
+    this.nextCheck(check -> check.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, optionalUrl));
   }
 
   @Override
@@ -211,8 +224,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String optionalComponent,
       String libName,
       LibraryLoadException optionalCause) {
-    this.nextCheck()
-        .onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause);
+    this.nextCheck(check -> check.onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause));
   }
 
   @Override
@@ -222,7 +234,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libName,
       boolean isPreloaded,
       Path optionalLibPath) {
-    this.nextCheck().onLoad(platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath);
+    this.nextCheck(check -> check.onLoad(platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath));
   }
 
   @Override
@@ -231,13 +243,15 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String optionalComponent,
       String libName,
       LibraryLoadException optionalCause) {
-    this.nextCheck().onLoadFailure(platformSpec, optionalComponent, libName, optionalCause);
+    this.nextCheck(check -> check.onLoadFailure(platformSpec, optionalComponent, libName, optionalCause));
   }
 
   @Override
   public void onTempFileCreated(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-    this.nextCheck().onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
+	if ( true ) new RuntimeException("onTempFileCreated!");
+	
+    this.nextCheck(check -> check.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile));
   }
 
   @Override
@@ -249,21 +263,20 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libExt,
       Path optionalTempFile,
       Throwable optionalCause) {
-    this.nextCheck()
-        .onTempFileCreationFailure(
+    this.nextCheck(check -> check.onTempFileCreationFailure(
             platformSpec,
             optionalComponent,
             libName,
             tempDir,
             libExt,
             optionalTempFile,
-            optionalCause);
+            optionalCause));
   }
 
   @Override
   public void onTempFileCleanup(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-    this.nextCheck().onTempFileCleanup(platformSpec, optionalComponent, libName, tempFile);
+    this.nextCheck(check -> check.onTempFileCleanup(platformSpec, optionalComponent, libName, tempFile));
   }
 
   TestLibraryLoadingListener addCheck(Check check) {
@@ -271,8 +284,16 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     return this;
   }
 
-  Check nextCheck() {
-    return this.checks.isEmpty() ? Check.NOTHING : this.checks.removeFirst();
+  void nextCheck(CheckInvocation invocation) {
+    Check nextCheck = this.checks.isEmpty() ? Check.NOTHING : this.checks.removeFirst();
+    try {
+      invocation.invoke(nextCheck);
+    } catch ( Throwable t ) {
+      if ( this.failedCheck == null ) {
+        this.failedCheck = nextCheck;
+        this.failedCause = t;
+      }
+    }
   }
   
   static final class LibCheck {
@@ -319,6 +340,11 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
 	  }
 	}
   }
+  
+  @FunctionalInterface
+  interface CheckInvocation {
+	void invoke(Check check);
+  }
 
   abstract static class Check implements LibraryLoadingListener {
     static final Check NOTHING = new Check("nothing") {};
@@ -340,7 +366,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String libName,
         boolean isPreloaded,
         Path optionalLibPath) {
-      this.fail("onLoad", platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath);
+      this.fallback("onLoad", platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath);
     }
 
     @Override
@@ -349,7 +375,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String optionalComponent,
         String libName,
         LibraryLoadException optionalCause) {
-      this.fail("onLoadFailure", platformSpec, optionalComponent, libName, optionalCause);
+      this.fallback("onLoadFailure", platformSpec, optionalComponent, libName, optionalCause);
     }
 
     @Override
@@ -359,7 +385,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String libName,
         boolean isPreloaded,
         URL optionalUrl) {
-      this.fail(
+      this.fallback(
           "onResolveDynamic", platformSpec, optionalComponent, libName, isPreloaded, optionalUrl);
     }
 
@@ -369,13 +395,13 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String optionalComponent,
         String libName,
         LibraryLoadException optionalCause) {
-      this.fail("onResolveDynamicFailure", platformSpec, optionalComponent, libName, optionalCause);
+      this.fallback("onResolveDynamicFailure", platformSpec, optionalComponent, libName, optionalCause);
     }
 
     @Override
     public void onTempFileCreated(
         PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-      this.fail("onTmepFileCreated", platformSpec, optionalComponent, libName, tempFile);
+      this.fallback("onTmepFileCreated", platformSpec, optionalComponent, libName, tempFile);
     }
 
     @Override
@@ -387,7 +413,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String libExt,
         Path optionalTempFile,
         Throwable optionalCause) {
-      this.fail(
+      this.fallback(
           "onTempFileCreationFailure",
           platformSpec,
           optionalComponent,
@@ -401,10 +427,10 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     @Override
     public void onTempFileCleanup(
         PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-      this.fail("onTempFileCleanup", platformSpec, optionalComponent, libName, tempFile);
+      this.fallback("onTempFileCleanup", platformSpec, optionalComponent, libName, tempFile);
     }
 
-    void fail(String methodName, Object... args) {
+    void fallback(String methodName, Object... args) {
       fail("unxpected call: " + callToString(methodName, args) + " - expected: " + this.name);
     }
 
@@ -414,7 +440,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       builder.append('(');
       for (int i = 0; i < args.length; ++i) {
         if (i != 0) builder.append(", ");
-        builder.append(args[i].toString());
+        builder.append(String.valueOf(args[i]));
       }
       builder.append(')');
       return builder.toString();
