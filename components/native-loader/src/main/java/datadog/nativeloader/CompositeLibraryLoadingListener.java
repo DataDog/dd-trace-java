@@ -3,10 +3,15 @@ package datadog.nativeloader;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 
 final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
   private final Collection<? extends LibraryLoadingListener> listeners;
+
+  CompositeLibraryLoadingListener(LibraryLoadingListener... listeners) {
+    this(Arrays.asList(listeners));
+  }
 
   CompositeLibraryLoadingListener(Collection<? extends LibraryLoadingListener> listeners) {
     this.listeners = listeners;

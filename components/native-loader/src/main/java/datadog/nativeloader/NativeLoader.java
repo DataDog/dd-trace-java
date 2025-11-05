@@ -276,7 +276,9 @@ public final class NativeLoader {
       throw ex;
     }
 
-    if (this.isPreloaded(platformSpec, libName)) {
+    boolean isPreloaded = this.isPreloaded(platformSpec, libName);
+    if (isPreloaded) {
+      listeners.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, null);
       return LibFile.preloaded(platformSpec, optionalComponent, libName, listeners);
     }
 
@@ -299,7 +301,7 @@ public final class NativeLoader {
       throw ex;
     }
 
-    listeners.onResolveDynamic(platformSpec, optionalComponent, libName, url);
+    listeners.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, url);
     return this.toLibFile(platformSpec, optionalComponent, libName, url, listeners);
   }
 
