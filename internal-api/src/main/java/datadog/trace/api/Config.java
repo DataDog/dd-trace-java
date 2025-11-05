@@ -1887,16 +1887,13 @@ public class Config {
 
     OtlpConfig.Protocol tmpOtelExporterOtlpMetricsProtocol =
         configProvider.getEnum(
-            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, null, false, "/", "_");
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, null);
     if (tmpOtelExporterOtlpMetricsProtocol == null) {
       tmpOtelExporterOtlpMetricsProtocol =
           configProvider.getEnum(
               OTEL_EXPORTER_OTLP_PROTOCOL,
               OtlpConfig.Protocol.class,
-              DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
-              false,
-              "/",
-              "_");
+              DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL);
     }
     otelExporterOtlpMetricsProtocol = tmpOtelExporterOtlpMetricsProtocol;
     // TODO: log warning and switch protocol to default if we don't support the selected protocol?
@@ -1940,8 +1937,7 @@ public class Config {
         configProvider.getEnum(
             OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
             OtlpConfig.Temporality.class,
-            OtlpConfig.Temporality.DELTA,
-            false);
+            OtlpConfig.Temporality.DELTA);
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);

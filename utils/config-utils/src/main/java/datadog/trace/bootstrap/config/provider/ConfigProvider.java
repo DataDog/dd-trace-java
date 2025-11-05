@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -104,21 +105,6 @@ public final class ConfigProvider {
   }
 
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
-    return getEnum(key, enumType, defaultValue, true);
-  }
-
-  public <T extends Enum<T>> T getEnum(
-      String key, Class<T> enumType, T defaultValue, boolean isValueCaseSensitive) {
-    return getEnum(key, enumType, defaultValue, isValueCaseSensitive, "", "");
-  }
-
-  public <T extends Enum<T>> T getEnum(
-      String key,
-      Class<T> enumType,
-      T defaultValue,
-      boolean isValueCaseSensitive,
-      String charToReplaceInRawValue,
-      String newCharInValue) {
     if (collectConfig) {
       String defaultValueString = defaultValue == null ? null : defaultValue.name();
       reportDefault(key, defaultValueString);
@@ -126,11 +112,8 @@ public final class ConfigProvider {
     String value = getStringInternal(key);
     if (null != value) {
       try {
-        return Enum.valueOf(
-            enumType,
-            isValueCaseSensitive
-                ? value.replace(charToReplaceInRawValue, newCharInValue)
-                : value.toUpperCase().replace(charToReplaceInRawValue, newCharInValue));
+        // replace invalid characters with _ and make sure it's upper-case before converting
+        return Enum.valueOf(enumType, value.replace('/', '_').toUpperCase(Locale.ROOT));
       } catch (Exception ignoreAndUseDefault) {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
