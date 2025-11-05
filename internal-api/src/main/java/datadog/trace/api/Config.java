@@ -1481,7 +1481,7 @@ public class Config {
       }
     }
 
-    if (agentHostFromEnvironment == null) {
+    if (agentHostFromEnvironment == null || agentHostFromEnvironment.isEmpty()) {
       agentHost = DEFAULT_AGENT_HOST;
     } else if (agentHostFromEnvironment.charAt(0) == '[') {
       agentHost = agentHostFromEnvironment.substring(1, agentHostFromEnvironment.length() - 1);
@@ -1902,16 +1902,15 @@ public class Config {
       boolean isHttp = !otelExporterOtlpMetricsProtocol.equals(OtlpConfig.Protocol.GRPC);
       String tmpOtelExporterOtlpEndpoint = configProvider.getString(OTEL_EXPORTER_OTLP_ENDPOINT);
       if (null == tmpOtelExporterOtlpEndpoint) {
-        String endpointHost = agentHost.isEmpty() ? DEFAULT_AGENT_HOST : agentHost;
         tmpOtelExporterOtlpMetricsEndpoint =
             isHttp
                 ? "http://"
-                    + endpointHost
+                    + agentHost
                     + ':'
                     + DEFAULT_OTLP_HTTP_PORT
                     + '/'
                     + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT
-                : "http://" + endpointHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+                : "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
         tmpOtelExporterOtlpMetricsEndpoint =
             isHttp
