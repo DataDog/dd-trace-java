@@ -4,7 +4,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
-import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.NonBlockingQueue;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
@@ -22,7 +22,7 @@ final class Aggregator implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final Queue<Batch> batchPool;
-  private final BaseQueue<InboxItem> inbox;
+  private final NonBlockingQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final ConcurrentMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
@@ -39,7 +39,7 @@ final class Aggregator implements Runnable {
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      BaseQueue<InboxItem> inbox,
+      NonBlockingQueue<InboxItem> inbox,
       ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
@@ -60,7 +60,7 @@ final class Aggregator implements Runnable {
   Aggregator(
       MetricWriter writer,
       Queue<Batch> batchPool,
-      BaseQueue<InboxItem> inbox,
+      NonBlockingQueue<InboxItem> inbox,
       ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,

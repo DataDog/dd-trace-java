@@ -15,7 +15,8 @@ import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.BlockingConsumerNonBlockingQueue;
+import datadog.trace.util.queue.NonBlockingQueue;
 import datadog.trace.util.queue.Queues;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -36,8 +37,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private static final Logger log = LoggerFactory.getLogger(TraceProcessingWorker.class);
 
   private final PrioritizationStrategy prioritizationStrategy;
-  private final BaseQueue<Object> primaryQueue;
-  private final BaseQueue<Object> secondaryQueue;
+  private final BlockingConsumerNonBlockingQueue<Object> primaryQueue;
+  private final BlockingConsumerNonBlockingQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
@@ -121,14 +122,14 @@ public class TraceProcessingWorker implements AutoCloseable {
     return primaryQueue.remainingCapacity();
   }
 
-  private static BaseQueue<Object> createQueue(int capacity) {
-    return Queues.mpscArrayQueue(capacity);
+  private static BlockingConsumerNonBlockingQueue<Object> createQueue(int capacity) {
+    return Queues.mpscBlockingConsumerArrayQueue(capacity);
   }
 
   public static class TraceSerializingHandler implements Runnable {
 
-    private final BaseQueue<Object> primaryQueue;
-    private final BaseQueue<Object> secondaryQueue;
+    private final BlockingConsumerNonBlockingQueue<Object> primaryQueue;
+    private final BlockingConsumerNonBlockingQueue<Object> secondaryQueue;
     private final HealthMetrics healthMetrics;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
@@ -136,8 +137,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     private long lastTicks;
 
     public TraceSerializingHandler(
-        final BaseQueue<Object> primaryQueue,
-        final BaseQueue<Object> secondaryQueue,
+        final BlockingConsumerNonBlockingQueue<Object> primaryQueue,
+        final BlockingConsumerNonBlockingQueue<Object> secondaryQueue,
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
@@ -238,7 +239,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       return false;
     }
 
-    private void consumeBatch(BaseQueue<Object> queue) {
+    private void consumeBatch(NonBlockingQueue<Object> queue) {
       queue.drain(this::onEvent, queue.size());
     }
 
