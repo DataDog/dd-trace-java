@@ -127,6 +127,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ROCKETMQ_CONSUME_IGNORE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -552,6 +553,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.REDIS_COMMAND_ARGS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ROCKETMQ_CONSUME_IGNORE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -1216,6 +1218,7 @@ public class Config {
   private final int dogStatsDPort;
 
   private final boolean jdbcSqlObfuscation;
+  private final boolean rocketMQConsumeIgnore;
 
   private final boolean mongoObfuscation;
 
@@ -2521,6 +2524,10 @@ public class Config {
 
     jdbcSqlObfuscation =
         configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+
+    rocketMQConsumeIgnore =
+        configProvider.getBoolean(ROCKETMQ_CONSUME_IGNORE, DEFAULT_ROCKETMQ_CONSUME_IGNORE);
+
     mongoObfuscation = configProvider.getBoolean(MONGO_OBFUSCATION, DEFAULT_MONGO_OBFUSCATION);
     redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
 
@@ -5453,7 +5460,9 @@ public class Config {
       return new Config(ConfigProvider.withPropertiesOverride(properties));
     }
   }
-
+  public boolean getRocketMQConsumeIgnore(){
+    return rocketMQConsumeIgnore;
+  }
   public boolean getJdbcSqlObfuscation() {
     return jdbcSqlObfuscation;
   }
@@ -5932,6 +5941,8 @@ public class Config {
         + cloudPayloadTaggingServices
         + ", jdbcSqlObfuscation="
         + jdbcSqlObfuscation
+        + ", rocketMQConsumeIgnore="
+        + rocketMQConsumeIgnore
         + ", mongoObfuscation="
         + mongoObfuscation
         + ", dubboProviderPropagateEnabled="

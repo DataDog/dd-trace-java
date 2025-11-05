@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -35,7 +36,7 @@ public class RocketMqDecorator extends ClientDecorator {
   private static final String MESSAGING_ROCKETMQ_QUEUE_ID = "messaging.rocketmq.queue_id";
   private static final String MESSAGING_ID = "messaging.id";
   private static final String MESSAGING_ROCKETMQ_QUEUE_OFFSET = "messaging.rocketmq.queue_offset";
-
+  public boolean ignore = Config.get().getRocketMQConsumeIgnore();
   private final String spanKind;
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;
@@ -90,7 +91,17 @@ public class RocketMqDecorator extends ClientDecorator {
     MessageExt ext = context.getMsgList().get(0);
     AgentSpanContext parentContext = extractContextAndGetSpanContext(ext, GETTER);
     UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " receive");
-    final AgentSpan span = startSpan(name, parentContext);
+    final AgentSpan span;
+    if (ignore) {
+      span = startSpan("rocketmq", name);
+      if (null != parentContext && null != parentContext.getTraceId()) {
+        span.setTag("product_trace_id", parentContext.getTraceId().toString());
+        span.setTag("product_span_id", parentContext.getSpanId());
+      }
+    } else {
+      span = startSpan(name, parentContext);
+    }
+
     span.setResourceName(name);
 
     span.setTag(BROKER_NAME, ext.getBrokerName());

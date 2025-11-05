@@ -288,6 +288,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_WEBSOCKET_TAG_SESSION_ID = false;
 
   static final boolean DEFAULT_JDBC_SQL_OBFUSCATION = false;
+  static final boolean DEFAULT_ROCKETMQ_CONSUME_IGNORE = false;
 
   static final boolean DEFAULT_MONGO_OBFUSCATION = false;
 
