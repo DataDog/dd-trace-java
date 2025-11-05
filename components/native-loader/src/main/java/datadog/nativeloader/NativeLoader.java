@@ -266,11 +266,12 @@ public final class NativeLoader {
     return this.resolveDynamicImpl(platformSpec, null, libName);
   }
 
-  public LibFile resolveDynamic(PlatformSpec platformSpec, String libName, LibraryLoadingListener... scopedListeners)
+  public LibFile resolveDynamic(
+      PlatformSpec platformSpec, String libName, LibraryLoadingListener... scopedListeners)
       throws LibraryLoadException {
     return this.resolveDynamicImpl(platformSpec, null, libName, scopedListeners);
   }
-  
+
   /**
    * Resolves a library with an associated component with a different {@link PlatformSpec} than the
    * default
@@ -336,7 +337,7 @@ public final class NativeLoader {
 
   private static LibFile toLibFile(
       Path tempDir,
-	  PlatformSpec platformSpec,
+      PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
       URL url,
@@ -357,14 +358,14 @@ public final class NativeLoader {
         }
 
         allListeners.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
-        
+
         return LibFile.fromTempFile(
             platformSpec, optionalComponent, libName, tempFile.toFile(), allListeners);
-        
+
       } catch (Throwable t) {
-    	allListeners.onTempFileCreationFailure(
+        allListeners.onTempFileCreationFailure(
             platformSpec, optionalComponent, libName, tempDir, libExt, tempFile, t);
-    	
+
         throw new LibraryLoadException(libName, t);
       }
     }

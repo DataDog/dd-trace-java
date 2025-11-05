@@ -4,12 +4,12 @@ import static datadog.nativeloader.TestPlatformSpec.AARCH64;
 import static datadog.nativeloader.TestPlatformSpec.LINUX;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -175,33 +175,34 @@ public class NativeLoaderTest {
   @Test
   public void fromDir_override_windows() throws LibraryLoadException {
     TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
-	    
-    NativeLoader loader = NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
-    
+
+    NativeLoader loader =
+        NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
+
     sharedListener.expectResolveDynamic(TestPlatformSpec.windows(), "dummy");
-    
+
     try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.windows(), "dummy")) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().endsWith("dummy.dll"));
     }
-    
+
     sharedListener.assertDone();
   }
 
   @Test
   public void fromDir_override_mac() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
-    
-    TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
-      expectResolveDynamic(TestPlatformSpec.mac(), "dummy");
+
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamic(TestPlatformSpec.mac(), "dummy");
 
     try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.mac(), "dummy", scopedListener)) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().endsWith("libdummy.dylib"));
     }
-    
+
     scopedListener.assertDone();
   }
 
@@ -228,26 +229,27 @@ public class NativeLoaderTest {
 
   @Test
   public void fromDir_with_component() throws LibraryLoadException {
-	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
-	  
-    NativeLoader loader = NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
-    
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    NativeLoader loader =
+        NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
+
     sharedListener.expectResolveDynamic("comp1", "dummy");
 
     try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp1"));
     }
-    
+
     sharedListener.assertDone();
-    
+
     sharedListener.expectResolveDynamic("comp2", "dummy");
 
     try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp2"));
     }
-    
+
     sharedListener.assertDone();
   }
 
@@ -320,19 +322,20 @@ public class NativeLoaderTest {
     Path jar = jar("test-data");
     try {
       try (URLClassLoader classLoader = createClassLoader(jar)) {
-    	NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
-        
-    	TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
-    	  expectResolveDynamic("dummy").
-    	  expectTempFileCreated("dummy").
-    	  expectTempFileCleanup("dummy");
-    	    	
-    	try (LibFile lib = loader.resolveDynamic("dummy", scopedListener)) {
+        NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
+
+        TestLibraryLoadingListener scopedListener =
+            new TestLibraryLoadingListener()
+                .expectResolveDynamic("dummy")
+                .expectTempFileCreated("dummy")
+                .expectTempFileCleanup("dummy");
+
+        try (LibFile lib = loader.resolveDynamic("dummy", scopedListener)) {
           // loaded from a jar, so copied to temp file
           assertTempFile(lib);
         }
-    	
-    	scopedListener.assertDone();
+
+        scopedListener.assertDone();
       }
     } finally {
       deleteHelper(jar);
