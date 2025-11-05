@@ -35,7 +35,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
           }
         });
   }
-  
+
   public TestLibraryLoadingListener expectResolvePreloaded(String expectedLibName) {
     return this.addCheck(
         new Check("onResolveDynamic:preloaded %s", expectedLibName) {
@@ -83,7 +83,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
           }
         });
   }
-  
+
   public TestLibraryLoadingListener expectLoadPreloaded(String expectedLibName) {
     return this.addCheck(
         new Check("onLoad:preloaded %s", expectedLibName) {
@@ -164,7 +164,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public void assertDone() {
-	// written this way for better debugging
+    // written this way for better debugging
     assertEquals(Collections.emptyList(), this.checks);
   }
 

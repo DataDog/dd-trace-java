@@ -50,55 +50,58 @@ public class NativeLoaderTest {
     // not already loaded - so passes through to underlying resolver
     assertThrows(LibraryLoadException.class, () -> loader.load("dne"));
   }
-  
+
   @Test
   public void preloaded_listenerSupport() throws LibraryLoadException {
-	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
-	  
-	NativeLoader loader = NativeLoader.builder().preloaded("preloaded1", "preloaded2").addListener(sharedListener).build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
 
-	// debatable - but no listener calls just for checking
+    NativeLoader loader =
+        NativeLoader.builder()
+            .preloaded("preloaded1", "preloaded2")
+            .addListener(sharedListener)
+            .build();
+
+    // debatable - but no listener calls just for checking
     assertTrue(loader.isPreloaded("preloaded1"));
     assertTrue(loader.isPreloaded("preloaded2"));
-    
-    
-    
+
     sharedListener.expectResolvePreloaded("preloaded1");
     sharedListener.expectLoadPreloaded("preloaded1");
-    
-    TestLibraryLoadingListener scopedListener1 = new TestLibraryLoadingListener().
-      expectResolvePreloaded("preloaded1").
-      expectLoadPreloaded("preloaded1");
-	
-	try (LibFile lib = loader.resolveDynamic("preloaded1", scopedListener1)) {
-	  lib.load();
-	}
-	
-	sharedListener.assertDone();
-	scopedListener1.assertDone();	
-	
-	sharedListener.expectResolvePreloaded("preloaded2");
-	sharedListener.expectLoadPreloaded("preloaded2");
-	
-	TestLibraryLoadingListener scopedListener2 = new TestLibraryLoadingListener().
-	  expectResolvePreloaded("preloaded2").
-	  expectLoadPreloaded("preloaded2");
-	
-	// load is just convenience for resolve & load
-	loader.load("preloaded2", scopedListener2);
-	
-	sharedListener.assertDone();
-	scopedListener2.assertDone();
-	
-	
-	sharedListener.expectResolveDynamicFailure("dne");
-	
-	TestLibraryLoadingListener scopedListener3 = new TestLibraryLoadingListener().
-	  expectResolveDynamicFailure("dne");
-	
+
+    TestLibraryLoadingListener scopedListener1 =
+        new TestLibraryLoadingListener()
+            .expectResolvePreloaded("preloaded1")
+            .expectLoadPreloaded("preloaded1");
+
+    try (LibFile lib = loader.resolveDynamic("preloaded1", scopedListener1)) {
+      lib.load();
+    }
+
+    sharedListener.assertDone();
+    scopedListener1.assertDone();
+
+    sharedListener.expectResolvePreloaded("preloaded2");
+    sharedListener.expectLoadPreloaded("preloaded2");
+
+    TestLibraryLoadingListener scopedListener2 =
+        new TestLibraryLoadingListener()
+            .expectResolvePreloaded("preloaded2")
+            .expectLoadPreloaded("preloaded2");
+
+    // load is just convenience for resolve & load
+    loader.load("preloaded2", scopedListener2);
+
+    sharedListener.assertDone();
+    scopedListener2.assertDone();
+
+    sharedListener.expectResolveDynamicFailure("dne");
+
+    TestLibraryLoadingListener scopedListener3 =
+        new TestLibraryLoadingListener().expectResolveDynamicFailure("dne");
+
     // not already loaded - so passes through to underlying resolver
     assertThrows(LibraryLoadException.class, () -> loader.load("dne", scopedListener3));
-    
+
     sharedListener.assertDone();
     scopedListener3.assertDone();
   }

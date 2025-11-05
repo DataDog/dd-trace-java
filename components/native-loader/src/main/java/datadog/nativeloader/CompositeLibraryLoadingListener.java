@@ -21,9 +21,9 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
   public boolean isNop() {
     return this.listeners.isEmpty();
   }
-  
+
   int size() {
-	return this.listeners.size();
+    return this.listeners.size();
   }
 
   @Override
@@ -119,7 +119,8 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
 
   @Override
   public CompositeLibraryLoadingListener join(LibraryLoadingListener... listeners) {
-    ArrayList<LibraryLoadingListener> combinedListeners = new ArrayList<>(this.listeners.size() + listeners.length);
+    ArrayList<LibraryLoadingListener> combinedListeners =
+        new ArrayList<>(this.listeners.size() + listeners.length);
     combinedListeners.addAll(this.listeners);
     combinedListeners.addAll(Arrays.asList(listeners));
     return new CompositeLibraryLoadingListener(combinedListeners);
