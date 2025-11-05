@@ -174,24 +174,35 @@ public class NativeLoaderTest {
 
   @Test
   public void fromDir_override_windows() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
-
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+	    
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
+    
+    sharedListener.expectResolveDynamic(TestPlatformSpec.windows(), "dummy");
+    
     try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.windows(), "dummy")) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().endsWith("dummy.dll"));
     }
+    
+    sharedListener.assertDone();
   }
 
   @Test
   public void fromDir_override_mac() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+    
+    TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
+      expectResolveDynamic(TestPlatformSpec.mac(), "dummy");
 
-    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.mac(), "dummy")) {
+    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.mac(), "dummy", scopedListener)) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().endsWith("libdummy.dylib"));
     }
+    
+    scopedListener.assertDone();
   }
 
   @Test

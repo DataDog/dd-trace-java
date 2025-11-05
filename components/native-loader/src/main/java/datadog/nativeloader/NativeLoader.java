@@ -266,6 +266,11 @@ public final class NativeLoader {
     return this.resolveDynamicImpl(platformSpec, null, libName);
   }
 
+  public LibFile resolveDynamic(PlatformSpec platformSpec, String libName, LibraryLoadingListener... scopedListeners)
+      throws LibraryLoadException {
+    return this.resolveDynamicImpl(platformSpec, null, libName, scopedListeners);
+  }
+  
   /**
    * Resolves a library with an associated component with a different {@link PlatformSpec} than the
    * default

@@ -21,8 +21,20 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectResolveDynamic(String expectedLibName) {
+	return this.expectResolveDynamic(new LibCheck(expectedLibName));
+  }
+  
+  public TestLibraryLoadingListener expectResolveDynamic(String expectedComponent, String expectedLibName) {
+	return this.expectResolveDynamic(new LibCheck(expectedComponent, expectedLibName));
+  }
+  
+  public TestLibraryLoadingListener expectResolveDynamic(PlatformSpec expectedPlatformSpec, String expectedLibName) {
+    return this.expectResolveDynamic(new LibCheck(expectedPlatformSpec, expectedLibName));	  
+  }
+  
+  TestLibraryLoadingListener expectResolveDynamic(LibCheck libCheck) {
     return this.addCheck(
-        new Check("onResolveDynamic %s", expectedLibName) {
+        new Check("onResolveDynamic %s", libCheck) {
           @Override
           public void onResolveDynamic(
               PlatformSpec platformSpec,
@@ -30,8 +42,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               String libName,
               boolean isPreloaded,
               URL optionalUrl) {
-            assertNull(optionalComponent);
-            assertEquals(libName, expectedLibName);
+            libCheck.assertMatches(platformSpec, optionalComponent, libName);
           }
         });
   }
@@ -262,6 +273,51 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
 
   Check nextCheck() {
     return this.checks.isEmpty() ? Check.NOTHING : this.checks.removeFirst();
+  }
+  
+  static final class LibCheck {
+	private final PlatformSpec expectedPlatformSpec;
+	private final String expectedComponent;
+	private final String expectedLibName;
+	
+	LibCheck(PlatformSpec expectedPlatformSpec, String expectedLibName) {
+	  this(null, null, expectedLibName);
+	}
+	
+	LibCheck(String expectedComponent, String expectedLibName) {
+	  this(null, expectedComponent, expectedLibName);
+	}
+	  
+	LibCheck(String expectedLibName) {
+	  this(null, null, expectedLibName);
+	}
+	
+	LibCheck(PlatformSpec expectedPlatformSpec, String expectedComponent, String expectedLibName) {
+	  this.expectedPlatformSpec = expectedPlatformSpec;
+	  this.expectedComponent = expectedComponent;
+	  this.expectedLibName = expectedLibName;
+	}
+	  
+	void assertMatches(PlatformSpec platformSpec, String optionalComponent, String libName) {
+	  if ( this.expectedPlatformSpec != null ) {
+		assertEquals(this.expectedPlatformSpec, platformSpec);
+	  }
+	  if ( this.expectedComponent == null ) {
+		assertNull(optionalComponent);
+	  } else {
+		assertEquals(this.expectedComponent, optionalComponent);
+	  }
+	  assertEquals(this.expectedLibName, libName);
+	}
+	
+	@Override
+	public String toString() {
+	  if ( this.expectedComponent == null ) {
+		return this.expectedLibName;
+	  } else {
+		return this.expectedComponent + "/" + this.expectedLibName;
+	  }
+	}
   }
 
   abstract static class Check implements LibraryLoadingListener {
