@@ -140,12 +140,12 @@ tasks.withType<Test>().configureEach {
   }
 }
 
-// tasks.withType(Test).configureEach {
-//   // https://docs.gradle.com/develocity/flaky-test-detection/
-//   // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
-//   develocity.testRetry {
-//     if (providers.environmentVariable("CI").isPresent()) {
-//       maxRetries = 3
-//     }
-//   }
-// }
+tasks.withType<Test>().configureEach {
+  // https://docs.gradle.com/develocity/flaky-test-detection/
+  // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
+  develocity.testRetry {
+    if (providers.environmentVariable("CI").isPresent()) {
+      maxRetries = 3
+    }
+  }
+}

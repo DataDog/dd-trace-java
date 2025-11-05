@@ -37,6 +37,7 @@ cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
 jmh = "1.37"
 jackson = "2.20.0"
+develocity = "4.2.2"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -103,6 +104,8 @@ jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
 
 jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
+
+develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
 
 [bundles]
 asm = ["asm", "asmcommons"]
