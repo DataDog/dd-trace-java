@@ -672,7 +672,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -2261,7 +2260,8 @@ public class Config {
     iastContextMode =
         configProvider.getEnum(IAST_CONTEXT_MODE, IastContext.Mode.class, IastContext.Mode.REQUEST);
     iastDetectionMode =
-        configProvider.getEnum(IAST_DETECTION_MODE, IastDetectionMode.class, DEFAULT);
+        configProvider.getEnum(
+            IAST_DETECTION_MODE, IastDetectionMode.class, IastDetectionMode.DEFAULT);
     iastMaxConcurrentRequests = iastDetectionMode.getIastMaxConcurrentRequests(configProvider);
     iastVulnerabilitiesPerRequest =
         iastDetectionMode.getIastVulnerabilitiesPerRequest(configProvider);
