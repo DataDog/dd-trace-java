@@ -169,7 +169,14 @@ class TracingConfigPollerTest extends DDCoreSpecification {
               "tag_name": "custom.header"
             }
           ],
-          "tracing_sampling_rate": 1.3
+          "tracing_sampling_rate": 1.3,
+          "data_streams_transaction_extractors": [
+            {
+              "name": "test",
+              "type": "type",
+              "value": "value"
+            }
+          ]
         }
       }
     """.getBytes(StandardCharsets.UTF_8), null)

@@ -98,7 +98,12 @@ final class TracingConfigPoller {
     private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
-      Moshi MOSHI = new Moshi.Builder().add(new TracingSamplingRulesAdapter()).build();
+      Moshi MOSHI =
+          new Moshi.Builder()
+              .add(new TracingSamplingRulesAdapter())
+              .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorsAdapter())
+              .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
+              .build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
       LIB_CONFIG_ADAPTER = MOSHI.adapter(LibConfig.class);
       TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
