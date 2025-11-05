@@ -240,16 +240,20 @@ dd-octo-sts-pre-release-check:
     when: always
 
 build:
+  extends: .gradle_build
   needs:
     - job: maven-central-pre-release-check
       optional: true
     - job: dd-octo-sts-pre-release-check
       optional: true
-  extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
     CACHE_TYPE: "lib"
     DEPENDENCY_CACHE_POLICY: pull
+    GRADLE_MEM: 2G
+    GRADLE_WORKERS: 8
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
@@ -273,8 +277,8 @@ build_tests:
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM: 4G
-    GRADLE_WORKERS: 3
+    GRADLE_MEM: 2G
+    GRADLE_WORKERS: 8
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   parallel:
