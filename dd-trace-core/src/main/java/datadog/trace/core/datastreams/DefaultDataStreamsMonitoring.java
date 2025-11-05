@@ -443,6 +443,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     List<DataStreamsTransactionExtractor> extractors =
         traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+    // reconfigure extractors here
     for (DataStreamsTransactionExtractor extractor : extractors) {
       log.info(
           "#### Got extractor with name {}, type {}, value {}",
