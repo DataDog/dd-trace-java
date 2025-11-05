@@ -115,13 +115,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_METRIC_EXPORT_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRIC_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
@@ -1868,13 +1866,13 @@ public class Config {
     Integer tmpOtelMetricExportTimeout = configProvider.getInteger(OTEL_METRIC_EXPORT_TIMEOUT);
     otelMetricExportTimeout =
         (tmpOtelMetricExportTimeout == null || tmpOtelMetricExportTimeout < 0)
-            ? DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT
+            ? DEFAULT_METRICS_OTEL_TIMEOUT
             : tmpOtelMetricExportTimeout;
 
     Integer tmpOtelMetricExportInterval = configProvider.getInteger(OTEL_METRIC_EXPORT_INTERVAL);
     otelMetricExportInterval =
         (tmpOtelMetricExportInterval == null || tmpOtelMetricExportInterval < 0)
-            ? DEFAULT_OTEL_METRIC_EXPORT_INTERVAL
+            ? DEFAULT_METRICS_OTEL_INTERVAL
             : tmpOtelMetricExportInterval;
 
     Map<String, String> tmpOtelExporterOtlpMetricsHeaders =
@@ -1893,7 +1891,7 @@ public class Config {
           configProvider.getEnum(
               OTEL_EXPORTER_OTLP_PROTOCOL,
               OtlpConfig.Protocol.class,
-              DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL);
+              OtlpConfig.Protocol.HTTP_PROTOBUF);
     }
     otelExporterOtlpMetricsProtocol = tmpOtelExporterOtlpMetricsProtocol;
     // TODO: log warning and switch protocol to default if we don't support the selected protocol?
@@ -1909,15 +1907,15 @@ public class Config {
             isHttp
                 ? "http://"
                     + endpointHost
-                    + ":"
-                    + DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT
-                    + "/"
-                    + DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX
-                : "http://" + endpointHost + ":" + DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT;
+                    + ':'
+                    + DEFAULT_OTLP_HTTP_PORT
+                    + '/'
+                    + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT
+                : "http://" + endpointHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
         tmpOtelExporterOtlpMetricsEndpoint =
             isHttp
-                ? tmpOtelExporterOtlpEndpoint + DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX
+                ? tmpOtelExporterOtlpEndpoint + '/' + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT
                 : tmpOtelExporterOtlpEndpoint;
       }
     }
@@ -1930,7 +1928,7 @@ public class Config {
     }
     otelExporterOtlpMetricsTimeout =
         (tmpOtelExporterOtlpMetricsTimeout == null || tmpOtelExporterOtlpMetricsTimeout < 0)
-            ? new Integer(DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT)
+            ? Math.min(otelMetricExportTimeout, DEFAULT_METRICS_OTEL_TIMEOUT)
             : tmpOtelExporterOtlpMetricsTimeout;
 
     otelExporterOtlpMetricsTemporalityPreference =

@@ -5,7 +5,6 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
 
-import datadog.trace.api.config.OtlpConfig.Protocol;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -104,14 +103,13 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
-  static final Integer DEFAULT_OTEL_METRIC_EXPORT_INTERVAL = 10000;
+  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10000; // ms
   // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
-  static final Integer DEFAULT_OTEL_METRIC_EXPORT_TIMEOUT = 7500;
-  static final String DEFAULT_OTEL_METRIC_ENDPOINT_SUFFIX = "v1/metrics";
-  static final String DEFAULT_OTEL_METRIC_ENDPOINT_HTTP_PORT = "4318";
-  static final String DEFAULT_OTEL_METRIC_ENDPOINT_GRPC_PORT = "4317";
-  static final Protocol DEFAULT_OTEL_EXPORTER_OTLP_METRICS_PROTOCOL = Protocol.GRPC;
-  static final int DEFAULT_OTEL_EXPORTER_OTLP_METRICS_TIMEOUT = 10000;
+  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7500; // ms
+
+  static final String DEFAULT_OTLP_HTTP_METRIC_ENDPOINT = "v1/metrics";
+  static final String DEFAULT_OTLP_HTTP_PORT = "4318";
+  static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
