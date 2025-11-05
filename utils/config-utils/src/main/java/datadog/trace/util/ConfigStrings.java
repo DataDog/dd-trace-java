@@ -23,7 +23,7 @@ public final class ConfigStrings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
-    return setting.startsWith("otel.") ? toEnvVar(setting) : "DD_" + toEnvVar(setting);
+    return "DD_" + toEnvVar(setting);
   }
 
   /**
@@ -47,7 +47,7 @@ public final class ConfigStrings {
    */
   @Nonnull
   public static String propertyNameToSystemPropertyName(final String setting) {
-    return setting.startsWith("otel.") ? setting : "dd." + setting;
+    return "dd." + setting;
   }
 
   @Nonnull
