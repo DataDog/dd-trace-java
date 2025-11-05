@@ -2,6 +2,7 @@ package datadog.trace.util.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.util.Objects;
 
 /**
  * A Single-Producer, Multiple-Consumer (SPMC) bounded, lock-free queue based on a circular array.
@@ -27,35 +28,34 @@ public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     }
   }
 
-  /** Backing array buffer. */
+  /** The backing array (plain Java array for VarHandle access) */
   private final Object[] buffer;
 
-  // Padding
+  // Padding to avoid false sharing
   @SuppressWarnings("unused")
   private long p0, p1, p2, p3, p4, p5, p6;
 
-  /** Tail index (producer-only). */
+  /** Next free slot for producer (single-threaded) */
   private volatile long tail = 0L;
 
-  // Padding
+  // Padding around tail
   @SuppressWarnings("unused")
   private long q0, q1, q2, q3, q4, q5, q6;
 
-  // Padding
-  @SuppressWarnings("unused")
-  private long p10, p11, p12, p13, p14, p15, p16;
-
-  /** Head index (claimed atomically by multiple consumers). */
+  /** Next slot to consume (multi-threaded) */
   private volatile long head = 0L;
 
-  // Padding
+  /** Cached consumer limit to avoid repeated volatile tail reads */
+  private volatile long consumerLimit = 0L;
+
+  // Padding around head
   @SuppressWarnings("unused")
-  private long q10, q11, q12, q13, q14, q15, q16;
+  private long r0, r1, r2, r3, r4, r5, r6;
 
   /**
-   * Creates a new SPMC queue with the given capacity.
+   * Creates a new SPMC queue.
    *
-   * @param requestedCapacity the desired capacity, rounded up to the next power of two if needed
+   * @param requestedCapacity the desired capacity, rounded up to next power of two
    */
   public SpmcArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
@@ -63,85 +63,101 @@ public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
   }
 
   /**
-   * Attempts to enqueue the given element.
+   * Adds an element to the queue.
    *
-   * <p>This method is called by a single producer, so no CAS is required. It uses {@code
-   * setRelease} to publish the element and the new tail value.
+   * <p>Single-producer: no CAS needed. Uses a release-store to ensure consumers see the write.
    *
-   * @param e the element to add
-   * @return {@code true} if added, {@code false} if the queue is full
-   * @throws NullPointerException if {@code e} is null
+   * @param e element to enqueue (must be non-null)
+   * @return true if element was added, false if queue is full
    */
   @Override
   public boolean offer(E e) {
-    if (e == null) {
-      throw new NullPointerException();
-    }
+    Objects.requireNonNull(e);
 
     long currentTail = tail;
     long wrapPoint = currentTail - capacity;
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-    if (wrapPoint >= currentHead) {
-      return false; // queue full
-    }
+
+    if (wrapPoint >= currentHead) return false; // queue full
 
     int index = (int) (currentTail & mask);
-    ARRAY_HANDLE.setRelease(buffer, index, e);
-    tail = currentTail + 1;
+
+    // Release-store ensures that the element is visible to consumers
+    ARRAY_HANDLE.setRelease(this.buffer, index, e);
+
+    // Single-producer: simple volatile write to advance tail
+    TAIL_HANDLE.setVolatile(this, currentTail + 1);
     return true;
   }
 
   /**
-   * Removes and returns the next element, or {@code null} if the queue is empty.
+   * Removes and returns the next element, or null if empty.
    *
-   * <p>Consumers compete via CAS on {@code head}. The successful thread claims the index and clears
-   * the slot with release semantics.
-   *
-   * @return the dequeued element, or {@code null} if empty
+   * @return dequeued element, or null if queue is empty
    */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
+    final Object[] localBuffer = this.buffer;
+
     while (true) {
       long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-      int index = (int) (currentHead & mask);
+      long limit = consumerLimit; // local cached tail
 
-      Object value = ARRAY_HANDLE.getAcquire(buffer, index);
-      if (value == null) {
-        // Possibly empty
-        long currentTail = tail; // producer thread only writes
-        if (currentHead >= currentTail) {
-          return null; // queue empty
-        } else {
-          // Not yet visible, retry
-          Thread.onSpinWait();
-          continue;
+      if (currentHead >= limit) {
+        limit = (long) TAIL_HANDLE.getVolatile(this);
+        if (currentHead >= limit) {
+          return null; // empty
         }
+        consumerLimit = limit; // update local view
       }
 
-      // Try to claim this slot
+      // Attempt to claim this slot
       if (HEAD_HANDLE.compareAndSet(this, currentHead, currentHead + 1)) {
-        ARRAY_HANDLE.setOpaque(buffer, index, null);
+        int index = (int) (currentHead & mask);
+        Object value;
+
+        // Wait for the producer to publish the value
+        while ((value = ARRAY_HANDLE.getAcquire(localBuffer, index)) == null) {
+          Thread.onSpinWait();
+        }
+
+        // Clear slot
+        ARRAY_HANDLE.setOpaque(localBuffer, index, null);
         return (E) value;
       }
 
-      // Lost race to another consumer
-      Thread.onSpinWait();
+      // CAS failed, retry loop
     }
   }
 
+  /**
+   * Returns the next element without removing it.
+   *
+   * @return next element or null if queue empty
+   */
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
+    final Object[] localBuffer = this.buffer;
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
+
+    if (currentHead >= currentTail) return null;
+
     int index = (int) (currentHead & mask);
-    return (E) ARRAY_HANDLE.getVolatile(buffer, index);
+    return (E) ARRAY_HANDLE.getAcquire(localBuffer, index); // acquire-load ensures visibility
   }
 
+  /**
+   * Returns the approximate number of elements in the queue.
+   *
+   * @return current queue size
+   */
   @Override
   public int size() {
+    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-    long currentTail = tail;
     return (int) (currentTail - currentHead);
   }
 }

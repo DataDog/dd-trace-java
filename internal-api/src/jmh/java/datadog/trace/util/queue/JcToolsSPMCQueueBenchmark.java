@@ -1,84 +1,78 @@
 package datadog.trace.util.queue;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
-import org.jctools.queues.SpmcArrayQueue;
+import org.jctools.queues.MpscArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Group;
 import org.openjdk.jmh.annotations.GroupThreads;
 import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /*
-Benchmark                                 Mode  Cnt    Score    Error   Units
-JcToolsSPMCQueueBenchmark.spmc           thrpt    5  324.804 ± 15.512  ops/us
-JcToolsSPMCQueueBenchmark.spmc:consumer  thrpt    5  309.039 ± 15.960  ops/us
-JcToolsSPMCQueueBenchmark.spmc:producer  thrpt    5   15.765 ±  0.464  ops/us
+Benchmark                                     (capacity)   Mode  Cnt   Score   Error   Units
+JcToolsdMPSCQueueBenchmark.queueTest                1024  thrpt       75.207          ops/us
+JcToolsdMPSCQueueBenchmark.queueTest:consume        1024  thrpt       62.553          ops/us
+JcToolsdMPSCQueueBenchmark.queueTest:produce        1024  thrpt       12.654          ops/us
+JcToolsdMPSCQueueBenchmark.queueTest               65536  thrpt       36.381          ops/us
+JcToolsdMPSCQueueBenchmark.queueTest:consume       65536  thrpt       22.665          ops/us
+JcToolsdMPSCQueueBenchmark.queueTest:produce       65536  thrpt       13.717          ops/us
  */
 @BenchmarkMode(Mode.Throughput)
-@State(Scope.Group)
-@Fork(value = 1, warmups = 0)
+@Warmup(iterations = 1, time = 30)
+@Measurement(iterations = 1, time = 30)
+@Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
+@State(Scope.Benchmark)
 public class JcToolsSPMCQueueBenchmark {
+  @State(Scope.Group)
+  public static class QueueState {
+    MpscArrayQueue<Integer> queue;
+    CountDownLatch producerReady;
 
-  private static final int QUEUE_CAPACITY = 1024;
-  private static final int ITEMS_TO_PRODUCE = 100_000;
+    @Param({"1024", "65536"})
+    int capacity;
 
-  private SpmcArrayQueue<Integer> queue;
-  private AtomicInteger produced;
-  private AtomicInteger consumed;
-
-  @Setup(Level.Iteration)
-  public void setup() {
-    queue = new SpmcArrayQueue<>(QUEUE_CAPACITY);
-    produced = new AtomicInteger(0);
-    consumed = new AtomicInteger(0);
-
-    // Pre-fill queue for warmup safety
-    int warmupFill = Math.min(QUEUE_CAPACITY / 2, ITEMS_TO_PRODUCE);
-    for (int i = 0; i < warmupFill; i++) {
-      queue.offer(i);
-      produced.incrementAndGet();
+    @Setup(Level.Iteration)
+    public void setup() {
+      queue = new MpscArrayQueue<>(capacity);
+      producerReady = new CountDownLatch(1);
     }
   }
 
-  // Single producer in the group
   @Benchmark
-  @Group("spmc")
+  @Group("queueTest")
+  @GroupThreads(4)
+  public void consume(QueueState state, Blackhole bh) throws InterruptedException {
+    state.producerReady.await(); // wait until consumer is ready
+    Integer v = state.queue.poll();
+    if (v == null) {
+      LockSupport.parkNanos(1);
+    } else {
+      bh.consume(v);
+    }
+  }
+
+  @Benchmark
+  @Group("queueTest")
   @GroupThreads(1)
-  public void producer() {
-    int i = produced.getAndIncrement();
-    if (i < ITEMS_TO_PRODUCE) {
-      while (!queue.offer(i)) {
-        LockSupport.parkNanos(1L);
-      }
-    }
-  }
-
-  // Multiple consumers in the group
-  @Benchmark
-  @Group("spmc")
-  @GroupThreads(4) // adjust number of consumers
-  public int consumer() {
-    while (true) {
-      Integer val = queue.poll();
-      if (val != null) {
-        consumed.incrementAndGet();
-        return val;
-      }
-
-      if (produced.get() >= ITEMS_TO_PRODUCE && queue.isEmpty()) {
-        return 0;
-      }
-
-      LockSupport.parkNanos(1L);
+  public void produce(QueueState state) {
+    state.producerReady.countDown(); // signal consumers can start
+    // bounded attempt: try once, then yield if full
+    boolean offered = state.queue.offer(0);
+    if (!offered) {
+      Thread.yield();
     }
   }
 }

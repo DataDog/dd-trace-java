@@ -1,7 +1,5 @@
 package datadog.trace.util.queue;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -13,19 +11,6 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
   /** Consumer thread reference for wake-up. */
   private volatile Thread consumerThread;
 
-  private static final VarHandle CONSUMER_THREAD_HANDLE;
-
-  static {
-    try {
-      MethodHandles.Lookup l = MethodHandles.lookup();
-      CONSUMER_THREAD_HANDLE =
-          l.findVarHandle(
-              MpscBlockingConsumerArrayQueueVarHandle.class, "consumerThread", Thread.class);
-    } catch (Throwable t) {
-      throw new IllegalStateException(t);
-    }
-  }
-
   public MpscBlockingConsumerArrayQueueVarHandle(int capacity) {
     super(capacity);
   }
@@ -34,7 +19,7 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
   public boolean offer(E e) {
     final boolean success = super.offer(e);
     if (success) {
-      Thread c = (Thread) CONSUMER_THREAD_HANDLE.getVolatile(this);
+      Thread c = consumerThread;
       if (c != null) LockSupport.unpark(c);
     }
     return success;
