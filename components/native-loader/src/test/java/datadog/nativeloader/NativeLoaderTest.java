@@ -228,17 +228,27 @@ public class NativeLoaderTest {
 
   @Test
   public void fromDir_with_component() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+	  
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
+    
+    sharedListener.expectResolveDynamic("comp1", "dummy");
 
     try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp1"));
     }
+    
+    sharedListener.assertDone();
+    
+    sharedListener.expectResolveDynamic("comp2", "dummy");
 
     try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp2"));
     }
+    
+    sharedListener.assertDone();
   }
 
   @Test
