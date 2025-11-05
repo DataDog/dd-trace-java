@@ -84,6 +84,21 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         });
   }
 
+  public TestLibraryLoadingListener expectLoadFailure(String expectedLibName) {
+    return this.addCheck(
+        new Check("onLoadFailure %s", expectedLibName) {
+          @Override
+          public void onLoadFailure(
+              PlatformSpec platformSpec,
+              String optionalComponent,
+              String libName,
+              LibraryLoadException optionalCause) {
+            assertNull(optionalComponent);
+            assertEquals(libName, expectedLibName);
+          }
+        });
+  }
+
   public TestLibraryLoadingListener expectLoadPreloaded(String expectedLibName) {
     return this.addCheck(
         new Check("onLoad:preloaded %s", expectedLibName) {

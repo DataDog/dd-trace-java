@@ -205,6 +205,10 @@ public final class NativeLoader {
     this.tempDir = builder.tempDir();
   }
 
+  public boolean isPlatformSupported() {
+    return !this.defaultPlatformSpec.isUnknownOs() && !this.defaultPlatformSpec.isUnknownOs();
+  }
+
   /** Indicates if a library is considered "pre-loaded" */
   public boolean isPreloaded(String libName) {
     return this.libResolver.isPreloaded(this.defaultPlatformSpec, libName);

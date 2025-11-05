@@ -4,6 +4,7 @@ import static datadog.nativeloader.TestPlatformSpec.AARCH64;
 import static datadog.nativeloader.TestPlatformSpec.LINUX;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.TestPlatformSpec.UNSUPPORTED_OS;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -108,10 +109,18 @@ public class NativeLoaderTest {
 
   @Test
   public void unsupportedPlatform() {
-    PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
-    NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
 
+    PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
+    NativeLoader loader =
+        NativeLoader.builder().platformSpec(unsupportedOsSpec).addListener(sharedListener).build();
+
+    sharedListener.expectResolveDynamicFailure("dummy");
+
+    // short-circuit fails during resolution because os isn't supported
     assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+
+    sharedListener.assertDone();
   }
 
   @Test
@@ -119,17 +128,35 @@ public class NativeLoaderTest {
     PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(LINUX, UNSUPPORTED_ARCH);
     NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
 
-    assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamicFailure("dummy");
+
+    // short-circuit fails during resolution because arch isn't supported
+    assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy", scopedListener));
+
+    scopedListener.assertDone();
   }
 
   @Test
   public void loadFailure() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    NativeLoader loader = NativeLoader.builder().addListener(sharedListener).build();
+    assumeTrue(loader.isPlatformSupported());
+
+    sharedListener.expectResolveDynamic("dummy");
+    sharedListener.expectLoadFailure("dummy");
+
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamic("dummy").expectLoadFailure("dummy");
 
     // test libraries are just text files, so they shouldn't load & link properly
     // NativeLoader is supposed to wrap the loading failures, so that we
     // remember to handle them
-    assertThrows(LibraryLoadException.class, () -> loader.load("dummy"));
+
+    // on supported platforms, there is a dummy library file, so this will resolve but fail to load
+    // & link
+    assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
   }
 
   @Test
