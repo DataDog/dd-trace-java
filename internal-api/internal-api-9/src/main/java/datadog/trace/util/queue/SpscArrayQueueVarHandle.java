@@ -2,23 +2,17 @@ package datadog.trace.util.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
+import java.util.Objects;
 
 /**
  * A high-performance Single-Producer, Single-Consumer (SPSC) bounded queue using a circular buffer
  * and VarHandle-based release/acquire memory semantics.
- *
- * <p>It is completely lock-free and wait-free, relying solely on release/acquire ordering for
- * correctness and visibility.
  *
  * @param <E> the type of elements held in this queue
  */
 public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   /** Backing array storing elements. */
   private final Object[] buffer;
-
-  // ===================== Padding to avoid false sharing =====================
 
   @SuppressWarnings("unused")
   private long p0, p1, p2, p3, p4, p5, p6;
@@ -66,13 +60,8 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     this.buffer = new Object[capacity];
   }
 
-  // ===================== OFFER (Producer only) =====================
-
   /**
    * Enqueues an element if space is available.
-   *
-   * <p>Uses cached head to minimize volatile reads. Only refreshes the head when the queue looks
-   * full. Writes use release semantics for publication.
    *
    * @param e the element to enqueue
    * @return {@code true} if enqueued, {@code false} if the queue is full
@@ -80,9 +69,7 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
    */
   @Override
   public boolean offer(E e) {
-    if (e == null) {
-      throw new NullPointerException();
-    }
+    Objects.requireNonNull(e);
 
     final long currentTail = (long) TAIL_HANDLE.getOpaque(this);
     final int index = (int) (currentTail & mask);
@@ -140,85 +127,5 @@ public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     long currentTail = (long) TAIL_HANDLE.getVolatile(this);
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
     return (int) (currentTail - currentHead);
-  }
-
-  /**
-   * Timed offer with progressive backoff.
-   *
-   * <p>Tries to insert an element into the queue within the given timeout. Uses a spin → yield →
-   * park backoff strategy to reduce CPU usage under contention.
-   *
-   * @param e the element to insert
-   * @param timeout maximum time to wait
-   * @param unit time unit of timeout
-   * @return {@code true} if inserted, {@code false} if timeout expires
-   * @throws InterruptedException if interrupted while waiting
-   */
-  @Override
-  public boolean offer(E e, long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
-    long deadline = System.nanoTime() + unit.toNanos(timeout);
-    int idle = 0;
-
-    while (true) {
-      if (offer(e)) return true;
-
-      long remaining = deadline - System.nanoTime();
-      if (remaining <= 0) return false;
-
-      // progressive spin/yield
-      if (idle < 100) {
-        // spin
-      } else if (idle < 1_000) {
-        Thread.yield();
-      } else {
-        Thread.onSpinWait();
-      }
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
-      idle++;
-    }
-  }
-
-  /**
-   * Polls with a timeout using progressive backoff.
-   *
-   * @param timeout max wait time
-   * @param unit time unit
-   * @return the head element, or null if timed out
-   * @throws InterruptedException if interrupted
-   */
-  @Override
-  public E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
-    if (timeout <= 0) {
-      return poll();
-    }
-
-    final long deadline = System.nanoTime() + unit.toNanos(timeout);
-    int idleCount = 0;
-
-    while (true) {
-      E e = poll();
-      if (e != null) {
-        return e;
-      }
-
-      long remaining = deadline - System.nanoTime();
-      if (remaining <= 0) {
-        return null;
-      }
-
-      if (idleCount < 100) {
-        // spin
-      } else if (idleCount < 1_000) {
-        Thread.yield();
-      } else {
-        Thread.onSpinWait();
-      }
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
-      idleCount++;
-    }
   }
 }
