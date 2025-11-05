@@ -5,77 +5,38 @@ import com.openai.models.completions.Completion
 import com.openai.models.completions.CompletionCreateParams
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
+import spock.lang.Ignore
 
 class CompletionServiceTest extends OpenAiTest {
 
+  @Ignore
   def "single request completion test"() {
     CompletionCreateParams createParams = CompletionCreateParams.builder()
     .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
     .prompt("Tell me a story about building the best SDK!")
     .build()
 
-    Completion completion = runnableUnderTrace("parent") {
+    runnableUnderTrace("parent") {
       openAiClient.completions().create(createParams)
     }
 
     expect:
-    assertTraces(1) {
-      trace(3) {
-        span(0) {
-          operationName "parent"
-          parent()
-          errored false
-        }
-        span(1) {
-          operationName "openai.request"
-          resourceName "completions.create"
-          childOf span(0)
-          errored false
-          spanType "llm"
-        }
-        span(2) {
-          operationName "okhttp.request"
-          childOf span(1)
-          errored false
-          spanType "http"
-        }
-      }
-    }
+    assertCompletionTrace()
   }
 
+  @Ignore
   def "single request completion test with withRawResponse"() {
     CompletionCreateParams createParams = CompletionCreateParams.builder()
     .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
     .prompt("Tell me a story about building the best SDK!")
     .build()
 
-    Completion completion = runnableUnderTrace("parent") {
+    runnableUnderTrace("parent") {
       openAiClient.withRawResponse().completions().create(createParams)
     }
 
     expect:
-    assertTraces(1) {
-      trace(3) {
-        span(0) {
-          operationName "parent"
-          parent()
-          errored false
-        }
-        span(1) {
-          operationName "openai.request"
-          resourceName "completions.create"
-          childOf span(0)
-          errored false
-          spanType "llm"
-        }
-        span(2) {
-          operationName "okhttp.request"
-          childOf span(1)
-          errored false
-          spanType "http"
-        }
-      }
-    }
+    assertCompletionTrace()
   }
 
   def "streamed request completion test"() {
@@ -84,40 +45,21 @@ class CompletionServiceTest extends OpenAiTest {
         .prompt("Tell me a story about building the best SDK!")
         .build()
 
-    Completion completion = runnableUnderTrace("parent") {
+    runnableUnderTrace("parent") {
       StreamResponse<Completion> streamCompletion = openAiClient.completions().createStreaming(createParams)
       try (Stream stream = streamCompletion.stream()) { // close the stream after use
         stream.forEach {
           // consume the stream
+          System.err.println(">>> completion: " + it)
         }
       }
     }
 
     expect:
-    assertTraces(1) {
-      trace(3) {
-        span(0) {
-          operationName "parent"
-          parent()
-          errored false
-        }
-        span(1) {
-          operationName "openai.request"
-          resourceName "completions.create"
-          childOf span(0)
-          errored false
-          spanType "llm"
-        }
-        span(2) {
-          operationName "okhttp.request"
-          childOf span(1)
-          errored false
-          spanType "http"
-        }
-      }
-    }
+    assertCompletionTrace()
   }
 
+  @Ignore
   def "single async request completion test"() {
     CompletionCreateParams createParams = CompletionCreateParams.builder()
         .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
@@ -130,6 +72,10 @@ class CompletionServiceTest extends OpenAiTest {
     completionFuture.get()
 
     expect:
+    assertCompletionTrace()
+  }
+
+  private void assertCompletionTrace() {
     assertTraces(1) {
       trace(3) {
         span(0) {

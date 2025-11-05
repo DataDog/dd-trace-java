@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.openai_java;
 
+import com.openai.core.http.HttpResponseFor;
+import com.openai.core.http.StreamResponse;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +19,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 public class CompletionServiceInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
-    return "com.openai.services.blocking.CompletionServiceImpl";
+    return "com.openai.services.blocking.CompletionServiceImpl$WithRawResponseImpl";
   }
 
   @Override
@@ -27,6 +29,12 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
             .and(named("create"))
             .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams"))),
         getClass().getName() + "$CreateAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("createStreaming"))
+            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams"))),
+        getClass().getName() + "$CreateStreamingAdvice");
   }
 
   public static class CreateAdvice {
@@ -39,17 +47,56 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return Completion result, @Advice.Thrown final Throwable err) {
+    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return HttpResponseFor<Completion> response, @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
-      if (err != null) {
-        DECORATE.onError(span, err);
+      try {
+        if (err != null) {
+          DECORATE.onError(span, err);
+        }
+        if (response != null) {
+          Completion completion = response.parse();
+          DECORATE.decorate(span, completion);
+        }
+        DECORATE.beforeFinish(span);
+      } finally {
+        scope.close();
+        span.finish();
       }
-      if (result != null) {
-        DECORATE.decorate(span, result);
+    }
+  }
+
+  public static class CreateStreamingAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
+      AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
+      DECORATE.afterStart(span);
+      DECORATE.decorate(span, params);
+      return activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<StreamResponse<Completion>> response, @Advice.Thrown final Throwable err) {
+      final AgentSpan span = scope.span();
+      try {
+        if (err != null) {
+          DECORATE.onError(span, err);
+        }
+        if (response != null) {
+          // StreamResponse<Completion> streamResponse = response.parse();
+          // Stream<Completion> stream = streamResponse.stream();
+
+          response = StreamHelpers.wrap(response, span);
+
+          // StreamHelpers.decorate(stream);
+          // DECORATE.decorate(span, completion);
+
+        }
+        DECORATE.beforeFinish(span);
+      } finally {
+        scope.close();
+        // span.finish();
       }
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
     }
   }
 }

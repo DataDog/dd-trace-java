@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import java.util.List;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -54,5 +55,9 @@ public class OpenAiDecorator extends ClientDecorator {
     for (CompletionChoice choice : completion.choices()) {
       span.setTag("openai.response.choices." + choice.index() + ".text", choice.text()); // TODO
     }
+  }
+
+  public void decorate(AgentSpan span, List<Completion> completions) {
+    System.err.println(">>> completions=" + completions.size());
   }
 }
