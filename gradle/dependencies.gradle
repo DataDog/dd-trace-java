@@ -75,6 +75,7 @@ CachedData.deps.shared = [
   libs.dogstatsd,
   libs.jnr.unixsocket,
   libs.moshi,
+  libs.jctools,
   libs.lz4,
   libs.aircompressor
 ]
