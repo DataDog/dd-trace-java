@@ -15,12 +15,17 @@ public enum Intake {
       "ci-intake",
       "v2",
       Config::isCiVisibilityAgentlessEnabled,
-      Config::getCiVisibilityIntakeAgentlessUrl);
+      Config::getCiVisibilityIntakeAgentlessUrl),
+  EVENT_PLATFORM("event-platform-intake", "v2");
 
   public final String urlPrefix;
   public final String version;
   public final Function<Config, Boolean> agentlessModeEnabled;
   public final Function<Config, String> customUrl;
+
+  Intake(String urlPrefix, String version) {
+    this(urlPrefix, version, config -> false, config -> null);
+  }
 
   Intake(
       String urlPrefix,
