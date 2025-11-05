@@ -5,6 +5,8 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+ext.testingInstrumentation = true
+
 muzzle {
   pass {
     group = 'com.intuit.karate'

@@ -1,5 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
+ext.testingInstrumentation = true
+
 def jupiterVersion = '5.8.0'
 def platformVersion = '1.8.0'
 

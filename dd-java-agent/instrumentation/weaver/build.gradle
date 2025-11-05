@@ -1,6 +1,8 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
+ext.testingInstrumentation = true
+
 muzzle {
   pass {
     group = 'com.disneystreaming'

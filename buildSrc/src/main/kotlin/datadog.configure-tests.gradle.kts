@@ -7,25 +7,7 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
-fun isTestingInstrumentation(project: Project): Boolean {
-  return listOf(
-    "cucumber",
-    "cucumber-junit-4",
-    "cucumber-junit-5",
-    "junit-4.10",
-    "junit-4.13",
-    "junit-5.3",
-    "junit-5.8",
-    "karate",
-    "munit-junit-4",
-    "scalatest",
-    "selenium",
-    "spock-junit-5",
-    "testng-6",
-    "testng-7",
-    "weaver"
-  ).contains(project.name)
-}
+val isTestingInstrumentation = project.findProperty("testingInstrumentation") as? Boolean ?: false
 
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
@@ -65,7 +47,7 @@ tasks.withType<Test>().configureEach {
   }
 
   // Avoid executing classes used to test testing frameworks instrumentation
-  if (isTestingInstrumentation(project)) {
+  if (isTestingInstrumentation) {
     exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
     exclude("**/TestDisableTestTrace*")
     exclude("**/TestError*")

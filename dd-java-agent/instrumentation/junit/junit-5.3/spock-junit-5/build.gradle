@@ -1,5 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
+ext.testingInstrumentation = true
+
 def spockGroovyVersion = '3.0'
 
 muzzle {
