@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
+import datadog.instrument.classmatch.ClassFile;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.RetentionPolicy;
@@ -17,13 +18,19 @@ final class AnnotationOutline extends WithName implements AnnotationDescription 
   private static final Map<String, AnnotationDescription> annotationOutlines = new HashMap<>();
 
   static void prepareAnnotationOutline(String name) {
-    String descriptor = 'L' + name.replace('.', '/') + ';';
-    annotationOutlines.put(descriptor, new AnnotationOutline(name));
+    String internalName = name.replace('.', '/');
+    // flag that we want to parse this annotation
+    ClassFile.annotationOfInterest(internalName);
+    // only a few annotation outlines get prepared - we register them under
+    // both their internal name and descriptor to support different callers
+    AnnotationOutline annotationOutline = new AnnotationOutline(name);
+    annotationOutlines.put('L' + internalName + ';', annotationOutline);
+    annotationOutlines.put(internalName, annotationOutline);
   }
 
   /** Only provide outlines of annotations of interest used for matching. */
-  static AnnotationDescription annotationOutline(String descriptor) {
-    return annotationOutlines.get(descriptor);
+  static AnnotationDescription annotationOutline(String internalNameOrDescriptor) {
+    return annotationOutlines.get(internalNameOrDescriptor);
   }
 
   private AnnotationOutline(String name) {
