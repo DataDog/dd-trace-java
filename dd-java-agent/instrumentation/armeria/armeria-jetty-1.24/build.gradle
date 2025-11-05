@@ -24,11 +24,7 @@ addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
 
-["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 11)
-  }
-}
+configureGroovyCompiler(11, "compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy")
 
 ["jetty11Test", "jetty11LatestDepTest"].each { name ->
   tasks.named(name, Test) {

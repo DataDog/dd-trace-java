@@ -248,6 +248,10 @@ public final class ConfigProvider {
     return get(key, defaultValue, Double.class);
   }
 
+  public double getDouble(String key, double defaultValue, String... aliases) {
+    return get(key, defaultValue, Double.class, aliases);
+  }
+
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     if (collectConfig) {
       reportDefault(key, defaultValue);
