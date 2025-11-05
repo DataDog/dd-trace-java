@@ -33,7 +33,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.NonBlockingQueue;
 import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,7 +94,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final BaseQueue<InboxItem> inbox;
+  private final NonBlockingQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;

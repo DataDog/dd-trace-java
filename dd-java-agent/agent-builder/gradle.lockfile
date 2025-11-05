@@ -109,6 +109,7 @@ org.jacoco:org.jacoco.agent:0.8.14=jacocoAgent,jacocoAnt
 org.jacoco:org.jacoco.ant:0.8.14=jacocoAnt
 org.jacoco:org.jacoco.core:0.8.14=jacocoAnt
 org.jacoco:org.jacoco.report:0.8.14=jacocoAnt
+org.jctools:jctools-core:3.3.0=runtimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-api:5.12.2=testCompileClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-engine:5.12.2=testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-params:5.12.2=testCompileClasspath,testRuntimeClasspath

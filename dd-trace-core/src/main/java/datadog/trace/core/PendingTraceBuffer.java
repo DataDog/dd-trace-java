@@ -12,7 +12,7 @@ import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.BlockingConsumerNonBlockingQueue;
 import datadog.trace.util.queue.Queues;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -63,7 +63,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
     private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
-    private final BaseQueue<Element> queue;
+    private final BlockingConsumerNonBlockingQueue<Element> queue;
     private final Thread worker;
     private final TimeSource timeSource;
 

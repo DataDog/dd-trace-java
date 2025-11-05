@@ -10,7 +10,7 @@ import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.BaseQueue;
+import datadog.trace.util.queue.NonBlockingQueue;
 import datadog.trace.util.queue.Queues;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,7 +37,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
   private final List<EventListener> listeners;
-  private final BaseQueue<Request> enqueuedRequests = Queues.spscArrayQueue(16);
+  private final NonBlockingQueue<Request> enqueuedRequests = Queues.spscArrayQueue(16);
   private final AtomicLong lastRequestTime = new AtomicLong();
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final boolean bufferingEnabled;
@@ -158,9 +158,9 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private static final class Sender implements AgentTaskScheduler.Task<OkHttpSink> {
 
-    private final BaseQueue<Request> inbox;
+    private final NonBlockingQueue<Request> inbox;
 
-    private Sender(BaseQueue<Request> inbox) {
+    private Sender(NonBlockingQueue<Request> inbox) {
       this.inbox = inbox;
     }
 
