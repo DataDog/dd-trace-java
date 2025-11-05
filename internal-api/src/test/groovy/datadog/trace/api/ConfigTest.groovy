@@ -143,17 +143,16 @@ import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
 import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_ENDPOINT
+import static datadog.trace.api.config.OtlpConfig.OTLP_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_PROTOCOL
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_HEADERS
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_HEADERS
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+import static datadog.trace.api.config.OtlpConfig.OTLP_PROTOCOL
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS
+import static datadog.trace.api.config.OtlpConfig.OTLP_HEADERS
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE
 import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
@@ -305,11 +304,11 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(OTEL_METRICS_EXPORTER, "otlp")
     prop.setProperty(METRICS_OTEL_INTERVAL, "11000")
     prop.setProperty(METRICS_OTEL_TIMEOUT, "9000")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, "http/protobuf")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, "5000")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "cumulative")
+    prop.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
+    prop.setProperty(OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
+    prop.setProperty(OTLP_METRICS_PROTOCOL, "http/protobuf")
+    prop.setProperty(OTLP_METRICS_TIMEOUT, "5000")
+    prop.setProperty(OTLP_METRICS_TEMPORALITY_PREFERENCE, "cumulative")
 
     when:
     Config config = Config.get(prop)
@@ -410,12 +409,12 @@ class ConfigTest extends DDSpecification {
     config.metricsOtelEnabled
     config.metricsOtelInterval == 11000
     config.metricsOtelTimeout == 9000
-    config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
-    config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
-    config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
-    config.otelExporterOtlpMetricsProtocol == HTTP_PROTOBUF
-    config.otelExporterOtlpMetricsTimeout == 5000
-    config.otelExporterOtlpMetricsTemporalityPreference == CUMULATIVE
+    config.otlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 5000
+    config.otlpMetricsTemporalityPreference == CUMULATIVE
 
   }
 
@@ -427,11 +426,11 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(OTEL_METRICS_EXPORTER, "invalid")
     prop.setProperty(METRICS_OTEL_INTERVAL, "-1")
     prop.setProperty(METRICS_OTEL_TIMEOUT, "invalid")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "invalid")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "11")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, "invalid")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, "-34")
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "invalid")
+    prop.setProperty(OTLP_METRICS_ENDPOINT, "invalid")
+    prop.setProperty(OTLP_METRICS_HEADERS, "11")
+    prop.setProperty(OTLP_METRICS_PROTOCOL, "invalid")
+    prop.setProperty(OTLP_METRICS_TIMEOUT, "-34")
+    prop.setProperty(OTLP_METRICS_TEMPORALITY_PREFERENCE, "invalid")
 
     when:
     Config config = Config.get(prop)
@@ -440,11 +439,11 @@ class ConfigTest extends DDSpecification {
     !config.metricsOtelEnabled
     config.metricsOtelInterval == 10000
     config.metricsOtelTimeout == 7500
-    config.otelExporterOtlpMetricsEndpoint == "invalid"
-    config.otelExporterOtlpMetricsHeaders == [:]
-    config.otelExporterOtlpMetricsProtocol == GRPC
-    config.otelExporterOtlpMetricsTimeout == 10000
-    config.otelExporterOtlpMetricsTemporalityPreference == DELTA
+    config.otlpMetricsEndpoint == "invalid"
+    config.otlpMetricsHeaders == [:]
+    config.otlpMetricsProtocol == GRPC
+    config.otlpMetricsTimeout == 10000
+    config.otlpMetricsTemporalityPreference == DELTA
   }
 
   def "otel metrics: default values when not set"() {
@@ -458,24 +457,24 @@ class ConfigTest extends DDSpecification {
     !config.metricsOtelEnabled
     config.metricsOtelInterval == 10000
     config.metricsOtelTimeout == 7500
-    config.otelExporterOtlpMetricsEndpoint == "http://localhost:4317"
-    config.otelExporterOtlpMetricsHeaders == [:]
-    config.otelExporterOtlpMetricsProtocol == GRPC
-    config.otelExporterOtlpMetricsTimeout == 10000
-    config.otelExporterOtlpMetricsTemporalityPreference == DELTA
+    config.otlpMetricsEndpoint == "http://localhost:4317"
+    config.otlpMetricsHeaders == [:]
+    config.otlpMetricsProtocol == GRPC
+    config.otlpMetricsTimeout == 10000
+    config.otlpMetricsTemporalityPreference == DELTA
   }
 
 
   def "otel metrics: check syntax for attributes and headers"() {
     setup:
     def prop = new Properties()
-    prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "api,key=key")
+    prop.setProperty(OTLP_METRICS_HEADERS, "api,key=key")
 
     when:
     Config config = Config.get(prop)
 
     then:
-    config.otelExporterOtlpMetricsHeaders.size() == 0
+    config.otlpMetricsHeaders.size() == 0
   }
 
   def "otel generic config via system properties - metrics enabled"() {
@@ -560,27 +559,27 @@ class ConfigTest extends DDSpecification {
   def "otel metrics: fallback keys"() {
     setup:
     def prop = new Properties()
-    prop.setProperty(OTEL_EXPORTER_OTLP_PROTOCOL, "http/json")
-    prop.setProperty(OTEL_EXPORTER_OTLP_ENDPOINT,"http://localhost:4319/")
-    prop.setProperty(OTEL_EXPORTER_OTLP_HEADERS,"api-key=key,other-config-value=value")
+    prop.setProperty(OTLP_PROTOCOL, "http/json")
+    prop.setProperty(OTLP_ENDPOINT,"http://localhost:4319/")
+    prop.setProperty(OTLP_HEADERS,"api-key=key,other-config-value=value")
     prop.setProperty(OTEL_EXPORTER_OTLP_TIMEOUT,"1000")
 
     when:
     Config config = Config.get(prop)
 
     then:
-    config.otelExporterOtlpMetricsProtocol == HTTP_JSON
-    config.otelExporterOtlpMetricsEndpoint == "http://localhost:4319/v1/metrics"
-    config.otelExporterOtlpMetricsHeaders.size() == 2
-    config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
-    config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
-    config.otelExporterOtlpMetricsTimeout == 1000
+    config.otlpMetricsProtocol == HTTP_JSON
+    config.otlpMetricsEndpoint == "http://localhost:4319/v1/metrics"
+    config.otlpMetricsHeaders.size() == 2
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsTimeout == 1000
   }
 
   def "otel metrics: fallback key endpoint"() {
     setup:
     def prop = new Properties()
-    prop.setProperty(OTEL_EXPORTER_OTLP_PROTOCOL, "http/json")
+    prop.setProperty(OTLP_PROTOCOL, "http/json")
     prop.setProperty(TRACE_AGENT_URL,"http://192.168.0.3:8126/")
 
     when:
@@ -588,8 +587,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.agentHost == "192.168.0.3"
-    config.otelExporterOtlpMetricsProtocol == HTTP_JSON
-    config.otelExporterOtlpMetricsEndpoint == "http://192.168.0.3:4318/v1/metrics"
+    config.otlpMetricsProtocol == HTTP_JSON
+    config.otlpMetricsEndpoint == "http://192.168.0.3:4318/v1/metrics"
   }
 
   def "otel metrics: fallback key endpoint 2"() {
@@ -602,8 +601,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.agentHost == "localhost"
-    config.otelExporterOtlpMetricsProtocol == GRPC
-    config.otelExporterOtlpMetricsEndpoint == "http://localhost:4317"
+    config.otlpMetricsProtocol == GRPC
+    config.otlpMetricsEndpoint == "http://localhost:4317"
   }
 
 
@@ -703,11 +702,11 @@ class ConfigTest extends DDSpecification {
     System.setProperty(OTEL_METRICS_EXPORTER, "otlp")
     System.setProperty(METRICS_OTEL_INTERVAL, "11000")
     System.setProperty(METRICS_OTEL_TIMEOUT, "9000")
-    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
-    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
-    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, "http/protobuf")
-    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, "5000")
-    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "cumulative")
+    System.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
+    System.setProperty(OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
+    System.setProperty(OTLP_METRICS_PROTOCOL, "http/protobuf")
+    System.setProperty(OTLP_METRICS_TIMEOUT, "5000")
+    System.setProperty(OTLP_METRICS_TEMPORALITY_PREFERENCE, "cumulative")
 
     when:
     Config config = new Config()
@@ -807,12 +806,12 @@ class ConfigTest extends DDSpecification {
     config.env ==  "production"
     config.metricsOtelInterval == 11000
     config.metricsOtelTimeout == 9000
-    config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
-    config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
-    config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
-    config.otelExporterOtlpMetricsProtocol == HTTP_PROTOBUF
-    config.otelExporterOtlpMetricsTimeout == 5000
-    config.otelExporterOtlpMetricsTemporalityPreference == CUMULATIVE
+    config.otlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 5000
+    config.otlpMetricsTemporalityPreference == CUMULATIVE
   }
 
   def "specify overrides via env vars"() {
@@ -865,12 +864,12 @@ class ConfigTest extends DDSpecification {
     config.metricsOtelEnabled
     config.metricsOtelInterval == 11000
     config.metricsOtelTimeout == 9000
-    config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
-    config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
-    config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
-    config.otelExporterOtlpMetricsProtocol == HTTP_PROTOBUF
-    config.otelExporterOtlpMetricsTimeout == 5000
-    config.otelExporterOtlpMetricsTemporalityPreference == CUMULATIVE
+    config.otlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 5000
+    config.otlpMetricsTemporalityPreference == CUMULATIVE
   }
 
   def "sys props override env vars"() {

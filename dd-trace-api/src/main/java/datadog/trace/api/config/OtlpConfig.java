@@ -6,20 +6,17 @@ public final class OtlpConfig {
   public static final String METRICS_OTEL_INTERVAL = "metrics.otel.interval";
   public static final String METRICS_OTEL_TIMEOUT = "metrics.otel.timeout";
 
-  public static final String OTEL_EXPORTER_OTLP_ENDPOINT = "otel.exporter.otlp.endpoint";
-  public static final String OTEL_EXPORTER_OTLP_HEADERS = "otel.exporter.otlp.headers";
-  public static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
-  public static final String OTEL_EXPORTER_OTLP_TIMEOUT = "otel.exporter.otlp.timeout";
-  public static final String OTEL_EXPORTER_OTLP_METRICS_ENDPOINT =
-      "otel.exporter.otlp.metrics.endpoint";
-  public static final String OTEL_EXPORTER_OTLP_METRICS_HEADERS =
-      "otel.exporter.otlp.metrics.headers";
-  public static final String OTEL_EXPORTER_OTLP_METRICS_PROTOCOL =
-      "otel.exporter.otlp.metrics.protocol";
-  public static final String OTEL_EXPORTER_OTLP_METRICS_TIMEOUT =
-      "otel.exporter.otlp.metrics.timeout";
-  public static final String OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE =
-      "otel.exporter.otlp.metrics.temporality.preference";
+  public static final String OTLP_ENDPOINT = "otlp.endpoint";
+  public static final String OTLP_HEADERS = "otlp.headers";
+  public static final String OTLP_PROTOCOL = "otlp.protocol";
+  public static final String OTLP_TIMEOUT = "otlp.timeout";
+
+  public static final String OTLP_METRICS_ENDPOINT = "otlp.metrics.endpoint";
+  public static final String OTLP_METRICS_HEADERS = "otlp.metrics.headers";
+  public static final String OTLP_METRICS_PROTOCOL = "otlp.metrics.protocol";
+  public static final String OTLP_METRICS_TIMEOUT = "otlp.metrics.timeout";
+  public static final String OTLP_METRICS_TEMPORALITY_PREFERENCE =
+      "otlp.metrics.temporality.preference";
 
   public enum Protocol {
     GRPC,
