@@ -451,4 +451,66 @@ class AppSecRequestContextSpecification extends DDSpecification {
       assert context.isHttpClientRequestSampled(requestId) == sampled
     }
   }
+
+  void 'concurrent reportDerivatives and commitDerivatives should not throw ConcurrentModificationException'() {
+    given:
+    def context = new AppSecRequestContext()
+    def startLatch = new java.util.concurrent.CountDownLatch(1)
+    def doneLatch = new java.util.concurrent.CountDownLatch(8)
+    def errors = new java.util.concurrent.ConcurrentLinkedQueue()
+    def traceSegment = Mock(datadog.trace.api.internal.TraceSegment)
+
+    def reporters = []
+    def committers = []
+
+    // Create 5 reporter threads
+    for (int threadNum = 1; threadNum <= 5; threadNum++) {
+      final int num = threadNum
+      reporters.add(Thread.start {
+        try {
+          startLatch.await()
+          for (int i = 0; i < 100; i++) {
+            def attrs = [:]
+            attrs["thread${num}.iteration${i}".toString()] = "value_${num}_${i}".toString()
+            attrs["thread${num}.number".toString()] = [value: i]
+            context.reportDerivatives(attrs)
+            if (i % 10 == 0) {
+              Thread.sleep(1)
+            }
+          }
+        } catch (Throwable t) {
+          errors.add(t)
+        } finally {
+          doneLatch.countDown()
+        }
+      })
+    }
+
+    // Create 3 committer threads
+    for (int i = 0; i < 3; i++) {
+      committers.add(Thread.start {
+        try {
+          startLatch.await()
+          for (int j = 0; j < 50; j++) {
+            context.commitDerivatives(traceSegment)
+            Thread.sleep(2)
+          }
+        } catch (Throwable t) {
+          errors.add(t)
+        } finally {
+          doneLatch.countDown()
+        }
+      })
+    }
+
+    when:
+    startLatch.countDown()
+    def completed = doneLatch.await(30, java.util.concurrent.TimeUnit.SECONDS)
+    (reporters + committers)*.join()
+
+    then:
+    completed
+    errors.isEmpty()
+    context.getDerivativeKeys() != null
+  }
 }
