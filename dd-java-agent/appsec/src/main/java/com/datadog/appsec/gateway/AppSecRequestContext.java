@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -140,7 +139,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private volatile Map<String, Object> derivatives;
+  private volatile ConcurrentHashMap<String, Object> derivatives;
+  private final Object derivativesSwapLock = new Object();
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
@@ -649,10 +649,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       requestHeaders.clear();
       responseHeaders.clear();
       persistentData.clear();
-      if (derivatives != null) {
-        derivatives.clear();
-        derivatives = null;
-      }
+      derivatives = null;
     }
   }
 
@@ -743,9 +740,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
-    // Store raw derivatives
-    if (derivatives == null) {
-      derivatives = new HashMap<>();
+    // Ensure derivatives map exists with lock only for initialization check
+    ConcurrentHashMap<String, Object> map = derivatives;
+    if (map == null) {
+      synchronized (derivativesSwapLock) {
+        map = derivatives;
+        if (map == null) {
+          map = new ConcurrentHashMap<>();
+          derivatives = map;
+        }
+      }
     }
 
     // Process each attribute according to the specification
@@ -762,7 +766,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           Object literalValue = config.get("value");
           if (literalValue != null) {
             // Preserve the original type - don't convert to string
-            derivatives.put(attributeKey, literalValue);
+            map.put(attributeKey, literalValue);
             log.debug(
                 "Added literal attribute: {} = {} (type: {})",
                 attributeKey,
@@ -781,13 +785,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
           if (extractedValue != null) {
             // For extracted values, convert to string as they come from request data
-            derivatives.put(attributeKey, extractedValue.toString());
+            map.put(attributeKey, extractedValue.toString());
             log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
           }
         }
       } else {
         // Handle plain string/numeric values
-        derivatives.put(attributeKey, attributeConfig);
+        map.put(attributeKey, attributeConfig);
         log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
       }
     }
@@ -938,45 +942,54 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean commitDerivatives(TraceSegment traceSegment) {
-    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null) {
       return false;
     }
 
-    // Process and commit derivatives directly
-    if (derivatives != null && !derivatives.isEmpty()) {
-      for (Map.Entry<String, Object> entry : derivatives.entrySet()) {
-        String key = entry.getKey();
-        Object value = entry.getValue();
+    // Atomically swap out the map to iterate safely
+    ConcurrentHashMap<String, Object> snapshot;
+    synchronized (derivativesSwapLock) {
+      snapshot = derivatives;
+      derivatives = null;
+    }
 
-        // Handle different value types
-        if (value instanceof Number) {
-          traceSegment.setTagTop(key, (Number) value);
-        } else if (value instanceof String) {
-          // Try to parse as numeric, otherwise use as string
-          Number parsedNumber = convertToNumericAttribute((String) value);
-          if (parsedNumber != null) {
-            traceSegment.setTagTop(key, parsedNumber);
-          } else {
-            traceSegment.setTagTop(key, value);
-          }
-        } else if (value instanceof Boolean) {
-          traceSegment.setTagTop(key, value);
+    if (snapshot == null || snapshot.isEmpty()) {
+      return true;
+    }
+
+    log.debug("Committing derivatives: {} for {}", snapshot, traceSegment);
+
+    // Process and commit derivatives directly
+    for (Map.Entry<String, Object> entry : snapshot.entrySet()) {
+      String key = entry.getKey();
+      Object value = entry.getValue();
+
+      // Handle different value types
+      if (value instanceof Number) {
+        traceSegment.setTagTop(key, (Number) value);
+      } else if (value instanceof String) {
+        // Try to parse as numeric, otherwise use as string
+        Number parsedNumber = convertToNumericAttribute((String) value);
+        if (parsedNumber != null) {
+          traceSegment.setTagTop(key, parsedNumber);
         } else {
-          // Convert other types to string
-          traceSegment.setTagTop(key, value.toString());
+          traceSegment.setTagTop(key, value);
         }
+      } else if (value instanceof Boolean) {
+        traceSegment.setTagTop(key, value);
+      } else {
+        // Convert other types to string
+        traceSegment.setTagTop(key, value.toString());
       }
     }
 
-    // Clear all attribute maps
-    derivatives = null;
     return true;
   }
 
   // Mainly used for testing and logging
   Set<String> getDerivativeKeys() {
-    return derivatives == null ? emptySet() : new HashSet<>(derivatives.keySet());
+    ConcurrentHashMap<String, Object> map = derivatives;
+    return map == null ? emptySet() : new HashSet<>(map.keySet());
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {
