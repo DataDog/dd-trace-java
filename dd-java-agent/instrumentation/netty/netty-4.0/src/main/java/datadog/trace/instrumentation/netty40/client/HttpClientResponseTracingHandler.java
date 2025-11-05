@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIB
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE;
 
 import datadog.context.Context;
-import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.ChannelHandler;
@@ -31,8 +30,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
+    if (storedContext != null) {
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
     final boolean finishSpan = msg instanceof HttpResponse;
@@ -60,8 +59,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
+    if (storedContext != null) {
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
     if (span != null) {
@@ -88,8 +87,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan span = spanFromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
-    try (final ContextScope parentScope = storedContext.with(parent).attach()) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentScope.context());
+    if (storedContext != null) {
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
     if (span != null && span != parent) {

@@ -14,7 +14,6 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.context.Context;
-import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -80,10 +79,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan("netty", NETTY_CLIENT_REQUEST);
-    final Context spanContext;
-    try (final ContextScope contextScope = getCurrentContext().with(span).attach()) {
-      spanContext = contextScope.context();
-    }
+    final Context spanContext = getCurrentContext().with(span);
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
