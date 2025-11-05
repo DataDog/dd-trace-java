@@ -144,9 +144,8 @@ import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
 import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
 import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_ENDPOINT
-import static datadog.trace.api.config.OtlpConfig.OTEL_METRICS_EXPORTER
-import static datadog.trace.api.config.OtlpConfig.OTEL_METRIC_EXPORT_INTERVAL
-import static datadog.trace.api.config.OtlpConfig.OTEL_METRIC_EXPORT_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
@@ -304,8 +303,8 @@ class ConfigTest extends DDSpecification {
 
     prop.setProperty(METRICS_OTEL_ENABLED, "True")
     prop.setProperty(OTEL_METRICS_EXPORTER, "otlp")
-    prop.setProperty(OTEL_METRIC_EXPORT_INTERVAL, "11000")
-    prop.setProperty(OTEL_METRIC_EXPORT_TIMEOUT, "9000")
+    prop.setProperty(METRICS_OTEL_INTERVAL, "11000")
+    prop.setProperty(METRICS_OTEL_TIMEOUT, "9000")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, "http/protobuf")
@@ -409,8 +408,8 @@ class ConfigTest extends DDSpecification {
     config.jdkSocketEnabled == false
 
     config.metricsOtelEnabled
-    config.otelMetricExportInterval == 11000
-    config.otelMetricExportTimeout == 9000
+    config.metricsOtelInterval == 11000
+    config.metricsOtelTimeout == 9000
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
     config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
     config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
@@ -426,8 +425,8 @@ class ConfigTest extends DDSpecification {
 
     prop.setProperty(METRICS_OTEL_ENABLED, "youhou")
     prop.setProperty(OTEL_METRICS_EXPORTER, "invalid")
-    prop.setProperty(OTEL_METRIC_EXPORT_INTERVAL, "-1")
-    prop.setProperty(OTEL_METRIC_EXPORT_TIMEOUT, "invalid")
+    prop.setProperty(METRICS_OTEL_INTERVAL, "-1")
+    prop.setProperty(METRICS_OTEL_TIMEOUT, "invalid")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "invalid")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "11")
     prop.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, "invalid")
@@ -439,8 +438,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.otelMetricExportInterval == 10000
-    config.otelMetricExportTimeout == 7500
+    config.metricsOtelInterval == 10000
+    config.metricsOtelTimeout == 7500
     config.otelExporterOtlpMetricsEndpoint == "invalid"
     config.otelExporterOtlpMetricsHeaders == [:]
     config.otelExporterOtlpMetricsProtocol == GRPC
@@ -457,8 +456,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.otelMetricExportInterval == 10000
-    config.otelMetricExportTimeout == 7500
+    config.metricsOtelInterval == 10000
+    config.metricsOtelTimeout == 7500
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4317"
     config.otelExporterOtlpMetricsHeaders == [:]
     config.otelExporterOtlpMetricsProtocol == GRPC
@@ -702,8 +701,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "True")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
     System.setProperty(OTEL_METRICS_EXPORTER, "otlp")
-    System.setProperty(OTEL_METRIC_EXPORT_INTERVAL, "11000")
-    System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT, "9000")
+    System.setProperty(METRICS_OTEL_INTERVAL, "11000")
+    System.setProperty(METRICS_OTEL_TIMEOUT, "9000")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, "http/protobuf")
@@ -806,8 +805,8 @@ class ConfigTest extends DDSpecification {
     config.metricsOtelEnabled
     config.version == "1.0.0"
     config.env ==  "production"
-    config.otelMetricExportInterval == 11000
-    config.otelMetricExportTimeout == 9000
+    config.metricsOtelInterval == 11000
+    config.metricsOtelTimeout == 9000
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
     config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
     config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"
@@ -864,8 +863,8 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == ["*":"http.request.headers."]
     config.responseHeaderTags == ["*":"http.response.headers."]
     config.metricsOtelEnabled
-    config.otelMetricExportInterval == 11000
-    config.otelMetricExportTimeout == 9000
+    config.metricsOtelInterval == 11000
+    config.metricsOtelTimeout == 9000
     config.otelExporterOtlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
     config.otelExporterOtlpMetricsHeaders["api-key"] == "key"
     config.otelExporterOtlpMetricsHeaders["other-config-value"] == "value"

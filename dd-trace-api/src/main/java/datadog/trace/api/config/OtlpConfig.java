@@ -3,9 +3,8 @@ package datadog.trace.api.config;
 public final class OtlpConfig {
 
   public static final String METRICS_OTEL_ENABLED = "metrics.otel.enabled";
-
-  public static final String OTEL_METRIC_EXPORT_INTERVAL = "otel.metric.export.interval";
-  public static final String OTEL_METRIC_EXPORT_TIMEOUT = "otel.metric.export.timeout";
+  public static final String METRICS_OTEL_INTERVAL = "metrics.otel.interval";
+  public static final String METRICS_OTEL_TIMEOUT = "metrics.otel.timeout";
 
   public static final String OTEL_EXPORTER_OTLP_ENDPOINT = "otel.exporter.otlp.endpoint";
   public static final String OTEL_EXPORTER_OTLP_HEADERS = "otel.exporter.otlp.headers";
