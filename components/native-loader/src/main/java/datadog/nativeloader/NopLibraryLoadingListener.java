@@ -8,7 +8,7 @@ final class NopLibraryLoadingListener extends SafeLibraryLoadingListener {
   private NopLibraryLoadingListener() {}
 
   @Override
-  public boolean isEmpty() {
+  public boolean isNop() {
     return true;
   }
 

@@ -49,5 +49,5 @@ public interface LibraryLoadingListener {
 abstract class SafeLibraryLoadingListener implements LibraryLoadingListener {
   public abstract SafeLibraryLoadingListener join(LibraryLoadingListener listener);
 
-  public abstract boolean isEmpty();
+  public abstract boolean isNop();
 }

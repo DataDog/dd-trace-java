@@ -18,7 +18,7 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
   }
 
   @Override
-  public boolean isEmpty() {
+  public boolean isNop() {
     return this.listeners.isEmpty();
   }
 
