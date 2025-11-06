@@ -58,23 +58,29 @@ public class ResponseWrappers {
       @Override
       public StreamResponse<Completion> afterParse(StreamResponse<Completion> streamResponse) {
         return new StreamResponse<Completion>() {
+          final List<Completion> completions = new ArrayList<>();
+
           @NotNull
           @Override
           public Stream<Completion> stream() {
-            final List<Completion> completions = new ArrayList<>();
             return streamResponse
                 .stream()
                 .peek(completions::add)
-                .onClose(() -> {
-                  DECORATE.beforeFinish(span);
-                  DECORATE.decorate(span, completions);
-                  span.finish();
-                });
+                .onClose(this::close
+                  // TODO See "streamed request completion test"
+                );
           }
 
           @Override
           public void close() {
-            streamResponse.close();
+            // TODO See "streamed async request completion test"
+            try {
+              streamResponse.close();
+              DECORATE.decorate(span, completions);
+              DECORATE.beforeFinish(span);
+            } finally {
+              span.finish();
+            }
           }
         };
       }
@@ -96,5 +102,10 @@ public class ResponseWrappers {
             }
           }
         );
+  }
+
+  public static CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> wrapAsyncStream(CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future, AgentSpan span) {
+
+    return future.thenApply(resp -> wrap(resp, span));
   }
 }

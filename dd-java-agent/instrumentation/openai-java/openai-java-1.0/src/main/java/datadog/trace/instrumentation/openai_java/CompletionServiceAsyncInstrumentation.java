@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.openai_java;
 
 import com.openai.core.http.HttpResponseFor;
+import com.openai.core.http.StreamResponse;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -33,11 +34,12 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
             .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateAdvice");
 
-    // TODO transformer.applyAdvice(
-    //     isMethod()
-    //         .and(named("createStreaming"))
-    //         .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams"))),
-    //     getClass().getName() + "$CreateStreamingAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("createStreaming"))
+            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
+            .and(returns(named(CompletableFuture.class.getName()))),
+        getClass().getName() + "$CreateStreamingAdvice");
   }
 
   public static class CreateAdvice {
@@ -56,10 +58,44 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
         if (err != null) {
           DECORATE.onError(span, err);
         }
-        future = ResponseWrappers.wrap(future, span);
+        if (future != null) {
+          future = ResponseWrappers.wrap(future, span);
+        } else {
+          span.finish();
+        }
       } finally {
         scope.close();
       }
     }
   }
+
+  public static class CreateStreamingAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
+      AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
+      DECORATE.afterStart(span);
+      DECORATE.decorate(span, params);
+      return activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future, @Advice.Thrown final Throwable err) {
+      final AgentSpan span = scope.span();
+      try {
+        if (err != null) {
+          DECORATE.onError(span, err);
+        }
+        if (future != null) {
+          future = ResponseWrappers.wrapAsyncStream(future, span);
+        } else {
+          span.finish();
+        }
+        DECORATE.beforeFinish(span);
+      } finally {
+        scope.close();
+      }
+    }
+  }
+
 }
