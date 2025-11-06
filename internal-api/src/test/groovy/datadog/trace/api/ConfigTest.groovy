@@ -191,17 +191,37 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
 
-  private static final OTEL_RESOURCE_ATTRIBUTES_PROP = "otel.resource.attributes"
-  private static final OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES"
-
   private static final DD_METRICS_OTEL_ENABLED_ENV = "DD_METRICS_OTEL_ENABLED"
+  private static final DD_METRICS_OTEL_ENABLED_PROP = "dd.metrics.otel.enabled"
+
+  private static final OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES"
+  private static final OTEL_RESOURCE_ATTRIBUTES_PROP = "otel.resource.attributes"
+
   private static final OTEL_METRIC_EXPORT_TIMEOUT_ENV = "OTEL_METRIC_EXPORT_TIMEOUT"
+  private static final OTEL_METRIC_EXPORT_TIMEOUT_PROP = "otel.metric.export.timeout"
   private static final OTEL_METRIC_EXPORT_INTERVAL_ENV = "OTEL_METRIC_EXPORT_INTERVAL"
+  private static final OTEL_METRIC_EXPORT_INTERVAL_PROP = "otel.metric.export.interval"
+
+  private static final OTEL_EXPORTER_OTLP_ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_ENDPOINT"
+  private static final OTEL_EXPORTER_OTLP_ENDPOINT_PROP = "otel.exporter.otlp.endpoint"
+  private static final OTEL_EXPORTER_OTLP_HEADERS_ENV = "OTEL_EXPORTER_OTLP_HEADERS"
+  private static final OTEL_EXPORTER_OTLP_HEADERS_PROP = "otel.exporter.otlp.headers"
+  private static final OTEL_EXPORTER_OTLP_PROTOCOL_ENV = "OTEL_EXPORTER_OTLP_PROTOCOL"
+  private static final OTEL_EXPORTER_OTLP_PROTOCOL_PROP = "otel.exporter.otlp.protocol"
+  private static final OTEL_EXPORTER_OTLP_TIMEOUT_ENV = "OTEL_EXPORTER_OTLP_TIMEOUT"
+  private static final OTEL_EXPORTER_OTLP_TIMEOUT_PROP = "otel.exporter.otlp.timeout"
+
   private static final OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
+  private static final OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_PROP = "otel.exporter.otlp.metrics.endpoint"
   private static final OTEL_EXPORTER_OTLP_METRICS_HEADERS_ENV = "OTEL_EXPORTER_OTLP_METRICS_HEADERS"
+  private static final OTEL_EXPORTER_OTLP_METRICS_HEADERS_PROP = "otel.exporter.otlp.metrics.headers"
   private static final OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_ENV = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"
+  private static final OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_PROP = "otel.exporter.otlp.metrics.protocol"
   private static final OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_ENV = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT"
+  private static final OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_PROP = "otel.exporter.otlp.metrics.timeout"
+
   private static final OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_ENV = "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE"
+  private static final OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_PROP = "otel.exporter.otlp.metrics.temporality.preference"
 
   def setup() {
     FixedCapturedEnvironment.useFixedEnv([:])
@@ -435,12 +455,12 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.metricsOtelInterval == 10000
+    config.metricsOtelInterval == -1
     config.metricsOtelTimeout == 7500
     config.otlpMetricsEndpoint == "invalid"
     config.otlpMetricsHeaders == [:]
     config.otlpMetricsProtocol == HTTP_PROTOBUF
-    config.otlpMetricsTimeout == 7500
+    config.otlpMetricsTimeout == -34
     config.otlpMetricsTemporalityPreference == DELTA
   }
 
@@ -556,14 +576,14 @@ class ConfigTest extends DDSpecification {
 
   def "otel metrics: fallback keys"() {
     setup:
-    def prop = new Properties()
-    prop.setProperty(OTLP_PROTOCOL, "http/json")
-    prop.setProperty(OTLP_ENDPOINT,"http://localhost:4319")
-    prop.setProperty(OTLP_HEADERS,"api-key=key,other-config-value=value")
-    prop.setProperty(OTLP_TIMEOUT,"1000")
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(OTEL_EXPORTER_OTLP_PROTOCOL_PROP, "http/json")
+    System.setProperty(OTEL_EXPORTER_OTLP_ENDPOINT_PROP,"http://localhost:4319")
+    System.setProperty(OTEL_EXPORTER_OTLP_HEADERS_PROP,"api-key=key,other-config-value=value")
+    System.setProperty(OTEL_EXPORTER_OTLP_TIMEOUT_PROP,"1000")
 
     when:
-    Config config = Config.get(prop)
+    Config config = new Config()
 
     then:
     config.otlpMetricsProtocol == HTTP_JSON
@@ -576,12 +596,12 @@ class ConfigTest extends DDSpecification {
 
   def "otel metrics: fallback key endpoint"() {
     setup:
-    def prop = new Properties()
-    prop.setProperty(OTLP_PROTOCOL, "http/json")
-    prop.setProperty(TRACE_AGENT_URL,"http://192.168.0.3:8126")
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(OTEL_EXPORTER_OTLP_PROTOCOL_PROP, "http/json")
+    System.setProperty(PREFIX + TRACE_AGENT_URL,"http://192.168.0.3:8126")
 
     when:
-    Config config = Config.get(prop)
+    Config config = new Config()
 
     then:
     config.agentHost == "192.168.0.3"
@@ -591,11 +611,11 @@ class ConfigTest extends DDSpecification {
 
   def "otel metrics: fallback key endpoint 2"() {
     setup:
-    def prop = new Properties()
-    prop.setProperty(TRACE_AGENT_URL,"'/tmp/ddagent/trace.sock'")
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(PREFIX + TRACE_AGENT_URL,"'/tmp/ddagent/trace.sock'")
 
     when:
-    Config config = Config.get(prop)
+    Config config = new Config()
 
     then:
     config.agentHost == "localhost"
@@ -696,14 +716,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "True")
+    System.setProperty(OTEL_METRIC_EXPORT_INTERVAL_PROP, "11000")
+    System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT_PROP, "9000")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_PROP, "http://localhost:4333/v1/metrics")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS_PROP, "api-key=key,other-config-value=value")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_PROP, "http/protobuf")
+    System.setProperty(OTEL_EXPORTER_OTLP_TIMEOUT_PROP, "5000")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_PROP, "cumulative")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
-    System.setProperty(METRICS_OTEL_INTERVAL, "11000")
-    System.setProperty(METRICS_OTEL_TIMEOUT, "9000")
-    System.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
-    System.setProperty(OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
-    System.setProperty(OTLP_METRICS_PROTOCOL, "http/protobuf")
-    System.setProperty(OTLP_METRICS_TIMEOUT, "5000")
-    System.setProperty(OTLP_METRICS_TEMPORALITY_PREFERENCE, "cumulative")
 
     when:
     Config config = new Config()

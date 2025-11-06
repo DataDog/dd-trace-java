@@ -9,6 +9,13 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
@@ -73,8 +80,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
-    this.enabled = traceOtelEnabled() || metricsOtelEnabled();
     this.datadogConfigFile = datadogConfigFile;
+    this.enabled = traceOtelEnabled() || metricsOtelEnabled();
 
     if (enabled) {
       setupOtelEnvironment();
@@ -102,15 +109,21 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
     capture(LOG_LEVEL, logLevel);
     capture(SERVICE_NAME, serviceName);
-    capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
-    mapDataCollection("logs"); // check setting, but no need to capture it
 
     if (traceOtelEnabled()) {
-      setupOtelTraceEnvironment();
+      setupTraceOtelEnvironment();
     }
+
+    if (metricsOtelEnabled()) {
+      setupMetricsOtelEnvironment();
+    } else {
+      capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
+    }
+
+    mapDataCollection("logs"); // check setting, but no need to capture it
   }
 
-  private void setupOtelTraceEnvironment() {
+  private void setupTraceOtelEnvironment() {
     String propagators = getOtelProperty("otel.propagators", "dd." + TRACE_PROPAGATION_STYLE);
     String tracesSampler = getOtelProperty("otel.traces.sampler", "dd." + TRACE_SAMPLE_RATE);
     String requestHeaders = getOtelHeaders("request-headers", "dd." + REQUEST_HEADER_TAGS);
@@ -122,6 +135,38 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
     capture(TRACE_EXTENSIONS_PATH, extensions);
+  }
+
+  private void setupMetricsOtelEnvironment() {
+    capture(
+        METRICS_OTEL_INTERVAL,
+        getOtelProperty("otel.metric.export.interval", "dd." + METRICS_OTEL_INTERVAL));
+    capture(
+        METRICS_OTEL_TIMEOUT,
+        getOtelProperty("otel.metric.export.timeout", "dd." + METRICS_OTEL_TIMEOUT));
+
+    String exporter = getOtelProperty("otel.metrics.exporter");
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {
+      capture(
+          OTLP_METRICS_HEADERS,
+          getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
+      capture(
+          OTLP_METRICS_PROTOCOL,
+          getOtelOtlpProperty("metrics", "protocol", "dd." + OTLP_METRICS_PROTOCOL));
+      capture(
+          OTLP_METRICS_TIMEOUT,
+          getOtelOtlpProperty("metrics", "timeout", "dd." + OTLP_METRICS_TIMEOUT));
+      capture(
+          OTLP_METRICS_ENDPOINT,
+          getOtelOtlpProperty("metrics", "endpoint", "dd." + OTLP_METRICS_ENDPOINT));
+      capture(
+          OTLP_METRICS_TEMPORALITY_PREFERENCE,
+          getOtelProperty(
+              "otel.exporter.otlp.metrics.temporality.preference",
+              "dd." + OTLP_METRICS_TEMPORALITY_PREFERENCE));
+    } else {
+      capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
+    }
   }
 
   private boolean traceOtelEnabled() {
@@ -175,6 +220,38 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       value = otelConfigFile.getProperty(sysProp);
     }
     return value;
+  }
+
+  /**
+   * Gets an OpenTelemetry OTLP property, checking the signal specific key before the general one.
+   *
+   * <p>Checks system properties, environment variables, and the optional OpenTelemetry config file.
+   * If the equivalent Datadog property is also set then log a warning and return {@code null}.
+   */
+  private String getOtelOtlpProperty(String signal, String subkey, String ddSysProp) {
+    String otelKey = "otel.exporter.otlp." + signal + "." + subkey;
+    String otelValue = getOtelProperty(otelKey);
+    if (null == otelValue) {
+      otelKey = "otel.exporter.otlp." + subkey;
+      otelValue = getOtelProperty(otelKey);
+      if ("endpoint".equals(subkey)
+          && otelValue != null
+          && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_METRICS_PROTOCOL))) {
+        otelValue = otelValue + "/v1/metrics";
+      }
+    }
+    if (null == otelValue) {
+      return null;
+    }
+    String ddValue = getDatadogProperty(ddSysProp);
+    if (null != ddValue) {
+      String otelEnvVar = toEnvVar(otelKey);
+      log.warn("Both {} and {} are set, ignoring {}", toEnvVar(ddSysProp), otelEnvVar, otelEnvVar);
+      OtelEnvMetricCollectorProvider.get()
+          .setHidingOtelEnvVarMetric(toEnvVarLowerCase(otelKey), toEnvVarLowerCase(ddSysProp));
+      return null;
+    }
+    return otelValue;
   }
 
   /**
@@ -343,8 +420,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   /** Maps an OpenTelemetry exporter setting to the equivalent Datadog collection setting. */
-  private String mapDataCollection(String type) {
-    String exporter = getOtelProperty("otel." + type + ".exporter");
+  private String mapDataCollection(String signal) {
+    String exporter = getOtelProperty("otel." + signal + ".exporter");
     if (null == exporter) {
       return null;
     }
@@ -353,9 +430,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return "false"; // currently we only accept "none" which maps to disable data collection
     }
 
-    log.warn("OTEL_{}_EXPORTER={} is not supported", type, exporter.toUpperCase(Locale.ROOT));
+    log.warn("OTEL_{}_EXPORTER={} is not supported", signal, exporter.toUpperCase(Locale.ROOT));
     OtelEnvMetricCollectorProvider.get()
-        .setUnsupportedOtelEnvVarMetric("otel_" + type + "_exporter");
+        .setUnsupportedOtelEnvVarMetric("otel_" + signal + "_exporter");
 
     return null;
   }
