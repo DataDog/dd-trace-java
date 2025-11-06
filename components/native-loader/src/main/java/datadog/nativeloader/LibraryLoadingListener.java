@@ -18,8 +18,8 @@ public interface LibraryLoadingListener {
       URL optionalUrl) {}
 
   /**
-   * Called when a dynamic library fails to resolve. This can occur because the library was not found
-   * -- or an exception occurred during resolution
+   * Called when a dynamic library fails to resolve. This can occur because the library was not
+   * found -- or an exception occurred during resolution
    */
   default void onResolveDynamicFailure(
       PlatformSpec platformSpec,
