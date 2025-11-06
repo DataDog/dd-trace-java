@@ -528,13 +528,13 @@ public class StringModuleImpl implements StringModule {
           final int parsedIndex = Integer.parseInt(index.substring(0, index.length() - 1)) - 1;
           // remove the index before the formatting without increment the current state
           parameter = parameters[parsedIndex];
-          formattedValue = String.format(locale, placeholder.replace(index, ""), parameter);
+          formattedValue = formatValue(locale, placeholder.replace(index, ""), parameter);
         } else {
           if (!checkParameterBounds(format, parameters, paramIndex)) {
             return; // return without tainting the string in case of error
           }
           parameter = parameters[paramIndex++];
-          formattedValue = String.format(locale, placeholder, parameter);
+          formattedValue = formatValue(locale, placeholder, parameter);
         }
         taintedObject = to.get(parameter);
       }
@@ -569,6 +569,31 @@ public class StringModuleImpl implements StringModule {
         parameters.length,
         paramIndex);
     return false;
+  }
+
+  /**
+   * Formats a value using String.format with fallback to String.valueOf on IllegalFormatException.
+   *
+   * @param locale the locale to use for formatting
+   * @param placeholder the format placeholder (e.g., "%f", "%d")
+   * @param parameter the parameter to format
+   * @return the formatted value or String.valueOf(parameter) if formatting fails
+   */
+  private static String formatValue(
+      @Nullable final Locale locale, final String placeholder, final Object parameter) {
+    try {
+      return String.format(locale, placeholder, parameter);
+    } catch (final java.util.IllegalFormatException e) {
+      // Fallback to String.valueOf if format conversion fails (e.g., wrong type for format
+      // specifier)
+      LOG.debug(
+          SEND_TELEMETRY,
+          "Format conversion failed for placeholder {} with parameter type {}: {}",
+          placeholder,
+          parameter == null ? "null" : parameter.getClass().getName(),
+          e.getMessage());
+      return String.valueOf(parameter);
+    }
   }
 
   @Override

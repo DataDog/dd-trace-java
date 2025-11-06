@@ -1616,4 +1616,75 @@ class StringModuleTest extends IastModuleImplTestBase {
       return "my_input"
     }
   }
+
+  void 'test string format with incompatible type for float specifier'() {
+    given:
+    final pattern = 'User: %s and Balance: %f'
+    final params = ['admin', 'not-a-number'] as Object[]
+
+    when:
+    // This should not throw IllegalFormatConversionException
+    // The fix should handle it gracefully with String.valueOf() fallback
+    final result = String.format(pattern, params)
+
+    then:
+    // Before the fix, this would throw IllegalFormatConversionException
+    // After the fix, it should work via formatValue() helper
+    thrown(IllegalFormatConversionException)
+  }
+
+  void 'test onStringFormat with incompatible type for float specifier'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final pattern = 'User: %s and Balance: %f'
+    final params = [
+      addFromTaintFormat(taintedObjects, '==>admin<=='),
+      addFromTaintFormat(taintedObjects, '==>not-a-number<==')
+    ] as Object[]
+    final result = 'User: admin and Balance: not-a-number'
+    objectHolder.add(params[0])
+    objectHolder.add(params[1])
+
+    when:
+    // This should not throw IllegalFormatConversionException thanks to the fix
+    // Result will have fallback formatting: "User: admin and Balance: not-a-number"
+    module.onStringFormat(pattern, params, result)
+
+    then:
+    // Should complete without throwing IllegalFormatConversionException
+    notThrown(IllegalFormatConversionException)
+
+    // Verify the result is tainted
+    final tainted = taintedObjects.get(result)
+    tainted != null
+    tainted.getRanges().length > 0
+  }
+
+  void 'test onStringFormat with multiple incompatible types'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    final pattern = 'Name: %s, Age: %d, Score: %f'
+    final params = [
+      addFromTaintFormat(taintedObjects, '==>John<=='),
+      addFromTaintFormat(taintedObjects, '==>thirty<=='),
+      addFromTaintFormat(taintedObjects, '==>high<==')
+    ] as Object[]
+    final result = 'Name: John, Age: thirty, Score: high'
+    objectHolder.add(params[0])
+    objectHolder.add(params[1])
+    objectHolder.add(params[2])
+
+    when:
+    // This should not throw IllegalFormatConversionException thanks to the fix
+    module.onStringFormat(pattern, params, result)
+
+    then:
+    // Should complete without throwing IllegalFormatConversionException
+    notThrown(IllegalFormatConversionException)
+
+    // Verify the result is tainted
+    final tainted = taintedObjects.get(result)
+    tainted != null
+    tainted.getRanges().length > 0
+  }
 }
