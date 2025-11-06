@@ -10,6 +10,7 @@ import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.config.provider.ConfigProvider
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.ConfigStrings
 
@@ -276,6 +277,9 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "config id is null for non-StableConfigSource"() {
     setup:
+    def strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+
     def key = "test.key"
     def value = "test-value"
     injectSysConfig(key, value)
@@ -292,6 +296,9 @@ class ConfigCollectorTest extends DDSpecification {
     setting.configId == null
     setting.value == value
     setting.origin == ConfigOrigin.JVM_PROP
+
+    cleanup:
+    ConfigHelper.get().setConfigInversionStrict(strictness)
   }
 
   def "default sources cannot be overridden"() {

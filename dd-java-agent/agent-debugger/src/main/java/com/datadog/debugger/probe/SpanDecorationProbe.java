@@ -143,7 +143,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation methodLocation,
+      boolean singleProbe) {
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {

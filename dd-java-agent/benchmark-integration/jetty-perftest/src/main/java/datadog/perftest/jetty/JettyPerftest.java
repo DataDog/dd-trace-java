@@ -48,7 +48,7 @@ public class JettyPerftest {
         throw new RuntimeException("some sync error");
       }
       final String workVal = request.getParameter("workTimeMS");
-      long workTimeMS = 0l;
+      long workTimeMS = 0L;
       if (null != workVal) {
         workTimeMS = Long.parseLong(workVal);
       }
