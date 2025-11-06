@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
@@ -137,23 +136,18 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.api.config.OtlpConfig.Protocol.GRPC
 import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_PROTOBUF
 import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
 import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
-import static datadog.trace.api.config.OtlpConfig.OTLP_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.OTLP_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS
-import static datadog.trace.api.config.OtlpConfig.OTLP_HEADERS
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE
-import static datadog.trace.api.config.OtlpConfig.OTLP_TIMEOUT
 import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
@@ -190,6 +184,9 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
+
+  private static final DD_TRACE_OTEL_ENABLED_ENV = "DD_TRACE_OTEL_ENABLED"
+  private static final DD_TRACE_OTEL_ENABLED_PROP = "dd.trace.otel.enabled"
 
   private static final DD_METRICS_OTEL_ENABLED_ENV = "DD_METRICS_OTEL_ENABLED"
   private static final DD_METRICS_OTEL_ENABLED_PROP = "dd.metrics.otel.enabled"
@@ -497,7 +494,7 @@ class ConfigTest extends DDSpecification {
 
   def "otel generic config via system properties - metrics enabled"() {
     setup:
-    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true")
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
@@ -517,7 +514,7 @@ class ConfigTest extends DDSpecification {
 
   def "otel generic config via system properties - trace enabled"() {
     setup:
-    System.setProperty(PREFIX + TRACE_OTEL_ENABLED, "true")
+    System.setProperty(DD_TRACE_OTEL_ENABLED_PROP, "true")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
@@ -557,7 +554,7 @@ class ConfigTest extends DDSpecification {
 
   def "otel generic config via env var - traces enabled"() {
     setup:
-    environmentVariables.set("DD_TRACE_OTEL_ENABLED", "true")
+    environmentVariables.set(DD_TRACE_OTEL_ENABLED_ENV, "true")
     environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
     environmentVariables.set("OTEL_LOG_LEVEL", "error")
     when:
@@ -715,7 +712,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
-    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "True")
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "True")
     System.setProperty(OTEL_METRIC_EXPORT_INTERVAL_PROP, "11000")
     System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT_PROP, "9000")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_PROP, "http://localhost:4333/v1/metrics")

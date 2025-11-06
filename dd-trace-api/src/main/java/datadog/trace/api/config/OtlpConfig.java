@@ -6,11 +6,6 @@ public final class OtlpConfig {
   public static final String METRICS_OTEL_INTERVAL = "metrics.otel.interval";
   public static final String METRICS_OTEL_TIMEOUT = "metrics.otel.timeout";
 
-  public static final String OTLP_ENDPOINT = "otlp.endpoint";
-  public static final String OTLP_HEADERS = "otlp.headers";
-  public static final String OTLP_PROTOCOL = "otlp.protocol";
-  public static final String OTLP_TIMEOUT = "otlp.timeout";
-
   public static final String OTLP_METRICS_ENDPOINT = "otlp.metrics.endpoint";
   public static final String OTLP_METRICS_HEADERS = "otlp.metrics.headers";
   public static final String OTLP_METRICS_PROTOCOL = "otlp.metrics.protocol";
