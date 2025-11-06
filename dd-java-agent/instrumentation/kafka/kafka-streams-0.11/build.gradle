@@ -26,6 +26,7 @@ dependencies {
 
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
+  latestDepTestImplementation libs.junit4 // This legacy module still needs JUnit4.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-streams', version: '2.+'
