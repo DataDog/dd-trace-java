@@ -5,7 +5,7 @@ import java.nio.file.Path;
 
 public interface LibraryLoadingListener {
   /**
-   * Called when a dynamic library is resolved This includes resolving a pre-loaded or already
+   * Called when a dynamic library is resolved. This includes resolving a pre-loaded or already
    * loaded library
    *
    * <p>If the library is pre-loaded <code>optionalUrl</code> will be <code>null</code>
@@ -18,7 +18,7 @@ public interface LibraryLoadingListener {
       URL optionalUrl) {}
 
   /**
-   * Called when a dynamic library fails to resolve This can occur because the library was not found
+   * Called when a dynamic library fails to resolve. This can occur because the library was not found
    * -- or an exception occurred during resolution
    */
   default void onResolveDynamicFailure(
