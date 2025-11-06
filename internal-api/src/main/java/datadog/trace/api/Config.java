@@ -446,15 +446,11 @@ import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.OTLP_ENDPOINT;
-import static datadog.trace.api.config.OtlpConfig.OTLP_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.OTLP_PROTOCOL;
-import static datadog.trace.api.config.OtlpConfig.OTLP_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -1861,67 +1857,34 @@ public class Config {
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-
-    Integer tmpOtelMetricExportTimeout = configProvider.getInteger(METRICS_OTEL_TIMEOUT);
-    metricsOtelTimeout =
-        (tmpOtelMetricExportTimeout == null || tmpOtelMetricExportTimeout < 0)
-            ? DEFAULT_METRICS_OTEL_TIMEOUT
-            : tmpOtelMetricExportTimeout;
-
-    Integer tmpOtelMetricExportInterval = configProvider.getInteger(METRICS_OTEL_INTERVAL);
     metricsOtelInterval =
-        (tmpOtelMetricExportInterval == null || tmpOtelMetricExportInterval < 0)
-            ? DEFAULT_METRICS_OTEL_INTERVAL
-            : tmpOtelMetricExportInterval;
+        configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
+    metricsOtelTimeout =
+        configProvider.getInteger(METRICS_OTEL_TIMEOUT, DEFAULT_METRICS_OTEL_TIMEOUT);
 
-    Map<String, String> tmpOtelExporterOtlpMetricsHeaders =
-        configProvider.getMergedMap(OTLP_METRICS_HEADERS, '=');
-    if (tmpOtelExporterOtlpMetricsHeaders.isEmpty()) {
-      tmpOtelExporterOtlpMetricsHeaders = configProvider.getMergedMap(OTLP_HEADERS, '=');
-    }
-    otlpMetricsHeaders = tmpOtelExporterOtlpMetricsHeaders;
+    otlpMetricsHeaders = configProvider.getMergedMap(OTLP_METRICS_HEADERS, '=');
+    otlpMetricsProtocol =
+        configProvider.getEnum(
+            OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpMetricsTimeout =
+        configProvider.getInteger(
+            OTLP_METRICS_TIMEOUT, Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT));
 
-    OtlpConfig.Protocol tmpOtelExporterOtlpMetricsProtocol =
-        configProvider.getEnum(OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, null);
-    if (tmpOtelExporterOtlpMetricsProtocol == null) {
-      tmpOtelExporterOtlpMetricsProtocol =
-          configProvider.getEnum(
-              OTLP_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
-    }
-    otlpMetricsProtocol = tmpOtelExporterOtlpMetricsProtocol;
-    // TODO: log warning and switch protocol to default if we don't support the selected protocol?
-
-    String tmpOtelExporterOtlpMetricsEndpoint = configProvider.getString(OTLP_METRICS_ENDPOINT);
-    if (tmpOtelExporterOtlpMetricsEndpoint == null) {
-      boolean isHttp = !otlpMetricsProtocol.equals(OtlpConfig.Protocol.GRPC);
-      String tmpOtelExporterOtlpEndpoint = configProvider.getString(OTLP_ENDPOINT);
-      if (null == tmpOtelExporterOtlpEndpoint) {
-        tmpOtelExporterOtlpMetricsEndpoint =
-            isHttp
-                ? "http://"
-                    + agentHost
-                    + ':'
-                    + DEFAULT_OTLP_HTTP_PORT
-                    + '/'
-                    + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT
-                : "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+    String otlpMetricsEndpointFromEnvironment = configProvider.getString(OTLP_METRICS_ENDPOINT);
+    if (otlpMetricsEndpointFromEnvironment == null) {
+      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+        otlpMetricsEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
-        tmpOtelExporterOtlpMetricsEndpoint =
-            isHttp
-                ? tmpOtelExporterOtlpEndpoint + '/' + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT
-                : tmpOtelExporterOtlpEndpoint;
+        otlpMetricsEndpointFromEnvironment =
+            "http://"
+                + agentHost
+                + ':'
+                + DEFAULT_OTLP_HTTP_PORT
+                + '/'
+                + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT;
       }
     }
-    otlpMetricsEndpoint = tmpOtelExporterOtlpMetricsEndpoint;
-
-    Integer tmpOtelExporterOtlpMetricsTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT);
-    if (null == tmpOtelExporterOtlpMetricsTimeout) {
-      tmpOtelExporterOtlpMetricsTimeout = configProvider.getInteger(OTLP_TIMEOUT);
-    }
-    otlpMetricsTimeout =
-        (tmpOtelExporterOtlpMetricsTimeout == null || tmpOtelExporterOtlpMetricsTimeout < 0)
-            ? Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT)
-            : tmpOtelExporterOtlpMetricsTimeout;
+    otlpMetricsEndpoint = otlpMetricsEndpointFromEnvironment;
 
     otlpMetricsTemporalityPreference =
         configProvider.getEnum(
