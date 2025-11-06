@@ -34,6 +34,8 @@ public final class AppSecConfig {
       "api-security.endpoint.collection.message.limit";
   public static final String API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE =
       "api-security.downstream.request.analysis.sample_rate";
+  public static final String API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE =
+      "api-security.downstream.request.body.analysis.sample_rate";
   public static final String API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS =
       "api-security.max.downstream.request.body.analysis";
 
