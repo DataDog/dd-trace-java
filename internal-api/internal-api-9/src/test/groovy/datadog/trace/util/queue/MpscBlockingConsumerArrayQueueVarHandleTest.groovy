@@ -1,7 +1,10 @@
 package datadog.trace.util.queue
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS
 
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 import java.util.function.Supplier
@@ -120,5 +123,48 @@ class MpscBlockingConsumerArrayQueueVarHandleTest extends AbstractQueueTest<Mpsc
     then:
     filled == 8
     queue.size() == 8
+  }
+
+  def "poll with timeout returns null if no element becomes available"() {
+    when:
+    def start = System.nanoTime()
+    def value = queue.poll(200, TimeUnit.MILLISECONDS)
+    def elapsedMs = NANOSECONDS.toMillis(System.nanoTime() - start)
+
+    then:
+    value == null
+    elapsedMs >= 200  // waited approximately the timeout
+  }
+
+  def "poll with zero timeout behaves like immediate poll"() {
+    expect:
+    queue.poll(0, TimeUnit.MILLISECONDS) == null
+
+    when:
+    queue.offer(99)
+
+    then:
+    queue.poll(0, TimeUnit.MILLISECONDS) == 99
+  }
+
+  def "poll throws InterruptedException if interrupted"() {
+    given:
+    def thrown = new AtomicBoolean()
+    def thread = Thread.start {
+      try {
+        queue.poll(500, TimeUnit.MILLISECONDS)
+      } catch (InterruptedException ie) {
+        thrown.set(true)
+        Thread.currentThread().interrupt()
+      }
+    }
+
+    when:
+    Thread.sleep(50)
+    thread.interrupt()
+    thread.join()
+
+    then:
+    thrown.get()
   }
 }
