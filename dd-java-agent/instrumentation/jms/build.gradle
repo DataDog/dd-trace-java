@@ -26,8 +26,6 @@ repositories {
 addTestSuite('latestDepTest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
