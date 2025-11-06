@@ -47,7 +47,7 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadException optionalCause) {
+      Throwable optionalCause) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause);

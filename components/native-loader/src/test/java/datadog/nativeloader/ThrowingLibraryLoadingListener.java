@@ -19,7 +19,7 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadException optionalCause) {
+      Throwable optionalCause) {
     this.throwException("loadFailure");
   }
 
@@ -38,7 +38,7 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadException optionalCause) {
+      Throwable optionalCause) {
     this.throwException("resolveDynamicFailure");
   }
 

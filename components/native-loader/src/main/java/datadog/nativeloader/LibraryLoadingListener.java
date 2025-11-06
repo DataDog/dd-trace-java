@@ -4,6 +4,12 @@ import java.net.URL;
 import java.nio.file.Path;
 
 public interface LibraryLoadingListener {
+  /**
+   * Called when a dynamic library is "resolved"
+   * This includes an attempt to resolve a pre-loaded library
+   * 
+   * If the library is pre-loaded <code>optionalUrl</code> will be <code>null</code>
+   */
   default void onResolveDynamic(
       PlatformSpec platformSpec,
       String optionalComponent,
@@ -11,11 +17,15 @@ public interface LibraryLoadingListener {
       boolean isPreloaded,
       URL optionalUrl) {}
 
+  /**
+   * Called when a dynamic library fails to "resolve"
+   * This can occur because the library was not found -- or an exception occurred during resolution
+   */
   default void onResolveDynamicFailure(
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadException optionalCause) {}
+      Throwable optionalCause) {}
 
   default void onLoad(
       PlatformSpec platformSpec,
@@ -28,7 +38,7 @@ public interface LibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadException optionalCause) {}
+      Throwable optionalCause) {}
 
   default void onTempFileCreated(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}

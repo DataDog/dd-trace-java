@@ -189,6 +189,8 @@ public final class NativeLoader {
     return new Builder();
   }
 
+  private static final URL NO_URL = null;
+  private static final Throwable NO_CAUSE = null;
   private static final LibraryLoadingListener[] EMPTY_LISTENERS = {};
 
   private final PlatformSpec defaultPlatformSpec;
@@ -301,14 +303,13 @@ public final class NativeLoader {
             : this.listeners.join(scopedListeners);
 
     if (platformSpec.isUnknownOs() || platformSpec.isUnknownArch()) {
-      LibraryLoadException ex = new LibraryLoadException(libName, "Unsupported platform");
-      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, ex);
-      throw ex;
+      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, NO_CAUSE);
+      throw new LibraryLoadException(libName, "Unsupported platform");
     }
 
     boolean isPreloaded = this.isPreloaded(platformSpec, libName);
     if (isPreloaded) {
-      allListeners.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, null);
+      allListeners.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, NO_URL);
       return LibFile.preloaded(platformSpec, optionalComponent, libName, allListeners);
     }
 
@@ -317,12 +318,11 @@ public final class NativeLoader {
       url = this.libResolver.resolve(this.pathResolver, optionalComponent, platformSpec, libName);
     } catch (LibraryLoadException e) {
       // don't wrap if it is already a LibraryLoadException
-      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, e);
+      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, e.getCause());
       throw e;
     } catch (Throwable t) {
-      LibraryLoadException ex = new LibraryLoadException(libName, t);
-      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, ex);
-      throw ex;
+      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, t);
+      throw new LibraryLoadException(libName, t);
     }
 
     if (url == null) {
