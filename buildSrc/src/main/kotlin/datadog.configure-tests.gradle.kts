@@ -99,7 +99,7 @@ tasks.register("allLatestDepTests") {
   })
 }
 
-// Make the 'check' task depends on all Test tasks in the project.
+// Make the 'check' task depend on all Test tasks in the project.
 // This means that when running the 'check' task, all Test tasks will run as well.
 tasks.named("check") {
   dependsOn(tasks.withType<Test>())
