@@ -98,7 +98,7 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
   }
 
   /**
-   * Polls with a timeout using progressive backoff.
+   * Polls with a timeout.
    *
    * @param timeout max wait time
    * @param unit time unit
@@ -107,32 +107,25 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
    */
   public E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
     final long deadline = System.nanoTime() + unit.toNanos(timeout);
-    int idleCount = 0;
 
-    while (true) {
-      E value = poll();
-      if (value != null) {
-        return value;
-      }
-
-      long remaining = deadline - System.nanoTime();
-      if (remaining <= 0) {
-        return null;
-      }
-
-      // Progressive backoff
-      if (idleCount < 100) {
-        // spin
-      } else if (idleCount < 1_000) {
-        Thread.yield();
-      } else {
-        LockSupport.parkNanos(Math.min(remaining, 1_000_000L));
-      }
-      idleCount++;
-
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
+    E e = poll();
+    if (e != null) {
+      return e;
     }
+
+    // register this thread as the waiting consumer
+    consumerThread = Thread.currentThread();
+    final long remaining = deadline - System.nanoTime();
+
+    if (remaining <= 0) {
+      consumerThread = null;
+      return null;
+    }
+
+    LockSupport.parkNanos(this, remaining);
+    if (Thread.interrupted()) {
+      throw new InterruptedException();
+    }
+    return poll();
   }
 }
