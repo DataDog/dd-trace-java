@@ -55,9 +55,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectResolvePreloaded(String expectedLibName) {
-	return this.expectResolvePreloaded(new LibCheck(expectedLibName));
+    return this.expectResolvePreloaded(new LibCheck(expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectResolvePreloaded(LibCheck libCheck) {
     return this.addCheck(
         new Check("onResolveDynamic:preloaded %s", libCheck) {
@@ -75,9 +75,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectResolveDynamicFailure(String expectedLibName) {
-	return this.expectResolveDynamicFailure(new LibCheck(expectedLibName));
+    return this.expectResolveDynamicFailure(new LibCheck(expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck) {
     return this.addCheck(
         new Check("onResolveDynamicFailure %s", libCheck) {
@@ -93,13 +93,13 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectLoad(String expectedLibName) {
-	return this.expectLoad(new LibCheck(expectedLibName));
+    return this.expectLoad(new LibCheck(expectedLibName));
   }
 
   public TestLibraryLoadingListener expectLoad(String expectedComponent, String expectedLibName) {
     return this.expectLoad(new LibCheck(expectedComponent, expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectLoad(LibCheck libCheck) {
     return this.addCheck(
         new Check("onLoad %s", libCheck) {
@@ -110,16 +110,15 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               String libName,
               boolean isPreloaded,
               Path optionalLibPath) {
-        	libCheck.assertMatches(platformSpec, optionalComponent, libName);
+            libCheck.assertMatches(platformSpec, optionalComponent, libName);
           }
         });
   }
-  
 
   public TestLibraryLoadingListener expectLoadPreloaded(String expectedLibName) {
-	return this.expectLoadPreloaded(new LibCheck(expectedLibName));
+    return this.expectLoadPreloaded(new LibCheck(expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectLoadPreloaded(LibCheck libCheck) {
     return this.addCheck(
         new Check("onLoad:preloaded %s", libCheck) {
@@ -137,9 +136,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectLoadFailure(String expectedLibName) {
-	return this.expectLoadFailure(new LibCheck(expectedLibName));
+    return this.expectLoadFailure(new LibCheck(expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectLoadFailure(LibCheck libCheck) {
     return this.addCheck(
         new Check("onLoadFailure %s", libCheck) {
@@ -149,15 +148,15 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               String optionalComponent,
               String libName,
               Throwable optionalCause) {
-        	libCheck.assertMatches(platformSpec, optionalComponent, libName);
+            libCheck.assertMatches(platformSpec, optionalComponent, libName);
           }
         });
   }
 
   public TestLibraryLoadingListener expectTempFileCreated(String expectedLibName) {
-    return this.expectTempFileCreated(new LibCheck(expectedLibName));	  
+    return this.expectTempFileCreated(new LibCheck(expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectTempFileCreated(LibCheck libCheck) {
     return this.addCheck(
         new Check("onTempFileCreated %s", libCheck) {
@@ -171,9 +170,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectTempFileCreationFailure(String expectedLibName) {
-	return this.expectTempFileCreationFailure(new LibCheck(expectedLibName));
+    return this.expectTempFileCreationFailure(new LibCheck(expectedLibName));
   }
-  
+
   private TestLibraryLoadingListener expectTempFileCreationFailure(LibCheck libCheck) {
     return this.addCheck(
         new Check("onTempFileCreationFailure %s", libCheck) {
@@ -194,9 +193,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectTempFileCleanup(String expectedLibName) {
-	return this.expectTempFileCleanup(new LibCheck(expectedLibName));
+    return this.expectTempFileCleanup(new LibCheck(expectedLibName));
   }
-  
+
   public TestLibraryLoadingListener expectTempFileCleanup(LibCheck libCheck) {
     return this.addCheck(
         new Check("onTempFileCreationCleanup %s", libCheck) {
@@ -327,7 +326,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       }
     }
   }
-  
+
   public abstract static class Check implements LibraryLoadingListener {
     static final Check NOTHING = new Check("nothing") {};
 
@@ -441,7 +440,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     void invoke(Check check);
   }
 
-
   public static final class LibCheck {
     private final PlatformSpec expectedPlatformSpec;
     private final String expectedComponent;
@@ -467,19 +465,19 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
 
     void assertMatches(PlatformSpec platformSpec, String optionalComponent, String libName) {
       if (this.expectedPlatformSpec == null) {
-    	// if no expectedPlatformSpec was provided -- just check that platformSpec is not null
+        // if no expectedPlatformSpec was provided -- just check that platformSpec is not null
         assertNotNull(platformSpec);
       } else {
         assertEquals(this.expectedPlatformSpec, platformSpec);
       }
-      
+
       if (this.expectedComponent == null) {
-    	// a null expectedComponent is treated as not expecting a component
+        // a null expectedComponent is treated as not expecting a component
         assertNull(optionalComponent);
       } else {
         assertEquals(this.expectedComponent, optionalComponent);
       }
-      
+
       assertEquals(this.expectedLibName, libName);
     }
 

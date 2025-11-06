@@ -5,10 +5,10 @@ import java.nio.file.Path;
 
 public interface LibraryLoadingListener {
   /**
-   * Called when a dynamic library is "resolved"
-   * This includes an attempt to resolve a pre-loaded library
-   * 
-   * If the library is pre-loaded <code>optionalUrl</code> will be <code>null</code>
+   * Called when a dynamic library is resolved This includes resolving a pre-loaded or already
+   * loaded library
+   *
+   * <p>If the library is pre-loaded <code>optionalUrl</code> will be <code>null</code>
    */
   default void onResolveDynamic(
       PlatformSpec platformSpec,
@@ -18,8 +18,8 @@ public interface LibraryLoadingListener {
       URL optionalUrl) {}
 
   /**
-   * Called when a dynamic library fails to "resolve"
-   * This can occur because the library was not found -- or an exception occurred during resolution
+   * Called when a dynamic library fails to resolve This can occur because the library was not found
+   * -- or an exception occurred during resolution
    */
   default void onResolveDynamicFailure(
       PlatformSpec platformSpec,
@@ -27,6 +27,10 @@ public interface LibraryLoadingListener {
       String libName,
       Throwable optionalCause) {}
 
+  /**
+   * Called when a dynamic library loads successfully This includes loading a pre-loaded or already
+   * loaded library
+   */
   default void onLoad(
       PlatformSpec platformSpec,
       String optionalComponent,
@@ -34,15 +38,18 @@ public interface LibraryLoadingListener {
       boolean isPreloaded,
       Path optionalLibPath) {}
 
+  /** Called when a dynamic library fails to load */
   default void onLoadFailure(
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
       Throwable optionalCause) {}
 
+  /** Called when a temp file is successfully created to hold the library */
   default void onTempFileCreated(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}
 
+  /** Called when a temp file could not be created */
   default void onTempFileCreationFailure(
       PlatformSpec platformSpec,
       String optionalComponent,
@@ -52,6 +59,7 @@ public interface LibraryLoadingListener {
       Path optionalTempFile,
       Throwable optionalCause) {}
 
+  /** Called when a temp is cleaned up */
   default void onTempFileCleanup(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}
 }
