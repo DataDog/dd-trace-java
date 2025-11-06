@@ -2,6 +2,7 @@ import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.credential.BearerTokenCredential
+import com.openai.models.completions.CompletionCreateParams
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.llmobs.LlmObsSpecification
 import spock.lang.AutoCleanup
@@ -25,9 +26,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
   def mockOpenAiBackend = TestHttpServer.httpServer {
     handlers {
       prefix("/completions") {
-        // TODO load from file?
         if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream":true}' == request.text) {
-          System.err.println(">>> streamed")
           response.status(200).send(
               """data: {"id":"cmpl-CYhd8HZjl8iY5SA1poPy3TqMdspV0","object":"text_completion","created":1762386902,"choices":[{"text":"\\n\\n","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2"}
 
@@ -97,6 +96,13 @@ data: [DONE]
       b.credential(BearerTokenCredential.create(openAiToken()))
     }
     openAiClient = b.build()
+  }
+
+  CompletionCreateParams completionCreateParams() {
+    CompletionCreateParams.builder()
+        .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
+        .prompt("Tell me a story about building the best SDK!")
+        .build()
   }
 }
 

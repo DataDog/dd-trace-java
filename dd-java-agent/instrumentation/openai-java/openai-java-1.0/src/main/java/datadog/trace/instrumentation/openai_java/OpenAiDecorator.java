@@ -58,6 +58,6 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void decorate(AgentSpan span, List<Completion> completions) {
-    System.err.println(">>> completions=" + completions.size());
+    //TODO
   }
 }

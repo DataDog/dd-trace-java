@@ -9,11 +9,12 @@ import org.jetbrains.annotations.NotNull;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
 
-public class StreamHelpers {
+public class ResponseWrappers {
 
   public static HttpResponseFor<StreamResponse<Completion>> wrap(HttpResponseFor<StreamResponse<Completion>> response, final AgentSpan span) {
     return new HttpResponseFor<StreamResponse<Completion>>() {
@@ -62,5 +63,20 @@ public class StreamHelpers {
         response.close();
       }
     };
+  }
+
+  public static CompletableFuture<HttpResponseFor<Completion>> wrap(CompletableFuture<HttpResponseFor<Completion>> future, AgentSpan span) {
+    return future
+        .whenComplete((r, t) -> {
+          span.finish();
+        })
+        .thenApply(response -> {
+          if (response != null) {
+            Completion completion = response.parse(); // TODO return HttpResponseFor
+            DECORATE.decorate(span, completion);
+          }
+          DECORATE.beforeFinish(span);
+          return response;
+        });
   }
 }

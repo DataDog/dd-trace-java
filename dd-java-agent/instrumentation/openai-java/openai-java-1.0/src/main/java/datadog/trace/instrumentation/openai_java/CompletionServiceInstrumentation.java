@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 public class CompletionServiceInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
@@ -27,13 +28,15 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
     transformer.applyAdvice(
         isMethod()
             .and(named("create"))
-            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams"))),
+            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
+            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("createStreaming"))
-            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams"))),
+            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
+            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
 
@@ -54,7 +57,7 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          Completion completion = response.parse();
+          Completion completion = response.parse(); // TODO wrap HttpResponseFor
           DECORATE.decorate(span, completion);
         }
         DECORATE.beforeFinish(span);
@@ -83,19 +86,13 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          // StreamResponse<Completion> streamResponse = response.parse();
-          // Stream<Completion> stream = streamResponse.stream();
-
-          response = StreamHelpers.wrap(response, span);
-
-          // StreamHelpers.decorate(stream);
-          // DECORATE.decorate(span, completion);
-
+          response = ResponseWrappers.wrap(response, span);
+        } else {
+          span.finish();
         }
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
-        // span.finish();
       }
     }
   }

@@ -16,16 +16,17 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
         packageName + ".OpenAiDecorator",
-        packageName + ".StreamHelpers",
-        packageName + ".StreamHelpers$1",
-        packageName + ".StreamHelpers$1$1",
+        packageName + ".ResponseWrappers",
+        packageName + ".ResponseWrappers$1",
+        packageName + ".ResponseWrappers$1$1",
     };
   }
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
-        new CompletionServiceInstrumentation()
+        new CompletionServiceInstrumentation(),
+        new CompletionServiceAsyncInstrumentation()
     );
   }
 }
