@@ -27,7 +27,10 @@ public final class LibraryResolvers {
 
       @Override
       public URL resolve(
-          PathLocator pathLocator, PlatformSpec platformSpec, String optionalComponent, String libName)
+          PathLocator pathLocator,
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName)
           throws Exception {
         return baseResolver.resolve(pathLocator, platformSpec, optionalComponent, libName);
       }

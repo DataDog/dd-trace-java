@@ -208,9 +208,9 @@ public final class NativeLoader {
   }
 
   public boolean isPlatformSupported() {
-	if ( this.defaultPlatformSpec.isUnknownOs() ) return false;
-	if ( this.defaultPlatformSpec.isUnknownArch() ) return false;
-	return true;
+    if (this.defaultPlatformSpec.isUnknownOs()) return false;
+    if (this.defaultPlatformSpec.isUnknownArch()) return false;
+    return true;
   }
 
   /** Indicates if a library is considered "pre-loaded" */

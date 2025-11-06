@@ -18,11 +18,15 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
 
   private Check failedCheck = null;
   private Throwable failedCause = null;
-  
-  // By design, listeners are supposed to receive the underlying cause not a LibraryLoadException directly
-  static final ThrowableCheck NOT_LIB_LOAD_EXCEPTION = (t) -> {
-	assertFalse(t instanceof LibraryLoadException, "LibraryLoadException - instead of underlying cause");
-  };
+
+  // By design, listeners are supposed to receive the underlying cause not a LibraryLoadException
+  // directly
+  static final ThrowableCheck NOT_LIB_LOAD_EXCEPTION =
+      (t) -> {
+        assertFalse(
+            t instanceof LibraryLoadException,
+            "LibraryLoadException - instead of underlying cause");
+      };
 
   public TestLibraryLoadingListener() {
     this.checks = new LinkedList<>();
@@ -84,16 +88,19 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   public TestLibraryLoadingListener expectResolveDynamicFailure(String expectedLibName) {
     return this.expectResolveDynamicFailure(new LibCheck(expectedLibName));
   }
-  
-  public TestLibraryLoadingListener expectResolveDynamicFailure(String expectedLibName, Throwable expectedThrowable) {
-	return this.expectResolveDynamicFailure(new LibCheck(expectedLibName), (t) -> assertSame(expectedThrowable, t));
+
+  public TestLibraryLoadingListener expectResolveDynamicFailure(
+      String expectedLibName, Throwable expectedThrowable) {
+    return this.expectResolveDynamicFailure(
+        new LibCheck(expectedLibName), (t) -> assertSame(expectedThrowable, t));
   }
 
   private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck) {
-	return this.expectResolveDynamicFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
+    return this.expectResolveDynamicFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
   }
-  
-  private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck, ThrowableCheck throwableCheck) {
+
+  private TestLibraryLoadingListener expectResolveDynamicFailure(
+      LibCheck libCheck, ThrowableCheck throwableCheck) {
     return this.addCheck(
         new Check("onResolveDynamicFailure %s", libCheck) {
           @Override
@@ -161,10 +168,11 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectLoadFailure(LibCheck libCheck) {
-	return this.expectLoadFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
+    return this.expectLoadFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
   }
-  
-  private TestLibraryLoadingListener expectLoadFailure(LibCheck libCheck, ThrowableCheck throwableCheck) {
+
+  private TestLibraryLoadingListener expectLoadFailure(
+      LibCheck libCheck, ThrowableCheck throwableCheck) {
     return this.addCheck(
         new Check("onLoadFailure %s", libCheck) {
           @Override
@@ -205,10 +213,11 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectTempFileCreationFailure(LibCheck libCheck) {
-	return this.expectTempFileCreationFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
+    return this.expectTempFileCreationFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
   }
-  
-  private TestLibraryLoadingListener expectTempFileCreationFailure(LibCheck libCheck, ThrowableCheck throwableCheck) {
+
+  private TestLibraryLoadingListener expectTempFileCreationFailure(
+      LibCheck libCheck, ThrowableCheck throwableCheck) {
     return this.addCheck(
         new Check("onTempFileCreationFailure %s", libCheck) {
           @Override
@@ -528,9 +537,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       }
     }
   }
-  
+
   @FunctionalInterface
   interface ThrowableCheck {
-	void assertMatches(Throwable t);
+    void assertMatches(Throwable t);
   }
 }
