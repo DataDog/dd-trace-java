@@ -322,7 +322,7 @@ public final class NativeLoader {
 
     URL url;
     try {
-      url = this.libResolver.resolve(this.pathResolver, optionalComponent, platformSpec, libName);
+      url = this.libResolver.resolve(this.pathResolver, platformSpec, optionalComponent, libName);
     } catch (LibraryLoadException e) {
       // don't wrap if it is already a LibraryLoadException
       allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, e.getCause());
