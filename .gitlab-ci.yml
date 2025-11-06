@@ -134,7 +134,7 @@ default:
   variables:
     MAVEN_OPTS: "-Xms64M -Xmx512M"
     GRADLE_WORKERS: 2
-    GRADLE_MEM: 2560M
+    GRADLE_MEM: 3G
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
@@ -176,7 +176,7 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -623,7 +623,7 @@ test_base:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_6
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
@@ -634,7 +634,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -706,7 +706,7 @@ test_smoke:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_6
 
 test_ssi_smoke:
   extends: .test_job
@@ -717,7 +717,7 @@ test_ssi_smoke:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_6
 
 test_smoke_graalvm:
   extends: .test_job
