@@ -84,7 +84,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         new OkHttpSink(
             sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
-            V01_DATASTREAMS_ENDPOINT,
+            V01_DATASTREAMS_ENDPOINT + "?test=true",
             false,
             true,
             Collections.emptyMap()),
