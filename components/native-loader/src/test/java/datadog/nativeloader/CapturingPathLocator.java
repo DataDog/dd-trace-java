@@ -32,7 +32,7 @@ public final class CapturingPathLocator implements PathLocator {
     String comp = "comp";
 
     CapturingPathLocator fullCaptureLocator = new CapturingPathLocator(Integer.MAX_VALUE);
-    resolver.resolve(fullCaptureLocator, comp, platformSpec, "test");
+    resolver.resolve(fullCaptureLocator, platformSpec, comp, "test");
 
     for (int i = 0; !fullCaptureLocator.isEmpty(); ++i) {
       if (i >= expectedPaths.length) {
@@ -52,7 +52,7 @@ public final class CapturingPathLocator implements PathLocator {
 
     for (int i = 0; i < expectedPaths.length; ++i) {
       CapturingPathLocator fallbackLocator = new CapturingPathLocator(i);
-      resolver.resolve(fallbackLocator, comp, platformSpec, "test");
+      resolver.resolve(fallbackLocator, platformSpec, comp, "test");
 
       for (int j = 0; j <= i; ++j) {
         fallbackLocator.assertRequested(comp, expectedPaths[j]);
@@ -62,7 +62,7 @@ public final class CapturingPathLocator implements PathLocator {
 
     if (withSkipCompFallback) {
       CapturingPathLocator fallbackLocator = new CapturingPathLocator(expectedPaths.length);
-      resolver.resolve(fallbackLocator, comp, platformSpec, "test");
+      resolver.resolve(fallbackLocator, platformSpec, comp, "test");
 
       for (int j = 0; j < expectedPaths.length; ++j) {
         fallbackLocator.assertRequested(comp, expectedPaths[j]);
