@@ -6,8 +6,8 @@ dependencies {
     ) {
     logger.info("Skip Groovy 4 setup for module: `:${project.parent.name}:${project.name}`")
   } else {
+    testImplementation libs.bundles.groovy
     testImplementation libs.bundles.spock
-    testImplementation libs.groovy
   }
 
   testImplementation libs.bundles.test.logging

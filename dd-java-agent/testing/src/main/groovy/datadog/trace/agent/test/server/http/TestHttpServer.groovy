@@ -488,7 +488,7 @@ class TestHttpServer implements AutoCloseable {
       }
 
       void send(byte[] body) {
-        sendWithType(DEFAULT_TYPE, body)
+        sendWithType(DEFAULT_TYPE, (byte[]) body)
       }
 
       void sendWithType(String contentType, byte[] body) {

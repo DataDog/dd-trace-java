@@ -40,6 +40,7 @@ dependencies {
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
   implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
+  testImplementation(libs.groovy.xml)
   testImplementation files(unpackOpenLiberty.map {it.extractedJars.get() })
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
@@ -57,16 +58,10 @@ dependencies {
   add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))) {
     transitive = false
   }
-  // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
-  // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly libs.groovy
-  webappRuntimeOnly libs.groovy.xml
 }
 
 configurations.named("testRuntimeOnly") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
-  exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'

@@ -14,8 +14,6 @@ import java.nio.ByteBuffer
 import static org.hamcrest.CoreMatchers.equalTo
 import static org.hamcrest.CoreMatchers.instanceOf
 
-import spock.lang.Ignore
-
 class KafkaIastDeserializerForkedTest extends IastRequestTestRunner {
 
   void 'test string deserializer'() {
@@ -102,7 +100,6 @@ class KafkaIastDeserializerForkedTest extends IastRequestTestRunner {
     SourceTypes.KAFKA_MESSAGE_VALUE | _
   }
 
-  @Ignore("Not working under Groovy 4")
   void 'test json deserialization'() {
     given:
     final propagationModule = new PropagationModuleImpl()

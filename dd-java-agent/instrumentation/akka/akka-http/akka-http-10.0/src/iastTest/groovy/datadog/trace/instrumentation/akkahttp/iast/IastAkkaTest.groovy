@@ -8,7 +8,6 @@ import okhttp3.MultipartBody
 import okhttp3.Request.Builder
 import okhttp3.RequestBody
 import spock.lang.AutoCleanup
-import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
@@ -487,7 +486,6 @@ class IastAkkaTest extends IastRequestTestRunner {
     'urlencoded_only' | 'IAST: [var (tainted):[foo (tainted), bar (tainted)]]'
   }
 
-  @Ignore("Not working under Groovy 4")
   void 'json request — #variant variant'() {
     given:
     final json =  '''{

@@ -47,7 +47,7 @@ dependencies {
   api project(':utils:test-utils')
   api project(':utils:time-utils')
 
-  api libs.groovy
+  api libs.bundles.groovy
 
   compileOnly libs.bundles.spock
 

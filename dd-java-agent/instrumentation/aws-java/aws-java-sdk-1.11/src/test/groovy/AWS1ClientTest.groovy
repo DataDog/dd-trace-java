@@ -43,7 +43,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
 import org.json.XML
 import spock.lang.AutoCleanup
-import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicReference
@@ -143,7 +142,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     false      | 1
   }
 
-  @Ignore("Failing under Groovy 4")
   def "send #operation request with mocked response"() {
     setup:
     responseBody.set(body)
@@ -404,7 +402,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     server.close()
   }
 
-  @Ignore("Failing under Groovy 4")
   def "#service #operation sets peer.service in serverless environment"() {
     setup:
 

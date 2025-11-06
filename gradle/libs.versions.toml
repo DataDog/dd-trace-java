@@ -6,10 +6,16 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
-spock = "2.4-M6-groovy-4.0"
+# Testing:
 groovy = "4.0.26"
+spock = "2.4-M6-groovy-4.0"
 junit5 = "5.12.2"
+junit4 = "4.13.2"
 junit-platform = "1.12.2"
+mockito = '4.4.0'
+testcontainers = '1.21.3'
+
+# Dependencies:
 logback = "1.2.13"
 bytebuddy = "1.17.7"
 instrumentjava = "0.0.2"
@@ -25,10 +31,8 @@ dogstatsd = "4.4.3"
 jnr-unixsocket = "0.38.22"
 jnr-posix = '3.1.19'
 commons = "3.2"
-mockito = '4.4.0'
 jctools = '3.3.0'
 moshi = '1.11.0'
-testcontainers = '1.21.3'
 jmc = "8.1.0"
 autoservice = "1.1.1"
 ddprof = "1.34.0"
@@ -37,6 +41,7 @@ cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
 jmh = "1.37"
 jackson = "2.20.0"
+javaparser = "3.24.4"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -66,22 +71,31 @@ lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 # aircompressor v3 requires Java 22
 aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2'}
 
-# Testing
+# Testing:
+## Groovy:
+groovy = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
+groovy-json = { module = "org.apache.groovy:groovy-json", version.ref = "groovy" }
+groovy-templates = { module = "org.apache.groovy:groovy-templates", version.ref = "groovy" }
+groovy-test-junit5 = { module = "org.apache.groovy:groovy-test-junit5", version.ref = "groovy" }
+groovy-yaml = { module = "org.apache.groovy:groovy-yaml", version.ref = "groovy" }
+groovy-xml = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy" }
+
+## Spock:
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
-spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
 
-groovy = { module = "org.apache.groovy:groovy-all", version.ref = "groovy" }
-groovy-xml = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy" }
-groovy-yaml = { module = "org.apache.groovy:groovy-yaml", version.ref = "groovy" }
+## JUnit:
+junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 
+## Mockito:
 mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 
+## Testcontainers:
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 
@@ -104,11 +118,15 @@ jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
 
 jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
+javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
+javaparser-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
+
 
 [bundles]
 asm = ["asm", "asmcommons"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 # Testing
+groovy = ["groovy", "groovy-json", "groovy-test-junit5"]
 spock = ["spock-core", "objenesis"]
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]

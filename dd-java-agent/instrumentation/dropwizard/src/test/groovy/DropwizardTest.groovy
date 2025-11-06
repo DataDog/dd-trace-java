@@ -30,9 +30,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-import spock.lang.Ignore
-
-@Ignore("Not working under Groovy 4")
 class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   class DropwizardServer implements HttpServer {

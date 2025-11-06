@@ -25,8 +25,6 @@ import java.nio.charset.StandardCharsets
 
 import static org.hamcrest.Matchers.equalToIgnoringCase
 
-import spock.lang.Ignore
-
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [Application])
 class IastWebFluxTest extends IastRequestTestRunner {
 
@@ -256,7 +254,6 @@ class IastWebFluxTest extends IastRequestTestRunner {
     }
   }
 
-  @Ignore("Not working under Groovy 4")
   void 'json request'() {
     when:
     String url = buildUrl 'iast/json'

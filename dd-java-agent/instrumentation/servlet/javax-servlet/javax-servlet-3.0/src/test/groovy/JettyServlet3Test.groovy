@@ -9,7 +9,7 @@ import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.HtmlRumServlet
 import datadog.trace.instrumentation.servlet3.TestServlet3
 import datadog.trace.instrumentation.servlet3.XmlRumServlet
-import groovy.servlet.AbstractHttpServlet
+import javax.servlet.http.HttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -419,7 +419,7 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
 
 
 @WebServlet(asyncSupported = true)
-class DispatchTimeoutAsync extends AbstractHttpServlet {
+class DispatchTimeoutAsync extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) {
     def target = req.servletPath.replace("/dispatch", "")
@@ -514,7 +514,7 @@ class JettyServlet3TestAsyncDispatchOnAsyncTimeout extends JettyServlet3Test {
 }
 
 @WebServlet(asyncSupported = true)
-class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
+class ServeFromOnAsyncTimeout extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) {
     def context = req.startAsync()

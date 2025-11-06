@@ -9,7 +9,6 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import spock.lang.Ignore
 import spock.lang.IgnoreIf
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -157,7 +156,6 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
 
 // make it forked because there are instrumentation errors when we shutdown and
 // restart the server on the same JVM
-@Ignore("Not working under Groovy 4")
 class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
   HttpServer server() {
@@ -209,7 +207,6 @@ class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHt
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-@Ignore("Not working under Groovy 4")
 class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   @Override
   protected void configurePreAgent() {
@@ -224,7 +221,6 @@ class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-@Ignore("Not working under Groovy 4")
 class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
@@ -233,6 +229,5 @@ class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpN
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-@Ignore("Not working under Groovy 4")
 class Liberty20V1ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV1 {
 }
