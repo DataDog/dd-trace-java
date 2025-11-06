@@ -3,22 +3,22 @@ import {checkResponse, isOk, isRedirect} from "../../utils/k6.js";
 
 const variants = {
   "no_agent": {
-    "APP_URL": 'http://localhost:8080',
+    "APP_URL": 'http://localhost:8086',
   },
   "tracing": {
-    "APP_URL": 'http://localhost:8081',
+    "APP_URL": 'http://localhost:8087',
   },
   "profiling": {
-    "APP_URL": 'http://localhost:8082',
+    "APP_URL": 'http://localhost:8088',
   },
   "iast": {
-    "APP_URL": 'http://localhost:8083',
+    "APP_URL": 'http://localhost:8089',
   },
   "iast_GLOBAL": {
-    "APP_URL": 'http://localhost:8084',
+    "APP_URL": 'http://localhost:8090',
   },
   "iast_FULL": {
-    "APP_URL": 'http://localhost:8085',
+    "APP_URL": 'http://localhost:8091',
   },
 }
 

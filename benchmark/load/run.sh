@@ -27,11 +27,9 @@ fi
 
 source "${UTILS_DIR}/update-java-version.sh" 17
 
-for app in *; do
-  if [[ ! -d "${app}" ]]; then
-    continue
-  fi
-
+run_app_benchmark() {
+  local app=$1
+  
   message "${type} benchmark: ${app} started"
 
   export OUTPUT_DIR="${REPORTS_DIR}/${type}/${app}"
@@ -44,9 +42,15 @@ for app in *; do
   if [ "${app}" == "petclinic" ]; then
     HEALTHCHECK_URL=http://localhost:8082
     REPETITIONS_COUNT=5
+    PORT_START=8080
+    PORT_END=8085
+    HEALTHCHECK_PATH=""
   elif [ "${app}" == "insecure-bank" ]; then
-    HEALTHCHECK_URL=http://localhost:8082/login
+    HEALTHCHECK_URL=http://localhost:8088/login
     REPETITIONS_COUNT=5
+    PORT_START=8086
+    PORT_END=8091
+    HEALTHCHECK_PATH="/login"
   else
     echo "Unknown app ${app}"
     exit 1
@@ -56,15 +60,9 @@ for app in *; do
     bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
 
     echo "Waiting for serves to start..."
-    if [ "${app}" == "petclinic" ]; then
-      for port in $(seq 8080 8085); do
-        healthcheck http://localhost:$port
-      done
-    elif [ "${app}" == "insecure-bank" ]; then
-      for port in $(seq 8080 8085); do
-        healthcheck http://localhost:$port/login
-      done
-    fi
+    for port in $(seq $PORT_START $PORT_END); do
+      healthcheck http://localhost:$port$HEALTHCHECK_PATH
+    done
     echo "Servers are up!"
 
     (
@@ -74,4 +72,15 @@ for app in *; do
   done
 
   message "${type} benchmark: ${app} finished"
+}
+
+# Run petclinic and insecure-bank benchmarks in parallel to reduce total runtime
+for app in *; do
+  if [[ ! -d "${app}" ]]; then
+    continue
+  fi
+  run_app_benchmark "${app}" &
 done
+
+# Wait for all background jobs to complete
+wait
