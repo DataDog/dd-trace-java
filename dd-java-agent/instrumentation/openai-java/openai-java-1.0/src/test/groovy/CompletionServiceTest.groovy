@@ -9,7 +9,6 @@ import spock.lang.Ignore
 
 class CompletionServiceTest extends OpenAiTest {
 
-  @Ignore
   def "single request completion test"() {
     CompletionCreateParams createParams = CompletionCreateParams.builder()
     .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
@@ -24,7 +23,6 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  @Ignore
   def "single request completion test with withRawResponse"() {
     CompletionCreateParams createParams = CompletionCreateParams.builder()
     .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
