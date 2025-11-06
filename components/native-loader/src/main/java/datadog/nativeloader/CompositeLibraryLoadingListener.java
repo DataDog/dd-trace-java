@@ -72,6 +72,20 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
   }
 
   @Override
+  public void onLoadFailure(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Throwable optionalCause) {
+    for (LibraryLoadingListener listener : this.listeners) {
+      try {
+        listener.onLoadFailure(platformSpec, optionalComponent, libName, optionalCause);
+      } catch (Throwable ignored) {
+      }
+    }
+  }
+
+  @Override
   public void onTempFileCreated(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
     for (LibraryLoadingListener listener : this.listeners) {

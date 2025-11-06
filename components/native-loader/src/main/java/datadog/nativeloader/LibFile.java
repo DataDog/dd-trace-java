@@ -86,17 +86,18 @@ public final class LibFile implements AutoCloseable {
     try {
       Runtime.getRuntime().load(this.getAbsolutePath());
 
-      this.listeners.onLoad(
-          this.platformSpec,
-          this.optionalComponent,
-          this.libName,
-          isPreloaded,
-          this.optionalFile.toPath());
+      if (true) throw new RuntimeException("real load - worked?");
     } catch (Throwable t) {
-      LibraryLoadException ex = new LibraryLoadException(this.libName, t);
-      this.listeners.onLoadFailure(this.platformSpec, this.optionalComponent, this.libName, ex);
-      throw ex;
+      this.listeners.onLoadFailure(this.platformSpec, this.optionalComponent, this.libName, t);
+      throw new LibraryLoadException(this.libName, t);
     }
+
+    this.listeners.onLoad(
+        this.platformSpec,
+        this.optionalComponent,
+        this.libName,
+        isPreloaded,
+        this.optionalFile.toPath());
   }
 
   /** Provides a File to the library -- returns null for pre-loaded libraries */

@@ -1,6 +1,7 @@
 package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -51,6 +52,20 @@ public final class CompositeLibraryLoadingListenerTest {
 
     listeners(listener1, listener2)
         .onLoad(PlatformSpec.defaultPlatformSpec(), null, "foo", false, null);
+
+    listener1.assertDone();
+    listener2.assertDone();
+  }
+
+  @Test
+  public void onLoadFailure() {
+    TestLibraryLoadingListener listener1 =
+        new TestLibraryLoadingListener().expectLoadFailure("foo");
+
+    TestLibraryLoadingListener listener2 = listener1.copy();
+
+    listeners(listener1, listener2)
+        .onLoadFailure(PlatformSpec.defaultPlatformSpec(), null, "foo", null);
 
     listener1.assertDone();
     listener2.assertDone();
@@ -134,10 +149,17 @@ public final class CompositeLibraryLoadingListenerTest {
     listener4.assertDone();
   }
 
+  @Test
+  public void _toString() {
+    // just for coverage
+    assertNotNull(new CompositeLibraryLoadingListener().toString());
+  }
+
   /*
    * Constructs a composite listener that includes the provided listeners
    * To test robustness...
    * - adds in additional failing listeners
+   * - adds in additional default listeners
    * - shuffles the order of the listeners
    */
   static CompositeLibraryLoadingListener listeners(LibraryLoadingListener... listeners) {
@@ -145,6 +167,7 @@ public final class CompositeLibraryLoadingListenerTest {
     shuffledListeners.addAll(Arrays.asList(listeners));
 
     for (int i = 0; i < listeners.length; ++i) {
+      shuffledListeners.add(new LibraryLoadingListener() {});
       shuffledListeners.add(new ThrowingLibraryLoadingListener());
     }
 

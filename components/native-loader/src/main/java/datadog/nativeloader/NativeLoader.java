@@ -232,7 +232,14 @@ public final class NativeLoader {
   }
 
   /** Loads a library associated with an associated component */
-  public void load(String component, String libName) throws LibraryLoadException {}
+  public void load(String component, String libName) throws LibraryLoadException {
+    this.loadImpl(component, libName, EMPTY_LISTENERS);
+  }
+
+  public void load(String component, String libName, LibraryLoadingListener... scopedListeners)
+      throws LibraryLoadException {
+    this.loadImpl(component, libName, scopedListeners);
+  }
 
   private void loadImpl(String component, String libName, LibraryLoadingListener... scopedListeners)
       throws LibraryLoadException {

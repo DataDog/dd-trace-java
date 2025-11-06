@@ -139,6 +139,11 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     return this.expectLoadFailure(new LibCheck(expectedLibName));
   }
 
+  public TestLibraryLoadingListener expectLoadFailure(
+      String expectedComponent, String expectedLibName) {
+    return this.expectLoadFailure(new LibCheck(expectedComponent, expectedLibName));
+  }
+
   private TestLibraryLoadingListener expectLoadFailure(LibCheck libCheck) {
     return this.addCheck(
         new Check("onLoadFailure %s", libCheck) {
@@ -155,6 +160,11 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
 
   public TestLibraryLoadingListener expectTempFileCreated(String expectedLibName) {
     return this.expectTempFileCreated(new LibCheck(expectedLibName));
+  }
+
+  public TestLibraryLoadingListener expectTempFileCreated(
+      String expectedComponent, String expectedLibName) {
+    return this.expectTempFileCreated(new LibCheck(expectedComponent, expectedLibName));
   }
 
   private TestLibraryLoadingListener expectTempFileCreated(LibCheck libCheck) {
@@ -196,7 +206,12 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     return this.expectTempFileCleanup(new LibCheck(expectedLibName));
   }
 
-  public TestLibraryLoadingListener expectTempFileCleanup(LibCheck libCheck) {
+  public TestLibraryLoadingListener expectTempFileCleanup(
+      String expectedComponent, String expectedLibName) {
+    return this.expectTempFileCleanup(new LibCheck(expectedComponent, expectedLibName));
+  }
+
+  TestLibraryLoadingListener expectTempFileCleanup(LibCheck libCheck) {
     return this.addCheck(
         new Check("onTempFileCreationCleanup %s", libCheck) {
           @Override
@@ -276,8 +291,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   @Override
   public void onTempFileCreated(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-    if (true) new RuntimeException("onTempFileCreated!");
-
     this.nextCheck(
         check -> check.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile));
   }

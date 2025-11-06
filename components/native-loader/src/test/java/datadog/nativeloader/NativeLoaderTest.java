@@ -254,6 +254,23 @@ public class NativeLoaderTest {
   }
 
   @Test
+  public void fromDir_load_with_component() {
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    // lib file is a dummy, so fails during loading and linking
+    assertThrows(LibraryLoadException.class, () -> loader.load("comp1", "dummy"));
+
+    TestLibraryLoadingListener scopedListener2 =
+        new TestLibraryLoadingListener()
+            .expectResolveDynamic("comp2", "dummy")
+            .expectLoadFailure("comp2", "dummy");
+
+    assertThrows(LibraryLoadException.class, () -> loader.load("comp2", "dummy", scopedListener2));
+
+    scopedListener2.assertDone();
+  }
+
+  @Test
   public void fromDirBackedClassLoader() throws IOException, LibraryLoadException {
     // ClassLoader pulling from a directory, so there's still a normal file
     URL[] urls = {new File("test-data").toURL()};
@@ -336,6 +353,34 @@ public class NativeLoaderTest {
         }
 
         scopedListener.assertDone();
+      }
+    } finally {
+      deleteHelper(jar);
+    }
+  }
+
+  @Test
+  public void fromJarBackedClassLoader_load_with_component()
+      throws IOException, LibraryLoadException {
+    Path jar = jar("test-data");
+    try {
+      try (URLClassLoader classLoader = createClassLoader(jar)) {
+        NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
+
+        // lib file is a dummy, so fails during loading and linking
+        assertThrows(LibraryLoadException.class, () -> loader.load("comp1", "dummy"));
+
+        TestLibraryLoadingListener scopedListener2 =
+            new TestLibraryLoadingListener()
+                .expectResolveDynamic("comp2", "dummy")
+                .expectTempFileCreated("comp2", "dummy")
+                .expectLoadFailure("comp2", "dummy")
+                .expectTempFileCleanup("comp2", "dummy");
+
+        assertThrows(
+            LibraryLoadException.class, () -> loader.load("comp2", "dummy", scopedListener2));
+
+        scopedListener2.assertDone();
       }
     } finally {
       deleteHelper(jar);
