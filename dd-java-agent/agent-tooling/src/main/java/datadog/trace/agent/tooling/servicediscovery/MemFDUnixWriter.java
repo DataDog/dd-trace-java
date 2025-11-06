@@ -13,7 +13,7 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
   private static final Logger log = LoggerFactory.getLogger(MemFDUnixWriter.class);
 
   private interface LibC extends Library {
-    int memfd_create(String name, int flags);
+    int syscall(int number, Object... args);
 
     NativeLong write(int fd, Pointer buf, NativeLong count);
 
@@ -36,7 +36,13 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
   public void write(String fileName, byte[] payload) {
     final LibC libc = Native.load("c", LibC.class);
 
-    int memFd = libc.memfd_create(fileName, MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    String arch = System.getProperty("os.arch");
+    int memfdSyscall = getMemfdSyscall(arch);
+    if (memfdSyscall <= 0) {
+      log.debug("service discovery not supported for arch={}", arch);
+      return;
+    }
+    int memFd = libc.syscall(memfdSyscall, fileName, MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (memFd < 0) {
       log.warn("{} memfd create failed, errno={}", fileName, Native.getLastError());
       return;
@@ -59,5 +65,37 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
       return;
     }
     // memfd is not closed to keep it readable for the lifetime of the process.
+  }
+
+  private static int getMemfdSyscall(String arch) {
+    switch (arch.toLowerCase()) {
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/x86_64/bits/syscall.h.in#L320
+      case "x86_64":
+        return 319;
+      case "x64":
+        return 319;
+      case "amd64":
+        return 319;
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/i386/bits/syscall.h.in#L356
+      case "x386":
+        return 356;
+      case "86":
+        return 356;
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/aarch64/bits/syscall.h.in#L264
+      case "aarch64":
+        return 279;
+      case "arm64":
+        return 279;
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/arm/bits/syscall.h.in#L343
+      case "arm":
+        return 385;
+      case "arm32":
+        return 385;
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/powerpc64/bits/syscall.h.in#L350
+      case "ppc64":
+        return 360;
+      default:
+        return -1;
+    }
   }
 }
