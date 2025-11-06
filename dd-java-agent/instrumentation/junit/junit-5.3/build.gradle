@@ -36,7 +36,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
-  testImplementation libs.junit4
+  testImplementation libs.junit4 // This module still needs JUnit4.
 
   // versions used below are not the minimum ones that we support,
   // but the tests need to use them in order to be compliant with Spock 2.x

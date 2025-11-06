@@ -64,7 +64,7 @@ class TimerTaskContinuationTest extends InstrumentationSpecification {
   def "test continuation activated when TimerTask runs (date)"() {
     when:
     runUnderTrace("parent", {
-      timer.schedule(timerTask, Instant.now().plusMillis(100).toDate())
+      timer.schedule(timerTask, Date.from(Instant.now().plusMillis(100)))
     })
     runLatch.await()
 

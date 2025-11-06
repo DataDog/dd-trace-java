@@ -82,6 +82,7 @@ groovy-xml = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy" }
 
 ## Spock:
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
+spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
 
