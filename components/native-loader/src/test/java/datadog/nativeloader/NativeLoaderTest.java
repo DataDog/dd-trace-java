@@ -177,16 +177,15 @@ public class NativeLoaderTest {
   public void resolutionFailure_in_PathLocator() {
 	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
 	
-	NativeLoader loader = NativeLoader.builder().addListener(sharedListener).pathLocator(() -> {
-		
+	NativeLoader loader = NativeLoader.builder().addListener(sharedListener).pathLocator((comp, path) -> {
+	  throw new Exception("boom!");
 	}).build();
 	
-	TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
-	  expectResolveDynamicFailure("dummy");
+	sharedListener.expectResolveDynamicFailure("dummy");
 	
-	assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
+	assertThrows(LibraryLoadException.class, () -> loader.load("dummy"));
 	
-	scopedListener.assertDone();  
+	sharedListener.assertDone();  
   }
 
   @Test
