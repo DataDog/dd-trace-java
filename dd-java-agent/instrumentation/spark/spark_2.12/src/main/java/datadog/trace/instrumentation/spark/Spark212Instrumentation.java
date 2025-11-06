@@ -24,6 +24,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
       packageName + ".AbstractSparkPlanSerializer",
+      packageName + ".AbstractSparkPlanUtils",
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark212Listener",
@@ -109,7 +110,8 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
             JavaConverters.mapAsScalaMap(planSerializer.extractFormattedProduct(plan))
                 .toMap(Predef.$conforms());
 
-        SparkPlanInfo newPlanInfo = Spark212PlanUtils.upsertSparkPlanInfoMetadata(planInfo, meta);
+        SparkPlanInfo newPlanInfo =
+            new Spark212PlanUtils().upsertSparkPlanInfoMetadata(planInfo, meta);
         if (newPlanInfo != null) {
           planInfo = newPlanInfo;
         }

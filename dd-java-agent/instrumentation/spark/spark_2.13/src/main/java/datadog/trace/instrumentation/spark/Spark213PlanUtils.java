@@ -1,20 +1,11 @@
 package datadog.trace.instrumentation.spark;
 
-import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.spark.sql.execution.SparkPlanInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.collection.immutable.Map;
 
-public class Spark213PlanUtils {
-  private static final Logger log = LoggerFactory.getLogger(Spark213PlanUtils.class);
-
-  private static final MethodHandles methodLoader =
-      new MethodHandles(ClassLoader.getSystemClassLoader());
+public class Spark213PlanUtils extends AbstractSparkPlanUtils {
   private static final MethodHandle constructor =
       methodLoader.constructor(
           SparkPlanInfo.class,
@@ -35,36 +26,20 @@ public class Spark213PlanUtils {
           String.class,
           Option.class);
 
-  public static SparkPlanInfo upsertSparkPlanInfoMetadata(
-      SparkPlanInfo planInfo, scala.collection.immutable.Map<String, String> meta) {
-    // Attempt to create a new SparkPlanInfo with additional metadata replaced
-    // Since the fields are immutable we must instantiate a new SparkPlanInfo to do this
+  @Override
+  protected MethodHandle getConstructor() {
+    return constructor;
+  }
 
-    Object[] standardArgs =
-        new Object[] {
-          planInfo.nodeName(),
-          planInfo.simpleString(),
-          planInfo.children(),
-          meta,
-          planInfo.metrics()
-        };
+  @Override
+  protected MethodHandle getDatabricksConstructor() {
+    return databricksConstructor;
+  }
 
-    if (databricksConstructor != null) {
-      List<Object> databricksArgs = new ArrayList<>(Arrays.asList(standardArgs));
-      try {
-        databricksArgs.add(SparkPlanInfo.class.getMethod("estRowCount").invoke(planInfo));
-        databricksArgs.add(SparkPlanInfo.class.getMethod("rddScopeId").invoke(planInfo));
-        databricksArgs.add(SparkPlanInfo.class.getMethod("explainId").invoke(planInfo));
-      } catch (Throwable t) {
-        log.warn("Error obtaining Databricks-specific SparkPlanInfo args", t);
-      }
-
-      SparkPlanInfo newPlan = methodLoader.invoke(databricksConstructor, databricksArgs.toArray());
-      if (newPlan != null) {
-        return newPlan;
-      }
-    }
-
-    return null;
+  @Override
+  protected Object[] getStandardArgs(SparkPlanInfo planInfo, Map meta) {
+    return new Object[] {
+      planInfo.nodeName(), planInfo.simpleString(), planInfo.children(), meta, planInfo.metrics()
+    };
   }
 }
