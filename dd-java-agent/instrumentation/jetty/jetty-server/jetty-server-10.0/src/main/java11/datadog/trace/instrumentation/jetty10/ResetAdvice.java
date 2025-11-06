@@ -26,6 +26,8 @@ public class ResetAdvice {
         JettyDecorator.OnResponse.onResponse(span, channel);
         DECORATE.beforeFinish(context);
         span.finish();
+      } else {
+        DECORATE.beforeFinish(context);
       }
     }
   }

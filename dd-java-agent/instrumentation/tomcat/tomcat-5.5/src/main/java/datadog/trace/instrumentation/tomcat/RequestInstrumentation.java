@@ -94,9 +94,13 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
 
         final Context context = (Context) contextObj;
         final AgentSpan span = spanFromContext(context);
-        DECORATE.onResponse(span, resp);
-        DECORATE.beforeFinish(context);
-        span.finish();
+        if (span != null) {
+          DECORATE.onResponse(span, resp);
+          DECORATE.beforeFinish(context);
+          span.finish();
+        } else {
+          DECORATE.beforeFinish(context);
+        }
       }
     }
 

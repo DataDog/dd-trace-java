@@ -51,14 +51,26 @@ public class JettyCommitResponseHelper {
 
     Request req = connection.getRequest();
 
-    Object contextObj;
-    Context context;
-    AgentSpan span;
-    RequestContext requestContext;
-    if (req.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) != null
-        || !((contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE)) instanceof Context)
-        || (span = spanFromContext(context = (Context) contextObj)) == null
-        || (requestContext = span.getRequestContext()) == null) {
+    if (req.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) != null) {
+      state.partialResponse();
+      return false;
+    }
+
+    Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (!(contextObj instanceof Context)) {
+      state.partialResponse();
+      return false;
+    }
+
+    Context context = (Context) contextObj;
+    AgentSpan span = spanFromContext(context);
+    if (span == null) {
+      state.partialResponse();
+      return false;
+    }
+
+    RequestContext requestContext = span.getRequestContext();
+    if (requestContext == null) {
       state.partialResponse();
       return false;
     }

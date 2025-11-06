@@ -24,6 +24,8 @@ public class SpanClosingListener implements AfterServiceListener {
         DECORATE.onResponse(span, request.getResponse());
         DECORATE.beforeFinish(context);
         span.finish();
+      } else {
+        DECORATE.beforeFinish(context);
       }
     }
   }

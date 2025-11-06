@@ -3,10 +3,11 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTEXT_KEY;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTINUATION_KEY;
-import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -74,10 +75,9 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
           (AgentScope.Continuation)
               request.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
       if (null != continuation) {
-        // Activate the continuation to get the span, then attach it to current context
         AgentScope agentScope = continuation.activate();
         try {
-          return agentScope.span().attach();
+          return getCurrentContext().with(agentScope.span()).attach();
         } finally {
           agentScope.close();
         }
@@ -104,7 +104,7 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
       // server worker is created in request event so be prepared to finish the span here
       // (if there's an ACK response or error we might not get a separate response event)
       if ((null != httpResponse || null != error)
-          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_SPAN_KEY)) {
+          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_CONTEXT_KEY)) {
         DECORATE.beforeFinish(scope.context());
         scope.close();
         span.finish();

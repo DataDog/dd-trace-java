@@ -25,16 +25,21 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
 
     Context context = continuation.context();
     AgentSpan span = fromContext(context);
+    if (span != null) {
+      Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+      }
 
-    Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
+      DECORATE.onResponse(span, exchange);
+      DECORATE.beforeFinish(context);
+      continuation.cancel();
+      span.finish();
+      nextListener.proceed();
+    } else {
+      DECORATE.beforeFinish(context);
+      continuation.cancel();
+      nextListener.proceed();
     }
-
-    DECORATE.onResponse(span, exchange);
-    DECORATE.beforeFinish(context);
-    continuation.cancel();
-    span.finish();
-    nextListener.proceed();
   }
 }

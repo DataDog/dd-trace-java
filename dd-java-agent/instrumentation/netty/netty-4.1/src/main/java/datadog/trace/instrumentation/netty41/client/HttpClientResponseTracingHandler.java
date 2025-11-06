@@ -50,7 +50,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
         }
       } else {
         if (storedContext != null) {
-          ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(span));
+          ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext);
         }
       }
     }

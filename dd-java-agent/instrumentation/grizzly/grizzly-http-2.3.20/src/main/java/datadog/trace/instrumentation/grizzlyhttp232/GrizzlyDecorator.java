@@ -154,6 +154,8 @@ public class GrizzlyDecorator
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(context);
       span.finish();
+    } else if (context != null) {
+      DECORATE.beforeFinish(context);
     }
     ctx.getAttributes().removeAttribute(DD_CONTEXT_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);

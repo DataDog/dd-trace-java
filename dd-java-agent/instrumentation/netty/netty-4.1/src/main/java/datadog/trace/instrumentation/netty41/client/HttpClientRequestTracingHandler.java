@@ -79,7 +79,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan("netty", NETTY_CLIENT_REQUEST);
-    final Context spanContext = getCurrentContext().with(span);
+    final Context context = getCurrentContext().with(span);
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
@@ -94,7 +94,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         DECORATE.injectContext(current(), request.headers(), SETTER);
       }
 
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(spanContext);
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(context);
 
       try {
         ctx.write(msg, prm);
