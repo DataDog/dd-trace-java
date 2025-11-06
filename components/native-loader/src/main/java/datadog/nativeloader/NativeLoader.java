@@ -331,44 +331,43 @@ public final class NativeLoader {
       throw ex;
     }
 
+    // For listener purposes - at this point resolution completed successfully
+    // Although, the resolveDynamic method can still fail if we need a temp file and cannot create it
     allListeners.onResolveDynamic(platformSpec, optionalComponent, libName, isPreloaded, url);
-    return toLibFile(this.tempDir, platformSpec, optionalComponent, libName, url, allListeners);
-  }
-
-  private static LibFile toLibFile(
-      Path tempDir,
-      PlatformSpec platformSpec,
-      String optionalComponent,
-      String libName,
-      URL url,
-      SafeLibraryLoadingListener allListeners)
-      throws LibraryLoadException {
-    if (url.getProtocol().equals("file")) {
+    
+    if (url.getProtocol().equals("file")) {      
       return LibFile.fromFile(
-          platformSpec, optionalComponent, libName, new File(url.getPath()), allListeners);
+	    platformSpec, optionalComponent, libName, new File(url.getPath()), allListeners);
     } else {
-      String libExt = PathUtils.dynamicLibExtension(platformSpec);
-
-      Path tempFile = null;
+      Path tempFile;
       try {
-        tempFile = TempFileHelper.createTempFile(tempDir, libName, libExt);
-
-        try (InputStream in = url.openStream()) {
-          Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
-        }
-
-        allListeners.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
-
-        return LibFile.fromTempFile(
-            platformSpec, optionalComponent, libName, tempFile.toFile(), allListeners);
-
-      } catch (Throwable t) {
-        allListeners.onTempFileCreationFailure(
-            platformSpec, optionalComponent, libName, tempDir, libExt, tempFile, t);
-
+    	tempFile = createTempFile(this.tempDir, platformSpec, libName, url);
+    	allListeners.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
+      
+    	return LibFile.fromTempFile(platformSpec, optionalComponent, libName, tempFile.toFile(), allListeners);
+      } catch ( Throwable t ) {
+    	allListeners.onTempFileCreationFailure(platformSpec, optionalComponent, libName, this.tempDir, libName, null, t);
+      
         throw new LibraryLoadException(libName, t);
       }
     }
+  }
+
+  private static Path createTempFile(
+      Path tempDir,
+      PlatformSpec platformSpec,
+      String libName,
+      URL url)
+      throws IOException
+  {
+    String libExt = PathUtils.dynamicLibExtension(platformSpec);
+
+    Path tempFile = TempFileHelper.createTempFile(tempDir, libName, libExt);
+    try (InputStream in = url.openStream()) {
+      Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+    }
+    
+    return tempFile;
   }
 
   static boolean delete(File tempFile) {

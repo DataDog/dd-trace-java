@@ -376,9 +376,15 @@ public class NativeLoaderTest {
       try (URLClassLoader classLoader = createClassLoader(jar)) {
         NativeLoader loader =
             NativeLoader.builder().fromClassLoader(classLoader).tempDir(noWriteDir).build();
+        
+        TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
+            expectResolveDynamic("dummy").
+            expectTempFileCreationFailure("dummy");
 
         // unable to resolve to a File because tempDir isn't writable
-        assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+        assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy", scopedListener));
+        
+        scopedListener.assertDone();
       } finally {
         deleteHelper(noWriteDir);
       }

@@ -59,7 +59,7 @@ public interface LibraryLoadingListener {
       Path optionalTempFile,
       Throwable optionalCause) {}
 
-  /** Called when a temp is cleaned up */
+  /** Called when a temp file is cleaned up */
   default void onTempFileCleanup(
       PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}
 }
