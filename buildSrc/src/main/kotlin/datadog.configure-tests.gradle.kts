@@ -7,7 +7,9 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
-val isTestingInstrumentation = project.findProperty("testingInstrumentation") as? Boolean ?: false
+val isTestingInstrumentation = providers.provider { 
+  project.findProperty("testingInstrumentation") as? Boolean ?: false 
+}
 
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
@@ -18,8 +20,8 @@ val forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", 
   maxParallelUsages.set(forkedTestsMemoryLimit)
 }
 
-extensions.findByType(TestingExtension::class.java)?.apply {
-  suites.withType(JvmTestSuite::class.java).configureEach {
+extensions.findByType<TestingExtension>()?.apply {
+  suites.withType<JvmTestSuite>().configureEach {
     // Use JUnit 5 to run tests
     useJUnitJupiter()
   }
@@ -39,7 +41,7 @@ tasks.withType<Test>().configureEach {
   enabled = activePartitionProvider.get()
   
   // Disable all tests if skipTests property was specified
-  onlyIf { !skipTestsProvider.isPresent }
+  onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
   // Enable force rerun of tests with -Prerun.tests.${project.name}
   outputs.upToDateWhen {
@@ -47,7 +49,7 @@ tasks.withType<Test>().configureEach {
   }
 
   // Avoid executing classes used to test testing frameworks instrumentation
-  if (isTestingInstrumentation) {
+  if (isTestingInstrumentation.get()) {
     exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
     exclude("**/TestDisableTestTrace*")
     exclude("**/TestError*")
@@ -72,7 +74,7 @@ tasks.withType<Test>().configureEach {
     forkEvery = 1
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
-    onlyIf { !skipForkedTestsProvider.isPresent }
+    onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }
   } else {
     exclude("**/*ForkedTest*")
   }
