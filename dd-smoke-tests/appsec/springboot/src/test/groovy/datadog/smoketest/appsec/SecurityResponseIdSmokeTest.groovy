@@ -20,7 +20,7 @@ import java.util.regex.Pattern
  * - security_response_id in trace matches security_response_id in HTTP response body
  * - security_response_id is NOT present in traces when request is not blocked
  */
-class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
+class SecurityResponseIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
   @Shared
   String buildDir = new File(System.getProperty("datadog.smoketest.builddir")).absolutePath
@@ -47,7 +47,7 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
             parameters: [
               inputs: [[address: 'server.request.headers.no_cookies']],
               key_path: ['user-agent'],
-              regex: 'BlockIdTestAgent.*'
+              regex: 'SecurityResponseIdTestAgent.*'
             ],
             operator: 'match_regex'
           ]
@@ -127,7 +127,7 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     def client = OkHttpUtils.clientBuilder().build()
     def request = new Request.Builder()
       .url(url)
-      .header('User-Agent', 'BlockIdTestAgent/1.0')
+      .header('User-Agent', 'SecurityResponseIdTestAgent/1.0')
       .header('Accept', 'application/json')
       .get()
       .build()
@@ -180,7 +180,7 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     def client = OkHttpUtils.clientBuilder().build()
     def request = new Request.Builder()
       .url(url)
-      .header('User-Agent', 'BlockIdTestAgent/1.0')
+      .header('User-Agent', 'SecurityResponseIdTestAgent/1.0')
       .header('Accept', 'text/html')
       .get()
       .build()
@@ -267,7 +267,7 @@ class BlockIdSmokeTest extends AbstractAppSecServerSmokeTest {
     def client = OkHttpUtils.clientBuilder().build()
     def request = new Request.Builder()
       .url(url)
-      .header('User-Agent', 'BlockIdTestAgent/1.0')
+      .header('User-Agent', 'SecurityResponseIdTestAgent/1.0')
       .header('Accept', 'application/json')
       .get()
       .build()

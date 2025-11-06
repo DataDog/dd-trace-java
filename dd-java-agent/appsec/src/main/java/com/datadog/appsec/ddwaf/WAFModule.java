@@ -590,7 +590,8 @@ public class WAFModule implements AppSecModule {
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData, String blockId) {
+  private Collection<AppSecEvent> buildEvents(
+      Waf.ResultWithData actionWithData, String securityResponseId) {
     if (actionWithData.data == null) {
       log.debug(SEND_TELEMETRY, "WAF result data is null");
       return Collections.emptyList();
@@ -608,14 +609,14 @@ public class WAFModule implements AppSecModule {
 
     if (listResults != null && !listResults.isEmpty()) {
       return listResults.stream()
-          .map(wafResult -> buildEvent(wafResult, blockId))
+          .map(wafResult -> buildEvent(wafResult, securityResponseId))
           .filter(Objects::nonNull)
           .collect(Collectors.toList());
     }
     return emptyList();
   }
 
-  private AppSecEvent buildEvent(WAFResultData wafResult, String blockId) {
+  private AppSecEvent buildEvent(WAFResultData wafResult, String securityResponseId) {
 
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
@@ -633,7 +634,7 @@ public class WAFModule implements AppSecModule {
         .withRuleMatches(wafResult.rule_matches)
         .withSpanId(spanId)
         .withStackId(wafResult.stack_id)
-        .withSecurityResponseId(blockId)
+        .withSecurityResponseId(securityResponseId)
         .build();
   }
 

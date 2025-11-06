@@ -2121,11 +2121,11 @@ class WAFModuleSpecification extends DDSpecification {
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == 403
       assert it.blockingContentType == BlockingContentType.JSON
-      // blockId should be extracted from libddwaf (or null if not present)
+      // securityResponseId should be extracted from libddwaf (or null if not present)
       // With libddwaf v18.0.0, block_id is automatically generated
       // We just verify the field is accessible
-      def blockId = it.securityResponseId
-      assert blockId == null || blockId.matches('[0-9a-f-]{36}')
+      def securityResponseId = it.securityResponseId
+      assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
     }
   }
 
@@ -2191,18 +2191,18 @@ class WAFModuleSpecification extends DDSpecification {
     flow1.blocking
     flow2.blocking
 
-    and: 'both have RequestBlockingAction with accessible blockId'
+    and: 'both have RequestBlockingAction with accessible securityResponseId'
     flow1.action instanceof Flow.Action.RequestBlockingAction
     flow2.action instanceof Flow.Action.RequestBlockingAction
 
-    and: 'if both blockIds are present, they should be different'
-    def blockId1 = (flow1.action as Flow.Action.RequestBlockingAction).securityResponseId
-    def blockId2 = (flow2.action as Flow.Action.RequestBlockingAction).securityResponseId
-    // If libddwaf generates blockIds, they should be unique
-    if (blockId1 != null && blockId2 != null) {
-      assert blockId1 != blockId2
-      assert blockId1.matches('[0-9a-f-]{36}')
-      assert blockId2.matches('[0-9a-f-]{36}')
+    and: 'if both securityResponseIds are present, they should be different'
+    def securityResponseId1 = (flow1.action as Flow.Action.RequestBlockingAction).securityResponseId
+    def securityResponseId2 = (flow2.action as Flow.Action.RequestBlockingAction).securityResponseId
+    // If libddwaf generates securityResponseIds, they should be unique
+    if (securityResponseId1 != null && securityResponseId2 != null) {
+      assert securityResponseId1 != securityResponseId2
+      assert securityResponseId1.matches('[0-9a-f-]{36}')
+      assert securityResponseId2.matches('[0-9a-f-]{36}')
     }
   }
 
@@ -2222,7 +2222,7 @@ class WAFModuleSpecification extends DDSpecification {
       ],
       rules: [
         [
-          id: 'test-null-blockid',
+          id: 'test-null-securityResponseId',
           name: 'Test null block_id handling',
           tags: [
             type: 'test',
@@ -2237,7 +2237,7 @@ class WAFModuleSpecification extends DDSpecification {
                     key_path: ['user-agent']
                   ]
                 ],
-                regex: '^NullBlockId'
+                regex: '^NullSecurityResponseId'
               ],
               operator: 'match_regex'
             ]
@@ -2251,7 +2251,7 @@ class WAFModuleSpecification extends DDSpecification {
     initialRuleAddWithMap(rulesConfig)
     wafModule.applyConfig(reconf)
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-    new CaseInsensitiveMap<List<String>>(['user-agent': 'NullBlockIdTest']))
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'NullSecurityResponseIdTest']))
     def flow = new ChangeableFlow()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
@@ -2262,9 +2262,9 @@ class WAFModuleSpecification extends DDSpecification {
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == 418
       assert it.blockingContentType == BlockingContentType.HTML
-      // blockId may be null or a valid UUID - both are acceptable
-      def blockId = it.securityResponseId
-      assert blockId == null || blockId.matches('[0-9a-f-]{36}')
+      // securityResponseId may be null or a valid UUID - both are acceptable
+      def securityResponseId = it.securityResponseId
+      assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
     }
   }
 
@@ -2299,7 +2299,7 @@ class WAFModuleSpecification extends DDSpecification {
                     key_path: ['user-agent']
                   ]
                 ],
-                regex: '^RedirectWithBlockId'
+                regex: '^RedirectWithSecurityResponseId'
               ],
               operator: 'match_regex'
             ]
@@ -2313,7 +2313,7 @@ class WAFModuleSpecification extends DDSpecification {
     initialRuleAddWithMap(rulesConfig)
     wafModule.applyConfig(reconf)
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-    new CaseInsensitiveMap<List<String>>(['user-agent': 'RedirectWithBlockId']))
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'RedirectWithSecurityResponseId']))
     def flow = new ChangeableFlow()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
@@ -2339,9 +2339,9 @@ class WAFModuleSpecification extends DDSpecification {
       def location = it.extraHeaders['Location']
       assert location.startsWith('https://example.com/blocked')
 
-      // blockId should be accessible (may be null or a valid UUID)
-      def blockId = it.securityResponseId
-      assert blockId == null || blockId.matches('[0-9a-f-]{36}')
+      // securityResponseId should be accessible (may be null or a valid UUID)
+      def securityResponseId = it.securityResponseId
+      assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
     }
   }
 

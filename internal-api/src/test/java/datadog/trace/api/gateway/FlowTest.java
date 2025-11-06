@@ -15,21 +15,21 @@ import org.junit.jupiter.api.Test;
 public class FlowTest {
 
   @Test
-  public void testRequestBlockingActionWithBlockId() {
-    String blockId = "12345678-1234-4234-8234-123456789abc";
+  public void testRequestBlockingActionWithSecurityResponseId() {
+    String securityResponseId = "12345678-1234-4234-8234-123456789abc";
     Flow.Action.RequestBlockingAction rba =
         new Flow.Action.RequestBlockingAction(
-            403, BlockingContentType.JSON, Collections.emptyMap(), blockId);
+            403, BlockingContentType.JSON, Collections.emptyMap(), securityResponseId);
 
     assertTrue(rba.isBlocking());
     assertEquals(403, rba.getStatusCode());
     assertEquals(BlockingContentType.JSON, rba.getBlockingContentType());
-    assertEquals(blockId, rba.getSecurityResponseId());
+    assertEquals(securityResponseId, rba.getSecurityResponseId());
     assertTrue(rba.getExtraHeaders().isEmpty());
   }
 
   @Test
-  public void testRequestBlockingActionWithNullBlockId() {
+  public void testRequestBlockingActionWithNullSecurityResponseId() {
     Flow.Action.RequestBlockingAction rba =
         new Flow.Action.RequestBlockingAction(
             403, BlockingContentType.HTML, Collections.emptyMap(), null);
@@ -41,7 +41,7 @@ public class FlowTest {
   }
 
   @Test
-  public void testRequestBlockingActionWithoutBlockId() {
+  public void testRequestBlockingActionWithoutSecurityResponseId() {
     Flow.Action.RequestBlockingAction rba =
         new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
 
@@ -52,41 +52,43 @@ public class FlowTest {
   }
 
   @Test
-  public void testRequestBlockingActionWithExtraHeadersAndBlockId() {
+  public void testRequestBlockingActionWithExtraHeadersAndSecurityResponseId() {
     Map<String, String> headers = new HashMap<>();
     headers.put("X-Custom-Header", "custom-value");
     headers.put("Content-Language", "en-US");
-    String blockId = "87654321-4321-4321-9234-987654321abc";
+    String securityResponseId = "87654321-4321-4321-9234-987654321abc";
 
     Flow.Action.RequestBlockingAction rba =
-        new Flow.Action.RequestBlockingAction(429, BlockingContentType.JSON, headers, blockId);
+        new Flow.Action.RequestBlockingAction(
+            429, BlockingContentType.JSON, headers, securityResponseId);
 
     assertTrue(rba.isBlocking());
     assertEquals(429, rba.getStatusCode());
     assertEquals(BlockingContentType.JSON, rba.getBlockingContentType());
-    assertEquals(blockId, rba.getSecurityResponseId());
+    assertEquals(securityResponseId, rba.getSecurityResponseId());
     assertEquals(2, rba.getExtraHeaders().size());
     assertEquals("custom-value", rba.getExtraHeaders().get("X-Custom-Header"));
     assertEquals("en-US", rba.getExtraHeaders().get("Content-Language"));
   }
 
   @Test
-  public void testForRedirectWithBlockId() {
-    String blockId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  public void testForRedirectWithSecurityResponseId() {
+    String securityResponseId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     Flow.Action.RequestBlockingAction rba =
-        Flow.Action.RequestBlockingAction.forRedirect(303, "https://example.com/blocked", blockId);
+        Flow.Action.RequestBlockingAction.forRedirect(
+            303, "https://example.com/blocked", securityResponseId);
 
     assertTrue(rba.isBlocking());
     assertEquals(303, rba.getStatusCode());
     assertEquals(BlockingContentType.NONE, rba.getBlockingContentType());
-    assertEquals(blockId, rba.getSecurityResponseId());
+    assertEquals(securityResponseId, rba.getSecurityResponseId());
     assertNotNull(rba.getExtraHeaders());
     assertEquals(1, rba.getExtraHeaders().size());
     assertEquals("https://example.com/blocked", rba.getExtraHeaders().get("Location"));
   }
 
   @Test
-  public void testForRedirectWithoutBlockId() {
+  public void testForRedirectWithoutSecurityResponseId() {
     Flow.Action.RequestBlockingAction rba =
         Flow.Action.RequestBlockingAction.forRedirect(302, "https://example.com/redirect");
 
@@ -98,7 +100,7 @@ public class FlowTest {
   }
 
   @Test
-  public void testForRedirectWithNullBlockId() {
+  public void testForRedirectWithNullSecurityResponseId() {
     Flow.Action.RequestBlockingAction rba =
         Flow.Action.RequestBlockingAction.forRedirect(301, "https://example.com/moved", null);
 
@@ -110,7 +112,7 @@ public class FlowTest {
   }
 
   @Test
-  public void testRequestBlockingActionWithEmptyBlockId() {
+  public void testRequestBlockingActionWithEmptySecurityResponseId() {
     Flow.Action.RequestBlockingAction rba =
         new Flow.Action.RequestBlockingAction(
             403, BlockingContentType.JSON, Collections.emptyMap(), "");
@@ -121,16 +123,16 @@ public class FlowTest {
   }
 
   @Test
-  public void testRequestBlockingActionWithLongBlockId() {
-    // Test with an unusually long blockId to ensure robustness
-    String longBlockId =
+  public void testRequestBlockingActionWithLongSecurityResponseId() {
+    // Test with an unusually long securityResponseId to ensure robustness
+    String longSecurityResponseId =
         "12345678-1234-4234-8234-123456789abc-extra-long-suffix-that-might-not-be-standard";
     Flow.Action.RequestBlockingAction rba =
         new Flow.Action.RequestBlockingAction(
-            403, BlockingContentType.HTML, Collections.emptyMap(), longBlockId);
+            403, BlockingContentType.HTML, Collections.emptyMap(), longSecurityResponseId);
 
     assertTrue(rba.isBlocking());
-    assertEquals(longBlockId, rba.getSecurityResponseId());
+    assertEquals(longSecurityResponseId, rba.getSecurityResponseId());
   }
 
   @Test

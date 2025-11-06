@@ -64,7 +64,7 @@ public class TomcatBlockingHelper {
       int statusCode,
       BlockingContentType templateType,
       Map<String, String> extraHeaders,
-      String blockId) {
+      String securityResponseId) {
     if (GET_OUTPUT_STREAM == null) {
       return false;
     }
@@ -83,9 +83,9 @@ public class TomcatBlockingHelper {
 
     try {
       try {
-        tryWriteWithOutputStream(request, resp, templateType, blockId);
+        tryWriteWithOutputStream(request, resp, templateType, securityResponseId);
       } catch (IllegalStateException ise) {
-        tryWriteWithWriter(request, resp, templateType, blockId);
+        tryWriteWithWriter(request, resp, templateType, securityResponseId);
       }
       segment.effectivelyBlocked();
     } catch (Throwable e) {
@@ -95,13 +95,13 @@ public class TomcatBlockingHelper {
   }
 
   private static void tryWriteWithOutputStream(
-      Request request, Response resp, BlockingContentType templateType, String blockId)
+      Request request, Response resp, BlockingContentType templateType, String securityResponseId)
       throws Throwable {
     OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(resp);
     if (templateType != BlockingContentType.NONE) {
       TemplateType type =
           BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
-      byte[] template = BlockingActionHelper.getTemplate(type, blockId);
+      byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
 
       resp.setHeader("Content-length", Integer.toString(template.length));
       resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
@@ -111,13 +111,13 @@ public class TomcatBlockingHelper {
   }
 
   private static void tryWriteWithWriter(
-      Request request, Response resp, BlockingContentType templateType, String blockId)
+      Request request, Response resp, BlockingContentType templateType, String securityResponseId)
       throws IOException {
     PrintWriter writer = resp.getWriter();
     if (templateType != BlockingContentType.NONE) {
       TemplateType type =
           BlockingActionHelper.determineTemplateType(templateType, request.getHeader("Accept"));
-      byte[] template = BlockingActionHelper.getTemplate(type, blockId);
+      byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
       String templateStr = new String(template, StandardCharsets.UTF_8);
 
       resp.setHeader("Content-length", Integer.toString(template.length));

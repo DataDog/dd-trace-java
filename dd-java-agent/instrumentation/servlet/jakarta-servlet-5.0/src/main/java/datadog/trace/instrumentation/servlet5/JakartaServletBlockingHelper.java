@@ -33,7 +33,7 @@ public class JakartaServletBlockingHelper {
       int statusCode_,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      String blockId) {
+      String securityResponseId) {
     int statusCode = BlockingActionHelper.getHttpCode(statusCode_);
     if (!start(resp, statusCode)) {
       return;
@@ -48,7 +48,7 @@ public class JakartaServletBlockingHelper {
       String acceptHeader = httpServletRequest.getHeader("Accept");
       BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-      template = BlockingActionHelper.getTemplate(type, blockId);
+      template = BlockingActionHelper.getTemplate(type, securityResponseId);
       String contentType = BlockingActionHelper.getContentType(type);
 
       resp.setHeader("Content-length", Integer.toString(template.length));

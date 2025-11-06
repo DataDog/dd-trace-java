@@ -23,7 +23,7 @@ public class BlockingActionHelper {
   private static final int DEFAULT_HTTP_CODE = 403;
   private static final int MAX_ALLOWED_TEMPLATE_SIZE = 1024 * 500; // 500 kiB
 
-  // Pattern for removing security_response_id from HTML template when blockId is null/empty
+  // Pattern for removing security_response_id from HTML template when is null/empty
   private static final Pattern HTML_SECURITY_RESPONSE_ID_PATTERN =
       Pattern.compile("<p[^>]*>Security Response ID: \\[security_response_id]</p>\\s*");
 
@@ -125,7 +125,7 @@ public class BlockingActionHelper {
     return getTemplate(type, null);
   }
 
-  public static byte[] getTemplate(TemplateType type, String blockId) {
+  public static byte[] getTemplate(TemplateType type, String securityResponseId) {
     byte[] template;
     if (type == TemplateType.JSON) {
       template = TEMPLATE_JSON;
@@ -137,8 +137,9 @@ public class BlockingActionHelper {
 
     String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
 
-    if (blockId == null || blockId.isEmpty()) {
-      // Remove the security_response_id field/placeholder entirely when blockId is not present
+    if (securityResponseId == null || securityResponseId.isEmpty()) {
+      // Remove the security_response_id field/placeholder entirely when securityResponseId is not
+      // present
       if (type == TemplateType.JSON) {
         // Remove the entire security_response_id field from JSON:
         // ,"security_response_id":"[security_response_id]"
@@ -156,7 +157,7 @@ public class BlockingActionHelper {
     }
 
     // Perform placeholder replacement for [security_response_id]
-    String replacedTemplate = templateString.replace("[security_response_id]", blockId);
+    String replacedTemplate = templateString.replace("[security_response_id]", securityResponseId);
     return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }
 

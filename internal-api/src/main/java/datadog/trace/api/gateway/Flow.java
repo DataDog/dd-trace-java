@@ -64,12 +64,12 @@ public interface Flow<T> {
       }
 
       public static RequestBlockingAction forRedirect(
-          int statusCode, String location, String blockId) {
+          int statusCode, String location, String securityResponseId) {
         return new RequestBlockingAction(
             statusCode,
             BlockingContentType.NONE,
             Collections.singletonMap("Location", location),
-            blockId);
+            securityResponseId);
       }
 
       @Override
