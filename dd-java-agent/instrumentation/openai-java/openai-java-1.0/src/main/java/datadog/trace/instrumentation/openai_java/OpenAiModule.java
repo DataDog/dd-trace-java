@@ -19,6 +19,8 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
         packageName + ".ResponseWrappers",
         packageName + ".ResponseWrappers$1",
         packageName + ".ResponseWrappers$1$1",
+        packageName + ".ResponseWrappers$2",
+        packageName + ".ResponseWrappers$DDHttpResponseFor",
     };
   }
 

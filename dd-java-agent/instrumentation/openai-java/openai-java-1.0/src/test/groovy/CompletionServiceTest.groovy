@@ -71,7 +71,7 @@ class CompletionServiceTest extends OpenAiTest {
       openAiClient.async().completions().createStreaming(completionCreateParams())
     }
 
-    response.onCompleteFuture().get()
+    response.onCompleteFuture().get() //TODO
 
     expect:
     assertCompletionTrace()

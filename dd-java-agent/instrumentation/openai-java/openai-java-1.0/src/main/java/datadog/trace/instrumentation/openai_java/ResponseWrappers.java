@@ -16,16 +16,54 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE
 
 public class ResponseWrappers {
 
+  static abstract class DDHttpResponseFor<T> implements HttpResponseFor<T> {
+    private final HttpResponseFor<T> delegate;
+
+    DDHttpResponseFor(HttpResponseFor<T> delegate) {
+      this.delegate = delegate;
+    }
+
+    abstract T afterParse(T resp);
+
+    @Override
+    public T parse() {
+      return afterParse(delegate.parse());
+    }
+
+    @Override
+    public int statusCode() {
+      return delegate.statusCode();
+    }
+
+    @NotNull
+    @Override
+    public Headers headers() {
+      return delegate.headers();
+    }
+
+    @NotNull
+    @Override
+    public InputStream body() {
+      return delegate.body();
+    }
+
+    @Override
+    public void close() {
+      delegate.close();
+    }
+  }
+
   public static HttpResponseFor<StreamResponse<Completion>> wrap(HttpResponseFor<StreamResponse<Completion>> response, final AgentSpan span) {
-    return new HttpResponseFor<StreamResponse<Completion>>() {
+    return new DDHttpResponseFor<StreamResponse<Completion>>(response) {
       @Override
-      public StreamResponse<Completion> parse() {
+      public StreamResponse<Completion> afterParse(StreamResponse<Completion> streamResponse) {
         return new StreamResponse<Completion>() {
           @NotNull
           @Override
           public Stream<Completion> stream() {
             final List<Completion> completions = new ArrayList<>();
-            return response.parse().stream()
+            return streamResponse
+                .stream()
                 .peek(completions::add)
                 .onClose(() -> {
                   DECORATE.beforeFinish(span);
@@ -36,31 +74,9 @@ public class ResponseWrappers {
 
           @Override
           public void close() {
-            response.parse().close();
+            streamResponse.close();
           }
         };
-      }
-
-      @Override
-      public int statusCode() {
-        return response.statusCode();
-      }
-
-      @NotNull
-      @Override
-      public Headers headers() {
-        return response.headers();
-      }
-
-      @NotNull
-      @Override
-      public InputStream body() {
-        return response.body();
-      }
-
-      @Override
-      public void close() {
-        response.close();
       }
     };
   }
@@ -68,15 +84,17 @@ public class ResponseWrappers {
   public static CompletableFuture<HttpResponseFor<Completion>> wrap(CompletableFuture<HttpResponseFor<Completion>> future, AgentSpan span) {
     return future
         .whenComplete((r, t) -> {
+          DECORATE.beforeFinish(span);
           span.finish();
         })
-        .thenApply(response -> {
-          if (response != null) {
-            Completion completion = response.parse(); // TODO return HttpResponseFor
-            DECORATE.decorate(span, completion);
+        .thenApply(response ->
+          new DDHttpResponseFor<Completion>(response) {
+            @Override
+            public Completion afterParse(Completion completion) {
+              DECORATE.decorate(span, completion);
+              return completion;
+            }
           }
-          DECORATE.beforeFinish(span);
-          return response;
-        });
+        );
   }
 }
