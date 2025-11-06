@@ -199,13 +199,9 @@ class ConfigTest extends DDSpecification {
   private static final OTEL_METRIC_EXPORT_INTERVAL_ENV = "OTEL_METRIC_EXPORT_INTERVAL"
   private static final OTEL_METRIC_EXPORT_INTERVAL_PROP = "otel.metric.export.interval"
 
-  private static final OTEL_EXPORTER_OTLP_ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_ENDPOINT"
   private static final OTEL_EXPORTER_OTLP_ENDPOINT_PROP = "otel.exporter.otlp.endpoint"
-  private static final OTEL_EXPORTER_OTLP_HEADERS_ENV = "OTEL_EXPORTER_OTLP_HEADERS"
   private static final OTEL_EXPORTER_OTLP_HEADERS_PROP = "otel.exporter.otlp.headers"
-  private static final OTEL_EXPORTER_OTLP_PROTOCOL_ENV = "OTEL_EXPORTER_OTLP_PROTOCOL"
   private static final OTEL_EXPORTER_OTLP_PROTOCOL_PROP = "otel.exporter.otlp.protocol"
-  private static final OTEL_EXPORTER_OTLP_TIMEOUT_ENV = "OTEL_EXPORTER_OTLP_TIMEOUT"
   private static final OTEL_EXPORTER_OTLP_TIMEOUT_PROP = "otel.exporter.otlp.timeout"
 
   private static final OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
@@ -718,7 +714,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_PROP, "http://localhost:4333/v1/metrics")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS_PROP, "api-key=key,other-config-value=value")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_PROP, "http/protobuf")
-    System.setProperty(OTEL_EXPORTER_OTLP_TIMEOUT_PROP, "5000")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_PROP, "5000")
     System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_PROP, "cumulative")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
 
