@@ -107,7 +107,13 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** @return Class names of helpers to inject into the user's classloader */
+  /** @return Class names of helpers to inject into the user's classloader.
+   *
+   * <blockquote>
+   * <p><b>NOTE:</b> The order matters. If the muzzle check fails with a NoClassDefFoundError (as seen in build/reports/muzzle-*.txt),
+   * it may be because some helper classes depend on each other. In this case, the order must be adjusted accordingly.</p>
+   * </blockquote>
+   * */
   public String[] helperClassNames() {
     return NO_HELPERS;
   }

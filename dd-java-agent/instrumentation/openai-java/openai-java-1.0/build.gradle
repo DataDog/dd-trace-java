@@ -6,7 +6,7 @@ muzzle {
     group = "com.openai"
     module = "openai-java"
     versions = "[1.0.0,)"
-    //TODO assertInverse = true
+    // assertInverse = true // TODO exclude <1.0.0, now it passes the muzzle check for >=0.34.0 but the tests will fail
   }
 }
 

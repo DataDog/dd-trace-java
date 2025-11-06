@@ -17,10 +17,10 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
     return new String[] {
         packageName + ".OpenAiDecorator",
         packageName + ".ResponseWrappers",
+        packageName + ".ResponseWrappers$DDHttpResponseFor",
         packageName + ".ResponseWrappers$1",
         packageName + ".ResponseWrappers$1$1",
         packageName + ".ResponseWrappers$2",
-        packageName + ".ResponseWrappers$DDHttpResponseFor",
     };
   }
 
