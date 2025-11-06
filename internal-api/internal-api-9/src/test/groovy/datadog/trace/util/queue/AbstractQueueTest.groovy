@@ -1,13 +1,10 @@
 package datadog.trace.util.queue
 
-import static java.util.concurrent.TimeUnit.NANOSECONDS
 
 import datadog.trace.test.util.DDSpecification
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
-abstract class AbstractQueueTest<T extends AbstractQueue<Integer>> extends DDSpecification {
+abstract class AbstractQueueTest<T extends BaseQueue<Integer>> extends DDSpecification {
   abstract T createQueue(int capacity)
   protected T queue = createQueue(8)
 
@@ -103,7 +100,7 @@ abstract class AbstractQueueTest<T extends AbstractQueue<Integer>> extends DDSpe
 
   def "remainingCapacity should reflect current occupancy"() {
     given:
-    def q = new MpscArrayQueue<Integer>(4)
+    def q = createQueue(4)
     q.offer(1)
     q.offer(2)
 
@@ -115,49 +112,5 @@ abstract class AbstractQueueTest<T extends AbstractQueue<Integer>> extends DDSpe
 
     then:
     q.remainingCapacity() == 3
-  }
-
-
-  def "poll with timeout returns null if no element becomes available"() {
-    when:
-    def start = System.nanoTime()
-    def value = queue.poll(200, TimeUnit.MILLISECONDS)
-    def elapsedMs = NANOSECONDS.toMillis(System.nanoTime() - start)
-
-    then:
-    value == null
-    elapsedMs >= 200  // waited approximately the timeout
-  }
-
-  def "poll with zero timeout behaves like immediate poll"() {
-    expect:
-    queue.poll(0, TimeUnit.MILLISECONDS) == null
-
-    when:
-    queue.offer(99)
-
-    then:
-    queue.poll(0, TimeUnit.MILLISECONDS) == 99
-  }
-
-  def "poll throws InterruptedException if interrupted"() {
-    given:
-    def thrown = new AtomicBoolean()
-    def thread = Thread.start {
-      try {
-        queue.poll(500, TimeUnit.MILLISECONDS)
-      } catch (InterruptedException ie) {
-        thrown.set(true)
-        Thread.currentThread().interrupt()
-      }
-    }
-
-    when:
-    Thread.sleep(50)
-    thread.interrupt()
-    thread.join()
-
-    then:
-    thrown.get()
   }
 }
