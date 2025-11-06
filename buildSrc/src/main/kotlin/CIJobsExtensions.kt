@@ -13,10 +13,9 @@ internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project,
   
   while (queue.isNotEmpty()) {
     val t = queue.removeAt(0)
-    if (visited.contains(t)) {
+    if (!visited.add(t)) {
       continue
     }
-    visited.add(t)
     
     val affectedTasks = affectedProjects[t.project]
     if (affectedTasks != null) {
@@ -50,7 +49,7 @@ private fun Project.createRootTask(
       if (
         activePartition &&
         includePrefixes.any { subproject.path.startsWith(it) } &&
-        !excludePrefixes.any { subproject.path.startsWith(it) }
+        excludePrefixes.none { subproject.path.startsWith(it) }
       ) {
         val testTask = subproject.tasks.findByName(subProjTaskName)
         var isAffected = true
