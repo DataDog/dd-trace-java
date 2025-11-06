@@ -5,6 +5,8 @@ import spock.lang.Shared
 import datadog.trace.api.ConfigCollector
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.config.inversion.ConfigHelper
+
 
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING
 
@@ -12,6 +14,17 @@ class ConfigProviderTest extends DDSpecification {
 
   @Shared
   ConfigProvider configProvider = ConfigProvider.withoutCollector()
+
+  def strictness
+
+  def setup(){
+    strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
+  def cleanup() {
+    ConfigHelper.get().setConfigInversionStrict(strictness)
+  }
 
   def "properties take precedence over env vars for ordered map"() {
     setup:

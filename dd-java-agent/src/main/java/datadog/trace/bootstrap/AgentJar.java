@@ -68,7 +68,7 @@ public final class AgentJar {
   private static void printUsage() {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
-    System.out.println("  uploadCrash -c configFile crashFile ...");
+    System.out.println("  uploadCrash -c configFile crashFile");
     System.out.println("  scanDependencies <path> ...");
     System.out.println("  checkProfilerEnv [temp]");
     System.out.println("  [-li | --list-integrations]");
@@ -108,16 +108,16 @@ public final class AgentJar {
           "Arguments mismatch. At least one crash report should be provided");
     }
 
-    int start = 1;
+    int crashFilePos = 1;
     String configFile = null;
     if ("-c".equals(args[1])) {
       configFile = args[2];
-      start = 3;
+      crashFilePos = 3;
     }
 
     installAgentCLI()
-        .getMethod("uploadCrash", String.class, String[].class)
-        .invoke(null, configFile, Arrays.copyOfRange(args, start, args.length));
+        .getMethod("uploadCrash", String.class, String.class)
+        .invoke(null, configFile, args[crashFilePos]);
   }
 
   private static void sendOomeEvent(final String[] args) throws Exception {

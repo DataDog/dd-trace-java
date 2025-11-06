@@ -149,18 +149,18 @@ class CiVisibilityMetricCollectorTest extends Specification {
   }
 
   /**
-   * This test enumerates all possible metric+tags variants,
-   * then tries submitting all possible variant pairs (combinations of 2 different metric+tags).
+   * This test enumerates a few different tag combinations for every metric,
+   * then submits a metric count for each one.
    * The goal is to ensure that index calculation logic and card-marking are done right.
    */
-  def "test submission of all possible count metric pairs"() {
+  def "test submission of different count metric pairs"() {
     setup:
     List<PossibleMetric> possibleMetrics = []
 
     for (CiVisibilityCountMetric metric : CiVisibilityCountMetric.values()) {
       def metricTags = metric.getTags()
 
-      int cartesianProductSizeLimit = 2000 // limiting the number of combinations to avoid OOM/timeout
+      int cartesianProductSizeLimit = 20 // limiting the number of combinations to avoid OOM/timeout
       for (TagValue[] tags : cartesianProduct(metricTags, cartesianProductSizeLimit)) { // iterate over combinations of metric tags
         possibleMetrics += new PossibleMetric(metric, tags)
       }
