@@ -1,6 +1,5 @@
-package datadog.trace.util.stacktrace.queue;
+package datadog.trace.util.queue;
 
-import datadog.trace.util.queue.MpscArrayQueueVarHandle;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -20,26 +19,26 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /*
-Benchmark                             (capacity)   Mode  Cnt    Score   Error   Units
-MPSCQueueBenchmark.queueTest               65536  thrpt       208.469          ops/us
-MPSCQueueBenchmark.queueTest:async         65536  thrpt           NaN             ---
-MPSCQueueBenchmark.queueTest:consume       65536  thrpt       199.309          ops/us
-MPSCQueueBenchmark.queueTest:produce       65536  thrpt         9.161          ops/us
-MPSCQueueBenchmark.queueTest                1024  thrpt       195.200          ops/us
-MPSCQueueBenchmark.queueTest:async          1024  thrpt           NaN             ---
-MPSCQueueBenchmark.queueTest:consume        1024  thrpt       185.929          ops/us
-MPSCQueueBenchmark.queueTest:produce        1024  thrpt         9.272          ops/us
- */
+Benchmark                                             (capacity)   Mode  Cnt    Score   Error   Units
+MPSCBlockingConsumerQueueBenchmark.queueTest                1024  thrpt       121.534          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:async          1024  thrpt           NaN             ---
+MPSCBlockingConsumerQueueBenchmark.queueTest:consume        1024  thrpt       110.962          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:produce        1024  thrpt        10.572          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest               65536  thrpt       126.856          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:async         65536  thrpt           NaN             ---
+MPSCBlockingConsumerQueueBenchmark.queueTest:consume       65536  thrpt       113.213          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:produce       65536  thrpt        13.644          ops/us
+*/
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 1, time = 30)
 @Measurement(iterations = 1, time = 30)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-public class MPSCQueueBenchmark {
+public class MPSCBlockingConsumerQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
-    MpscArrayQueueVarHandle<Integer> queue;
+    MpscBlockingConsumerArrayQueueVarHandle<Integer> queue;
     CountDownLatch consumerReady;
 
     @Param({"1024", "65536"})
@@ -47,7 +46,7 @@ public class MPSCQueueBenchmark {
 
     @Setup(Level.Iteration)
     public void setup() {
-      queue = new MpscArrayQueueVarHandle<>(capacity);
+      queue = new MpscBlockingConsumerArrayQueueVarHandle<>(capacity);
       consumerReady = new CountDownLatch(1);
     }
   }

@@ -78,7 +78,9 @@ public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     long wrapPoint = currentTail - capacity;
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
 
-    if (wrapPoint >= currentHead) return false; // queue full
+    if (wrapPoint >= currentHead) {
+      return false; // queue full
+    }
 
     int index = (int) (currentTail & mask);
 
@@ -126,7 +128,6 @@ public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
         ARRAY_HANDLE.setOpaque(localBuffer, index, null);
         return (E) value;
       }
-
       // CAS failed, retry loop
     }
   }
