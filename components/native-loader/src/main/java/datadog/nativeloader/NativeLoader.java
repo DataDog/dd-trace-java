@@ -208,7 +208,9 @@ public final class NativeLoader {
   }
 
   public boolean isPlatformSupported() {
-    return !this.defaultPlatformSpec.isUnknownOs() && !this.defaultPlatformSpec.isUnknownOs();
+	if ( this.defaultPlatformSpec.isUnknownOs() ) return false;
+	if ( this.defaultPlatformSpec.isUnknownArch() ) return false;
+	return true;
   }
 
   /** Indicates if a library is considered "pre-loaded" */
@@ -253,7 +255,7 @@ public final class NativeLoader {
 
   /** Resolves a library to a LibFile - creating a temporary file if necessary */
   public LibFile resolveDynamic(String libName) throws LibraryLoadException {
-    return this.resolveDynamicImpl(this.defaultPlatformSpec, null, libName);
+    return this.resolveDynamicImpl(this.defaultPlatformSpec, null, libName, EMPTY_LISTENERS);
   }
 
   public LibFile resolveDynamic(String libName, LibraryLoadingListener... scopedListeners)
@@ -263,7 +265,7 @@ public final class NativeLoader {
 
   /** Resolves a library with an associated component */
   public LibFile resolveDynamic(String component, String libName) throws LibraryLoadException {
-    return this.resolveDynamicImpl(this.defaultPlatformSpec, component, libName);
+    return this.resolveDynamicImpl(this.defaultPlatformSpec, component, libName, EMPTY_LISTENERS);
   }
 
   /**
@@ -272,7 +274,7 @@ public final class NativeLoader {
    */
   public LibFile resolveDynamic(PlatformSpec platformSpec, String libName)
       throws LibraryLoadException {
-    return this.resolveDynamicImpl(platformSpec, null, libName);
+    return this.resolveDynamicImpl(platformSpec, null, libName, EMPTY_LISTENERS);
   }
 
   public LibFile resolveDynamic(
@@ -287,20 +289,14 @@ public final class NativeLoader {
    */
   public LibFile resolveDynamic(PlatformSpec platformSpec, String component, String libName)
       throws LibraryLoadException {
-    return this.resolveDynamicImpl(platformSpec, component, libName);
-  }
-
-  private LibFile resolveDynamicImpl(
-      PlatformSpec platformSpec, String optionalComponent, String libName)
-      throws LibraryLoadException {
-    return this.resolveDynamicImpl(platformSpec, optionalComponent, libName, EMPTY_LISTENERS);
+    return this.resolveDynamicImpl(platformSpec, component, libName, EMPTY_LISTENERS);
   }
 
   private LibFile resolveDynamicImpl(
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadingListener... scopedListeners)
+      LibraryLoadingListener[] scopedListeners)
       throws LibraryLoadException {
     SafeLibraryLoadingListener allListeners =
         (scopedListeners == null
@@ -333,9 +329,8 @@ public final class NativeLoader {
     }
 
     if (url == null) {
-      LibraryLoadException ex = new LibraryLoadException(libName);
-      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, ex);
-      throw ex;
+      allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, NO_CAUSE);
+      throw new LibraryLoadException(libName);
     }
 
     // For listener purposes - at this point resolution completed successfully

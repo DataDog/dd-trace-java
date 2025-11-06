@@ -1,8 +1,10 @@
 package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -16,6 +18,11 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
 
   private Check failedCheck = null;
   private Throwable failedCause = null;
+  
+  // By design, listeners are supposed to receive the underlying cause not a LibraryLoadException directly
+  static final ThrowableCheck NOT_LIB_LOAD_EXCEPTION = (t) -> {
+	assertFalse(t instanceof LibraryLoadException, "LibraryLoadException - instead of underlying cause");
+  };
 
   public TestLibraryLoadingListener() {
     this.checks = new LinkedList<>();
@@ -77,8 +84,16 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   public TestLibraryLoadingListener expectResolveDynamicFailure(String expectedLibName) {
     return this.expectResolveDynamicFailure(new LibCheck(expectedLibName));
   }
+  
+  public TestLibraryLoadingListener expectResolveDynamicFailure(String expectedLibName, Throwable expectedThrowable) {
+	return this.expectResolveDynamicFailure(new LibCheck(expectedLibName), (t) -> assertSame(expectedThrowable, t));
+  }
 
   private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck) {
+	return this.expectResolveDynamicFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
+  }
+  
+  private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck, ThrowableCheck throwableCheck) {
     return this.addCheck(
         new Check("onResolveDynamicFailure %s", libCheck) {
           @Override
@@ -88,6 +103,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               String libName,
               Throwable optionalCause) {
             libCheck.assertMatches(platformSpec, optionalComponent, libName);
+            throwableCheck.assertMatches(optionalCause);
           }
         });
   }
@@ -145,6 +161,10 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectLoadFailure(LibCheck libCheck) {
+	return this.expectLoadFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
+  }
+  
+  private TestLibraryLoadingListener expectLoadFailure(LibCheck libCheck, ThrowableCheck throwableCheck) {
     return this.addCheck(
         new Check("onLoadFailure %s", libCheck) {
           @Override
@@ -154,6 +174,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               String libName,
               Throwable optionalCause) {
             libCheck.assertMatches(platformSpec, optionalComponent, libName);
+            throwableCheck.assertMatches(optionalCause);
           }
         });
   }
@@ -184,6 +205,10 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectTempFileCreationFailure(LibCheck libCheck) {
+	return this.expectTempFileCreationFailure(libCheck, NOT_LIB_LOAD_EXCEPTION);
+  }
+  
+  private TestLibraryLoadingListener expectTempFileCreationFailure(LibCheck libCheck, ThrowableCheck throwableCheck) {
     return this.addCheck(
         new Check("onTempFileCreationFailure %s", libCheck) {
           @Override
@@ -453,7 +478,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     void invoke(Check check);
   }
 
-  public static final class LibCheck {
+  static final class LibCheck {
     private final PlatformSpec expectedPlatformSpec;
     private final String expectedComponent;
     private final String expectedLibName;
@@ -502,5 +527,10 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         return this.expectedComponent + "/" + this.expectedLibName;
       }
     }
+  }
+  
+  @FunctionalInterface
+  interface ThrowableCheck {
+	void assertMatches(Throwable t);
   }
 }

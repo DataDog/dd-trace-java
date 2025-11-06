@@ -114,6 +114,8 @@ public class NativeLoaderTest {
     PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
     NativeLoader loader =
         NativeLoader.builder().platformSpec(unsupportedOsSpec).addListener(sharedListener).build();
+    
+    assertFalse(loader.isPlatformSupported());
 
     sharedListener.expectResolveDynamicFailure("dummy");
 
@@ -128,6 +130,8 @@ public class NativeLoaderTest {
     PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(LINUX, UNSUPPORTED_ARCH);
     NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
 
+    assertFalse(loader.isPlatformSupported());
+    
     TestLibraryLoadingListener scopedListener =
         new TestLibraryLoadingListener().expectResolveDynamicFailure("dummy");
 
@@ -161,12 +165,14 @@ public class NativeLoaderTest {
   
   @Test
   public void resolutionFailure_in_LibraryResolver() {
+	Exception exception = new Exception("boom!");
+	
 	NativeLoader loader = NativeLoader.builder().libResolver((pathLocator, platformSpec, component, libName) -> {
-	  throw new Exception("boom!");
+	  throw exception;
 	}).build();
 	
 	TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
-	  expectResolveDynamicFailure("dummy");
+	  expectResolveDynamicFailure("dummy", exception);
 	
 	assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
 	
@@ -177,11 +183,13 @@ public class NativeLoaderTest {
   public void resolutionFailure_in_PathLocator() {
 	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
 	
+	Exception exception = new Exception("boom!");
+	
 	NativeLoader loader = NativeLoader.builder().addListener(sharedListener).pathLocator((comp, path) -> {
-	  throw new Exception("boom!");
+	  throw exception;
 	}).build();
 	
-	sharedListener.expectResolveDynamicFailure("dummy");
+	sharedListener.expectResolveDynamicFailure("dummy", exception);
 	
 	assertThrows(LibraryLoadException.class, () -> loader.load("dummy"));
 	
