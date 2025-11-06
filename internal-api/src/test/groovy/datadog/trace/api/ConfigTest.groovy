@@ -153,6 +153,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_HEADERS
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE
+import static datadog.trace.api.config.OtlpConfig.OTLP_TIMEOUT
 import datadog.trace.config.inversion.ConfigHelper
 
 class ConfigTest extends DDSpecification {
@@ -194,7 +195,6 @@ class ConfigTest extends DDSpecification {
   private static final OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES"
 
   private static final DD_METRICS_OTEL_ENABLED_ENV = "DD_METRICS_OTEL_ENABLED"
-  private static final OTEL_METRICS_EXPORTER_ENV = "OTEL_METRICS_EXPORTER"
   private static final OTEL_METRIC_EXPORT_TIMEOUT_ENV = "OTEL_METRIC_EXPORT_TIMEOUT"
   private static final OTEL_METRIC_EXPORT_INTERVAL_ENV = "OTEL_METRIC_EXPORT_INTERVAL"
   private static final OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
@@ -301,7 +301,6 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
     prop.setProperty(METRICS_OTEL_ENABLED, "True")
-    prop.setProperty(OTEL_METRICS_EXPORTER, "otlp")
     prop.setProperty(METRICS_OTEL_INTERVAL, "11000")
     prop.setProperty(METRICS_OTEL_TIMEOUT, "9000")
     prop.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
@@ -423,7 +422,6 @@ class ConfigTest extends DDSpecification {
     def prop = new Properties()
 
     prop.setProperty(METRICS_OTEL_ENABLED, "youhou")
-    prop.setProperty(OTEL_METRICS_EXPORTER, "invalid")
     prop.setProperty(METRICS_OTEL_INTERVAL, "-1")
     prop.setProperty(METRICS_OTEL_TIMEOUT, "invalid")
     prop.setProperty(OTLP_METRICS_ENDPOINT, "invalid")
@@ -441,8 +439,8 @@ class ConfigTest extends DDSpecification {
     config.metricsOtelTimeout == 7500
     config.otlpMetricsEndpoint == "invalid"
     config.otlpMetricsHeaders == [:]
-    config.otlpMetricsProtocol == GRPC
-    config.otlpMetricsTimeout == 10000
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 7500
     config.otlpMetricsTemporalityPreference == DELTA
   }
 
@@ -457,10 +455,10 @@ class ConfigTest extends DDSpecification {
     !config.metricsOtelEnabled
     config.metricsOtelInterval == 10000
     config.metricsOtelTimeout == 7500
-    config.otlpMetricsEndpoint == "http://localhost:4317"
+    config.otlpMetricsEndpoint == "http://localhost:4318/v1/metrics"
     config.otlpMetricsHeaders == [:]
-    config.otlpMetricsProtocol == GRPC
-    config.otlpMetricsTimeout == 10000
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 7500
     config.otlpMetricsTemporalityPreference == DELTA
   }
 
@@ -560,9 +558,9 @@ class ConfigTest extends DDSpecification {
     setup:
     def prop = new Properties()
     prop.setProperty(OTLP_PROTOCOL, "http/json")
-    prop.setProperty(OTLP_ENDPOINT,"http://localhost:4319/")
+    prop.setProperty(OTLP_ENDPOINT,"http://localhost:4319")
     prop.setProperty(OTLP_HEADERS,"api-key=key,other-config-value=value")
-    prop.setProperty(OTEL_EXPORTER_OTLP_TIMEOUT,"1000")
+    prop.setProperty(OTLP_TIMEOUT,"1000")
 
     when:
     Config config = Config.get(prop)
@@ -580,7 +578,7 @@ class ConfigTest extends DDSpecification {
     setup:
     def prop = new Properties()
     prop.setProperty(OTLP_PROTOCOL, "http/json")
-    prop.setProperty(TRACE_AGENT_URL,"http://192.168.0.3:8126/")
+    prop.setProperty(TRACE_AGENT_URL,"http://192.168.0.3:8126")
 
     when:
     Config config = Config.get(prop)
@@ -601,8 +599,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.agentHost == "localhost"
-    config.otlpMetricsProtocol == GRPC
-    config.otlpMetricsEndpoint == "http://localhost:4317"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsEndpoint == "http://localhost:4318/v1/metrics"
   }
 
 
@@ -699,7 +697,6 @@ class ConfigTest extends DDSpecification {
 
     System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "True")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
-    System.setProperty(OTEL_METRICS_EXPORTER, "otlp")
     System.setProperty(METRICS_OTEL_INTERVAL, "11000")
     System.setProperty(METRICS_OTEL_TIMEOUT, "9000")
     System.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
@@ -832,7 +829,6 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
     environmentVariables.set(DD_METRICS_OTEL_ENABLED_ENV, "True")
     environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
-    environmentVariables.set(OTEL_METRICS_EXPORTER_ENV, "otlp")
     environmentVariables.set(OTEL_METRIC_EXPORT_INTERVAL_ENV, "11000")
     environmentVariables.set(OTEL_METRIC_EXPORT_TIMEOUT_ENV, "9000")
     environmentVariables.set(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_ENV, "http://localhost:4333/v1/metrics")
