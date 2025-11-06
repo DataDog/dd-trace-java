@@ -56,7 +56,6 @@ public interface LibraryLoadingListener {
       String libName,
       Path tempDir,
       String libExt,
-      Path optionalTempFile,
       Throwable optionalCause) {}
 
   /** Called when a temp file is cleaned up */

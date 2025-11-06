@@ -103,7 +103,6 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       String libName,
       Path tempDir,
       String libExt,
-      Path optionalTempFile,
       Throwable optionalCause) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
@@ -113,7 +112,6 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
             libName,
             tempDir,
             libExt,
-            optionalTempFile,
             optionalCause);
       } catch (Throwable ignored) {
       }

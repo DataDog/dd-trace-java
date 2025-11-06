@@ -227,7 +227,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
               String libName,
               Path tempDir,
               String libExt,
-              Path optionalTempFile,
               Throwable optionalCause) {
             libCheck.assertMatches(platformSpec, optionalComponent, libName);
             assertNotNull(tempDir);
@@ -336,7 +335,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libName,
       Path tempDir,
       String libExt,
-      Path optionalTempFile,
       Throwable optionalCause) {
     this.nextCheck(
         check ->
@@ -346,7 +344,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
                 libName,
                 tempDir,
                 libExt,
-                optionalTempFile,
                 optionalCause));
   }
 
@@ -441,7 +438,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String libName,
         Path tempDir,
         String libExt,
-        Path optionalTempFile,
         Throwable optionalCause) {
       this.fallback(
           "onTempFileCreationFailure",
@@ -450,7 +446,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
           libName,
           tempDir,
           libExt,
-          optionalTempFile,
           optionalCause);
     }
 

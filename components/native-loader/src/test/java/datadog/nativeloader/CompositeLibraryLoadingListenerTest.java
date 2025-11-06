@@ -100,7 +100,6 @@ public final class CompositeLibraryLoadingListenerTest {
             "foo",
             Paths.get("/tmp"),
             "dylib",
-            null,
             new IOException("perm"));
 
     listener1.assertDone();
@@ -163,7 +162,7 @@ public final class CompositeLibraryLoadingListenerTest {
    * - shuffles the order of the listeners
    */
   static CompositeLibraryLoadingListener listeners(LibraryLoadingListener... listeners) {
-    List<LibraryLoadingListener> shuffledListeners = new ArrayList<>(listeners.length + 1);
+    List<LibraryLoadingListener> shuffledListeners = new ArrayList<>(listeners.length * 3);
     shuffledListeners.addAll(Arrays.asList(listeners));
 
     for (int i = 0; i < listeners.length; ++i) {
@@ -172,6 +171,6 @@ public final class CompositeLibraryLoadingListenerTest {
     }
 
     Collections.shuffle(shuffledListeners);
-    return new CompositeLibraryLoadingListener(listeners);
+    return new CompositeLibraryLoadingListener(shuffledListeners);
   }
 }

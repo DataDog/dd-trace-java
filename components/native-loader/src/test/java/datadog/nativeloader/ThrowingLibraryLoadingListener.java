@@ -55,7 +55,6 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       String libName,
       Path tempDir,
       String libExt,
-      Path optionalTempFile,
       Throwable optionalCause) {
     this.throwException("tempFileCreationFailure");
   }
