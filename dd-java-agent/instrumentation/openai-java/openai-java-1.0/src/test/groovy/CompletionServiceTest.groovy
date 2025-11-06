@@ -1,11 +1,11 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 import com.openai.core.http.StreamResponse
 import com.openai.models.completions.Completion
 import com.openai.models.completions.CompletionCreateParams
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
-import spock.lang.Ignore
 
 class CompletionServiceTest extends OpenAiTest {
 
@@ -57,16 +57,17 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  @Ignore
+
   def "single async request completion test"() {
     CompletionCreateParams createParams = CompletionCreateParams.builder()
         .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
         .prompt("Tell me a story about building the best SDK!")
         .build()
 
-    CompletableFuture<Completion> completionFuture = runnableUnderTrace("parent") {
+    CompletableFuture<Completion> completionFuture = runUnderTrace("parent", true) {
       openAiClient.async().completions().create(createParams)
     }
+
     completionFuture.get()
 
     expect:

@@ -25,6 +25,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
   def mockOpenAiBackend = TestHttpServer.httpServer {
     handlers {
       prefix("/completions") {
+        // TODO load from file?
         if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream":true}' == request.text) {
           System.err.println(">>> streamed")
           response.status(200).send(
@@ -78,6 +79,8 @@ data: [DONE]
 }
 """
           )
+        } else {
+          response.status(500).send("Unexpected Request!")
         }
       }
     }
