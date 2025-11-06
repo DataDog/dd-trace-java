@@ -1,6 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
-
 ext.testingInstrumentation = true
+
+apply from: "$rootDir/gradle/java.gradle"
 
 // JUnit5 5.3.0+ version is needed because of the fix in the TestInheritance test suite names.
 // Previously at that version, the test suite name was the base class.

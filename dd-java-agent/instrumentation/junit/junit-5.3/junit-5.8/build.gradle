@@ -1,6 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
-
 ext.testingInstrumentation = true
+
+apply from: "$rootDir/gradle/java.gradle"
 
 def jupiterVersion = '5.8.0'
 def platformVersion = '1.8.0'
