@@ -107,12 +107,7 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onTempFileCreationFailure(
-            platformSpec,
-            optionalComponent,
-            libName,
-            tempDir,
-            libExt,
-            optionalCause);
+            platformSpec, optionalComponent, libName, tempDir, libExt, optionalCause);
       } catch (Throwable ignored) {
       }
     }

@@ -350,7 +350,7 @@ public final class NativeLoader {
         return LibFile.fromTempFile(
             platformSpec, optionalComponent, libName, tempFile.toFile(), allListeners);
       } catch (Throwable t) {
-    	allListeners.onTempFileCreationFailure(
+        allListeners.onTempFileCreationFailure(
             platformSpec, optionalComponent, libName, this.tempDir, libName, t);
 
         throw new LibraryLoadException(libName, t);

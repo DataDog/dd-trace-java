@@ -339,12 +339,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
     this.nextCheck(
         check ->
             check.onTempFileCreationFailure(
-                platformSpec,
-                optionalComponent,
-                libName,
-                tempDir,
-                libExt,
-                optionalCause));
+                platformSpec, optionalComponent, libName, tempDir, libExt, optionalCause));
   }
 
   @Override
