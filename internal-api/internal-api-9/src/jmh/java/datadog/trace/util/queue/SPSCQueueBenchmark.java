@@ -1,6 +1,5 @@
-package datadog.trace.util.stacktrace.queue;
+package datadog.trace.util.queue;
 
-import datadog.trace.util.queue.SpscArrayQueueVarHandle;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;

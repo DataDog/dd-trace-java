@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.VarHandle;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -85,23 +86,6 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     // jctools does the same local copy to have the jitter optimise the accesses
     final Object[] localBuffer = this.buffer;
 
-    // depending on the thread id, choose a different backoff strategy.
-    // Note: it reduces fairness but also the contention on the cas.
-    boolean s0 = false, s1 = false, s2 = false;
-    switch ((int) (Thread.currentThread().getId() & 3)) {
-      case 0:
-        s0 = true;
-        break;
-      case 1:
-        s1 = true;
-        break;
-      case 2:
-        s2 = true;
-        break;
-      default:
-        break;
-    }
-
     long localProducerLimit = (long) PRODUCER_LIMIT_HANDLE.getVolatile(this);
     long cachedHead = 0L; // Local cache of head to reduce volatile reads
 
@@ -114,7 +98,9 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
         cachedHead = (long) HEAD_HANDLE.getVolatile(this);
         localProducerLimit = cachedHead + capacity;
 
-        if (currentTail >= localProducerLimit) return false; // queue full
+        if (currentTail >= localProducerLimit) {
+          return false; // queue full
+        }
 
         // Update producerLimit so other producers also benefit
         PRODUCER_LIMIT_HANDLE.setVolatile(this, localProducerLimit);
@@ -130,9 +116,20 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       }
 
       // Backoff to reduce contention
-      if (s0) Thread.onSpinWait();
-      else if (s1) Thread.yield();
-      else if (s2) LockSupport.parkNanos(1);
+      switch (ThreadLocalRandom.current().nextInt(0, 4)) {
+        case 0:
+          Thread.yield();
+          break;
+        case 1:
+          LockSupport.parkNanos(1);
+          break;
+        case 2:
+          Thread.onSpinWait();
+          break;
+        default:
+          // busy spin
+          break;
+      }
     }
   }
 
@@ -151,7 +148,9 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
 
     // Acquire-load ensures visibility of producer write
     Object value = ARRAY_HANDLE.getAcquire(localBuffer, index);
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
     // Clear the slot without additional fence
     ARRAY_HANDLE.setOpaque(localBuffer, index, null);
