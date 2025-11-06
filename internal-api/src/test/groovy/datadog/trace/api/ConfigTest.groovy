@@ -452,12 +452,12 @@ class ConfigTest extends DDSpecification {
 
     then:
     !config.metricsOtelEnabled
-    config.metricsOtelInterval == -1
+    config.metricsOtelInterval == 10000
     config.metricsOtelTimeout == 7500
     config.otlpMetricsEndpoint == "invalid"
     config.otlpMetricsHeaders == [:]
     config.otlpMetricsProtocol == HTTP_PROTOBUF
-    config.otlpMetricsTimeout == -34
+    config.otlpMetricsTimeout == 7500
     config.otlpMetricsTemporalityPreference == DELTA
   }
 

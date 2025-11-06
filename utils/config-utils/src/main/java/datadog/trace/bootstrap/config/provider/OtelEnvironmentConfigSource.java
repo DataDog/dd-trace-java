@@ -232,10 +232,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     String otelKey = "otel.exporter.otlp." + signal + "." + subkey;
     String otelValue = getOtelProperty(otelKey);
     if (null == otelValue) {
+      // fall back to general configuration
       otelKey = "otel.exporter.otlp." + subkey;
       otelValue = getOtelProperty(otelKey);
-      // special case when using general endpoint as fallback: append relevant metric endpoint
-      if ("endpoint".equals(subkey)
+      // special case when using general endpoint as fallback: append appropriate metric suffix
+      if ("metrics".equals(signal)
+          && "endpoint".equals(subkey)
           && otelValue != null
           && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_METRICS_PROTOCOL))) {
         otelValue = otelValue + "/v1/metrics";

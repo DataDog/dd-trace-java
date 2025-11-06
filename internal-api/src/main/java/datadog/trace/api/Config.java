@@ -1857,18 +1857,35 @@ public class Config {
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-    metricsOtelInterval =
+
+    int otelInterval =
         configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
-    metricsOtelTimeout =
-        configProvider.getInteger(METRICS_OTEL_TIMEOUT, DEFAULT_METRICS_OTEL_TIMEOUT);
+    if (otelInterval < 0) {
+      log.warn("Invalid OTel metrics interval: {}. The value must be positive", otelInterval);
+      otelInterval = DEFAULT_METRICS_OTEL_INTERVAL;
+    }
+    metricsOtelInterval = otelInterval;
+
+    int otelTimeout = configProvider.getInteger(METRICS_OTEL_TIMEOUT, DEFAULT_METRICS_OTEL_TIMEOUT);
+    if (otelTimeout < 0) {
+      log.warn("Invalid OTel metrics timeout: {}. The value must be positive", otelTimeout);
+      otelTimeout = DEFAULT_METRICS_OTEL_TIMEOUT;
+    }
+    metricsOtelTimeout = otelTimeout;
+
+    // keep OTLP default timeout below the overall export timeout
+    int defaultOtlpTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
+    int otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpTimeout);
+    if (otlpTimeout < 0) {
+      log.warn("Invalid OTLP metrics timeout: {}. The value must be positive", otlpTimeout);
+      otlpTimeout = defaultOtlpTimeout;
+    }
+    otlpMetricsTimeout = otlpTimeout;
 
     otlpMetricsHeaders = configProvider.getMergedMap(OTLP_METRICS_HEADERS, '=');
     otlpMetricsProtocol =
         configProvider.getEnum(
             OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
-    otlpMetricsTimeout =
-        configProvider.getInteger(
-            OTLP_METRICS_TIMEOUT, Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT));
 
     String otlpMetricsEndpointFromEnvironment = configProvider.getString(OTLP_METRICS_ENDPOINT);
     if (otlpMetricsEndpointFromEnvironment == null) {
