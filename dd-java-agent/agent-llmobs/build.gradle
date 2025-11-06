@@ -17,7 +17,7 @@ dependencies {
   implementation project(':communication')
   implementation project(':components:json')
   implementation project(':internal-api')
-  api project(':internal-api:internal-api-9')
+  implementation project(':internal-api:internal-api-9')
 
 
   testImplementation project(':dd-java-agent:testing')

@@ -281,8 +281,6 @@ dependencies {
   // it contains annotations that are also present in the instrumented application classes
   api("com.datadoghq:dd-javac-plugin-client:0.2.2")
 
-  jmhImplementation(libs.jctools)
-
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)

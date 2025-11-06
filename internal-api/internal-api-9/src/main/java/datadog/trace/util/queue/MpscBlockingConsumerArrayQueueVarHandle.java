@@ -5,9 +5,9 @@ import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nonnull;
 
 /**
- * JCtools-like MpscBlockingConsumerArrayQueue implemented without Unsafe.
+ * A MPSC Array queue offering blocking methods (take and timed poll) for a single consumer.
  *
- * <p>It features nonblocking offer/poll methods and blocking (condition based) take/put.
+ * <p>The wait is performed by parking/unparking the consumer thread.
  */
 public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E>
     implements BlockingConsumerNonBlockingQueue<E> {
@@ -22,15 +22,15 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
   public boolean offer(E e) {
     final boolean success = super.offer(e);
     if (success) {
-      Thread c = consumerThread;
-      if (c != null) LockSupport.unpark(c);
+      try {
+        final Thread c = consumerThread;
+        LockSupport.unpark(c); // unpark is safe if the arg is null
+      } finally {
+        consumerThread = null;
+      }
     }
-    return success;
-  }
 
-  public void put(E e) throws InterruptedException {
-    // in this variant we should not use a blocking put since we do not support blocking producers
-    throw new UnsupportedOperationException();
+    return success;
   }
 
   /**
@@ -39,62 +39,14 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
    * @return the next element (never null)
    * @throws InterruptedException if interrupted while waiting
    */
+  @Override
   public E take() throws InterruptedException {
     consumerThread = Thread.currentThread();
-    while (true) {
-      E e = poll();
-      if (e != null) return e;
-
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
-      // Block until producer unparks us
-      LockSupport.park(this);
+    E e;
+    while ((e = poll()) != null) {
+      parkUntilNext(-1);
     }
-  }
-
-  /**
-   * Timed offer with progressive backoff.
-   *
-   * <p>Tries to insert an element into the queue within the given timeout. Uses a spin → yield →
-   * park backoff strategy to reduce CPU usage under contention.
-   *
-   * @param e the element to insert
-   * @param timeout maximum time to wait
-   * @param unit time unit of timeout
-   * @return {@code true} if inserted, {@code false} if timeout expires
-   * @throws InterruptedException if interrupted while waiting
-   */
-  public boolean offer(E e, long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
-    final long deadline = System.nanoTime() + unit.toNanos(timeout);
-    int idleCount = 0;
-
-    while (true) {
-      if (offer(e)) {
-        return true; // successfully inserted
-      }
-
-      long remaining = deadline - System.nanoTime();
-      if (remaining <= 0) {
-        return false; // timeout
-      }
-
-      // Progressive backoff
-      if (idleCount < 100) {
-        // spin (busy-wait)
-      } else if (idleCount < 1_000) {
-        Thread.yield(); // give up CPU to other threads
-      } else {
-        // park for a short duration, up to 1 ms
-        LockSupport.parkNanos(Math.min(remaining, 1_000_000L));
-      }
-
-      idleCount++;
-
-      if (Thread.interrupted()) {
-        throw new InterruptedException();
-      }
-    }
+    return e;
   }
 
   /**
@@ -105,27 +57,48 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
    * @return the head element, or null if timed out
    * @throws InterruptedException if interrupted
    */
+  @Override
   public E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
-    final long deadline = System.nanoTime() + unit.toNanos(timeout);
-
     E e = poll();
     if (e != null) {
       return e;
     }
 
-    // register this thread as the waiting consumer
-    consumerThread = Thread.currentThread();
-    final long remaining = deadline - System.nanoTime();
-
-    if (remaining <= 0) {
-      consumerThread = null;
+    final long parkNanos = unit.toNanos(timeout);
+    if (parkNanos <= 0) {
       return null;
     }
 
-    LockSupport.parkNanos(this, remaining);
-    if (Thread.interrupted()) {
-      throw new InterruptedException();
-    }
+    parkUntilNext(parkNanos);
+
     return poll();
+  }
+
+  /**
+   * Blocks (parks) until an element becomes available or until the specified timeout elapses.
+   *
+   * <p>It is safe if only one thread is waiting (it's the case for this single consumer
+   * implementation).
+   *
+   * @param nanos max wait time in nanoseconds. If negative, it will park indefinably until waken or
+   *     interrupted
+   * @throws InterruptedException if interrupted
+   */
+  private void parkUntilNext(long nanos) throws InterruptedException {
+    try {
+      // register this thread as the waiting consumer
+      consumerThread = Thread.currentThread();
+      if (nanos <= 0) {
+        LockSupport.park(this);
+      } else {
+        LockSupport.parkNanos(this, nanos);
+      }
+      if (Thread.interrupted()) {
+        throw new InterruptedException();
+      }
+    } finally {
+      // free the variable not to reference the consumer thread anymore
+      consumerThread = null;
+    }
   }
 }

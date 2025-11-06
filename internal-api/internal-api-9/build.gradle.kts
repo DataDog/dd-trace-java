@@ -39,7 +39,7 @@ val minimumInstructionCoverage by extra(0.8)
 
 dependencies {
   api(project(":internal-api"))
-  api(libs.jctools) // probably the Queues factory should be moved away from there
+  implementation(libs.jctools) // probably the Queues factory should be moved away from there
 
   testImplementation(project(":dd-java-agent:testing"))
   testImplementation(libs.slf4j)
