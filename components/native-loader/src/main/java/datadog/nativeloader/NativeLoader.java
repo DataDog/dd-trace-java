@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * NativeLoader is intended as more feature rich replacement for calling {@link
+ * NativeLoader is intended as a more feature rich replacement for calling {@link
  * System#loadLibrary(String)} directly. NativeLoader can be used to find the corresponding platform
  * specific library using pluggable strategies -- for both path determination {@link
  * LibraryResolver} and path resolution {@link PathLocator}

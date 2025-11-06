@@ -158,6 +158,36 @@ public class NativeLoaderTest {
     // & link
     assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
   }
+  
+  @Test
+  public void resolutionFailure_in_LibraryResolver() {
+	NativeLoader loader = NativeLoader.builder().libResolver((pathLocator, platformSpec, component, libName) -> {
+	  throw new Exception("boom!");
+	}).build();
+	
+	TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
+	  expectResolveDynamicFailure("dummy");
+	
+	assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
+	
+	scopedListener.assertDone();
+  }
+  
+  @Test
+  public void resolutionFailure_in_PathLocator() {
+	TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+	
+	NativeLoader loader = NativeLoader.builder().addListener(sharedListener).pathLocator(() -> {
+		
+	}).build();
+	
+	TestLibraryLoadingListener scopedListener = new TestLibraryLoadingListener().
+	  expectResolveDynamicFailure("dummy");
+	
+	assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
+	
+	scopedListener.assertDone();  
+  }
 
   @Test
   public void fromDir() throws LibraryLoadException {

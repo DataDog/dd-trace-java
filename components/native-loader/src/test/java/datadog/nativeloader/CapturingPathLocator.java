@@ -87,8 +87,8 @@ public final class CapturingPathLocator implements PathLocator {
   }
 
   @Override
-  public URL locate(String component, String path) {
-    this.locateRequests.addLast(new LocateRequest(component, path));
+  public URL locate(String optionalComponent, String path) {
+    this.locateRequests.addLast(new LocateRequest(optionalComponent, path));
 
     if (this.numRequests++ < this.simulateNotFoundCount) return null;
     try {
