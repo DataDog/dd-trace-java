@@ -1,4 +1,4 @@
-package datadog.trace.payloadtags.json;
+package datadog.json;
 
 import com.squareup.moshi.JsonReader;
 import java.io.ByteArrayInputStream;

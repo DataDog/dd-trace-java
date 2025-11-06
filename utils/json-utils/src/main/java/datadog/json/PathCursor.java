@@ -1,4 +1,4 @@
-package datadog.trace.payloadtags.json;
+package datadog.json;
 
 import java.util.Arrays;
 

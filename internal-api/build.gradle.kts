@@ -271,6 +271,7 @@ dependencies {
   api(project(":components:yaml"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
+  api(project(":utils:json-utils"))
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes

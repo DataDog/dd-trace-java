@@ -1,5 +1,7 @@
 package datadog.trace.payloadtags.json
 
+import datadog.json.JsonPath
+import datadog.json.JsonPathParser
 import spock.lang.Specification
 
 class JsonPathParserSpec extends Specification {

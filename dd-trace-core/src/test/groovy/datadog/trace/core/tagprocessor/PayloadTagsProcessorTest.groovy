@@ -3,7 +3,7 @@ package datadog.trace.core.tagprocessor
 import com.squareup.moshi.JsonWriter
 import datadog.trace.payloadtags.PayloadTagsData
 import datadog.trace.payloadtags.PayloadTagsData.PathAndValue
-import datadog.trace.payloadtags.json.PathCursor
+import datadog.json.PathCursor
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.api.Config
 import okio.Buffer

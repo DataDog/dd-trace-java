@@ -152,6 +152,7 @@ include(
   ":utils:test-utils",
   ":utils:time-utils",
   ":utils:version-utils",
+  "utils:json-utils",
 )
 
 // smoke tests
