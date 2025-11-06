@@ -1,6 +1,8 @@
 package datadog.communication.monitor
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 
+import datadog.trace.api.ProcessTags
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY
@@ -109,11 +111,40 @@ class DDAgentStatsDClientTest extends DDSpecification {
     where:
     // spotless:off
     namespace | constantTags                        | expectedMetricName    | expectedCheckName    | expectedTags
-    null      | null                                | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool"
-    null      | ["lang:java", "lang_version:1.8.0"] | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
-    "example" | null                                | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool"
-    "example" | ["lang:java", "lang_version:1.8.0"] | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0"
+    null      | null                                | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool,${ProcessTags.getTagsForSerialization().toString()}"
+    null      | ["lang:java", "lang_version:1.8.0"] | "test.metric"         | "test.check"         | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0,${ProcessTags.getTagsForSerialization().toString()}"
+    "example" | null                                | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool,${ProcessTags.getTagsForSerialization().toString()}"
+    "example" | ["lang:java", "lang_version:1.8.0"] | "example.test.metric" | "example.test.check" | "jmx_domain:java.nio,type:BufferPool,lang:java,lang_version:1.8.0,${ProcessTags.getTagsForSerialization().toString()}"
     // spotless:on
+  }
+
+  def "single statsd client without process tags"() {
+    setup:
+    injectSysConfig(DOGSTATSD_START_DELAY, '0')
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    def server = new StatsDServer()
+    server.start()
+    ProcessTags.reset()
+
+    def client = statsDClientManager().statsDClient('127.0.0.1', server.socket.localPort, null, namespace, constantTags as String[], false)
+
+    String metricName = "test.metric"
+    String[] tags = ["test:true"]
+
+    when:
+    client.incrementCounter(metricName, tags)
+
+    then:
+    server.waitForMessage().startsWith("$expectedMetricName:1|c|#$expectedTags")
+
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+
+    where:
+    namespace | constantTags                        | expectedMetricName    | expectedTags
+    null      | null                                | "test.metric"         | "test:true"
+    null      | ["lang:java", "lang_version:1.8.0"] | "test.metric"         | "test:true,lang:java,lang_version:1.8.0"
   }
 
   def "single statsd client with event"() {
