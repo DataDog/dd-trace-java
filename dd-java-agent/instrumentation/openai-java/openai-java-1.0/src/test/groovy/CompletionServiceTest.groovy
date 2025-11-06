@@ -12,20 +12,24 @@ import spock.lang.Ignore
 class CompletionServiceTest extends OpenAiTest {
 
   def "single request completion test"() {
-    runnableUnderTrace("parent") {
+    Completion resp = runUnderTrace("parent") {
       openAiClient.completions().create(completionCreateParams())
     }
 
     expect:
+    resp != null
+    and:
     assertCompletionTrace()
   }
 
   def "single request completion test with withRawResponse"() {
-    runnableUnderTrace("parent") {
+    HttpResponseFor<Completion> resp = runUnderTrace("parent") {
       openAiClient.withRawResponse().completions().create(completionCreateParams())
     }
 
     expect:
+    resp.statusCode() == 200
+    and:
     assertCompletionTrace()
   }
 
@@ -36,7 +40,20 @@ class CompletionServiceTest extends OpenAiTest {
         stream.forEach {
           // consume the stream
         }
-        stream.close()
+      }
+    }
+
+    expect:
+    assertCompletionTrace()
+  }
+
+  def "streamed request completion test with withRawResponse"() {
+    runnableUnderTrace("parent") {
+      HttpResponseFor<StreamResponse<Completion>> streamCompletion = openAiClient.completions().withRawResponse().createStreaming(completionCreateParams())
+      try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
+        stream.forEach {
+          // consume the stream
+        }
       }
     }
 
@@ -76,6 +93,23 @@ class CompletionServiceTest extends OpenAiTest {
       // System.err.println(">>> completion: " + it)
     }
     response.onCompleteFuture().get()
+
+    expect:
+    assertCompletionTrace()
+  }
+
+  def "streamed async request completion test with withRawResponse"() {
+    CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future = runUnderTrace("parent") {
+      openAiClient.async().completions().withRawResponse().createStreaming(completionCreateParams())
+    }
+
+    HttpResponseFor<StreamResponse<Completion>> response = future.get()
+
+    try (Stream stream = response.parse().stream()) { // close the stream after use
+      stream.forEach {
+        // consume the stream
+      }
+    }
 
     expect:
     assertCompletionTrace()
