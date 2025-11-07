@@ -2,7 +2,7 @@ package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 class ExecutionOutcomeImpl implements TestExecutionHistory.ExecutionOutcome {
 
