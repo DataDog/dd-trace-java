@@ -1,12 +1,12 @@
-import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.api.Trace
-
-import java.util.concurrent.Callable
-import java.util.concurrent.StructuredTaskScope
-
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
+import static java.time.temporal.ChronoUnit.SECONDS
+
+import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.Trace
+import java.util.concurrent.Callable
+import java.util.concurrent.StructuredTaskScope
 
 class StructuredConcurrencyTest extends InstrumentationSpecification {
   /**
@@ -26,7 +26,7 @@ class StructuredConcurrencyTest extends InstrumentationSpecification {
             return true
           }
         })
-      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
+      taskScope.joinUntil(now().plus(10, SECONDS))
       result = task.get()
     }
     taskScope.close()
@@ -73,7 +73,7 @@ class StructuredConcurrencyTest extends InstrumentationSpecification {
       taskScope.fork {
         runnableUnderTrace("child3") {}
       }
-      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
+      taskScope.joinUntil(now().plus(10, SECONDS))
     }
     taskScope.close()
 
@@ -132,7 +132,7 @@ class StructuredConcurrencyTest extends InstrumentationSpecification {
       taskScope.fork {
         runnableUnderTrace("child2") {}
       }
-      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
+      taskScope.joinUntil(now().plus(10, SECONDS))
     }
     taskScope.close()
 
