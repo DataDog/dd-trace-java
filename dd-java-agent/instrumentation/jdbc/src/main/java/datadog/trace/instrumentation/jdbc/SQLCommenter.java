@@ -103,9 +103,14 @@ public class SQLCommenter {
 
     StringBuilder sb = new StringBuilder(sql.length() + INJECTED_COMMENT_ESTIMATED_SIZE);
     if (appendComment) {
-      sb.append(sql);
+      if (sql.trim().endsWith(";")) {
+        sb.append(sql, 0, sql.lastIndexOf(";"));
+      } else {
+        sb.append(sql);
+      }
       sb.append(SPACE);
     }
+
     sb.append(OPEN_COMMENT);
     int initSize = sb.length();
     append(sb, PARENT_SERVICE, config.getServiceName(), initSize);
@@ -128,6 +133,11 @@ public class SQLCommenter {
       sb.append(SPACE);
       sb.append(sql);
     }
+
+    if (appendComment && sql.trim().endsWith(";")) {
+      sb.append(';');
+    }
+
     return sb.toString();
   }
 
