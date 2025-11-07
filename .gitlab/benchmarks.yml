@@ -35,12 +35,20 @@ benchmarks-startup:
     - ./steps/run-benchmarks.sh startup
     - ./steps/analyze-results.sh startup
 
-benchmarks-load:
+benchmarks-load-petclinic:
   extends: .benchmarks
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh load
+    - ./steps/run-benchmarks.sh load petclinic
+    - ./steps/analyze-results.sh load
+
+benchmarks-load-insecure-bank:
+  extends: .benchmarks
+  script:
+    - !reference [ .benchmarks, script ]
+    - ./steps/capture-hardware-software-info.sh
+    - ./steps/run-benchmarks.sh load insecure-bank
     - ./steps/analyze-results.sh load
 
 benchmarks-dacapo:
@@ -61,7 +69,9 @@ benchmarks-post-results:
   needs:
     - job: benchmarks-startup
       artifacts: true
-    - job: benchmarks-load
+    - job: benchmarks-load-petclinic
+      artifacts: true
+    - job: benchmarks-load-insecure-bank
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
