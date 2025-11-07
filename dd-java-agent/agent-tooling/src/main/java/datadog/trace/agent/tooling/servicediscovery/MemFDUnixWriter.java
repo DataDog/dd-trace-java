@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.servicediscovery;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.sun.jna.Library;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
@@ -39,7 +41,7 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
     String arch = System.getProperty("os.arch");
     int memfdSyscall = getMemfdSyscall(arch);
     if (memfdSyscall <= 0) {
-      log.debug("service discovery not supported for arch={}", arch);
+      log.debug(SEND_TELEMETRY, "service discovery not supported for arch={}", arch);
       return;
     }
     int memFd = libc.syscall(memfdSyscall, fileName, MFD_CLOEXEC | MFD_ALLOW_SEALING);
@@ -69,30 +71,24 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
 
   private static int getMemfdSyscall(String arch) {
     switch (arch.toLowerCase()) {
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/x86_64/bits/syscall.h.in#L320
       case "x86_64":
-        return 319;
       case "x64":
-        return 319;
       case "amd64":
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/x86_64/bits/syscall.h.in#L320
         return 319;
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/i386/bits/syscall.h.in#L356
       case "x386":
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/i386/bits/syscall.h.in#L356
         return 356;
-      case "86":
-        return 356;
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/aarch64/bits/syscall.h.in#L264
       case "aarch64":
-        return 279;
       case "arm64":
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/aarch64/bits/syscall.h.in#L264
         return 279;
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/arm/bits/syscall.h.in#L343
       case "arm":
-        return 385;
       case "arm32":
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/arm/bits/syscall.h.in#L343
         return 385;
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/powerpc64/bits/syscall.h.in#L350
       case "ppc64":
+        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/powerpc64/bits/syscall.h.in#L350
         return 360;
       default:
         return -1;
