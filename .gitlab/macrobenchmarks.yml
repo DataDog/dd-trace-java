@@ -93,7 +93,9 @@ check-slo-breaches:
       artifacts: true
     - job: benchmarks-startup
       artifacts: true
-    - job: benchmarks-load
+    - job: benchmarks-load-petclinic
+      artifacts: true
+    - job: benchmarks-load-insecure-bank
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
