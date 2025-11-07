@@ -1,6 +1,5 @@
 package datadog.common.queue;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -20,14 +19,14 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /*
 Benchmark                             (capacity)   Mode  Cnt    Score   Error   Units
-MPSCQueueBenchmark.queueTest                1024  thrpt       146.530          ops/us
-MPSCQueueBenchmark.queueTest:async          1024  thrpt           NaN             ---
-MPSCQueueBenchmark.queueTest:consume        1024  thrpt       108.357          ops/us
-MPSCQueueBenchmark.queueTest:produce        1024  thrpt        38.172          ops/us
-MPSCQueueBenchmark.queueTest               65536  thrpt       179.177          ops/us
-MPSCQueueBenchmark.queueTest:async         65536  thrpt           NaN             ---
-MPSCQueueBenchmark.queueTest:consume       65536  thrpt       140.968          ops/us
-MPSCQueueBenchmark.queueTest:produce       65536  thrpt        38.209          ops/us */
+MPSCQueueBenchmark.queueTest                1024  thrpt       272.751          ops/us
+MPSCQueueBenchmark.queueTest:consume        1024  thrpt       258.737          ops/us
+MPSCQueueBenchmark.queueTest:produce        1024  thrpt        14.013          ops/us
+MPSCQueueBenchmark.queueTest:·async         1024  thrpt           NaN             ---
+MPSCQueueBenchmark.queueTest               65536  thrpt       120.776          ops/us
+MPSCQueueBenchmark.queueTest:consume       65536  thrpt       108.595          ops/us
+MPSCQueueBenchmark.queueTest:produce       65536  thrpt        12.182          ops/us
+ */
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 1, time = 30)
 @Measurement(iterations = 1, time = 30)
@@ -38,7 +37,6 @@ public class MPSCQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
     MpscArrayQueueVarHandle<Integer> queue;
-    CountDownLatch consumerReady;
 
     @Param({"1024", "65536"})
     int capacity;
@@ -46,31 +44,20 @@ public class MPSCQueueBenchmark {
     @Setup(Level.Iteration)
     public void setup() {
       queue = new MpscArrayQueueVarHandle<>(capacity);
-      consumerReady = new CountDownLatch(1);
     }
   }
 
   @Benchmark
   @Group("queueTest")
   @GroupThreads(4)
-  public void produce(QueueState state) {
-    try {
-      state.consumerReady.await(); // wait until consumer is ready
-    } catch (InterruptedException ignored) {
-    }
-
-    // bounded attempt: try once, then yield if full
-    boolean offered = state.queue.offer(0);
-    if (!offered) {
-      Thread.yield();
-    }
+  public void produce(QueueState state, Blackhole blackhole) {
+    blackhole.consume(state.queue.offer(0));
   }
 
   @Benchmark
   @Group("queueTest")
   @GroupThreads(1)
   public void consume(QueueState state, Blackhole bh) {
-    state.consumerReady.countDown(); // signal producers can start
     Integer v = state.queue.poll();
     if (v != null) {
       bh.consume(v);
