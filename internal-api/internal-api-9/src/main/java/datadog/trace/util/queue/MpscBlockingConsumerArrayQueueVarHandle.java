@@ -43,7 +43,7 @@ public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVa
   public E take() throws InterruptedException {
     consumerThread = Thread.currentThread();
     E e;
-    while ((e = poll()) != null) {
+    while ((e = poll()) == null) {
       parkUntilNext(-1);
     }
     return e;
