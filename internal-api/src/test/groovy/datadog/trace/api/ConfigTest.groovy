@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.json.JsonPath
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
@@ -373,8 +374,8 @@ class ConfigTest extends DDSpecification {
     config.debuggerExceptionEnabled == true
     config.jdkSocketEnabled == false
 
-    config.cloudRequestPayloadTagging == ["all"]
-    config.cloudResponsePayloadTagging == ["all"]
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
     config.xDatadogTagsMaxLength == 128
   }
 
@@ -563,8 +564,8 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
 
-    config.cloudRequestPayloadTagging == ["all"]
-    config.cloudResponsePayloadTagging == ["all"]
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -606,10 +607,10 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 42
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 81
-    config.requestHeaderTags == ["*":"http.request.headers."]
-    config.responseHeaderTags == ["*":"http.response.headers."]
-    config.cloudRequestPayloadTagging == ["all"]
-    config.cloudResponsePayloadTagging == ["all"]
+    config.requestHeaderTags == ["*": "http.request.headers."]
+    config.responseHeaderTags == ["*": "http.response.headers."]
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
   }
 
   def "sys props override env vars"() {
@@ -620,7 +621,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_AGENT_PORT_ENV, "777")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "false")
     environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
-    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "")
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
     System.setProperty(PREFIX + WRITER_TYPE, "DDAgentWriter")
@@ -628,8 +629,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
-    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "\$.path1,\$.path2")
-    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "\$.path3,\$.path4")
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
 
     when:
     def config = new Config()
@@ -642,8 +643,10 @@ class ConfigTest extends DDSpecification {
     config.agentUrl == "http://somewhere:123"
     config.longRunningTraceEnabled
     config.longRunningTraceFlushInterval == 120
-    config.cloudRequestPayloadTagging == ["\$.path1", "\$.path2"]
-    config.cloudResponsePayloadTagging == ["\$.path3", "\$.path4"]
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+    config.@cloudRequestPayloadTagging == null
+    config.@cloudResponsePayloadTagging == []
   }
 
   def "default when configured incorrectly"() {
@@ -798,7 +801,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six",g: "g"]
+    config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -1070,8 +1073,8 @@ class ConfigTest extends DDSpecification {
     value               | expected // null means default value
     // spotless:off
     "1"                 | [1]
-    "3,13,400-403"      | [3,13,400,401,402,403]
-    "2,10,13-15"        | [2,10,13,14,15]
+    "3,13,400-403"      | [3, 13, 400, 401, 402, 403]
+    "2,10,13-15"        | [2, 10, 13, 14, 15]
     "a"                 | null
     ""                  | null
     "1000"              | null
@@ -1767,7 +1770,7 @@ class ConfigTest extends DDSpecification {
 
     //verify expected behavior when not enabled under feature flag
     config.logsInjectionEnabled == true
-    config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+    config.globalTags == [env: "test", aKey: "aVal", bKey: "bVal"]
   }
 
   def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
@@ -1842,18 +1845,18 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    value       | tClass  | expected
-    "true"      | Boolean | true
-    "trUe"      | Boolean | true
-    "false"     | Boolean | false
-    "False"     | Boolean | false
-    "1"         | Boolean | true
-    "0"         | Boolean | false
-    "42.42"     | Float   | 42.42f
-    "42.42"     | Double  | 42.42
-    "44"        | Integer | 44
-    "45"        | Long    | 45
-    "46"        | Short   | 46
+    value   | tClass  | expected
+    "true"  | Boolean | true
+    "trUe"  | Boolean | true
+    "false" | Boolean | false
+    "False" | Boolean | false
+    "1"     | Boolean | true
+    "0"     | Boolean | false
+    "42.42" | Float   | 42.42f
+    "42.42" | Double  | 42.42
+    "44"    | Integer | 44
+    "45"    | Long    | 45
+    "46"    | Short   | 46
     // spotless:on
   }
 
@@ -2456,12 +2459,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "-1"          | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "9"           | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "10"          | 10
-    "450"         | 450
+    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "9"                     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "451"                   | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "10"                    | 10
+    "450"                   | 450
   }
 
   def "ssi injection enabled"() {
@@ -2507,12 +2510,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "-1"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "19"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "451"         | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "20"          | 20
-    "450"         | 450
+    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "19"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "451"                   | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "20"                    | 20
+    "450"                   | 450
   }
 
   def "partial flush and min spans interaction"() {
@@ -2555,10 +2558,10 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    enablementMode | expectedEnabled | expectedStartDelay             | expectedStartForceFirst
-    "true"         | true            | 1                              | true
-    "false"        | false           | 1                              | true
-    "auto"         | true            | PROFILING_START_DELAY_DEFAULT  | PROFILING_START_FORCE_FIRST_DEFAULT
+    enablementMode | expectedEnabled | expectedStartDelay            | expectedStartForceFirst
+    "true"         | true            | 1                             | true
+    "false"        | false           | 1                             | true
+    "auto"         | true            | PROFILING_START_DELAY_DEFAULT | PROFILING_START_FORCE_FIRST_DEFAULT
     // spotless:on
   }
 
@@ -2607,38 +2610,56 @@ class ConfigTest extends DDSpecification {
     "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
   }
 
+  static jp() {
+    return JsonPath.Builder.start()
+  }
+
+  def "set cloud payload tagging config"() {
+    setup:
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, reqEnv)
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, respEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    if(config.@cloudRequestPayloadTagging == null){
+      expectedreqconfig == null
+    }else{
+      config.@cloudRequestPayloadTagging.toString()== expectedreqconfig.toString()
+    }
+
+    if(config.@cloudResponsePayloadTagging == null){
+      expectedrespconfig == null
+    }else{
+      config.@cloudResponsePayloadTagging.toString()== expectedrespconfig.toString()
+    }
+
+    where:
+    reqEnv         | respEnv        | expectedreqconfig        | expectedrespconfig
+    "all"          | "all"          | []                       | []
+    "all,invalid"  | "all,invalid"  | null                     | null
+    ""             | ""             | null                     | null
+    "invalid"      | "invalid"      | null                     | null
+    "\$.a"         | "\$.b"         | [jp().name('a').build()] | [jp().name('b').build()]
+    "\$.a,invalid" | "\$.b,invalid" | [jp().name('a').build()] | [jp().name('b').build()]
+  }
+
+
   // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {
 
     def strictness
 
-    def setup(){
+    def setup() {
       strictness = ConfigHelper.get().configInversionStrictFlag()
       ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     }
 
-    def cleanup(){
+    def cleanup() {
       ConfigHelper.get().setConfigInversionStrict(strictness)
     }
 
-    def "set cloud payload tagging to null if invalid or empty value is passed as env"() {
-      setup:
-      environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "")
-      environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "")
-
-      when:
-      def config = new Config()
-
-      then:
-      config.cloudRequestPayloadTagging == []
-      config.@cloudRequestPayloadTagging == null
-
-      config.cloudResponsePayloadTagging == []
-      config.@cloudResponsePayloadTagging == null
-
-      !config.isCloudRequestPayloadTaggingEnabled()
-      !config.isCloudResponsePayloadTaggingEnabled()
-    }
 
     def "verify rule config #name"() {
       setup:

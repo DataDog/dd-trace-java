@@ -660,6 +660,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
+import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
@@ -690,6 +691,7 @@ import datadog.trace.util.ConfigStrings;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
+import datadog.trace.util.json.JsonPath;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
@@ -1260,8 +1262,8 @@ public class Config {
   private final String agentlessLogSubmissionProduct;
 
   private final Set<String> cloudPayloadTaggingServices;
-  @Nullable private final List<String> cloudRequestPayloadTagging;
-  @Nullable private final List<String> cloudResponsePayloadTagging;
+  @Nullable private final List<JsonPath> cloudRequestPayloadTagging;
+  @Nullable private final List<JsonPath> cloudResponsePayloadTagging;
   private final int cloudPayloadTaggingMaxDepth;
   private final int cloudPayloadTaggingMaxTags;
 
@@ -2785,17 +2787,35 @@ public class Config {
 
     List<String> cloudReqPayloadTaggingConf =
         configProvider.getList(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
-    this.cloudRequestPayloadTagging =
-        cloudReqPayloadTaggingConf != null && cloudReqPayloadTaggingConf.isEmpty()
-            ? null
-            : cloudReqPayloadTaggingConf;
+    if (null == cloudReqPayloadTaggingConf) {
+      // if no configuration is provided, disable payload tagging
+      this.cloudRequestPayloadTagging = null;
+    } else if (cloudReqPayloadTaggingConf.size() == 1
+        && cloudReqPayloadTaggingConf.get(0).equalsIgnoreCase("all")) {
+      // if "all" is specified enable all JSON paths
+      this.cloudRequestPayloadTagging = Collections.emptyList();
+    } else {
+      // parse and validate JSON paths. if none are valid, disable payload tagging
+      List<JsonPath> validRequestJsonPaths = parseJsonPaths(cloudReqPayloadTaggingConf);
+      this.cloudRequestPayloadTagging =
+          validRequestJsonPaths.isEmpty() ? null : validRequestJsonPaths;
+    }
 
     List<String> cloudRespPayloadTaggingConf =
         configProvider.getList(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
-    this.cloudResponsePayloadTagging =
-        cloudRespPayloadTaggingConf != null && cloudRespPayloadTaggingConf.isEmpty()
-            ? null
-            : cloudRespPayloadTaggingConf;
+    if (null == cloudRespPayloadTaggingConf) {
+      // if no configuration is provided, disable payload tagging
+      this.cloudResponsePayloadTagging = null;
+    } else if (cloudRespPayloadTaggingConf.size() == 1
+        && cloudRespPayloadTaggingConf.get(0).equalsIgnoreCase("all")) {
+      // if "all" is specified enable all JSON paths
+      this.cloudResponsePayloadTagging = Collections.emptyList();
+    } else {
+      // parse and validate JSON paths. if none are valid, disable payload tagging
+      List<JsonPath> validResponseJsonPaths = parseJsonPaths(cloudRespPayloadTaggingConf);
+      this.cloudResponsePayloadTagging =
+          validResponseJsonPaths.isEmpty() ? null : validResponseJsonPaths;
+    }
 
     this.cloudPayloadTaggingMaxDepth =
         configProvider.getInteger(TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
@@ -5215,7 +5235,7 @@ public class Config {
     return isCloudRequestPayloadTaggingEnabled() || isCloudResponsePayloadTaggingEnabled();
   }
 
-  public List<String> getCloudRequestPayloadTagging() {
+  public List<JsonPath> getCloudRequestPayloadTagging() {
     return cloudRequestPayloadTagging == null
         ? Collections.emptyList()
         : cloudRequestPayloadTagging;
@@ -5225,7 +5245,7 @@ public class Config {
     return cloudRequestPayloadTagging != null;
   }
 
-  public List<String> getCloudResponsePayloadTagging() {
+  public List<JsonPath> getCloudResponsePayloadTagging() {
     return cloudResponsePayloadTagging == null
         ? Collections.emptyList()
         : cloudResponsePayloadTagging;
