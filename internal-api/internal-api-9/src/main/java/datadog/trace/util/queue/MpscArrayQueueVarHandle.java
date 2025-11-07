@@ -82,9 +82,7 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   public boolean offer(E e) {
     Objects.requireNonNull(e);
 
-    // jctools does the same local copy to have the jitter optimise the accesses
     final Object[] localBuffer = this.buffer;
-
     long localProducerLimit = (long) PRODUCER_LIMIT_HANDLE.getVolatile(this);
     long cachedHead = 0L; // Local cache of head to reduce volatile reads
 
@@ -94,9 +92,8 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     while (true) {
       long currentTail = (long) TAIL_HANDLE.getVolatile(this);
 
-      // Check if producer limit exceeded
+      // Slow path: refresh producer limit when queue is near full
       if (currentTail >= localProducerLimit) {
-        // Refresh head only when necessary
         cachedHead = (long) HEAD_HANDLE.getVolatile(this);
         localProducerLimit = cachedHead + capacity;
 
@@ -104,23 +101,36 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
           return false; // queue full
         }
 
-        // Update producerLimit so other producers also benefit
         PRODUCER_LIMIT_HANDLE.setVolatile(this, localProducerLimit);
       }
 
-      // Attempt to claim a slot
+      long freeSlots = localProducerLimit - currentTail;
+
+      // Fast path: getAndAdd if occupancy < 75%
+      if (freeSlots > (long) (capacity * 0.25)) { // more than 25% free
+        long slot = (long) TAIL_HANDLE.getAndAdd(this, 1L);
+        final int index = (int) (slot & mask);
+
+        // Release-store ensures visibility to consumer
+        ARRAY_HANDLE.setRelease(localBuffer, index, e);
+        return true;
+      }
+
+      // Slow path: CAS near limit
       if (TAIL_HANDLE.compareAndSet(this, currentTail, currentTail + 1)) {
         final int index = (int) (currentTail & mask);
 
-        // Release-store ensures producer's write is visible to consumer
+        // Release-store ensures visibility to consumer
         ARRAY_HANDLE.setRelease(localBuffer, index, e);
         return true;
       }
 
       // Backoff to reduce contention
       if ((spinCycles & 1) == 0) {
+        // spin each even cycles
         Thread.onSpinWait();
       } else {
+        // use a 'random' alternate backoff on odd cycles
         if (parkOnSpin) {
           LockSupport.parkNanos(1);
         } else {
