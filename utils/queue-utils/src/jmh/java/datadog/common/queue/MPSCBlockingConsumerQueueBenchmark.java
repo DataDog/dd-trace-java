@@ -47,31 +47,20 @@ public class MPSCBlockingConsumerQueueBenchmark {
     @Setup(Level.Iteration)
     public void setup() {
       queue = new MpscBlockingConsumerArrayQueueVarHandle<>(capacity);
-      consumerReady = new CountDownLatch(1);
     }
   }
 
   @Benchmark
   @Group("queueTest")
   @GroupThreads(4)
-  public void produce(QueueState state) {
-    try {
-      state.consumerReady.await(); // wait until consumer is ready
-    } catch (InterruptedException ignored) {
-    }
-
-    // bounded attempt: try once, then yield if full
-    boolean offered = state.queue.offer(0);
-    if (!offered) {
-      Thread.yield();
-    }
+  public void produce(QueueState state, Blackhole bh) {
+    bh.consume(state.queue.offer(1));
   }
 
   @Benchmark
   @Group("queueTest")
   @GroupThreads(1)
   public void consume(QueueState state, Blackhole bh) {
-    state.consumerReady.countDown(); // signal producers can start
     Integer v = state.queue.poll();
     if (v != null) {
       bh.consume(v);
