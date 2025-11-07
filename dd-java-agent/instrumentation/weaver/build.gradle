@@ -22,7 +22,7 @@ addTestSuiteForDir('weaver084Test', 'test')
 dependencies {
   compileOnly group: 'org.typelevel', name: 'weaver-cats_3', version: '0.9.0'
 
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.20'
   testImplementation group: 'org.typelevel', name: 'weaver-cats_3', version: '0.9.0'
@@ -30,17 +30,17 @@ dependencies {
   weaver084TestImplementation group: 'com.disneystreaming', name: 'weaver-cats_3', version: '0.8.4'
 }
 
-compileTestGroovy {
-  dependsOn compileTestScala
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn 'compileTestScala'
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
-compileLatestDepTestGroovy {
-  dependsOn compileLatestDepTestScala
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  dependsOn 'compileLatestDepTestScala'
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }
 
-compileWeaver084TestGroovy {
-  dependsOn compileWeaver084TestScala
+tasks.named("compileWeaver084TestGroovy", GroovyCompile) {
+  dependsOn 'compileWeaver084TestScala'
   classpath += files(sourceSets.weaver084Test.scala.destinationDirectory)
 }

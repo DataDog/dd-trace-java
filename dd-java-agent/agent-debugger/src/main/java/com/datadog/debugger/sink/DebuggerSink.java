@@ -1,6 +1,7 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -36,7 +37,7 @@ public class DebuggerSink {
   private final String tags;
   private final AtomicLong highRateDropped = new AtomicLong();
   private final int uploadFlushInterval;
-  private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.INSTANCE;
+  private final AgentTaskScheduler lowRateScheduler = AgentTaskScheduler.get();
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> lowRateScheduled;
   private volatile AgentTaskScheduler.Scheduled<DebuggerSink> flushIntervalScheduled;
   private volatile long currentLowRateFlushInterval = LOW_RATE_INITIAL_FLUSH_INTERVAL;
@@ -51,7 +52,12 @@ public class DebuggerSink {
             config,
             null,
             new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
+                "Snapshots",
+                config,
+                config.getFinalDebuggerSnapshotUrl(),
+                SnapshotSink.RETRY_POLICY),
+            new BatchUploader(
+                "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
         new SymbolSink(config));
   }
 
@@ -86,6 +92,8 @@ public class DebuggerSink {
   }
 
   public void stop() {
+    lowRateFlush(this);
+    snapshotSink.highRateFlush(null);
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
     probeStatusSink.stop();
@@ -116,7 +124,10 @@ public class DebuggerSink {
     if (!added) {
       debuggerMetrics.count(DROPPED_REQ_METRIC, 1);
     } else {
-      probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
+      if (!(snapshot.getProbe() instanceof ExceptionProbe)) {
+        // do not report emitting for exception probes
+        probeStatusSink.addEmitting(snapshot.getProbe().getProbeId());
+      }
     }
   }
 

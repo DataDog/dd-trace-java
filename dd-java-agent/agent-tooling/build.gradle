@@ -9,33 +9,35 @@ minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 sourceSets {
-  test_java11 {
+  register("test_java11") {
     java {
       srcDirs = [file('src/test/java11')]
     }
   }
-  test {
-    groovy {
-      compileClasspath += sourceSets.test_java11.output
-      runtimeClasspath += sourceSets.test_java11.output
+  register("test_java21") {
+    java {
+      srcDirs = [file('src/test/java21')]
     }
+  }
+  named("test") {
+    compileClasspath += sourceSets.test_java11.output
+    runtimeClasspath += sourceSets.test_java11.output
+    compileClasspath += sourceSets.test_java21.output
+    runtimeClasspath += sourceSets.test_java21.output
   }
 }
 
 configurations {
-  instrumentPluginClasspath {
+  register("instrumentPluginClasspath") {
     canBeConsumed = true
     canBeResolved = false
     extendsFrom runtimeElements
   }
 
-  test_java11Implementation {
+  named("test_java11Implementation") {
     extendsFrom testImplementation
   }
 }
-
-compileJava.dependsOn 'generateClassNameTries'
-sourcesJar.dependsOn 'generateClassNameTries'
 
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
@@ -43,6 +45,7 @@ dependencies {
   }
   compileOnly project(':dd-java-agent:agent-jmxfetch')
   compileOnly project(':dd-java-agent:agent-profiling')
+  compileOnly project(':dd-java-agent:agent-profiling:profiling-controller')
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
   api libs.bytebuddy
   api libs.bytebuddyagent
@@ -66,30 +69,52 @@ jmh {
   jmhVersion = libs.versions.jmh.get()
   includeTests = true
 }
-compileJmhJava.dependsOn compileTestJava
-compileTestJava.dependsOn 'generateTestClassNameTries'
 
-forbiddenApisJmh {
+tasks.named("compileJava") { dependsOn 'generateClassNameTries' }
+tasks.named("sourcesJar") { dependsOn 'generateClassNameTries' }
+
+tasks.named("compileJmhJava") { dependsOn tasks.named("compileTestJava") }
+
+tasks.named("forbiddenApisJmh") {
   ignoreFailures = true
 }
 
-forbiddenApisTest_java11 {
+tasks.named("forbiddenApisTest_java11") {
   // it will fail due to missing JDK >= 9 classes
   // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
   failOnMissingClasses = false
+  ignoreFailures = true
 }
 
-project.tasks.compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
-project.tasks.compileTestGroovy.dependsOn(project.tasks.compileTest_java11Java)
-project.tasks.compileTest_java11Java.configure {
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
+tasks.named("compileTestJava") {
+  dependsOn('generateTestClassNameTries')
+}
+tasks.named("compileTestGroovy") {
+  configureCompiler(it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Groovy generates synthetic accessors methods from superclass, we don't want that for `URLClassLoader`," +
+    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
+    )
+}
+tasks.named("compileTest_java11Java") {
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
+}
+tasks.named("compileTest_java21Java") {
+  configureCompiler(
+    it,
+    21,
+    JavaVersion.VERSION_1_8,
+    "This source set is specifically designed to make `javac` from a JDK post 18/19, generates " +
+    "bytecode that emit `invokeinterface` for `java.lang.Object` methods on an interface type. " +
+    "See https://bugs.openjdk.org/browse/JDK-8272715."
+    )
 }
 
-final jmh = project.tasks.jmh
-jmh.outputs.upToDateWhen { false }
-jmh.dependsOn(compileTestJava)
+tasks.named("jmh") {
+  dependsOn(tasks.named("compileTestJava"))
+  outputs.upToDateWhen { false }
+}
 
 tasks.withType(Test).configureEach {
   // same setting as AgentInstaller to avoid spurious agent-tooling test failures

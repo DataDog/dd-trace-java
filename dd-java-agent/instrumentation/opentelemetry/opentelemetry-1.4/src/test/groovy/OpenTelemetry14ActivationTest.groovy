@@ -1,8 +1,8 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
 
-abstract class OpenTelemetry14ActivationTest extends AgentTestRunner {
+abstract class OpenTelemetry14ActivationTest extends InstrumentationSpecification {
   abstract boolean shouldBeInjected()
 
   def "test instrumentation injection"() {

@@ -7,14 +7,12 @@ import javax.inject.Inject
 
 import play.api.mvc._
 
-/**
-  * This controller creates an `Action` to handle HTTP requests to the
+/** This controller creates an `Action` to handle HTTP requests to the
   * application's work page which does busy wait to simulate some work
   */
-class HomeController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+class HomeController @Inject() (cc: ControllerComponents) extends AbstractController(cc) {
 
-  /**
-    * Create an Action to perform busy wait
+  /** Create an Action to perform busy wait
     */
   def doGet(workTimeMS: Option[Long], error: Option[String]) = Action {
     implicit request: Request[AnyContent] =>

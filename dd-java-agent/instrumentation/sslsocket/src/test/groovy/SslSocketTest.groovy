@@ -1,6 +1,6 @@
 package test
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory
 import spock.lang.AutoCleanup
@@ -11,7 +11,7 @@ import java.lang.reflect.Field
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class SslSocketTest extends AgentTestRunner {
+class SslSocketTest extends InstrumentationSpecification {
   @AutoCleanup
   @Shared
   def server = httpServer {

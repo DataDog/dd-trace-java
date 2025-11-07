@@ -35,11 +35,8 @@ tasks.register('webmvcBuild3', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
-}
-
-tasks.named("compileTestGroovy").configure {
   dependsOn 'webmvcBuild3'
   outputs.upToDateWhen {
     !webmvcBuild3.didWork

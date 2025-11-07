@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jackson2.core
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
@@ -10,7 +10,7 @@ import groovy.json.JsonOutput
 
 import java.nio.charset.Charset
 
-class JsonParserInstrumentationTest extends AgentTestRunner {
+class JsonParserInstrumentationTest extends InstrumentationSpecification {
 
   private final static String JSON_STRING = '{"root":"root_value","nested":{"nested_array":["array_0","array_1"]}}'
 

@@ -1,0 +1,32 @@
+muzzle {
+  pass {
+    group = "org.glassfish.grizzly"
+    module = 'grizzly-http-server'
+    // Limit range, since Muzzle is failing on helper class injection
+    // because 4.+ is Java 11 and a callback inherits a Java 11 class.
+    versions = "[2.0,4.0)"
+  }
+  // Not bothering to test against 1.x since it has a different package name.
+  // https://mvnrepository.com/artifact/com.sun.grizzly/grizzly-http
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.glassfish.grizzly', name: 'grizzly-http-server', version: '2.0'
+
+  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  testImplementation group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0'
+  testImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version: '2.0'
+
+  latestDepTestImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-server', version: '2.+'
+  latestDepTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version: '2.+'
+  latestDepTestImplementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
+}
+
+configurations.named('testRuntimeOnly') {
+  // jersey-container-grizzly2-http transitively imports its own set repackaged asm classes
+  exclude group: 'org.ow2.asm'
+}

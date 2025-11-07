@@ -5,7 +5,7 @@ plugins {
 def sharedConfigDirectory = "$rootDir/../gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
-def isCI = System.getenv("CI") != null
+def isCI = providers.environmentVariable("CI").isPresent()
 def versionFromFile = file("$rootDir/${isCI ? '../workspace' : '..'}/build/main.version").readLines().head()
 
 allprojects {

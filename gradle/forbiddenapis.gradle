@@ -4,13 +4,13 @@ buildscript {
     if (project.rootProject.hasProperty("gradlePluginProxy")) {
       maven {
         url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
       maven {
         url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol true
+        allowInsecureProtocol = true
       }
     }
     gradlePluginPortal()

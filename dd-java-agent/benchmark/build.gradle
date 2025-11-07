@@ -38,7 +38,7 @@ jmh {
   jmhVersion = libs.versions.jmh.get()
 }
 
-tasks.named('jmh').configure {
+tasks.named('jmh') {
   dependsOn ':dd-java-agent:shadowJar'
 }
 

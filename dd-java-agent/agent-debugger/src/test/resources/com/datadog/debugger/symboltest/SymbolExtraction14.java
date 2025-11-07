@@ -23,6 +23,9 @@ public abstract class SymbolExtraction14 extends Object implements I1, I2{
 
 interface I1 {
   default void m3(){}
+  static String m4(String arg){
+    return arg;
+  }
 }
 
 interface I2 {

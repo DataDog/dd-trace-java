@@ -14,8 +14,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
-import static datadog.trace.util.Strings.toEnvVar;
+import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
+import static datadog.trace.util.ConfigStrings.toEnvVar;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
@@ -179,11 +179,20 @@ public class Agent {
   private static boolean llmObsAgentlessEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
+  private static boolean flareEnabled = true;
   private static boolean dynamicInstrumentationEnabled = false;
   private static boolean exceptionReplayEnabled = false;
   private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
+
+  private static void safelySetContextClassLoader(ClassLoader classLoader) {
+    try {
+      // this method call can cause a SecurityException if a security manager is installed.
+      Thread.currentThread().setContextClassLoader(classLoader);
+    } catch (final Throwable ignored) {
+    }
+  }
 
   /**
    * Starts the agent; returns a boolean indicating if Agent started successfully
@@ -207,6 +216,7 @@ public class Agent {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
       telemetryEnabled = false;
+      flareEnabled = false;
       // apply trace instrumentation, but skip other products at native-image build time
       startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
@@ -487,6 +497,10 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
+    if (flareEnabled) {
+      stopFlarePoller();
+    }
+
     if (agentlessLogSubmissionEnabled) {
       shutdownLogsIntake();
     }
@@ -515,7 +529,7 @@ public class Agent {
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
     // one minute fail-safe in case the class was unintentionally loaded during premain
-    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
+    AgentTaskScheduler.get().schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -528,7 +542,7 @@ public class Agent {
 
   private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
     // one minute fail-safe in case the class was unintentionally loaded during premain
-    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
+    AgentTaskScheduler.get().schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -639,9 +653,13 @@ public class Agent {
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
+      maybeStartAiGuard();
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
+      }
+      if (flareEnabled) {
+        startFlarePoller(scoClass, sco);
       }
     }
 
@@ -787,7 +805,7 @@ public class Agent {
       if (forceEarlyStart) {
         initializeCrashTrackingDefault();
       } else {
-        AgentTaskScheduler.INSTANCE.execute(Agent::initializeCrashTrackingDefault);
+        AgentTaskScheduler.get().execute(Agent::initializeCrashTrackingDefault);
       }
     } else {
       // for Java 8 we are relying on JMX to give us the process PID
@@ -798,8 +816,8 @@ public class Agent {
 
   private static void scheduleJmxStart(final int jmxStartDelay) {
     if (jmxStartDelay > 0) {
-      AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-          new JmxStartTask(), jmxStartDelay, TimeUnit.SECONDS);
+      AgentTaskScheduler.get()
+          .scheduleWithJitter(new JmxStartTask(), jmxStartDelay, TimeUnit.SECONDS);
     } else {
       startJmx();
     }
@@ -845,8 +863,8 @@ public class Agent {
           */
           if (getJmxStartDelay() == 0) {
             log.debug("Waiting for profiler initialization");
-            AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-                PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
+            AgentTaskScheduler.get()
+                .scheduleWithJitter(PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
           } else {
             log.debug("Initializing profiler");
             PROFILER_INIT_AFTER_JMX.run();
@@ -916,7 +934,7 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting JmxFetch", ex);
     } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      safelySetContextClassLoader(contextLoader);
     }
   }
 
@@ -926,6 +944,20 @@ public class Agent {
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
+  }
+
+  private static void maybeStartAiGuard() {
+    if (!Config.get().isAiGuardEnabled()) {
+      return;
+    }
+    try {
+      final Class<?> aiGuardSystemClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.aiguard.AIGuardSystem");
+      final Method aiGuardInstallerMethod = aiGuardSystemClass.getMethod("start");
+      aiGuardInstallerMethod.invoke(null);
+    } catch (final Exception e) {
+      log.debug("Error initializing AI Guard", e);
+    }
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
@@ -1108,6 +1140,34 @@ public class Agent {
     }
   }
 
+  private static void startFlarePoller(Class<?> scoClass, Object sco) {
+    StaticEventLogger.begin("Flare Poller");
+    try {
+      final Class<?> tracerFlarePollerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlarePoller");
+      final Method tracerFlarePollerStartMethod =
+          tracerFlarePollerClass.getMethod("start", scoClass);
+      tracerFlarePollerStartMethod.invoke(null, sco);
+    } catch (final Throwable e) {
+      log.warn("Unable start Flare Poller", e);
+    }
+    StaticEventLogger.end("Flare Poller");
+  }
+
+  private static void stopFlarePoller() {
+    if (AGENT_CLASSLOADER == null) {
+      return;
+    }
+    try {
+      final Class<?> tracerFlarePollerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.flare.TracerFlarePoller");
+      final Method tracerFlarePollerStopMethod = tracerFlarePollerClass.getMethod("stop");
+      tracerFlarePollerStopMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.warn("Error encountered while stopping Flare Poller", ex);
+    }
+  }
+
   private static void initializeDelayedCrashTracking() {
     initializeCrashTracking(true, isCrashTrackingAutoconfigEnabled());
   }
@@ -1164,7 +1224,7 @@ public class Agent {
             SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
       }
     } catch (Throwable t) {
-      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking", t);
+      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking");
     }
   }
 
@@ -1255,7 +1315,7 @@ public class Agent {
       } catch (final Throwable ex) {
         log.error(SEND_TELEMETRY, "Throwable thrown while starting profiling agent", ex);
       } finally {
-        Thread.currentThread().setContextClassLoader(contextLoader);
+        safelySetContextClassLoader(contextLoader);
       }
       StaticEventLogger.end("ProfilingAgent");
     }
@@ -1299,7 +1359,7 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      safelySetContextClassLoader(contextLoader);
     }
   }
 
@@ -1308,10 +1368,6 @@ public class Agent {
         && isExplicitlyDisabled(DebuggerConfig.EXCEPTION_REPLAY_ENABLED)
         && isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)
         && isExplicitlyDisabled(DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED)) {
-      return;
-    }
-    if (!remoteConfigEnabled) {
-      log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not enabled");
       return;
     }
     startDebuggerAgent(inst, scoClass, sco);
@@ -1337,7 +1393,7 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      safelySetContextClassLoader(contextLoader);
     }
 
     StaticEventLogger.end("Debugger");

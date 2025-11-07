@@ -76,16 +76,13 @@ public final class CiVisibilityConfig {
       "civisibility.rum.flush.wait.millis";
   public static final String CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER =
       "civisibility.auto.instrumentation.provider";
-  public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL =
-      "civisibility.remote.env.vars.provider.url";
-  public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY =
-      "civisibility.remote.env.vars.provider.key";
   public static final String CIVISIBILITY_TEST_ORDER = "civisibility.test.order";
   public static final String CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED =
       "civisibility.scalatest.fork.monitor.enabled";
   public static final String TEST_MANAGEMENT_ENABLED = "test.management.enabled";
   public static final String TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES =
       "test.management.attempt.to.fix.retries";
+  public static final String TEST_FAILED_TEST_REPLAY_ENABLED = "test.failed.test.replay.enabled";
 
   /* Git PR info */
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull.request.base.branch";

@@ -1,4 +1,5 @@
 import groovy.lang.Closure
+import java.nio.file.Paths
 
 plugins {
   `java-library`
@@ -17,19 +18,17 @@ java {
   }
 }
 
-tasks.withType<Javadoc> {
+tasks.withType<Javadoc>().configureEach() {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
-fun AbstractCompile.setJavaVersion(javaVersionInteger: Int) {
-  (project.extra.get("setJavaVersion") as Closure<*>).call(this, javaVersionInteger)
+fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
 listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
-  tasks.withType(compileTaskType) {
-    setJavaVersion(11)
-    sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-    targetCompatibility = JavaVersion.VERSION_1_8.toString()
+  tasks.withType(compileTaskType).configureEach {
+    configureCompiler(11, JavaVersion.VERSION_1_8)
   }
 }
 
@@ -54,7 +53,7 @@ idea {
 }
 
 jmh {
-  jmhVersion = libs.versions.jmh.get()
+  jmhVersion = libs.versions.jmh
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvm = System.getenv("JAVA_11_HOME") + "/bin/java"
+  jvm = providers.environmentVariable("JAVA_11_HOME").map { Paths.get(it, "bin", "java").toString() }
 }

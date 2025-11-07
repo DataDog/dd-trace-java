@@ -136,23 +136,19 @@ public class SpanTagsPropagator {
       return;
     }
 
+    Boolean childFailureSuppressed = (Boolean) childSpan.getTag(Tags.TEST_FAILURE_SUPPRESSED);
     TestStatus parentStatus = (TestStatus) parentSpan.getTag(Tags.TEST_STATUS);
-    switch (childStatus) {
-      case pass:
-        if (parentStatus == null || TestStatus.skip.equals(parentStatus)) {
-          parentSpan.setTag(Tags.TEST_STATUS, TestStatus.pass);
-        }
-        break;
-      case fail:
-        parentSpan.setTag(Tags.TEST_STATUS, TestStatus.fail);
-        break;
-      case skip:
-        if (parentStatus == null) {
-          parentSpan.setTag(Tags.TEST_STATUS, TestStatus.skip);
-        }
-        break;
-      default:
-        break;
+    if (childStatus == TestStatus.pass
+        || (childFailureSuppressed != null && childFailureSuppressed)) {
+      if (parentStatus == null || TestStatus.skip.equals(parentStatus)) {
+        parentSpan.setTag(Tags.TEST_STATUS, TestStatus.pass);
+      }
+    } else if (childStatus == TestStatus.fail) {
+      parentSpan.setTag(Tags.TEST_STATUS, TestStatus.fail);
+    } else if (childStatus == TestStatus.skip) {
+      if (parentStatus == null) {
+        parentSpan.setTag(Tags.TEST_STATUS, TestStatus.skip);
+      }
     }
   }
 

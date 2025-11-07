@@ -47,6 +47,12 @@ jdk.ExecutionSample#enabled=true
 # Note: we use 9 ms sampling rate in a hope to avoid 'lockstep' sampling.
 # Ideally JFR should provide random jitter in sampling to ensure this doesn't happen.
 jdk.ExecutionSample#period=9 ms
+# In JDK 25+ we want to use CPUTimeSample instead
+# Disabling the ExecutionSample will be done in OpenJDKController impl
+jdk.CPUTimeSample#enabled=true
+jdk.CPUTimeSample#throttle=9ms
+jdk.CPUTimeSamplesLost#enabled=true
+# ---
 jdk.NativeMethodSample#enabled=false
 jdk.SafepointBegin#enabled=true
 jdk.SafepointBegin#threshold=0 ms

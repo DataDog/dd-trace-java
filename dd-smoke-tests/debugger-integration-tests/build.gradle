@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -30,11 +32,12 @@ dependencies {
 //def latestJdk = '17'
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
 
   // TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
   //  def isLatestJdk = project.findProperty("testJvm") == latestJdk
-  //  def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
+  //  def latestJavaHome = providers.environmentVariable("JAVA_${latestJdk}_HOME").orNull
   //  if (isLatestJdk && latestJavaHome) {
   //    dependsOn buildLatestJdkApp
   //  }
@@ -44,6 +47,11 @@ tasks.withType(Test).configureEach {
   //    }
   //  }
 
-  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
 

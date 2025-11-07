@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -21,7 +23,9 @@ excludedClassesCoverage += [
   // only static classes
   'com.datadog.debugger.util.MoshiSnapshotHelper',
   // based on JDK WeakHashMap
-  'com.datadog.debugger.util.WeakIdentityHashMap*'
+  'com.datadog.debugger.util.WeakIdentityHashMap*',
+  // tested through smoke tests
+  'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger'
 ]
 
 dependencies {
@@ -40,36 +44,36 @@ dependencies {
   implementation libs.dogstatsd
   implementation libs.moshi
 
+  testImplementation libs.asm.util
   testImplementation libs.bundles.junit5
-  testImplementation group: 'org.ow2.asm', name: 'asm-util', version: libs.versions.asm.get()
-  testImplementation group: "org.junit.jupiter", name: "junit-jupiter-params", version: libs.versions.junit5.get()
-  testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.7.0")
-  testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
+  testImplementation libs.junit.jupiter.params
   testImplementation libs.bundles.mockito
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
   testImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '2.3.5.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
   testImplementation group: 'org.jooq', name: 'joor-java-8', version: '0.9.13'
-  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "1.9.25"
+  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "2.1.21"
   testImplementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: "1.0.0"
+
+  testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-builder')
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
+
   testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: libs.versions.scala213.get()
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
   dependencies {
     exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
   }
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
   from sourceSets.main.output
 }

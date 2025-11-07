@@ -1,0 +1,19 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+configurations.configureEach {
+  // shut up about broken xml-api pom relocation
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01'
+  }
+}
+
+def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
+dependencies {
+  compileOnly group: 'tomcat', name: 'catalina', version: tomcatVersion
+  compileOnly group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
+  compileOnly group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
+
+  // Version that corresponds with Tomcat 5.5
+  // https://tomcat.apache.org/whichversion.html
+  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
+}

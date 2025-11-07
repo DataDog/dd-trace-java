@@ -1,10 +1,10 @@
 import annotatedsample.ReactiveStreamsTracedMethods
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.CountDownLatch
 
-class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
+class ReactiveStreamsAsyncResultExtensionTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -33,6 +33,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -63,6 +64,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
             errorTags(expectedException)
           }
         }
@@ -92,6 +94,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }
@@ -121,6 +124,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
         span {
@@ -130,6 +134,7 @@ class ReactiveStreamsAsyncResultExtensionTest extends AgentTestRunner {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

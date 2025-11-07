@@ -1,21 +1,23 @@
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'java-test-fixtures'
+  id 'org.jetbrains.kotlin.jvm'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
+}
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
@@ -28,17 +30,13 @@ dependencies {
   implementation project(':components:json')
   implementation project(':internal-api')
 
-  testImplementation project(":utils:test-utils")
-  testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.0'
-
-  testFixturesApi project(':dd-java-agent:testing')
-  testFixturesApi project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:testing')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }

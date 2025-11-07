@@ -62,7 +62,8 @@ public class DebuggerSinkTest {
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
 
   @Mock private Config config;
-  @Mock private BatchUploader batchUploader;
+  @Mock private BatchUploader snapshotUploader;
+  @Mock private BatchUploader logUploader;
   @Captor private ArgumentCaptor<byte[]> payloadCaptor;
 
   private String EXPECTED_SNAPSHOT_TAGS;
@@ -83,7 +84,7 @@ public class DebuggerSinkTest {
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
 
     EXPECTED_SNAPSHOT_TAGS =
-        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:null,host_name:"
+        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:[^,]+,host_name:"
             + config.getHostName()
             + "$";
     probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
@@ -99,7 +100,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot = createSnapshot();
     sink.addSnapshot(snapshot);
     sink.lowRateFlush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
@@ -132,7 +133,7 @@ public class DebuggerSinkTest {
     Snapshot snapshot = createSnapshot();
     Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
     sink.lowRateFlush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     ParameterizedType type =
@@ -156,7 +157,7 @@ public class DebuggerSinkTest {
       sink.addSnapshot(largeSnapshot);
     }
     sink.lowRateFlush(sink);
-    verify(batchUploader, times(2))
+    verify(snapshotUploader, times(2))
         .upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     Assertions.assertTrue(payloadCaptor.getAllValues().get(0).length < MAX_PAYLOAD);
     Assertions.assertTrue(payloadCaptor.getAllValues().get(1).length < MAX_PAYLOAD);
@@ -171,7 +172,7 @@ public class DebuggerSinkTest {
     }
     sink.addSnapshot(largeSnapshot);
     sink.lowRateFlush(sink);
-    verifyNoInteractions(batchUploader);
+    verifyNoInteractions(snapshotUploader);
   }
 
   @Test
@@ -183,7 +184,7 @@ public class DebuggerSinkTest {
     }
     sink.addSnapshot(largeSnapshot);
     sink.lowRateFlush(sink);
-    verifyNoInteractions(batchUploader);
+    verifyNoInteractions(snapshotUploader);
   }
 
   static class Node {
@@ -223,7 +224,7 @@ public class DebuggerSinkTest {
     largeSnapshot.setEntry(context);
     sink.addSnapshot(largeSnapshot);
     sink.lowRateFlush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     assertTrue(strPayload.length() < SnapshotSink.MAX_SNAPSHOT_SIZE);
   }
@@ -243,7 +244,7 @@ public class DebuggerSinkTest {
   public void addNoSnapshots() {
     DebuggerSink sink = createDefaultDebuggerSink();
     sink.lowRateFlush(sink);
-    verifyNoInteractions(batchUploader);
+    verifyNoInteractions(snapshotUploader);
   }
 
   @Test
@@ -382,7 +383,7 @@ public class DebuggerSinkTest {
     String tooLargeMessage = tooLargeMessageBuilder.toString();
     sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
     sink.lowRateFlush(sink);
-    verifyNoInteractions(batchUploader);
+    verifyNoInteractions(snapshotUploader);
   }
 
   @Test
@@ -396,14 +397,14 @@ public class DebuggerSinkTest {
     String tooLargeMessage = tooLargeMessageBuilder.toString();
     sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
     sink.lowRateFlush(sink);
-    verifyNoInteractions(batchUploader);
+    verifyNoInteractions(snapshotUploader);
   }
 
   @Test
   public void addNoDiagnostic() {
     DebuggerSink sink = createDefaultDebuggerSink();
     sink.lowRateFlush(sink);
-    verifyNoInteractions(batchUploader);
+    verifyNoInteractions(snapshotUploader);
   }
 
   @Test
@@ -453,7 +454,7 @@ public class DebuggerSinkTest {
     snapshot.setSpanId("456");
     sink.addSnapshot(snapshot);
     sink.lowRateFlush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
@@ -472,7 +473,7 @@ public class DebuggerSinkTest {
         Arrays.asList(new EvaluationError("obj.field", "Cannot dereference obj")));
     sink.addSnapshot(snapshot);
     sink.lowRateFlush(sink);
-    verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
     System.out.println(strPayload);
     JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
@@ -501,7 +502,12 @@ public class DebuggerSinkTest {
             config,
             "",
             new BatchUploader(
-                config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
+                "Snapshots",
+                config,
+                config.getFinalDebuggerSnapshotUrl(),
+                SnapshotSink.RETRY_POLICY),
+            new BatchUploader(
+                "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     DebuggerSink sink =
         new DebuggerSink(config, "", debuggerMetrics, probeStatusSink, snapshotSink, symbolSink);
@@ -539,7 +545,7 @@ public class DebuggerSinkTest {
         tags,
         DebuggerMetrics.getInstance(config),
         probeStatusSink,
-        new SnapshotSink(config, tags, batchUploader),
+        new SnapshotSink(config, tags, snapshotUploader, logUploader),
         new SymbolSink(config));
   }
 
@@ -551,7 +557,7 @@ public class DebuggerSinkTest {
         tags,
         DebuggerMetrics.getInstance(config),
         probeSink,
-        new SnapshotSink(config, tags, batchUploader),
+        new SnapshotSink(config, tags, snapshotUploader, logUploader),
         new SymbolSink(config));
   }
 }

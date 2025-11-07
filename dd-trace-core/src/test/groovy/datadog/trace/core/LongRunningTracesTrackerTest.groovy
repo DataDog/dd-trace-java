@@ -2,7 +2,6 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
@@ -16,7 +15,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
   Config config = Mock(Config)
   int maxTrackedTraces = 10
   def sharedCommunicationObjects = Mock(SharedCommunicationObjects)
-  DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
+  DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
   LongRunningTracesTracker tracker
   def tracer = Mock(CoreTracer)
   def traceConfig = Stub(CoreTracer.ConfigSnapshot)
@@ -26,7 +25,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
 
   def setup() {
     timeSource.set(0L)
-    features.supportsLongRunning = true
+    features.supportsLongRunning() >> true
     tracer.captureTraceConfig() >> traceConfig
     tracer.getTimeWithNanoTicks(_) >> { Long x -> x }
     traceConfig.getServiceMapping() >> [:]
@@ -119,12 +118,12 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     given:
     def trace = newTraceToTrack()
     tracker.add(trace)
-    features.supportsLongRunning = false
 
     when:
     tracker.flushAndCompact(tracker.flushPeriodMilli - 1000)
 
     then:
+    1 * features.supportsLongRunning() >> false
     tracker.traceArray.size() == 0
   }
 

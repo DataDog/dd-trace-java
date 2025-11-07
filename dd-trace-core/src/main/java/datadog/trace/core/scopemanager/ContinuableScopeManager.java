@@ -367,7 +367,7 @@ public final class ContinuableScopeManager implements ContextManager {
     ContinuableScope newScope;
     if (context instanceof ScopeContext) {
       // restore previously swapped context stack
-      newStack = ((ScopeContext) context).restore();
+      newStack = ((ScopeContext) context).restore(profilingContextIntegration);
       newScope = newStack.top;
     } else if (context != Context.root()) {
       // start a new stack and record the new context as active
@@ -430,8 +430,9 @@ public final class ContinuableScopeManager implements ContextManager {
 
     public static void scheduleFor(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
       long period = Math.min(iterationKeepAlive, 10_000);
-      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-          CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
+      AgentTaskScheduler.get()
+          .scheduleAtFixedRate(
+              CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
     }
 
     @Override

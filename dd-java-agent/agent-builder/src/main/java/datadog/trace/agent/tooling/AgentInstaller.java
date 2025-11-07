@@ -55,6 +55,7 @@ public class AgentInstaller {
 
   static {
     addByteBuddyRawSetting();
+    disableByteBuddyNexus();
     // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
     circularityErrorWorkaround();
@@ -83,11 +84,12 @@ public class AgentInstaller {
       }
       int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
       if (poolCleaningInterval > 0) {
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            SharedTypePools::clear,
-            poolCleaningInterval,
-            Math.max(poolCleaningInterval, 10),
-            TimeUnit.SECONDS);
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                SharedTypePools::clear,
+                poolCleaningInterval,
+                Math.max(poolCleaningInterval, 10),
+                TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
       log.debug("No target systems enabled, skipping instrumentation.");
@@ -332,6 +334,11 @@ public class AgentInstaller {
         SystemProperties.set(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
       }
     }
+  }
+
+  private static void disableByteBuddyNexus() {
+    // disable byte-buddy's Nexus mechanism (we don't need it, and it triggers use of Unsafe)
+    SystemProperties.set("net.bytebuddy.nexus.disabled", "true");
   }
 
   private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(

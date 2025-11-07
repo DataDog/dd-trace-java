@@ -1,0 +1,33 @@
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_21
+}
+muzzle {
+  pass {
+    group = 'com.aerospike'
+    module = 'aerospike-client'
+    versions = "[4,8)"
+    skipVersions += "4.4.19" // bad release
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir("latestDepTest", "test")
+addTestSuiteForDir("latest7DepTest", "test")
+addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
+addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
+
+dependencies {
+  compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+
+  testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  testImplementation libs.testcontainers
+
+  latest7DepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '7.+'
+  latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

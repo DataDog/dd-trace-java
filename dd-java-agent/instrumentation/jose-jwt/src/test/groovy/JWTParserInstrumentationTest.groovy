@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -6,7 +6,7 @@ import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 
-class JWTParserInstrumentationTest extends AgentTestRunner {
+class JWTParserInstrumentationTest extends InstrumentationSpecification {
 
   private Object iastCtx
 

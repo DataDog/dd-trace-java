@@ -98,7 +98,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       extendsFrom(project.configurations.named(mainSourceSet.compileClasspathConfigurationName).get())
     }
 
-    project.tasks.named(csiSourceSet.getCompileTaskName("java"), AbstractCompile::class.java).configure {
+    project.tasks.named(csiSourceSet.getCompileTaskName("java"), AbstractCompile::class.java) {
       sourceCompatibility = JavaVersion.VERSION_1_8.toString()
       targetCompatibility = JavaVersion.VERSION_1_8.toString()
     }

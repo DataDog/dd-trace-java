@@ -1,5 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
   id 'java-test-fixtures'
+  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
 }
 
 muzzle {
@@ -24,22 +28,30 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
+}
+
 addTestSuite('latestDepTest')
 
-tasks.named("compileTestFixturesGroovy").configure {
-  classpath += files(compileTestFixturesKotlin.destinationDirectory)
+tasks.named("compileTestFixturesGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileTestFixturesKotlin').map { it.destinationDirectory })
 }
 
-tasks.named("compileTestGroovy").configure {
-  classpath += files(compileTestKotlin.destinationDirectory)
+tasks.named("compileTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileTestKotlin').map { it.destinationDirectory })
 }
 
-tasks.named("compileLatestDepTestGroovy").configure {
-  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
 }
 
 dependencies {
-  api project(':dd-java-agent:instrumentation:java-concurrent')
+  api project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   compileOnly libs.kotlin
   compileOnly libs.coroutines
 
@@ -47,7 +59,7 @@ dependencies {
   testFixturesImplementation libs.coroutines
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
-  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
   testFixturesApi 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 
   testImplementation libs.kotlin

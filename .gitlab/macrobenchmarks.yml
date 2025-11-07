@@ -1,7 +1,8 @@
 include:
-  project: 'DataDog/benchmarking-platform-tools'
-  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
-  ref: '925e0a3e7dd628885f6fc69cdaea5c8cc9e212bc'
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/check-slo-breaches.template.yml'
 
 .macrobenchmarks:
   stage: macrobenchmarks
@@ -76,10 +77,9 @@ otel-latest:
 
 
 check-slo-breaches:
+  extends: .check-slo-breaches
   stage: macrobenchmarks
   interruptible: true
-  tags: ["arch:amd64"]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   rules:
     - if: $POPULATE_CACHE
       when: never
@@ -127,6 +127,7 @@ check-slo-breaches:
       - platform/artifacts/
     expire_in: 1 week
   variables:
+    DDOCTOSTS_POLICY: "self.gitlab.github-access.read"
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID # The ID of the current project. This ID is unique across all projects on the GitLab instance.
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME # "dd-trace-java"
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
@@ -141,4 +142,4 @@ notify-slo-breaches:
       when: never
     - when: always
   variables:
-    CHANNEL: "apm-release-platform"
+    CHANNEL: "apm-java"

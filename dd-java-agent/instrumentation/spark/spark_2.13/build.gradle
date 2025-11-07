@@ -33,7 +33,7 @@ ext {
   // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
   maxJavaVersionForTests = JavaVersion.VERSION_11
 }
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 dependencies {
@@ -57,6 +57,6 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '3.+'
 }
 
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn "test_spark32"
 }

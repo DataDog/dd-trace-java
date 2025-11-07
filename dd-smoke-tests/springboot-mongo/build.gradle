@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -7,13 +9,13 @@ description = 'SpringBoot Spring-Data-Mongo Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   configurations = [project.configurations.runtimeClasspath]
 }
 
@@ -26,9 +28,15 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
+  def shadowTaskRef = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowTaskRef
 
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowTaskRef.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 
   usesService(testcontainersLimit)
 }

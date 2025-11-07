@@ -1,10 +1,19 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+import static org.springframework.web.bind.annotation.RequestMethod.PUT;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.smoketest.appsec.springboot.service.AsyncService;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -30,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
 public class WebController {
@@ -53,6 +63,11 @@ public class WebController {
   @PostMapping("/request-body")
   public String requestBody(@RequestBody BodyMappedClass obj) {
     return obj.v;
+  }
+
+  @PostMapping("/api_security/request-body-string")
+  public String requestBodyString(@RequestBody String body) {
+    return body;
   }
 
   @GetMapping("/sqli/query")
@@ -79,7 +94,9 @@ public class WebController {
   public String ssrfQuery(@RequestParam("domain") final String domain) {
     try {
       new URL("http://" + domain).openStream().close();
-    } catch (Throwable e) {
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Throwable e) {
       // ignore errors opening connection
     }
     return "EXECUTED";
@@ -91,7 +108,9 @@ public class WebController {
     try {
       final HttpGet request = new HttpGet("http://" + domain);
       client.execute(request);
-    } catch (Exception e) {
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
       // ignore errors opening connection
     }
     client.getConnectionManager().shutdown();
@@ -104,6 +123,8 @@ public class WebController {
     final HttpMethod method = new GetMethod("http://" + domain);
     try {
       client.executeMethod(method);
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       // ignore errors opening connection
     }
@@ -117,6 +138,8 @@ public class WebController {
     final Request request = new Request.Builder().url("http://" + domain).build();
     try {
       client.newCall(request).execute();
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       // ignore errors opening connection
     }
@@ -131,6 +154,8 @@ public class WebController {
     final okhttp3.Request request = new okhttp3.Request.Builder().url("http://" + domain).build();
     try {
       client.newCall(request).execute();
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       // ignore errors opening connection
     }
@@ -227,6 +252,11 @@ public class WebController {
     headers.add("X-Test-Header-3", "value3");
     headers.add("X-Test-Header-4", "value4");
     headers.add("X-Test-Header-5", "value5");
+    headers.add("WWW-Authenticate", "value6");
+    headers.add("Proxy-Authenticate", "value7");
+    headers.add("Set-Cookie", "value8");
+    headers.add("Authentication-Info", "value9");
+    headers.add("Proxy-Authentication-Info", "value10");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
@@ -240,12 +270,128 @@ public class WebController {
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
+  @PostMapping("/waf-event-with-body")
+  public String wafEventWithBody(@RequestBody String body) {
+    return "EXECUTED";
+  }
+
   @PostMapping("/api_security/response")
   public ResponseEntity<Map<String, Object>> apiSecurityResponse(
       @RequestBody Map<String, Object> body) {
     // This endpoint is used to test API security response handling
     // It simply returns the body received in the request
     return ResponseEntity.ok(body);
+  }
+
+  @RequestMapping(
+      value = "/api_security/http_client/okHttp2",
+      method = {POST, GET, PUT})
+  public ResponseEntity<String> apiSecurityHttpClientOkHttp2(final HttpServletRequest request)
+      throws IOException {
+    // create an internal http request to the echo endpoint to validate the http client library
+    final String url = getEchoUrl(request);
+    Request.Builder clientRequest = new Request.Builder().url(url);
+    if (requiresBody(request.getMethod())) {
+      final String contentType = request.getContentType();
+      final byte[] data = readFully(request.getInputStream());
+      clientRequest =
+          clientRequest.method(
+              request.getMethod(),
+              com.squareup.okhttp.RequestBody.create(
+                  com.squareup.okhttp.MediaType.parse(contentType), data));
+    } else {
+      clientRequest.method(request.getMethod(), null);
+    }
+    final String statusCode = request.getHeader("Status");
+    if (statusCode != null) {
+      clientRequest = clientRequest.header("Status", statusCode);
+    }
+    final String witness = request.getHeader("Witness");
+    if (witness != null) {
+      clientRequest = clientRequest.header("Witness", witness);
+    }
+    final String echoHeaders = request.getHeader("echo-headers");
+    if (echoHeaders != null) {
+      clientRequest = clientRequest.header("echo-headers", echoHeaders);
+    }
+    final Response clientResponse = new OkHttpClient().newCall(clientRequest.build()).execute();
+    return ResponseEntity.status(200).body(clientResponse.body().string());
+  }
+
+  @RequestMapping(
+      value = "/api_security/http_client/okHttp3",
+      method = {POST, GET, PUT})
+  public ResponseEntity<String> apiSecurityHttpClientOkHttp3(final HttpServletRequest request)
+      throws IOException {
+    // create an internal http request to the echo endpoint to validate the http client library
+    final String url = getEchoUrl(request);
+    okhttp3.Request.Builder clientRequest = new okhttp3.Request.Builder().url(url);
+    if (requiresBody(request.getMethod())) {
+      final String contentType = request.getContentType();
+      final byte[] data = readFully(request.getInputStream());
+      clientRequest =
+          clientRequest.method(
+              request.getMethod(),
+              okhttp3.RequestBody.create(okhttp3.MediaType.parse(contentType), data));
+    } else {
+      clientRequest.method(request.getMethod(), null);
+    }
+    final String statusCode = request.getHeader("Status");
+    if (statusCode != null) {
+      clientRequest = clientRequest.header("Status", statusCode);
+    }
+    final String witness = request.getHeader("Witness");
+    if (witness != null) {
+      clientRequest = clientRequest.header("Witness", witness);
+    }
+    final String echoHeaders = request.getHeader("echo-headers");
+    if (echoHeaders != null) {
+      clientRequest = clientRequest.header("echo-headers", echoHeaders);
+    }
+    final okhttp3.Response clientResponse =
+        new okhttp3.OkHttpClient().newCall(clientRequest.build()).execute();
+    return ResponseEntity.status(200).body(clientResponse.body().string());
+  }
+
+  @RequestMapping(
+      value = "/echo",
+      method = {POST, GET, PUT})
+  public ResponseEntity<String> echo(final HttpServletRequest request) throws IOException {
+    final String statusHeader = request.getHeader("Status");
+    final int statusCode = statusHeader == null ? 200 : Integer.parseInt(statusHeader);
+    ResponseEntity.BodyBuilder response = ResponseEntity.status(statusCode);
+    final String echoHeaders = request.getHeader("echo-headers");
+    if (echoHeaders != null) {
+      response = response.header("echo-headers", echoHeaders);
+    }
+    if (requiresBody(request.getMethod())) {
+      final String contentType = request.getContentType();
+      final byte[] data = readFully(request.getInputStream());
+      return response.contentType(MediaType.parseMediaType(contentType)).body(new String(data));
+    } else {
+      return response.body("OK");
+    }
+  }
+
+  private static boolean requiresBody(final String method) {
+    return method.equalsIgnoreCase("POST") || method.equalsIgnoreCase("PUT");
+  }
+
+  private static String getEchoUrl(final HttpServletRequest request) {
+    return ServletUriComponentsBuilder.fromRequestUri(request)
+        .replacePath("/echo")
+        .build()
+        .toUriString();
+  }
+
+  private static byte[] readFully(final InputStream in) throws IOException {
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    byte[] data = new byte[4096]; // 4KB buffer
+    int bytesRead;
+    while ((bytesRead = in.read(data, 0, data.length)) != -1) {
+      buffer.write(data, 0, bytesRead);
+    }
+    return buffer.toByteArray();
   }
 
   private void withProcess(final Operation<Process> op) {

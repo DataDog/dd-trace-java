@@ -12,5 +12,4 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   testImplementation group: 'com.auth0', name: 'java-jwt', version: '4.0.0-beta.0'
   testImplementation group: 'com.nimbusds', name: 'nimbus-jose-jwt', version: '9.24.4'
-  testImplementation group: 'com.fasterxml.jackson.core', name:'jackson-databind', version:'2.13.2.2'
 }

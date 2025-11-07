@@ -1,13 +1,10 @@
-
-
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import test.TestConnection
 import test.TestDatabaseMetaData
 import test.TestStatement
 
-class SQLServerInjectionForkedTest extends AgentTestRunner {
-
+abstract class InjectionForkedTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -18,7 +15,9 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
 
   static query = "SELECT 1"
   static serviceInjection = "ddps='my_service_name',dddbs='sqlserver',ddh='localhost',dddb='testdb'"
+}
 
+class SQLServerInjectionForkedTest extends InjectionForkedTest {
   def "SQL Server no trace injection with full propagation mode"() {
     setup:
     def connection = new TestConnection(false)
@@ -37,7 +36,7 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
     assert !statement.sql.contains("traceparent")
   }
 
-  def "SQL Server apend comment when getting generated keys"() {
+  def "SQL Server append comment when getting generated keys"() {
     setup:
     def connection = new TestConnection(false)
     def metadata = new TestDatabaseMetaData()
@@ -47,6 +46,24 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
     when:
     def statement = connection.createStatement() as TestStatement
     statement.executeUpdate(query, 1)
+
+    then:
+    assert statement.sql == "${query} /*${serviceInjection}*/"
+  }
+}
+
+class SQLServerAppendInjectionForkedTest extends InjectionForkedTest {
+  def "SQL Server append comment when configured to do so"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT, "true")
+    def connection = new TestConnection(false)
+    def metadata = new TestDatabaseMetaData()
+    metadata.setURL("jdbc:microsoft:sqlserver://localhost:1433;DatabaseName=testdb;")
+    connection.setMetaData(metadata)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.executeUpdate(query)
 
     then:
     assert statement.sql == "${query} /*${serviceInjection}*/"

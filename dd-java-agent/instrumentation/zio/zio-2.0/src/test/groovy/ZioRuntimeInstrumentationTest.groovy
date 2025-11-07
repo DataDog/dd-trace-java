@@ -1,6 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 
-class ZioRuntimeInstrumentationTest extends AgentTestRunner {
+class ZioRuntimeInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

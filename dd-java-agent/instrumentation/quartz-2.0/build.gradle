@@ -1,0 +1,44 @@
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  version40TestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+muzzle {
+  pass {
+    group = 'org.quartz-scheduler'
+    module = 'quartz'
+    versions = "[2.0.0,)"
+    assertInverse = true
+    javaVersion = "11"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('version40Test', 'test')
+
+
+dependencies {
+  compileOnly group: 'org.quartz-scheduler', name: 'quartz', version: '2.0.0'
+  testImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '2.0.0'
+
+  // these dependencies are required for XML configurations when quartz version > 2.2+
+  version40TestImplementation group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '2.4.0'
+  version40TestImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '+'
+  version40TestImplementation group: 'javax.transaction', name: 'jta', version: '1.1'
+  latestDepTestImplementation group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '+'
+  latestDepTestImplementation group: 'jakarta.transaction', name: 'jakarta.transaction-api', version: '2.0.1'
+  latestDepTestImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '+'
+
+}
+
+[
+  "compileLatestDepTestGroovy",
+  "compileLatestDepTestJava",
+  "compileVersion40TestGroovy",
+  "compileVersion40TestJava"
+].each {
+  tasks.named(it, AbstractCompile) {
+    configureCompiler(it, 11)
+  }
+}

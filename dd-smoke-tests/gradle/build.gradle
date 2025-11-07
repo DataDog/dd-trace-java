@@ -1,6 +1,3 @@
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -11,9 +8,11 @@ description = 'Gradle Daemon Instrumentation Smoke Tests.'
 dependencies {
   testImplementation gradleTestKit()
   testImplementation project(':dd-smoke-tests:backend-mock')
+  testImplementation project(':internal-api')
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 }
 
-test {
+tasks.named("test", Test) {
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }
@@ -22,9 +21,5 @@ test {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds
     environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
   }
-
-  // overriding the default timeout of 9 minutes set in configure_tests.gradle,
-  // as Gradle smoke tests might run for a longer duration
-  timeout = Duration.of(20, ChronoUnit.MINUTES)
 }
 

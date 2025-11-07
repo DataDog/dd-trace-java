@@ -7,7 +7,7 @@ import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.Strings
+import datadog.trace.util.ConfigStrings
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import java.lang.instrument.Instrumentation
@@ -43,8 +43,8 @@ class TelemetrySystemSpecification extends DDSpecification {
 
   void 'start-stop telemetry system'() {
     setup:
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.SITE), "datad0g.com")
-    injectEnvConfig(Strings.toEnvVar(GeneralConfig.API_KEY), "api-key")
+    injectEnvConfig(ConfigStrings.toEnvVar(GeneralConfig.SITE), "datad0g.com")
+    injectEnvConfig(ConfigStrings.toEnvVar(GeneralConfig.API_KEY), "api-key")
     def instrumentation = Mock(Instrumentation)
 
     when:
@@ -64,7 +64,7 @@ class TelemetrySystemSpecification extends DDSpecification {
 
   private SharedCommunicationObjects sharedCommunicationObjects() {
     new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(OkHttpClient),
       monitoring: Mock(Monitoring),
       agentUrl: HttpUrl.get('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery)

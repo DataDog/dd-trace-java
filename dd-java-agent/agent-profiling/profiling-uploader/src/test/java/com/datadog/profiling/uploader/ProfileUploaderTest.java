@@ -50,6 +50,7 @@ import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
+import datadog.trace.test.util.ControllableEnvironmentVariables;
 import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
 import io.airlift.compress.zstd.ZstdInputStream;
@@ -85,7 +86,6 @@ import okhttp3.mockwebserver.SocketPolicy;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -157,19 +157,9 @@ public class ProfileUploaderTest {
 
   private ProfileUploader uploader;
 
-  @BeforeAll
-  static void setUpAll() throws Exception {
-    Map<String, String> env = System.getenv();
-
-    Field field = env.getClass().getDeclaredField("m");
-    field.setAccessible(true);
-
-    @SuppressWarnings("unchecked")
-    Map<String, String> modifiableEnv = (Map<String, String>) field.get(env);
-    // hard-coding the env variable here; we could theoretically make the field from ServerlessInfo
-    // public instead
-    modifiableEnv.put("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME);
-  }
+  @SuppressWarnings("unused")
+  private static final ControllableEnvironmentVariables ENV =
+      ControllableEnvironmentVariables.setup("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME);
 
   @BeforeEach
   public void setup() throws IOException {
@@ -188,7 +178,7 @@ public class ProfileUploaderTest {
   }
 
   @AfterEach
-  public void tearDown() throws IOException {
+  public void tearDown() {
     uploader.shutdown();
     try {
       server.shutdown();
@@ -373,11 +363,11 @@ public class ProfileUploaderTest {
     byte[] uploadedBytes = rawJfr.get();
     if (compression.equals("gzip")) {
       uploadedBytes = unGzip(uploadedBytes);
-    } else if (compression.equals("zstd")) {
-      uploadedBytes = unZstd(uploadedBytes);
-    } else if (compression.equals("on")
-        || compression.equals("lz4")
+    } else if (compression.equals("zstd")
+        || compression.equals("on")
         || compression.equals("invalid")) {
+      uploadedBytes = unZstd(uploadedBytes);
+    } else if (compression.equals("lz4")) {
       uploadedBytes = unLz4(uploadedBytes);
     }
     assertArrayEquals(expectedBytes, uploadedBytes);
@@ -511,7 +501,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() throws Exception {
+  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
     when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
 
     uploader = new ProfileUploader(config, configProvider);
@@ -522,7 +512,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientUsesDefaultConnspecsOverTLS() throws Exception {
+  void testOkHttpClientUsesDefaultConnspecsOverTLS() {
     when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
 
     uploader = new ProfileUploader(config, configProvider);

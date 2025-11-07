@@ -15,7 +15,7 @@ dependencies {
   // First 2.10 version that accepts target 1.8
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+  testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
@@ -27,30 +27,39 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
   def (major, minor) = version.split('_').collect(Integer.&valueOf)
   final javaConcatenation = major > 2 || minor > 11 // after 2.11 scala uses java.lang.StringBuilder to perform concatenation
 
-  final implementationConfiguration = configurations.create("${version}Implementation") {
+  final customSourceSet = sourceSets.create("${version}") {
+    scala {
+      srcDirs = ['src/test/scala']
+    }
+  }
+
+  final implementationConfiguration = configurations.named(customSourceSet.implementationConfigurationName) {
     canBeConsumed = false
     canBeResolved = false
     canBeDeclared = true
   }
-  final classPathConfiguration = configurations.create("${version}CompileClasspath") {
+
+  final classPathConfiguration = configurations.named(customSourceSet.compileClasspathConfigurationName) {
     canBeConsumed = false
     canBeResolved = true
     canBeDeclared = false
-    extendsFrom(implementationConfiguration)
+    extendsFrom(implementationConfiguration.get())
+    customSourceSet.compileClasspath += it
+  }
+
+  tasks.named(customSourceSet.getCompileTaskName("scala"), ScalaCompile) {
+    // Despite the compatibility matrix, scala compiler doesn't properly
+    // get the right compiler flags with JDK11 toolchain. Using 8 works.
+    // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+    // * https://github.com/gradle/gradle/issues/19456
+    configureCompiler(it, 8)
   }
 
   dependencies { handler ->
     handler.add(implementationConfiguration.name, scalaLibrary)
     handler.add(implementationConfiguration.name, libs.slf4j)
     if (javaConcatenation) {
-      handler.add(implementationConfiguration.name, project(':dd-java-agent:instrumentation:java-lang'))
-    }
-  }
-
-  final customSourceSet = sourceSets.create("${version}") {
-    scala {
-      srcDirs = ['src/test/scala']
-      compileClasspath += classPathConfiguration
+      handler.add(implementationConfiguration.name, project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8'))
     }
   }
 
@@ -59,14 +68,14 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
       .filter { !it.toString().contains('scala-library') }   // exclude default scala-library
       .minus(files(sourceSets.test.scala.classesDirectory))  // exclude default /build/classes/scala/test folder
       .plus(customSourceSet.output.classesDirs)              // add /build/classes/scala/${version} folder
-      .plus(classPathConfiguration)                          // add new scala-library configuration
+      .plus(classPathConfiguration.get())                    // add new scala-library configuration
     systemProperty('uses.java.concat', javaConcatenation)
     dependsOn(tasks.named("compile${version.capitalize()}Scala"))
     group = 'verification'
   }
 }
 
-tasks.named('test', Test).configure {
+tasks.named('test', Test) {
   systemProperty('uses.java.concat', false) // version 2.10.7 does not use java concatenation
   finalizedBy(testTasks)
 }

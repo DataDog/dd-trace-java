@@ -1,0 +1,32 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir('latestDepTest', 'test')
+
+final springBootVersion = '3.0.0'
+
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 17)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 17)
+}
+
+dependencies {
+
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0')
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: springBootVersion
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: springBootVersion
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
+}

@@ -11,6 +11,7 @@ import datadog.crashtracking.dto.CrashLog;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.TraceUtils;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,17 +46,7 @@ public class CrashUploaderTest {
   private static final String HOSTNAME = "crash-hostname";
   private static final String SERVICE = "crash-service";
   private static final String VERSION = "crash-version";
-  // private static final Map<String, String> TAGS = Map.of("foo", "bar", "baz", "123", "null",
-  // null, "empty", "");
-
-  // // We sort tags to have expected parameters to have expected result
-  // private static final Map<String, String> EXPECTED_TAGS =
-  //     ImmutableMap.of(
-  //         "baz", "123",
-  //         "foo", "bar",
-  //         PidHelper.PID_TAG, PidHelper.PID.toString(),
-  //         VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION,
-  //         VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
+  private static final String SAMPLE_UUID = "a4194cd6-8cb3-45fd-9bd9-3af83e0a3ad3";
 
   // TODO: Add a test to verify overall request timeout rather than IO timeout
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
@@ -93,9 +84,9 @@ public class CrashUploaderTest {
   @Test
   public void testLogsHappyPath() throws Exception {
     // Given
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(CRASH, new PrintStream(out));
 
@@ -112,7 +103,8 @@ public class CrashUploaderTest {
 
   @Test
   public void testExtractStackTraceFromRealCrashFile() throws IOException {
-    uploader = new CrashUploader(config);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
+    uploader = new CrashUploader(config, crashConfig);
     String msg = readFileAsString("sample-crash-redacted.txt");
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(msg, new PrintStream(out));
@@ -143,6 +135,46 @@ public class CrashUploaderTest {
     return Paths.get(getClass().getClassLoader().getResource(resourceName).toURI());
   }
 
+  @Test
+  public void testCrashPing() throws Exception {
+    // Given
+    final String expected = readFileAsString("golden/sample-ping-for-telemetry.txt");
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .build();
+    // When
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.notifyCrashStarted(null);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    // header
+    assertCommonHeader(event);
+
+    // payload:
+    assertEquals("DEBUG", event.get("payload").get(0).get("level").asText());
+
+    assertFalse(event.get("payload").get(0).get("is_sensitive").asBoolean());
+    String tags = event.get("payload").get(0).get("tags").asText();
+    assertNotNull(tags);
+    assertTrue(tags.contains("is_crash_ping:true"));
+    assertTrue(tags.contains(TraceUtils.normalizeTag("service:" + crashConfig.service)));
+    assertTrue(tags.contains("uuid:" + crashConfig.reportUUID));
+    assertTrue(tags.contains(TraceUtils.normalizeTag("tracer_version:" + VersionInfo.VERSION)));
+    assertTrue(tags.contains("language_name:jvm"));
+    assertEquals(expected, event.get("payload").get(0).get("message").asText());
+    assertCommonPayload(event);
+  }
+
   @ParameterizedTest
   @ValueSource(
       strings = {
@@ -153,11 +185,16 @@ public class CrashUploaderTest {
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/" + log));
-
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.uploadToTelemetry(getResourcePath(log));
+    uploader.uploadToTelemetry(getResourcePath(log), SAMPLE_UUID);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
@@ -167,13 +204,14 @@ public class CrashUploaderTest {
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
 
-    assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
-    assertEquals("logs", event.get("request_type").asText());
+    // header
+    assertCommonHeader(event);
+
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
 
     assertTrue(event.get("payload").get(0).get("is_sensitive").asBoolean());
-    // we need to sanitize the UIID which keeps on changing
+    assertTrue(event.get("payload").get(0).get("is_crash").asBoolean());
     String message = event.get("payload").get(0).get("message").asText();
     CrashLog extracted = CrashLog.fromJson(message);
 
@@ -181,6 +219,17 @@ public class CrashUploaderTest {
         expected.equalsForTest(extracted),
         () -> "Expected: " + expected.toJson() + "\nbut got: " + extracted.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
+    assertCommonPayload(event);
+  }
+
+  private void assertCommonHeader(JsonNode event) {
+    assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
+    assertEquals("logs", event.get("request_type").asText());
+    assertEquals("crashtracker", event.get("origin").asText());
+    assertEquals("1234", event.get("runtime_id").asText());
+  }
+
+  private void assertCommonPayload(JsonNode event) {
     // application:
     assertEquals(ENV, event.get("application").get("env").asText());
     assertEquals("jvm", event.get("application").get("language_name").asText());
@@ -190,6 +239,7 @@ public class CrashUploaderTest {
     assertEquals(SERVICE, event.get("application").get("service_name").asText());
     assertEquals(VERSION, event.get("application").get("service_version").asText());
     assertEquals(VersionInfo.VERSION, event.get("application").get("tracer_version").asText());
+    assertEquals("a:b", event.get("application").get("process_tags").asText());
     // host
     assertEquals(HOSTNAME, event.get("host").get("hostname").asText());
     assertEquals(ENV, event.get("host").get("env").asText());
@@ -198,21 +248,22 @@ public class CrashUploaderTest {
   @Test
   public void testTelemetryUnrecognizedFile() throws Exception {
     // Given
-
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
     // When
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    assertFalse(uploader.uploadToTelemetry(getResourcePath("no-crash.txt")));
+    assertFalse(uploader.uploadToTelemetry(getResourcePath("no-crash.txt"), null));
   }
 
   @Test
   public void testAgentlessRequest() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -223,10 +274,11 @@ public class CrashUploaderTest {
   public void test404() throws Exception {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -239,10 +291,11 @@ public class CrashUploaderTest {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
-    uploader = new CrashUploader(config);
+    uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);

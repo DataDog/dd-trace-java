@@ -1,7 +1,7 @@
 package org.example.cucumber.calculator;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;

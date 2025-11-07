@@ -1,9 +1,9 @@
 package datadog.trace.util;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.trace.config.inversion.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -44,12 +44,12 @@ public final class PidHelper {
     if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         pid =
-            Strings.trim(
-                ((Supplier<String>)
-                        Class.forName("datadog.trace.util.JDK9PidSupplier")
-                            .getDeclaredConstructor()
-                            .newInstance())
-                    .get());
+            ((Supplier<String>)
+                    Class.forName("datadog.trace.util.JDK9PidSupplier")
+                        .getDeclaredConstructor()
+                        .newInstance())
+                .get()
+                .trim();
       } catch (Throwable e) {
         log.debug("JDK9PidSupplier not available", e);
       }
@@ -80,13 +80,13 @@ public final class PidHelper {
         return "/tmp";
       } else if (OperatingSystem.isWindows()) {
         return Stream.of("TMP", "TEMP", "USERPROFILE")
-            .map(EnvironmentVariables::get)
+            .map(ConfigHelper::env)
             .filter(Objects::nonNull)
             .filter(((Predicate<String>) String::isEmpty).negate())
             .findFirst()
             .orElse("C:\\Windows");
       } else if (OperatingSystem.isMacOs()) {
-        return EnvironmentVariables.get("TMPDIR");
+        return ConfigHelper.env("TMPDIR");
       } else {
         return SystemProperties.get("java.io.tmpdir");
       }

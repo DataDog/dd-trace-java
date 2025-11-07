@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.Callable
 
-class MeasuredConfigTest extends AgentTestRunner {
+class MeasuredConfigTest extends InstrumentationSpecification {
 
   @Override
   void configurePreAgent() {

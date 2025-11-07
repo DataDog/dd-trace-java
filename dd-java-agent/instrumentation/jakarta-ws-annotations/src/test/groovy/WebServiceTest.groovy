@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 
-import static org.junit.Assert.fail
+import static org.junit.jupiter.api.Assertions.fail
 
-class WebServiceTest extends AgentTestRunner {
+class WebServiceTest extends InstrumentationSpecification {
 
   def "test successful interface request is traced"() {
     when:

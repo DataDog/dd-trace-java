@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator
@@ -14,7 +14,7 @@ import jakarta.ws.rs.Path
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class JakartaRsAnnotations3InstrumentationTest extends AgentTestRunner {
+class JakartaRsAnnotations3InstrumentationTest extends InstrumentationSpecification {
 
   def "instrumentation can be used as root span and resource is set to METHOD PATH"() {
     setup:

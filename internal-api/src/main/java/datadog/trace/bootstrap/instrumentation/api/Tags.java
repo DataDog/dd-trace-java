@@ -97,6 +97,7 @@ public class Tags {
   public static final String TEST_RETRY_REASON = "test.retry_reason";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
+  public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";
   public static final String TEST_TEST_MANAGEMENT_ENABLED = "test.test_management.enabled";
   public static final String TEST_TEST_MANAGEMENT_IS_QUARANTINED =
       "test.test_management.is_quarantined";
@@ -106,6 +107,8 @@ public class Tags {
       "test.test_management.is_attempt_to_fix";
   public static final String TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED =
       "test.test_management.attempt_to_fix_passed";
+
+  public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";

@@ -1,10 +1,10 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -15,34 +15,27 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '15.0.1'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '17.2.0'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
-  testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
-
-  testFixturesApi project(':dd-java-agent:testing')
+  testImplementation libs.jackson.databind
 }
 
-configurations.testFixturesApi {
-  exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-}
-
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   exclude '**/*-dbgsym.zip'
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
-processResources {
+tasks.named("processResources", ProcessResources) {
   doLast {
     fileTree(dir: outputs.files.asPath, includes: ['**/*.json']).each {
       it.text = JsonOutput.toJson(new JsonSlurper().parse(it))
@@ -60,7 +53,8 @@ jmh {
     includes = [project.jmhIncludes]
   }
 }
-jmhJar {
+
+tasks.named("jmhJar", Jar) {
   exclude 'org/slf4j/impl/**/*'
 }
 
@@ -103,14 +97,11 @@ ext {
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.appsec.enabled=true']
 }
+
 def rootDir = project.rootDir
+
 spotless {
   java {
     target 'src/**/*.java'
   }
-}
-
-pitest {
-  targetClasses = ['com.datadog.appsec.*']
-  jvmArgs = ['-Ddd.appsec.enabled=true']
 }

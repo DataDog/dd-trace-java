@@ -2,9 +2,20 @@ package datadog.trace.bootstrap.config.provider
 import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files
 import java.nio.file.Path
+import datadog.trace.config.inversion.ConfigHelper
 
 class StableConfigParserTest extends DDSpecification {
 
+  def strictness
+
+  def setup(){
+    strictness = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
+  def cleanup(){
+    ConfigHelper.get().setConfigInversionStrict(strictness)
+  }
   def "test parse valid"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
@@ -297,5 +308,47 @@ apm_configuration_rules:
     templateVar                          | expect
     "{{environment_variables['']}}"      | "Empty environment variable name in template"
     "{{environment_variables['DD_KEY']}" | "Unterminated template in config"
+  }
+
+  def "test null and empty values in YAML"() {
+    given:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+
+    when:
+    String yaml = """
+config_id: "12345"
+apm_configuration_default:
+apm_configuration_rules:
+"""
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
+
+    then:
+    cfg.getConfigId() == "12345"
+    cfg.getKeys().isEmpty()
+
+    cleanup:
+    Files.delete(filePath)
+  }
+
+  def "test completely empty values in YAML"() {
+    given:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+
+    when:
+    String yaml = """
+config_id: "12345"
+apm_configuration_default: 
+apm_configuration_rules: 
+"""
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
+
+    then:
+    cfg.getConfigId() == "12345"
+    cfg.getKeys().isEmpty()
+
+    cleanup:
+    Files.delete(filePath)
   }
 }

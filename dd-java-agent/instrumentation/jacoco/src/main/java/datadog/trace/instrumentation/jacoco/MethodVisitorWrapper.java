@@ -57,7 +57,7 @@ public class MethodVisitorWrapper {
       return classLoader.loadClass(className);
 
     } catch (Throwable throwable) {
-      log.error("Could not load Jacoco class: " + className, throwable);
+      log.error("Could not load Jacoco class: {}", className, throwable);
       return null;
     }
   }
@@ -73,12 +73,10 @@ public class MethodVisitorWrapper {
       return lookup.unreflect(method);
     } catch (Throwable throwable) {
       log.error(
-          "Could not find method "
-              + methodName
-              + " with arguments "
-              + Arrays.toString(arguments)
-              + " in class "
-              + clazz.getName(),
+          "Could not find method {} with arguments {} in class {}",
+          methodName,
+          Arrays.toString(arguments),
+          clazz.getName(),
           throwable);
       return null;
     }

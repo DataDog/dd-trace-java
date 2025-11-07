@@ -29,7 +29,7 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
 
   private final ClassesToRetransformFinder finder;
   private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
-  private final AgentTaskScheduler scheduler = AgentTaskScheduler.INSTANCE;
+  private final AgentTaskScheduler scheduler = AgentTaskScheduler.get();
   private final AtomicInteger queueSize = new AtomicInteger(0);
   private AgentTaskScheduler.Scheduled<Runnable> scheduled;
   // this field MUST only be used in flush() calling thread

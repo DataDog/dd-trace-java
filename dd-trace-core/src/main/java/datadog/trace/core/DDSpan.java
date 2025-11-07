@@ -15,6 +15,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.metrics.SpanMetricRegistry;
@@ -27,8 +28,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -93,9 +96,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private volatile EndpointTracker endpointTracker;
 
   // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
-  private volatile Object wrapper;
-  private static final AtomicReferenceFieldUpdater<DDSpan, Object> WRAPPER_FIELD_UPDATER =
-      AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, Object.class, "wrapper");
+  private volatile SpanWrapper wrapper;
+  private static final AtomicReferenceFieldUpdater<DDSpan, SpanWrapper> WRAPPER_FIELD_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, SpanWrapper.class, "wrapper");
 
   // the request is to be blocked (AppSec)
   private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
@@ -147,6 +150,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       setLongRunningVersion(-this.longRunningVersion);
+      SpanWrapper wrapper = getWrapper();
+      if (wrapper != null) {
+        wrapper.onSpanFinished();
+      }
       this.metrics.onSpanFinished();
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
@@ -365,7 +372,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   private boolean isExceptionReplayEnabled() {
-    if (!DebuggerContext.isExceptionReplayEnabled()) {
+    if (!DebuggerConfigBridge.isExceptionReplayEnabled()) {
       return false;
     }
     boolean captureOnlyRootSpan =
@@ -803,12 +810,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public void attachWrapper(Object wrapper) {
+  public void attachWrapper(@NonNull SpanWrapper wrapper) {
     WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
   }
 
   @Override
-  public Object getWrapper() {
+  public SpanWrapper getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
   }
 
@@ -867,5 +874,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       context.setOrigin(sourceSpanContext.getOrigin());
       sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
     }
+  }
+
+  @Override
+  public int getLongRunningVersion() {
+    return longRunningVersion;
   }
 }

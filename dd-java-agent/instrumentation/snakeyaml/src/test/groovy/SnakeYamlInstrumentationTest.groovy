@@ -1,9 +1,9 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UntrustedDeserializationModule
 import org.yaml.snakeyaml.Yaml
 
-class SnakeYamlInstrumentationTest extends AgentTestRunner {
+class SnakeYamlInstrumentationTest extends InstrumentationSpecification {
 
   @Override
   protected void configurePreAgent() {

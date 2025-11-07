@@ -3,7 +3,9 @@ package datadog.trace.instrumentation.spark
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import org.apache.spark.SparkConf
 import org.apache.spark.Success$
 import org.apache.spark.executor.TaskMetrics
@@ -12,6 +14,7 @@ import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.scheduler.SparkListenerApplicationStart
 import org.apache.spark.scheduler.SparkListenerExecutorAdded
 import org.apache.spark.scheduler.SparkListenerExecutorRemoved
+import org.apache.spark.scheduler.SparkListenerInterface
 import org.apache.spark.scheduler.SparkListenerJobEnd
 import org.apache.spark.scheduler.SparkListenerJobStart
 import org.apache.spark.scheduler.SparkListenerStageCompleted
@@ -28,7 +31,7 @@ import scala.collection.immutable.Seq
 
 import scala.collection.JavaConverters
 
-abstract class AbstractSparkListenerTest extends AgentTestRunner {
+abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
   protected abstract AbstractDatadogSparkListener getTestDatadogSparkListener()
   protected abstract AbstractDatadogSparkListener getTestDatadogSparkListener(SparkConf conf)
@@ -517,6 +520,96 @@ abstract class AbstractSparkListenerTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test setupOpenLineage gets service name"(boolean serviceNameSetByUser, String serviceName, String sparkAppName) {
+    setup:
+    SparkConf sparkConf = new SparkConf()
+    injectSysConfig("dd.service.name.set.by.user", Boolean.toString(serviceNameSetByUser))
+    if (serviceNameSetByUser) {
+      injectSysConfig("dd.service.name", serviceName)
+    }
+    if (sparkAppName != null) {
+      sparkConf.set("spark.app.name", sparkAppName)
+    }
+
+    def listener = getTestDatadogSparkListener(sparkConf)
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .get("spark.openlineage.run.tags")
+    .split(";")
+    .contains("_dd.ol_service:expected-service-name")
+
+    where:
+    serviceNameSetByUser | serviceName             | sparkAppName
+    true                 | "expected-service-name" | null
+    false                | null                    | "expected-service-name"
+    true                 | "spark"                 | "expected-service-name"
+    true                 | "hadoop"                | "expected-service-name"
+  }
+
+  def "test setupOpenLineage fills ProcessTags"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .get("spark.openlineage.run.tags")
+    .split(";")
+    .contains("_dd.ol_intake.process_tags:" + ProcessTags.getTagsForSerialization())
+  }
+
+  def "test setupOpenLineage fills circuit breaker config"(
+    Boolean configEnabled,
+    String sparkConfCircuitBreakerType,
+    String expectedCircuitBreakerType
+  ) {
+    setup:
+    injectSysConfig("data.jobs.openlineage.timeout.enabled", configEnabled.toString())
+    def listener = getTestDatadogSparkListener()
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    if (sparkConfCircuitBreakerType != null) {
+      listener.openLineageSparkConf.set("spark.openlineage.circuitBreaker.type", sparkConfCircuitBreakerType)
+    }
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .getOption("spark.openlineage.circuitBreaker.type") == Option.apply(expectedCircuitBreakerType)
+    assert listener
+    .openLineageSparkConf
+    .getOption("spark.openlineage.circuitBreaker.timeoutInSeconds") == ((expectedCircuitBreakerType == "timeout") ? Option.apply("60") : Option.apply(null))
+
+    where:
+    configEnabled | sparkConfCircuitBreakerType  | expectedCircuitBreakerType
+    true          | null                         | "timeout"
+    true          | "other"                      | "other"
+    false         | null                         | null
+  }
+
+  def "test OpenLineage's circuit breaker timeout can be overriden"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    listener.openLineageSparkConf.set("spark.openlineage.circuitBreaker.timeoutInSeconds", "120")
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .getOption("spark.openlineage.circuitBreaker.timeoutInSeconds") == Option.apply("120")
   }
 
   protected validateRelativeError(double value, double expected, double relativeAccuracy) {

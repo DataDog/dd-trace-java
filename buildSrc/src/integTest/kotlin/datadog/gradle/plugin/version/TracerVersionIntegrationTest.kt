@@ -1,10 +1,8 @@
 package datadog.gradle.plugin.version
 
-import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.CleanupMode
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.IOException
@@ -267,7 +265,7 @@ class TracerVersionIntegrationTest {
     File(projectDir, "build.gradle.kts").writeText(
       """
       plugins {
-        id("tracer-version")
+        id("datadog.tracer-version")
       }
       
       tasks.register("printVersion") {
@@ -289,7 +287,7 @@ class TracerVersionIntegrationTest {
       // .withDebug(true)
       .build()
 
-    assertThat(buildResult.output).isEqualToIgnoringNewLines(expectedVersion)
+    assertEquals(expectedVersion, buildResult.output.lines().first())
   }
 
   private fun exec(workingDirectory: File, vararg args: String) {

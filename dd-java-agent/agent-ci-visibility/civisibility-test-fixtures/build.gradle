@@ -1,0 +1,15 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api project(':dd-java-agent:agent-ci-visibility')
+  api project(':dd-java-agent:testing')
+
+  api group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
+  api group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
+  api group: 'com.jayway.jsonpath', name: 'json-path', version: '2.8.0'
+  api libs.jackson.databind
+  api group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
+  api group: 'org.xmlunit', name: 'xmlunit-core', version: '2.10.3'
+}
+

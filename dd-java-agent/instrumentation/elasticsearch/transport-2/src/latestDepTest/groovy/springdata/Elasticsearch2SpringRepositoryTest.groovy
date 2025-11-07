@@ -1,7 +1,7 @@
 package springdata
 
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -13,7 +13,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Flaky
-class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
+class Elasticsearch2SpringRepositoryTest extends InstrumentationSpecification {
   @Shared
   ApplicationContext applicationContext = new AnnotationConfigApplicationContext(Config)
 

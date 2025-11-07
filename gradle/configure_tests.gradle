@@ -4,6 +4,7 @@ import java.time.temporal.ChronoUnit
 def isTestingInstrumentation(Project project) {
   return [
     "junit-4.10",
+    "cucumber",
     "cucumber-junit-4",
     "junit-4.13",
     "munit-junit-4",
@@ -15,6 +16,7 @@ def isTestingInstrumentation(Project project) {
     "testng-7",
     "karate",
     "scalatest",
+    "selenium",
     "weaver"
   ].contains(project.name)
 }
@@ -22,9 +24,6 @@ def isTestingInstrumentation(Project project) {
 def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
   maxParallelUsages = 3
 }
-
-// Force timeout after 9 minutes (The timeout is configurable per job, default job timeout is 1h)
-def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 testing {
   suites.configureEach {
@@ -35,10 +34,6 @@ testing {
 
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
-  // All tests must complete within 15 minutes.
-  // This value is quite big because with lower values (3 mins) we were experiencing large number of false positives
-  timeout = Duration.ofMinutes(15)
-
   // Disable all tests if skipTests property was specified
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 
@@ -49,27 +44,28 @@ tasks.withType(Test).configureEach {
 
   // Avoid executing classes used to test testing frameworks instrumentation
   if (isTestingInstrumentation(project)) {
-    exclude "**/TestSucceed*"
-    exclude "**/TestFailed*"
-    exclude "**/TestFailedWithSuccessPercentage*"
-    exclude "**/TestError*"
-    exclude "**/TestSkipped*"
-    exclude "**/TestSkippedClass*"
-    exclude "**/TestInheritance*", "**/BaseTestInheritance*"
-    exclude "**/TestFactory*"
-    exclude "**/TestParameterized*"
-    exclude "**/TestRepeated*"
-    exclude "**/TestTemplate*"
-    exclude "**/TestDisableTestTrace*"
-    exclude "**/TestAssumption*"
-    exclude "**/TestParameterized*"
+    exclude("**/TestSucceed*")
+    exclude("**/TestFailed*")
+    exclude("**/TestFailedWithSuccessPercentage*")
+    exclude("**/TestError*")
+    exclude("**/TestSkipped*")
+    exclude("**/TestSkippedClass*")
+    exclude("**/TestInheritance*", "**/BaseTestInheritance*")
+    exclude("**/TestFactory*")
+    exclude("**/TestParameterized*")
+    exclude("**/TestRepeated*")
+    exclude("**/TestTemplate*")
+    exclude("**/TestDisableTestTrace*")
+    exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
+    exclude("**/TestUnskippable*")
+    exclude("**/TestWithSetup*")
   }
 
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes([])
     setIncludes(["**/*ForkedTest*"])
-    forkEvery 1
+    forkEvery = 1
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
     onlyIf { !project.rootProject.hasProperty("skipForkedTests") }
@@ -77,9 +73,10 @@ tasks.withType(Test).configureEach {
     exclude("**/*ForkedTest*")
   }
 
-  timeout = testTimeoutDuration
+  // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
+  timeout = Duration.of(20, ChronoUnit.MINUTES)
 
-  check.dependsOn it
+  check.dependsOn(it)
 }
 
 Task allTestsTask = tasks.maybeCreate('allTests')
@@ -101,9 +98,9 @@ project.afterEvaluate {
     testFramework {
       if (it instanceof JUnitPlatformOptions) {
         if (project.rootProject.hasProperty("skipFlakyTests")) {
-          excludeTags "flaky"
+          excludeTags("flaky")
         } else if (project.rootProject.hasProperty("runFlakyTests")) {
-          includeTags "flaky"
+          includeTags("flaky")
         }
       }
     }
@@ -125,11 +122,11 @@ if (!project.property("activePartition")) {
   }
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
   // https://docs.gradle.com/develocity/flaky-test-detection/
   // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
   develocity.testRetry {
-    if (System.getenv().containsKey("CI")) {
+    if (providers.environmentVariable("CI").isPresent()) {
       maxRetries = 3
     }
   }

@@ -1,0 +1,51 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+muzzle {
+  pass {
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[10,12)"
+    javaVersion = "11"
+  }
+  fail {
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[,10)"
+  }
+  fail {
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[12,)"
+    javaVersion = "17"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('jetty11Test', 'test')
+addTestSuiteForDir('jetty10LatestDepTest', 'test')
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+dependencies {
+  main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'
+  main_java11Implementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-common')) {
+    transitive = false
+  }
+  //because contains some instrumentation that still apply
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1'))
+  testImplementation(project(path:':dd-java-agent:testing', 'configuration': 'shadow')) {
+    // explicitly declared below.
+    exclude group: 'org.eclipse.jetty'
+  }
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'
+  jetty10LatestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.+'
+  jetty11TestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '11.0.0'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '11.+'
+}

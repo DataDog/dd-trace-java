@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -20,7 +20,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Flaky
-class Elasticsearch73TransportClientTest extends AgentTestRunner {
+class Elasticsearch73TransportClientTest extends InstrumentationSpecification {
   public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared

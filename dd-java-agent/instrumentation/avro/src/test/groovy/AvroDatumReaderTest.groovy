@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
@@ -13,7 +13,7 @@ import org.apache.avro.specific.SpecificDatumWriter
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import java.nio.ByteBuffer
-class AvroDatumReaderTest extends AgentTestRunner {
+class AvroDatumReaderTest extends InstrumentationSpecification {
 
 
 

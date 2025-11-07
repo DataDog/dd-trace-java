@@ -12,7 +12,7 @@ apply plugin: 'signing'
 apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/maven-pom.gradle"
 
-def isGitlabCI = System.getenv("GITLAB_CI") != null
+def isGitlabCI = providers.environmentVariable("GITLAB_CI").isPresent()
 
 // define in ~/.gradle/gradle.properties to override for testing
 def forceLocal = project.hasProperty('forceLocal') && forceLocal
@@ -22,7 +22,7 @@ publishing {
   publications {
     maven(MavenPublication) { MavenPublication publication ->
       if (project.plugins.hasPlugin('com.gradleup.shadow')) {
-        publication.artifact(project.tasks.shadowJar)
+        publication.artifact(project.tasks.named("shadowJar"))
 
         // Required by Maven Central:
         publication.artifact sourcesJar
@@ -64,13 +64,13 @@ if (project.plugins.hasPlugin('com.gradleup.shadow')) {
 }
 
 signing {
-  useInMemoryPgpKeys(System.getenv("GPG_PRIVATE_KEY"), System.getenv("GPG_PASSWORD"))
+  useInMemoryPgpKeys(providers.environmentVariable("GPG_PRIVATE_KEY").orNull, providers.environmentVariable("GPG_PASSWORD").orNull)
   sign publishing.publications.maven
 }
 
 tasks.withType(Sign).configureEach {
   // Only sign in Gitlab CI
-  onlyIf { isGitlabCI || (System.getenv("GPG_PRIVATE_KEY") != null && System.getenv("GPG_PASSWORD") != null) }
+  onlyIf { isGitlabCI || (providers.environmentVariable("GPG_PRIVATE_KEY").isPresent() && providers.environmentVariable("GPG_PASSWORD").isPresent()) }
 }
 
 /**
@@ -81,11 +81,11 @@ gradle.taskGraph.whenReady { TaskExecutionGraph taskGraph ->
   if (taskGraph.hasTask(publish) || taskGraph.hasTask("publishToSonatype")) {
     assert project.findProperty("removeJarVersionNumbers") != true
     if (taskGraph.hasTask("publishToSonatype")) {
-      assert System.getenv("MAVEN_CENTRAL_USERNAME") != null
-      assert System.getenv("MAVEN_CENTRAL_PASSWORD") != null
+      assert providers.environmentVariable("MAVEN_CENTRAL_USERNAME").isPresent()
+      assert providers.environmentVariable("MAVEN_CENTRAL_PASSWORD").isPresent()
       if (isCI) {
-        assert System.getenv("GPG_PRIVATE_KEY") != null
-        assert System.getenv("GPG_PASSWORD") != null
+        assert providers.environmentVariable("GPG_PRIVATE_KEY").isPresent()
+        assert providers.environmentVariable("GPG_PASSWORD").isPresent()
       }
     }
   }
@@ -95,16 +95,12 @@ afterEvaluate {
   assert description: "Project $project.path is published, must have a description"
 }
 
-configurations {
-  configurations {
-    all {
-      incoming.afterResolve {
-        dependencies.withType(ModuleDependency) { dep ->
-          excludeRules.each {
-            if ([it.group, it.module].any { it == null }) {
-              throw new InvalidUserDataException("Partial exclude for dependency '$dep.group:$dep.name:$dep.version' of $project: [group: $it.group, module: $it.module]\n\nExcludes must specify both group and module and neither can be '*'.")
-            }
-          }
+configurations.configureEach {
+  incoming.afterResolve {
+    dependencies.withType(ModuleDependency).configureEach { dep ->
+      excludeRules.each {
+        if ([it.group, it.module].any { it == null }) {
+          throw new InvalidUserDataException("Partial exclude for dependency '$dep.group:$dep.name:$dep.version' of $project: [group: $it.group, module: $it.module]\n\nExcludes must specify both group and module and neither can be '*'.")
         }
       }
     }

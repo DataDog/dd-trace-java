@@ -1,7 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.instrumentation.hystrix.HystrixDecorator
 
-abstract class HystrixTestRunner extends AgentTestRunner {
+abstract class HystrixTestRunner extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

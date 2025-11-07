@@ -108,7 +108,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       ScenarioResult finalResult = scenarioRuntime.result;
 
       TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
-      while (!executionPolicy.wasLastExecution()) {
+      while (executionPolicy.applicable()) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
         retry.magicVariables.put(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);

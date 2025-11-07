@@ -129,12 +129,16 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
       "profiling.experimental.ddprof.scheduling.event.interval";
 
+  public static final String PROFILING_PROCESS_CONTEXT_ENABLED =
+      "profiling.experimental.process_context.enabled";
+  public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = false;
+
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
   public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
-  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "vm";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
 
   private static final int POP_METHOD = 4;

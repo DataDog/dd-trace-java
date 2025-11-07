@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -14,7 +14,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 /**
  * Tests datanucleus from the persistence manager.  These eventually call the instrumented classes
  */
-class DatanucleusTest extends AgentTestRunner {
+class DatanucleusTest extends InstrumentationSpecification {
   PersistenceManagerFactory factory
   PersistenceManager persistenceManager
 

@@ -1,4 +1,3 @@
-
 muzzle {
   pass {
     group = "software.amazon.awssdk"
@@ -15,6 +14,7 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
+apply from: "$rootDir/gradle/configure_tests.gradle"
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'

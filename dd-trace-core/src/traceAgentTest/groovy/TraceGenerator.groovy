@@ -401,5 +401,10 @@ class TraceGenerator {
     PojoSpan setMetaStruct(String field, Object value) {
       return this
     }
+
+    @Override
+    int getLongRunningVersion() {
+      return 0
+    }
   }
 }

@@ -288,6 +288,7 @@ public abstract class TestNGUtils {
     boolean isExceptionSuppressionSupported = isExceptionSuppressionSupported(version);
     if (isExceptionSuppressionSupported) {
       baseCapabilities.add(LibraryCapability.ATR);
+      baseCapabilities.add(LibraryCapability.FTR);
       baseCapabilities.add(LibraryCapability.QUARANTINE);
     }
     if (isEFDSupported) {

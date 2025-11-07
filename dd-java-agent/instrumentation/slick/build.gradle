@@ -10,14 +10,14 @@ apply plugin: 'scala'
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileTestGroovy").configure {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn "compileTestScala"
-  classpath += files(compileTestScala.destinationDirectory)
+  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
 }
 
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   dependsOn "compileLatestDepTestScala"
-  classpath += files(compileLatestDepTestScala.destinationDirectory)
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
 dependencies {
@@ -25,8 +25,8 @@ dependencies {
   compileOnly libs.scala
   compileOnly group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
-  testImplementation project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
+  testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+  testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
   testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')

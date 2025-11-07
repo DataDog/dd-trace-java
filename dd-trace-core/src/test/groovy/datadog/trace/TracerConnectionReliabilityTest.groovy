@@ -51,7 +51,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
     properties.put("trace.agent.port", Integer.toString(agentContainerPort))
     def sharedCommunicationObjects = new SharedCommunicationObjects()
     sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost:" + agentContainerPort)
-    sharedCommunicationObjects.okHttpClient = client
+    sharedCommunicationObjects.agentHttpClient = client
     def fixedFeaturesDiscovery = new FixedTraceEndpointFeaturesDiscovery(sharedCommunicationObjects)
     sharedCommunicationObjects.setFeaturesDiscovery(fixedFeaturesDiscovery)
 
@@ -147,7 +147,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   class FixedTraceEndpointFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     FixedTraceEndpointFeaturesDiscovery(SharedCommunicationObjects objects) {
-      super(objects.okHttpClient, Monitoring.DISABLED, objects.agentUrl, false, false)
+      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, false, false)
     }
 
     @Override

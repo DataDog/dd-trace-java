@@ -1,0 +1,41 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+muzzle {
+  pass {
+    group = "org.eclipse.jetty"
+    module = "jetty-client"
+    versions = "[12,)"
+    javaVersion = "17"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("compileMain_java17Java", JavaCompile) {
+  configureCompiler(it, 17, JavaVersion.VERSION_17)
+}
+
+configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {
+  it.resolutionStrategy {
+    force group: 'org.slf4j', name: 'slf4j-api', version: libs.versions.slf4j.get()
+  }
+}
+
+dependencies {
+  main_java17CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'
+  // to test conflicts
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1'))
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0'))
+
+  testImplementation(project(path:':dd-java-agent:testing', 'configuration': 'shadow')) {
+    // explicitly declared below.
+    exclude group: 'org.eclipse.jetty'
+  }
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.0.0'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '12.+'
+}

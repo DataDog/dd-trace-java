@@ -12,20 +12,22 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
-tasks.named("compileLatestDepJava11TestJava").configure {
-  setJavaVersion(it, 11)
+tasks.named("compileLatestDepJava11TestJava", JavaCompile) {
+  configureCompiler(it, 11)
 }
-tasks.named("compileLatestDepJava11TestGroovy").configure {
-  javaLauncher = getJavaLauncherFor(11)
+
+tasks.named("compileLatestDepJava11TestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
 }
-tasks.named("latestDepJava11Test").configure {
+
+tasks.named("latestDepJava11Test", Test) {
   javaLauncher = getJavaLauncherFor(11)
 }
 
 dependencies {
   compileOnly group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.0.0'
 

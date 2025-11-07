@@ -1,0 +1,137 @@
+muzzle {
+  pass {
+    name = "webflux_5.0.0+_with_netty_0.8.0"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[5.0.0.RELEASE,6)"
+    // assertInverse = true
+    extraDependency "io.projectreactor.netty:reactor-netty:0.8.0.RELEASE"
+  }
+
+  pass {
+    name = "webflux_5.0.0_with_ipc_0.7.0"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[5.0.0.RELEASE,6)"
+    // assertInverse = true
+    extraDependency "io.projectreactor.ipc:reactor-netty:0.7.0.RELEASE"
+  }
+
+  pass {
+    name = "netty_0.8.0+_with_spring-webflux:5.1.0"
+    group = "io.projectreactor.netty"
+    module = "reactor-netty"
+    versions = "[0.8.0.RELEASE,1.1.0)"
+    extraDependency "org.springframework:spring-webflux:5.1.0.RELEASE"
+  }
+
+  pass {
+    name = "ipc_0.7.0+_with_spring-webflux:5.0.0"
+    group = "io.projectreactor.ipc"
+    module = "reactor-netty"
+    versions = "[0.7.0.RELEASE,)"
+    extraDependency "org.springframework:spring-webflux:5.0.0.RELEASE"
+  }
+
+  pass {
+    name = "webflux_with_jackson"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[5.0.0.RELEASE,6)"
+    extraDependency 'com.fasterxml.jackson.core:jackson-databind:2.9.4'
+    extraDependency 'org.springframework:spring-web:5.0.0.RELEASE'
+  }
+
+  pass {
+    name = "read_only_headers"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[5.1.1.RELEASE,6)"
+  }
+  pass {
+    name = "webflux_6"
+    group = "org.springframework"
+    module = "spring-webflux"
+    versions = "[6,)"
+    javaVersion = "17"
+    extraDependency "io.projectreactor:reactor-core:3.6.0"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestBoot20Test', 'bootTest')
+addTestSuiteForDir('latestBoot24Test', 'bootTest')
+addTestSuiteForDir('latestBoot2LatestTest', 'bootTest')
+addTestSuite('iastTest')
+addTestSuiteForDir('latestIast24Test', 'iastTest')
+addTestSuiteForDir('latestIastTest', 'iastTest')
+addTestSuiteForDir('latestIast3Test', 'iastTest')
+
+configurations {
+  latestIast24TestImplementation.extendsFrom(iastTestImplementation)
+  latestIastTestImplementation.extendsFrom(iastTestImplementation)
+  latestIast3TestImplementation.extendsFrom(iastTestImplementation)
+}
+
+dependencies {
+  compileOnly group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
+  compileOnly group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.4'
+
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1')
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
+
+  testImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
+  testImplementation group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.0.RELEASE'
+  testImplementation group: 'org.springframework', name: 'spring-test', version: '5.0.0.RELEASE'
+
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.+'
+  // This is the key dep that breaks things, 1.x doesn't work
+  latestDepTestImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
+
+
+  latestBoot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.+'
+  latestBoot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.+'
+  latestBoot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
+
+  latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
+  latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+'
+  latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
+
+  latestBoot2LatestTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2+'
+  latestBoot2LatestTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2+'
+  latestBoot2LatestTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2+'
+
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.+'
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.+'
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
+  iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.0.+'
+  iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
+  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
+
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+'
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
+  latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.4.+'
+
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.+'
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.+'
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.+'
+  latestIastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.+'
+  latestIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
+}
+
+tasks.named("latestDepTest", Test) {
+  dependsOn "latestBoot20Test"
+  dependsOn "latestBoot24Test"
+  dependsOn "latestBoot2LatestTest"
+}

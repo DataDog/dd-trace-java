@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.freemarker24
 
-import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import freemarker.template.DefaultObjectWrapper
 
-class ObjectWrapperInstrumentationTest extends  AgentTestRunner {
+class ObjectWrapperInstrumentationTest extends  InstrumentationSpecification {
 
   private Object iastCtx
 
