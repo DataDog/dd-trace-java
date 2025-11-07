@@ -1,6 +1,4 @@
-package datadog.trace.util.queue;
-
-import static java.lang.Math.E;
+package datadog.common.queue;
 
 import java.util.AbstractQueue;
 import java.util.Iterator;
@@ -9,7 +7,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.jctools.queues.MessagePassingQueue;
 
-public class JctoolsWrappedQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
+class JctoolsWrappedQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
   private final MessagePassingQueue<E> delegate;
 
   public JctoolsWrappedQueue(@Nonnull MessagePassingQueue<E> delegate) {

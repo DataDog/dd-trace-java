@@ -1,4 +1,4 @@
-package datadog.trace.util.queue
+package datadog.common.queue
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS
 
