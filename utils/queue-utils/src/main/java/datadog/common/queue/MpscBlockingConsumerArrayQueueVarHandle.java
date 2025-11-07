@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
  *
  * <p>The wait is performed by parking/unparking the consumer thread.
  */
-public class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E>
+class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E>
     implements BlockingConsumerNonBlockingQueue<E> {
   /** Consumer thread reference for wake-up. */
   private volatile Thread consumerThread;

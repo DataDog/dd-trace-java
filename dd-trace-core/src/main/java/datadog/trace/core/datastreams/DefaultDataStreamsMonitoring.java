@@ -11,6 +11,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MON
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.common.queue.NonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
@@ -29,8 +31,6 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.NonBlockingQueue;
-import datadog.trace.util.queue.Queues;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;

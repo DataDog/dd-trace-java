@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import datadog.environment.JavaVirtualMachine;
 import org.jctools.queues.MpscArrayQueue;

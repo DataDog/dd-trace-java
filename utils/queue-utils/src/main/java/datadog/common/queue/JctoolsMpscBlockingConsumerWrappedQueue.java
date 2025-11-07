@@ -1,11 +1,11 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
-public class JctoolsMpscBlockingConsumerWrappedQueue<E> extends JctoolsWrappedQueue<E>
+class JctoolsMpscBlockingConsumerWrappedQueue<E> extends JctoolsWrappedQueue<E>
     implements BlockingConsumerNonBlockingQueue<E> {
 
   private final BlockingQueue<E> blockingQueueDelegate;

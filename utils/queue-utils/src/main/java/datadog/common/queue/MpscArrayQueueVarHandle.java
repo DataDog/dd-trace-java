@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
@@ -14,7 +14,7 @@ import java.util.concurrent.locks.LockSupport;
  *
  * @param <E> the type of elements stored
  */
-public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
+class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   private static final VarHandle ARRAY_HANDLE;
   private static final VarHandle HEAD_HANDLE;
   private static final VarHandle TAIL_HANDLE;

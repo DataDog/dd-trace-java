@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;

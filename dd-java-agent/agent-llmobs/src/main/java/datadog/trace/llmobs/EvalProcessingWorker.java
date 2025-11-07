@@ -6,14 +6,14 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.common.queue.BlockingConsumerNonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.llmobs.domain.LLMObsEval;
-import datadog.trace.util.queue.BlockingConsumerNonBlockingQueue;
-import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

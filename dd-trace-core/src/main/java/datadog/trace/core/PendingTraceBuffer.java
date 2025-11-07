@@ -6,14 +6,14 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Comparator.comparingLong;
 
+import datadog.common.queue.BlockingConsumerNonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.BlockingConsumerNonBlockingQueue;
-import datadog.trace.util.queue.Queues;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;

@@ -5,13 +5,13 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.queue.BlockingConsumerNonBlockingQueue;
+import datadog.common.queue.NonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.util.queue.BlockingConsumerNonBlockingQueue;
-import datadog.trace.util.queue.NonBlockingQueue;
-import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
