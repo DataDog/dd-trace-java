@@ -5,9 +5,11 @@ import com.openai.core.http.AsyncStreamResponse
 import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
 import com.openai.models.completions.Completion
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.openai_java.OpenAiDecorator
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
-import spock.lang.Ignore
 
 class CompletionServiceTest extends OpenAiTest {
 
@@ -129,7 +131,13 @@ class CompletionServiceTest extends OpenAiTest {
           resourceName "completions.create"
           childOf span(0)
           errored false
-          spanType "llm"
+          spanType DDSpanTypes.LLMOBS
+          tags {
+            "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo-instruct"
+            "$Tags.COMPONENT" "openai"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            defaultTags()
+          }
         }
         span(2) {
           operationName "okhttp.request"
