@@ -4,6 +4,7 @@ plugins {
 
 ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  testingInstrumentation = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
