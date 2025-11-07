@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -10,7 +10,7 @@ import java.util.Objects;
  *
  * @param <E> the type of elements held in this queue
  */
-public class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
+class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   /** Backing array storing elements. */
   private final Object[] buffer;
 

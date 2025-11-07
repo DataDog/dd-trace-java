@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.queue.NonBlockingQueue;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
 import datadog.trace.util.queue.NonBlockingQueue;

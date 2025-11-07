@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -11,7 +11,7 @@ import java.util.Objects;
  *
  * @param <E> the element type
  */
-public class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
+class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
 
   private static final VarHandle HEAD_HANDLE;
   private static final VarHandle TAIL_HANDLE;

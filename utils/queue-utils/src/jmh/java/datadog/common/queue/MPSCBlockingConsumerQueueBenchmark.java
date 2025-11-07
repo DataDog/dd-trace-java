@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

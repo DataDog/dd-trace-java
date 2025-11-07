@@ -1,18 +1,16 @@
 import groovy.lang.Closure
-import java.nio.file.Paths
+import org.gradle.kotlin.dsl.extra
 
 plugins {
   `java-library`
-  id("de.thetaphi.forbiddenapis") version "3.10"
+  id("de.thetaphi.forbiddenapis") version "3.8"
   id("me.champeau.jmh")
   idea
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
+val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
 
-extensions.getByName("tracerJava").withGroovyBuilder {
-  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
-}
+apply(from = "$rootDir/gradle/java.gradle")
 
 java {
   toolchain {
@@ -20,7 +18,7 @@ java {
   }
 }
 
-tasks.withType<Javadoc>().configureEach {
+tasks.withType<Javadoc>().configureEach() {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
@@ -34,11 +32,9 @@ listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTask
   }
 }
 
-val minimumBranchCoverage by extra(0.8)
-val minimumInstructionCoverage by extra(0.8)
-
 dependencies {
   api(project(":internal-api"))
+  api(libs.jctools)
 
   testImplementation(project(":dd-java-agent:testing"))
   testImplementation(libs.slf4j)
@@ -52,10 +48,4 @@ idea {
   module {
     jdkName = "11"
   }
-}
-
-jmh {
-  jmhVersion = libs.versions.jmh
-  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvm = providers.environmentVariable("JAVA_11_HOME").map { Paths.get(it, "bin", "java").toString() }
 }

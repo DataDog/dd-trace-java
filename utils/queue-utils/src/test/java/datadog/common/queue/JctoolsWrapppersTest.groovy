@@ -1,4 +1,4 @@
-package datadog.trace.util.queue
+package datadog.common.queue
 
 import datadog.trace.test.util.DDSpecification
 import java.util.concurrent.TimeUnit

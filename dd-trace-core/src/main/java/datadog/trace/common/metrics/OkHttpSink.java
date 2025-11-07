@@ -9,9 +9,9 @@ import static datadog.trace.common.metrics.EventListener.EventType.ERROR;
 import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.common.queue.NonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.NonBlockingQueue;
-import datadog.trace.util.queue.Queues;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
