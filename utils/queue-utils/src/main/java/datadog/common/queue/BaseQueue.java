@@ -1,4 +1,4 @@
-package datadog.trace.util.queue;
+package datadog.common.queue;
 
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
 
@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
-public abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
+abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
   /** The capacity of the queue (must be a power of two) */
   protected final int capacity;
 

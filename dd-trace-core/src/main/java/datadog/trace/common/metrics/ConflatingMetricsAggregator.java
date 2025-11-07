@@ -19,6 +19,8 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.common.queue.NonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -33,8 +35,6 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.queue.NonBlockingQueue;
-import datadog.trace.util.queue.Queues;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
