@@ -102,16 +102,15 @@ tasks.named("check") {
 
 tasks.withType<Test>().configureEach {
   // Flaky tests management for JUnit 5
-  if (testFramework is JUnitPlatformOptions) {
-    val junitPlatform = testFramework as JUnitPlatformOptions
+  (options as? JUnitPlatformOptions)?.apply {
     if (skipFlakyTestsProvider.isPresent) {
-      junitPlatform.excludeTags("flaky")
+      excludeTags("flaky")
     } else if (runFlakyTestsProvider.isPresent) {
-      junitPlatform.includeTags("flaky")
+      includeTags("flaky")
     }
   }
 
-  // Flaky tests management for Spock
+  // Set system property flag that is checked from tests to determine if they should be skipped or run
   if (skipFlakyTestsProvider.isPresent) {
     jvmArgs("-Drun.flaky.tests=false")
   } else if (runFlakyTestsProvider.isPresent) {
