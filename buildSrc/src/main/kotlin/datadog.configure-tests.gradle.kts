@@ -32,14 +32,9 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
-val activePartitionProvider = providers.provider {
-  project.extra.properties["activePartition"] as? Boolean ?: true
-}
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
-  enabled = activePartitionProvider.get()
-  
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
@@ -107,16 +102,15 @@ tasks.named("check") {
 
 tasks.withType<Test>().configureEach {
   // Flaky tests management for JUnit 5
-  if (testFramework is JUnitPlatformOptions) {
-    val junitPlatform = testFramework as JUnitPlatformOptions
+  (options as? JUnitPlatformOptions)?.apply {
     if (skipFlakyTestsProvider.isPresent) {
-      junitPlatform.excludeTags("flaky")
+      excludeTags("flaky")
     } else if (runFlakyTestsProvider.isPresent) {
-      junitPlatform.includeTags("flaky")
+      includeTags("flaky")
     }
   }
 
-  // Flaky tests management for Spock
+  // Set system property flag that is checked from tests to determine if they should be skipped or run
   if (skipFlakyTestsProvider.isPresent) {
     jvmArgs("-Drun.flaky.tests=false")
   } else if (runFlakyTestsProvider.isPresent) {
