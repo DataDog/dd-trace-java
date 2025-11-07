@@ -4,7 +4,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.VarHandle;
 import java.util.Objects;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -89,6 +88,9 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     long localProducerLimit = (long) PRODUCER_LIMIT_HANDLE.getVolatile(this);
     long cachedHead = 0L; // Local cache of head to reduce volatile reads
 
+    int spinCycles = 0;
+    boolean parkOnSpin = (Thread.currentThread().getId() & 1) == 0;
+
     while (true) {
       long currentTail = (long) TAIL_HANDLE.getVolatile(this);
 
@@ -116,20 +118,16 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       }
 
       // Backoff to reduce contention
-      switch (ThreadLocalRandom.current().nextInt(0, 4)) {
-        case 0:
-          Thread.yield();
-          break;
-        case 1:
+      if ((spinCycles & 1) == 0) {
+        Thread.onSpinWait();
+      } else {
+        if (parkOnSpin) {
           LockSupport.parkNanos(1);
-          break;
-        case 2:
-          Thread.onSpinWait();
-          break;
-        default:
-          // busy spin
-          break;
+        } else {
+          Thread.yield();
+        }
       }
+      spinCycles++;
     }
   }
 
