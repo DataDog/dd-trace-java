@@ -1,3 +1,5 @@
+ext.testingInstrumentation = true
+
 apply from: "$rootDir/gradle/java.gradle"
 
 def spockGroovyVersion = '3.0'

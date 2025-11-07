@@ -42,6 +42,7 @@ lz4 = "1.7.1"
 jmh = "1.37"
 jackson = "2.20.0"
 javaparser = "3.24.4"
+develocity = "4.2.2"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -122,6 +123,8 @@ jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", vers
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
 javaparser-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
 
+
+develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
 
 [bundles]
 asm = ["asm", "asmcommons"]
