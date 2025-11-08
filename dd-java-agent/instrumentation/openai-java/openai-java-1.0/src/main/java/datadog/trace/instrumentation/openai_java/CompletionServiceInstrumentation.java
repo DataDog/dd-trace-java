@@ -50,15 +50,15 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return HttpResponseFor<Completion> response, @Advice.Thrown final Throwable err) {
+    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<Completion> response, @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          Completion completion = response.parse(); // TODO wrap HttpResponseFor
-          DECORATE.decorate(span, completion);
+          DECORATE.decorate(span, response);
+          response = ResponseWrappers.wrapResponse(response, span);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -86,7 +86,8 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response = ResponseWrappers.wrap(response, span);
+          DECORATE.decorate(span, response);
+          response = ResponseWrappers.wrapStreamResponse(response, span);
         } else {
           span.finish();
         }

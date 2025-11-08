@@ -53,7 +53,26 @@ public class ResponseWrappers {
     }
   }
 
-  public static HttpResponseFor<StreamResponse<Completion>> wrap(HttpResponseFor<StreamResponse<Completion>> response, final AgentSpan span) {
+  public static HttpResponseFor<Completion> wrapResponse(HttpResponseFor<Completion> response, AgentSpan span) {
+    return new DDHttpResponseFor<Completion>(response) {
+      @Override
+      public Completion afterParse(Completion completion) {
+        DECORATE.decorate(span, completion);
+        return completion;
+      }
+    };
+  }
+
+  public static CompletableFuture<HttpResponseFor<Completion>> wrapFutureResponse(CompletableFuture<HttpResponseFor<Completion>> future, AgentSpan span) {
+    return future
+        .thenApply(response -> wrapResponse(response, span))
+        .whenComplete((r, t) -> {
+          DECORATE.beforeFinish(span);
+          span.finish();
+        });
+  }
+
+  public static HttpResponseFor<StreamResponse<Completion>> wrapStreamResponse(HttpResponseFor<StreamResponse<Completion>> response, final AgentSpan span) {
     return new DDHttpResponseFor<StreamResponse<Completion>>(response) {
       @Override
       public StreamResponse<Completion> afterParse(StreamResponse<Completion> streamResponse) {
@@ -66,14 +85,11 @@ public class ResponseWrappers {
             return streamResponse
                 .stream()
                 .peek(completions::add)
-                .onClose(this::close
-                  // TODO See "streamed request completion test"
-                );
+                .onClose(this::close);
           }
 
           @Override
           public void close() {
-            // TODO See "streamed async request completion test"
             try {
               streamResponse.close();
               DECORATE.decorate(span, completions);
@@ -87,25 +103,7 @@ public class ResponseWrappers {
     };
   }
 
-  public static CompletableFuture<HttpResponseFor<Completion>> wrap(CompletableFuture<HttpResponseFor<Completion>> future, AgentSpan span) {
-    return future
-        .whenComplete((r, t) -> {
-          DECORATE.beforeFinish(span);
-          span.finish();
-        })
-        .thenApply(response ->
-          new DDHttpResponseFor<Completion>(response) {
-            @Override
-            public Completion afterParse(Completion completion) {
-              DECORATE.decorate(span, completion);
-              return completion;
-            }
-          }
-        );
-  }
-
-  public static CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> wrapAsyncStream(CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future, AgentSpan span) {
-
-    return future.thenApply(resp -> wrap(resp, span));
+  public static CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> wrapFutureStreamResponse(CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future, AgentSpan span) {
+    return future.thenApply(r -> wrapStreamResponse(r, span));
   }
 }

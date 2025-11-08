@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import com.openai.core.http.HttpResponse;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -42,6 +43,8 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
 // TODO APM tags
+
+// TODO "openai.request.endpoint" - hardcoded in trace-py
 // ("openai.request.endpoint", "/%s/%s" % (API_VERSION, endpoint))
 //  API_VERSION = "v1"
 //  ENDPOINT_NAME = "completions"
@@ -49,6 +52,7 @@ public class OpenAiDecorator extends ClientDecorator {
 //  ENDPOINT_NAME = "embeddings"
 //  ENDPOINT_NAME = "responses"
 //
+ // TODO "openai.request.method" - hardcoded in trace-py to be POST, GET, ...
 // ("openai.request.method", self.HTTP_METHOD_TYPE)
 //
 // _set_tag_str("openai.%s" % arg, str(args[idx]))
@@ -73,5 +77,34 @@ public class OpenAiDecorator extends ClientDecorator {
 
   public void decorate(AgentSpan span, List<Completion> completions) {
     //TODO set LLMObs tags (not visible to APM)
+  }
+
+  public void decorate(AgentSpan span, HttpResponse response) {
+    // TODO set metrics and org name
+    /*
+        if headers.get("openai-organization"):
+        org_name = headers.get("openai-organization")
+        span._set_tag_str("openai.organization.name", org_name)
+
+    # Gauge total rate limit
+    if headers.get("x-ratelimit-limit-requests"):
+        v = headers.get("x-ratelimit-limit-requests")
+        if v is not None:
+            span.set_metric("openai.organization.ratelimit.requests.limit", int(v))
+    if headers.get("x-ratelimit-limit-tokens"):
+        v = headers.get("x-ratelimit-limit-tokens")
+        if v is not None:
+            span.set_metric("openai.organization.ratelimit.tokens.limit", int(v))
+    # Gauge and set span info for remaining requests and tokens
+    if headers.get("x-ratelimit-remaining-requests"):
+        v = headers.get("x-ratelimit-remaining-requests")
+        if v is not None:
+            span.set_metric("openai.organization.ratelimit.requests.remaining", int(v))
+    if headers.get("x-ratelimit-remaining-tokens"):
+        v = headers.get("x-ratelimit-remaining-tokens")
+        if v is not None:
+            span.set_metric("openai.organization.ratelimit.tokens.remaining", int(v))
+
+     */
   }
 }

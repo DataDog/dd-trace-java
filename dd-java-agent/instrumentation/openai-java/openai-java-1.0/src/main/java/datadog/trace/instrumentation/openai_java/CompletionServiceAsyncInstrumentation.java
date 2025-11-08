@@ -59,7 +59,7 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrap(future, span);
+          future = ResponseWrappers.wrapFutureResponse(future, span);
         } else {
           span.finish();
         }
@@ -87,7 +87,7 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapAsyncStream(future, span);
+          future = ResponseWrappers.wrapFutureStreamResponse(future, span);
         } else {
           span.finish();
         }
