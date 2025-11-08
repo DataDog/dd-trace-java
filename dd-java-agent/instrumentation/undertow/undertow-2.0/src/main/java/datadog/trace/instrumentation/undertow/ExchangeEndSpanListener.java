@@ -30,16 +30,14 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
       if (throwable != null) {
         DECORATE.onError(span, throwable);
       }
-
       DECORATE.onResponse(span, exchange);
       DECORATE.beforeFinish(context);
-      continuation.cancel();
       span.finish();
-      nextListener.proceed();
     } else {
       DECORATE.beforeFinish(context);
-      continuation.cancel();
-      nextListener.proceed();
     }
+
+    continuation.cancel();
+    nextListener.proceed();
   }
 }

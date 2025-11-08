@@ -97,6 +97,15 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
       if (null != error && null != span) {
         DECORATE.onError(span, error);
       }
+
+      if (null != span) {
+        if (null != httpResponse) {
+          DECORATE.onResponse(span, httpResponse);
+        }
+        if (null != error) {
+          DECORATE.onError(span, error);
+        }
+      }
       DECORATE.beforeFinish(scope.context());
       // no need to finish span because response event (which created the worker) does that
       scope.close();
