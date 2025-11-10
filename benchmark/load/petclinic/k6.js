@@ -28,7 +28,7 @@ export const options = function (variants) {
     scenarios[`load--petclinic--${variant}--warmup`] = {
       executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
       vus: 5,
-      duration: '5m',
+      duration: '165s',
       gracefulStop: '2s',
       env: {
         "APP_URL": variants[variant]["APP_URL"]
