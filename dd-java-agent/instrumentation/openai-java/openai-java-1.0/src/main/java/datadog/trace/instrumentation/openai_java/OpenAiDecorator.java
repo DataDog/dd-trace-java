@@ -90,28 +90,33 @@ public class OpenAiDecorator extends ClientDecorator {
 
   public void decorateWithResponse(AgentSpan span, HttpResponse response) {
     Headers headers = response.headers();
-    headers.values("openai-organization").stream().findFirst().ifPresent(v -> span.setTag(OPENAI_ORGANIZATION_NAME, v));
-    /* TODO
+    setTagFromHeader(span, OPENAI_ORGANIZATION_NAME, headers, "openai-organization");
 
-    # Gauge total rate limit
-    if headers.get("x-ratelimit-limit-requests"):
-        v = headers.get("x-ratelimit-limit-requests")
-        if v is not None:
-            span.set_metric("openai.organization.ratelimit.requests.limit", int(v))
-    if headers.get("x-ratelimit-limit-tokens"):
-        v = headers.get("x-ratelimit-limit-tokens")
-        if v is not None:
-            span.set_metric("openai.organization.ratelimit.tokens.limit", int(v))
-    # Gauge and set span info for remaining requests and tokens
-    if headers.get("x-ratelimit-remaining-requests"):
-        v = headers.get("x-ratelimit-remaining-requests")
-        if v is not None:
-            span.set_metric("openai.organization.ratelimit.requests.remaining", int(v))
-    if headers.get("x-ratelimit-remaining-tokens"):
-        v = headers.get("x-ratelimit-remaining-tokens")
-        if v is not None:
-            span.set_metric("openai.organization.ratelimit.tokens.remaining", int(v))
+    setMetricFromHeader(span, "openai.organization.ratelimit.requests.limit", headers, "x-ratelimit-limit-requests");
+    setMetricFromHeader(span, "openai.organization.ratelimit.requests.remaining", headers, "x-ratelimit-remaining-requests");
+    setMetricFromHeader(span, "openai.organization.ratelimit.tokens.limit", headers, "x-ratelimit-limit-tokens");
+    setMetricFromHeader(span, "openai.organization.ratelimit.tokens.remaining", headers, "x-ratelimit-remaining-tokens");
+  }
 
-     */
+  private static void setTagFromHeader(AgentSpan span, String tag, Headers headers, String header) {
+    List<String> values = headers.values(header);
+    if (values.isEmpty()) {
+      return;
+    }
+    span.setTag(tag, values.get(0));
+  }
+
+  private static void setMetricFromHeader(AgentSpan span, String metric, Headers headers, String header) {
+    List<String> values = headers.values(header);
+    if (values.isEmpty()) {
+      return;
+    }
+    String firstHeader = values.get(0);
+    try {
+      int value = Integer.parseInt(firstHeader);
+      span.setMetric(metric, value);
+    } catch (NumberFormatException ex) {
+      // ~
+    }
   }
 }

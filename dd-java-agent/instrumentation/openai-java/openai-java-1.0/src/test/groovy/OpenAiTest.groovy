@@ -29,6 +29,10 @@ abstract class OpenAiTest extends LlmObsSpecification {
         if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream":true}' == request.text) {
           response
               .addHeader("openai-organization", "datadog-staging")
+              .addHeader("x-ratelimit-limit-requests", "3500")
+              .addHeader("x-ratelimit-remaining-requests", "3499")
+              .addHeader("x-ratelimit-limit-tokens", "90000")
+              .addHeader("x-ratelimit-remaining-tokens", "89994")
               .status(200)
               .send("""data: {"id":"cmpl-CYhd8HZjl8iY5SA1poPy3TqMdspV0","object":"text_completion","created":1762386902,"choices":[{"text":"\\n\\n","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2"}
 
@@ -60,6 +64,10 @@ data: [DONE]
         } else if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!"}' == request.text) {
           response
               .addHeader("openai-organization", "datadog-staging")
+              .addHeader("x-ratelimit-limit-requests", "3500")
+              .addHeader("x-ratelimit-remaining-requests", "3499")
+              .addHeader("x-ratelimit-limit-tokens", "90000")
+              .addHeader("x-ratelimit-remaining-tokens", "89994")
               .status(200)
               .send("""{
   "id": "cmpl-CYhd78PVSfxem8cdTSGsgZnSU9e2U",

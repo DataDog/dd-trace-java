@@ -131,6 +131,10 @@ class CompletionServiceTest extends OpenAiTest {
           errored false
           spanType DDSpanTypes.LLMOBS
           tags {
+            "openai.organization.ratelimit.requests.limit" 3500
+            "openai.organization.ratelimit.requests.remaining" Integer
+            "openai.organization.ratelimit.tokens.limit" 90000
+            "openai.organization.ratelimit.tokens.remaining" Integer
             "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo-instruct"
             "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-instruct:20230824-v2"
             "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
