@@ -372,7 +372,7 @@ public class AgentTracer {
     default SpanBuilder buildSpan(CharSequence spanName) {
       return buildSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
     }
-    
+
     @Deprecated
     default SpanBuilder singleSpanBuilder(CharSequence spanName) {
       return singleSpanBuilder(DEFAULT_INSTRUMENTATION_NAME, spanName);
