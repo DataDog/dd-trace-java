@@ -1,14 +1,19 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-  // Zulu has backported profiling support
-  forceJdk = ['ZULU8']
-  // By default tests with be compiled for `minJavaVersionForTests` version,
-  // but in this case we would like to avoid this since we would like to run with ZULU8
-  skipSettingTestJavaVersion = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11) {
+    // By default tests with be compiled for `minJavaVersion` version,
+    // but in this case we would like to avoid this since we would like to run with ZULU8
+    applyForTestSources = false
+  }
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+  // Zulu has backported profiling support
+  forceJdk = ['ZULU8']
+}
 
 dependencies {
   testImplementation libs.forbiddenapis

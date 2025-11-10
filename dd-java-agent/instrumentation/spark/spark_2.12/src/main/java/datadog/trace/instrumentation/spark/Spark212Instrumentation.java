@@ -7,7 +7,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.lang.reflect.Constructor;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.execution.SparkPlan;
@@ -25,6 +24,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
     return new String[] {
       packageName + ".AbstractDatadogSparkListener",
       packageName + ".AbstractSparkPlanSerializer",
+      packageName + ".AbstractSparkPlanUtils",
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark212Listener",
@@ -35,7 +35,8 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
-      packageName + ".Spark212PlanSerializer"
+      packageName + ".Spark212PlanSerializer",
+      packageName + ".Spark212PlanUtils"
     };
   }
 
@@ -104,29 +105,15 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       if (planInfo.metadata().size() == 0
           && (Config.get().isDataJobsParseSparkPlanEnabled()
               || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
-        Spark212PlanSerializer planUtils = new Spark212PlanSerializer();
+        Spark212PlanSerializer planSerializer = new Spark212PlanSerializer();
         Map<String, String> meta =
-            JavaConverters.mapAsScalaMap(planUtils.extractFormattedProduct(plan))
+            JavaConverters.mapAsScalaMap(planSerializer.extractFormattedProduct(plan))
                 .toMap(Predef.$conforms());
-        try {
-          Constructor<?> targetCtor = null;
-          for (Constructor<?> c : SparkPlanInfo.class.getConstructors()) {
-            if (c.getParameterCount() == 5) {
-              targetCtor = c;
-              break;
-            }
-          }
-          if (targetCtor != null) {
-            Object newInst =
-                targetCtor.newInstance(
-                    planInfo.nodeName(),
-                    planInfo.simpleString(),
-                    planInfo.children(),
-                    meta,
-                    planInfo.metrics());
-            planInfo = (SparkPlanInfo) newInst;
-          }
-        } catch (Throwable ignored) {
+
+        SparkPlanInfo newPlanInfo =
+            new Spark212PlanUtils().upsertSparkPlanInfoMetadata(planInfo, meta);
+        if (newPlanInfo != null) {
+          planInfo = newPlanInfo;
         }
       }
     }

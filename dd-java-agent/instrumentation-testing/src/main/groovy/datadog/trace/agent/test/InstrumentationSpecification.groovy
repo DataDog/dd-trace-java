@@ -16,6 +16,7 @@ import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.monitor.Monitoring
+import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
@@ -400,6 +401,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       originalToTrackingSpan[agentSpan] = trackingSpan
       return trackingSpan
     }
+
+    ClassInjector.enableClassInjection(INSTRUMENTATION)
 
     // if a test enables the instrumentation it verifies,
     // the cache needs to be recomputed taking into account that instrumentation's matchers
