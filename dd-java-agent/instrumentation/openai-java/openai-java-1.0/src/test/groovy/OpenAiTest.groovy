@@ -27,8 +27,10 @@ abstract class OpenAiTest extends LlmObsSpecification {
     handlers {
       prefix("/completions") {
         if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream":true}' == request.text) {
-          response.status(200).send(
-              """data: {"id":"cmpl-CYhd8HZjl8iY5SA1poPy3TqMdspV0","object":"text_completion","created":1762386902,"choices":[{"text":"\\n\\n","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2"}
+          response
+              .addHeader("openai-organization", "datadog-staging")
+              .status(200)
+              .send("""data: {"id":"cmpl-CYhd8HZjl8iY5SA1poPy3TqMdspV0","object":"text_completion","created":1762386902,"choices":[{"text":"\\n\\n","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2"}
 
 data: {"id":"cmpl-CYhd8HZjl8iY5SA1poPy3TqMdspV0","object":"text_completion","created":1762386902,"choices":[{"text":"Once","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2"}
 
@@ -56,8 +58,10 @@ data: [DONE]
 
 """)
         } else if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!"}' == request.text) {
-          response.status(200).send(
-              """{
+          response
+              .addHeader("openai-organization", "datadog-staging")
+              .status(200)
+              .send("""{
   "id": "cmpl-CYhd78PVSfxem8cdTSGsgZnSU9e2U",
   "object": "text_completion",
   "created": 1762386901,

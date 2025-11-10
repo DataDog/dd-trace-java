@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponse;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
@@ -17,6 +18,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
   public static final String REQUEST_MODEL = "openai.request.model";
   public static final String RESPONSE_MODEL = "openai.response.model";
+  public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
 
   private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("completions.create");
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
@@ -62,7 +64,7 @@ public class OpenAiDecorator extends ClientDecorator {
 // _set_tag_str("openai.response.%s" % resp_attr, str(getattr(resp, resp_attr, "")))
 //  _response_attrs = ("model",)
 
-  public void decorate(AgentSpan span, CompletionCreateParams params) {
+  public void decorateCompletion(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
     if (params == null) {
       return;
@@ -72,13 +74,13 @@ public class OpenAiDecorator extends ClientDecorator {
     //TODO set LLMObs tags (not visible to APM)
   }
 
-  public void decorate(AgentSpan span, Completion completion) {
+  public void decorateWithCompletion(AgentSpan span, Completion completion) {
     span.setTag(RESPONSE_MODEL, completion.model());
 
     //TODO set LLMObs tags (not visible to APM)
   }
 
-  public void decorate(AgentSpan span, List<Completion> completions) {
+  public void decorateWithCompletions(AgentSpan span, List<Completion> completions) {
     if (!completions.isEmpty()) {
       span.setTag(RESPONSE_MODEL, completions.get(0).model());
     }
@@ -86,12 +88,10 @@ public class OpenAiDecorator extends ClientDecorator {
     //TODO set LLMObs tags (not visible to APM)
   }
 
-  public void decorate(AgentSpan span, HttpResponse response) {
-    // TODO set metrics and org name
-    /*
-        if headers.get("openai-organization"):
-        org_name = headers.get("openai-organization")
-        span._set_tag_str("openai.organization.name", org_name)
+  public void decorateWithResponse(AgentSpan span, HttpResponse response) {
+    Headers headers = response.headers();
+    headers.values("openai-organization").stream().findFirst().ifPresent(v -> span.setTag(OPENAI_ORGANIZATION_NAME, v));
+    /* TODO
 
     # Gauge total rate limit
     if headers.get("x-ratelimit-limit-requests"):

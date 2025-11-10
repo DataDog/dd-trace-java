@@ -45,7 +45,7 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
     public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorate(span, params);
+      DECORATE.decorateCompletion(span, params);
       return activateSpan(span);
     }
 
@@ -57,7 +57,6 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          DECORATE.decorate(span, response);
           response = ResponseWrappers.wrapResponse(response, span);
         }
         DECORATE.beforeFinish(span);
@@ -74,7 +73,7 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
     public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorate(span, params);
+      DECORATE.decorateCompletion(span, params);
       return activateSpan(span);
     }
 
@@ -86,7 +85,6 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          DECORATE.decorate(span, response);
           response = ResponseWrappers.wrapStreamResponse(response, span);
         } else {
           span.finish();

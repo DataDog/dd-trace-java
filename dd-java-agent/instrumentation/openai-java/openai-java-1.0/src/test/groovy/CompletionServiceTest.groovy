@@ -133,6 +133,7 @@ class CompletionServiceTest extends OpenAiTest {
           tags {
             "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo-instruct"
             "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-instruct:20230824-v2"
+            "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

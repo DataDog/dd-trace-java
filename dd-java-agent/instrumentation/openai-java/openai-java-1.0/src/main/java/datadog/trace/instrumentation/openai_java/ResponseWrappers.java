@@ -54,10 +54,11 @@ public class ResponseWrappers {
   }
 
   public static HttpResponseFor<Completion> wrapResponse(HttpResponseFor<Completion> response, AgentSpan span) {
+    DECORATE.decorateWithResponse(span, response);
     return new DDHttpResponseFor<Completion>(response) {
       @Override
       public Completion afterParse(Completion completion) {
-        DECORATE.decorate(span, completion);
+        DECORATE.decorateWithCompletion(span, completion);
         return completion;
       }
     };
@@ -73,6 +74,7 @@ public class ResponseWrappers {
   }
 
   public static HttpResponseFor<StreamResponse<Completion>> wrapStreamResponse(HttpResponseFor<StreamResponse<Completion>> response, final AgentSpan span) {
+    DECORATE.decorateWithResponse(span, response);
     return new DDHttpResponseFor<StreamResponse<Completion>>(response) {
       @Override
       public StreamResponse<Completion> afterParse(StreamResponse<Completion> streamResponse) {
@@ -92,7 +94,7 @@ public class ResponseWrappers {
           public void close() {
             try {
               streamResponse.close();
-              DECORATE.decorate(span, completions);
+              DECORATE.decorateWithCompletions(span, completions);
               DECORATE.beforeFinish(span);
             } finally {
               span.finish();

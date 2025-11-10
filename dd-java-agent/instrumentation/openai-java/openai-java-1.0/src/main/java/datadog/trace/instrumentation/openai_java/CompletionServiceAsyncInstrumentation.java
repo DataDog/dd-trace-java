@@ -47,7 +47,7 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
     public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorate(span, params);
+      DECORATE.decorateCompletion(span, params);
       return activateSpan(span);
     }
 
@@ -75,7 +75,7 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
     public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorate(span, params);
+      DECORATE.decorateCompletion(span, params);
       return activateSpan(span);
     }
 
