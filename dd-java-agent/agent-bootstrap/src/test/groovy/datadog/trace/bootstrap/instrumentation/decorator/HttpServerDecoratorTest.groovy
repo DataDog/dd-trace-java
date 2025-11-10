@@ -468,6 +468,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         protected int status(Map m) {
           return m.status == null ? 0 : m.status
         }
+
+        @Override
+        protected String getRequestHeader(Map map, String key) {
+          return map.getOrDefault(key, null)
+        }
       }
   }
 

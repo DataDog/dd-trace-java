@@ -13,6 +13,8 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -39,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -94,6 +97,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected abstract int peerPort(CONNECTION connection);
 
   protected abstract int status(RESPONSE response);
+
+  protected String getRequestHeader(REQUEST request, String key) {
+    return null;
+  }
 
   protected String requestedSessionId(REQUEST request) {
     return null;
@@ -326,7 +333,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
-    // TODO: krigor
+    if (request != null) {
+      // apply extractors if any (disabled if DSM is off)
+      AgentDataStreamsMonitoring dataStreamsMonitoring =
+          AgentTracer.get().getDataStreamsMonitoring();
+      List<DataStreamsTransactionExtractor> extractorList =
+          dataStreamsMonitoring.extractorsByType(
+              DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS);
+      if (!extractorList.isEmpty()) {
+        for (DataStreamsTransactionExtractor extractor : extractorList) {
+          String transactionId = getRequestHeader(request, extractor.getValue());
+          if (transactionId != null) {
+            dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
+          }
+        }
+      }
+    }
+
     return span;
   }
 

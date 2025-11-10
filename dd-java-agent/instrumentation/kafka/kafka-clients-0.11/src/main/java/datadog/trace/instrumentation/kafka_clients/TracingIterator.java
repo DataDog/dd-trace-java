@@ -21,14 +21,19 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,6 +132,21 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();
+        }
+
+        AgentDataStreamsMonitoring dataStreamsMonitoring =
+            AgentTracer.get().getDataStreamsMonitoring();
+        List<DataStreamsTransactionExtractor> extractors =
+            dataStreamsMonitoring.extractorsByType(
+                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS);
+        if (extractors != null) {
+          for (DataStreamsTransactionExtractor extractor : extractors) {
+            Header header = val.headers().lastHeader(extractor.getValue());
+            if (header != null && header.value() != null) {
+              dataStreamsMonitoring.trackTransaction(
+                  new String(header.value(), StandardCharsets.UTF_8), extractor.getName());
+            }
+          }
         }
       }
     } catch (final Exception e) {

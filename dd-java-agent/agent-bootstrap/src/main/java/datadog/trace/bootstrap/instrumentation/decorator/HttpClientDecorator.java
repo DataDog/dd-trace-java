@@ -11,6 +11,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -27,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -70,10 +73,20 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
-      // AgentTracer.get().getDataStreamsMonitoring().trackTransaction();
-
-      // TODO: krigor
-      // getRequestHeader(request, "")
+      // apply extractors if any (disabled if DSM is off)
+      AgentDataStreamsMonitoring dataStreamsMonitoring =
+          AgentTracer.get().getDataStreamsMonitoring();
+      List<DataStreamsTransactionExtractor> extractorList =
+          dataStreamsMonitoring.extractorsByType(
+              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS);
+      if (!extractorList.isEmpty()) {
+        for (DataStreamsTransactionExtractor extractor : extractorList) {
+          String transactionId = getRequestHeader(request, extractor.getValue());
+          if (transactionId != null && !transactionId.isEmpty()) {
+            dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
+          }
+        }
+      }
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);

@@ -27,14 +27,18 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -44,6 +48,7 @@ import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(InstrumenterModule.class)
@@ -178,6 +183,23 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       if (TIME_IN_QUEUE_ENABLED) {
         setter.injectTimeInQueue(record.headers());
       }
+
+      // track transactions on produce
+      AgentDataStreamsMonitoring dataStreamsMonitoring =
+          AgentTracer.get().getDataStreamsMonitoring();
+      List<DataStreamsTransactionExtractor> extractors =
+          dataStreamsMonitoring.extractorsByType(
+              DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS);
+      if (extractors != null) {
+        for (DataStreamsTransactionExtractor extractor : extractors) {
+          Header header = record.headers().lastHeader(extractor.getValue());
+          if (header != null && header.value() != null) {
+            dataStreamsMonitoring.trackTransaction(
+                new String(header.value(), StandardCharsets.UTF_8), extractor.getName());
+          }
+        }
+      }
+
       return activateSpan(span);
     }
 
