@@ -5,12 +5,15 @@ import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LLMObs {
   protected LLMObs() {}
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
+  private static final Logger LOGGER = LoggerFactory.getLogger(NoOpLLMObsSpanFactory.class);
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -19,6 +22,7 @@ public class LLMObs {
       @Nullable String mlApp,
       @Nullable String sessionId) {
 
+    LOGGER.debug("LLM OBS SPAN FACTORY {}", SPAN_FACTORY);
     return SPAN_FACTORY.startLLMSpan(spanName, modelName, modelProvider, mlApp, sessionId);
   }
 
