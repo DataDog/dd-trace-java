@@ -71,7 +71,7 @@ check-big-regressions:
   needs:
     - job: benchmarks-startup
       artifacts: true
-    - job: benchmarks-load
+    - job: benchmarks-dacapo
       artifacts: true
   when: on_success
   tags: ["arch:amd64"]
