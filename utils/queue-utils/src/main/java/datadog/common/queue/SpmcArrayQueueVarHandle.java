@@ -1,8 +1,7 @@
 package datadog.common.queue;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.util.Objects;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * A Single-Producer, Multiple-Consumer (SPMC) bounded, lock-free queue based on a circular array.
@@ -11,46 +10,17 @@ import java.util.Objects;
  *
  * @param <E> the element type
  */
-class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
-
-  private static final VarHandle HEAD_HANDLE;
-  private static final VarHandle TAIL_HANDLE;
-  private static final VarHandle ARRAY_HANDLE;
-
-  static {
-    try {
-      final MethodHandles.Lookup lookup = MethodHandles.lookup();
-      HEAD_HANDLE = lookup.findVarHandle(SpmcArrayQueueVarHandle.class, "head", long.class);
-      TAIL_HANDLE = lookup.findVarHandle(SpmcArrayQueueVarHandle.class, "tail", long.class);
-      ARRAY_HANDLE = MethodHandles.arrayElementVarHandle(Object[].class);
-    } catch (ReflectiveOperationException e) {
-      throw new ExceptionInInitializerError(e);
-    }
-  }
-
-  /** The backing array (plain Java array for VarHandle access) */
-  private final Object[] buffer;
-
-  // Padding to avoid false sharing
+final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
+  // Padding around consumerLimit
   @SuppressWarnings("unused")
   private long p0, p1, p2, p3, p4, p5, p6;
-
-  /** Next free slot for producer (single-threaded) */
-  private volatile long tail = 0L;
-
-  // Padding around tail
-  @SuppressWarnings("unused")
-  private long q0, q1, q2, q3, q4, q5, q6;
-
-  /** Next slot to consume (multi-threaded) */
-  private volatile long head = 0L;
 
   /** Cached consumer limit to avoid repeated volatile tail reads */
   private volatile long consumerLimit = 0L;
 
-  // Padding around head
+  // Padding around consumerLimit
   @SuppressWarnings("unused")
-  private long r0, r1, r2, r3, r4, r5, r6;
+  private long q0, q1, q2, q3, q4, q5, q6;
 
   /**
    * Creates a new SPMC queue.
@@ -59,7 +29,6 @@ class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
    */
   public SpmcArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
-    this.buffer = new Object[capacity];
   }
 
   @Override
@@ -89,53 +58,61 @@ class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
   public E poll() {
     final Object[] localBuffer = this.buffer;
 
+    int spinCycles = 0;
+    boolean parkOnSpin = (Thread.currentThread().getId() & 1) == 0;
+
     while (true) {
       long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-      long limit = consumerLimit; // local cached tail
+      long limit = consumerLimit; // cached tail
 
       if (currentHead >= limit) {
+        // refresh limit once from tail volatile
         limit = (long) TAIL_HANDLE.getVolatile(this);
         if (currentHead >= limit) {
-          return null; // empty
+          return null; // queue empty
         }
-        consumerLimit = limit; // update local view
+        consumerLimit = limit; // update local cache
       }
 
       // Attempt to claim this slot
-      if (HEAD_HANDLE.compareAndSet(this, currentHead, currentHead + 1)) {
-        int index = (int) (currentHead & mask);
-        Object value;
-
-        // Wait for the producer to publish the value
-        while ((value = ARRAY_HANDLE.getAcquire(localBuffer, index)) == null) {
+      if (!HEAD_HANDLE.compareAndSet(this, currentHead, currentHead + 1)) {
+        // CAS failed. Backoff to reduce contention
+        if ((spinCycles & 1) == 0) {
           Thread.onSpinWait();
+        } else {
+          if (parkOnSpin) {
+            LockSupport.parkNanos(1);
+          } else {
+            Thread.yield();
+          }
         }
-
-        // Clear slot
-        ARRAY_HANDLE.setOpaque(localBuffer, index, null);
-        return (E) value;
+        spinCycles++;
+        continue;
       }
-      // CAS failed, retry loop
+
+      int index = (int) (currentHead & mask);
+      Object value;
+
+      // Spin-wait until producer publishes
+      while ((value = ARRAY_HANDLE.getAcquire(localBuffer, index)) == null) {
+        Thread.onSpinWait();
+      }
+
+      // Clear slot for GC
+      ARRAY_HANDLE.setOpaque(localBuffer, index, null);
+      return (E) value;
     }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    final Object[] localBuffer = this.buffer;
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
     long currentTail = (long) TAIL_HANDLE.getVolatile(this);
 
     if (currentHead >= currentTail) return null;
 
     int index = (int) (currentHead & mask);
-    return (E) ARRAY_HANDLE.getAcquire(localBuffer, index); // acquire-load ensures visibility
-  }
-
-  @Override
-  public int size() {
-    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-    return (int) (currentTail - currentHead);
+    return (E) ARRAY_HANDLE.getAcquire(buffer, index); // acquire-load ensures visibility
   }
 }
