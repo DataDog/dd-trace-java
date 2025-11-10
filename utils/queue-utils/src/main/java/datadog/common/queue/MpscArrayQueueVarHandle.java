@@ -72,12 +72,6 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     this.producerLimit = capacity;
   }
 
-  /**
-   * Attempts to add an element to the queue.
-   *
-   * @param e the element to add (must be non-null)
-   * @return true if element was enqueued, false if queue is full
-   */
   @Override
   public boolean offer(E e) {
     Objects.requireNonNull(e);
@@ -131,11 +125,6 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     }
   }
 
-  /**
-   * Removes and returns the next element, or null if empty.
-   *
-   * @return dequeued element, or null if queue empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
@@ -159,13 +148,6 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return (E) value;
   }
 
-  /**
-   * Returns next element without removing it.
-   *
-   * <p>The memory visibility is only correct if the consumer calls it.
-   *
-   * @return next element or null if empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
@@ -173,13 +155,6 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 
-  /**
-   * Returns number of elements in queue.
-   *
-   * <p>Volatile reads of tail and head ensure accurate result in multi-threaded context.
-   *
-   * @return current size
-   */
   @Override
   public int size() {
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
