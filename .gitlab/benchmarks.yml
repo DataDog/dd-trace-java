@@ -86,7 +86,7 @@ check-big-regressions:
   script:
     - !reference [ .benchmarks, script ]
     - | 
-      for benchmarkType in startup load; do
+      for benchmarkType in startup dacapo; do
           find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
             relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
             prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
