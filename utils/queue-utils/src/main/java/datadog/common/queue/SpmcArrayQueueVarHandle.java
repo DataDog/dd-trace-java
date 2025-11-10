@@ -62,14 +62,6 @@ class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     this.buffer = new Object[capacity];
   }
 
-  /**
-   * Adds an element to the queue.
-   *
-   * <p>Single-producer: no CAS needed. Uses a release-store to ensure consumers see the write.
-   *
-   * @param e element to enqueue (must be non-null)
-   * @return true if element was added, false if queue is full
-   */
   @Override
   public boolean offer(E e) {
     Objects.requireNonNull(e);
@@ -92,11 +84,6 @@ class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     return true;
   }
 
-  /**
-   * Removes and returns the next element, or null if empty.
-   *
-   * @return dequeued element, or null if queue is empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
@@ -132,11 +119,6 @@ class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     }
   }
 
-  /**
-   * Returns the next element without removing it.
-   *
-   * @return next element or null if queue empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
@@ -150,11 +132,6 @@ class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     return (E) ARRAY_HANDLE.getAcquire(localBuffer, index); // acquire-load ensures visibility
   }
 
-  /**
-   * Returns the approximate number of elements in the queue.
-   *
-   * @return current queue size
-   */
   @Override
   public int size() {
     long currentTail = (long) TAIL_HANDLE.getVolatile(this);
