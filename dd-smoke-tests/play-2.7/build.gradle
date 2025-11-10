@@ -2,13 +2,13 @@ plugins {
   id 'org.gradle.playframework'
 }
 
-ext {
-  // TODO Java 17: This version of play doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
+
+testJvmConstraints {
+  // TODO Java 17: This version of play doesn't support Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 def playVer = "2.7.9"
 def scalaVer = System.getProperty("scala.version", /* default = */ "2.13")

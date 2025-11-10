@@ -5,12 +5,12 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_21
-  maxJavaVersionForTests = JavaVersion.VERSION_25
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  maxJavaVersion = JavaVersion.VERSION_25
+}
 
 description = 'JDK 21 Concurrent Integration Tests'
 
