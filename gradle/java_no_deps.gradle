@@ -2,6 +2,7 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
 
+apply plugin: 'datadog.configure-tests'
 apply plugin: 'java-library'
 apply plugin: 'datadog.test-jvm-contraints'
 
@@ -380,5 +381,3 @@ tasks.register('testJar', Jar) {
   from(sourceSets.test.output)
   archiveClassifier = 'test'
 }
-
-apply from: "$rootDir/gradle/configure_tests.gradle"

@@ -2,6 +2,10 @@ plugins {
   id 'java-test-fixtures'
 }
 
+ext {
+  testingInstrumentation = true
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {

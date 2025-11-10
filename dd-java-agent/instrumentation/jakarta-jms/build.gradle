@@ -15,8 +15,6 @@ testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
 }
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 repositories {
   maven {
     // only place that has org.jboss.naming:jnpserver:5.0.3.GA publicly accessible
