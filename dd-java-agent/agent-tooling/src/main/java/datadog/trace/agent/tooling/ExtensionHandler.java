@@ -126,8 +126,9 @@ public class ExtensionHandler {
   /** Maps logging references in the extension to use the tracer's embedded logger. */
   public static final Function<String, String> MAP_LOGGING =
       new Function<String, String>() {
-        // substring stops string literal from being changed by shadow plugin
-        private final String ORG_SLF4J = "_org/slf4j/".substring(1);
+        // we want to keep this package unchanged so it matches against any unshaded extensions
+        // dropped in at runtime; use replace to stop it being transformed by the shadow plugin
+        private final String ORG_SLF4J = "org|slf4j|".replace('|', '/');
 
         @Override
         public String apply(String internalName) {
