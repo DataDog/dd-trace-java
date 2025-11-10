@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
 import com.openai.models.completions.Completion;
@@ -44,9 +45,10 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
 
   public static class CreateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
+    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
+      DECORATE.decorateWithClientOptions(span, clientOptions);
       DECORATE.decorateCompletion(span, params);
       return activateSpan(span);
     }
@@ -72,9 +74,10 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
   public static class CreateStreamingAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params) {
+    public static AgentScope enter(@Advice.Argument(0) final CompletionCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
+      DECORATE.decorateWithClientOptions(span, clientOptions);
       DECORATE.decorateCompletion(span, params);
       return activateSpan(span);
     }

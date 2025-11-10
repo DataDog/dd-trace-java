@@ -131,6 +131,7 @@ class CompletionServiceTest extends OpenAiTest {
           errored false
           spanType DDSpanTypes.LLMOBS
           tags {
+            "openai.api_base" openAiBaseApi
             "openai.organization.ratelimit.requests.limit" 3500
             "openai.organization.ratelimit.requests.remaining" Integer
             "openai.organization.ratelimit.tokens.limit" 90000

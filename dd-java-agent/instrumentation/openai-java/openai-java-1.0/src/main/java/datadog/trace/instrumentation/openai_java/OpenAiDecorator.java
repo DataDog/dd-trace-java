@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponse;
 import com.openai.models.completions.Completion;
@@ -60,9 +61,6 @@ public class OpenAiDecorator extends ClientDecorator {
 //
 // _set_tag_str("openai.%s" % arg, str(args[idx]))
 //  ("api_base", "api_type", "api_version")
-//
-// _set_tag_str("openai.response.%s" % resp_attr, str(getattr(resp, resp_attr, "")))
-//  _response_attrs = ("model",)
 
   public void decorateCompletion(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
@@ -118,5 +116,17 @@ public class OpenAiDecorator extends ClientDecorator {
     } catch (NumberFormatException ex) {
       // ~
     }
+  }
+
+  public void decorateWithClientOptions(AgentSpan span, ClientOptions clientOptions) {
+    /*
+    TODO "api_type", "api_version")
+      if endpoint is None:
+        endpoint = "%s" % getattr(instance, "OBJECT_NAME", "")
+    span._set_tag_str("openai.request.endpoint", "/%s/%s" % (API_VERSION, endpoint))
+    span._set_tag_str("openai.request.method", self.HTTP_METHOD_TYPE)
+
+     */
+    span.setTag("openai.api_base", clientOptions.baseUrl());
   }
 }

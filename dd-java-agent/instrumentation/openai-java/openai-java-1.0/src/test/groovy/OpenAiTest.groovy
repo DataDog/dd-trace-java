@@ -21,11 +21,13 @@ abstract class OpenAiTest extends LlmObsSpecification {
   @Shared
   OpenAIClient openAiClient
 
+  static String API_VERSION = "v1"
+
   @AutoCleanup
   @Shared
   def mockOpenAiBackend = TestHttpServer.httpServer {
     handlers {
-      prefix("/completions") {
+      prefix("/$API_VERSION/completions") {
         if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream":true}' == request.text) {
           response
               .addHeader("openai-organization", "datadog-staging")
@@ -97,15 +99,20 @@ data: [DONE]
     }
   }
 
+  @Shared
+  def openAiBaseApi
+
   def setupSpec() {
     OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
     if (Strings.isNullOrEmpty(openAiToken())) {
       // mock backend
-      b.baseUrl(mockOpenAiBackend.address.toURL().toString())
+      openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
+      b.baseUrl(openAiBaseApi)
       b.credential(BearerTokenCredential.create(""))
     } else {
       // real openai backend
       b.credential(BearerTokenCredential.create(openAiToken()))
+      openAiBaseApi = "https://api.openai.com/$API_VERSION"
     }
     openAiClient = b.build()
   }
