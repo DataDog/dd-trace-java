@@ -1,6 +1,7 @@
 package datadog.common.queue;
 
 import java.util.concurrent.TimeUnit;
+import org.jctools.queues.SpscArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -19,12 +20,12 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /*
 Benchmark                             (capacity)   Mode  Cnt    Score   Error   Units
-SPSCQueueBenchmark.queueTest                1024  thrpt       115.861          ops/us
-SPSCQueueBenchmark.queueTest:consume        1024  thrpt        83.922          ops/us
-SPSCQueueBenchmark.queueTest:produce        1024  thrpt        31.939          ops/us
-SPSCQueueBenchmark.queueTest               65536  thrpt       543,237          ops/us
-SPSCQueueBenchmark.queueTest:consume       65536  thrpt       280,208          ops/us
-SPSCQueueBenchmark.queueTest:produce       65536  thrpt       263,029          ops/us
+JctoolsSPSCQueueBenchmark.queueTest                                1024  thrpt        268.927          ops/us
+JctoolsSPSCQueueBenchmark.queueTest:consume                        1024  thrpt        135.287          ops/us
+JctoolsSPSCQueueBenchmark.queueTest:produce                        1024  thrpt        133.640          ops/us
+JctoolsSPSCQueueBenchmark.queueTest                               65536  thrpt        531.895          ops/us
+JctoolsSPSCQueueBenchmark.queueTest:consume                       65536  thrpt        266.084          ops/us
+JctoolsSPSCQueueBenchmark.queueTest:produce                       65536  thrpt        265.811          ops/us
  */
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 3, time = 10)
@@ -32,17 +33,17 @@ SPSCQueueBenchmark.queueTest:produce       65536  thrpt       263,029          o
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-public class SPSCQueueBenchmark {
+public class JctoolsSPSCQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
-    SpscArrayQueueVarHandle<Integer> queue;
+    SpscArrayQueue<Integer> queue;
 
     @Param({"1024", "65536"})
     int capacity;
 
     @Setup(Level.Iteration)
     public void setup() {
-      queue = new SpscArrayQueueVarHandle<>(capacity);
+      queue = new SpscArrayQueue<>(capacity);
     }
   }
 

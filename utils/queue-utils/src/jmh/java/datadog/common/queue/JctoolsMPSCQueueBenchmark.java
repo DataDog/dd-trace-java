@@ -1,6 +1,7 @@
 package datadog.common.queue;
 
 import java.util.concurrent.TimeUnit;
+import org.jctools.queues.MpscArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -19,38 +20,38 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /*
 Benchmark                             (capacity)   Mode  Cnt    Score   Error   Units
-SPSCQueueBenchmark.queueTest                1024  thrpt       115.861          ops/us
-SPSCQueueBenchmark.queueTest:consume        1024  thrpt        83.922          ops/us
-SPSCQueueBenchmark.queueTest:produce        1024  thrpt        31.939          ops/us
-SPSCQueueBenchmark.queueTest               65536  thrpt       543,237          ops/us
-SPSCQueueBenchmark.queueTest:consume       65536  thrpt       280,208          ops/us
-SPSCQueueBenchmark.queueTest:produce       65536  thrpt       263,029          ops/us
+JctoolsMPSCQueueBenchmark.queueTest                                1024  thrpt         29.444          ops/us
+JctoolsMPSCQueueBenchmark.queueTest:consume                        1024  thrpt         21.230          ops/us
+JctoolsMPSCQueueBenchmark.queueTest:produce                        1024  thrpt          8.214          ops/us
+JctoolsMPSCQueueBenchmark.queueTest                               65536  thrpt         30.218          ops/us
+JctoolsMPSCQueueBenchmark.queueTest:consume                       65536  thrpt         22.846          ops/us
+JctoolsMPSCQueueBenchmark.queueTest:produce                       65536  thrpt          7.372          ops/us
  */
 @BenchmarkMode(Mode.Throughput)
-@Warmup(iterations = 3, time = 10)
+@Warmup(iterations = 1, time = 30)
 @Measurement(iterations = 1, time = 30)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-public class SPSCQueueBenchmark {
+public class JctoolsMPSCQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
-    SpscArrayQueueVarHandle<Integer> queue;
+    MpscArrayQueue<Integer> queue;
 
     @Param({"1024", "65536"})
     int capacity;
 
     @Setup(Level.Iteration)
     public void setup() {
-      queue = new SpscArrayQueueVarHandle<>(capacity);
+      queue = new MpscArrayQueue<>(capacity);
     }
   }
 
   @Benchmark
   @Group("queueTest")
-  @GroupThreads(1)
-  public void produce(QueueState state, Blackhole bh) {
-    bh.consume(state.queue.offer(0));
+  @GroupThreads(4)
+  public void produce(QueueState state, Blackhole blackhole) {
+    blackhole.consume(state.queue.offer(0));
   }
 
   @Benchmark
