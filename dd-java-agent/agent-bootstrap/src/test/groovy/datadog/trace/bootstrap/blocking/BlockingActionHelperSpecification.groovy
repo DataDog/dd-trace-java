@@ -168,7 +168,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     tempDir.deleteDir()
   }
 
-  void 'getTemplate with block_id replaces placeholder in HTML template'() {
+  void 'getTemplate with security_response_id replaces placeholder in HTML template'() {
     given:
     def securityResponseId = '12345678-1234-1234-1234-123456789abc'
 
@@ -181,7 +181,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !templateStr.contains('[security_response_id]')
   }
 
-  void 'getTemplate with block_id replaces placeholder in JSON template'() {
+  void 'getTemplate with security_response_id replaces placeholder in JSON template'() {
     given:
     def securityResponseId = '12345678-1234-1234-1234-123456789abc'
 
@@ -194,7 +194,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !templateStr.contains('[security_response_id]')
   }
 
-  void 'getTemplate without block_id removes block_id field from HTML template'() {
+  void 'getTemplate without security_response_id removes security_response_id field from HTML template'() {
     when:
     def template = BlockingActionHelper.getTemplate(HTML, null)
     def templateStr = new String(template, StandardCharsets.UTF_8)
@@ -204,7 +204,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !templateStr.contains('Security Response ID:')
   }
 
-  void 'getTemplate without block_id removes block_id field from JSON template'() {
+  void 'getTemplate without security_response_id removes security_response_id field from JSON template'() {
     when:
     def template = BlockingActionHelper.getTemplate(JSON, null)
     def templateStr = new String(template, StandardCharsets.UTF_8)
@@ -214,7 +214,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !templateStr.contains('"security_response_id"')
   }
 
-  void 'getTemplate with empty block_id removes block_id field'() {
+  void 'getTemplate with empty security_response_id removes security_response_id field'() {
     when:
     def htmlTemplate = BlockingActionHelper.getTemplate(HTML, '')
     def jsonTemplate = BlockingActionHelper.getTemplate(JSON, '')
@@ -226,7 +226,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !new String(jsonTemplate, StandardCharsets.UTF_8).contains('"security_response_id"')
   }
 
-  void 'getTemplate with block_id works with custom HTML template'() {
+  void 'getTemplate with security_response_id works with custom HTML template'() {
     setup:
     File tempDir = File.createTempDir('testTempDir-', '')
     Config config = Mock(Config)
@@ -250,7 +250,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     tempDir.deleteDir()
   }
 
-  void 'getTemplate with block_id works with custom JSON template'() {
+  void 'getTemplate with security_response_id works with custom JSON template'() {
     setup:
     File tempDir = File.createTempDir('testTempDir-', '')
     Config config = Mock(Config)
