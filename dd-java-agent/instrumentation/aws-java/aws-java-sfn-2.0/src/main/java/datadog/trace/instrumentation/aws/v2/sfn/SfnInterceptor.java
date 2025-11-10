@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v2.sfn;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import software.amazon.awssdk.core.SdkRequest;
@@ -23,10 +24,14 @@ public class SfnInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
+    SdkRequest request = context.request();
+    if (Config.get().isAwsInjectDatadogAttributeEnabled()) {
+      return request;
+    }
     try {
       return modifyRequestImpl(context, executionAttributes);
     } catch (Exception e) {
-      return context.request();
+      return request;
     }
   }
 

@@ -623,6 +623,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_AWS_INJECT_DATADOG_ATTRIBUTE;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
@@ -822,6 +823,7 @@ public class Config {
   private final String agentUnixDomainSocket;
   private final String agentNamedPipe;
   private final int agentTimeout;
+
   /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
   private final boolean forceClearTextHttpForIntakeClient;
 
@@ -1301,6 +1303,8 @@ public class Config {
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
 
+  private final boolean awsInjectDatadogAttributeEnabled;
+
   private final RumInjectorConfig rumInjectorConfig;
 
   private final boolean aiGuardEnabled;
@@ -1582,6 +1586,9 @@ public class Config {
 
     awsServerless =
         getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
+
+    awsInjectDatadogAttributeEnabled =
+        configProvider.getBoolean(TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, true);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -4682,6 +4689,10 @@ public class Config {
 
   public int getStackTraceLengthLimit() {
     return stackTraceLengthLimit;
+  }
+
+  public boolean isAwsInjectDatadogAttributeEnabled() {
+    return this.awsInjectDatadogAttributeEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */

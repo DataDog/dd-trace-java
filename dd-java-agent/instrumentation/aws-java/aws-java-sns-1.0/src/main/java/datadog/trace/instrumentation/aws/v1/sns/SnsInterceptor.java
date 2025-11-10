@@ -13,6 +13,7 @@ import com.amazonaws.services.sns.model.PublishBatchRequest;
 import com.amazonaws.services.sns.model.PublishBatchRequestEntry;
 import com.amazonaws.services.sns.model.PublishRequest;
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.ContextStore;
@@ -57,7 +58,7 @@ public class SnsInterceptor extends RequestHandler2 {
       Map<String, MessageAttributeValue> messageAttributes = pRequest.getMessageAttributes();
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
-      if (messageAttributes.size() < 10) {
+      if (messageAttributes.size() < 10 && Config.get().isAwsInjectDatadogAttributeEnabled()) {
         // Extract the topic name from the ARN for DSM
         String topicName = pRequest.getTopicArn();
         if (null == topicName) {

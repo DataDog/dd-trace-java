@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
@@ -55,7 +56,8 @@ public class SnsInterceptor implements ExecutionInterceptor {
       PublishRequest request = (PublishRequest) context.request();
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
-      if (request.messageAttributes().size() < 10) {
+      if (request.messageAttributes().size() < 10
+          && Config.get().isAwsInjectDatadogAttributeEnabled()) {
         // Get topic name for DSM
         String snsTopicArn = request.topicArn();
         if (null == snsTopicArn) {
