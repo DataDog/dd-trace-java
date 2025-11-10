@@ -58,8 +58,8 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue
   @SuppressWarnings("unused")
   private long r0, r1, r2, r3, r4, r5, r6;
 
-  public BaseQueue(int capacity) {
-    this.capacity = nextPowerOfTwo(capacity);
+  public BaseQueue(int requestedCapacity) {
+    this.capacity = nextPowerOfTwo(requestedCapacity);
     this.mask = this.capacity - 1;
     this.buffer = new Object[capacity];
   }
