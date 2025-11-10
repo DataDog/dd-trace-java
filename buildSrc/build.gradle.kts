@@ -49,6 +49,10 @@ apply {
   from("$rootDir/../gradle/repositories.gradle")
 }
 
+repositories {
+  gradlePluginPortal()
+}
+
 dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
@@ -69,6 +73,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
   implementation("com.fasterxml.jackson.core:jackson-core")
+
+  compileOnly(libs.develocity)
 }
 
 tasks.compileKotlin {

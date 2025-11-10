@@ -32,7 +32,7 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  configureJvmArgs(
+  conditionalJvmArgs(
     it,
     JavaVersion.VERSION_16,
     [
