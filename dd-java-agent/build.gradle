@@ -93,6 +93,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // patch JFFI loading mechanism to maintain isolation
     exclude '**/com/kenai/jffi/Init.class'
     relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
+    // use dd-instrument-java's embedded copy of asm
+    relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
     // Minimize and relocate the airlift compressor dependency for ZSTD
     exclude '**/io/airlift/compress/bzip2/**'
@@ -205,6 +207,8 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':utils:config-utils'))
     exclude(project(':utils:time-utils'))
     exclude(dependency('org.slf4j::'))
+    // use dd-instrument-java's embedded copy of asm
+    exclude(dependency('org.ow2.asm:asm:'))
   }
 }
 includeShadowJar(sharedShadowJar, 'shared', includedJarFileTree)

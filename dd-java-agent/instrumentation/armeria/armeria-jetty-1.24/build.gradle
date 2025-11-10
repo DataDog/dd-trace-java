@@ -1,7 +1,3 @@
-ext {
-  jetty11TestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 muzzle {
   pass {
     group = "com.linecorp.armeria"
@@ -23,6 +19,12 @@ addTestSuiteForDir("jetty9Test", "test/jetty9")
 addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
+
+tasks.named("jetty11Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
 
 configureGroovyCompiler(11, "compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy")
 

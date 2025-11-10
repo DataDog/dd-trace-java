@@ -7,11 +7,12 @@ plugins {
   id 'java-test-fixtures'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Java 17 Smoke Tests.'
 
