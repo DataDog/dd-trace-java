@@ -334,6 +334,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     if (request != null) {
+      System.out.println("### applying http_in extractors");
       // apply extractors if any (disabled if DSM is off)
       AgentDataStreamsMonitoring dataStreamsMonitoring =
           AgentTracer.get().getDataStreamsMonitoring();
@@ -342,6 +343,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
               DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS);
       if (!extractorList.isEmpty()) {
         for (DataStreamsTransactionExtractor extractor : extractorList) {
+          System.out.println("### -> http_in extractor " + extractor.getName());
           String transactionId = getRequestHeader(request, extractor.getValue());
           if (transactionId != null) {
             dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
