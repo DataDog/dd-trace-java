@@ -1,6 +1,8 @@
 package datadog.common.queue;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -18,39 +20,42 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /*
-Benchmark                             (capacity)   Mode  Cnt    Score   Error   Units
-SPSCQueueBenchmark.queueTest                1024  thrpt       115.861          ops/us
-SPSCQueueBenchmark.queueTest:consume        1024  thrpt        83.922          ops/us
-SPSCQueueBenchmark.queueTest:produce        1024  thrpt        31.939          ops/us
-SPSCQueueBenchmark.queueTest               65536  thrpt       543,237          ops/us
-SPSCQueueBenchmark.queueTest:consume       65536  thrpt       280,208          ops/us
-SPSCQueueBenchmark.queueTest:produce       65536  thrpt       263,029          ops/us
- */
+Benchmark                                             (capacity)   Mode  Cnt    Score   Error   Units
+MPSCBlockingConsumerQueueBenchmark.queueTest                1024  thrpt       121.534          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:async          1024  thrpt           NaN             ---
+MPSCBlockingConsumerQueueBenchmark.queueTest:consume        1024  thrpt       110.962          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:produce        1024  thrpt        10.572          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest               65536  thrpt       126.856          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:async         65536  thrpt           NaN             ---
+MPSCBlockingConsumerQueueBenchmark.queueTest:consume       65536  thrpt       113.213          ops/us
+MPSCBlockingConsumerQueueBenchmark.queueTest:produce       65536  thrpt        13.644          ops/us
+*/
 @BenchmarkMode(Mode.Throughput)
-@Warmup(iterations = 3, time = 10)
+@Warmup(iterations = 1, time = 30)
 @Measurement(iterations = 1, time = 30)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-public class SPSCQueueBenchmark {
+public class JctoolsMPSCBlockingConsumerQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
-    SpscArrayQueueVarHandle<Integer> queue;
+    MpscBlockingConsumerArrayQueue<Integer> queue;
+    CountDownLatch consumerReady;
 
     @Param({"1024", "65536"})
     int capacity;
 
     @Setup(Level.Iteration)
     public void setup() {
-      queue = new SpscArrayQueueVarHandle<>(capacity);
+      queue = new MpscBlockingConsumerArrayQueue<>(capacity);
     }
   }
 
   @Benchmark
   @Group("queueTest")
-  @GroupThreads(1)
+  @GroupThreads(4)
   public void produce(QueueState state, Blackhole bh) {
-    bh.consume(state.queue.offer(0));
+    bh.consume(state.queue.offer(1));
   }
 
   @Benchmark
