@@ -37,6 +37,9 @@ benchmarks-startup:
 
 benchmarks-load-petclinic:
   extends: .benchmarks
+  parallel:
+    matrix:
+      - RUN_ID: [1, 2, 3, 4, 5]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
@@ -45,6 +48,9 @@ benchmarks-load-petclinic:
 
 benchmarks-load-insecure-bank:
   extends: .benchmarks
+  parallel:
+    matrix:
+      - RUN_ID: [1, 2, 3, 4, 5]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
@@ -70,8 +76,14 @@ benchmarks-post-results:
     - job: benchmarks-startup
       artifacts: true
     - job: benchmarks-load-petclinic
+      parallel:
+        matrix:
+          - RUN_ID: [1, 2, 3, 4, 5]
       artifacts: true
     - job: benchmarks-load-insecure-bank
+      parallel:
+        matrix:
+          - RUN_ID: [1, 2, 3, 4, 5]
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
