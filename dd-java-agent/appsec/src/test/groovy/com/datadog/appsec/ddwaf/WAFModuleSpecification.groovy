@@ -608,12 +608,12 @@ class WAFModuleSpecification extends DDSpecification {
     flow.action instanceof Flow.Action.RequestBlockingAction
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == statusCode
-      // Location header may include block_id parameter from libddwaf
+      // Location header may include security_response_id parameter from libddwaf
       def location = it.extraHeaders['Location']
       assert location.startsWith("https://example${variant}.com/")
-      // If block_id is present, it should be a valid UUID
-      if (location.contains('block_id=')) {
-        assert location.matches(".*block_id=[0-9a-f-]{36}.*")
+      // If security_response_id is present, it should be a valid UUID
+      if (location.contains('security_response_id=')) {
+        assert location.matches(".*security_response_id=[0-9a-f-]{36}.*")
       }
     }
 
@@ -2053,7 +2053,7 @@ class WAFModuleSpecification extends DDSpecification {
     !flow.blocking // Should not block since keep: false
   }
 
-  void 'block_id is extracted from blocking action and included in RequestBlockingAction'() {
+  void 'security_response_id is extracted from blocking action and included in RequestBlockingAction'() {
     setup:
     def rulesConfig = [
       version: '2.1',
@@ -2122,14 +2122,14 @@ class WAFModuleSpecification extends DDSpecification {
       assert it.statusCode == 403
       assert it.blockingContentType == BlockingContentType.JSON
       // securityResponseId should be extracted from libddwaf (or null if not present)
-      // With libddwaf v18.0.0, block_id is automatically generated
+      // With libddwaf v18.0.0, security_response_id is automatically generated
       // We just verify the field is accessible
       def securityResponseId = it.securityResponseId
       assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
     }
   }
 
-  void 'block_id is unique across multiple blocking requests'() {
+  void 'security_response_id is unique across multiple blocking requests'() {
     setup:
     def rulesConfig = [
       version: '2.1',
@@ -2146,7 +2146,7 @@ class WAFModuleSpecification extends DDSpecification {
       rules: [
         [
           id: 'test-block-unique',
-          name: 'Test unique block_id',
+          name: 'Test unique security_response_id',
           tags: [
             type: 'test',
             category: 'test'
@@ -2206,7 +2206,7 @@ class WAFModuleSpecification extends DDSpecification {
     }
   }
 
-  void 'RequestBlockingAction handles null block_id gracefully'() {
+  void 'RequestBlockingAction handles null security_response_id gracefully'() {
     setup:
     def rulesConfig = [
       version: '2.1',
@@ -2223,7 +2223,7 @@ class WAFModuleSpecification extends DDSpecification {
       rules: [
         [
           id: 'test-null-securityResponseId',
-          name: 'Test null block_id handling',
+          name: 'Test null security_response_id handling',
           tags: [
             type: 'test',
             category: 'test'
@@ -2268,7 +2268,7 @@ class WAFModuleSpecification extends DDSpecification {
     }
   }
 
-  void 'block_id is present in redirect action with Location header'() {
+  void 'security_response_id is present in redirect action with Location header'() {
     setup:
     def rulesConfig = [
       version: '2.1',
@@ -2285,7 +2285,7 @@ class WAFModuleSpecification extends DDSpecification {
       rules: [
         [
           id: 'test-redirect-blockid',
-          name: 'Test redirect with block_id',
+          name: 'Test redirect with security_response_id',
           tags: [
             type: 'test',
             category: 'test'
@@ -2331,7 +2331,7 @@ class WAFModuleSpecification extends DDSpecification {
     flow.blocking
     flow.action instanceof Flow.Action.RequestBlockingAction
 
-    and: 'redirect has Location header and possibly block_id'
+    and: 'redirect has Location header and possibly security_response_id'
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == 302
       assert it.blockingContentType == BlockingContentType.NONE
