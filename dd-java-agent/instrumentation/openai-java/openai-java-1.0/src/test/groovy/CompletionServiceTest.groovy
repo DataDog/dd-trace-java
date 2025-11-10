@@ -31,6 +31,7 @@ class CompletionServiceTest extends OpenAiTest {
 
     expect:
     resp.statusCode() == 200
+    resp.parse().valid // force response parsing, so it sets all the tags
     and:
     assertCompletionTrace()
   }
@@ -79,23 +80,22 @@ class CompletionServiceTest extends OpenAiTest {
       openAiClient.async().completions().withRawResponse().create(completionCreateParams())
     }
 
-    completionFuture.get()
+    def resp = completionFuture.get()
+    resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
     assertCompletionTrace()
   }
 
   def "streamed async request completion test"() {
-    AsyncStreamResponse<Completion> response = runUnderTrace("parent") {
+    AsyncStreamResponse<Completion> asyncResp = runUnderTrace("parent") {
       openAiClient.async().completions().createStreaming(completionCreateParams())
     }
-
-    response.subscribe {
+    asyncResp.subscribe {
       // consume completions
       // System.err.println(">>> completion: " + it)
     }
-    response.onCompleteFuture().get()
-
+    asyncResp.onCompleteFuture().get()
     expect:
     assertCompletionTrace()
   }
@@ -104,16 +104,14 @@ class CompletionServiceTest extends OpenAiTest {
     CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future = runUnderTrace("parent") {
       openAiClient.async().completions().withRawResponse().createStreaming(completionCreateParams())
     }
-
-    HttpResponseFor<StreamResponse<Completion>> response = future.get()
-
-    try (Stream stream = response.parse().stream()) { // close the stream after use
+    HttpResponseFor<StreamResponse<Completion>> resp = future.get()
+    try (Stream stream = resp.parse().stream()) { // close the stream after use
       stream.forEach {
         // consume the stream
       }
     }
-
     expect:
+    resp.statusCode() == 200
     assertCompletionTrace()
   }
 
@@ -134,6 +132,7 @@ class CompletionServiceTest extends OpenAiTest {
           spanType DDSpanTypes.LLMOBS
           tags {
             "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo-instruct"
+            "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-instruct:20230824-v2"
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

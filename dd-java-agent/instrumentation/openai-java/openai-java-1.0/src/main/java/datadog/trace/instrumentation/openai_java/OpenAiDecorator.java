@@ -16,6 +16,7 @@ public class OpenAiDecorator extends ClientDecorator {
   public static final CharSequence SPAN_NAME = UTF8BytesString.create("openai.request");
 
   public static final String REQUEST_MODEL = "openai.request.model";
+  public static final String RESPONSE_MODEL = "openai.response.model";
 
   private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("completions.create");
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
@@ -66,16 +67,22 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().toString());
+    span.setTag(REQUEST_MODEL, params.model().asString());
 
     //TODO set LLMObs tags (not visible to APM)
   }
 
   public void decorate(AgentSpan span, Completion completion) {
+    span.setTag(RESPONSE_MODEL, completion.model());
+
     //TODO set LLMObs tags (not visible to APM)
   }
 
   public void decorate(AgentSpan span, List<Completion> completions) {
+    if (!completions.isEmpty()) {
+      span.setTag(RESPONSE_MODEL, completions.get(0).model());
+    }
+
     //TODO set LLMObs tags (not visible to APM)
   }
 
