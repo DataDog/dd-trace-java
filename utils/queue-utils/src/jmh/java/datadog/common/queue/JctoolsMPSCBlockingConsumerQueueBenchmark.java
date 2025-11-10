@@ -20,15 +20,13 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /*
-Benchmark                                             (capacity)   Mode  Cnt    Score   Error   Units
-MPSCBlockingConsumerQueueBenchmark.queueTest                1024  thrpt       121.534          ops/us
-MPSCBlockingConsumerQueueBenchmark.queueTest:async          1024  thrpt           NaN             ---
-MPSCBlockingConsumerQueueBenchmark.queueTest:consume        1024  thrpt       110.962          ops/us
-MPSCBlockingConsumerQueueBenchmark.queueTest:produce        1024  thrpt        10.572          ops/us
-MPSCBlockingConsumerQueueBenchmark.queueTest               65536  thrpt       126.856          ops/us
-MPSCBlockingConsumerQueueBenchmark.queueTest:async         65536  thrpt           NaN             ---
-MPSCBlockingConsumerQueueBenchmark.queueTest:consume       65536  thrpt       113.213          ops/us
-MPSCBlockingConsumerQueueBenchmark.queueTest:produce       65536  thrpt        13.644          ops/us
+Benchmark                                                    (capacity)   Mode  Cnt    Score   Error   Units
+JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest                1024  thrpt        41,149          ops/us
+JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest:consume        1024  thrpt        30,661          ops/us
+JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest:produce        1024  thrpt        10,488          ops/us
+JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest               65536  thrpt        32,413          ops/us
+JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest:consume       65536  thrpt        24,680          ops/us
+JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest:produce       65536  thrpt         7,733          ops/us
 */
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 1, time = 30)
