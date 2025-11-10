@@ -7,6 +7,15 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.jctools.queues.MessagePassingQueue;
 
+/**
+ * A {@link NonBlockingQueue} implementation that wraps a {@link MessagePassingQueue} from the
+ * JCTools library to provide a consistent, framework-independent interface.
+ *
+ * <p>This adapter bridges JCTools’ queue APIs with the {@link NonBlockingQueue} abstraction used by
+ * this library. All operations are directly delegated to the underlying {@code MessagePassingQueue}
+ *
+ * @param <E> the type of elements held in this queue
+ */
 class JctoolsWrappedQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
   private final MessagePassingQueue<E> delegate;
 
