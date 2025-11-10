@@ -167,4 +167,110 @@ class BlockingActionHelperSpecification extends DDSpecification {
     BlockingActionHelper.reset(Config.get())
     tempDir.deleteDir()
   }
+
+  void 'getTemplate with security_response_id replaces placeholder in HTML template'() {
+    given:
+    def securityResponseId = '12345678-1234-1234-1234-123456789abc'
+
+    when:
+    def template = BlockingActionHelper.getTemplate(HTML, securityResponseId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    templateStr.contains("Security Response ID: ${securityResponseId}")
+    !templateStr.contains('[security_response_id]')
+  }
+
+  void 'getTemplate with security_response_id replaces placeholder in JSON template'() {
+    given:
+    def securityResponseId = '12345678-1234-1234-1234-123456789abc'
+
+    when:
+    def template = BlockingActionHelper.getTemplate(JSON, securityResponseId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    templateStr.contains("\"security_response_id\":\"${securityResponseId}\"")
+    !templateStr.contains('[security_response_id]')
+  }
+
+  void 'getTemplate without security_response_id removes security_response_id field from HTML template'() {
+    when:
+    def template = BlockingActionHelper.getTemplate(HTML, null)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    !templateStr.contains('[security_response_id]')
+    !templateStr.contains('Security Response ID:')
+  }
+
+  void 'getTemplate without security_response_id removes security_response_id field from JSON template'() {
+    when:
+    def template = BlockingActionHelper.getTemplate(JSON, null)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    !templateStr.contains('[security_response_id]')
+    !templateStr.contains('"security_response_id"')
+  }
+
+  void 'getTemplate with empty security_response_id removes security_response_id field'() {
+    when:
+    def htmlTemplate = BlockingActionHelper.getTemplate(HTML, '')
+    def jsonTemplate = BlockingActionHelper.getTemplate(JSON, '')
+
+    then:
+    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('[security_response_id]')
+    !new String(htmlTemplate, StandardCharsets.UTF_8).contains('Security Response ID:')
+    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('[security_response_id]')
+    !new String(jsonTemplate, StandardCharsets.UTF_8).contains('"security_response_id"')
+  }
+
+  void 'getTemplate with security_response_id works with custom HTML template'() {
+    setup:
+    File tempDir = File.createTempDir('testTempDir-', '')
+    Config config = Mock(Config)
+    File tempFile = new File(tempDir, 'template.html')
+    tempFile << '<body>Custom template with security_response_id: [security_response_id]</body>'
+    def securityResponseId = 'test-block-id-123'
+
+    when:
+    BlockingActionHelper.reset(config)
+    def template = BlockingActionHelper.getTemplate(HTML, securityResponseId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    1 * config.getAppSecHttpBlockedTemplateHtml() >> tempFile.toString()
+    1 * config.getAppSecHttpBlockedTemplateJson() >> null
+    templateStr.contains("Custom template with security_response_id: ${securityResponseId}")
+    !templateStr.contains('[security_response_id]')
+
+    cleanup:
+    BlockingActionHelper.reset(Config.get())
+    tempDir.deleteDir()
+  }
+
+  void 'getTemplate with security_response_id works with custom JSON template'() {
+    setup:
+    File tempDir = File.createTempDir('testTempDir-', '')
+    Config config = Mock(Config)
+    File tempFile = new File(tempDir, 'template.json')
+    tempFile << '{"error":"blocked","id":"[security_response_id]"}'
+    def securityResponseId = 'test-block-id-456'
+
+    when:
+    BlockingActionHelper.reset(config)
+    def template = BlockingActionHelper.getTemplate(JSON, securityResponseId)
+    def templateStr = new String(template, StandardCharsets.UTF_8)
+
+    then:
+    1 * config.getAppSecHttpBlockedTemplateHtml() >> null
+    1 * config.getAppSecHttpBlockedTemplateJson() >> tempFile.toString()
+    templateStr.contains("\"error\":\"blocked\",\"id\":\"${securityResponseId}\"")
+    !templateStr.contains('[security_response_id]')
+
+    cleanup:
+    BlockingActionHelper.reset(Config.get())
+    tempDir.deleteDir()
+  }
 }

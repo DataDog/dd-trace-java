@@ -65,7 +65,7 @@ public class UndertowBlockingHandler implements HttpHandler {
         String acceptHeader = acceptHeaderValues != null ? acceptHeaderValues.peekLast() : null;
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
-        byte[] template = BlockingActionHelper.getTemplate(type);
+        byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
 
         headers.add(Headers.CONTENT_LENGTH, Integer.toString(template.length));
         headers.add(Headers.CONTENT_TYPE, BlockingActionHelper.getContentType(type));
