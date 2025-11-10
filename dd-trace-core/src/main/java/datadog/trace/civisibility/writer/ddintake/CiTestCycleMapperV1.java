@@ -58,9 +58,14 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
 
-  private static final Collection<String> DEFAULT_TOP_LEVEL_TAGS =
-      Arrays.asList(
-          Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
+  private static final Set<String> DEFAULT_TOP_LEVEL_TAGS =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  Tags.TEST_SESSION_ID,
+                  Tags.TEST_MODULE_ID,
+                  Tags.TEST_SUITE_ID,
+                  Tags.ITR_CORRELATION_ID)));
 
   private final CiVisibilityWellKnownTags wellKnownTags;
   private final int size;
@@ -84,16 +89,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     for (final CoreSpan<?> span : trace) {
       DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
-      span.removeTag(Tags.TEST_SESSION_ID);
-
       Number testModuleId = span.getTag(Tags.TEST_MODULE_ID);
-      span.removeTag(Tags.TEST_MODULE_ID);
-
       Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
-      span.removeTag(Tags.TEST_SUITE_ID);
-
       String itrCorrelationId = span.getTag(Tags.ITR_CORRELATION_ID);
-      span.removeTag(Tags.ITR_CORRELATION_ID);
 
       int topLevelTagsCount = 0;
       if (testSessionId != null) {
@@ -323,23 +321,29 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      int metaSize =
-          metadata.getBaggage().size()
-              + metadata.getTags().size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1);
+      int metaSize = metadata.getBaggage().size() + (null == metadata.getHttpStatusCode() ? 0 : 1);
       int metricsSize = 0;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
+        if (DEFAULT_TOP_LEVEL_TAGS.contains(tag.getKey())) {
+          continue;
+        }
         if (tag.getValue() instanceof Number) {
           ++metricsSize;
-          --metaSize;
+        } else {
+          ++metaSize;
         }
       }
       writable.writeUTF8(METRICS);
       writable.startMap(metricsSize);
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (entry.getValue() instanceof Number) {
-          writable.writeString(entry.getKey(), null);
-          writable.writeObject(entry.getValue(), null);
+        String key = entry.getKey();
+        if (DEFAULT_TOP_LEVEL_TAGS.contains(key)) {
+          continue;
+        }
+        Object value = entry.getValue();
+        if (value instanceof Number) {
+          writable.writeString(key, null);
+          writable.writeObject(value, null);
         }
       }
 
@@ -357,9 +361,13 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeUTF8(metadata.getHttpStatusCode());
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
+        String key = entry.getKey();
+        if (DEFAULT_TOP_LEVEL_TAGS.contains(key)) {
+          continue;
+        }
         Object value = entry.getValue();
         if (!(value instanceof Number)) {
-          writable.writeString(entry.getKey(), null);
+          writable.writeString(key, null);
           if (!(value instanceof Iterable)) {
             writable.writeObjectString(value, null);
           } else {
