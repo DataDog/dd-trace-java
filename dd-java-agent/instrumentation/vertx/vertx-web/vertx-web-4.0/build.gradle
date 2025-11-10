@@ -1,15 +1,9 @@
-// Set properties before any plugins get loaded
-ext {
-  // vertx-web doesn't support Java 17 until v4.2
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-  // unbound it for latest
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepTestMaxJavaVersionForTests = JavaVersion.VERSION_25
-  latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_25
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  // vertx-web doesn't support Java 17 until v4.2
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 muzzle {
   pass {
@@ -68,3 +62,18 @@ dependencies {
     configureCompiler(it, 11)
   }
 }
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+    maxJavaVersion = JavaVersion.VERSION_25
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+    maxJavaVersion = JavaVersion.VERSION_25
+  }
+}
+
