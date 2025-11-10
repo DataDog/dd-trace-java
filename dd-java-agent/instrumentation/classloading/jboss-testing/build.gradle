@@ -1,9 +1,10 @@
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
   // TODO Java 17: This version of jboss-modules doesn't support Java 17
   //  __redirected.__SAXParserFactory can't access com.sun.org.apache.xerces.internal.jaxp
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+  maxJavaVersion = JavaVersion.VERSION_15
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:classloading')

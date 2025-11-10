@@ -220,7 +220,7 @@ include(
   ":dd-smoke-tests:springboot-jetty-jsp",
   ":dd-smoke-tests:springboot-jpa",
   ":dd-smoke-tests:springboot-mongo",
-  // ":dd-smoke-tests:springboot-openliberty-20", TODO: :dd-smoke-tests:springboot-openliberty-20:mvnStage is failing on CI: mvnw finished with non-zero exit value 1
+  ":dd-smoke-tests:springboot-openliberty-20",
   ":dd-smoke-tests:springboot-openliberty-23",
   ":dd-smoke-tests:springboot-thymeleaf",
   ":dd-smoke-tests:springboot-tomcat",
