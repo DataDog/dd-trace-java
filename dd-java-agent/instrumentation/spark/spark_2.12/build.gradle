@@ -22,7 +22,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark24')
 addTestSuite('test_spark32')
 
-testJvmConstraint {
+testJvmConstraints {
   // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
   excludeJdk = ['SEMERU8', 'SEMERU11']
 

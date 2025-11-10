@@ -50,7 +50,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
-testJvmConstraint {
+testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12
   maxJavaVersion = JavaVersion.VERSION_1_8
 }

@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // asynchttpclient is not compatible with Java 11
   maxJavaVersion = JavaVersion.VERSION_1_8
 }

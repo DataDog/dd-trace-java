@@ -9,7 +9,7 @@ tracerJava {
   }
 }
 
-testJvmConstraint {
+testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']

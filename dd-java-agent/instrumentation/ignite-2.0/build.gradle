@@ -15,7 +15,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
   // FIXME: Because of this condition, tests only run in Java 8, and latestDepTest never run, as they require Java 11+.
   maxJavaVersion = JavaVersion.VERSION_1_8
@@ -48,7 +48,7 @@ for (taskName in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroov
 
 for (taskName in ['latestDepTest', 'latestDepForkedTest']) {
   tasks.named(taskName, Test) {
-    testJvmConstraint {
+    testJvmConstraints {
       // ignite 2.17.0+ requires Java 11+
       minJavaVersion = JavaVersion.VERSION_11
     }

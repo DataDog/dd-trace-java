@@ -31,12 +31,13 @@ interface TestJvmConstraintsExtension {
   val excludeJdk: ListProperty<String>
 
   /**
-   * Indicate if test jvm allows reflective access to JDK modules, in particular this toggle
-   * openning `java.base/java.lang` and `java.base/java.util`.
+   * Indicate if the test JVM allows reflective access to JDK
+   * `java.base/java.lang` and `java.base/java.util` modules by
+   * openning them.
    */
   val allowReflectiveAccessToJdk: Property<Boolean>
 
   companion object {
-    const val NAME = "testJvmConstraint"
+    const val TEST_JVM_CONSTRAINTS = "testJvmConstraints"
   }
 }

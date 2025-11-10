@@ -7,7 +7,7 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // This smoke test should be limited to Java 25 and above
   // But the groovy testing framework cannot run on Java 25
   // Using Java 8 for now and runs a JVM 25 when forking tests process.

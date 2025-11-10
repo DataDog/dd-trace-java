@@ -10,7 +10,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
 }
 
@@ -26,7 +26,7 @@ dependencies {
 }
 
 tasks.named('latestDepTest', Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_17
   }
 }

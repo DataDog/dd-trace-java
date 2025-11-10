@@ -82,7 +82,7 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
 
 tasks.named("latestDepTest", Test) {
   // karate 1.4.0+ requires Java 11 or higher.
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
   }
 }

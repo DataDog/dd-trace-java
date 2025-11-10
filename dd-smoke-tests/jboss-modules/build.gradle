@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 description = 'JBoss Modules Smoke Tests.'
 
-testJvmConstraint {
+testJvmConstraints {
   // see https://datadoghq.atlassian.net/wiki/x/H4S2NQE
   excludeJdk = ['IBM8']
 }

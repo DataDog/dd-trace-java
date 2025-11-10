@@ -6,7 +6,7 @@ import org.gradle.api.logging.Logging
 private val logger = Logging.getLogger("TestJvmConstraintsUtils")
 
 internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean {
-  return isWithinAllowedRange(version)
+  return withinAllowedRange(version)
 }
 
 internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean {
@@ -23,14 +23,14 @@ internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSp
   }
 
   val launcherVersion = JavaVersion.toVersion(testJvmSpec.javaTestLauncher.get().metadata.languageVersion.asInt())
-  if (!isWithinAllowedRange(launcherVersion) && forceJdk.get().none { it.equals(testJvmName, ignoreCase = true) }) {
+  if (!withinAllowedRange(launcherVersion) && forceJdk.get().none { it.equals(testJvmName, ignoreCase = true) }) {
     return false
   }
 
   return true
 }
 
-private fun TestJvmConstraintsExtension.isWithinAllowedRange(currentJvmVersion: JavaVersion): Boolean {
+private fun TestJvmConstraintsExtension.withinAllowedRange(currentJvmVersion: JavaVersion): Boolean {
   val definedMin = minJavaVersion.isPresent
   val definedMax = maxJavaVersion.isPresent
 

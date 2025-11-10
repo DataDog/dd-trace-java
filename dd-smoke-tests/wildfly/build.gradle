@@ -22,7 +22,7 @@ repositories {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_11
 }
 

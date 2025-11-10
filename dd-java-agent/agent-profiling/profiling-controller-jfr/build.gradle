@@ -3,7 +3,7 @@ import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
-testJvmConstraint {
+testJvmConstraints {
   // the tests need Java 11 because the JFR writer got compiled with a version
   // of ByteBuffer.position(int) which is binary incompatible with Java 8 ¯\_(ツ)_/¯
   minJavaVersion = JavaVersion.VERSION_11

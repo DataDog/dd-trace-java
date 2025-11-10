@@ -13,7 +13,7 @@ addTestSuiteForDir('latestDepTest','test')
 addTestSuiteForDir('latestDepTest8','test')
 
 tasks.named("latestDepTest", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
   }
 }

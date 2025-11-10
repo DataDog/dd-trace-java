@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // Quarkus is only supported up to Java 21: https://github.com/quarkusio/quarkus
   maxJavaVersion = JavaVersion.VERSION_21
 }

@@ -7,7 +7,7 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // TODO Java 17: This version of spring-boot doesn't support Java 17
   maxJavaVersion = JavaVersion.VERSION_15
 }

@@ -15,13 +15,13 @@ addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
 
 tasks.named("latestDepTest", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_21
   }
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_21
   }
 }

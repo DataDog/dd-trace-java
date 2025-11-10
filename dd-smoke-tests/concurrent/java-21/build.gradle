@@ -7,7 +7,7 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_21
   maxJavaVersion = JavaVersion.VERSION_25
 }

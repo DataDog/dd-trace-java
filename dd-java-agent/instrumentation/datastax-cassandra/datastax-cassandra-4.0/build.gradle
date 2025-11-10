@@ -9,7 +9,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // TODO Java 17: The embedded cassandra deadlocks on start every time on Java 17
   //  This can be changed to use test-containers
   maxJavaVersion = JavaVersion.VERSION_15

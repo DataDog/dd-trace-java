@@ -27,7 +27,7 @@ dependencies {
 
 // Oracle JDK requires extra JVM arguments to enable JFR
 tasks.withType(Test).configureEach {
-  testJvmConstraint {
+  testJvmConstraints {
     includeJdk = ['ORACLE8']
   }
 

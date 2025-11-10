@@ -4,7 +4,7 @@ import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
-testJvmConstraint {
+testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_1_8
 }
 

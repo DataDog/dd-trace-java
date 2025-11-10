@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // TODO Java 17: This version of jboss-modules doesn't support Java 17
   //  __redirected.__SAXParserFactory can't access com.sun.org.apache.xerces.internal.jaxp
   maxJavaVersion = JavaVersion.VERSION_15

@@ -14,7 +14,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // Test use Cassandra 3 which requires Java 8. (Currently incompatible with Java 9.)
   maxJavaVersion = JavaVersion.VERSION_1_8
 }

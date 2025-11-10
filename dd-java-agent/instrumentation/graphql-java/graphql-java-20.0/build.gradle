@@ -70,7 +70,7 @@ tasks.matching {
     "graphql21LatestDepForkedTest"
   ]
 }.configureEach {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
   }
 }

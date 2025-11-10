@@ -1,5 +1,6 @@
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
+import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension.Companion.TEST_JVM_CONSTRAINTS
 import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
 import datadog.gradle.plugin.testJvmConstraints.isJavaVersionAllowed
 import datadog.gradle.plugin.testJvmConstraints.isTestJvmAllowed
@@ -8,12 +9,12 @@ plugins {
   java
 }
 
-val projectExtension = extensions.create<TestJvmConstraintsExtension>(TestJvmConstraintsExtension.NAME)
+val projectExtension = extensions.create<TestJvmConstraintsExtension>(TEST_JVM_CONSTRAINTS)
 
 val testJvmSpec = TestJvmSpec(project)
 
 tasks.withType<Test>().configureEach {
-  if (extensions.findByName(TestJvmConstraintsExtension.NAME) != null) {
+  if (extensions.findByName(TEST_JVM_CONSTRAINTS) != null) {
     return@configureEach
   }
 
@@ -23,14 +24,14 @@ tasks.withType<Test>().configureEach {
     configureConventions(it, projectExtension)
   }
 
-  inputs.property("${TestJvmConstraintsExtension.NAME}.allowReflectiveAccessToJdk", taskExtension.allowReflectiveAccessToJdk).optional(true)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.excludeJdk", taskExtension.excludeJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.includeJdk", taskExtension.includeJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.forceJdk", taskExtension.forceJdk)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.minJavaVersion", taskExtension.minJavaVersion).optional(true)
-  inputs.property("${TestJvmConstraintsExtension.NAME}.maxJavaVersion", taskExtension.maxJavaVersion).optional(true)
+  inputs.property("$TEST_JVM_CONSTRAINTS.allowReflectiveAccessToJdk", taskExtension.allowReflectiveAccessToJdk).optional(true)
+  inputs.property("$TEST_JVM_CONSTRAINTS.excludeJdk", taskExtension.excludeJdk)
+  inputs.property("$TEST_JVM_CONSTRAINTS.includeJdk", taskExtension.includeJdk)
+  inputs.property("$TEST_JVM_CONSTRAINTS.forceJdk", taskExtension.forceJdk)
+  inputs.property("$TEST_JVM_CONSTRAINTS.minJavaVersion", taskExtension.minJavaVersion).optional(true)
+  inputs.property("$TEST_JVM_CONSTRAINTS.maxJavaVersion", taskExtension.maxJavaVersion).optional(true)
 
-  extensions.add(TestJvmConstraintsExtension.NAME, taskExtension)
+  extensions.add(TEST_JVM_CONSTRAINTS, taskExtension)
 
   configureTestJvm(taskExtension)
 }

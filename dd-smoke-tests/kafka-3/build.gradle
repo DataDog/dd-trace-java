@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'java-test-fixtures'
 
-testJvmConstraint {
+testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
 }
 

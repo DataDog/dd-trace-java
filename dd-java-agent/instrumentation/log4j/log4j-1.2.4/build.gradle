@@ -13,7 +13,7 @@ configurations {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // Log4j 1.x reached EOL in 2015 and is not compatible with Java 25+: https://endoflife.date/log4j
   maxJavaVersion = JavaVersion.VERSION_24
 }

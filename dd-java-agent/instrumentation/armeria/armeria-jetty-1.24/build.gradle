@@ -22,7 +22,7 @@ addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
 
 tasks.named("jetty11Test", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
   }
 }

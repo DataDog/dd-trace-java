@@ -97,7 +97,7 @@ tasks.withType(Test).configureEach {
 }
 
 tasks.named("latestDepJava11Test", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
   }
 }

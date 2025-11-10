@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-testJvmConstraint {
+testJvmConstraints {
   // vertx-web doesn't support Java 17 until v4.2
   maxJavaVersion = JavaVersion.VERSION_15
 }
@@ -64,14 +64,14 @@ dependencies {
 }
 
 tasks.named("latestDepTest", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
     maxJavaVersion = JavaVersion.VERSION_25
   }
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraint {
+  testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
     maxJavaVersion = JavaVersion.VERSION_25
   }
