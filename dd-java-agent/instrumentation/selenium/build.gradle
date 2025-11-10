@@ -1,12 +1,10 @@
 plugins {
   id 'java-test-fixtures'
-}
-
-ext {
-  testingInstrumentation = true
+  id 'datadog.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
 
 muzzle {
   pass {
