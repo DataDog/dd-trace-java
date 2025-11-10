@@ -4,7 +4,6 @@ ext {
   serverModule = 'wildfly'
   serverVersion = '15.0.0.Final'
   serverExtension = 'zip'
-  maxJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 repositories {
@@ -22,6 +21,10 @@ repositories {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  maxJavaVersion = JavaVersion.VERSION_11
+}
 
 description = 'Wildfly Smoke Tests.'
 
