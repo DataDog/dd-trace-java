@@ -4,6 +4,7 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import java.util.List;
 
 public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public static final NoopDataStreamsMonitoring INSTANCE = new NoopDataStreamsMonitoring();
@@ -45,6 +46,15 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
 
   @Override
   public void clearThreadServiceName() {}
+
+  @Override
+  public void trackTransaction(String transactionId, String checkpointName) {}
+
+  @Override
+  public List<DataStreamsTransactionExtractor> extractorsByType(
+      DataStreamsTransactionExtractor.Type extractorType) {
+    return null;
+  }
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}

@@ -87,8 +87,15 @@ public class DataStreamsTransactionExtractors {
   public static final class DataStreamsTransactionExtractorAdapter {
     private static DataStreamsTransactionExtractor create(
         JsonDataStreamsTransactionExtractor jsonExtractor) {
-      return new DataStreamsTransactionExtractorImpl(
-          jsonExtractor.name, jsonExtractor.type, jsonExtractor.value);
+
+      DataStreamsTransactionExtractor.Type type;
+      try {
+        type = DataStreamsTransactionExtractor.Type.valueOf(jsonExtractor.type);
+      } catch (Throwable ex) {
+        type = DataStreamsTransactionExtractor.Type.UNKNOWN;
+      }
+
+      return new DataStreamsTransactionExtractorImpl(jsonExtractor.name, type, jsonExtractor.value);
     }
 
     @FromJson
@@ -105,11 +112,11 @@ public class DataStreamsTransactionExtractors {
   public static final class DataStreamsTransactionExtractorImpl
       implements DataStreamsTransactionExtractor {
     private final String name;
-    private final String type;
+    private final DataStreamsTransactionExtractor.Type type;
     private final String value;
 
     public DataStreamsTransactionExtractorImpl(
-        final String name, final String type, final String value) {
+        final String name, final DataStreamsTransactionExtractor.Type type, final String value) {
       this.name = name;
       this.type = type;
       this.value = value;
@@ -119,7 +126,7 @@ public class DataStreamsTransactionExtractors {
       return name;
     }
 
-    public String getType() {
+    public DataStreamsTransactionExtractor.Type getType() {
       return type;
     }
 

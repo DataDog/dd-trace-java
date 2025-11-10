@@ -37,6 +37,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
   private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
+  private static final byte[] TRANSACTIONS = "Transactions".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -121,7 +122,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      writer.startMap(3 + (hasBacklogs ? 1 : 0));
+      boolean hasTransactions = !bucket.getTransactions().isEmpty();
+      writer.startMap(3 + (hasBacklogs ? 1 : 0) + (hasTransactions ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -138,6 +140,12 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (hasBacklogs) {
         /* 4 */
         writeBacklogs(bucket.getBacklogs(), writer);
+      }
+
+      if (hasTransactions) {
+        /* 5 */
+        writer.writeUTF8(TRANSACTIONS);
+        writer.writeBinary(bucket.getTransactions().getData());
       }
     }
 

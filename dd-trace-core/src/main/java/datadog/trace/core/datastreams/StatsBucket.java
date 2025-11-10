@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams;
 import datadog.trace.api.datastreams.Backlog;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.datastreams.TransactionInfo;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ public class StatsBucket {
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<DataStreamsTags, Long> backlogs = new HashMap<>();
+  private final TransactionContainer transactions = new TransactionContainer(1024);
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -40,6 +42,10 @@ public class StatsBucket {
         (k, v) -> (v == null) ? backlog.getValue() : Math.max(v, backlog.getValue()));
   }
 
+  public void addTransaction(TransactionInfo transaction) {
+    transactions.add(transaction);
+  }
+
   public long getStartTimeNanos() {
     return startTimeNanos;
   }
@@ -54,5 +60,9 @@ public class StatsBucket {
 
   public Collection<Map.Entry<DataStreamsTags, Long>> getBacklogs() {
     return backlogs.entrySet();
+  }
+
+  public TransactionContainer getTransactions() {
+    return transactions;
   }
 }

@@ -326,6 +326,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
+    // TODO: krigor
     return span;
   }
 

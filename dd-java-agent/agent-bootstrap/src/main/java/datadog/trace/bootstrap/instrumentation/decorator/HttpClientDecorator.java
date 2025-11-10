@@ -70,6 +70,10 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
+      // AgentTracer.get().getDataStreamsMonitoring().trackTransaction();
+
+      // TODO: krigor
+      // getRequestHeader(request, "")
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
