@@ -85,12 +85,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
     this.producerLimit = capacity;
   }
 
-  /**
-   * Attempts to add an element to the queue.
-   *
-   * @param e the element to add (must be non-null)
-   * @return true if element was enqueued, false if queue is full
-   */
   @Override
   public boolean offer(E e) {
     Objects.requireNonNull(e);
@@ -151,11 +145,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
     }
   }
 
-  /**
-   * Removes and returns the next element, or null if empty.
-   *
-   * @return dequeued element, or null if queue empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
@@ -179,14 +168,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
     return (E) value;
   }
 
-  /**
-   * Polls with a timeout.
-   *
-   * @param timeout max wait time
-   * @param unit time unit
-   * @return the head element, or null if timed out
-   * @throws InterruptedException if interrupted
-   */
   @Override
   public E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
     E e = poll();
@@ -204,12 +185,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
     return poll();
   }
 
-  /**
-   * Retrieves and removes the head element, waiting if necessary until one becomes available.
-   *
-   * @return the next element (never null)
-   * @throws InterruptedException if interrupted while waiting
-   */
   @Override
   public E take() throws InterruptedException {
     consumerThread = Thread.currentThread();
@@ -220,13 +195,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
     return e;
   }
 
-  /**
-   * Returns next element without removing it.
-   *
-   * <p>The memory visibility is only correct if the consumer calls it.
-   *
-   * @return next element or null if empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
@@ -234,13 +202,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 
-  /**
-   * Returns number of elements in queue.
-   *
-   * <p>Volatile reads of tail and head ensure accurate result in multi-threaded context.
-   *
-   * @return current size
-   */
   @Override
   public int size() {
     long currentHead = (long) HEAD_HANDLE.getVolatile(this);
@@ -256,7 +217,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<E>
    *
    * @param nanos max wait time in nanoseconds. If negative, it will park indefinably until waken or
    *     interrupted
-   * @throws InterruptedException if interrupted
+   * @throws InterruptedException if interrupted while waiting
    */
   private void parkUntilNext(long nanos) throws InterruptedException {
     Thread current = Thread.currentThread();

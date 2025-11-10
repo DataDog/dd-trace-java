@@ -60,13 +60,6 @@ class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     this.buffer = new Object[capacity];
   }
 
-  /**
-   * Enqueues an element if space is available.
-   *
-   * @param e the element to enqueue
-   * @return {@code true} if enqueued, {@code false} if the queue is full
-   * @throws NullPointerException if {@code e} is null
-   */
   @Override
   public boolean offer(E e) {
     Objects.requireNonNull(e);
@@ -87,14 +80,6 @@ class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return true;
   }
 
-  /**
-   * Dequeues and returns the next element, or {@code null} if the queue is empty.
-   *
-   * <p>Since only one consumer exists, this method is race-free and does not need CAS. It uses
-   * acquire semantics to ensure the element is fully visible.
-   *
-   * @return the dequeued element, or {@code null} if empty
-   */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
