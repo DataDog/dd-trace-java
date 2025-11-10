@@ -60,7 +60,7 @@ logback = "1.2.13"
 jackson = "2.20.0"
 moshi = "1.11.0"
 
-# Testing libs
+# Testing
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 mockito = "4.4.0"
@@ -134,7 +134,7 @@ slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 
-# Testing libs
+# Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
@@ -158,7 +158,7 @@ jmc = ["jmc-common", "jmc-flightrecorder"]
 # Logging
 test-logging = ["logback-classic", "log4j-over-slf4j", "jcl-over-slf4j", "jul-to-slf4j"]
 
-# Testing libs
+# Testing
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
