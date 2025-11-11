@@ -188,7 +188,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       AgentDataStreamsMonitoring dataStreamsMonitoring =
           AgentTracer.get().getDataStreamsMonitoring();
       List<DataStreamsTransactionExtractor> extractors =
-          dataStreamsMonitoring.extractorsByType(
+          dataStreamsMonitoring.getTransactionExtractorsByType(
               DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS);
       if (extractors != null) {
         System.out.println("### applying KAFKA_PRODUCE_HEADERS extractors");

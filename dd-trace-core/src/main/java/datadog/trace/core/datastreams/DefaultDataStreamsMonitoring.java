@@ -203,9 +203,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public List<DataStreamsTransactionExtractor> extractorsByType(
+  public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
       DataStreamsTransactionExtractor.Type extractorType) {
-    return Collections.emptyList();
+    return extractorsByType.getOrDefault(extractorType, Collections.emptyList());
   }
 
   private static String getThreadServiceName() {

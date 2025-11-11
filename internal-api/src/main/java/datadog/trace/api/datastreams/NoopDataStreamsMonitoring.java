@@ -51,7 +51,7 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void trackTransaction(String transactionId, String checkpointName) {}
 
   @Override
-  public List<DataStreamsTransactionExtractor> extractorsByType(
+  public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
       DataStreamsTransactionExtractor.Type extractorType) {
     return null;
   }

@@ -339,7 +339,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentDataStreamsMonitoring dataStreamsMonitoring =
           AgentTracer.get().getDataStreamsMonitoring();
       List<DataStreamsTransactionExtractor> extractorList =
-          dataStreamsMonitoring.extractorsByType(
+          dataStreamsMonitoring.getTransactionExtractorsByType(
               DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS);
       if (!extractorList.isEmpty()) {
         for (DataStreamsTransactionExtractor extractor : extractorList) {

@@ -137,7 +137,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         AgentDataStreamsMonitoring dataStreamsMonitoring =
             AgentTracer.get().getDataStreamsMonitoring();
         List<DataStreamsTransactionExtractor> extractors =
-            dataStreamsMonitoring.extractorsByType(
+            dataStreamsMonitoring.getTransactionExtractorsByType(
                 DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS);
         if (extractors != null) {
           System.out.println("### applying KAFKA_PRODUCE_HEADERS extractors");

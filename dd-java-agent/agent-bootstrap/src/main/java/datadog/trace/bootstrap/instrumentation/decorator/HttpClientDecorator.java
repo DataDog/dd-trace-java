@@ -78,7 +78,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       AgentDataStreamsMonitoring dataStreamsMonitoring =
           AgentTracer.get().getDataStreamsMonitoring();
       List<DataStreamsTransactionExtractor> extractorList =
-          dataStreamsMonitoring.extractorsByType(
+          dataStreamsMonitoring.getTransactionExtractorsByType(
               DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS);
       System.out.println("### extractor list contains " + extractorList.size() + " extractors");
       if (!extractorList.isEmpty()) {
