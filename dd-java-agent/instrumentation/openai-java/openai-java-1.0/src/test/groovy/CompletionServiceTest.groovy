@@ -24,7 +24,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single request completion test with withRawResponse"() {
+  def "single request completion test withRawResponse"() {
     HttpResponseFor<Completion> resp = runUnderTrace("parent") {
       openAiClient.withRawResponse().completions().create(completionCreateParams())
     }
@@ -47,7 +47,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single async request completion test with withRawResponse"() {
+  def "single async request completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().completions().withRawResponse().create(completionCreateParams())
     }
@@ -73,7 +73,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "streamed request completion test with withRawResponse"() {
+  def "streamed request completion test withRawResponse"() {
     runnableUnderTrace("parent") {
       HttpResponseFor<StreamResponse<Completion>> streamCompletion = openAiClient.completions().withRawResponse().createStreaming(completionCreateParams())
       try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
@@ -99,7 +99,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "streamed async request completion test with withRawResponse"() {
+  def "streamed async request completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future = runUnderTrace("parent") {
       openAiClient.async().completions().withRawResponse().createStreaming(completionCreateParams())
     }
@@ -125,7 +125,7 @@ class CompletionServiceTest extends OpenAiTest {
         }
         span(1) {
           operationName "openai.request"
-          resourceName "completions.create"
+          resourceName "createCompletion"
           childOf span(0)
           errored false
           spanType DDSpanTypes.LLMOBS
@@ -147,6 +147,7 @@ class CompletionServiceTest extends OpenAiTest {
         }
         span(2) {
           operationName "okhttp.request"
+          resourceName "POST /v1/completions"
           childOf span(1)
           errored false
           spanType "http"

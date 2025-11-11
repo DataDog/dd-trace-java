@@ -26,7 +26,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "single request chat/completion test with withRawResponse"() {
+  def "single request chat/completion test withRawResponse"() {
     HttpResponseFor<ChatCompletion> resp = runUnderTrace("parent") {
       openAiClient.chat().withRawResponse().completions().create(chatCompletionCreateParams())
     }
@@ -49,7 +49,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "single async request chat/completion test with withRawResponse"() {
+  def "single async request chat/completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().create(chatCompletionCreateParams())
     }
@@ -75,7 +75,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "streamed request chat/completion test with withRawResponse"() {
+  def "streamed request chat/completion test withRawResponse"() {
     runnableUnderTrace("parent") {
       HttpResponseFor<StreamResponse<ChatCompletionChunk>> streamCompletion = openAiClient.chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
       try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
@@ -101,7 +101,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "streamed async request chat/completion test with withRawResponse"() {
+  def "streamed async request chat/completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
     }
@@ -127,7 +127,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
         }
         span(1) {
           operationName "openai.request"
-          resourceName "chat.completions.create"
+          resourceName "createChatCompletion"
           childOf span(0)
           errored false
           spanType DDSpanTypes.LLMOBS
@@ -149,6 +149,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
         }
         span(2) {
           operationName "okhttp.request"
+          resourceName "POST /v1/chat/completions"
           childOf span(1)
           errored false
           spanType "http"

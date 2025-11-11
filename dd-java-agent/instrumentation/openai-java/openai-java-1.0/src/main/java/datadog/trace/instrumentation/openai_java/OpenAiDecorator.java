@@ -8,6 +8,8 @@ import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
+import com.openai.models.embeddings.CreateEmbeddingResponse;
+import com.openai.models.embeddings.EmbeddingCreateParams;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -24,8 +26,9 @@ public class OpenAiDecorator extends ClientDecorator {
   public static final String RESPONSE_MODEL = "openai.response.model";
   public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
 
-  private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("completions.create");
-  private static final CharSequence CHAT_COMPLETIONS_CREATE = UTF8BytesString.create("chat.completions.create");
+  private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("createCompletion");
+  private static final CharSequence CHAT_COMPLETIONS_CREATE = UTF8BytesString.create("createChatCompletion");
+  private static final CharSequence EMBEDDINGS_CREATE = UTF8BytesString.create("createEmbedding");
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
 
   @Override
@@ -135,6 +138,24 @@ public class OpenAiDecorator extends ClientDecorator {
     if (!chunks.isEmpty()) {
       span.setTag(RESPONSE_MODEL, chunks.get(0).model());
     }
+
+    //TODO set LLMObs tags (not visible to APM)
+  }
+
+  public void decorateEmbedding(AgentSpan span, EmbeddingCreateParams params) {
+    span.setResourceName(EMBEDDINGS_CREATE);
+    span.setTag("openai.request.endpoint", "v1/embeddings");
+    span.setTag("openai.request.method", "POST");
+    if (params == null) {
+      return;
+    }
+    span.setTag(REQUEST_MODEL, params.model().asString());
+
+    //TODO set LLMObs tags (not visible to APM)
+  }
+
+  public void decorateWithEmbedding(AgentSpan span, CreateEmbeddingResponse response) {
+    span.setTag(RESPONSE_MODEL, response.model());
 
     //TODO set LLMObs tags (not visible to APM)
   }
