@@ -1,5 +1,15 @@
 package datadog.gradle.plugin.config
 
+import com.github.javaparser.ParserConfiguration
+import com.github.javaparser.StaticJavaParser
+import com.github.javaparser.ast.CompilationUnit
+import com.github.javaparser.ast.expr.BinaryExpr
+import com.github.javaparser.ast.expr.Expression
+import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
+import com.github.javaparser.ast.Modifier
+import com.github.javaparser.ast.body.FieldDeclaration
+import com.github.javaparser.ast.body.VariableDeclarator
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.GradleException
@@ -161,88 +171,56 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         Pair(supportedSet, aliasMappingMap)
       }
 
-      // Single-line: `public static final String FIELD_NAME = "value";`
-      val singleLineRegex = Regex("""public static final String (\w+) = "([^"]+)";""")
-      // Multi-line start: `public static final String FIELD_NAME =`
-      val multiLineStartRegex = Regex("""public static final String (\w+) =$""")
-      // Multi-line value: `"value";`
-      val valueLineRegex = Regex(""""([^"]+)";""")
+      StaticJavaParser.setConfiguration(ParserConfiguration())
+
+      // Checking "public" "static" "final"
+      fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
+        mods.all { hasModifier(it) }
+
+      fun normalize(configValue: String) =
+        "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
 
       val violations = buildList {
         configDir.listFiles()?.forEach { file ->
-          var inBlockComment = false
-          val lines = file.readLines()
-          var startIndex = 0
-          while (startIndex < lines.size) {
-            val line = lines[startIndex]
-            val trimmed = line.trim()
+          val fileName = file.name
+          val cu: CompilationUnit = StaticJavaParser.parse(file)
 
-            if (trimmed.startsWith("//")) {
-              startIndex++
-              continue
-            }
-            if (!inBlockComment && trimmed.contains("/*")) inBlockComment = true
-            if (inBlockComment) {
-              if (trimmed.contains("*/")) inBlockComment = false
-              startIndex++
-              continue
-            }
+          cu.findAll(VariableDeclarator::class.java).forEach { varDecl ->
+            val field = varDecl.parentNode
+              .filter { it is FieldDeclaration }
+              .map { it as FieldDeclaration }
+              .orElse(null)
 
-            // Try single-line pattern first
-            val singleLineMatch = singleLineRegex.find(line)
-            if (singleLineMatch != null) {
-              val fieldName = singleLineMatch.groupValues[1]
-              val configValue = singleLineMatch.groupValues[2]
+            if (field != null &&
+              field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
+              varDecl.typeAsString == "String") {
 
-              // Skip fields that end with _DEFAULT (default values defined in ProfilingConfig.java only)
-              if (!fieldName.endsWith("_DEFAULT")) {
-                val normalized = "DD_" + configValue.uppercase()
-                  .replace("-", "_")
-                  .replace(".", "_")
+              val fieldName = varDecl.nameAsString
+              if (fieldName.endsWith("_DEFAULT")) return@forEach
 
-                if (normalized !in supported && normalized !in aliasMapping) {
-                  add("${file.name}:${startIndex + 1} -> Config '$configValue' normalizes to '$normalized' which is missing from '${extension.jsonFile.get()}'")
-                }
+              val init = varDecl.initializer.orElse(null) ?: return@forEach
+              if (init !is StringLiteralExpr) {
+                return@forEach
               }
-            } else {
-              val multiLineMatch = multiLineStartRegex.find(line)
-              if (multiLineMatch != null) {
-                val fieldName = multiLineMatch.groupValues[1]
+              val rawValue = init.value
 
-                // Skip fields that end with _DEFAULT (default values defined in ProfilingConfig.java only)
-                if (!fieldName.endsWith("_DEFAULT")) {
-                  var valueLineIndex = startIndex + 1
-                  while (valueLineIndex < lines.size) {
-                    val nextLine = lines[valueLineIndex].trim()
-                    val valueMatch = valueLineRegex.find(nextLine)
-                    if (valueMatch != null) {
-                      val configValue = valueMatch.groupValues[1]
-                      val normalized = "DD_" + configValue.uppercase()
-                        .replace("-", "_")
-                        .replace(".", "_")
-                      if (normalized !in supported && normalized !in aliasMapping) {
-                        add("${file.name}:${startIndex + 1} -> Config '$configValue' normalizes to '$normalized' " +
-                            "which is missing from '${extension.jsonFile.get()}'")
-                      }
-                      break
-                    }
-                    // Hypothetically, should never reach here
-                    valueLineIndex++
-                  }
-                }
+              val normalized = normalize(rawValue)
+              if (normalized !in supported && normalized !in aliasMapping) {
+                val line = varDecl.range.map { it.begin.line }.orElse(1)
+                add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
+                    "which is missing from '${extension.jsonFile.get()}'")
               }
             }
-            startIndex++
           }
         }
       }
 
       if (violations.isNotEmpty()) {
-        project.logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
-        violations.forEach { project.logger.lifecycle(it) }
+        logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
+        violations.forEach { logger.lifecycle(it) }
         throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
       } else {
-        project.logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
+        logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
       }
     }
   }
