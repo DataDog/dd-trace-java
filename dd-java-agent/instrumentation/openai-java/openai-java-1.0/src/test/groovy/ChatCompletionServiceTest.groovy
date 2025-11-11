@@ -14,7 +14,7 @@ import java.util.stream.Stream
 
 class ChatCompletionServiceTest extends OpenAiTest {
 
-  def "single request completion test"() {
+  def "single request chat/completion test"() {
     ChatCompletion resp = runUnderTrace("parent") {
       openAiClient.chat().completions().create(chatCompletionCreateParams())
     }
@@ -25,18 +25,41 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  // def "single request completion test with withRawResponse"() {
-  //   HttpResponseFor<Completion> resp = runUnderTrace("parent") {
-  //     openAiClient.withRawResponse().completions().create(completionCreateParams())
+  def "single request chat/completion test with withRawResponse"() {
+    HttpResponseFor<ChatCompletion> resp = runUnderTrace("parent") {
+      openAiClient.chat().withRawResponse().completions().create(chatCompletionCreateParams())
+    }
+
+    expect:
+    resp.statusCode() == 200
+    resp.parse().valid // force response parsing, so it sets all the tags
+    and:
+    assertCompletionTrace()
+  }
+
+  // def "single async request completion test"() {
+  //   CompletableFuture<Completion> completionFuture = runUnderTrace("parent") {
+  //     openAiClient.async().completions().create(completionCreateParams())
   //   }
   //
+  //   completionFuture.get()
+  //
   //   expect:
-  //   resp.statusCode() == 200
-  //   resp.parse().valid // force response parsing, so it sets all the tags
-  //   and:
   //   assertCompletionTrace()
   // }
   //
+  // def "single async request completion test with withRawResponse"() {
+  //   CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
+  //     openAiClient.async().completions().withRawResponse().create(completionCreateParams())
+  //   }
+  //
+  //   def resp = completionFuture.get()
+  //   resp.parse().valid // force response parsing, so it sets all the tags
+  //
+  //   expect:
+  //   assertCompletionTrace()
+  // }
+
   // def "streamed request completion test"() {
   //   runnableUnderTrace("parent") {
   //     StreamResponse<Completion> streamCompletion = openAiClient.completions().createStreaming(completionCreateParams())
@@ -60,29 +83,6 @@ class ChatCompletionServiceTest extends OpenAiTest {
   //       }
   //     }
   //   }
-  //
-  //   expect:
-  //   assertCompletionTrace()
-  // }
-  //
-  // def "single async request completion test"() {
-  //   CompletableFuture<Completion> completionFuture = runUnderTrace("parent") {
-  //     openAiClient.async().completions().create(completionCreateParams())
-  //   }
-  //
-  //   completionFuture.get()
-  //
-  //   expect:
-  //   assertCompletionTrace()
-  // }
-  //
-  // def "single async request completion test with withRawResponse"() {
-  //   CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
-  //     openAiClient.async().completions().withRawResponse().create(completionCreateParams())
-  //   }
-  //
-  //   def resp = completionFuture.get()
-  //   resp.parse().valid // force response parsing, so it sets all the tags
   //
   //   expect:
   //   assertCompletionTrace()

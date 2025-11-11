@@ -14,13 +14,13 @@ import spock.lang.Shared
 
 abstract class OpenAiTest extends LlmObsSpecification {
 
-  static String API_VERSION = "v1"
-
   // openai token - will use real openai backend
   // null - will use mockOpenAiBackend
   String openAiToken() {
     return null
   }
+
+  static String API_VERSION = "v1"
 
   @AutoCleanup
   @Shared
