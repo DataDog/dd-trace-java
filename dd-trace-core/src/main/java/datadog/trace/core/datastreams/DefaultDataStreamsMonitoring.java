@@ -197,6 +197,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void trackTransaction(String transactionId, String checkpointName) {
+    System.out.println("### trackTransaction " + transactionId);
     inbox.offer(
         new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
   }
