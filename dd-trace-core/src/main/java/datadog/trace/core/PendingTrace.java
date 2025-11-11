@@ -285,17 +285,17 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       return PublishState.ROOT_BUFFERED;
     } else if (addedSpan && partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
       // Trace is getting too big, write anything completed.
-    
+
       // DQH - We only trigger a partial flush, when a span has just been added
-      // This prevents a bunch of threads which are only performing scope/context operations 
+      // This prevents a bunch of threads which are only performing scope/context operations
       // from all fighting to perform the partialFlush after the threshold is crossed.
-    	
-      // This is an important optimization for virtual threads where a continuation might 
-      // be created even though no span is created.  In that situation, virtual threads 
-      // can end up fighting to perform the partialFlush.  And even trying to perform a 
-      // partialFlush requires taking the PendingTrace lock which can lead to unmounting 
+
+      // This is an important optimization for virtual threads where a continuation might
+      // be created even though no span is created.  In that situation, virtual threads
+      // can end up fighting to perform the partialFlush.  And even trying to perform a
+      // partialFlush requires taking the PendingTrace lock which can lead to unmounting
       // the virtual thread from its carrier thread.
-    	
+
       partialFlush();
       return PublishState.PARTIAL_FLUSH;
     } else if (rootSpanWritten) {
