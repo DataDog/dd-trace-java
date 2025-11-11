@@ -30,7 +30,8 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
     return Arrays.asList(
         new CompletionServiceInstrumentation(),
         new CompletionServiceAsyncInstrumentation(),
-        new ChatCompletionServiceInstrumentation()
+        new ChatCompletionServiceInstrumentation(),
+        new ChatCompletionServiceAsyncInstrumentation()
     );
   }
 }

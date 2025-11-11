@@ -65,10 +65,10 @@ public class ResponseWrappers {
     };
   }
 
-  public static CompletableFuture<HttpResponseFor<Completion>> wrapFutureResponse(CompletableFuture<HttpResponseFor<Completion>> future, AgentSpan span) {
+  public static <T> CompletableFuture<HttpResponseFor<T>> wrapFutureResponse(CompletableFuture<HttpResponseFor<T>> future, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
     return future
         .thenApply(response ->
-          wrapResponse(response, span, DECORATE::decorateWithCompletion)
+          wrapResponse(response, span, afterParse)
         )
         .whenComplete((r, t) -> {
           DECORATE.beforeFinish(span);

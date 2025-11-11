@@ -61,7 +61,7 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureResponse(future, span);
+          future = ResponseWrappers.wrapFutureResponse(future, span, DECORATE::decorateWithCompletion);
         } else {
           span.finish();
         }
