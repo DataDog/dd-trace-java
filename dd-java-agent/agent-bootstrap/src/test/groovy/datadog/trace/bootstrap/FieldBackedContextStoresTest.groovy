@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap
 
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.atomic.AtomicInteger

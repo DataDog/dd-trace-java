@@ -11,7 +11,7 @@ public class ApiSecurityDownstreamSamplerImpl implements ApiSecurityDownstreamSa
   private final double threshold;
 
   public ApiSecurityDownstreamSamplerImpl() {
-    this(Config.get().getApiSecurityDownstreamRequestAnalysisSampleRate());
+    this(Config.get().getApiSecurityDownstreamRequestBodyAnalysisSampleRate());
   }
 
   public ApiSecurityDownstreamSamplerImpl(final double rate) {

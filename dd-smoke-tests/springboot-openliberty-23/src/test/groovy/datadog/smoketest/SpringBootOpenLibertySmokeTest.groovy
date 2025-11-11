@@ -1,7 +1,7 @@
 package datadog.smoketest
 
 import datadog.environment.JavaVirtualMachine
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import okhttp3.FormBody
 import okhttp3.Request
 import spock.lang.Requires

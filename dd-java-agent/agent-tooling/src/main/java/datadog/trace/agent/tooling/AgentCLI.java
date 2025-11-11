@@ -24,8 +24,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -82,33 +80,48 @@ public final class AgentCLI {
     }
   }
 
-  public static void uploadCrash(final String configFile, final String... files) throws Exception {
+  public static void uploadCrash(final String configFile, final String file) throws Exception {
+    String error = null;
     ConfigManager.StoredConfig storedConfig = null;
     if (configFile != null) {
       Path configPath = Paths.get(configFile);
       if (!Files.exists(configPath)) {
         log.error("Config file {} does not exist", configFile);
-        System.exit(1);
+        error = "Config file does not exist";
       }
       storedConfig = readConfig(Config.get(), configPath);
       if (storedConfig == null) {
         log.error("Unable to parse config file {}", configFile);
-        System.exit(1);
+        if (error == null) {
+          error = "Unable to parse config file";
+        } else {
+          error += ", Unable to parse config file";
+        }
       }
-    } else {
+    }
+    if (storedConfig == null) {
       // if the PID is not provided, the config file will be null
       storedConfig = new ConfigManager.StoredConfig.Builder(Config.get()).build();
     }
-    List<Path> paths = new ArrayList<>(files.length);
-    for (String file : files) {
-      final Path path = Paths.get(file);
-      if (!Files.exists(path)) {
-        log.error("Crash log {} does not exist", file);
-        System.exit(1);
+
+    final Path path = Paths.get(file);
+    if (!Files.exists(path)) {
+      log.error("Crash log {} does not exist", file);
+      if (error == null) {
+        error = "Crash log does not exist";
+      } else {
+        error = ", Crash log does not exist";
       }
-      paths.add(path);
     }
-    new CrashUploader(storedConfig).upload(paths);
+
+    final CrashUploader crashUploader = new CrashUploader(storedConfig);
+    // send the crash ping
+    crashUploader.notifyCrashStarted(error);
+
+    if (error != null) {
+      System.exit(1);
+    }
+    crashUploader.upload(path);
   }
 
   public static void sendOomeEvent(String taglist) throws Exception {

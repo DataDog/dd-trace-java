@@ -1,7 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 muzzle {
   pass {
     name = 'jetty-websocket-12ee8'
@@ -27,6 +23,10 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
 
 addTestSuiteForDir("latestDepTest", "test")
 

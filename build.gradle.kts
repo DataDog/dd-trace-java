@@ -1,4 +1,5 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
   id("datadog.gradle-debug")
@@ -6,6 +7,7 @@ plugins {
   id("datadog.tracer-version")
   id("datadog.dump-hanged-test")
   id("config-inversion-linter")
+  id("datadog.ci-jobs")
 
   id("com.diffplug.spotless") version "6.13.0"
   id("com.github.spotbugs") version "5.0.14"
@@ -138,4 +140,16 @@ allprojects {
   }
 }
 
-apply(from = "$rootDir/gradle/ci_jobs.gradle")
+testAggregate("smoke", listOf(":dd-smoke-tests"), emptyList())
+testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), emptyList())
+testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
+testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
+testAggregate(
+  "base", listOf(":"),
+  listOf(
+    ":dd-java-agent:instrumentation",
+    ":dd-smoke-tests",
+    ":dd-java-agent:agent-profiling",
+    ":dd-java-agent:agent-debugger"
+  )
+)

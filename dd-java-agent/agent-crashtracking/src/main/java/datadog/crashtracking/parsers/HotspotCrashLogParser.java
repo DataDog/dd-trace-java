@@ -115,7 +115,7 @@ public final class HotspotCrashLogParser {
     return null;
   }
 
-  public CrashLog parse(String crashLog) {
+  public CrashLog parse(String uuid, String crashLog) {
     String signal = null;
     String pid = null;
     List<StackFrame> frames = new ArrayList<>();
@@ -213,7 +213,7 @@ public final class HotspotCrashLogParser {
             SystemProperties.get("os.name"),
             SemanticVersion.of(SystemProperties.get("os.version")));
     ProcInfo procInfo = pid != null ? new ProcInfo(pid) : null;
-    return new CrashLog(false, datetime, error, metadata, osInfo, procInfo, "1.0");
+    return new CrashLog(uuid, false, datetime, error, metadata, osInfo, procInfo, "1.0");
   }
 
   static String dateTimeToISO(String datetime) {

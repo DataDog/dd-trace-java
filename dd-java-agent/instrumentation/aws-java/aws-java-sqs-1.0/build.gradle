@@ -13,8 +13,6 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.0'
   compileOnly group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.0'
