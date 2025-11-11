@@ -163,7 +163,7 @@ class AIGuardInternalTests extends DDSpecification {
         return mockResponse(
           request,
           200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, is_blocking_enabled: suite.blocking]]]
+          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
           )
       }
     }
@@ -192,6 +192,11 @@ class AIGuardInternalTests extends DDSpecification {
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, [messages: suite.messages])
     if (throwAbortError) {
       1 * span.addThrowable(_ as AIGuard.AIGuardAbortError)
+    }
+    if (suite.tags) {
+      suite.tags.each {
+        1 * span.setTag("ai_guard.tag.${it}", true)
+      }
     }
 
     assertRequest(request, suite.messages)
@@ -497,14 +502,16 @@ class AIGuardInternalTests extends DDSpecification {
   private static class TestSuite {
     private final AIGuard.Action action
     private final String reason
+    private final List<String> tags
     private final boolean blocking
     private final String description
     private final String target
     private final List<AIGuard.Message> messages
 
-    TestSuite(AIGuard.Action action, String reason, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
+    TestSuite(AIGuard.Action action, String reason, List<String> tags, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
       this.action = action
       this.reason = reason
+      this.tags = tags
       this.blocking = blocking
       this.description = description
       this.target = target
@@ -512,7 +519,11 @@ class AIGuardInternalTests extends DDSpecification {
     }
 
     static List<TestSuite> build() {
-      def actionValues = [[ALLOW, 'Go ahead'], [DENY, 'Nope'], [ABORT, 'Kill it with fire']]
+      def actionValues = [
+        [ALLOW, 'Go ahead', []],
+        [DENY, 'Nope', ['deny_everything', 'test_deny']],
+        [ABORT, 'Kill it with fire', ['alarm_tag', 'abort_everything']]
+      ]
       def blockingValues = [true, false]
       def suiteValues = [
         ['tool call', 'tool', TOOL_CALL],
@@ -521,7 +532,7 @@ class AIGuardInternalTests extends DDSpecification {
       ]
       return combinations([actionValues, blockingValues, suiteValues] as Iterable)
       .collect { action, blocking, suite ->
-        new TestSuite(action[0], action[1], blocking, suite[0], suite[1], suite[2])
+        new TestSuite(action[0], action[1], action[2], blocking, suite[0], suite[1], suite[2])
       }
     }
 

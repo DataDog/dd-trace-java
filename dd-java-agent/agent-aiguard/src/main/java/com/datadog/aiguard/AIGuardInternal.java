@@ -224,8 +224,17 @@ public class AIGuardInternal implements Evaluator {
         }
         final Action action = Action.valueOf(actionStr);
         final String reason = (String) result.get("reason");
+        @SuppressWarnings("unchecked")
+        final List<String> tags = (List<String>) result.get("tags");
         span.setTag(ACTION_TAG, action);
-        span.setTag(REASON_TAG, reason);
+        if (reason != null) {
+          span.setTag(REASON_TAG, reason);
+        }
+        if (tags != null) {
+          for (final String tag : tags) {
+            span.setTag("ai_guard.tag." + tag, true);
+          }
+        }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
