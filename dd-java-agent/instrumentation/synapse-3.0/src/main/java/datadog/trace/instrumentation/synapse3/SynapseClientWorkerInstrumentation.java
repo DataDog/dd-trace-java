@@ -91,12 +91,6 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
       }
       AgentSpan span = spanFromContext(scope.context());
       HttpResponse httpResponse = response.getConnection().getHttpResponse();
-      if (null != httpResponse && null != span) {
-        DECORATE.onResponse(span, httpResponse);
-      }
-      if (null != error && null != span) {
-        DECORATE.onError(span, error);
-      }
 
       if (null != span) {
         if (null != httpResponse) {
