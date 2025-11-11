@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
@@ -75,6 +76,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
+  private final ReentrantReadWriteLock extractorsLock = new ReentrantReadWriteLock();
 
   // contains a list of active extractors by type
   private static final Map<
@@ -205,7 +207,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
       DataStreamsTransactionExtractor.Type extractorType) {
-    return extractorsByType.getOrDefault(extractorType, Collections.emptyList());
+    extractorsLock.readLock().lock();
+    try {
+      return extractorsByType.getOrDefault(extractorType, Collections.emptyList());
+    } finally {
+      extractorsLock.readLock().unlock();
+    }
   }
 
   private static String getThreadServiceName() {
@@ -462,14 +469,19 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private void updateExtractorsFromConfig() {
-    System.out.println("### updateExtractorsFromConfig");
-    List<DataStreamsTransactionExtractor> extractors =
-        traceConfigSupplier.get().getDataStreamsTransactionExtractors();
-    for (DataStreamsTransactionExtractor extractor : extractors) {
-      System.out.println(extractor.toString());
-      List<DataStreamsTransactionExtractor> list =
-          extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
-      list.add(extractor);
+    extractorsLock.writeLock().lock();
+    try {
+      extractorsByType.clear();
+      List<DataStreamsTransactionExtractor> extractors =
+          traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+      for (DataStreamsTransactionExtractor extractor : extractors) {
+        System.out.println(extractor.toString());
+        List<DataStreamsTransactionExtractor> list =
+            extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
+        list.add(extractor);
+      }
+    } finally {
+      extractorsLock.writeLock().unlock();
     }
   }
 
