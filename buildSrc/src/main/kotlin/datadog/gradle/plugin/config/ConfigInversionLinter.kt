@@ -195,11 +195,9 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
 
               val fieldName = varDecl.nameAsString
               if (fieldName.endsWith("_DEFAULT")) return@forEach
-
               val init = varDecl.initializer.orElse(null) ?: return@forEach
-              if (init !is StringLiteralExpr) {
-                return@forEach
-              }
+
+              if (init !is StringLiteralExpr) return@forEach
               val rawValue = init.value
 
               val normalized = normalize(rawValue)
