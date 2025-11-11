@@ -4,6 +4,7 @@ import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponse;
 import com.openai.models.chat.completions.ChatCompletion;
+import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
@@ -130,9 +131,9 @@ public class OpenAiDecorator extends ClientDecorator {
     //TODO set LLMObs tags (not visible to APM)
   }
 
-  public void decorateWithChatCompletions(AgentSpan span, List<ChatCompletion> completions) {
-    if (!completions.isEmpty()) {
-      span.setTag(RESPONSE_MODEL, completions.get(0).model());
+  public void decorateWithChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
+    if (!chunks.isEmpty()) {
+      span.setTag(RESPONSE_MODEL, chunks.get(0).model());
     }
 
     //TODO set LLMObs tags (not visible to APM)

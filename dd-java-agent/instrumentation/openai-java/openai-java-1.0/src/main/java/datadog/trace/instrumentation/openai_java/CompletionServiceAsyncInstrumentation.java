@@ -8,9 +8,8 @@ import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import net.bytebuddy.asm.Advice;
-
 import java.util.concurrent.CompletableFuture;
+import net.bytebuddy.asm.Advice;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -90,7 +89,7 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureStreamResponse(future, span);
+          future = ResponseWrappers.wrapFutureStreamResponse(future, span, DECORATE::decorateWithCompletions);
         } else {
           span.finish();
         }
@@ -100,5 +99,4 @@ public class CompletionServiceAsyncInstrumentation implements Instrumenter.ForSi
       }
     }
   }
-
 }

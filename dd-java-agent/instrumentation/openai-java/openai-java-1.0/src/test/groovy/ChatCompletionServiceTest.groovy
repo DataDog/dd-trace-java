@@ -5,6 +5,7 @@ import com.openai.core.http.AsyncStreamResponse
 import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
 import com.openai.models.chat.completions.ChatCompletion
+import com.openai.models.chat.completions.ChatCompletionChunk
 import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -37,7 +38,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single async request completion test"() {
+  def "single async request chat/completion test"() {
     CompletableFuture<ChatCompletion> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().create(chatCompletionCreateParams())
     }
@@ -48,7 +49,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single async request completion test with withRawResponse"() {
+  def "single async request chat/completion test with withRawResponse"() {
     CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().create(chatCompletionCreateParams())
     }
@@ -60,60 +61,60 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  // def "streamed request completion test"() {
-  //   runnableUnderTrace("parent") {
-  //     StreamResponse<Completion> streamCompletion = openAiClient.completions().createStreaming(completionCreateParams())
-  //     try (Stream stream = streamCompletion.stream()) { // close the stream after use
-  //       stream.forEach {
-  //         // consume the stream
-  //       }
-  //     }
-  //   }
-  //
-  //   expect:
-  //   assertCompletionTrace()
-  // }
-  //
-  // def "streamed request completion test with withRawResponse"() {
-  //   runnableUnderTrace("parent") {
-  //     HttpResponseFor<StreamResponse<Completion>> streamCompletion = openAiClient.completions().withRawResponse().createStreaming(completionCreateParams())
-  //     try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
-  //       stream.forEach {
-  //         // consume the stream
-  //       }
-  //     }
-  //   }
-  //
-  //   expect:
-  //   assertCompletionTrace()
-  // }
-  //
-  // def "streamed async request completion test"() {
-  //   AsyncStreamResponse<Completion> asyncResp = runUnderTrace("parent") {
-  //     openAiClient.async().completions().createStreaming(completionCreateParams())
-  //   }
-  //   asyncResp.subscribe {
-  //     // consume completions
-  //   }
-  //   asyncResp.onCompleteFuture().get()
-  //   expect:
-  //   assertCompletionTrace()
-  // }
-  //
-  // def "streamed async request completion test with withRawResponse"() {
-  //   CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future = runUnderTrace("parent") {
-  //     openAiClient.async().completions().withRawResponse().createStreaming(completionCreateParams())
-  //   }
-  //   HttpResponseFor<StreamResponse<Completion>> resp = future.get()
-  //   try (Stream stream = resp.parse().stream()) { // close the stream after use
-  //     stream.forEach {
-  //       // consume the stream
-  //     }
-  //   }
-  //   expect:
-  //   resp.statusCode() == 200
-  //   assertCompletionTrace()
-  // }
+  def "streamed request chat/completion test"() {
+    runnableUnderTrace("parent") {
+      StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParams())
+      try (Stream stream = streamCompletion.stream()) { // close the stream after use
+        stream.forEach {
+          // consume the stream
+        }
+      }
+    }
+
+    expect:
+    assertCompletionTrace()
+  }
+
+  def "streamed request chat/completion test with withRawResponse"() {
+    runnableUnderTrace("parent") {
+      HttpResponseFor<StreamResponse<ChatCompletionChunk>> streamCompletion = openAiClient.chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
+      try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
+        stream.forEach {
+          // consume the stream
+        }
+      }
+    }
+
+    expect:
+    assertCompletionTrace()
+  }
+
+  def "streamed async request chat/completion test"() {
+    AsyncStreamResponse<ChatCompletionChunk> asyncResp = runUnderTrace("parent") {
+      openAiClient.async().chat().completions().createStreaming(chatCompletionCreateParams())
+    }
+    asyncResp.subscribe {
+      // consume completions
+    }
+    asyncResp.onCompleteFuture().get()
+    expect:
+    assertCompletionTrace()
+  }
+
+  def "streamed async request chat/completion test with withRawResponse"() {
+    CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future = runUnderTrace("parent") {
+      openAiClient.async().chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
+    }
+    HttpResponseFor<StreamResponse<ChatCompletionChunk>> resp = future.get()
+    try (Stream stream = resp.parse().stream()) { // close the stream after use
+      stream.forEach {
+        // consume the stream
+      }
+    }
+    expect:
+    resp.statusCode() == 200
+    assertCompletionTrace()
+  }
 
   private void assertCompletionTrace() {
     assertTraces(1) {

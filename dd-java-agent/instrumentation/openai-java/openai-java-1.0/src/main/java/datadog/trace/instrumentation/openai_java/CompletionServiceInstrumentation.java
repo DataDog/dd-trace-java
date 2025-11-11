@@ -88,7 +88,7 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response = ResponseWrappers.wrapStreamResponse(response, span);
+          response = ResponseWrappers.wrapStreamResponse(response, span, DECORATE::decorateWithCompletions);
         } else {
           span.finish();
         }

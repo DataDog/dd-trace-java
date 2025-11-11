@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
-import com.openai.models.completions.Completion;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.jetbrains.annotations.NotNull;
 import java.io.InputStream;
@@ -76,20 +75,20 @@ public class ResponseWrappers {
         });
   }
 
-  public static HttpResponseFor<StreamResponse<Completion>> wrapStreamResponse(HttpResponseFor<StreamResponse<Completion>> response, final AgentSpan span) {
+  public static <T> HttpResponseFor<StreamResponse<T>> wrapStreamResponse(HttpResponseFor<StreamResponse<T>> response, final AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate) {
     DECORATE.decorateWithResponse(span, response);
-    return new DDHttpResponseFor<StreamResponse<Completion>>(response) {
+    return new DDHttpResponseFor<StreamResponse<T>>(response) {
       @Override
-      public StreamResponse<Completion> afterParse(StreamResponse<Completion> streamResponse) {
-        return new StreamResponse<Completion>() {
-          final List<Completion> completions = new ArrayList<>();
+      public StreamResponse<T> afterParse(StreamResponse<T> streamResponse) {
+        return new StreamResponse<T>() {
+          final List<T> chunks = new ArrayList<>();
 
           @NotNull
           @Override
-          public Stream<Completion> stream() {
+          public Stream<T> stream() {
             return streamResponse
                 .stream()
-                .peek(completions::add)
+                .peek(chunks::add)
                 .onClose(this::close);
           }
 
@@ -97,7 +96,7 @@ public class ResponseWrappers {
           public void close() {
             try {
               streamResponse.close();
-              DECORATE.decorateWithCompletions(span, completions);
+              decorate.accept(span, chunks);
               DECORATE.beforeFinish(span);
             } finally {
               span.finish();
@@ -108,7 +107,7 @@ public class ResponseWrappers {
     };
   }
 
-  public static CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> wrapFutureStreamResponse(CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future, AgentSpan span) {
-    return future.thenApply(r -> wrapStreamResponse(r, span));
+  public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFutureStreamResponse(CompletableFuture<HttpResponseFor<StreamResponse<T>>> future, AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate) {
+    return future.thenApply(r -> wrapStreamResponse(r, span, decorate));
   }
 }
