@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponse;
+import com.openai.models.chat.completions.ChatCompletion;
+import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,6 +24,7 @@ public class OpenAiDecorator extends ClientDecorator {
   public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
 
   private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("completions.create");
+  private static final CharSequence CHAT_COMPLETIONS_CREATE = UTF8BytesString.create("chat.completions.create");
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
 
   @Override
@@ -109,5 +112,29 @@ public class OpenAiDecorator extends ClientDecorator {
 
     // TODO api_version (either last part of the URL, or api-version param if Azure)
     // clientOptions.queryParams().values("api-version")
+  }
+
+  public void decorateChatCompletion(AgentSpan span, ChatCompletionCreateParams params) {
+    span.setResourceName(CHAT_COMPLETIONS_CREATE);
+    span.setTag("openai.request.endpoint", "v1/chat/completions");
+    span.setTag("openai.request.method", "POST");
+    if (params == null) {
+      return;
+    }
+    span.setTag(REQUEST_MODEL, params.model().asString());
+  }
+
+  public void decorateWithChatCompletion(AgentSpan span, ChatCompletion completion) {
+    span.setTag(RESPONSE_MODEL, completion.model());
+
+    //TODO set LLMObs tags (not visible to APM)
+  }
+
+  public void decorateWithChatCompletions(AgentSpan span, List<ChatCompletion> completions) {
+    if (!completions.isEmpty()) {
+      span.setTag(RESPONSE_MODEL, completions.get(0).model());
+    }
+
+    //TODO set LLMObs tags (not visible to APM)
   }
 }

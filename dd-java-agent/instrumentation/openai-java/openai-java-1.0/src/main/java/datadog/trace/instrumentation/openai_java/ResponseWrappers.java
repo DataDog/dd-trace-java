@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
@@ -53,20 +54,22 @@ public class ResponseWrappers {
     }
   }
 
-  public static HttpResponseFor<Completion> wrapResponse(HttpResponseFor<Completion> response, AgentSpan span) {
+  public static <T> HttpResponseFor<T> wrapResponse(HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
     DECORATE.decorateWithResponse(span, response);
-    return new DDHttpResponseFor<Completion>(response) {
+    return new DDHttpResponseFor<T>(response) {
       @Override
-      public Completion afterParse(Completion completion) {
-        DECORATE.decorateWithCompletion(span, completion);
-        return completion;
+      public T afterParse(T t) {
+        afterParse.accept(span, t);
+        return t;
       }
     };
   }
 
   public static CompletableFuture<HttpResponseFor<Completion>> wrapFutureResponse(CompletableFuture<HttpResponseFor<Completion>> future, AgentSpan span) {
     return future
-        .thenApply(response -> wrapResponse(response, span))
+        .thenApply(response ->
+          wrapResponse(response, span, DECORATE::decorateWithCompletion)
+        )
         .whenComplete((r, t) -> {
           DECORATE.beforeFinish(span);
           span.finish();

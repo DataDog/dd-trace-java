@@ -59,7 +59,7 @@ public class CompletionServiceInstrumentation implements Instrumenter.ForSingleT
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response = ResponseWrappers.wrapResponse(response, span);
+          response = ResponseWrappers.wrapResponse(response, span, OpenAiDecorator.DECORATE::decorateWithCompletion);
         }
         DECORATE.beforeFinish(span);
       } finally {

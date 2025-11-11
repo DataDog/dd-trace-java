@@ -3,6 +3,8 @@ import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
 import com.openai.credential.BearerTokenCredential
+import com.openai.models.ChatModel
+import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.completions.CompletionCreateParams
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.llmobs.LlmObsSpecification
@@ -31,6 +33,57 @@ abstract class OpenAiTest extends LlmObsSpecification {
   @Shared
   def mockOpenAiBackend = TestHttpServer.httpServer {
     handlers {
+      prefix("/$API_VERSION/chat/completions") {
+        response
+            .status(200)
+            .addHeader("openai-organization", "datadog-staging")
+            .addHeader("x-ratelimit-limit-requests", "30000")
+            .addHeader("x-ratelimit-limit-tokens", "150000000")
+            .addHeader("x-ratelimit-remaining-requests", "29999")
+            .addHeader("x-ratelimit-remaining-tokens", "149999997")
+            .send("""
+{
+  "id": "chatcmpl-CaZMmD0wsnDrkBEND9i5MvH6sD8BJ",
+  "object": "chat.completion",
+  "created": 1762831792,
+  "model": "gpt-4o-mini-2024-07-18",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! How can I assist you today?",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 11,
+    "completion_tokens": 9,
+    "total_tokens": 20,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_51db84afab"
+}
+""")
+        if ('{"messages":[{"content":"","role":"system"},{"content":"","role":"user"}],"model":"gpt-4o-mini"}' == request.text) {
+        } else {
+          response.status(500).send("Unexpected Request!")
+        }
+      }
       prefix("/$API_VERSION/completions") {
         if ('{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream":true}' == request.text) {
           response
@@ -122,6 +175,15 @@ data: [DONE]
     CompletionCreateParams.builder()
         .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
         .prompt("Tell me a story about building the best SDK!")
+        .build()
+  }
+
+  ChatCompletionCreateParams chatCompletionCreateParams() {
+    ChatCompletionCreateParams.builder()
+        .model(ChatModel.GPT_4O_MINI)
+        .addSystemMessage("")
+        .addUserMessage("")
+        // .prompt("Tell me a story about building the best SDK!")
         .build()
   }
 }
