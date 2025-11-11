@@ -613,29 +613,41 @@ class AppSecRequestContextSpecification extends DDSpecification {
   def "test reportDerivatives maintains data integrity under concurrent access"() {
     given:
     def context = new AppSecRequestContext()
+    def numThreads = 3
+    def startLatch = new java.util.concurrent.CountDownLatch(1)
+    def doneLatch = new java.util.concurrent.CountDownLatch(numThreads)
 
     when:
     // Simulate concurrent updates from multiple threads
-    def executorService = java.util.concurrent.Executors.newFixedThreadPool(3)
+    def executorService = java.util.concurrent.Executors.newFixedThreadPool(numThreads)
     def tasks = []
 
     tasks << executorService.submit({
+      startLatch.await() // Wait for all threads to be ready
       context.reportDerivatives(['attr1': ['value': 'value1']])
       context.reportDerivatives(['attr2': ['value': 'value2']])
+      doneLatch.countDown()
     })
 
     tasks << executorService.submit({
+      startLatch.await() // Wait for all threads to be ready
       context.reportDerivatives(['attr3': ['value': 'value3']])
       context.reportDerivatives(['attr4': ['value': 'value4']])
+      doneLatch.countDown()
     })
 
     tasks << executorService.submit({
+      startLatch.await() // Wait for all threads to be ready
       context.reportDerivatives(['attr5': ['value': 'value5']])
       context.reportDerivatives(['attr6': ['value': 'value6']])
+      doneLatch.countDown()
     })
 
+    // Release all threads at once to maximize concurrent execution
+    startLatch.countDown()
+
     // Wait for all tasks to complete
-    tasks.each { it.get() }
+    doneLatch.await(5, java.util.concurrent.TimeUnit.SECONDS)
     executorService.shutdown()
     executorService.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
 
