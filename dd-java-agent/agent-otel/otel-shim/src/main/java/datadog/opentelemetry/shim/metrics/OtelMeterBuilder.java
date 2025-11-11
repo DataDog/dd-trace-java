@@ -32,7 +32,6 @@ public class OtelMeterBuilder implements MeterBuilder {
 
   @Override
   public Meter build() {
-    LOGGER.debug("Building the OtelMeter");
     return new OtelMeter(instrumentationScopeName, instrumentationVersion, schemaUrl);
   }
 }
