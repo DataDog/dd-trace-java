@@ -93,7 +93,6 @@ class CompletionServiceTest extends OpenAiTest {
     }
     asyncResp.subscribe {
       // consume completions
-      // System.err.println(">>> completion: " + it)
     }
     asyncResp.onCompleteFuture().get()
     expect:
@@ -131,6 +130,8 @@ class CompletionServiceTest extends OpenAiTest {
           errored false
           spanType DDSpanTypes.LLMOBS
           tags {
+            "openai.request.method" "POST"
+            "openai.request.endpoint" "v1/completions"
             "openai.api_base" openAiBaseApi
             "openai.organization.ratelimit.requests.limit" 3500
             "openai.organization.ratelimit.requests.remaining" Integer

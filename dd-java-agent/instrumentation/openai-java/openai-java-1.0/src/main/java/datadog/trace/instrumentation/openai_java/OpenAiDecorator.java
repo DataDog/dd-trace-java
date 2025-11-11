@@ -46,24 +46,10 @@ public class OpenAiDecorator extends ClientDecorator {
     return COMPONENT_NAME;
   }
 
-// TODO APM tags
-
-// TODO "openai.request.endpoint" - hardcoded in trace-py
-// ("openai.request.endpoint", "/%s/%s" % (API_VERSION, endpoint))
-//  API_VERSION = "v1"
-//  ENDPOINT_NAME = "completions"
-//  ENDPOINT_NAME = "chat/completions"
-//  ENDPOINT_NAME = "embeddings"
-//  ENDPOINT_NAME = "responses"
-//
- // TODO "openai.request.method" - hardcoded in trace-py to be POST, GET, ...
-// ("openai.request.method", self.HTTP_METHOD_TYPE)
-//
-// _set_tag_str("openai.%s" % arg, str(args[idx]))
-//  ("api_base", "api_type", "api_version")
-
   public void decorateCompletion(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
+    span.setTag("openai.request.endpoint", "v1/completions");
+    span.setTag("openai.request.method", "POST");
     if (params == null) {
       return;
     }
@@ -119,14 +105,9 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void decorateWithClientOptions(AgentSpan span, ClientOptions clientOptions) {
-    /*
-    TODO "api_type", "api_version")
-      if endpoint is None:
-        endpoint = "%s" % getattr(instance, "OBJECT_NAME", "")
-    span._set_tag_str("openai.request.endpoint", "/%s/%s" % (API_VERSION, endpoint))
-    span._set_tag_str("openai.request.method", self.HTTP_METHOD_TYPE)
-
-     */
     span.setTag("openai.api_base", clientOptions.baseUrl());
+
+    // TODO api_version (either last part of the URL, or api-version param if Azure)
+    // clientOptions.queryParams().values("api-version")
   }
 }

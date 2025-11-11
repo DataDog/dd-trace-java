@@ -1,6 +1,7 @@
 import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
+import com.openai.core.ClientOptions
 import com.openai.credential.BearerTokenCredential
 import com.openai.models.completions.CompletionCreateParams
 import datadog.trace.agent.test.server.http.TestHttpServer
@@ -10,6 +11,8 @@ import spock.lang.Shared
 
 
 abstract class OpenAiTest extends LlmObsSpecification {
+
+  static String API_VERSION = "v1"
 
   // openai token - will use real openai backend
   // null - will use mockOpenAiBackend
@@ -21,7 +24,8 @@ abstract class OpenAiTest extends LlmObsSpecification {
   @Shared
   OpenAIClient openAiClient
 
-  static String API_VERSION = "v1"
+  @Shared
+  def openAiBaseApi
 
   @AutoCleanup
   @Shared
@@ -99,9 +103,6 @@ data: [DONE]
     }
   }
 
-  @Shared
-  def openAiBaseApi
-
   def setupSpec() {
     OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
     if (Strings.isNullOrEmpty(openAiToken())) {
@@ -112,7 +113,7 @@ data: [DONE]
     } else {
       // real openai backend
       b.credential(BearerTokenCredential.create(openAiToken()))
-      openAiBaseApi = "https://api.openai.com/$API_VERSION"
+      openAiBaseApi = ClientOptions.PRODUCTION_URL
     }
     openAiClient = b.build()
   }
