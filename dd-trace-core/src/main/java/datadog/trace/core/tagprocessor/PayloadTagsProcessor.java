@@ -146,6 +146,10 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
       }
 
       public RedactionRules.Builder addParsedRedactionJsonPaths(List<JsonPath> jsonPaths) {
+        if (null == jsonPaths) {
+          log.warn("Provided JsonPaths list is null, skipping.");
+          return this;
+        }
         this.redactionRules.addAll(jsonPaths);
         return this;
       }

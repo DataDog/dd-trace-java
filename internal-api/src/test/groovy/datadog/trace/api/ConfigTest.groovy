@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.json.JsonPath
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -937,8 +936,8 @@ class ConfigTest extends DDSpecification {
     config.longRunningTraceFlushInterval == 120
     config.cloudRequestPayloadTagging == []
     config.cloudResponsePayloadTagging == []
-    config.@cloudRequestPayloadTagging == null
-    config.@cloudResponsePayloadTagging == []
+    !config.isCloudRequestPayloadTaggingEnabled()
+    config.isCloudResponsePayloadTaggingEnabled()
   }
 
   def "default when configured incorrectly"() {
@@ -2902,10 +2901,6 @@ class ConfigTest extends DDSpecification {
     "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
   }
 
-  static jp() {
-    return JsonPath.Builder.start()
-  }
-
   def "set cloud payload tagging config"() {
     setup:
     environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, reqEnv)
@@ -2915,28 +2910,28 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    if(config.@cloudRequestPayloadTagging == null){
-      expectedreqconfig == null
-    }else{
-      config.@cloudRequestPayloadTagging.toString()== expectedreqconfig.toString()
+    if (expectedReqConfig == null) {
+      // if expected config is null, then the feature should be disabled
+      assert !config.isCloudRequestPayloadTaggingEnabled()
+    } else {
+      assert config.cloudRequestPayloadTagging.toString() == expectedReqConfig
     }
 
-    if(config.@cloudResponsePayloadTagging == null){
-      expectedrespconfig == null
-    }else{
-      config.@cloudResponsePayloadTagging.toString()== expectedrespconfig.toString()
+    if (expectedRespConfig == null) {
+      assert !config.isCloudResponsePayloadTaggingEnabled()
+    } else {
+      assert config.cloudResponsePayloadTagging.toString() == expectedRespConfig
     }
 
     where:
-    reqEnv         | respEnv        | expectedreqconfig        | expectedrespconfig
-    "all"          | "all"          | []                       | []
-    "all,invalid"  | "all,invalid"  | null                     | null
-    ""             | ""             | null                     | null
-    "invalid"      | "invalid"      | null                     | null
-    "\$.a"         | "\$.b"         | [jp().name('a').build()] | [jp().name('b').build()]
-    "\$.a,invalid" | "\$.b,invalid" | [jp().name('a').build()] | [jp().name('b').build()]
+    reqEnv         | respEnv        | expectedReqConfig | expectedRespConfig
+    "all"          | "all"          | '[]'              | '[]'
+    "all,invalid"  | "all,invalid"  | null              | null
+    ""             | ""             | null              | null
+    "invalid"      | "invalid"      | null              | null
+    "\$.a"         | "\$.b"         | '[$[\'a\']]'          | '[$[\'b\']]'
+    "\$.a,invalid" | "\$.b,invalid" | '[$[\'a\']]'          | '[$[\'b\']]'
   }
-
 
   // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {

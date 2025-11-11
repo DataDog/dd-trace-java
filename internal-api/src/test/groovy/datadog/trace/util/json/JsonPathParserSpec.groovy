@@ -10,19 +10,16 @@ class JsonPathParserSpec extends Specification {
 
   def "parse lists of json-path patterns for payload tagging"() {
     expect:
-    JsonPathParser.parseJsonPaths(paths).toString() == expected.toString()
+    JsonPathParser.parseJsonPaths(paths).toString() == expected
 
     where:
     paths                    | expected
-    ['$.a']                  | [jp().name('a').build()]
-    ['$.a.b.c', '$.x.y.z']   | [
-      jp().name('a').name('b').name('c').build(),
-      jp().name('x').name('y').name('z').build()
-    ]
-    ['$.BarFoo', "invalid"]  | [jp().name("BarFoo").build()]
-    ['all']                  | []
-    ['all', 'all']           | []
-    ['invalid1', "invalid2"] | []
+    ['$.a']                  | '[$[\'a\']]'
+    ['$.a.b.c', '$.x.y.z']   | '[$[\'a\'][\'b\'][\'c\'], $[\'x\'][\'y\'][\'z\']]'
+    ['$.BarFoo', "invalid"]  | '[$[\'BarFoo\']]'
+    ['all']                  | '[]'
+    ['all', 'all']           | '[]'
+    ['invalid1', "invalid2"] | '[]'
   }
 
   def "parse correct json-path patterns"() {

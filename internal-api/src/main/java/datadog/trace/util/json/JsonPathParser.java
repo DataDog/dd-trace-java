@@ -35,16 +35,16 @@ public class JsonPathParser {
   private static final Logger log = LoggerFactory.getLogger(JsonPathParser.class);
 
   public static List<JsonPath> parseJsonPaths(List<String> rules) {
-    if (rules.isEmpty() || rules.size() == 1 && rules.get(0).equalsIgnoreCase("all")) {
+    if (null == rules || rules.isEmpty()) {
       return Collections.emptyList();
     }
     List<JsonPath> result = new ArrayList<>(rules.size());
     for (String rule : rules) {
       try {
-        JsonPath jp = JsonPathParser.parse(rule);
+        JsonPath jp = parse(rule);
         result.add(jp);
       } catch (Exception ex) {
-        log.warn("Skipping failed to parse redaction rule '{}'. {}", rule, ex.getMessage());
+        log.warn("Failed to parse redaction rule '{}'. {}. Skipping rule.", rule, ex.getMessage());
       }
     }
     return result;
