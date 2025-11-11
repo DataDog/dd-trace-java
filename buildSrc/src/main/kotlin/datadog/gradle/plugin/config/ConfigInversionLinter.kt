@@ -172,19 +172,19 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         configDir.listFiles()?.forEach { file ->
           var inBlockComment = false
           val lines = file.readLines()
-          var i = 0
-          while (i < lines.size) {
-            val line = lines[i]
+          var startIndex = 0
+          while (startIndex < lines.size) {
+            val line = lines[startIndex]
             val trimmed = line.trim()
-            
+
             if (trimmed.startsWith("//")) {
-              i++
+              startIndex++
               continue
             }
             if (!inBlockComment && trimmed.contains("/*")) inBlockComment = true
             if (inBlockComment) {
               if (trimmed.contains("*/")) inBlockComment = false
-              i++
+              startIndex++
               continue
             }
 
@@ -193,25 +193,27 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
             if (singleLineMatch != null) {
               val fieldName = singleLineMatch.groupValues[1]
               val configValue = singleLineMatch.groupValues[2]
-              
+
               // Skip fields that end with _DEFAULT (default values defined in ProfilingConfig.java only)
               if (!fieldName.endsWith("_DEFAULT")) {
                 val normalized = "DD_" + configValue.uppercase()
                   .replace("-", "_")
                   .replace(".", "_")
-                
+
                 if (normalized !in supported && normalized !in aliasMapping) {
-                  add("${file.name}:${i + 1} -> Config '$configValue' normalizes to '$normalized' which is not in supported-configurations.json")
+                  add("${file.name}:${startIndex + 1} -> Config '$configValue' normalizes to '$normalized' which is missing from '${extension.jsonFile.get()}'")
                 }
               }
             } else {
               val multiLineMatch = multiLineStartRegex.find(line)
               if (multiLineMatch != null) {
                 val fieldName = multiLineMatch.groupValues[1]
+
+                // Skip fields that end with _DEFAULT (default values defined in ProfilingConfig.java only)
                 if (!fieldName.endsWith("_DEFAULT")) {
-                  var j = i + 1
-                  while (j < lines.size) {
-                    val nextLine = lines[j].trim()
+                  var valueLineIndex = startIndex + 1
+                  while (valueLineIndex < lines.size) {
+                    val nextLine = lines[valueLineIndex].trim()
                     val valueMatch = valueLineRegex.find(nextLine)
                     if (valueMatch != null) {
                       val configValue = valueMatch.groupValues[1]
@@ -219,27 +221,28 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
                         .replace("-", "_")
                         .replace(".", "_")
                       if (normalized !in supported && normalized !in aliasMapping) {
-                        add("${file.name}:${i + 1} -> Config '$configValue' normalizes to '$normalized' " +
-                          "which is not in supported-configurations.json")
+                        add("${file.name}:${startIndex + 1} -> Config '$configValue' normalizes to '$normalized' " +
+                            "which is missing from '${extension.jsonFile.get()}'")
                       }
                       break
                     }
-                    j++
+                    // Hypothetically, should never reach here
+                    valueLineIndex++
                   }
                 }
               }
             }
-            i++
+            startIndex++
           }
         }
       }
 
       if (violations.isNotEmpty()) {
-        project.logger.lifecycle("\nFound config definitions not in supported-configurations.json:")
+        project.logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
         violations.forEach { project.logger.lifecycle(it) }
-        throw GradleException("Config strings validation failed. See errors above.")
+        throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
       } else {
-        project.logger.info("All config strings are present in supported-configurations.json.")
+        project.logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
       }
     }
   }
