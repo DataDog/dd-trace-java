@@ -3,8 +3,6 @@ package datadog.gradle.plugin.config
 import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.expr.BinaryExpr
-import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
 import com.github.javaparser.ast.Modifier
