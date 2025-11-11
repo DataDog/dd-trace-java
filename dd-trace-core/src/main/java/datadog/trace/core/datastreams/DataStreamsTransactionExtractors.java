@@ -133,5 +133,17 @@ public class DataStreamsTransactionExtractors {
     public String getValue() {
       return value;
     }
+
+    @Override
+    public String toString() {
+      return "DataStreamsTransactionExtractorImpl{"
+          + "name='"
+          + name
+          + "', type='"
+          + type.name()
+          + "', value='"
+          + value
+          + "'}";
+    }
   }
 }

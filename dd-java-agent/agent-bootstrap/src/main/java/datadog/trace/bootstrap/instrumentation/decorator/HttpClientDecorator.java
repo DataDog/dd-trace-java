@@ -73,13 +73,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
-      System.out.println("### applying http_out extractors");
+      System.out.println("### applying http_out extractors " + request.getClass().getSimpleName());
       // apply extractors if any (disabled if DSM is off)
       AgentDataStreamsMonitoring dataStreamsMonitoring =
           AgentTracer.get().getDataStreamsMonitoring();
       List<DataStreamsTransactionExtractor> extractorList =
           dataStreamsMonitoring.extractorsByType(
               DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS);
+      System.out.println("### extractor list contains " + extractorList.size() + " extractors");
       if (!extractorList.isEmpty()) {
         for (DataStreamsTransactionExtractor extractor : extractorList) {
           String transactionId = getRequestHeader(request, extractor.getValue());

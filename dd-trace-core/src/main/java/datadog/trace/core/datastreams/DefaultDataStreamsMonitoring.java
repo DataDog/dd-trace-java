@@ -466,8 +466,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     List<DataStreamsTransactionExtractor> extractors =
         traceConfigSupplier.get().getDataStreamsTransactionExtractors();
     for (DataStreamsTransactionExtractor extractor : extractors) {
-      System.out.println(
-          "### Extractor: " + extractor.getName() + ", value: " + extractor.getValue());
+      System.out.println(extractor.toString());
       List<DataStreamsTransactionExtractor> list =
           extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
       list.add(extractor);
