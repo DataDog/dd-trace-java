@@ -23,7 +23,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     expect:
     resp != null
     and:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "single request chat/completion test with withRawResponse"() {
@@ -35,7 +35,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "single async request chat/completion test"() {
@@ -46,7 +46,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     completionFuture.get()
 
     expect:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "single async request chat/completion test with withRawResponse"() {
@@ -58,7 +58,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "streamed request chat/completion test"() {
@@ -72,7 +72,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "streamed request chat/completion test with withRawResponse"() {
@@ -86,7 +86,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "streamed async request chat/completion test"() {
@@ -98,7 +98,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
   def "streamed async request chat/completion test with withRawResponse"() {
@@ -113,10 +113,10 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertCompletionTrace()
+    assertChatCompletionTrace()
   }
 
-  private void assertCompletionTrace() {
+  private void assertChatCompletionTrace() {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
