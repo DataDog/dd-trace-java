@@ -69,7 +69,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     this.span = spanBuilder.start();
 
-    // set UST
+    // set UST (unified service tags, env, service, version)
     this.span.setTag(ENV, wellKnownTags.getEnv());
     this.span.setTag(SERVICE, wellKnownTags.getService());
     this.span.setTag(VERSION, wellKnownTags.getVersion());
