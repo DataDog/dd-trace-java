@@ -1,6 +1,7 @@
 import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OkHttpClient
+import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
 import com.openai.credential.BearerTokenCredential
 import com.openai.models.ChatModel
@@ -2000,25 +2001,28 @@ data: {"type":"response.completed","sequence_number":41,"response":{"id":"resp_0
   }
 
   def setupSpec() {
-    ClientOptions.Builder clientOptions = ClientOptions.builder()
-    OkHttpClient.Builder httpClient = OkHttpClient.builder()
-
     if (Strings.isNullOrEmpty(openAiToken())) {
       // mock backend
+      OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
       openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
-      httpClient.baseUrl(openAiBaseApi)
-      // clientOptions.baseUrl(openAiBaseApi)
-      clientOptions.credential(BearerTokenCredential.create(""))
+      b.baseUrl(openAiBaseApi)
+      b.baseUrl(openAiBaseApi)
+      b.credential(BearerTokenCredential.create(""))
+      openAiClient = b.build()
     } else {
-      // real openai backend
+      // real openai backend, with custom httpClient to capture responses for mocked tests
+      ClientOptions.Builder clientOptions = ClientOptions.builder()
+      OkHttpClient.Builder httpClient = OkHttpClient.builder()
+
       openAiBaseApi = ClientOptions.PRODUCTION_URL
       httpClient.baseUrl(openAiBaseApi)
-      // clientOptions.baseUrl(openAiBaseApi)
+      clientOptions.baseUrl(openAiBaseApi)
       clientOptions.credential(BearerTokenCredential.create(openAiToken()))
+
+      TestOpenAiHttpClient testHttpClient = new TestOpenAiHttpClient(httpClient.build())
+      clientOptions.httpClient(testHttpClient)
+      openAiClient = createOpenAiClient(clientOptions.build())
     }
-    // TODO pass custom httpClient into clientOptions to capture responses for tests
-    clientOptions.httpClient(httpClient.build())
-    openAiClient = createOpenAiClient(clientOptions.build())
   }
 
   OpenAIClient createOpenAiClient(ClientOptions clientOptions) {
