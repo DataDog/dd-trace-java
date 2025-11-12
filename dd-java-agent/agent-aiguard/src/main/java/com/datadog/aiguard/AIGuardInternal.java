@@ -232,7 +232,7 @@ public class AIGuardInternal implements Evaluator {
         }
         if (tags != null) {
           for (final String tag : tags) {
-            span.setTag("ai_guard.tag." + tag, true);
+            span.setTag("ai_guard.tags." + tag, true);
           }
         }
         final boolean shouldBlock =
