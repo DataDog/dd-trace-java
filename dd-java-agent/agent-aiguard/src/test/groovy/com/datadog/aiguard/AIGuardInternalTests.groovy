@@ -157,6 +157,7 @@ class AIGuardInternalTests extends DDSpecification {
     Request request = null
     Throwable error = null
     AIGuard.Evaluation eval = null
+    Map<String, Object> receivedMeta = null
     final throwAbortError = suite.blocking && suite.action != ALLOW
     final call = Mock(Call) {
       execute() >> {
@@ -189,16 +190,18 @@ class AIGuardInternalTests extends DDSpecification {
     }
     1 * span.setTag(AIGuardInternal.ACTION_TAG, suite.action)
     1 * span.setTag(AIGuardInternal.REASON_TAG, suite.reason)
-    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, [messages: suite.messages])
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _ as Map) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
     if (throwAbortError) {
       1 * span.addThrowable(_ as AIGuard.AIGuardAbortError)
     }
-    if (suite.tags) {
-      suite.tags.each {
-        1 * span.setTag("ai_guard.tags.${it}", true)
-      }
-    }
 
+    receivedMeta.messages == suite.messages
+    if (suite.tags) {
+      receivedMeta.matching_rules == suite.tags
+    }
     assertRequest(request, suite.messages)
     if (throwAbortError) {
       error instanceof AIGuard.AIGuardAbortError

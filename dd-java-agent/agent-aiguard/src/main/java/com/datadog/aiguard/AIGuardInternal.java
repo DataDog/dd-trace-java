@@ -4,7 +4,6 @@ import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
-import static java.util.Collections.singletonMap;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -69,7 +68,8 @@ public class AIGuardInternal implements Evaluator {
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
   static final String META_STRUCT_TAG = "ai_guard";
-  static final String META_STRUCT_KEY = "messages";
+  static final String META_STRUCT_MESSAGES = "messages";
+  static final String META_STRUCT_MATCHING_RULES = "matching_rules";
 
   public static void install() {
     final Config config = Config.get();
@@ -208,8 +208,8 @@ public class AIGuardInternal implements Evaluator {
       } else {
         span.setTag(TARGET_TAG, "prompt");
       }
-      final Map<String, Object> metaStruct =
-          singletonMap(META_STRUCT_KEY, messagesForMetaStruct(messages));
+      final Map<String, Object> metaStruct = new HashMap<>(2);
+      metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
@@ -230,10 +230,8 @@ public class AIGuardInternal implements Evaluator {
         if (reason != null) {
           span.setTag(REASON_TAG, reason);
         }
-        if (tags != null) {
-          for (final String tag : tags) {
-            span.setTag("ai_guard.tags." + tag, true);
-          }
+        if (tags != null && !tags.isEmpty()) {
+          metaStruct.put(META_STRUCT_MATCHING_RULES, tags);
         }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
