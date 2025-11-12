@@ -195,7 +195,7 @@ class AIGuardInternalTests extends DDSpecification {
     }
     if (suite.tags) {
       suite.tags.each {
-        1 * span.setTag("ai_guard.tag.${it}", true)
+        1 * span.setTag("ai_guard.tags.${it}", true)
       }
     }
 
