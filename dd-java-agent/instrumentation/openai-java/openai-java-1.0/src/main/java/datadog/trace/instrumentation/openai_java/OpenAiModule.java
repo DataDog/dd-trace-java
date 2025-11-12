@@ -29,11 +29,12 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
-        new CompletionServiceInstrumentation(),
-        new CompletionServiceAsyncInstrumentation(),
-        new ChatCompletionServiceInstrumentation(),
         new ChatCompletionServiceAsyncInstrumentation(),
+        new ChatCompletionServiceInstrumentation(),
+        new CompletionServiceAsyncInstrumentation(),
+        new CompletionServiceInstrumentation(),
         new EmbeddingServiceInstrumentation(),
+        new ResponseServiceAsyncInstrumentation(),
         new ResponseServiceInstrumentation()
     );
   }
