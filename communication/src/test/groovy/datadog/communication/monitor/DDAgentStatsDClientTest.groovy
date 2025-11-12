@@ -140,6 +140,8 @@ class DDAgentStatsDClientTest extends DDSpecification {
     cleanup:
     injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
+    client.close()
+    server.close()
 
     where:
     namespace | constantTags                        | expectedMetricName    | expectedTags
