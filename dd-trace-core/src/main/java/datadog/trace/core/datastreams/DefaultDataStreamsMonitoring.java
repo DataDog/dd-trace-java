@@ -54,6 +54,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  static final List<DataStreamsTransactionExtractor> NO_EXTRACTORS = Collections.emptyList();
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -208,7 +209,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DataStreamsTransactionExtractor.Type extractorType) {
     extractorsLock.readLock().lock();
     try {
-      return extractorsByType.getOrDefault(extractorType, Collections.emptyList());
+      return extractorsByType.getOrDefault(extractorType, NO_EXTRACTORS);
     } finally {
       extractorsLock.readLock().unlock();
     }
