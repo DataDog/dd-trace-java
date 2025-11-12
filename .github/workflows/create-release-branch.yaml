@@ -24,7 +24,7 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.update-system-tests.create-pr
 
-      - name: Checkout dd-trace-java at tag
+      - name: Checkout dd-trace-java master branch
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
         with:
           ref: master
