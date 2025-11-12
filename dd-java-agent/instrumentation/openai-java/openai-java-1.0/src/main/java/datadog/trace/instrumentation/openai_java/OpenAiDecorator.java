@@ -12,6 +12,7 @@ import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
+import com.openai.models.responses.ResponseStreamEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -178,4 +179,11 @@ public class OpenAiDecorator extends ClientDecorator {
     //TODO set LLMObs tags (not visible to APM)
   }
 
+  public void decorateWithResponseStreamEvent(AgentSpan span, List<ResponseStreamEvent> events) {
+    // if (!events.isEmpty()) {
+    //   span.setTag(RESPONSE_MODEL, events.get(0).res()); // TODO there is no model
+    // }
+
+    //TODO set LLMObs tags (not visible to APM)
+  }
 }

@@ -11,11 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
-import com.openai.models.chat.completions.ChatCompletion;
-import com.openai.models.chat.completions.ChatCompletionChunk;
-import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
+import com.openai.models.responses.ResponseStreamEvent;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,12 +34,12 @@ public class ResponseServiceInstrumentation implements Instrumenter.ForSingleTyp
             .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateAdvice");
 
-    // transformer.applyAdvice(
-    //     isMethod()
-    //         .and(named("createStreaming"))
-    //         .and(takesArgument(0, named("com.openai.models.responses.ResponseCreateParams")))
-    //         .and(returns(named("com.openai.core.http.HttpResponseFor"))),
-    //     getClass().getName() + "$CreateStreamingAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("createStreaming"))
+            .and(takesArgument(0, named("com.openai.models.responses.ResponseCreateParams")))
+            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
+        getClass().getName() + "$CreateStreamingAdvice");
 
     // TODO retrieve
     // TODO delete
@@ -75,33 +73,33 @@ public class ResponseServiceInstrumentation implements Instrumenter.ForSingleTyp
     }
   }
 
-  // public static class CreateStreamingAdvice {
-  //
-  //   @Advice.OnMethodEnter(suppress = Throwable.class)
-  //   public static AgentScope enter(@Advice.Argument(0) final ChatCompletionCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
-  //     AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
-  //     DECORATE.afterStart(span);
-  //     DECORATE.decorateWithClientOptions(span, clientOptions);
-  //     DECORATE.decorateChatCompletion(span, params);
-  //     return activateSpan(span);
-  //   }
-  //
-  //   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  //   public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<StreamResponse<ResponseStreamEvent>> response, @Advice.Thrown final Throwable err) {
-  //     final AgentSpan span = scope.span();
-  //     try {
-  //       if (err != null) {
-  //         DECORATE.onError(span, err);
-  //       }
-  //       if (response != null) {
-  //         response = ResponseWrappers.wrapStreamResponse(response, span, DECORATE::decorateWithResponseStreamEvent);
-  //       } else {
-  //         span.finish();
-  //       }
-  //       DECORATE.beforeFinish(span);
-  //     } finally {
-  //       scope.close();
-  //     }
-  //   }
-  // }
+  public static class CreateStreamingAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope enter(@Advice.Argument(0) final ResponseCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+      AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
+      DECORATE.afterStart(span);
+      DECORATE.decorateWithClientOptions(span, clientOptions);
+      DECORATE.decorateResponse(span, params);
+      return activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<StreamResponse<ResponseStreamEvent>> response, @Advice.Thrown final Throwable err) {
+      final AgentSpan span = scope.span();
+      try {
+        if (err != null) {
+          DECORATE.onError(span, err);
+        }
+        if (response != null) {
+          response = ResponseWrappers.wrapStreamResponse(response, span, DECORATE::decorateWithResponseStreamEvent);
+        } else {
+          span.finish();
+        }
+        DECORATE.beforeFinish(span);
+      } finally {
+        scope.close();
+      }
+    }
+  }
 }
