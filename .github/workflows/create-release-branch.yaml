@@ -3,7 +3,7 @@ name: Create Release Branch and Pin System-Tests
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.0'  # Trigger on minor release tags (e.g. v1.54.0)
+      - 'v[0-9]+.[0-9]+.0' # Trigger on minor release tags (e.g. v1.54.0)
   workflow_dispatch:
     inputs:
       tag:
@@ -15,8 +15,7 @@ jobs:
   create-release-branch:
     runs-on: ubuntu-latest
     permissions:
-      # contents: write # Allow pushing the empty release branch
-      contents: read
+      contents: write # Allow pushing the empty release branch
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -27,6 +26,12 @@ jobs:
 
       - name: Checkout dd-trace-java at tag
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        with:
+          ref: master
+
+      - name: Get head SHA of master branch
+        id: get-head-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Determine tag
         id: determine-tag
@@ -90,7 +95,7 @@ jobs:
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-temp-branch.outputs.temp-branch }}"
-          head-sha: "${{ github.sha }}"
+          head-sha: "${{ steps.get-head-sha.outputs.sha }}"
           create-branch: true
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
