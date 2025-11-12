@@ -135,7 +135,7 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'spring boot dependency'() throws IOException {
     when:
-    String zipPath = zipPath('datadog/telemetry/dependencies/spring-boot-app.jar')
+    URI zipPath = zipPath('datadog/telemetry/dependencies/spring-boot-app.jar')
     URI uri = new URI("jar:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
 
     Dependency dep = DependencyResolver.resolve(uri).get(0)
