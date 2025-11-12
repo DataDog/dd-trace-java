@@ -200,7 +200,7 @@ class AIGuardInternalTests extends DDSpecification {
 
     receivedMeta.messages == suite.messages
     if (suite.tags) {
-      receivedMeta.matching_rules == suite.tags
+      receivedMeta.attack_categories == suite.tags
     }
     assertRequest(request, suite.messages)
     if (throwAbortError) {
