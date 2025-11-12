@@ -1,4 +1,4 @@
-package datadog.trace.payloadtags.json
+package datadog.trace.util.json
 
 import spock.lang.Specification
 
@@ -6,6 +6,20 @@ class JsonPathParserSpec extends Specification {
 
   static jp() {
     return JsonPath.Builder.start()
+  }
+
+  def "parse lists of json-path patterns for payload tagging"() {
+    expect:
+    JsonPathParser.parseJsonPaths(paths).toString() == expected
+
+    where:
+    paths                    | expected
+    ['$.a']                  | '[$[\'a\']]'
+    ['$.a.b.c', '$.x.y.z']   | '[$[\'a\'][\'b\'][\'c\'], $[\'x\'][\'y\'][\'z\']]'
+    ['$.BarFoo', "invalid"]  | '[$[\'BarFoo\']]'
+    ['all']                  | '[]'
+    ['all', 'all']           | '[]'
+    ['invalid1', "invalid2"] | '[]'
   }
 
   def "parse correct json-path patterns"() {
