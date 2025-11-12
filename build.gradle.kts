@@ -35,7 +35,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
 
     // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.29.0")
+    googleJavaFormat("1.32.0")
   }
   groovyGradle {
     greclipse()
