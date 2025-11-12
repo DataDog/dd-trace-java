@@ -3,10 +3,12 @@ package datadog.communication.monitor;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -54,8 +56,30 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
       nameMapping = new NameResolver(namespace);
     }
 
-    if (null != constantTags && constantTags.length > 0) {
-      tagMapping = new TagCombiner(constantTags);
+    final List<String> processTags = ProcessTags.getTagsAsStringList();
+    final int processTagSize = processTags != null ? processTags.size() : 0;
+    String[] finalConstantTags = constantTags;
+    if (processTagSize > 0) {
+      final int constantTagSize = constantTags != null ? constantTags.length : 0;
+      if (constantTagSize == 0) {
+        finalConstantTags = processTags.toArray(new String[0]);
+      } else {
+        final int tagSizeSum = processTagSize + constantTagSize;
+        finalConstantTags = new String[tagSizeSum];
+        int pos = 0;
+        // copy constant tags
+        for (; pos < constantTagSize; pos++) {
+          finalConstantTags[pos] = constantTags[pos];
+        }
+        // copy process tags
+        for (int i = 0; i < processTagSize; i++) {
+          finalConstantTags[pos + i] = processTags.get(i);
+        }
+      }
+    }
+
+    if (null != finalConstantTags && finalConstantTags.length > 0) {
+      tagMapping = new TagCombiner(finalConstantTags);
     }
 
     if (USE_LOGGING_CLIENT) {
