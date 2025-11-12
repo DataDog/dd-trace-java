@@ -3,12 +3,14 @@ package datadog.trace.llmobs.domain
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.api.llmobs.LLMObsSpan
 import datadog.trace.api.llmobs.LLMObsTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import org.apache.groovy.util.Maps
@@ -114,6 +116,21 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert innerSpan.isError()
     assert innerSpan.getTag(DDTags.ERROR_MSG) instanceof String
     assert errMsg.equals(innerSpan.getTag(DDTags.ERROR_MSG))
+
+    assert null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    assert tagEnv instanceof UTF8BytesString
+    assert "test-env" == tagEnv.toString()
+
+    assert null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    assert tagSvc instanceof UTF8BytesString
+    assert "test-svc" == tagSvc.toString()
+
+    assert null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    assert tagVersion instanceof UTF8BytesString
+    assert "v1" == tagVersion.toString()
   }
 
   def "test span with overwrites"() {
@@ -183,6 +200,22 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert throwableMsg.equals(innerSpan.getTag(DDTags.ERROR_MSG))
     assert innerSpan.getTag(DDTags.ERROR_STACK) instanceof String
     assert ((String)innerSpan.getTag(DDTags.ERROR_STACK)).contains(throwableMsg)
+
+
+    assert null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    assert tagEnv instanceof UTF8BytesString
+    assert "test-env" == tagEnv.toString()
+
+    assert null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    assert tagSvc instanceof UTF8BytesString
+    assert "test-svc" == tagSvc.toString()
+
+    assert null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    assert tagVersion instanceof UTF8BytesString
+    assert "v1" == tagVersion.toString()
   }
 
   def "test llm span string input formatted to messages"() {
@@ -218,6 +251,22 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert expectedOutputMsg.getContent().equals(output)
     assert expectedOutputMsg.getRole().equals("unknown")
     assert expectedOutputMsg.getToolCalls().equals(null)
+
+
+    assert null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    assert tagEnv instanceof UTF8BytesString
+    assert "test-env" == tagEnv.toString()
+
+    assert null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    assert tagSvc instanceof UTF8BytesString
+    assert "test-svc" == tagSvc.toString()
+
+    assert null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    assert tagVersion instanceof UTF8BytesString
+    assert "v1" == tagVersion.toString()
   }
 
   def "test llm span with messages"() {
@@ -259,9 +308,24 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert toolCall.getToolId().equals("6176241000")
     def expectedToolArgs = Maps.of("location", "paris")
     assert toolCall.getArguments().equals(expectedToolArgs)
+
+    assert null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    assert tagEnv instanceof UTF8BytesString
+    assert "test-env" == tagEnv.toString()
+
+    assert null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    assert tagSvc instanceof UTF8BytesString
+    assert "test-svc" == tagSvc.toString()
+
+    assert null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    assert tagVersion instanceof UTF8BytesString
+    assert "v1" == tagVersion.toString()
   }
 
   private LLMObsSpan givenALLMObsSpan(String kind, name){
-    new DDLLMObsSpan(kind, name, "test-ml-app", null, "test-svc")
+    new DDLLMObsSpan(kind, name, "test-ml-app", null, "test-svc", new WellKnownTags("test-runtime-1", "host-1", "test-env", "test-svc", "v1", "java"))
   }
 }
