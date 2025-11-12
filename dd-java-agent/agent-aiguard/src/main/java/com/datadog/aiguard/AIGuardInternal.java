@@ -69,7 +69,7 @@ public class AIGuardInternal implements Evaluator {
   static final String BLOCKED_TAG = "ai_guard.blocked";
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
-  static final String META_STRUCT_MATCHING_RULES = "matching_rules";
+  static final String META_STRUCT_CATEGORIES = "attack_categories";
 
   public static void install() {
     final Config config = Config.get();
@@ -231,7 +231,7 @@ public class AIGuardInternal implements Evaluator {
           span.setTag(REASON_TAG, reason);
         }
         if (tags != null && !tags.isEmpty()) {
-          metaStruct.put(META_STRUCT_MATCHING_RULES, tags);
+          metaStruct.put(META_STRUCT_CATEGORIES, tags);
         }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
