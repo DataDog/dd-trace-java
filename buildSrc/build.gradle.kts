@@ -86,8 +86,8 @@ testing {
   suites {
     val test by getting(JvmTestSuite::class) {
       dependencies {
-        implementation(libs.spock.core)
         implementation(libs.groovy)
+        implementation(libs.spock.core)
       }
       targets.configureEach {
         testTask.configure {
