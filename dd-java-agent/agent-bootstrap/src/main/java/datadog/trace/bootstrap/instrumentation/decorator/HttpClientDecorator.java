@@ -79,7 +79,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       List<DataStreamsTransactionExtractor> extractorList =
           dataStreamsMonitoring.getTransactionExtractorsByType(
               DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS);
-      if (!extractorList.isEmpty()) {
+      if (extractorList != null) {
         for (DataStreamsTransactionExtractor extractor : extractorList) {
           String transactionId = getRequestHeader(request, extractor.getValue());
           if (transactionId != null && !transactionId.isEmpty()) {

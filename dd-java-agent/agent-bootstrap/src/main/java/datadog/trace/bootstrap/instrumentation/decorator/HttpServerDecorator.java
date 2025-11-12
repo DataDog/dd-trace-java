@@ -340,7 +340,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       List<DataStreamsTransactionExtractor> extractorList =
           dataStreamsMonitoring.getTransactionExtractorsByType(
               DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS);
-      if (!extractorList.isEmpty()) {
+      if (extractorList != null) {
         for (DataStreamsTransactionExtractor extractor : extractorList) {
           String transactionId = getRequestHeader(request, extractor.getValue());
           if (transactionId != null) {
