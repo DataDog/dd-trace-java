@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,7 +141,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private volatile Map<String, Object> derivatives;
+  private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
@@ -649,9 +650,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       requestHeaders.clear();
       responseHeaders.clear();
       persistentData.clear();
+      final Map<String, Object> derivatives = this.derivatives.getAndSet(null);
       if (derivatives != null) {
         derivatives.clear();
-        derivatives = null;
       }
     }
   }
@@ -743,54 +744,57 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
-    // Store raw derivatives
-    if (derivatives == null) {
-      derivatives = new HashMap<>();
-    }
+    // Initialize or update derivatives atomically
+    derivatives.updateAndGet(
+        current -> {
+          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
 
-    // Process each attribute according to the specification
-    for (Map.Entry<String, Object> entry : data.entrySet()) {
-      String attributeKey = entry.getKey();
-      Object attributeConfig = entry.getValue();
+          // Process each attribute according to the specification
+          for (Map.Entry<String, Object> entry : data.entrySet()) {
+            String attributeKey = entry.getKey();
+            Object attributeConfig = entry.getValue();
 
-      if (attributeConfig instanceof Map) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> config = (Map<String, Object>) attributeConfig;
+            if (attributeConfig instanceof Map) {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> config = (Map<String, Object>) attributeConfig;
 
-        // Check if it's a literal value schema
-        if (config.containsKey("value")) {
-          Object literalValue = config.get("value");
-          if (literalValue != null) {
-            // Preserve the original type - don't convert to string
-            derivatives.put(attributeKey, literalValue);
-            log.debug(
-                "Added literal attribute: {} = {} (type: {})",
-                attributeKey,
-                literalValue,
-                literalValue.getClass().getSimpleName());
+              // Check if it's a literal value schema
+              if (config.containsKey("value")) {
+                Object literalValue = config.get("value");
+                if (literalValue != null) {
+                  // Preserve the original type - don't convert to string
+                  updated.put(attributeKey, literalValue);
+                  log.debug(
+                      "Added literal attribute: {} = {} (type: {})",
+                      attributeKey,
+                      literalValue,
+                      literalValue.getClass().getSimpleName());
+                }
+              }
+              // Check if it's a request data schema
+              else if (config.containsKey("address")) {
+                String address = (String) config.get("address");
+                @SuppressWarnings("unchecked")
+                List<String> keyPath = (List<String>) config.get("key_path");
+                @SuppressWarnings("unchecked")
+                List<String> transformers = (List<String>) config.get("transformers");
+
+                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+                if (extractedValue != null) {
+                  // For extracted values, convert to string as they come from request data
+                  updated.put(attributeKey, extractedValue.toString());
+                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+                }
+              }
+            } else {
+              // Handle plain string/numeric values
+              updated.put(attributeKey, attributeConfig);
+              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+            }
           }
-        }
-        // Check if it's a request data schema
-        else if (config.containsKey("address")) {
-          String address = (String) config.get("address");
-          @SuppressWarnings("unchecked")
-          List<String> keyPath = (List<String>) config.get("key_path");
-          @SuppressWarnings("unchecked")
-          List<String> transformers = (List<String>) config.get("transformers");
 
-          Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-          if (extractedValue != null) {
-            // For extracted values, convert to string as they come from request data
-            derivatives.put(attributeKey, extractedValue.toString());
-            log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-          }
-        }
-      } else {
-        // Handle plain string/numeric values
-        derivatives.put(attributeKey, attributeConfig);
-        log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
-      }
-    }
+          return updated;
+        });
   }
 
   /**
@@ -938,14 +942,17 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean commitDerivatives(TraceSegment traceSegment) {
-    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null) {
       return false;
     }
 
+    // Get and clear derivatives atomically
+    Map<String, Object> derivativesToCommit = derivatives.getAndSet(null);
+    log.debug("Committing derivatives: {} for {}", derivativesToCommit, traceSegment);
+
     // Process and commit derivatives directly
-    if (derivatives != null && !derivatives.isEmpty()) {
-      for (Map.Entry<String, Object> entry : derivatives.entrySet()) {
+    if (derivativesToCommit != null && !derivativesToCommit.isEmpty()) {
+      for (Map.Entry<String, Object> entry : derivativesToCommit.entrySet()) {
         String key = entry.getKey();
         Object value = entry.getValue();
 
@@ -969,14 +976,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    // Clear all attribute maps
-    derivatives = null;
     return true;
   }
 
   // Mainly used for testing and logging
   Set<String> getDerivativeKeys() {
-    return derivatives == null ? emptySet() : new HashSet<>(derivatives.keySet());
+    Map<String, Object> current = derivatives.get();
+    return current == null ? emptySet() : new HashSet<>(current.keySet());
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {
