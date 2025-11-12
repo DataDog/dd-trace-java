@@ -6,6 +6,7 @@ minimumBranchCoverage = 0.0
 dependencies {
   // minimum OpenTelemetry API version this shim is compatible with
   compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.47.0'
-
   implementation project(':internal-api')
+  compileOnly "com.google.auto.value:auto-value-annotations:1.6"
+  annotationProcessor "com.google.auto.value:auto-value:1.6"
 }

@@ -26,7 +26,7 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   @Override
   protected boolean defaultEnabled() {
     // return InstrumenterConfig.get().isMetricsOtelEnabled();
-    return false;
+    return true;
   }
 
   @Override
@@ -58,9 +58,35 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
       "datadog.opentelemetry.shim.metrics.OtelMeter",
       "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
       "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
+      "datadog.opentelemetry.shim.metrics.Instrument",
+      "datadog.opentelemetry.shim.metrics.InstrumentType",
+      "datadog.opentelemetry.shim.metrics.InstrumentValueType",
+      "datadog.opentelemetry.shim.metrics.InstrumentBuilder",
+      "datadog.opentelemetry.shim.metrics.InstrumentBuilder$SynchronousInstrumentConstructor",
+      "datadog.opentelemetry.shim.metrics.InstrumentBuilder$SwapBuilder",
+      "datadog.opentelemetry.shim.metrics.MetricStreamIdentity",
+      "datadog.opentelemetry.shim.metrics.AutoValue_MetricStreamIdentity",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$OtelDoubleCounterBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleGauge$OtelDoubleGaugeBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram$OtelDoubleHistogramBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter",
+      "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter$OtelDoubleUpDownCounterBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelLongCounter",
+      "datadog.opentelemetry.shim.metrics.OtelLongCounter$OtelLongCounterBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelLongGauge",
+      "datadog.opentelemetry.shim.metrics.OtelLongGauge$OtelLongGaugeBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelLongHistogram",
+      "datadog.opentelemetry.shim.metrics.OtelLongHistogram$OtelLongHistogramBuilder",
+      "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter",
+      "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter$OtelLongUpDownCounterBuilder",
     };
   }
 
+  // "datadog.opentelemetry.shim.metrics.Instrument",
+  //
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     // MeterProvider OpenTelemetry.getMeterProvider()

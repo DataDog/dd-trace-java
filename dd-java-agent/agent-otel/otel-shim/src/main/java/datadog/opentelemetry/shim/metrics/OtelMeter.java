@@ -37,26 +37,38 @@ public class OtelMeter implements Meter {
 
   @Override
   public LongCounterBuilder counterBuilder(String instrumentName) {
-    LOGGER.info("CounterBuilder is not yet supported");
-    return null;
+    LOGGER.info("CounterBuilder is supported");
+    if (isInstrumentNameInvalid(instrumentName)) {
+      return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME);
+    }
+    return new OtelLongCounter.OtelLongCounterBuilder(this, instrumentName);
   }
 
   @Override
   public LongUpDownCounterBuilder upDownCounterBuilder(String instrumentName) {
-    LOGGER.info("upDownCounterBuilder is not yet supported");
-    return null;
+    LOGGER.info("upDownCounterBuilder is supported");
+    if (isInstrumentNameInvalid(instrumentName)) {
+      return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME);
+    }
+    return new OtelLongUpDownCounter.OtelLongUpDownCounterBuilder(this, instrumentName);
   }
 
   @Override
   public DoubleHistogramBuilder histogramBuilder(String instrumentName) {
-    LOGGER.info("histogramBuilder is not yet supported");
-    return null;
+    LOGGER.info("histogramBuilder is supported");
+    if (isInstrumentNameInvalid(instrumentName)) {
+      return NOOP_METER.histogramBuilder(NOOP_INSTRUMENT_NAME);
+    }
+    return new OtelDoubleHistogram.OtelDoubleHistogramBuilder(this, instrumentName);
   }
 
   @Override
   public DoubleGaugeBuilder gaugeBuilder(String instrumentName) {
-    LOGGER.info("gaugeBuilder is not yet supported");
-    return null;
+    LOGGER.info("gaugeBuilder is supported");
+    if (isInstrumentNameInvalid(instrumentName)) {
+      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME);
+    }
+    return new OtelDoubleGauge.OtelDoubleGaugeBuilder(this, instrumentName);
   }
 
   @Override
