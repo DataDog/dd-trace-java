@@ -8,6 +8,7 @@ import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
 import com.openai.models.embeddings.EmbeddingModel
+import com.openai.models.responses.ResponseCreateParams
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.llmobs.LlmObsSpecification
 import spock.lang.AutoCleanup
@@ -1756,6 +1757,89 @@ data: [DONE]
           response.status(500).send("Unexpected Request!")
         }
       }
+      prefix("/$API_VERSION/responses") {
+        if ('{"input":"Do not continue the Evan Li slander!","model":"gpt-3.5-turbo"}' == request.text) {
+          response
+              .status(200)
+              .addHeader("openai-organization", "datadog-staging")
+              .addHeader("x-ratelimit-limit-requests", "10000")
+              .addHeader("x-ratelimit-limit-tokens", "50000000")
+              .addHeader("x-ratelimit-remaining-requests", "9999")
+              .addHeader("x-ratelimit-remaining-tokens", "49999980")
+              .send("""
+{
+  "id": "resp_0f9440f3a92aab90016913c990a6108190ba89e37e0d6bbd84",
+  "object": "response",
+  "created_at": 1762904464,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "model": "gpt-3.5-turbo-0125",
+  "output": [
+    {
+      "id": "msg_0f9440f3a92aab90016913c9915cdc8190845573bbc9547ba6",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "I'm here to provide respectful and considerate responses. If there are any concerns or topics you would like to discuss, feel free to let me know. I am here to assist you."
+        }
+      ],
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 1.0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 15,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 39,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "total_tokens": 54
+  },
+  "user": null,
+  "metadata": {}
+}
+""")
+        } else {
+          response.status(500).send("Unexpected Request!")
+        }
+      }
     }
   }
 
@@ -1793,6 +1877,13 @@ data: [DONE]
     EmbeddingCreateParams.builder()
       .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
       .input("hello world")
+      .build()
+  }
+
+  ResponseCreateParams responseCreateParams() {
+    ResponseCreateParams.builder()
+      .model(ChatModel.GPT_3_5_TURBO)
+      .input("Do not continue the Evan Li slander!")
       .build()
   }
 }

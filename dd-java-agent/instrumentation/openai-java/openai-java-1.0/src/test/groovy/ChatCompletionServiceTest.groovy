@@ -15,7 +15,7 @@ import java.util.stream.Stream
 
 class ChatCompletionServiceTest extends OpenAiTest {
 
-  def "single request chat/completion test"() {
+  def "create chat/completion test"() {
     ChatCompletion resp = runUnderTrace("parent") {
       openAiClient.chat().completions().create(chatCompletionCreateParams())
     }
@@ -26,7 +26,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "single request chat/completion test withRawResponse"() {
+  def "create chat/completion test withRawResponse"() {
     HttpResponseFor<ChatCompletion> resp = runUnderTrace("parent") {
       openAiClient.chat().withRawResponse().completions().create(chatCompletionCreateParams())
     }
@@ -38,7 +38,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "single async request chat/completion test"() {
+  def "create async chat/completion test"() {
     CompletableFuture<ChatCompletion> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().create(chatCompletionCreateParams())
     }
@@ -49,7 +49,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "single async request chat/completion test withRawResponse"() {
+  def "create async chat/completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().create(chatCompletionCreateParams())
     }
@@ -61,7 +61,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "streamed request chat/completion test"() {
+  def "create streaming chat/completion test"() {
     runnableUnderTrace("parent") {
       StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParams())
       try (Stream stream = streamCompletion.stream()) { // close the stream after use
@@ -75,7 +75,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "streamed request chat/completion test withRawResponse"() {
+  def "create streaming chat/completion test withRawResponse"() {
     runnableUnderTrace("parent") {
       HttpResponseFor<StreamResponse<ChatCompletionChunk>> streamCompletion = openAiClient.chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
       try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
@@ -89,7 +89,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "streamed async request chat/completion test"() {
+  def "create streaming async chat/completion test"() {
     AsyncStreamResponse<ChatCompletionChunk> asyncResp = runUnderTrace("parent") {
       openAiClient.async().chat().completions().createStreaming(chatCompletionCreateParams())
     }
@@ -101,7 +101,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace()
   }
 
-  def "streamed async request chat/completion test withRawResponse"() {
+  def "create streaming async chat/completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
     }

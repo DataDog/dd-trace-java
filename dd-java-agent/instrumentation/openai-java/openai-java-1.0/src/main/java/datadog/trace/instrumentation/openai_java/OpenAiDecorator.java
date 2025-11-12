@@ -10,6 +10,8 @@ import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.EmbeddingCreateParams;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -29,6 +31,7 @@ public class OpenAiDecorator extends ClientDecorator {
   private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("createCompletion");
   private static final CharSequence CHAT_COMPLETIONS_CREATE = UTF8BytesString.create("createChatCompletion");
   private static final CharSequence EMBEDDINGS_CREATE = UTF8BytesString.create("createEmbedding");
+  private static final CharSequence RESPONSES_CREATE = UTF8BytesString.create("createResponse");
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
 
   @Override
@@ -60,7 +63,7 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().asString());
+    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
 
     //TODO set LLMObs tags (not visible to APM)
   }
@@ -79,7 +82,7 @@ public class OpenAiDecorator extends ClientDecorator {
     //TODO set LLMObs tags (not visible to APM)
   }
 
-  public void decorateWithResponse(AgentSpan span, HttpResponse response) {
+  public void decorateWithHttpResponse(AgentSpan span, HttpResponse response) {
     Headers headers = response.headers();
     setTagFromHeader(span, OPENAI_ORGANIZATION_NAME, headers, "openai-organization");
 
@@ -125,9 +128,8 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().asString());
+    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
   }
-
   public void decorateWithChatCompletion(AgentSpan span, ChatCompletion completion) {
     span.setTag(RESPONSE_MODEL, completion.model());
 
@@ -149,7 +151,7 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().asString());
+    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
 
     //TODO set LLMObs tags (not visible to APM)
   }
@@ -159,4 +161,21 @@ public class OpenAiDecorator extends ClientDecorator {
 
     //TODO set LLMObs tags (not visible to APM)
   }
+
+  public void decorateResponse(AgentSpan span, ResponseCreateParams params) {
+    span.setResourceName(RESPONSES_CREATE);
+    span.setTag("openai.request.endpoint", "v1/responses");
+    span.setTag("openai.request.method", "POST");
+    if (params == null) {
+      return;
+    }
+    span.setTag(REQUEST_MODEL, "gpt-3.5-turbo"); // TODO extract model, might not be set
+  }
+
+  public void decorateWithResponse(AgentSpan span, Response response) {
+    span.setTag(RESPONSE_MODEL, "gpt-3.5-turbo-0125"); // TODO extract response model, there is no single method
+
+    //TODO set LLMObs tags (not visible to APM)
+  }
+
 }

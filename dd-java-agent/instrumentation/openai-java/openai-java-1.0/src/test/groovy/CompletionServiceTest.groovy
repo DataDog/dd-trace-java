@@ -13,7 +13,7 @@ import java.util.stream.Stream
 
 class CompletionServiceTest extends OpenAiTest {
 
-  def "single request completion test"() {
+  def "create completion test"() {
     Completion resp = runUnderTrace("parent") {
       openAiClient.completions().create(completionCreateParams())
     }
@@ -24,7 +24,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single request completion test withRawResponse"() {
+  def "create completion test withRawResponse"() {
     HttpResponseFor<Completion> resp = runUnderTrace("parent") {
       openAiClient.withRawResponse().completions().create(completionCreateParams())
     }
@@ -36,7 +36,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single async request completion test"() {
+  def "create async completion test"() {
     CompletableFuture<Completion> completionFuture = runUnderTrace("parent") {
       openAiClient.async().completions().create(completionCreateParams())
     }
@@ -47,7 +47,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "single async request completion test withRawResponse"() {
+  def "create async completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().completions().withRawResponse().create(completionCreateParams())
     }
@@ -59,7 +59,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "streamed request completion test"() {
+  def "create streaming completion test"() {
     runnableUnderTrace("parent") {
       StreamResponse<Completion> streamCompletion = openAiClient.completions().createStreaming(completionCreateParams())
       try (Stream stream = streamCompletion.stream()) { // close the stream after use
@@ -73,7 +73,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "streamed request completion test withRawResponse"() {
+  def "create streaming completion test withRawResponse"() {
     runnableUnderTrace("parent") {
       HttpResponseFor<StreamResponse<Completion>> streamCompletion = openAiClient.completions().withRawResponse().createStreaming(completionCreateParams())
       try (Stream stream = streamCompletion.parse().stream()) { // close the stream after use
@@ -87,7 +87,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "streamed async request completion test"() {
+  def "create streaming async completion test"() {
     AsyncStreamResponse<Completion> asyncResp = runUnderTrace("parent") {
       openAiClient.async().completions().createStreaming(completionCreateParams())
     }
@@ -99,7 +99,7 @@ class CompletionServiceTest extends OpenAiTest {
     assertCompletionTrace()
   }
 
-  def "streamed async request completion test withRawResponse"() {
+  def "create streaming async completion test withRawResponse"() {
     CompletableFuture<HttpResponseFor<StreamResponse<Completion>>> future = runUnderTrace("parent") {
       openAiClient.async().completions().withRawResponse().createStreaming(completionCreateParams())
     }

@@ -33,7 +33,8 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
         new CompletionServiceAsyncInstrumentation(),
         new ChatCompletionServiceInstrumentation(),
         new ChatCompletionServiceAsyncInstrumentation(),
-        new EmbeddingServiceInstrumentation()
+        new EmbeddingServiceInstrumentation(),
+        new ResponseServiceInstrumentation()
     );
   }
 }
