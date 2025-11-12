@@ -207,6 +207,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
       DataStreamsTransactionExtractor.Type extractorType) {
+    if (!supportsDataStreams) {
+      return NO_EXTRACTORS;
+    }
+
     extractorsLock.readLock().lock();
     try {
       return extractorsByType.getOrDefault(extractorType, NO_EXTRACTORS);
