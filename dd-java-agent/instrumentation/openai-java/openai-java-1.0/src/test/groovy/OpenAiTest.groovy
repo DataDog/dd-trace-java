@@ -1,6 +1,6 @@
 import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
-import com.openai.client.okhttp.OpenAIOkHttpClient
+import com.openai.client.okhttp.OkHttpClient
 import com.openai.core.ClientOptions
 import com.openai.credential.BearerTokenCredential
 import com.openai.models.ChatModel
@@ -2000,18 +2000,33 @@ data: {"type":"response.completed","sequence_number":41,"response":{"id":"resp_0
   }
 
   def setupSpec() {
-    OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
+    ClientOptions.Builder clientOptions = ClientOptions.builder()
+    OkHttpClient.Builder httpClient = OkHttpClient.builder()
+
     if (Strings.isNullOrEmpty(openAiToken())) {
       // mock backend
       openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
-      b.baseUrl(openAiBaseApi)
-      b.credential(BearerTokenCredential.create(""))
+      httpClient.baseUrl(openAiBaseApi)
+      // clientOptions.baseUrl(openAiBaseApi)
+      clientOptions.credential(BearerTokenCredential.create(""))
     } else {
       // real openai backend
-      b.credential(BearerTokenCredential.create(openAiToken()))
       openAiBaseApi = ClientOptions.PRODUCTION_URL
+      httpClient.baseUrl(openAiBaseApi)
+      // clientOptions.baseUrl(openAiBaseApi)
+      clientOptions.credential(BearerTokenCredential.create(openAiToken()))
     }
-    openAiClient = b.build()
+    // TODO pass custom httpClient into clientOptions to capture responses for tests
+    clientOptions.httpClient(httpClient.build())
+    openAiClient = createOpenAiClient(clientOptions.build())
+  }
+
+  OpenAIClient createOpenAiClient(ClientOptions clientOptions) {
+    // use reflection to be able to set custom httpClient via clientOptions that is not accessible via public interface
+    def clazz = Class.forName("com.openai.client.OpenAIClientImpl")
+    def constructor = clazz.constructors[0]
+    constructor.accessible = true
+    constructor.newInstance(clientOptions) as OpenAIClient
   }
 
   CompletionCreateParams completionCreateParams() {
