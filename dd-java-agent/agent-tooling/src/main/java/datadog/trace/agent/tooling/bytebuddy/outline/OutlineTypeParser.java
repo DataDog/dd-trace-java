@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.an
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_CODE;
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_DEBUG;
 
+import datadog.instrument.classmatch.ClassFile;
+import datadog.trace.api.InstrumenterConfig;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -18,13 +20,19 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 /** Attempts a minimal parse of just the named elements we need for matching. */
 final class OutlineTypeParser implements TypeParser {
+  private static final boolean visitorClassParsing =
+      InstrumenterConfig.get().isVisitorClassParsing();
 
   @Override
   public TypeDescription parse(byte[] bytecode) {
-    ClassReader classReader = OpenedClassReader.of(bytecode);
-    OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
-    classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
-    return typeExtractor.typeOutline;
+    if (visitorClassParsing) {
+      ClassReader classReader = OpenedClassReader.of(bytecode);
+      OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
+      classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
+      return typeExtractor.typeOutline;
+    } else {
+      return new TypeOutline(ClassFile.outline(bytecode));
+    }
   }
 
   @Override
@@ -39,7 +47,7 @@ final class OutlineTypeParser implements TypeParser {
             extractTypeNames(loadedType.getInterfaces()));
 
     for (Annotation a : loadedType.getDeclaredAnnotations()) {
-      typeOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
+      typeOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
     }
 
     for (Field field : loadedType.getDeclaredFields()) {
@@ -50,7 +58,7 @@ final class OutlineTypeParser implements TypeParser {
               field.getName(),
               Type.getDescriptor(field.getType()));
       for (Annotation a : field.getDeclaredAnnotations()) {
-        fieldOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
+        fieldOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
       }
       typeOutline.declare(fieldOutline);
     }
@@ -63,7 +71,7 @@ final class OutlineTypeParser implements TypeParser {
               method.getName(),
               Type.getMethodDescriptor(method));
       for (Annotation a : method.getDeclaredAnnotations()) {
-        methodOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
+        methodOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
       }
       typeOutline.declare(methodOutline);
     }

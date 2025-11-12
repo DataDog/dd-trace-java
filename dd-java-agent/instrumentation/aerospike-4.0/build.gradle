@@ -1,7 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_21
-}
 muzzle {
   pass {
     group = 'com.aerospike'
@@ -13,12 +9,22 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 addTestSuiteExtendingForDir("latest7DepForkedTest", "latest7DepTest", "test")
 
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_21
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_21
+  }
+}
 
 dependencies {
   compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'

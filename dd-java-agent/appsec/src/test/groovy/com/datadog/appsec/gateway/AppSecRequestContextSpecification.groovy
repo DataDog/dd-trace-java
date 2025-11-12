@@ -265,13 +265,15 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.responseHeaders.put('Content-Type', ['text/plain'])
     ctx.collectedCookies = [cookie : ['test']]
     ctx.persistentData.put(KnownAddresses.REQUEST_METHOD, 'GET')
-    ctx.derivatives = ['a': 'b']
+    // Use reportDerivatives to properly set values via AtomicReference
+    ctx.reportDerivatives(['test_attr': ['value': 'test_value']])
     ctx.wafContext = createWafContext()
     ctx.close()
 
     then:
     ctx.wafContext == null
-    ctx.derivatives == null
+    // Check that derivatives AtomicReference contains null after close
+    ctx.derivatives.get() == null
 
     ctx.requestHeaders.isEmpty()
     ctx.responseHeaders.isEmpty()
@@ -450,5 +452,271 @@ class AppSecRequestContextSpecification extends DDSpecification {
     map.each { requestId, sampled ->
       assert context.isHttpClientRequestSampled(requestId) == sampled
     }
+  }
+
+  def "test commitDerivatives with different value types"() {
+    given:
+    def context = new AppSecRequestContext()
+    def mockTraceSegment = Mock(datadog.trace.api.internal.TraceSegment)
+    def committedTags = [:]
+
+    // Mock setTagTop to capture what's being set
+    mockTraceSegment.setTagTop(_ as String, _ as Object) >> { String key, Object value ->
+      committedTags[key] = value
+    }
+
+    // Set up derivatives with different types
+    def derivatives = [
+      'numeric_int': ['value': 42],
+      'numeric_double': ['value': 3.14],
+      'string_value': ['value': 'test_string'],
+      'boolean_true': ['value': true],
+      'boolean_false': ['value': false],
+      'numeric_string': ['value': '100'],
+      'double_string': ['value': '99.5'],
+      'non_numeric_string': ['value': 'not_a_number']
+    ]
+
+    when:
+    context.reportDerivatives(derivatives)
+    def result = context.commitDerivatives(mockTraceSegment)
+
+    then:
+    result == true
+    committedTags.size() == 8
+
+    // Verify numeric values are preserved as numbers
+    committedTags['numeric_int'] == 42
+    committedTags['numeric_int'] instanceof Integer
+
+    // In Groovy, 3.14 is BigDecimal, not Double - both are Numbers
+    committedTags['numeric_double'] == 3.14
+    committedTags['numeric_double'] instanceof Number
+
+    // Verify strings are handled correctly
+    committedTags['string_value'] == 'test_string'
+    committedTags['string_value'] instanceof String
+
+    // Verify booleans are preserved
+    committedTags['boolean_true'] == true
+    committedTags['boolean_true'] instanceof Boolean
+
+    committedTags['boolean_false'] == false
+    committedTags['boolean_false'] instanceof Boolean
+
+    // Verify numeric strings are converted to numbers
+    committedTags['numeric_string'] == 100
+    committedTags['numeric_string'] instanceof Long
+
+    committedTags['double_string'] == 99.5
+    committedTags['double_string'] instanceof Number
+
+    // Verify non-numeric strings remain strings
+    committedTags['non_numeric_string'] == 'not_a_number'
+    committedTags['non_numeric_string'] instanceof String
+  }
+
+  def "test commitDerivatives clears derivatives atomically"() {
+    given:
+    def context = new AppSecRequestContext()
+    def mockTraceSegment = Mock(datadog.trace.api.internal.TraceSegment)
+
+    def derivatives = [
+      'attr1': ['value': 'value1'],
+      'attr2': ['value': 'value2']
+    ]
+
+    when:
+    context.reportDerivatives(derivatives)
+
+    then:
+    context.getDerivativeKeys().size() == 2
+
+    when:
+    context.commitDerivatives(mockTraceSegment)
+
+    then:
+    // Derivatives should be cleared after commit
+    context.getDerivativeKeys().isEmpty()
+    context.derivatives.get() == null
+  }
+
+  def "test commitDerivatives with null TraceSegment returns false"() {
+    given:
+    def context = new AppSecRequestContext()
+
+    when:
+    def result = context.commitDerivatives(null)
+
+    then:
+    result == false
+  }
+
+  def "test multiple reportDerivatives calls accumulate values"() {
+    given:
+    def context = new AppSecRequestContext()
+
+    when:
+    // First report
+    context.reportDerivatives([
+      'attr1': ['value': 'value1'],
+      'attr2': ['value': 'value2']
+    ])
+
+    then:
+    context.getDerivativeKeys().size() == 2
+    context.getDerivativeKeys().contains('attr1')
+    context.getDerivativeKeys().contains('attr2')
+
+    when:
+    // Second report - should accumulate
+    context.reportDerivatives([
+      'attr3': ['value': 'value3'],
+      'attr4': ['value': 'value4']
+    ])
+
+    then:
+    context.getDerivativeKeys().size() == 4
+    context.getDerivativeKeys().contains('attr1')
+    context.getDerivativeKeys().contains('attr2')
+    context.getDerivativeKeys().contains('attr3')
+    context.getDerivativeKeys().contains('attr4')
+  }
+
+  def "test multiple reportDerivatives with overlapping keys uses last value"() {
+    given:
+    def context = new AppSecRequestContext()
+    def mockTraceSegment = Mock(datadog.trace.api.internal.TraceSegment)
+    def committedTags = [:]
+
+    mockTraceSegment.setTagTop(_ as String, _ as Object) >> { String key, Object value ->
+      committedTags[key] = value
+    }
+
+    when:
+    // First report
+    context.reportDerivatives([
+      'attr1': ['value': 'first_value']
+    ])
+
+    // Second report with same key - should overwrite
+    context.reportDerivatives([
+      'attr1': ['value': 'second_value']
+    ])
+
+    context.commitDerivatives(mockTraceSegment)
+
+    then:
+    committedTags['attr1'] == 'second_value'
+  }
+
+  def "test reportDerivatives maintains data integrity under concurrent access"() {
+    given:
+    def context = new AppSecRequestContext()
+    def numThreads = 3
+    def startLatch = new java.util.concurrent.CountDownLatch(1)
+
+    when:
+    // Simulate concurrent updates from multiple threads
+    def executorService = java.util.concurrent.Executors.newFixedThreadPool(numThreads)
+    def futures = []
+
+    futures << executorService.submit({
+      startLatch.await() // Wait for all threads to be ready
+      context.reportDerivatives(['attr1': ['value': 'value1']])
+      context.reportDerivatives(['attr2': ['value': 'value2']])
+    })
+
+    futures << executorService.submit({
+      startLatch.await() // Wait for all threads to be ready
+      context.reportDerivatives(['attr3': ['value': 'value3']])
+      context.reportDerivatives(['attr4': ['value': 'value4']])
+    })
+
+    futures << executorService.submit({
+      startLatch.await() // Wait for all threads to be ready
+      context.reportDerivatives(['attr5': ['value': 'value5']])
+      context.reportDerivatives(['attr6': ['value': 'value6']])
+    })
+
+    // Release all threads at once to maximize concurrent execution
+    startLatch.countDown()
+
+    // Wait for all tasks to complete using the futures
+    futures.each { it.get() }
+    executorService.shutdown()
+
+    then:
+    // Verify all attributes were added despite concurrent access
+    def keys = context.getDerivativeKeys()
+    keys.size() >= 6  // At least the 6 we explicitly added
+    ['attr1', 'attr2', 'attr3', 'attr4', 'attr5', 'attr6'].each { attr ->
+      assert keys.contains(attr), "Missing attribute: ${attr}"
+    }
+  }
+
+  def "test getDerivativeKeys with empty derivatives"() {
+    given:
+    def context = new AppSecRequestContext()
+
+    when:
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.isEmpty()
+  }
+
+  def "test reportDerivatives with extracted values from request data"() {
+    given:
+    def context = new AppSecRequestContext()
+    context.setMethod("POST")
+    context.addRequestHeader("x-custom-header", "custom_value")
+
+    def derivatives = [
+      'extracted_method': [
+        'address': 'server.request.method'
+      ],
+      'extracted_header': [
+        'address': 'server.request.headers',
+        'key_path': ['x-custom-header']
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(derivatives)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 2
+    keys.contains('extracted_method')
+    keys.contains('extracted_header')
+  }
+
+  def "test reportDerivatives with transformers"() {
+    given:
+    def context = new AppSecRequestContext()
+    context.addRequestHeader("user-agent", "Mozilla/5.0")
+
+    def derivatives = [
+      'ua_lowercase': [
+        'address': 'server.request.headers',
+        'key_path': ['user-agent'],
+        'transformers': ['lowercase']
+      ],
+      'ua_uppercase': [
+        'address': 'server.request.headers',
+        'key_path': ['user-agent'],
+        'transformers': ['uppercase']
+      ]
+    ]
+
+    when:
+    context.reportDerivatives(derivatives)
+    def keys = context.getDerivativeKeys()
+
+    then:
+    keys.size() == 2
+    keys.contains('ua_lowercase')
+    keys.contains('ua_uppercase')
   }
 }

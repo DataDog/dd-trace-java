@@ -1,10 +1,9 @@
-// Set properties before any plugins get loaded
-ext {
-  // TODO Java 17: This version of vertx-web doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  // TODO Java 17: This version of vertx-web doesn't support Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 muzzle {
   pass {
@@ -17,8 +16,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-apply from: "$rootDir/gradle/configure_tests.gradle"
 
 tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'

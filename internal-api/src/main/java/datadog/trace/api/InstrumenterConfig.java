@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -29,6 +30,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
@@ -73,6 +75,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENA
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -88,9 +92,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-// import static datadog.trace.api.config.OtelConfig.METRICS_OTEL_ENABLED;
-// import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 
 /**
  * This config is needed before instrumentation is applied
@@ -117,7 +118,7 @@ public class InstrumenterConfig {
   private final boolean codeOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
-  // private final boolean metricsOtelEnabled;
+  private final boolean metricsOtelEnabled;
   private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -165,6 +166,9 @@ public class InstrumenterConfig {
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
+  private final boolean visitorClassParsing;
+
+  private final boolean unsafeClassInjection;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
@@ -208,8 +212,8 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
-    // metricsOtelEnabled = configProvider.getBoolean(METRICS_OTEL_ENABLED,
-    // DEFAULT_METRICS_OTEL_ENABLED);
+    metricsOtelEnabled =
+        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
 
     profilingEnabled =
         ProfilingEnablement.of(
@@ -285,6 +289,9 @@ public class InstrumenterConfig {
         Platform.isNativeImageBuilder()
             ? 0
             : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+
+    unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, false);
+    visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, false);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -371,9 +378,9 @@ public class InstrumenterConfig {
     return traceOtelEnabled;
   }
 
-  // public boolean isMetricsOtelEnabled() {
-  //   return metricsOtelEnabled;
-  // }
+  public boolean isMetricsOtelEnabled() {
+    return metricsOtelEnabled;
+  }
 
   public boolean isProfilingEnabled() {
     return profilingEnabled.isActive();
@@ -515,6 +522,14 @@ public class InstrumenterConfig {
     return resolverCacheDir;
   }
 
+  public boolean isUnsafeClassInjection() {
+    return unsafeClassInjection;
+  }
+
+  public boolean isVisitorClassParsing() {
+    return visitorClassParsing;
+  }
+
   public String getInstrumentationConfigId() {
     return instrumentationConfigId;
   }
@@ -620,8 +635,8 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
-        // + ", metricsOtelEnabled="
-        // + metricsOtelEnabled
+        + ", metricsOtelEnabled="
+        + metricsOtelEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
