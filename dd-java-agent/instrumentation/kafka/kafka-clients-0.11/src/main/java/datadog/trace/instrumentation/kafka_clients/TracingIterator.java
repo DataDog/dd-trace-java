@@ -140,7 +140,6 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             dataStreamsMonitoring.getTransactionExtractorsByType(
                 DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS);
         if (extractors != null) {
-          System.out.println("### applying KAFKA_CONSUME_HEADERS extractors");
           for (DataStreamsTransactionExtractor extractor : extractors) {
             Header header = val.headers().lastHeader(extractor.getValue());
             if (header != null && header.value() != null) {

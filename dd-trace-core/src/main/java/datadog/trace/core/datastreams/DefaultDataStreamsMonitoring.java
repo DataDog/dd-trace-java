@@ -199,7 +199,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void trackTransaction(String transactionId, String checkpointName) {
-    System.out.println("### trackTransaction " + transactionId);
     inbox.offer(
         new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
   }
@@ -474,6 +473,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       extractorsByType.clear();
       List<DataStreamsTransactionExtractor> extractors =
           traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+      if (extractors == null) {
+        return;
+      }
       for (DataStreamsTransactionExtractor extractor : extractors) {
         System.out.println(extractor.toString());
         List<DataStreamsTransactionExtractor> list =

@@ -146,7 +146,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       }
 
       if (hasTransactions) {
-        System.out.println("#### writing transactions ####");
         /* 5 */
         writer.writeUTF8(TRANSACTIONS);
         writer.writeBinary(bucket.getTransactions().getData());

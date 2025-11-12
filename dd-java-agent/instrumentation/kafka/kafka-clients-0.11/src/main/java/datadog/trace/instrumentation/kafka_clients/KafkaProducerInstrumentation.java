@@ -191,7 +191,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           dataStreamsMonitoring.getTransactionExtractorsByType(
               DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS);
       if (extractors != null) {
-        System.out.println("### applying KAFKA_PRODUCE_HEADERS extractors");
         for (DataStreamsTransactionExtractor extractor : extractors) {
           Header header = record.headers().lastHeader(extractor.getValue());
           if (header != null && header.value() != null) {
