@@ -134,6 +134,14 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
   }
 }
 
+// Helper functions for checking Config Strings
+private fun normalize(configValue: String) =
+  "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
+
+// Checking "public" "static" "final"
+private fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
+  mods.all { hasModifier(it) }
+
 /** Registers `checkConfigStrings` to validate config definitions against documented supported configurations. */
 private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations) {
   val ownerPath = extension.configOwnerPath
@@ -169,14 +177,10 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         Pair(supportedSet, aliasMappingMap)
       }
 
-      StaticJavaParser.setConfiguration(ParserConfiguration())
+      var parserConfig = ParserConfiguration()
+      parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
 
-      // Checking "public" "static" "final"
-      fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
-        mods.all { hasModifier(it) }
-
-      fun normalize(configValue: String) =
-        "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
+      StaticJavaParser.setConfiguration(parserConfig)
 
       val violations = buildList {
         configDir.listFiles()?.forEach { file ->
@@ -184,27 +188,25 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
           val cu: CompilationUnit = StaticJavaParser.parse(file)
 
           cu.findAll(VariableDeclarator::class.java).forEach { varDecl ->
-            val field = varDecl.parentNode
-              .filter { it is FieldDeclaration }
-              .map { it as FieldDeclaration }
-              .orElse(null)
+            varDecl.parentNode
+              .map { it as? FieldDeclaration }
+              .ifPresent { field ->
+                if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
+                varDecl.typeAsString == "String") {
 
-            if (field != null &&
-              field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
-              varDecl.typeAsString == "String") {
+                val fieldName = varDecl.nameAsString
+                if (fieldName.endsWith("_DEFAULT")) return@ifPresent
+                val init = varDecl.initializer.orElse(null) ?: return@ifPresent
 
-              val fieldName = varDecl.nameAsString
-              if (fieldName.endsWith("_DEFAULT")) return@forEach
-              val init = varDecl.initializer.orElse(null) ?: return@forEach
+                if (init !is StringLiteralExpr) return@ifPresent
+                val rawValue = init.value
 
-              if (init !is StringLiteralExpr) return@forEach
-              val rawValue = init.value
-
-              val normalized = normalize(rawValue)
-              if (normalized !in supported && normalized !in aliasMapping) {
-                val line = varDecl.range.map { it.begin.line }.orElse(1)
-                add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
-                    "which is missing from '${extension.jsonFile.get()}'")
+                val normalized = normalize(rawValue)
+                if (normalized !in supported && normalized !in aliasMapping) {
+                  val line = varDecl.range.map { it.begin.line }.orElse(1)
+                  add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
+                      "which is missing from '${extension.jsonFile.get()}'")
+                }
               }
             }
           }
