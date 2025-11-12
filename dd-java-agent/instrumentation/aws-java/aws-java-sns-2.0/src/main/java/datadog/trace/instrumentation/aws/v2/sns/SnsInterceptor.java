@@ -51,13 +51,15 @@ public class SnsInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
+    if (!Config.get().isAwsInjectDatadogAttributeEnabled()) {
+      return context.request();
+    }
     // Injecting the trace context into SNS messageAttributes.
     if (context.request() instanceof PublishRequest) {
       PublishRequest request = (PublishRequest) context.request();
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
-      if (request.messageAttributes().size() < 10
-          && Config.get().isAwsInjectDatadogAttributeEnabled()) {
+      if (request.messageAttributes().size() < 10) {
         // Get topic name for DSM
         String snsTopicArn = request.topicArn();
         if (null == snsTopicArn) {

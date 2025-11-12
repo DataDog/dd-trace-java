@@ -50,6 +50,9 @@ public class SnsInterceptor extends RequestHandler2 {
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(AmazonWebServiceRequest request) {
+    if (!Config.get().isAwsInjectDatadogAttributeEnabled()) {
+      return request;
+    }
     // Injecting the trace context into SNS messageAttributes.
     if (request instanceof PublishRequest) {
       PublishRequest pRequest = (PublishRequest) request;
@@ -58,7 +61,7 @@ public class SnsInterceptor extends RequestHandler2 {
       Map<String, MessageAttributeValue> messageAttributes = pRequest.getMessageAttributes();
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
-      if (messageAttributes.size() < 10 && Config.get().isAwsInjectDatadogAttributeEnabled()) {
+      if (messageAttributes.size() < 10) {
         // Extract the topic name from the ARN for DSM
         String topicName = pRequest.getTopicArn();
         if (null == topicName) {

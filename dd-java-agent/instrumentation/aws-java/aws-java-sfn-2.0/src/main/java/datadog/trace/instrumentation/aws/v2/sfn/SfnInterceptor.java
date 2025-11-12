@@ -25,7 +25,7 @@ public class SfnInterceptor implements ExecutionInterceptor {
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
     SdkRequest request = context.request();
-    if (Config.get().isAwsInjectDatadogAttributeEnabled()) {
+    if (!Config.get().isAwsInjectDatadogAttributeEnabled()) {
       return request;
     }
     try {
