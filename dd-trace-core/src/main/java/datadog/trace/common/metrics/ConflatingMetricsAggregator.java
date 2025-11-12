@@ -277,7 +277,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span)) {
-          if (ignoredResources.contains(span.getResourceName().toString())) {
+          final CharSequence resourceName = span.getResourceName();
+          if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
             forceKeep = false;
             break;

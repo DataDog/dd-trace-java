@@ -5,6 +5,7 @@
  */
 
 import datadog.gradle.plugin.ci.findAffectedTaskPath
+import org.gradle.api.tasks.testing.Test
 import java.io.File
 import kotlin.math.abs
 
@@ -19,6 +20,15 @@ allprojects {
     val taskPartition = taskPartitionProvider.get()
     val currentTaskPartition = abs(project.path.hashCode() % taskPartitionCount.toInt())
     extra.set("activePartition", currentTaskPartition == taskPartition.toInt())
+  }
+  
+  // Disable test tasks if not in active partition
+  val activePartitionProvider = providers.provider {
+    project.extra.properties["activePartition"] as? Boolean ?: true
+  }
+  
+  tasks.withType<Test>().configureEach {
+    enabled = activePartitionProvider.get()
   }
 }
 

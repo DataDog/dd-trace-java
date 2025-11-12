@@ -47,13 +47,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.AgentBuilder.InitializationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.TypeStrategy;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
-import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -248,7 +248,7 @@ public class CodeOriginTest extends CapturingTestBase {
     assertEquals(probe1, probe2);
   }
 
-  @NotNull
+  @Nonnull
   private static CodeOriginProbe[] codeOriginProbes(String type) {
     CodeOriginProbe entry =
         new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"));
