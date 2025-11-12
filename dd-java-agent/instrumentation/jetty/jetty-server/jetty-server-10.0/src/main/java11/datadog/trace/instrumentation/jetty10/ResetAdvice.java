@@ -19,16 +19,15 @@ public class ResetAdvice {
   public static void stopSpan(@Advice.This final HttpChannel channel) {
     Request req = channel.getRequest();
     Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (contextObj instanceof Context) {
-      final Context context = (Context) contextObj;
-      final AgentSpan span = spanFromContext(context);
-      if (span != null) {
-        JettyDecorator.OnResponse.onResponse(span, channel);
-        DECORATE.beforeFinish(context);
-        span.finish();
-      } else {
-        DECORATE.beforeFinish(context);
-      }
+    if (!(contextObj instanceof Context)) {
+      return;
     }
+    final Context context = (Context) contextObj;
+    final AgentSpan span = spanFromContext(context);
+    if (span != null) {
+      JettyDecorator.OnResponse.onResponse(span, channel);
+      span.finish();
+    }
+    DECORATE.beforeFinish(context);
   }
 }

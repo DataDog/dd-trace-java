@@ -78,8 +78,11 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
       }
       Context context = (Context) contextObj;
       AgentSpan span = spanFromContext(context);
-      RequestContext requestContext;
-      if (span == null || (requestContext = span.getRequestContext()) == null) {
+      if (span == null) {
+        return false;
+      }
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext == null) {
         return false;
       }
 
