@@ -482,10 +482,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         return;
       }
       for (DataStreamsTransactionExtractor extractor : extractors) {
-        System.out.println(extractor.toString());
         List<DataStreamsTransactionExtractor> list =
             extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
         list.add(extractor);
+        log.debug("Added data streams transaction extractor: {}", extractor);
       }
     } finally {
       extractorsLock.writeLock().unlock();
