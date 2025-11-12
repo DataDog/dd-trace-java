@@ -103,7 +103,7 @@ public class SQLCommenter {
 
     StringBuilder sb = new StringBuilder(sql.length() + INJECTED_COMMENT_ESTIMATED_SIZE);
     if (appendComment) {
-      if (sql.trim().endsWith(";")) {
+      if (queryEndsWithSemicolon(sql)) {
         sb.append(sql, 0, sql.lastIndexOf(";"));
       } else {
         sb.append(sql);
@@ -207,5 +207,20 @@ public class SQLCommenter {
       sb.append(COMMA);
     }
     sb.append(key).append(EQUALS).append(QUOTE).append(encodedValue).append(QUOTE);
+  }
+
+  private static boolean queryEndsWithSemicolon(String query) {
+    for (int i = query.length() - 1; i >= 0; i--) {
+      char c = query.charAt(i);
+      if (c == ';') {
+        return true;
+      } else if (c <= ' ') {
+        continue;
+      }
+
+      break;
+    }
+
+    return false;
   }
 }
