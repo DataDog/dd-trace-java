@@ -345,6 +345,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           String transactionId = getRequestHeader(request, extractor.getValue());
           if (transactionId != null) {
             dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
+            span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+            span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
           }
         }
       }

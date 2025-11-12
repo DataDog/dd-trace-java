@@ -84,6 +84,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           String transactionId = getRequestHeader(request, extractor.getValue());
           if (transactionId != null && !transactionId.isEmpty()) {
             dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
+            span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+            span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
           }
         }
       }

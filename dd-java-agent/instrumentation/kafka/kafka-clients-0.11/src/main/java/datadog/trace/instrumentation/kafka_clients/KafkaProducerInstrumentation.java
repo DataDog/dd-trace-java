@@ -37,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -194,8 +195,10 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         for (DataStreamsTransactionExtractor extractor : extractors) {
           Header header = record.headers().lastHeader(extractor.getValue());
           if (header != null && header.value() != null) {
-            dataStreamsMonitoring.trackTransaction(
-                new String(header.value(), StandardCharsets.UTF_8), extractor.getName());
+            String transactionId = new String(header.value(), StandardCharsets.UTF_8);
+            dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
+            span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+            span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
           }
         }
       }

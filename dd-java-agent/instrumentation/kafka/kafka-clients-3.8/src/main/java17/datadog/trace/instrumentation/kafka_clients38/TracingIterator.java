@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import datadog.trace.instrumentation.kafka_common.Utils;
 import java.nio.charset.StandardCharsets;
@@ -143,8 +144,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           for (DataStreamsTransactionExtractor extractor : extractors) {
             Header header = val.headers().lastHeader(extractor.getValue());
             if (header != null && header.value() != null) {
-              dataStreamsMonitoring.trackTransaction(
-                  new String(header.value(), StandardCharsets.UTF_8), extractor.getName());
+              String transactionId = new String(header.value(), StandardCharsets.UTF_8);
+              dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
+              span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+              span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
             }
           }
         }
