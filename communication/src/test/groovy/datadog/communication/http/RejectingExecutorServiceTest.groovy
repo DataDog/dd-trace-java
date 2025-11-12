@@ -1,19 +1,19 @@
 package datadog.communication.http
 
+import static org.junit.jupiter.api.Assertions.assertThrows
+
 import org.junit.jupiter.api.Test
 
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 
-import static groovy.test.GroovyAssert.shouldFail
-
 class RejectingExecutorServiceTest {
   ExecutorService executorService = new RejectingExecutorService()
 
   @Test
   void 'execute throws exception'() {
-    shouldFail(RejectedExecutionException) {
+    assertThrows(RejectedExecutionException) {
       executorService.execute({})
     }
   }
