@@ -360,6 +360,16 @@ spotless:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
 
+config-inversion-linter:
+  extends: .gradle_build
+  stage: tests
+  needs: []
+  script:
+    - ./gradlew --version
+    - ./gradlew logEnvVarUsages
+    - ./gradlew checkEnvironmentVariablesUsage
+    - ./gradlew checkConfigStrings
+
 test_published_artifacts:
   extends: .gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
