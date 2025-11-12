@@ -1251,7 +1251,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
   void 'untrusted deserialization for snakeyaml with a string'() {
     setup:
     final String yaml = "test"
-    final url = "http://localhost:${httpPort}/untrusted_deserialization/snakeyaml?yaml=${yaml}"
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/snakeyaml?yaml=${yaml}".toString()
     final request = new Request.Builder().url(url).get().build()
 
     when:
