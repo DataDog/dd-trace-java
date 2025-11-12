@@ -295,10 +295,17 @@ public class DatadogProfilerConfig {
   }
 
   public static String getCStack(ConfigProvider configProvider) {
-    return getString(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_CSTACK,
-        PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
+    String cstack =
+        getString(
+            configProvider,
+            PROFILING_DATADOG_PROFILER_CSTACK,
+            PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
+    if (cstack.startsWith("vm") && !(JavaVirtualMachine.isHotspot())) {
+      // can't use the VM stackwalking on non-hotspot VMs
+      // fall-back to 'dwarf' unwinding
+      cstack = "dwarf";
+    }
+    return cstack;
   }
 
   public static boolean isEndpointTrackingEnabled() {
