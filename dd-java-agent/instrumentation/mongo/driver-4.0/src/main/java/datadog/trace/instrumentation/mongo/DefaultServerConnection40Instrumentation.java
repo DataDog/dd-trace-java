@@ -46,7 +46,9 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
             .and(named("command"))
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, named("org.bson.BsonDocument")))
-            .and(takesArguments(6)),
+            // there are multiple overload, so we select the first one that matches between version
+            // 4.0 and 5.6
+            .and(takesArguments(6).or(takesArguments(7))),
         DefaultServerConnection40Instrumentation.class.getName() + "$CommandAdvice");
 
     transformer.applyAdvice(
@@ -54,7 +56,7 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
             .and(named("commandAsync"))
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, named("org.bson.BsonDocument")))
-            .and(takesArguments(7)),
+            .and(takesArguments(7).or(takesArguments(8))),
         DefaultServerConnection40Instrumentation.class.getName() + "$CommandAdvice");
   }
 
