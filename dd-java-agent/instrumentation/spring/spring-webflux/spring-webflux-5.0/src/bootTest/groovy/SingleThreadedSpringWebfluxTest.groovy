@@ -1,6 +1,4 @@
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
-import org.junit.AfterClass
-import org.junit.BeforeClass
 import org.springframework.boot.test.context.SpringBootTest
 
 /**
@@ -11,13 +9,11 @@ import org.springframework.boot.test.context.SpringBootTest
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration])
 class SingleThreadedSpringWebfluxTest extends SpringWebfluxTest {
 
-  @BeforeClass
-  static void init() {
+  def setup() {
     System.setProperty("reactor.netty.ioWorkerCount", "1")
   }
 
-  @AfterClass
-  static void teardown() {
+  def cleanup() {
     System.clearProperty("reactor.netty.ioWorkerCount")
   }
 }

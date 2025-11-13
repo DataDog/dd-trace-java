@@ -1,19 +1,19 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.util.JsonStreamParser;
 import datadog.trace.payloadtags.PayloadTagsData;
-import datadog.trace.payloadtags.json.JsonPath;
-import datadog.trace.payloadtags.json.JsonPathParser;
-import datadog.trace.payloadtags.json.JsonStreamParser;
-import datadog.trace.payloadtags.json.PathCursor;
+import datadog.trace.util.json.JsonPath;
+import datadog.trace.util.json.PathCursor;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
           new RedactionRules.Builder()
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
-              .addRedactionJsonPaths(config.getCloudRequestPayloadTagging())
+              .addParsedRedactionJsonPaths(config.getCloudRequestPayloadTagging())
               .build());
     }
     if (config.isCloudResponsePayloadTaggingEnabled()) {
@@ -47,7 +47,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
           new RedactionRules.Builder()
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
               .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
-              .addRedactionJsonPaths(config.getCloudResponsePayloadTagging())
+              .addParsedRedactionJsonPaths(config.getCloudResponsePayloadTagging())
               .build());
     }
     if (redactionRulesByTagPrefix.isEmpty()) {
@@ -145,20 +145,13 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
         return this;
       }
 
-      private static List<JsonPath> parseJsonPaths(List<String> rules) {
-        if (rules.isEmpty() || rules.size() == 1 && rules.get(0).equalsIgnoreCase("all")) {
-          return Collections.emptyList();
+      public RedactionRules.Builder addParsedRedactionJsonPaths(List<JsonPath> jsonPaths) {
+        if (null == jsonPaths) {
+          log.warn("Provided JsonPaths list is null, skipping.");
+          return this;
         }
-        List<JsonPath> result = new ArrayList<>(rules.size());
-        for (String rule : rules) {
-          try {
-            JsonPath jp = JsonPathParser.parse(rule);
-            result.add(jp);
-          } catch (Exception ex) {
-            log.warn("Skipping failed to parse redaction rule '{}'. {}", rule, ex.getMessage());
-          }
-        }
-        return result;
+        this.redactionRules.addAll(jsonPaths);
+        return this;
       }
 
       RedactionRules build() {

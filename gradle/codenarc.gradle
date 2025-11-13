@@ -9,7 +9,3 @@ dependencies {
 codenarc {
   configFile = rootProject.file('gradle/enforcement/codenarc.groovy')
 }
-
-//codenarcTest {
-//    configFile rootProject.file('gradle/enforcement/codenarcTest.groovy')
-//}
