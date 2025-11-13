@@ -361,10 +361,6 @@ spotless:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
 
-check_config_inversion_local_file:
-  extends: .check_config_inversion_local_file
-  variables:
-    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
 
 test_published_artifacts:
   extends: .gradle_build
@@ -982,6 +978,11 @@ create_key:
 
 validate_supported_configurations_local_file:
   extends: .validate_supported_configurations_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+
+validate_supported_configurations_v2_local_file:
+  extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
 
