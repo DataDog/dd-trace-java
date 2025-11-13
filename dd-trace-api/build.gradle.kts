@@ -63,6 +63,8 @@ val excludedClassesCoverage by extra(
     "datadog.trace.payloadtags.PayloadTagsData",
     "datadog.trace.payloadtags.PayloadTagsData.PathAndValue",
     "datadog.trace.api.llmobs.LLMObsTags",
+    "datadog.trace.api.config.OtlpConfig.Protocol",
+    "datadog.trace.api.config.OtlpConfig.Temporality",
   )
 )
 

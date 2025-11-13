@@ -1,7 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -13,6 +9,10 @@ muzzle {
 apply plugin: 'java-test-fixtures'
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')

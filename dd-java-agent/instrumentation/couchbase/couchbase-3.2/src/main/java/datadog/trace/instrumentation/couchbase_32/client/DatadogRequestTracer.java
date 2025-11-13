@@ -54,7 +54,7 @@ public class DatadogRequestTracer implements RequestTracer {
       }
     }
     if (requestSpan == null) {
-      AgentTracer.SpanBuilder builder = tracer.buildSpan(spanName);
+      AgentTracer.SpanBuilder builder = tracer.singleSpanBuilder(spanName);
       if (null != parent) {
         builder.asChildOf(parent.context());
       }

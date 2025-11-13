@@ -8,9 +8,11 @@ plugins {
   idea
 }
 
-val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
-
 apply(from = "$rootDir/gradle/java.gradle")
+
+extensions.getByName("tracerJava").withGroovyBuilder {
+  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
+}
 
 java {
   toolchain {
