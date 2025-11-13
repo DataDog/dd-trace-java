@@ -795,8 +795,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    if (isRunningOnDatabricks || isStreamingJob) {
-      log.debug("Not emitting event when running on databricks or on streaming jobs");
+    if (isStreamingJob) {
+      log.debug("Not emitting event when running streaming jobs");
       return;
     }
     if (openLineageSparkListener != null) {
@@ -1298,12 +1298,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return sparkAppName;
   }
 
-  private static String getServiceForOpenLineage(SparkConf conf, boolean isRunningOnDatabricks) {
-    // Service for OpenLineage in Databricks is not supported yet
+  private String getServiceForOpenLineage(SparkConf conf, boolean isRunningOnDatabricks) {
     if (isRunningOnDatabricks) {
-      return null;
+      return databricksServiceName;
     }
-
     // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
     String serviceName = Config.get().getServiceName();
     if (Config.get().isServiceNameSetByUser()

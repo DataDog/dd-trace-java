@@ -22,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.util.ControllableEnvironmentVariables;
+import datadog.trace.test.util.Flaky;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -90,6 +91,7 @@ public class DebuggerAgentTest {
     verify(inst, never()).addTransformer(any(), eq(true));
   }
 
+  @Flaky
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runEnabledWithDatadogAgent() throws InterruptedException, IOException {

@@ -1,4 +1,6 @@
-ext.testingInstrumentation = true
+plugins {
+  id 'datadog.instrumentation.testing-framework-tests'
+}
 
 apply from: "$rootDir/gradle/java.gradle"
 

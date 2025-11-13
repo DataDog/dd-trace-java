@@ -242,20 +242,20 @@ public class DebuggerAgent {
     if (!codeOriginEnabled.compareAndSet(false, true)) {
       return;
     }
-    LOGGER.info("Starting Code Origin for spans");
+    LOGGER.debug("Starting Code Origin for spans");
     Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
     DebuggerContext.initClassNameFilter(classNameFilter);
     DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));
-    LOGGER.info("Started Code Origin for spans");
+    LOGGER.debug("Started Code Origin for spans");
   }
 
   public static void stopCodeOriginForSpans() {
     if (!codeOriginEnabled.compareAndSet(true, false)) {
       return;
     }
-    LOGGER.info("Stopping Code Origin for spans");
+    LOGGER.debug("Stopping Code Origin for spans");
     if (configurationUpdater != null) {
       // uninstall all code origin probes by providing empty configuration
       configurationUpdater.accept(CODE_ORIGIN, Collections.emptyList());
