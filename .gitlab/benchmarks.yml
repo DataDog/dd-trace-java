@@ -15,7 +15,7 @@
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - git clone --branch dd-trace-java/tracer-benchmarks-parallel https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
+    - git clone --branch sarahchen6/compare-with-latest-shared-commit https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
   artifacts:
     name: "reports"
     paths:
