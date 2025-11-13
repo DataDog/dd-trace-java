@@ -73,7 +73,6 @@ abstract class OpenAiTest extends LlmObsSpecification {
       OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
       openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
       b.baseUrl(openAiBaseApi)
-      b.baseUrl(openAiBaseApi)
       b.credential(BearerTokenCredential.create(""))
       openAiClient = b.build()
     } else {
@@ -82,13 +81,22 @@ abstract class OpenAiTest extends LlmObsSpecification {
       OkHttpClient.Builder httpClient = OkHttpClient.builder()
 
       openAiBaseApi = ClientOptions.PRODUCTION_URL
-      httpClient.baseUrl(openAiBaseApi) // TODO fix newer versions pass a second parameter to the OkHttpClient!
+      httpClientUrlIfExists(httpClient, openAiBaseApi)
       clientOptions.baseUrl(openAiBaseApi)
       clientOptions.credential(BearerTokenCredential.create(openAiToken()))
 
       TestOpenAiHttpClient testHttpClient = new TestOpenAiHttpClient(httpClient.build(), RECORDS_DIR)
       clientOptions.httpClient(testHttpClient)
       openAiClient = createOpenAiClient(clientOptions.build())
+    }
+  }
+
+  void httpClientUrlIfExists(OkHttpClient.Builder httpClient, String url) {
+    try {
+      def method = httpClient.getClass().getMethod("baseUrl", String.class)
+      method.invoke(httpClient, url)
+    } catch (NoSuchMethodException e) {
+      // method exists and mandatory only prior to v3.0.0
     }
   }
 

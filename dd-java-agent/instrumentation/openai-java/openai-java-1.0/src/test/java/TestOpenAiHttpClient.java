@@ -27,19 +27,27 @@ public class TestOpenAiHttpClient implements HttpClient {
   @Override
   public HttpResponse execute(@NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
     HttpResponse response = delegate.execute(request, requestOptions);
-    return new ResponseRequestInterceptor(request, response, recordsDir);
+    return wrapIfNeeded(request, response);
   }
 
   @NotNull
   @Override
   public CompletableFuture<HttpResponse> executeAsync(@NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
     return delegate.executeAsync(request, requestOptions)
-        .thenApply(response -> new ResponseRequestInterceptor(request, response, recordsDir));
+        .thenApply(response -> wrapIfNeeded(request, response));
   }
 
   @Override
   public void close() {
     delegate.close();
+  }
+
+  private HttpResponse wrapIfNeeded(HttpRequest request, HttpResponse response) {
+    if (RequestResponseRecord.exists(recordsDir, request)) {
+      // will NOT record if the record exists
+      return response;
+    }
+    return new ResponseRequestInterceptor(request, response, recordsDir);
   }
 
   private static class ResponseRequestInterceptor implements HttpResponse {

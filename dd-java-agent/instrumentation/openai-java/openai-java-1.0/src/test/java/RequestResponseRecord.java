@@ -55,16 +55,27 @@ public class RequestResponseRecord {
     }
   }
 
-  public static void dump(Path targetDir, HttpRequest request, HttpResponse response, byte[] responseBody) throws IOException {
+  public static boolean exists(Path recordsDir, HttpRequest request) {
+    String filename = requestToFileName(request.method().toString(), readRequestBody(request).toByteArray());
+    Path filePath = recordsDir.resolve(filename);
+    return filePath.toFile().exists();
+  }
+
+  private static ByteArrayOutputStream readRequestBody(HttpRequest request) {
     ByteArrayOutputStream requestBodyBytes = new ByteArrayOutputStream();
     try (HttpRequestBody requestBody = request.body()) {
       if (requestBody != null) {
         requestBody.writeTo(requestBodyBytes);
       }
     }
+    return requestBodyBytes;
+  }
+
+  public static void dump(Path recordsDir, HttpRequest request, HttpResponse response, byte[] responseBody) throws IOException {
+    ByteArrayOutputStream requestBodyBytes = readRequestBody(request);
 
     String filename = requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
-    Path filePath = targetDir.resolve(filename);
+    Path filePath = recordsDir.resolve(filename);
 
     try (BufferedWriter out = Files.newBufferedWriter(filePath.toFile().toPath())) {
       out.write(METHOD);
@@ -111,13 +122,13 @@ public class RequestResponseRecord {
     }
   }
 
-  public static RequestResponseRecord read(Path path) {
+  public static RequestResponseRecord read(Path recFilePath) {
     int statusCode = 200;
     Map<String, String> headers = new java.util.HashMap<>();
     StringBuilder bodyBuilder = new StringBuilder();
 
     try {
-      List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+      List<String> lines = Files.readAllLines(recFilePath, StandardCharsets.UTF_8);
 
       boolean inResponseHeaders = false;
       boolean inResponseBody = false;
