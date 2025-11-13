@@ -332,7 +332,5 @@ class TraceTaggingSmokeTest extends AbstractAppSecServerSmokeTest {
     // Should NOT have USER_KEEP sampling priority since keep: false
     assert rootSpan.metrics.get('_sampling_priority_v1') < 2,
     "Should not have USER_KEEP sampling priority when keep: false"
-
   }
-
 }

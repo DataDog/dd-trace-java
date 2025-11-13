@@ -6,7 +6,9 @@ import play.libs.streams.Accumulator;
 import play.mvc.BodyParser;
 import play.mvc.Http;
 
-/** @see BodyParser.DelegatingBodyParser#apply(Http.RequestHeader) */
+/**
+ * @see BodyParser.DelegatingBodyParser#apply(Http.RequestHeader)
+ */
 public class BodyParserDelegatingBodyParserApplyAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(

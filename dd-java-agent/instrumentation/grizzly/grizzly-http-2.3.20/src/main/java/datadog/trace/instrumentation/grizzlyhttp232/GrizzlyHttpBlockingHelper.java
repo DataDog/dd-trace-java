@@ -36,7 +36,9 @@ import org.slf4j.LoggerFactory;
 public class GrizzlyHttpBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(GrizzlyHttpBlockingHelper.class);
 
-  /** @see HttpServerFilter#encodeHttpPacket(FilterChainContext, HttpPacket) */
+  /**
+   * @see HttpServerFilter#encodeHttpPacket(FilterChainContext, HttpPacket)
+   */
   private static final MethodHandle ENCODE_HTTP_PACKET;
 
   private static final CompletionHandler CLOSE_COMPLETION_HANDLER = new CloseCompletionHandler();

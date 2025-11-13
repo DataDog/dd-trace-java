@@ -81,10 +81,10 @@ class AbstractMessageInstrumentationTest extends InstrumentationSpecification {
 
     setup:
     MyMessage message = MyMessage.newBuilder()
-      .setId("1")
-      .setValue("Hello from Protobuf!")
-      .setNested(OtherMessage.newBuilder().setName("hello").setAge(10).build())
-      .build()
+    .setId("1")
+    .setValue("Hello from Protobuf!")
+    .setNested(OtherMessage.newBuilder().setName("hello").setAge(10).build())
+    .build()
     when:
     var bytes
     runUnderTrace("parent_serialize") {
@@ -171,8 +171,8 @@ class AbstractMessageInstrumentationTest extends InstrumentationSpecification {
     setup:
     getTEST_DATA_STREAMS_MONITORING()
     RecursiveMessage message = RecursiveMessage.newBuilder()
-      .setValue(12)
-      .build()
+    .setValue(12)
+    .build()
     when:
     byte[] bytes
     runUnderTrace("parent_serialize") {
@@ -230,9 +230,9 @@ class AbstractMessageInstrumentationTest extends InstrumentationSpecification {
   void "test error when de-serializing"() {
     setup:
     MyMessage message = MyMessage.newBuilder()
-      .setId("1")
-      .setValue("Hello from Protobuf!")
-      .build()
+    .setId("1")
+    .setValue("Hello from Protobuf!")
+    .build()
     when:
     runUnderTrace("parent_deserialize") {
       AgentSpan span = activeSpan()

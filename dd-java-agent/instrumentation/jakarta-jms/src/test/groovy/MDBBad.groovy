@@ -9,7 +9,6 @@ class MDBBad implements MessageListener {
       throw new Exception("null message")
     }
   }
-
 }
 
 

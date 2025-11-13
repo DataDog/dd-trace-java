@@ -97,7 +97,9 @@ public abstract class InitializationTelemetry {
     // DQH - Decided not to eager access MethodHandles, since exceptions are uncommon
     // However, MethodHandles are cached on lookup
 
-    /** @param bootstrapInitTelemetry - non-null BootstrapInitializationTelemetry */
+    /**
+     * @param bootstrapInitTelemetry - non-null BootstrapInitializationTelemetry
+     */
     BootstrapProxy(final Object bootstrapInitTelemetry) {
       this.bootstrapInitTelemetry = bootstrapInitTelemetry;
     }

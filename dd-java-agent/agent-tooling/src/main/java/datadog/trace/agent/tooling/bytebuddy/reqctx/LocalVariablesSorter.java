@@ -280,7 +280,7 @@ public class LocalVariablesSorter extends MethodVisitor {
       case Type.ARRAY:
         t = type.getDescriptor();
         break;
-        // case Type.OBJECT:
+      // case Type.OBJECT:
       default:
         t = type.getInternalName();
         break;

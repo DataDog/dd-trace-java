@@ -73,7 +73,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     this.repositoryRoot = repositoryRoot;
   }
 
-  /** @return Executions settings by module name */
+  /**
+   * @return Executions settings by module name
+   */
   public Map<String, ExecutionSettings> create(@Nonnull JvmInfo jvmInfo) {
     TracerEnvironment tracerEnvironment = buildTracerEnvironment(jvmInfo, null);
     return create(tracerEnvironment);

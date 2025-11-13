@@ -162,7 +162,9 @@ public final class Strings {
     return result;
   }
 
-  /** @return first non-blank string out of the two, {@code null} if both are blank */
+  /**
+   * @return first non-blank string out of the two, {@code null} if both are blank
+   */
   @Nullable
   public static String coalesce(@Nullable final String first, @Nullable final String second) {
     if (isNotBlank(first)) {

@@ -71,7 +71,7 @@ public enum ProfilingEnablement {
       case "true":
       case "auto":
         return;
-        // values 1 and 0 are accepted for backwards compatibility
+      // values 1 and 0 are accepted for backwards compatibility
       case "1":
       case "0":
         return;

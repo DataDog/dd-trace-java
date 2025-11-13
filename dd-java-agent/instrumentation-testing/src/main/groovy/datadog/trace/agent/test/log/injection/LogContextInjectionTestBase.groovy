@@ -148,6 +148,5 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     expect:
     context == getMap()
   }
-
 }
 

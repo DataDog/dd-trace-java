@@ -7,8 +7,8 @@ import javax.inject.Inject
 
 import play.api.mvc._
 
-/** This controller creates an `Action` to handle HTTP requests to the
-  * application's work page which does busy wait to simulate some work
+/** This controller creates an `Action` to handle HTTP requests to the application's work page which
+  * does busy wait to simulate some work
   */
 class HomeController @Inject() (cc: ControllerComponents) extends AbstractController(cc) {
 

@@ -146,7 +146,6 @@ abstract class Netty41ClientTest extends HttpClientTest {
 }
 
 class Netty41ClientV0ForkedTest extends Netty41ClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
-
 }
 
 class Netty41ClientV1ForkedTest extends Netty41ClientTest implements TestingNettyHttpNamingConventions.ClientV1 {

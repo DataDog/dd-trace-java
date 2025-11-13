@@ -132,9 +132,7 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
 }
 
 class PlayJavaWSClientV0ForkedTest extends  PlayJavaWSClientTest {
-
 }
 
 class PlayJavaWSClientV1ForkedTest extends PlayJavaWSClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
-
 }

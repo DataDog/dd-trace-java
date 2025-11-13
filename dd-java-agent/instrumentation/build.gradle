@@ -97,7 +97,11 @@ dependencies {
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
   apply plugin: 'muzzle'
   tasks.register('muzzleInstrumentationReport') {
-    dependsOn(subprojects.collect { p -> p.tasks.matching { it.name == "generateMuzzleReport" } })
+    dependsOn(subprojects.collect { p ->
+      p.tasks.matching {
+        it.name == "generateMuzzleReport"
+      }
+    })
     finalizedBy(tasks.named('mergeMuzzleReports'))
   }
 }
