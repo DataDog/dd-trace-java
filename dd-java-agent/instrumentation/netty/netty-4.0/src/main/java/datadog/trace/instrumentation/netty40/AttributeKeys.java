@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.netty40;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
+import datadog.context.Context;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +17,8 @@ public final class AttributeKeys {
   private static final ClassValue<ConcurrentHashMap<String, AttributeKey<?>>> MAPS =
       GenericClassValue.constructing(ConcurrentHashMap.class);
 
-  public static final AttributeKey<AgentSpan> SPAN_ATTRIBUTE_KEY = attributeKey(DD_SPAN_ATTRIBUTE);
+  public static final AttributeKey<Context> CONTEXT_ATTRIBUTE_KEY =
+      attributeKey(DD_CONTEXT_ATTRIBUTE);
 
   public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey("datadog.client.parent.span");

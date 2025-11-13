@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.tomcat7;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -94,7 +96,12 @@ public class CommitActionInstrumentation extends InstrumenterModule.AppSec
       request.setAttribute(HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE, Boolean.TRUE);
 
       // on async requests AgentTracer.activeSpan() may return null
-      AgentSpan agentSpan = (AgentSpan) request.getAttribute(HttpServerDecorator.DD_SPAN_ATTRIBUTE);
+      Object contextObj = request.getAttribute(HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
+      if (!(contextObj instanceof Context)) {
+        return false;
+      }
+      Context context = (Context) contextObj;
+      AgentSpan agentSpan = spanFromContext(context);
       if (agentSpan == null) {
         return false;
       }
