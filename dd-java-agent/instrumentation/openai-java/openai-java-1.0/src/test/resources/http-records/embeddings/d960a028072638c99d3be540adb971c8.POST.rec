@@ -1,37 +1,37 @@
-> method: POST
-> path: embeddings
-> begin request body <
+method: POST
+path: embeddings
+-- begin request body --
 {"input":"hello world","model":"text-embedding-ada-002"}
-> end request body <
-> response code: 200
-> begin response headers <
-access-control-allow-origin -> *
-access-control-expose-headers -> X-Request-ID
-alt-svc -> h3=":443"; ma=86400
-cf-cache-status -> DYNAMIC
-cf-ray -> 99e0ef268a377622-SEA
-content-type -> application/json
-date -> Thu, 13 Nov 2025 20:14:13 GMT
-openai-model -> text-embedding-ada-002-v2
-openai-organization -> datadog-staging
-openai-processing-ms -> 130
-openai-project -> proj_gt6TQZPRbZfoY2J9AQlEJMpd
-openai-version -> 2020-10-01
-server -> cloudflare
-strict-transport-security -> max-age=31536000; includeSubDomains; preload
-via -> envoy-router-85dd958d75-fdj7p
-x-content-type-options -> nosniff
-x-envoy-upstream-service-time -> 162
-x-openai-proxy-wasm -> v0.1
-x-ratelimit-limit-requests -> 10000
-x-ratelimit-limit-tokens -> 10000000
-x-ratelimit-remaining-requests -> 9999
-x-ratelimit-remaining-tokens -> 9999998
-x-ratelimit-reset-requests -> 6ms
-x-ratelimit-reset-tokens -> 0s
-x-request-id -> req_646f027d4cd742d89d360c1e4f129d9b
-> end response headers <
-> begin response body <
+-- end request body -- 
+status code: 200
+-- begin response headers --
+access-control-allow-origin: *
+access-control-expose-headers: X-Request-ID
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 99e16b41c8301e0b-SEA
+content-type: application/json
+date: Thu, 13 Nov 2025 21:38:57 GMT
+openai-model: text-embedding-ada-002-v2
+openai-organization: datadog-staging
+openai-processing-ms: 41
+openai-project: proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version: 2020-10-01
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+via: envoy-router-d45d898df-bd7gz
+x-content-type-options: nosniff
+x-envoy-upstream-service-time: 63
+x-openai-proxy-wasm: v0.1
+x-ratelimit-limit-requests: 10000
+x-ratelimit-limit-tokens: 10000000
+x-ratelimit-remaining-requests: 9999
+x-ratelimit-remaining-tokens: 9999998
+x-ratelimit-reset-requests: 6ms
+x-ratelimit-reset-tokens: 0s
+x-request-id: req_76b6cb871c54429e92c96182d40858d1
+-- end response headers --
+-- begin response body --
 {
   "object": "list",
   "data": [
@@ -1585,4 +1585,4 @@ x-request-id -> req_646f027d4cd742d89d360c1e4f129d9b
   }
 }
 �
-> end response body <
+-- end response body --

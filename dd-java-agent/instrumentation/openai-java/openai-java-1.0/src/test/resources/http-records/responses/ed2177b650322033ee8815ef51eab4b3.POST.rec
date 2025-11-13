@@ -1,36 +1,36 @@
-> method: POST
-> path: responses
-> begin request body <
+method: POST
+path: responses
+-- begin request body --
 {"input":"Do not continue the Evan Li slander!","model":"gpt-3.5-turbo"}
-> end request body <
-> response code: 200
-> begin response headers <
-alt-svc -> h3=":443"; ma=86400
-cf-cache-status -> DYNAMIC
-cf-ray -> 99e0ef618e71757b-SEA
-content-type -> application/json
-date -> Thu, 13 Nov 2025 20:14:23 GMT
-openai-organization -> datadog-staging
-openai-processing-ms -> 708
-openai-project -> proj_gt6TQZPRbZfoY2J9AQlEJMpd
-openai-version -> 2020-10-01
-server -> cloudflare
-strict-transport-security -> max-age=31536000; includeSubDomains; preload
-x-content-type-options -> nosniff
-x-envoy-upstream-service-time -> 711
-x-ratelimit-limit-requests -> 10000
-x-ratelimit-limit-tokens -> 50000000
-x-ratelimit-remaining-requests -> 9999
-x-ratelimit-remaining-tokens -> 49999980
-x-ratelimit-reset-requests -> 6ms
-x-ratelimit-reset-tokens -> 0s
-x-request-id -> req_fb3803b9bf42409081b3c4ebfbbf670e
-> end response headers <
-> begin response body <
+-- end request body -- 
+status code: 200
+-- begin response headers --
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 99e16b7c09e37621-SEA
+content-type: application/json
+date: Thu, 13 Nov 2025 21:39:07 GMT
+openai-organization: datadog-staging
+openai-processing-ms: 751
+openai-project: proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version: 2020-10-01
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-envoy-upstream-service-time: 756
+x-ratelimit-limit-requests: 10000
+x-ratelimit-limit-tokens: 50000000
+x-ratelimit-remaining-requests: 9999
+x-ratelimit-remaining-tokens: 49999980
+x-ratelimit-reset-requests: 6ms
+x-ratelimit-reset-tokens: 0s
+x-request-id: req_20f6aa9268f74336b7f2e988dbe5c910
+-- end response headers --
+-- begin response body --
 {
-  "id": "resp_061946572aced7b40169163c1f070081969d4417189fc511ec",
+  "id": "resp_0cb39681c8bd7e2b0169164ffac178819581d4dfd02641f1f9",
   "object": "response",
-  "created_at": 1763064863,
+  "created_at": 1763069946,
   "status": "completed",
   "background": false,
   "billing": {
@@ -44,7 +44,7 @@ x-request-id -> req_fb3803b9bf42409081b3c4ebfbbf670e
   "model": "gpt-3.5-turbo-0125",
   "output": [
     {
-      "id": "msg_061946572aced7b40169163c1f4994819682eee6ebb5f2b60a",
+      "id": "msg_0cb39681c8bd7e2b0169164ffb1eb0819591a64f1f7921d53e",
       "type": "message",
       "status": "completed",
       "content": [
@@ -52,7 +52,7 @@ x-request-id -> req_fb3803b9bf42409081b3c4ebfbbf670e
           "type": "output_text",
           "annotations": [],
           "logprobs": [],
-          "text": "I apologize if my response seemed critical or negative towards Evan Li. I have no intention to slander or speak ill of anyone. Let me know if there's anything specific you'd like to discuss or clarify."
+          "text": "I assure you, I have no intention of slandering anyone. If there is a specific concern or topic you would like to discuss about Evan Li, please feel free to share it."
         }
       ],
       "role": "assistant"
@@ -86,13 +86,13 @@ x-request-id -> req_fb3803b9bf42409081b3c4ebfbbf670e
     "input_tokens_details": {
       "cached_tokens": 0
     },
-    "output_tokens": 42,
+    "output_tokens": 38,
     "output_tokens_details": {
       "reasoning_tokens": 0
     },
-    "total_tokens": 57
+    "total_tokens": 53
   },
   "user": null,
   "metadata": {}
 }�
-> end response body <
+-- end response body --

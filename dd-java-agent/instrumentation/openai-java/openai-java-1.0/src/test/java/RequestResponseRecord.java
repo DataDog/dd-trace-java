@@ -16,23 +16,23 @@ public class RequestResponseRecord {
   public static final String RECORD_FILE_HASH_ALG = "MD5";
   private static final String RECORD_FILE_EXT = ".rec";
 
-  private static final String METHOD = "> method: ";
-  private static final String PATH = "> path: ";
-  private static final String BEGIN_REQUEST_BODY = "> begin request body <";
-  private static final String END_REQUEST_BODY = "> end request body <";
-  private static final String RESPONSE_CODE = "> response code: ";
-  private static final String BEGIN_RESPONSE_HEADERS = "> begin response headers <";
-  private static final String END_RESPONSE_HEADERS = "> end response headers <";
-  private static final String BEGIN_RESPONSE_BODY = "> begin response body <";
-  private static final String END_RESPONSE_BODY = "> end response body <";
-  private static final String KEY_VALUE_SEP = " -> ";
+  private static final String METHOD = "method: ";
+  private static final String PATH = "path: ";
+  private static final String BEGIN_REQUEST_BODY = "-- begin request body --";
+  private static final String END_REQUEST_BODY = "-- end request body -- ";
+  private static final String STATUS_CODE = "status code: ";
+  private static final String BEGIN_RESPONSE_HEADERS = "-- begin response headers --";
+  private static final String END_RESPONSE_HEADERS = "-- end response headers --";
+  private static final String BEGIN_RESPONSE_BODY = "-- begin response body --";
+  private static final String END_RESPONSE_BODY = "-- end response body --";
+  private static final String KEY_VALUE_SEP = ": ";
   private static final char LINE_SEP = '\n';
 
   public final int status;
   public final Map<String, String> headers;
   public final byte[] body;
 
-  public RequestResponseRecord(int status, Map<String, String> headers, byte[] body) {
+  private RequestResponseRecord(int status, Map<String, String> headers, byte[] body) {
     this.status = status;
     this.headers = headers;
     this.body = body;
@@ -83,7 +83,7 @@ public class RequestResponseRecord {
       out.write(END_REQUEST_BODY);
       out.write(LINE_SEP);
 
-      out.write(RESPONSE_CODE);
+      out.write(STATUS_CODE);
       out.write(Integer.toString(response.statusCode()));
       out.write(LINE_SEP);
 
@@ -123,8 +123,8 @@ public class RequestResponseRecord {
       boolean inResponseBody = false;
 
       for (String line : lines) {
-        if (line.startsWith(RESPONSE_CODE)) {
-          statusCode = Integer.parseInt(line.substring(RESPONSE_CODE.length()));
+        if (line.startsWith(STATUS_CODE)) {
+          statusCode = Integer.parseInt(line.substring(STATUS_CODE.length()));
         }
         else if (line.equals(BEGIN_RESPONSE_HEADERS)) {
           inResponseHeaders = true;
