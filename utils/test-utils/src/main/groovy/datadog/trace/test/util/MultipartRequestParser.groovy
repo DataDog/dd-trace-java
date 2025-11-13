@@ -35,7 +35,7 @@ class MultipartRequestParser {
     String getCharacterEncoding() {
       ParameterParser parser = new ParameterParser()
       parser.setLowerCaseNames(true)
-      String charset = parser.parse(contentType, ';' as char).get("charset")
+      String charset = parser.parse(contentType, (char)';').get("charset")
       return charset != null ? charset : "UTF-8"
     }
 

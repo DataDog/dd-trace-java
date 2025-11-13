@@ -49,6 +49,10 @@ apply {
   from("$rootDir/../gradle/repositories.gradle")
 }
 
+repositories {
+  gradlePluginPortal()
+}
+
 dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
@@ -60,6 +64,7 @@ dependencies {
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
+  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
   implementation("com.google.guava", "guava", "20.0")
   implementation(libs.asm)
@@ -69,6 +74,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
   implementation("com.fasterxml.jackson.core:jackson-core")
+
+  compileOnly(libs.develocity)
 }
 
 tasks.compileKotlin {
@@ -80,8 +87,8 @@ testing {
   suites {
     val test by getting(JvmTestSuite::class) {
       dependencies {
-        implementation(libs.spock.core)
         implementation(libs.groovy)
+        implementation(libs.spock.core)
       }
       targets.configureEach {
         testTask.configure {

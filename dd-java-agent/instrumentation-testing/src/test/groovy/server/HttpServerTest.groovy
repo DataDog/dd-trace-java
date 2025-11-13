@@ -435,7 +435,7 @@ class HttpServerTest extends InstrumentationSpecification {
 
     then:
     clientResponse.code() == 500
-    IOUtils.readFully (clientResponse.body().byteStream()).contains("assert body != null")
+    IOUtils.readFully(clientResponse.body().byteStream()).contains("assert body != null")
 
     cleanup:
     server.stop()

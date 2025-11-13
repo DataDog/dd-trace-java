@@ -2,7 +2,7 @@ package datadog.trace.civisibility.coverage.report;
 
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.civisibility.config.ExecutionSettings;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class NoOpCoverageProcessor implements CoverageProcessor {
 

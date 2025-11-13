@@ -1,3 +1,5 @@
+ext.testingInstrumentation = true
+
 apply from: "$rootDir/gradle/java.gradle"
 
 def jupiterVersion = '5.8.0'
@@ -21,10 +23,6 @@ muzzle {
     versions = "[$jupiterVersion,)"
     extraDependency "org.junit.jupiter:junit-jupiter-engine:$jupiterVersion"
   }
-}
-
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -61,3 +59,8 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_1_8)
 }
 
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}

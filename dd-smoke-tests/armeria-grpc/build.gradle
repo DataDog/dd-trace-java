@@ -2,11 +2,11 @@ plugins {
   id 'com.google.protobuf' version '0.9.3'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
 
 sourceSets {
   main {
