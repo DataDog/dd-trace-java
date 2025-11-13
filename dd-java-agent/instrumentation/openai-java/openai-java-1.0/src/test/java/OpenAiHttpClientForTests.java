@@ -8,7 +8,6 @@ import org.jetbrains.annotations.NotNull;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,7 +43,7 @@ public class OpenAiHttpClientForTests implements HttpClient {
 
   private HttpResponse wrapIfNeeded(HttpRequest request, HttpResponse response) {
     if (RequestResponseRecord.exists(recordsDir, request)) {
-      // will NOT record if the record exists
+      // will NOT rewrite the record file if it exists
       return response;
     }
     return new ResponseRequestInterceptor(request, response, recordsDir);
@@ -92,12 +91,7 @@ public class OpenAiHttpClientForTests implements HttpClient {
     @Override
     public void close() {
       try {
-        Path targetDir = recordsDir;
-        for (String segment : request.pathSegments()) {
-          targetDir = targetDir.resolve(segment);
-        }
-        Files.createDirectories(targetDir);
-        RequestResponseRecord.dump(targetDir, request, response, responseBody.toByteArray());
+        RequestResponseRecord.dump(recordsDir, request, response, responseBody.toByteArray());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

@@ -57,7 +57,8 @@ public class RequestResponseRecord {
 
   public static boolean exists(Path recordsDir, HttpRequest request) {
     String filename = requestToFileName(request.method().toString(), readRequestBody(request).toByteArray());
-    Path filePath = recordsDir.resolve(filename);
+    Path targetDir = recordSubpath(recordsDir, request);
+    Path filePath = targetDir.resolve(filename);
     return filePath.toFile().exists();
   }
 
@@ -71,11 +72,20 @@ public class RequestResponseRecord {
     return requestBodyBytes;
   }
 
+  private static Path recordSubpath(Path recordsDir, HttpRequest request) {
+    Path result = recordsDir;
+    for (String segment : request.pathSegments()) {
+      result = result.resolve(segment);
+    }
+    return result;
+  }
+
   public static void dump(Path recordsDir, HttpRequest request, HttpResponse response, byte[] responseBody) throws IOException {
     ByteArrayOutputStream requestBodyBytes = readRequestBody(request);
-
+    Path targetDir = recordSubpath(recordsDir, request);
+    Files.createDirectories(targetDir);
     String filename = requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
-    Path filePath = recordsDir.resolve(filename);
+    Path filePath = targetDir.resolve(filename);
 
     try (BufferedWriter out = Files.newBufferedWriter(filePath.toFile().toPath())) {
       out.write(METHOD);
