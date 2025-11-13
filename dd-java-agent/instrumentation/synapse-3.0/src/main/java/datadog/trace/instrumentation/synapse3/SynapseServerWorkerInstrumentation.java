@@ -3,15 +3,18 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTEXT_KEY;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTINUATION_KEY;
-import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -66,26 +69,31 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
 
   public static final class ServerWorkerResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginResponse(
+    public static ContextScope beginResponse(
         @Advice.FieldValue("request") final SourceRequest request) {
       AgentScope.Continuation continuation =
           (AgentScope.Continuation)
               request.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
       if (null != continuation) {
-        return continuation.activate();
+        AgentScope agentScope = continuation.activate();
+        try {
+          return getCurrentContext().with(agentScope.span()).attach();
+        } finally {
+          agentScope.close();
+        }
       }
       return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void responseReady(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.FieldValue("request") final SourceRequest request,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromContext(scope.context());
       HttpResponse httpResponse = request.getConnection().getHttpResponse();
       if (null != httpResponse) {
         DECORATE.onResponse(span, httpResponse);
@@ -96,8 +104,8 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
       // server worker is created in request event so be prepared to finish the span here
       // (if there's an ACK response or error we might not get a separate response event)
       if ((null != httpResponse || null != error)
-          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_SPAN_KEY)) {
-        DECORATE.beforeFinish(span);
+          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_CONTEXT_KEY)) {
+        DECORATE.beforeFinish(scope.context());
         scope.close();
         span.finish();
       } else {
