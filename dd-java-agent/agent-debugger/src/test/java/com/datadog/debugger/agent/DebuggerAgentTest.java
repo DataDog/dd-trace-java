@@ -2,7 +2,7 @@ package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.condition.JRE.JAVA_11;
 import static org.junit.jupiter.api.condition.JRE.JAVA_8;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.util.RemoteConfigHelper;
 import datadog.common.container.ContainerInfo;
@@ -22,7 +21,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.util.ControllableEnvironmentVariables;
-import datadog.trace.test.util.Flaky;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -51,10 +49,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class DebuggerAgentTest {
 
   public static final String URL_PATH = "/foo";
+  @Mock Config config;
   @Mock Instrumentation inst;
   final MockWebServer server = new MockWebServer();
   HttpUrl url;
-
   private ControllableEnvironmentVariables env = ControllableEnvironmentVariables.setup();
 
   private static void setFieldInContainerInfo(
@@ -76,6 +74,7 @@ public class DebuggerAgentTest {
 
   @AfterEach
   public void tearDown() throws IOException {
+    DebuggerAgent.reset();
     try {
       server.shutdown();
     } catch (final IOException e) {
@@ -86,64 +85,66 @@ public class DebuggerAgentTest {
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runDisabled() {
-    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", false);
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(false);
+    DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
     verify(inst, never()).addTransformer(any(), eq(true));
   }
 
-  @Flaky
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runEnabledWithDatadogAgent() throws InterruptedException, IOException {
-    MockWebServer datadogAgentServer = new MockWebServer();
-    HttpUrl datadogAgentUrl = datadogAgentServer.url(URL_PATH);
-    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);
-    setFieldInConfig(Config.get(), "remoteConfigEnabled", true);
-    setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", datadogAgentUrl.toString());
-    setFieldInConfig(Config.get(), "agentUrl", datadogAgentUrl.toString());
-    setFieldInConfig(Config.get(), "agentHost", "localhost");
-    setFieldInConfig(Config.get(), "agentPort", datadogAgentServer.getPort());
-    setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 4096L);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isRemoteConfigEnabled()).thenReturn(true);
+    when(config.getAgentUrl()).thenReturn(url.toString());
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getRemoteConfigTargetsKeyId())
+        .thenReturn(Config.get().getRemoteConfigTargetsKeyId());
+    when(config.getRemoteConfigTargetsKey()).thenReturn(Config.get().getRemoteConfigTargetsKey());
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    when(config.getRemoteConfigMaxPayloadSizeBytes())
+        .thenReturn(Config.get().getRemoteConfigMaxPayloadSizeBytes());
+    assertTrue(config.isDynamicInstrumentationEnabled());
     setFieldInContainerInfo(ContainerInfo.get(), "containerId", "");
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"debugger/v1/diagnostics\", \"v0.7/config\"] }";
-    datadogAgentServer.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
-    datadogAgentServer.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
+    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
+    server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(
                 DebuggerAgentTest.class.getResourceAsStream("/test_probe.json")))) {
       String content = reader.lines().collect(Collectors.joining("\n"));
       String rcContent = RemoteConfigHelper.encode(content, "petclinic");
-      datadogAgentServer.enqueue(new MockResponse().setResponseCode(200).setBody(rcContent));
+      server.enqueue(new MockResponse().setResponseCode(200).setBody(rcContent));
     } catch (IOException e) {
       e.printStackTrace();
     }
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
-    DebuggerAgent.run(inst, sharedCommunicationObjects);
+    DebuggerAgent.run(config, inst, sharedCommunicationObjects);
     ConfigurationPoller configurationPoller =
-        (ConfigurationPoller) sharedCommunicationObjects.configurationPoller(Config.get());
+        sharedCommunicationObjects.configurationPoller(config);
     configurationPoller.start();
     RecordedRequest request;
     do {
-      request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
+      request = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull(request);
     } while ("/info".equals(request.getPath()));
     assertEquals("/v0.7/config", request.getPath());
     DebuggerAgent.stop();
-    datadogAgentServer.shutdown();
   }
 
   @Test
   @EnabledOnJre({JAVA_8, JAVA_11})
   public void runEnabledWithUnsupportedDatadogAgent() throws InterruptedException {
-    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);
-    setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", url.toString());
-    setFieldInConfig(Config.get(), "agentUrl", url.toString());
-    setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 1024L);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.getAgentUrl()).thenReturn(url.toString());
+    when(config.getFinalDebuggerSnapshotUrl())
+        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     String infoContent = "{\"endpoints\": [\"v0.4/traces\"]}";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
     verify(inst, never()).addTransformer(any(), eq(true));
   }
 
@@ -152,18 +153,18 @@ public class DebuggerAgentTest {
   public void readFromFile() throws URISyntaxException {
     URL res = getClass().getClassLoader().getResource("test_probe_file.json");
     String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
-    setFieldInConfig(Config.get(), "serviceName", "petclinic");
-    setFieldInConfig(Config.get(), "dynamicInstrumentationEnabled", true);
-    setFieldInConfig(Config.get(), "dynamicInstrumentationSnapshotUrl", url.toString());
-    setFieldInConfig(Config.get(), "agentUrl", url.toString());
-    setFieldInConfig(Config.get(), "dynamicInstrumentationMaxPayloadSize", 4096L);
-    setFieldInConfig(Config.get(), "dynamicInstrumentationProbeFile", probeDefinitionPath);
+    when(config.getServiceName()).thenReturn("petclinic");
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.getAgentUrl()).thenReturn(url.toString());
+    when(config.getDynamicInstrumentationMaxPayloadSize()).thenReturn(4096L);
+    when(config.getDynamicInstrumentationProbeFile()).thenReturn(probeDefinitionPath);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     String infoContent =
-        "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"] }";
+        "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"debugger/v1/diagnostics\", \"v0.7/config\"] }";
     server.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));
-    // sometimes this test fails because getAllLoadedClasses returns null
-    assumeTrue(inst.getAllLoadedClasses() != null);
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
+    DebuggerAgent.run(config, inst, new SharedCommunicationObjects());
     verify(inst, atLeastOnce()).addTransformer(any(), eq(true));
   }
 
