@@ -1,6 +1,6 @@
 include:
   # - local: ".gitlab/one-pipeline.locked.yml"
-  - https://gitlab-templates.ddbuild.io/libdatadog/include-wip/mhlidd/introduce_v2_validation_task/one-pipeline.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/mhlidd/introduce_v2_validation_task/one-pipeline.yml
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
