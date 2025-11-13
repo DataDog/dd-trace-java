@@ -1,4 +1,4 @@
-name: Create Release Branch and Pin System-Tests
+name: Create Release Branch
 
 on:
   push:
