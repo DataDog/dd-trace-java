@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 
 class ScalaPropagation extends Supplier[util.List[String]] {
 
-  override def get(): util.List[String] = List("plus", "s", "f", "raw", "formatBigDecimal").asJava
+  override def get(): util.List[String] = List("plus", "s", "f", "raw").asJava
 
   def plus(param: String): String = param + param
 
