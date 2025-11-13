@@ -9,6 +9,10 @@ import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.HtmlRumServlet
 import datadog.trace.instrumentation.servlet3.TestServlet3
 import datadog.trace.instrumentation.servlet3.XmlRumServlet
+import datadog.context.Context
+
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE
 import javax.servlet.http.HttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
@@ -526,7 +530,8 @@ class ServeFromOnAsyncTimeout extends HttpServlet {
 
         @Override
         void onTimeout(AsyncEvent event) throws IOException {
-          AgentSpan span = event.getSuppliedRequest().getAttribute('datadog.span')
+          Context ddContext = (Context) event.getSuppliedRequest().getAttribute(DD_CONTEXT_ATTRIBUTE)
+          AgentSpan span = spanFromContext(ddContext)
           activateSpan(span).withCloseable {
             try {
               delegateServlet.service(req, resp)
