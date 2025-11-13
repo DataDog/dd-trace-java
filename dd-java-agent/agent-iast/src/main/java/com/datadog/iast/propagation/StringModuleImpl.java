@@ -572,27 +572,26 @@ public class StringModuleImpl implements StringModule {
   }
 
   /**
-   * Formats a value using String.format with fallback to String.valueOf on IllegalFormatException.
+   * Formats a value using String.format with telemtry report on IllegalFormatException.
    *
    * @param locale the locale to use for formatting
    * @param placeholder the format placeholder (e.g., "%f", "%d")
    * @param parameter the parameter to format
-   * @return the formatted value or String.valueOf(parameter) if formatting fails
+   * @return the formatted value
    */
   private static String formatValue(
       @Nullable final Locale locale, final String placeholder, final Object parameter) {
     try {
       return String.format(locale, placeholder, parameter);
     } catch (final java.util.IllegalFormatException e) {
-      // Fallback to String.valueOf if format conversion fails (e.g., wrong type for format
-      // specifier)
+      // Send telemetry to improve future bug fixes
       LOG.debug(
           SEND_TELEMETRY,
           "Format conversion failed for placeholder {} with parameter type {}: {}",
           placeholder,
           parameter == null ? "null" : parameter.getClass().getName(),
           e.getMessage());
-      return String.valueOf(parameter);
+      throw e;
     }
   }
 

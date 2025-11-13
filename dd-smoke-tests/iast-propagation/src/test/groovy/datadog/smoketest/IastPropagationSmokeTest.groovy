@@ -56,7 +56,9 @@ class IastPropagationSmokeTest extends AbstractIastServerSmokeTest {
     final languages = ['java', 'scala', 'groovy', 'kotlin']
     return languages.collectMany { language ->
       final methods = new JsonSlurper().parse(new URL("http://localhost:${httpPort}/${language}")) as List<String>
-      return methods.collect { method -> [language, method] }
+      // Exclude formatBigDecimal - it has a dedicated test in IastUnwrapScalaNumberSmokeTest
+      // because it requires special handling (no taint propagation expected)
+      return methods.findAll { it != 'formatBigDecimal' }.collect { method -> [language, method] }
     }
   }
 }
