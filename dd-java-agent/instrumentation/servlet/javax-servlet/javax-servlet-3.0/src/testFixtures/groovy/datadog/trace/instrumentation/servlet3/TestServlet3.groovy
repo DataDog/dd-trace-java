@@ -3,11 +3,11 @@ package datadog.trace.instrumentation.servlet3
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
-import groovy.servlet.AbstractHttpServlet
 
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.annotation.WebServlet
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.lang.reflect.Field
@@ -49,7 +49,7 @@ class TestServlet3 {
   }
 
   @WebServlet
-  static class Sync extends AbstractHttpServlet {
+  static class Sync extends HttpServlet {
     ServerEndpoint determineEndpoint(HttpServletRequest req) {
       getEndpoint(req)
     }
@@ -129,7 +129,7 @@ class TestServlet3 {
   }
 
   @WebServlet(asyncSupported = true)
-  static class Async extends AbstractHttpServlet {
+  static class Async extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
@@ -216,7 +216,7 @@ class TestServlet3 {
   }
 
   @WebServlet(asyncSupported = true)
-  static class FakeAsync extends AbstractHttpServlet {
+  static class FakeAsync extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       def context = req.startAsync()
@@ -276,7 +276,7 @@ class TestServlet3 {
   }
 
   @WebServlet(asyncSupported = true)
-  static class DispatchImmediate extends AbstractHttpServlet {
+  static class DispatchImmediate extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       def target = req.servletPath.replace("/dispatch", "")
@@ -285,7 +285,7 @@ class TestServlet3 {
   }
 
   @WebServlet(asyncSupported = true)
-  static class DispatchAsync extends AbstractHttpServlet {
+  static class DispatchAsync extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       def target = req.servletPath.replace("/dispatch", "")
@@ -298,7 +298,7 @@ class TestServlet3 {
 
   // TODO: Add tests for this!
   @WebServlet(asyncSupported = true)
-  static class DispatchRecursive extends AbstractHttpServlet {
+  static class DispatchRecursive extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       if (req.servletPath == "/recursive") {

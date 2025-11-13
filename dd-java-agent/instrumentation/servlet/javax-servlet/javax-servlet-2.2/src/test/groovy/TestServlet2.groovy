@@ -1,7 +1,6 @@
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
-import groovy.servlet.AbstractHttpServlet
-
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -19,7 +18,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_B
 
 class TestServlet2 {
 
-  static class Sync extends AbstractHttpServlet {
+  static class Sync extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       req.getRequestDispatcher()

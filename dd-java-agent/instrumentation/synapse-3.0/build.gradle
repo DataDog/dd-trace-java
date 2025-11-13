@@ -22,6 +22,7 @@ dependencies {
   compileOnly group: 'org.apache.synapse', name: 'synapse-nhttp-transport', version: '3.0.0'
 
   testImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '3.0.0'
+  testImplementation libs.groovy.templates
 
   latestDepTestImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '+'
 }

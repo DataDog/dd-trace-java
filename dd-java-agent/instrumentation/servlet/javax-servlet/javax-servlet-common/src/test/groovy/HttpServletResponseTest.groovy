@@ -1,11 +1,11 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import groovy.servlet.AbstractHttpServlet
 
 import javax.servlet.ServletException
 import javax.servlet.ServletOutputStream
 import javax.servlet.ServletRequest
 import javax.servlet.ServletResponse
 import javax.servlet.http.Cookie
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -21,7 +21,7 @@ class HttpServletResponseTest extends InstrumentationSpecification {
   }
 
   def doService(HttpServletRequest request, TestResponse response, Closure<HttpServletResponse> testHandler) {
-    def servlet = new AbstractHttpServlet() {
+    def servlet = new HttpServlet() {
         @Override
         protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
           testHandler(resp)

@@ -19,6 +19,7 @@ dependencies {
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
 
   testFixturesImplementation testFixtures(project(":dd-smoke-tests:iast-util"))
+  testFixturesImplementation(libs.javaparser)
 }
 
 tasks.named("compileJava", JavaCompile) {

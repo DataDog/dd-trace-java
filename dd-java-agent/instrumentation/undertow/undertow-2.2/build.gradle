@@ -58,3 +58,5 @@ tasks.named("latestDepForkedTest", Test) {
   }
 }
 
+
+configureGroovyCompiler(11, "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy")

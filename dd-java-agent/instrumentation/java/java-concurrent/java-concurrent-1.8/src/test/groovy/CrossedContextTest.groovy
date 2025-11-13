@@ -60,7 +60,7 @@ class CrossedContextTest extends InstrumentationSpecification {
     then:
     for (List<DDSpan> trace : TEST_WRITER) {
       assert trace.size() == 2
-      DDSpan parent = trace.find({ it.isRootSpan() })
+      DDSpan parent = trace.find({ it.checkRootSpan() })
       assert null != parent
       DDSpan child = trace.find({ it.getParentId() == parent.getSpanId() })
       assert null != child
@@ -121,7 +121,7 @@ class CrossedContextTest extends InstrumentationSpecification {
     then:
     for (List<DDSpan> trace : TEST_WRITER) {
       assert trace.size() == 2
-      DDSpan parent = trace.find({ it.isRootSpan() })
+      DDSpan parent = trace.find({ it.checkRootSpan() })
       assert null != parent
       DDSpan child = trace.find({ it.getParentId() == parent.getSpanId() })
       assert null != child

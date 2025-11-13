@@ -11,5 +11,7 @@ dependencies {
   api libs.jackson.databind
   api group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
   api group: 'org.xmlunit', name: 'xmlunit-core', version: '2.10.3'
+
+  compileOnly libs.bundles.spock
 }
 

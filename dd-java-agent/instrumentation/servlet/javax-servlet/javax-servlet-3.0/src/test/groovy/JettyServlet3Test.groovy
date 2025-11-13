@@ -13,7 +13,7 @@ import datadog.context.Context
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE
-import groovy.servlet.AbstractHttpServlet
+import javax.servlet.http.HttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -423,7 +423,7 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
 
 
 @WebServlet(asyncSupported = true)
-class DispatchTimeoutAsync extends AbstractHttpServlet {
+class DispatchTimeoutAsync extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) {
     def target = req.servletPath.replace("/dispatch", "")
@@ -518,7 +518,7 @@ class JettyServlet3TestAsyncDispatchOnAsyncTimeout extends JettyServlet3Test {
 }
 
 @WebServlet(asyncSupported = true)
-class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
+class ServeFromOnAsyncTimeout extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) {
     def context = req.startAsync()
