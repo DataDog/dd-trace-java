@@ -14,7 +14,7 @@ public final class SynapseClientDecorator extends HttpClientDecorator<HttpReques
   public static final CharSequence SYNAPSE_CLIENT = UTF8BytesString.create("synapse-client");
   public static final CharSequence SYNAPSE_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
-  public static final String SYNAPSE_SPAN_KEY = "dd.trace.synapse.span";
+  public static final String SYNAPSE_CONTEXT_KEY = "dd.trace.synapse.context";
   public static final String SYNAPSE_CONTINUATION_KEY = "dd.trace.synapse.continuation";
 
   @Override

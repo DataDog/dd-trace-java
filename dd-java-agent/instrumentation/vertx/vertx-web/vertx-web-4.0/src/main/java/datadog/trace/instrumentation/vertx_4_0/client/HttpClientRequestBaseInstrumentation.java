@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.vertx_4_0.client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPackagePrivate;
@@ -9,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -57,8 +59,9 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
         @Advice.FieldValue("stream") final HttpClientStream stream,
         @Advice.Return boolean result) {
       if (result) {
-        AgentSpan nettySpan =
-            stream.connection().channel().attr(AttributeKeys.SPAN_ATTRIBUTE_KEY).get();
+        Context storedContext =
+            stream.connection().channel().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get();
+        AgentSpan nettySpan = spanFromContext(storedContext);
         if (nettySpan != null) {
           try (final AgentScope scope = activateSpan(nettySpan)) {
             DECORATE.onError(scope, cause);

@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.jetty10;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -54,12 +56,19 @@ public class JettyCommitResponseHelper {
       return false;
     }
 
-    Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-    if (!(existingSpan instanceof AgentSpan)) {
+    Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (!(contextObj instanceof Context)) {
       state.partialResponse();
       return false;
     }
-    AgentSpan span = (AgentSpan) existingSpan;
+
+    Context context = (Context) contextObj;
+    AgentSpan span = spanFromContext(context);
+    if (span == null) {
+      state.partialResponse();
+      return false;
+    }
+
     RequestContext requestContext = span.getRequestContext();
     if (requestContext == null) {
       state.partialResponse();
