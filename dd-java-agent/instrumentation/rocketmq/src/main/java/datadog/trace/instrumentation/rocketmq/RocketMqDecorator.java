@@ -118,7 +118,7 @@ public class RocketMqDecorator extends ClientDecorator {
       span.setTag(MESSAGING_ROCKETMQ_BROKER_ADDRESS, getBrokerHost(storeHost));
     }
     afterStart(span);
-    AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span);
     if (log.isDebugEnabled()) {
       log.debug("consumer span start topic:{}", ext.getTopic());
     }
@@ -131,10 +131,16 @@ public class RocketMqDecorator extends ClientDecorator {
 
   public void end(ConsumeMessageContext context) {
     String status = context.getStatus();
-    AgentSpan span = activeSpan();
+    final AgentSpan span = activeSpan();
+
     span.setTag("status", status);
     beforeFinish(span);
-    span.finish();
+
+    final AgentScope scope = activateSpan(span);
+    if (scope != null) {
+      scope.span().finish();
+      scope.close();
+    }
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
     }
@@ -169,7 +175,7 @@ public class RocketMqDecorator extends ClientDecorator {
     }
 
     defaultPropagator().inject(span, context, SETTER);
-    AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span);
     afterStart(span);
     if (log.isDebugEnabled()) {
       log.debug("consumer span start topic:{}", topic);
@@ -179,12 +185,12 @@ public class RocketMqDecorator extends ClientDecorator {
 
   public void end(SendMessageContext context) {
     Exception exception = context.getException();
-    AgentSpan span = activeSpan();
+    final AgentSpan span = activeSpan();
 
     if (span == null) {
       return;
     }
-    AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span);
     if (null != exception) {
       onError(span, exception);
     }
