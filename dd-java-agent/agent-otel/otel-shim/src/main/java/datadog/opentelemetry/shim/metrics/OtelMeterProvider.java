@@ -4,9 +4,9 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,11 +16,7 @@ public class OtelMeterProvider implements MeterProvider {
   private static final String DEFAULT_METER_NAME = "";
   public static final MeterProvider INSTANCE = new OtelMeterProvider();
   /** Meter instances, indexed by instrumentation scope name. */
-  private final Map<String, List<Meter>> meters;
-
-  public OtelMeterProvider() {
-    this.meters = new HashMap<>();
-  }
+  private final Map<String, List<Meter>> scopedMeters = new ConcurrentHashMap<>();
 
   @Override
   @ParametersAreNonnullByDefault
@@ -34,7 +30,7 @@ public class OtelMeterProvider implements MeterProvider {
 
   public Meter get(
       String instrumentationScopeName, String instrumentationVersion, String urlSchema) {
-    List<Meter> meters = this.meters.get(instrumentationScopeName);
+    List<Meter> meters = this.scopedMeters.get(instrumentationScopeName);
     if (meters != null) {
       for (Meter meter : meters) {
         if ((meter instanceof OtelMeter)
@@ -49,8 +45,8 @@ public class OtelMeterProvider implements MeterProvider {
             .setInstrumentationVersion(instrumentationVersion)
             .setSchemaUrl(urlSchema)
             .build();
-    this.meters.put(instrumentationScopeName, new ArrayList<>());
-    this.meters.get(instrumentationScopeName).add(meter);
+    this.scopedMeters.put(instrumentationScopeName, new ArrayList<>());
+    this.scopedMeters.get(instrumentationScopeName).add(meter);
 
     return meter;
   }
