@@ -26,10 +26,7 @@ dependencies {
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
+
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 
   String jetty9Version = '9.0.0.v20130308'
@@ -46,6 +43,21 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testFixturesImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  constraints {
+    // Don't want to conflict with jetty from the test server.
+    testImplementation('org.eclipse.jetty:jetty-server') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly jetty9Version
+      }
+    }
+    testImplementation('org.eclipse.jetty:jetty-servlet') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly jetty9Version
+      }
+    }
+  }
 
   testFixturesCompileOnly(libs.bundles.groovy)
 }

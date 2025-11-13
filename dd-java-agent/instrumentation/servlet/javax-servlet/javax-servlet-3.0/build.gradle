@@ -42,13 +42,9 @@ dependencies {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testFixturesCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
-
   testFixturesCompileOnly(libs.bundles.groovy)
   testFixturesCompileOnly(libs.bundles.spock)
 
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0') // See if there's any conflicts.
@@ -65,6 +61,21 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.2.0.v20160908'
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '8.0.41'
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '8.0.41'
+
+  constraints {
+    testImplementation('org.eclipse.jetty:jetty-server') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '8.2.0.v20160908'
+      }
+    }
+    testImplementation('org.eclipse.jetty:jetty-servlet') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '8.2.0.v20160908'
+      }
+    }
+  }
 
   // Jetty 10 seems to refuse to run on java8.
   // TODO: we need to setup separate test for Jetty 10 when that is released.

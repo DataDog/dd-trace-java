@@ -51,13 +51,24 @@ dependencies {
   implementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-common')) {
     transitive = false
   }
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    // explicitly declared below.
-    exclude group: 'org.eclipse.jetty'
-  }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.1.0.v20131115'
+  constraints {
+    testImplementation('org.eclipse.jetty:jetty-server') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '9.1.0.v20131115'
+      }
+    }
+    testImplementation('org.eclipse.jetty:jetty-servlet') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '9.1.0.v20131115'
+      }
+    }
+  }
+
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
 }

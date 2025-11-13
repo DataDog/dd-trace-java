@@ -90,10 +90,6 @@ dependencies {
 
   implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   // Required jars for embedded tomcat:
   testImplementation group: 'tomcat', name: 'catalina', version: tomcatVersion
   testImplementation group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
@@ -145,6 +141,12 @@ tasks.withType(Test).configureEach {
     JavaVersion.VERSION_16,
     ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
     )
+}
+
+configurations.named('testImplementation') {
+  // Don't want to conflict with jetty from the test server.
+  // because :dd-java-agent:testing brings its own version of jetty-server
+  exclude(group: 'org.eclipse.jetty')
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.
