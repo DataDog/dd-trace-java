@@ -72,23 +72,23 @@ public class DebuggerAgent {
   static final AtomicBoolean distributedDebuggerEnabled = new AtomicBoolean();
   private static ClassesToRetransformFinder classesToRetransformFinder;
 
-  public static synchronized void run(Instrumentation inst, SharedCommunicationObjects sco) {
+  public static synchronized void run(
+      Config config, Instrumentation inst, SharedCommunicationObjects sco) {
     instrumentation = inst;
     sharedCommunicationObjects = sco;
-    Config config = Config.get();
     classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     // set config updater after setup is done, as some deferred updates might be immediately called
-    DebuggerConfigBridge.setUpdater(new DefaultDebuggerConfigUpdater());
+    DebuggerConfigBridge.setUpdater(new DefaultDebuggerConfigUpdater(config));
     if (config.isDebuggerCodeOriginEnabled()) {
-      startCodeOriginForSpans();
+      startCodeOriginForSpans(config);
     }
     if (config.isDebuggerExceptionEnabled()) {
-      startExceptionReplay();
+      startExceptionReplay(config);
     }
     if (config.isDynamicInstrumentationEnabled()) {
-      startDynamicInstrumentation();
-      startCodeOriginForSpans();
+      startDynamicInstrumentation(config);
+      startCodeOriginForSpans(config);
       if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
@@ -145,12 +145,11 @@ public class DebuggerAgent {
     }
   }
 
-  public static void startDynamicInstrumentation() {
+  public static void startDynamicInstrumentation(Config config) {
     if (!dynamicInstrumentationEnabled.compareAndSet(false, true)) {
       return;
     }
     LOGGER.info("Starting Dynamic Instrumentation");
-    Config config = Config.get();
     commonInit(config);
     String probeFileLocation = config.getDynamicInstrumentationProbeFile();
     if (probeFileLocation != null) {
@@ -206,12 +205,11 @@ public class DebuggerAgent {
     }
   }
 
-  public static void startExceptionReplay() {
+  public static void startExceptionReplay(Config config) {
     if (!exceptionReplayEnabled.compareAndSet(false, true)) {
       return;
     }
     LOGGER.info("Starting Exception Replay");
-    Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
     if (config.isCiVisibilityEnabled()) {
@@ -238,12 +236,11 @@ public class DebuggerAgent {
     DebuggerContext.initExceptionDebugger(null);
   }
 
-  public static void startCodeOriginForSpans() {
+  public static void startCodeOriginForSpans(Config config) {
     if (!codeOriginEnabled.compareAndSet(false, true)) {
       return;
     }
     LOGGER.debug("Starting Code Origin for spans");
-    Config config = Config.get();
     commonInit(config);
     initClassNameFilter();
     DebuggerContext.initClassNameFilter(classNameFilter);
@@ -263,7 +260,7 @@ public class DebuggerAgent {
     DebuggerContext.initCodeOrigin(null);
   }
 
-  public static void startDistributedDebugger() {
+  public static void startDistributedDebugger(Config config) {
     if (!distributedDebuggerEnabled.compareAndSet(false, true)) {
       return;
     }
@@ -439,6 +436,26 @@ public class DebuggerAgent {
 
   public static JsonSnapshotSerializer getSnapshotSerializer() {
     return DebuggerAgent.snapshotSerializer;
+  }
+
+  // only used for tests
+  static void reset() {
+    instrumentation = null;
+    sharedCommunicationObjects = null;
+    configurationPoller = null;
+    sink = null;
+    agentVersion = null;
+    snapshotSerializer = null;
+    classNameFilter = null;
+    symDBEnablement = null;
+    configurationUpdater = null;
+    exceptionDebugger = null;
+    commonInitDone.set(false);
+    dynamicInstrumentationEnabled.set(false);
+    exceptionReplayEnabled.set(false);
+    codeOriginEnabled.set(false);
+    distributedDebuggerEnabled.set(false);
+    classesToRetransformFinder = null;
   }
 
   private static class ShutdownHook extends Thread {
