@@ -1,5 +1,6 @@
 {
   "supportedConfigurations": {
+    "DD_MATT_LI": ["A"],
     "DD_AAS_JAVA_EXTENSION_VERSION": ["A"],
     "DD_ACTION_EXECUTION_ID": ["A"],
     "DD_ADD_SPAN_POINTERS": ["A"],
