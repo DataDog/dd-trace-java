@@ -79,14 +79,11 @@ abstract class OpenAiTest extends LlmObsSpecification {
       // real openai backend, with custom httpClient to capture and save request/response records
       ClientOptions.Builder clientOptions = ClientOptions.builder()
       OkHttpClient.Builder httpClient = OkHttpClient.builder()
-
       openAiBaseApi = ClientOptions.PRODUCTION_URL
       httpClientUrlIfExists(httpClient, openAiBaseApi)
       clientOptions.baseUrl(openAiBaseApi)
       clientOptions.credential(BearerTokenCredential.create(openAiToken()))
-
-      TestOpenAiHttpClient testHttpClient = new TestOpenAiHttpClient(httpClient.build(), RECORDS_DIR)
-      clientOptions.httpClient(testHttpClient)
+      clientOptions.httpClient(new OpenAiHttpClientForTests(httpClient.build(), RECORDS_DIR))
       openAiClient = createOpenAiClient(clientOptions.build())
     }
   }

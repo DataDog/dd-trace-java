@@ -13,12 +13,12 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 // Wraps httpClient calls to dump request/responses records to be used with the mocked backend
-public class TestOpenAiHttpClient implements HttpClient {
+public class OpenAiHttpClientForTests implements HttpClient {
   private final Path recordsDir;
   private final HttpClient delegate;
 
   // Intercepts and dumps a request/response to a record file
-  public TestOpenAiHttpClient(HttpClient delegate, Path recordsDir) {
+  public OpenAiHttpClientForTests(HttpClient delegate, Path recordsDir) {
     this.recordsDir = recordsDir;
     this.delegate = delegate;
   }
