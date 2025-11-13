@@ -37,8 +37,10 @@ jobs:
           TAG=${{ steps.determine-tag.outputs.tag }}
           echo "branch=release/${TAG%.0}.x" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout dd-trace-java
+      - name: Checkout dd-trace-java at tag
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        with:
+          ref: ${{ steps.determine-tag.outputs.tag }}
 
       - name: Check if branch already exists
         id: check-branch
