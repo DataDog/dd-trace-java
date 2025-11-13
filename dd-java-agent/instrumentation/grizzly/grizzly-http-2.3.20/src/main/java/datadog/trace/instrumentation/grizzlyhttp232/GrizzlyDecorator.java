@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
@@ -87,20 +88,22 @@ public class GrizzlyDecorator
 
   public static void onHttpServerFilterPrepareResponseEnter(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
-    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    if (null != span) {
+    Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
+    AgentSpan span;
+    if (context != null && (span = spanFromContext(context)) != null) {
       DECORATE.onResponse(span, responsePacket);
     }
   }
 
   public static void onHttpServerFilterPrepareResponseExit(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
-    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    if (null != span) {
-      DECORATE.beforeFinish(span);
+    Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
+    AgentSpan span;
+    if (context != null && (span = spanFromContext(context)) != null) {
+      DECORATE.beforeFinish(context);
       span.finish();
     }
-    ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
+    ctx.getAttributes().removeAttribute(DD_CONTEXT_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
   }
 
@@ -108,7 +111,7 @@ public class GrizzlyDecorator
       FilterChainContext ctx, HttpHeader httpHeader, HttpCodecFilter thiz, NextAction nextAction) {
     // only create a span if there isn't another one attached to the current ctx
     // and if the httpHeader has been parsed into a HttpRequestPacket
-    if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) != null
+    if (ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE) != null
         || !(httpHeader instanceof HttpRequestPacket)) {
       return nextAction;
     }
@@ -119,8 +122,8 @@ public class GrizzlyDecorator
     ContextScope scope = context.attach();
     AgentSpan span = spanFromContext(context);
     DECORATE.afterStart(span);
-    ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
+    ctx.getAttributes().setAttribute(DD_CONTEXT_ATTRIBUTE, context);
     DECORATE.onRequest(span, httpRequest, httpRequest, parentContext);
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
@@ -145,13 +148,16 @@ public class GrizzlyDecorator
   }
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
-    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    if (null != span) {
+    Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
+    AgentSpan span;
+    if (context != null && (span = spanFromContext(context)) != null) {
       DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span).finish();
+      DECORATE.beforeFinish(context);
       span.finish();
+    } else if (context != null) {
+      DECORATE.beforeFinish(context);
     }
-    ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
+    ctx.getAttributes().removeAttribute(DD_CONTEXT_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
   }
 

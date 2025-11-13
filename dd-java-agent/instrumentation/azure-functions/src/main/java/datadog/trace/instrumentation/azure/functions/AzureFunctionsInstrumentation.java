@@ -85,7 +85,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan span = fromContext(scope.context());
       DECORATE.onError(span, throwable);
       DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       scope.close();
       span.finish();
     }

@@ -3,10 +3,9 @@ package datadog.trace.instrumentation.tomcat;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
@@ -117,10 +116,10 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
 
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (existingSpan instanceof AgentSpan) {
-        // Request already gone through initial processing, so just activate the span.
-        return activateSpan((AgentSpan) existingSpan);
+      Object existingCtx = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (existingCtx instanceof Context) {
+        // Request already gone through initial processing, so just attach the context.
+        return ((Context) existingCtx).attach();
       }
 
       final Context parentContext = DECORATE.extract(req);
@@ -132,7 +131,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
 
-      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       return scope;
@@ -162,19 +161,23 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         @Advice.Argument(1) Request req,
         @Advice.Argument(3) Response resp,
         @Advice.Return(readOnly = false) Boolean ret) {
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (spanObj instanceof AgentSpan) {
-        AgentSpan span = (AgentSpan) spanObj;
-        req.setAttribute(CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
-        req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
-        Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-        Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : getRootContext();
-        DECORATE.onRequest(span, req, req, parentContext);
-        Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
-        if (rba != null) {
-          TomcatBlockingHelper.commitBlockingResponse(
-              span.getRequestContext().getTraceSegment(), req, resp, rba);
-          ret = false; // skip pipeline
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        Context context = (Context) contextObj;
+        AgentSpan span = spanFromContext(context);
+        if (span != null) {
+          req.setAttribute(
+              CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
+          req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
+          Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+          Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : getRootContext();
+          DECORATE.onRequest(span, req, req, parentContext);
+          Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+          if (rba != null) {
+            TomcatBlockingHelper.commitBlockingResponse(
+                span.getRequestContext().getTraceSegment(), req, resp, rba);
+            ret = false; // skip pipeline
+          }
         }
       }
     }

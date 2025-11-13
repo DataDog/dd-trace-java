@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
-import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
+import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -74,8 +74,9 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection, request, parentContext);
 
-      // capture span to be finished by one of the various server response advices
-      connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
+      // capture context (which contains span) to be finished by one of the various server response
+      // advices
+      connection.getContext().setAttribute(SYNAPSE_CONTEXT_KEY, context);
 
       return scope;
     }
@@ -90,10 +91,10 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
         @Advice.Argument(0) final NHttpServerConnection connection) {
-      // check and remove span from context so it won't be finished twice
-      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
-      if (null != span) {
-        return span.attach();
+      // check and remove context so it won't be finished twice
+      Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
+      if (null != context) {
+        return context.attach();
       }
       return null;
     }
@@ -111,7 +112,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       scope.close();
       span.finish();
     }
@@ -122,16 +123,19 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     public static void errorResponse(
         @Advice.Argument(0) final NHttpServerConnection connection,
         @Advice.Argument(value = 1, optional = true) final Object error) {
-      // check and remove span from context so it won't be finished twice
-      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
-      if (null != span) {
-        if (error instanceof Throwable) {
-          DECORATE.onError(span, (Throwable) error);
-        } else {
-          span.setError(true);
+      // check and remove context so it won't be finished twice
+      Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
+      if (null != context && context != Context.root()) {
+        AgentSpan span = spanFromContext(context);
+        if (null != span) {
+          if (error instanceof Throwable) {
+            DECORATE.onError(span, (Throwable) error);
+          } else {
+            span.setError(true);
+          }
+          DECORATE.beforeFinish(context);
+          span.finish();
         }
-        DECORATE.beforeFinish(span);
-        span.finish();
       }
     }
   }

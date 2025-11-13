@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.jetty10;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
@@ -16,12 +18,16 @@ public class ResetAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void stopSpan(@Advice.This final HttpChannel channel) {
     Request req = channel.getRequest();
-    Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-    if (spanObj instanceof AgentSpan) {
-      final AgentSpan span = (AgentSpan) spanObj;
+    Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (!(contextObj instanceof Context)) {
+      return;
+    }
+    final Context context = (Context) contextObj;
+    final AgentSpan span = spanFromContext(context);
+    if (span != null) {
       JettyDecorator.OnResponse.onResponse(span, channel);
-      DECORATE.beforeFinish(span);
       span.finish();
     }
+    DECORATE.beforeFinish(context);
   }
 }

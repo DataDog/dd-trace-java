@@ -3,12 +3,13 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
 import static datadog.trace.instrumentation.servlet.SpanNameCache.SERVLET_PREFIX;
 import static datadog.trace.instrumentation.servlet.SpanNameCache.SPAN_NAME_CACHE;
@@ -21,10 +22,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -82,16 +84,16 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
   public static class RequestDispatcherAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope start(
+    public static ContextScope start(
         @Advice.Origin("#m") final String method,
         @Advice.This final RequestDispatcher dispatcher,
-        @Advice.Local("_requestSpan") Object requestSpan,
+        @Advice.Local("_requestContext") Object requestContext,
         @Advice.Argument(0) final ServletRequest request) {
       final AgentSpan parentSpan = activeSpan();
 
-      final Object servletSpanObject = request.getAttribute(DD_SPAN_ATTRIBUTE);
+      final Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
       final AgentSpan servletSpan =
-          servletSpanObject instanceof AgentSpan ? (AgentSpan) servletSpanObject : null;
+          contextAttr instanceof Context ? spanFromContext((Context) contextAttr) : null;
 
       if (parentSpan == null && servletSpan == null) {
         // Don't want to generate a new top-level span
@@ -122,16 +124,19 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       DECORATE.injectContext(span, request, SETTER);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
-      requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
-      request.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      requestContext = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
-      return activateSpan(span);
+      final ContextScope scope = getCurrentContext().with(span).attach();
+      // Set the context after activation so we have the proper Context object
+      request.setAttribute(DD_CONTEXT_ATTRIBUTE, scope.context());
+
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stop(
-        @Advice.Enter final AgentScope scope,
-        @Advice.Local("_requestSpan") final Object requestSpan,
+        @Advice.Enter final ContextScope scope,
+        @Advice.Local("_requestContext") final Object requestContext,
         @Advice.Argument(0) final ServletRequest request,
         @Advice.Argument(1) final ServletResponse response,
         @Advice.Thrown final Throwable throwable) {
@@ -139,15 +144,15 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         return;
       }
 
-      if (requestSpan != null) {
-        // now add it back...
-        request.setAttribute(DD_SPAN_ATTRIBUTE, requestSpan);
+      if (requestContext != null) {
+        request.setAttribute(DD_CONTEXT_ATTRIBUTE, requestContext);
       }
 
-      DECORATE.onError(scope, throwable);
-      DECORATE.beforeFinish(scope);
+      final AgentSpan span = spanFromContext(scope.context());
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(scope.context());
       scope.close();
-      scope.span().finish();
+      span.finish();
     }
   }
 }

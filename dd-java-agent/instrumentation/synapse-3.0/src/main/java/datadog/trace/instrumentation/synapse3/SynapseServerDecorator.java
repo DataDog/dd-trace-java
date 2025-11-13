@@ -24,7 +24,7 @@ public final class SynapseServerDecorator
   private static final CharSequence SYNAPSE_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
   private static final CharSequence LEGACY_SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
-  public static final String SYNAPSE_SPAN_KEY = "dd.trace.synapse.span";
+  public static final String SYNAPSE_CONTEXT_KEY = "dd.trace.synapse.context";
   public static final String SYNAPSE_CONTINUATION_KEY = "dd.trace.synapse.continuation";
 
   @Override

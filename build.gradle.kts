@@ -6,6 +6,7 @@ plugins {
   id("datadog.dependency-locking")
   id("datadog.tracer-version")
   id("datadog.dump-hanged-test")
+  id("config-inversion-linter")
   id("datadog.ci-jobs")
 
   id("com.diffplug.spotless") version "6.13.0"
