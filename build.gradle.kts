@@ -10,7 +10,7 @@ plugins {
   id("datadog.ci-jobs")
 
   id("com.diffplug.spotless") version "6.13.0"
-  id("com.github.spotbugs") version "6.4.4"
+  id("com.github.spotbugs") version "6.4.5"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.6" apply false
