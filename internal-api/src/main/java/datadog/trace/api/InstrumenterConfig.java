@@ -110,8 +110,8 @@ import java.util.Set;
  */
 public class InstrumenterConfig {
   static {
+    // skip registration when building native-images as telemetry is not available
     if (!Platform.isNativeImageBuilder()) {
-      // Bind telemetry collector to config module before initializing ConfigProvider
       ConfigInversionMetricCollectorProvider.register(
           ConfigInversionMetricCollectorImpl.getInstance());
     }
