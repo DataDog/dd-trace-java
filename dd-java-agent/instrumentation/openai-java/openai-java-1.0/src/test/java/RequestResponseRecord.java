@@ -1,0 +1,159 @@
+import com.openai.core.http.Headers;
+import com.openai.core.http.HttpRequest;
+import com.openai.core.http.HttpRequestBody;
+import com.openai.core.http.HttpResponse;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.List;
+import java.util.Map;
+
+public class RequestResponseRecord {
+  public static final String RECORD_FILE_HASH_ALG = "MD5";
+  private static final String RECORD_FILE_EXT = ".rec";
+
+  private static final String METHOD = "> method: ";
+  private static final String PATH = "> path: ";
+  private static final String BEGIN_REQUEST_BODY = "> begin request body <";
+  private static final String END_REQUEST_BODY = "> end request body <";
+  private static final String RESPONSE_CODE = "> response code: ";
+  private static final String BEGIN_RESPONSE_HEADERS = "> begin response headers <";
+  private static final String END_RESPONSE_HEADERS = "> end response headers <";
+  private static final String BEGIN_RESPONSE_BODY = "> begin response body <";
+  private static final String END_RESPONSE_BODY = "> end response body <";
+  private static final String KEY_VALUE_SEP = " -> ";
+  private static final char LINE_SEP = '\n';
+
+  public final int status;
+  public final Map<String, String> headers;
+  public final byte[] body;
+
+  public RequestResponseRecord(int status, Map<String, String> headers, byte[] body) {
+    this.status = status;
+    this.headers = headers;
+    this.body = body;
+  }
+
+  public static String requestToFileName(String method, byte[] requestBody) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance(RECORD_FILE_HASH_ALG);
+      byte[] bytes = digest.digest(requestBody);
+      StringBuilder sb = new StringBuilder();
+      for (byte b : bytes) {
+        sb.append(String.format("%02x", b));
+      }
+      sb.append('.');
+      sb.append(method);
+      sb.append(RECORD_FILE_EXT);
+      return sb.toString();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static void dump(Path targetDir, HttpRequest request, HttpResponse response, byte[] responseBody) throws IOException {
+    ByteArrayOutputStream requestBodyBytes = new ByteArrayOutputStream();
+    try (HttpRequestBody requestBody = request.body()) {
+      if (requestBody != null) {
+        requestBody.writeTo(requestBodyBytes);
+      }
+    }
+
+    String filename = requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
+    Path filePath = targetDir.resolve(filename);
+
+    try (BufferedWriter out = Files.newBufferedWriter(filePath.toFile().toPath())) {
+      out.write(METHOD);
+      out.write(request.method().toString());
+      out.write(LINE_SEP);
+
+      out.write(PATH);
+      String path = String.join("/", request.pathSegments());
+      out.write(path);
+      out.write(LINE_SEP);
+
+      out.write(BEGIN_REQUEST_BODY);
+      out.write(LINE_SEP);
+      out.write(new String(requestBodyBytes.toByteArray(), StandardCharsets.UTF_8));
+      out.write(LINE_SEP);
+      out.write(END_REQUEST_BODY);
+      out.write(LINE_SEP);
+
+      out.write(RESPONSE_CODE);
+      out.write(Integer.toString(response.statusCode()));
+      out.write(LINE_SEP);
+
+      out.write(BEGIN_RESPONSE_HEADERS);
+      out.write(LINE_SEP);
+      Headers headers = response.headers();
+      for (String name : headers.names()) {
+        List<String> values = headers.values(name);
+        if (values.size() == 1) {
+          out.write(name);
+          out.write(KEY_VALUE_SEP);
+          out.write(values.get(0));
+          out.write(LINE_SEP);
+        }
+      }
+      out.write(END_RESPONSE_HEADERS);
+      out.write(LINE_SEP);
+
+      out.write(BEGIN_RESPONSE_BODY);
+      out.write(LINE_SEP);
+      out.write(new String(responseBody));
+      out.write(LINE_SEP);
+      out.write(END_RESPONSE_BODY);
+      out.write(LINE_SEP);
+    }
+  }
+
+  public static RequestResponseRecord read(Path path) {
+    int statusCode = 200;
+    Map<String, String> headers = new java.util.HashMap<>();
+    StringBuilder bodyBuilder = new StringBuilder();
+
+    try {
+      List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+
+      boolean inResponseHeaders = false;
+      boolean inResponseBody = false;
+
+      for (String line : lines) {
+        if (line.startsWith(RESPONSE_CODE)) {
+          statusCode = Integer.parseInt(line.substring(RESPONSE_CODE.length()));
+        }
+        else if (line.equals(BEGIN_RESPONSE_HEADERS)) {
+          inResponseHeaders = true;
+        } else if (line.equals(END_RESPONSE_HEADERS)) {
+          inResponseHeaders = false;
+        }
+        else if (inResponseHeaders && line.contains(KEY_VALUE_SEP)) {
+          int arrowIndex = line.indexOf(KEY_VALUE_SEP);
+          String name = line.substring(0, arrowIndex);
+          String value = line.substring(arrowIndex + KEY_VALUE_SEP.length());
+          headers.put(name, value);
+        }
+        else if (line.equals(BEGIN_RESPONSE_BODY)) {
+          inResponseBody = true;
+        } else if (line.equals(END_RESPONSE_BODY)) {
+          inResponseBody = false;
+        }
+        else if (inResponseBody) {
+          if (bodyBuilder.length() > 0) {
+            bodyBuilder.append(LINE_SEP);
+          }
+          bodyBuilder.append(line);
+        }
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    byte[] body = bodyBuilder.toString().getBytes(StandardCharsets.UTF_8);
+    return new RequestResponseRecord(statusCode, headers, body);
+  }
+}

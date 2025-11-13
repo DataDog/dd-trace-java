@@ -1,0 +1,98 @@
+> method: POST
+> path: responses
+> begin request body <
+{"input":"Do not continue the Evan Li slander!","model":"gpt-3.5-turbo"}
+> end request body <
+> response code: 200
+> begin response headers <
+alt-svc -> h3=":443"; ma=86400
+cf-cache-status -> DYNAMIC
+cf-ray -> 99e0ef618e71757b-SEA
+content-type -> application/json
+date -> Thu, 13 Nov 2025 20:14:23 GMT
+openai-organization -> datadog-staging
+openai-processing-ms -> 708
+openai-project -> proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version -> 2020-10-01
+server -> cloudflare
+strict-transport-security -> max-age=31536000; includeSubDomains; preload
+x-content-type-options -> nosniff
+x-envoy-upstream-service-time -> 711
+x-ratelimit-limit-requests -> 10000
+x-ratelimit-limit-tokens -> 50000000
+x-ratelimit-remaining-requests -> 9999
+x-ratelimit-remaining-tokens -> 49999980
+x-ratelimit-reset-requests -> 6ms
+x-ratelimit-reset-tokens -> 0s
+x-request-id -> req_fb3803b9bf42409081b3c4ebfbbf670e
+> end response headers <
+> begin response body <
+{
+  "id": "resp_061946572aced7b40169163c1f070081969d4417189fc511ec",
+  "object": "response",
+  "created_at": 1763064863,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "model": "gpt-3.5-turbo-0125",
+  "output": [
+    {
+      "id": "msg_061946572aced7b40169163c1f4994819682eee6ebb5f2b60a",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "I apologize if my response seemed critical or negative towards Evan Li. I have no intention to slander or speak ill of anyone. Let me know if there's anything specific you'd like to discuss or clarify."
+        }
+      ],
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 1.0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 15,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 42,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "total_tokens": 57
+  },
+  "user": null,
+  "metadata": {}
+}�
+> end response body <
