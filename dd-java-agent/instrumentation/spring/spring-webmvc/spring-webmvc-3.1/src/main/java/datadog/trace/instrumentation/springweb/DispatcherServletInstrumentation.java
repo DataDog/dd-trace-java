@@ -2,9 +2,10 @@ package datadog.trace.instrumentation.springweb;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE_RENDER;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.RESPONSE_RENDER;
@@ -14,9 +15,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import java.util.List;
@@ -95,20 +96,21 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   public static class RenderAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
+    public static ContextScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
       final AgentSpan span = startSpan(RESPONSE_RENDER);
       DECORATE_RENDER.afterStart(span);
       DECORATE_RENDER.onRender(span, mv);
-      return activateSpan(span);
+      return getCurrentContext().with(span).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+      final AgentSpan span = spanFromContext(scope.context());
       DECORATE_RENDER.onError(scope, throwable);
-      DECORATE_RENDER.beforeFinish(scope);
+      DECORATE_RENDER.beforeFinish(scope.context());
       scope.close();
-      scope.span().finish();
+      span.finish();
     }
   }
 
