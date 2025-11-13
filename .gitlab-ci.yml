@@ -171,6 +171,9 @@ default:
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
     - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+    - export ORG_GRADLE_PROJECT_org.gradle.java.installations.auto-detect=false
+    - export ORG_GRADLE_PROJECT_org.gradle.java.installations.auto-download=false
+    - export ORG_GRADLE_PROJECT_org.gradle.java.installations.fromEnv=JAVA_8_HOME,JAVA_11_HOME,JAVA_17_HOME,JAVA_21_HOME,JAVA_25_HOME
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
