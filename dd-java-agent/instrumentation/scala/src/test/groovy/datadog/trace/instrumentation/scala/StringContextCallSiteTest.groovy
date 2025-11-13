@@ -99,51 +99,5 @@ class StringContextCallSiteTest extends AbstractIastScalaTest {
       )
     0 * _
   }
-
-  void 'test string format with incompatible float type'() {
-    setup:
-    final iastModule = Mock(StringModule)
-    InstrumentationBridge.registerIastModule(iastModule)
-
-    when:
-    // Directly test the StringModuleImpl.onStringFormat with incompatible types
-    // This simulates what happens when Scala f-interpolator passes wrong types at runtime
-    final pattern = 'User: %s and Balance: %f'
-    final params = ['admin', 'not-a-number'] as Object[]
-    iastModule.onStringFormat(pattern, params, _) >> { String fmt, Object[] args, String result ->
-      // Call the real implementation
-      def ctx = mock(datadog.trace.api.iast.IastContext)
-      def taintedObjects = mock(com.datadog.iast.taint.TaintedObjects)
-      ctx.getTaintedObjects() >> taintedObjects
-      datadog.trace.api.iast.IastContext.Provider.get() >> ctx
-    }
-
-    then:
-    // Test should not throw IllegalFormatConversionException
-    // The fix should handle it gracefully
-    notThrown(IllegalFormatConversionException)
-  }
-
-  void 'test string format with multiple incompatible types'() {
-    setup:
-    final iastModule = Mock(StringModule)
-    InstrumentationBridge.registerIastModule(iastModule)
-
-    when:
-    // Test with multiple type mismatches
-    final pattern = 'Name: %s, Age: %d, Score: %f'
-    final params = ['John', 'thirty', 'high'] as Object[]
-    iastModule.onStringFormat(pattern, params, _) >> { String fmt, Object[] args, String result ->
-      // Call the real implementation
-      def ctx = mock(datadog.trace.api.iast.IastContext)
-      def taintedObjects = mock(com.datadog.iast.taint.TaintedObjects)
-      ctx.getTaintedObjects() >> taintedObjects
-      datadog.trace.api.iast.IastContext.Provider.get() >> ctx
-    }
-
-    then:
-    // Test should not throw IllegalFormatConversionException
-    notThrown(IllegalFormatConversionException)
-  }
 }
 
