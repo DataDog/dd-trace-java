@@ -1,5 +1,6 @@
 include:
-  - local: ".gitlab/one-pipeline.locked.yml"
+  # - local: ".gitlab/one-pipeline.locked.yml"
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/mhlidd/introduce_v2_validation_task/one-pipeline.yml
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -359,6 +360,7 @@ spotless:
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
+
 
 test_published_artifacts:
   extends: .gradle_build
@@ -976,6 +978,11 @@ create_key:
 
 validate_supported_configurations_local_file:
   extends: .validate_supported_configurations_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+
+validate_supported_configurations_v2_local_file:
+  extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
 
