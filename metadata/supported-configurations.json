@@ -4,7 +4,6 @@
     "DD_PROFILING_EXPERIMENTAL_PROCESS_CONTEXT_ENABLED": [
       {
         "version": "A",
-        "type": "boolean",
         "default": "false",
         "aliases": []
       }
