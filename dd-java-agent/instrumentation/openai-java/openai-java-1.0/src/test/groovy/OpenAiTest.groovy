@@ -21,15 +21,14 @@ import spock.lang.Shared
 
 abstract class OpenAiTest extends LlmObsSpecification {
 
-  public static final Path RECORDS_DIR = Paths.get("src/test/resources/http-records");
-
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
   // null - will use mockOpenAiBackend and read recorded request/responses
   String openAiToken() {
     return null
   }
 
-  static String API_VERSION = "v1"
+  private static final Path RECORDS_DIR = Paths.get("src/test/resources/http-records")
+  private static final String API_VERSION = "v1"
 
   @AutoCleanup
   @Shared
@@ -90,7 +89,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
 
   void httpClientUrlIfExists(OkHttpClient.Builder httpClient, String url) {
     try {
-      def method = httpClient.getClass().getMethod("baseUrl", String.class)
+      def method = httpClient.getClass().getMethod("baseUrl", String)
       method.invoke(httpClient, url)
     } catch (NoSuchMethodException e) {
       // method exists and mandatory only prior to v3.0.0
