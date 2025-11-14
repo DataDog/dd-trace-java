@@ -259,16 +259,18 @@ public final class CrashUploader {
     try {
       String content = new String(Files.readAllBytes(file), Charset.defaultCharset());
       CrashLog crashLog = CrashLogParser.fromHotspotCrashLog(uuid, content);
-      if (crashLog == null) {
+      if (crashLog == null || crashLog.incomplete) {
         log.error(SEND_TELEMETRY, "Failed to parse crash log with uuid {} ", uuid);
+      }
+      if (crashLog == null) {
         return false;
       }
       handleCall(makeTelemetryRequest(makeTelemetryRequestBody(crashLog.toJson(), false)), "crash");
+      return !crashLog.incomplete;
     } catch (Throwable t) {
       log.error("Failed to upload crash file: {}", file, t);
       return false;
     }
-    return true;
   }
 
   private Call makeTelemetryRequest(@Nonnull RequestBody requestBody) throws IOException {
