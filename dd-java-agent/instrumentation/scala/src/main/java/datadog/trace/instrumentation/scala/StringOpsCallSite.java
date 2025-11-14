@@ -6,7 +6,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import scala.collection.immutable.StringOps;
 import scala.math.ScalaNumber;
 
@@ -87,55 +86,16 @@ public class StringOpsCallSite {
    * scala.math.BigDecimal/BigInt, preventing IllegalFormatConversionException while maintaining
    * correct format results and taint tracking.
    *
-   * @param args the array of arguments to unwrap
-   * @return a new array with ScalaNumber instances unwrapped, or the original array if no changes
+   * @param args the array of arguments to unwrap (modified in-place)
+   * @return the same array with ScalaNumber instances unwrapped to their Java equivalents
    */
   @Nonnull
   private static Object[] unwrapScalaNumbers(@Nonnull final Object[] args) {
-    boolean needsUnwrap = false;
-    // First pass: check if any argument needs unwrapping
-    for (final Object arg : args) {
-      if (arg != null && isScalaNumber(arg)) {
-        needsUnwrap = true;
-        break;
+    for (int i = 0; i < args.length; i++) {
+      if (args[i] instanceof scala.math.ScalaNumber) {
+        args[i] = ((ScalaNumber) args[i]).underlying();
       }
     }
-    // If no unwrapping needed, return original array
-    if (!needsUnwrap) {
-      return args;
-    }
-    // Second pass: create new array with unwrapped values
-    final Object[] unwrapped = new Object[args.length];
-    for (int i = 0; i < args.length; i++) {
-      unwrapped[i] = unwrapScalaNumber(args[i]);
-    }
-    return unwrapped;
-  }
-
-  /**
-   * Checks if an object is a Scala ScalaNumber (BigDecimal or BigInt).
-   *
-   * @param arg the object to check
-   * @return true if the object is a ScalaNumber instance
-   */
-  private static boolean isScalaNumber(@Nonnull final Object arg) {
-    return arg instanceof scala.math.ScalaNumber;
-  }
-
-  /**
-   * Unwraps a single Scala ScalaNumber to its underlying Java representation.
-   *
-   * @param arg the argument to unwrap (can be null)
-   * @return the unwrapped value if ScalaNumber, otherwise the original value
-   */
-  @Nullable
-  private static Object unwrapScalaNumber(@Nullable final Object arg) {
-    if (arg == null) {
-      return null;
-    }
-    if (arg instanceof scala.math.ScalaNumber) {
-      return ((ScalaNumber) arg).underlying();
-    }
-    return arg;
+    return args;
   }
 }
