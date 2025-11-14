@@ -985,6 +985,7 @@ validate_supported_configurations_v2_local_file:
   extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "true"
 
 update_central_configurations_version_range:
   extends: .update_central_configurations_version_range
