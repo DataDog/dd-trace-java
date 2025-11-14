@@ -1,9 +1,12 @@
 {
   "version": "2",
   "supportedConfigurations": {
-    "DD_AAS_JAVA_EXTENSION_VERSION": [
+    "DD_PROFILING_EXPERIMENTAL_PROCESS_CONTEXT_ENABLED": [
       {
-        "version": "A"
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
       }
     ]
   },
