@@ -1,13 +1,9 @@
 package datadog.trace.llmobs
 
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Config
-import datadog.trace.api.config.CiVisibilityConfig
-import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.LlmObsConfig
-import java.nio.file.Files
 
 class LlmObsSpecification extends InstrumentationSpecification {
 
