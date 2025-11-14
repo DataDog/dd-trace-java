@@ -88,6 +88,8 @@ public final class GeneralConfig {
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
+  public static final String DATA_STREAMS_TRANSACTION_EXTRACTORS =
+      "data.streams.transaction_extractors";
 
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";

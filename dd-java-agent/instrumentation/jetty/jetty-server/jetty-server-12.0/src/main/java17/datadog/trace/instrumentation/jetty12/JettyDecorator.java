@@ -83,6 +83,11 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return response.getStatus();
   }
 
+  @Override
+  protected String getRequestHeader(final Request request, String key) {
+    return request.getHeaders().get(key);
+  }
+
   public AgentSpan onResponse(AgentSpan span, HttpChannelState channel) {
     Request request = channel.getRequest();
     Response response = channel.getResponse();

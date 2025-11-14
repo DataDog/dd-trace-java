@@ -5,7 +5,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 
-public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
+public interface AgentDataStreamsMonitoring
+    extends DataStreamsCheckpointer, DataStreamsTransactionTracker {
   void trackBacklog(DataStreamsTags tags, long value);
 
   /**
