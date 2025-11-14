@@ -1,0 +1,42 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'com.gradleup.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+excludedClassesCoverage += [
+  // POJOs
+  'com.datadog.featureflag.ExposureCache.Key',
+  'com.datadog.featureflag.ExposureCache.Value'
+]
+
+dependencies {
+  api libs.slf4j
+  implementation libs.moshi
+  implementation libs.jctools
+
+  api project(':dd-trace-api')
+  compileOnly project(':dd-trace-core')
+  implementation project(':internal-api')
+  implementation project(':communication')
+
+  testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:testing')
+}
+
+tasks.named("shadowJar", ShadowJar) {
+  dependencies deps.excludeShared
+}
+
+tasks.named("jar", Jar) {
+  archiveClassifier = 'unbundled'
+}
+
