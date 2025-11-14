@@ -23,5 +23,4 @@ class LlmObsSpecification extends InstrumentationSpecification {
 
     injectSysConfig(LlmObsConfig.LLMOBS_ENABLED, "true") // TODO maybe extract to an override method similar to DSM/DBM (see the super impl)
   }
-
 }
