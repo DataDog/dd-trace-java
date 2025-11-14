@@ -15,8 +15,11 @@ import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
+  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
@@ -35,6 +38,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_REGISTRY_USAGES = "SchemaRegistryUsages".getBytes(ISO_8859_1);
+  private static final byte[] TOPIC = "Topic".getBytes(ISO_8859_1);
+  private static final byte[] KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_ID = "SchemaId".getBytes(ISO_8859_1);
+  private static final byte[] COUNT = "Count".getBytes(ISO_8859_1);
+  private static final byte[] IS_SUCCESS = "IsSuccess".getBytes(ISO_8859_1);
+  private static final byte[] IS_KEY = "IsKey".getBytes(ISO_8859_1);
   private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
 
@@ -121,7 +131,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      writer.startMap(3 + (hasBacklogs ? 1 : 0));
+      boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
+      int mapSize = 3;
+      if (hasBacklogs) mapSize++;
+      if (hasSchemaRegistryUsages) mapSize++;
+      writer.startMap(mapSize);
 
       /* 1 */
       writer.writeUTF8(START);
@@ -138,6 +152,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (hasBacklogs) {
         /* 4 */
         writeBacklogs(bucket.getBacklogs(), writer);
+      }
+
+      if (hasSchemaRegistryUsages) {
+        /* 5 */
+        writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
       }
     }
 
@@ -204,6 +223,50 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       packer.writeUTF8(BACKLOG_VALUE);
       packer.writeLong(entry.getValue());
+    }
+  }
+
+  private void writeSchemaRegistryUsages(
+      Collection<Map.Entry<StatsBucket.SchemaRegistryKey, StatsBucket.SchemaRegistryCount>> usages,
+      Writable packer) {
+    if (!usages.isEmpty()) {
+      log.info("[DSM Schema Registry] Flushing {} schema registry usage entries", usages.size());
+    }
+
+    packer.writeUTF8(SCHEMA_REGISTRY_USAGES);
+    packer.startArray(usages.size());
+    for (Map.Entry<StatsBucket.SchemaRegistryKey, StatsBucket.SchemaRegistryCount> entry : usages) {
+      StatsBucket.SchemaRegistryKey key = entry.getKey();
+      StatsBucket.SchemaRegistryCount value = entry.getValue();
+
+      log.info(
+          "[DSM Schema Registry] Flushing entry: topic={}, clusterId={}, schemaId={}, success={}, isKey={}, count={}",
+          key.getTopic(),
+          key.getClusterId(),
+          key.getSchemaId(),
+          key.isSuccess(),
+          key.isKey(),
+          value.getCount());
+
+      packer.startMap(5);
+
+      packer.writeUTF8(TOPIC);
+      packer.writeString(key.getTopic(), null);
+
+      packer.writeUTF8(KAFKA_CLUSTER_ID);
+      packer.writeString(key.getClusterId(), null);
+
+      packer.writeUTF8(SCHEMA_ID);
+      packer.writeInt(key.getSchemaId());
+
+      packer.writeUTF8(IS_SUCCESS);
+      packer.writeBoolean(key.isSuccess());
+
+      packer.writeUTF8(IS_KEY);
+      packer.writeBoolean(key.isKey());
+
+      packer.writeUTF8(COUNT);
+      packer.writeLong(value.getCount());
     }
   }
 

@@ -118,6 +118,21 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
 
+      // Set cluster ID in SchemaRegistryContext for Schema Registry instrumentation
+      // Use reflection to avoid compile-time dependency on the schema registry module
+      if (clusterId != null) {
+        try {
+          Class<?> contextClass =
+              Class.forName(
+                  "datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext",
+                  false,
+                  metadata.getClass().getClassLoader());
+          contextClass.getMethod("setClusterId", String.class).invoke(null, clusterId);
+        } catch (Throwable ignored) {
+          // Ignore if SchemaRegistryContext is not available
+        }
+      }
+
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);

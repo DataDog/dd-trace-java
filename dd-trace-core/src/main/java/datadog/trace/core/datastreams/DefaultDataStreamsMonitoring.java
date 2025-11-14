@@ -17,6 +17,7 @@ import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.*;
+import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -218,6 +219,28 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void setSchemaRegistryUsage(
+      String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey) {
+    log.info(
+        "[DSM Schema Registry] Recording usage: topic={}, clusterId={}, schemaId={}, success={}, isKey={}",
+        topic,
+        clusterId,
+        schemaId,
+        isSuccess,
+        isKey);
+
+    inbox.offer(
+        new SchemaRegistryUsage(
+            topic,
+            clusterId,
+            schemaId,
+            isSuccess,
+            isKey,
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
@@ -358,6 +381,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsBucket statsBucket =
                   getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
               statsBucket.addBacklog(backlog);
+            } else if (payload instanceof SchemaRegistryUsage) {
+              SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
+              StatsBucket statsBucket =
+                  getStatsBucket(usage.getTimestampNanos(), usage.getServiceNameOverride());
+              statsBucket.addSchemaRegistryUsage(usage);
             }
           }
         } catch (Exception e) {
