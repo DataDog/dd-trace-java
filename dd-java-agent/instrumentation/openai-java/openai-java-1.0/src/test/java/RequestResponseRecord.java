@@ -56,7 +56,8 @@ public class RequestResponseRecord {
   }
 
   public static boolean exists(Path recordsDir, HttpRequest request) {
-    String filename = requestToFileName(request.method().toString(), readRequestBody(request).toByteArray());
+    String filename =
+        requestToFileName(request.method().toString(), readRequestBody(request).toByteArray());
     Path targetDir = recordSubpath(recordsDir, request);
     Path filePath = targetDir.resolve(filename);
     return filePath.toFile().exists();
@@ -80,11 +81,14 @@ public class RequestResponseRecord {
     return result;
   }
 
-  public static void dump(Path recordsDir, HttpRequest request, HttpResponse response, byte[] responseBody) throws IOException {
+  public static void dump(
+      Path recordsDir, HttpRequest request, HttpResponse response, byte[] responseBody)
+      throws IOException {
     ByteArrayOutputStream requestBodyBytes = readRequestBody(request);
     Path targetDir = recordSubpath(recordsDir, request);
     Files.createDirectories(targetDir);
-    String filename = requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
+    String filename =
+        requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
     Path filePath = targetDir.resolve(filename);
 
     try (BufferedWriter out = Files.newBufferedWriter(filePath.toFile().toPath())) {
@@ -146,24 +150,20 @@ public class RequestResponseRecord {
       for (String line : lines) {
         if (line.startsWith(STATUS_CODE)) {
           statusCode = Integer.parseInt(line.substring(STATUS_CODE.length()));
-        }
-        else if (line.equals(BEGIN_RESPONSE_HEADERS)) {
+        } else if (line.equals(BEGIN_RESPONSE_HEADERS)) {
           inResponseHeaders = true;
         } else if (line.equals(END_RESPONSE_HEADERS)) {
           inResponseHeaders = false;
-        }
-        else if (inResponseHeaders && line.contains(KEY_VALUE_SEP)) {
+        } else if (inResponseHeaders && line.contains(KEY_VALUE_SEP)) {
           int arrowIndex = line.indexOf(KEY_VALUE_SEP);
           String name = line.substring(0, arrowIndex);
           String value = line.substring(arrowIndex + KEY_VALUE_SEP.length());
           headers.put(name, value);
-        }
-        else if (line.equals(BEGIN_RESPONSE_BODY)) {
+        } else if (line.equals(BEGIN_RESPONSE_BODY)) {
           inResponseBody = true;
         } else if (line.equals(END_RESPONSE_BODY)) {
           inResponseBody = false;
-        }
-        else if (inResponseBody) {
+        } else if (inResponseBody) {
           if (bodyBuilder.length() > 0) {
             bodyBuilder.append(LINE_SEP);
           }

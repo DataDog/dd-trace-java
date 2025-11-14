@@ -41,7 +41,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
   def "create streaming chat/completion test"() {
     runnableUnderTrace("parent") {
       StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParams())
-      try (Stream stream = streamCompletion.stream()) { // close the stream after use
+      try (Stream stream = streamCompletion.stream()) {
         stream.forEach {
           // consume the stream
         }

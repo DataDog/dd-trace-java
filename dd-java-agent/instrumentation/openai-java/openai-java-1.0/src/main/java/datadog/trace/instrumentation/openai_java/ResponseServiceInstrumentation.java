@@ -19,7 +19,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public class ResponseServiceInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class ResponseServiceInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.openai.services.blocking.ResponseServiceImpl$WithRawResponseImpl";
@@ -47,7 +48,9 @@ public class ResponseServiceInstrumentation implements Instrumenter.ForSingleTyp
 
   public static class CreateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final ResponseCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+    public static AgentScope enter(
+        @Advice.Argument(0) final ResponseCreateParams params,
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
@@ -56,14 +59,19 @@ public class ResponseServiceInstrumentation implements Instrumenter.ForSingleTyp
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<Response> response, @Advice.Thrown final Throwable err) {
+    public static void exit(
+        @Advice.Enter final AgentScope scope,
+        @Advice.Return(readOnly = false) HttpResponseFor<Response> response,
+        @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response = ResponseWrappers.wrapResponse(response, span, OpenAiDecorator.DECORATE::decorateWithResponse);
+          response =
+              ResponseWrappers.wrapResponse(
+                  response, span, OpenAiDecorator.DECORATE::decorateWithResponse);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -76,7 +84,9 @@ public class ResponseServiceInstrumentation implements Instrumenter.ForSingleTyp
   public static class CreateStreamingAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final ResponseCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+    public static AgentScope enter(
+        @Advice.Argument(0) final ResponseCreateParams params,
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
@@ -85,14 +95,20 @@ public class ResponseServiceInstrumentation implements Instrumenter.ForSingleTyp
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<StreamResponse<ResponseStreamEvent>> response, @Advice.Thrown final Throwable err) {
+    public static void exit(
+        @Advice.Enter final AgentScope scope,
+        @Advice.Return(readOnly = false)
+            HttpResponseFor<StreamResponse<ResponseStreamEvent>> response,
+        @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response = ResponseWrappers.wrapStreamResponse(response, span, DECORATE::decorateWithResponseStreamEvent);
+          response =
+              ResponseWrappers.wrapStreamResponse(
+                  response, span, DECORATE::decorateWithResponseStreamEvent);
         } else {
           span.finish();
         }

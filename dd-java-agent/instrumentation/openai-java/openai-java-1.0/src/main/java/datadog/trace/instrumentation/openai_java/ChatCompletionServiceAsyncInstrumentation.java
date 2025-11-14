@@ -1,5 +1,13 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
 import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
@@ -12,15 +20,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
-public class ChatCompletionServiceAsyncInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class ChatCompletionServiceAsyncInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.openai.services.async.chat.ChatCompletionServiceAsyncImpl$WithRawResponseImpl";
@@ -31,21 +32,27 @@ public class ChatCompletionServiceAsyncInstrumentation implements Instrumenter.F
     transformer.applyAdvice(
         isMethod()
             .and(named("create"))
-            .and(takesArgument(0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+            .and(
+                takesArgument(
+                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
             .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("createStreaming"))
-            .and(takesArgument(0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+            .and(
+                takesArgument(
+                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
             .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
 
   public static class CreateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final ChatCompletionCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+    public static AgentScope enter(
+        @Advice.Argument(0) final ChatCompletionCreateParams params,
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
@@ -54,14 +61,19 @@ public class ChatCompletionServiceAsyncInstrumentation implements Instrumenter.F
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<ChatCompletion>> future, @Advice.Thrown final Throwable err) {
+    public static void exit(
+        @Advice.Enter final AgentScope scope,
+        @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<ChatCompletion>> future,
+        @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureResponse(future, span, DECORATE::decorateWithChatCompletion);
+          future =
+              ResponseWrappers.wrapFutureResponse(
+                  future, span, DECORATE::decorateWithChatCompletion);
         } else {
           span.finish();
         }
@@ -73,7 +85,9 @@ public class ChatCompletionServiceAsyncInstrumentation implements Instrumenter.F
 
   public static class CreateStreamingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final ChatCompletionCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+    public static AgentScope enter(
+        @Advice.Argument(0) final ChatCompletionCreateParams params,
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
@@ -82,14 +96,20 @@ public class ChatCompletionServiceAsyncInstrumentation implements Instrumenter.F
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future, @Advice.Thrown final Throwable err) {
+    public static void exit(
+        @Advice.Enter final AgentScope scope,
+        @Advice.Return(readOnly = false)
+            CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future,
+        @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureStreamResponse(future, span, DECORATE::decorateWithChatCompletionChunks);
+          future =
+              ResponseWrappers.wrapFutureStreamResponse(
+                  future, span, DECORATE::decorateWithChatCompletionChunks);
         } else {
           span.finish();
         }

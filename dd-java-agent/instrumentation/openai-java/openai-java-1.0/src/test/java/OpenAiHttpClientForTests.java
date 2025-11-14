@@ -3,13 +3,12 @@ import com.openai.core.http.Headers;
 import com.openai.core.http.HttpClient;
 import com.openai.core.http.HttpRequest;
 import com.openai.core.http.HttpResponse;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
+import org.jetbrains.annotations.NotNull;
 
 // Wraps httpClient calls to dump request/responses records to be used with the mocked backend
 public class OpenAiHttpClientForTests implements HttpClient {
@@ -24,15 +23,18 @@ public class OpenAiHttpClientForTests implements HttpClient {
 
   @NotNull
   @Override
-  public HttpResponse execute(@NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
+  public HttpResponse execute(
+      @NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
     HttpResponse response = delegate.execute(request, requestOptions);
     return wrapIfNeeded(request, response);
   }
 
   @NotNull
   @Override
-  public CompletableFuture<HttpResponse> executeAsync(@NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
-    return delegate.executeAsync(request, requestOptions)
+  public CompletableFuture<HttpResponse> executeAsync(
+      @NotNull HttpRequest request, @NotNull RequestOptions requestOptions) {
+    return delegate
+        .executeAsync(request, requestOptions)
         .thenApply(response -> wrapIfNeeded(request, response));
   }
 
@@ -55,7 +57,8 @@ public class OpenAiHttpClientForTests implements HttpClient {
     private final Path recordsDir;
     private final ByteArrayOutputStream responseBody;
 
-    private ResponseRequestInterceptor(HttpRequest request, HttpResponse response, Path recordsDir) {
+    private ResponseRequestInterceptor(
+        HttpRequest request, HttpResponse response, Path recordsDir) {
       this.request = request;
       this.response = response;
       this.recordsDir = recordsDir;

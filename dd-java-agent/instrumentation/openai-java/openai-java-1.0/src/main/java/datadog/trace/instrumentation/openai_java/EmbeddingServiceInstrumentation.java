@@ -17,7 +17,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public class EmbeddingServiceInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class EmbeddingServiceInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.openai.services.blocking.EmbeddingServiceImpl$WithRawResponseImpl";
@@ -35,7 +36,9 @@ public class EmbeddingServiceInstrumentation implements Instrumenter.ForSingleTy
 
   public static class CreateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) final EmbeddingCreateParams params, @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+    public static AgentScope enter(
+        @Advice.Argument(0) final EmbeddingCreateParams params,
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
@@ -44,14 +47,19 @@ public class EmbeddingServiceInstrumentation implements Instrumenter.ForSingleTy
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope, @Advice.Return(readOnly = false) HttpResponseFor<CreateEmbeddingResponse> response, @Advice.Thrown final Throwable err) {
+    public static void exit(
+        @Advice.Enter final AgentScope scope,
+        @Advice.Return(readOnly = false) HttpResponseFor<CreateEmbeddingResponse> response,
+        @Advice.Thrown final Throwable err) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response = ResponseWrappers.wrapResponse(response, span, OpenAiDecorator.DECORATE::decorateWithEmbedding);
+          response =
+              ResponseWrappers.wrapResponse(
+                  response, span, OpenAiDecorator.DECORATE::decorateWithEmbedding);
         }
         DECORATE.beforeFinish(span);
       } finally {

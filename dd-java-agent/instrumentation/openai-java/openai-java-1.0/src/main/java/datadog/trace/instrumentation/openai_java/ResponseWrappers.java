@@ -1,22 +1,22 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
+
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import org.jetbrains.annotations.NotNull;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
-
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
+import org.jetbrains.annotations.NotNull;
 
 public class ResponseWrappers {
 
-  static abstract class DDHttpResponseFor<T> implements HttpResponseFor<T> {
+  abstract static class DDHttpResponseFor<T> implements HttpResponseFor<T> {
     private final HttpResponseFor<T> delegate;
 
     DDHttpResponseFor(HttpResponseFor<T> delegate) {
@@ -53,7 +53,8 @@ public class ResponseWrappers {
     }
   }
 
-  public static <T> HttpResponseFor<T> wrapResponse(HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
+  public static <T> HttpResponseFor<T> wrapResponse(
+      HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
     DECORATE.decorateWithHttpResponse(span, response);
     return new DDHttpResponseFor<T>(response) {
       @Override
@@ -64,18 +65,23 @@ public class ResponseWrappers {
     };
   }
 
-  public static <T> CompletableFuture<HttpResponseFor<T>> wrapFutureResponse(CompletableFuture<HttpResponseFor<T>> future, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
+  public static <T> CompletableFuture<HttpResponseFor<T>> wrapFutureResponse(
+      CompletableFuture<HttpResponseFor<T>> future,
+      AgentSpan span,
+      BiConsumer<AgentSpan, T> afterParse) {
     return future
-        .thenApply(response ->
-          wrapResponse(response, span, afterParse)
-        )
-        .whenComplete((r, t) -> {
-          DECORATE.beforeFinish(span);
-          span.finish();
-        });
+        .thenApply(response -> wrapResponse(response, span, afterParse))
+        .whenComplete(
+            (r, t) -> {
+              DECORATE.beforeFinish(span);
+              span.finish();
+            });
   }
 
-  public static <T> HttpResponseFor<StreamResponse<T>> wrapStreamResponse(HttpResponseFor<StreamResponse<T>> response, final AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate) {
+  public static <T> HttpResponseFor<StreamResponse<T>> wrapStreamResponse(
+      HttpResponseFor<StreamResponse<T>> response,
+      final AgentSpan span,
+      BiConsumer<AgentSpan, List<T>> decorate) {
     DECORATE.decorateWithHttpResponse(span, response);
     return new DDHttpResponseFor<StreamResponse<T>>(response) {
       @Override
@@ -86,10 +92,7 @@ public class ResponseWrappers {
           @NotNull
           @Override
           public Stream<T> stream() {
-            return streamResponse
-                .stream()
-                .peek(chunks::add)
-                .onClose(this::close);
+            return streamResponse.stream().peek(chunks::add).onClose(this::close);
           }
 
           @Override
@@ -107,7 +110,10 @@ public class ResponseWrappers {
     };
   }
 
-  public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFutureStreamResponse(CompletableFuture<HttpResponseFor<StreamResponse<T>>> future, AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate) {
+  public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFutureStreamResponse(
+      CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
+      AgentSpan span,
+      BiConsumer<AgentSpan, List<T>> decorate) {
     return future.thenApply(r -> wrapStreamResponse(r, span, decorate));
   }
 }

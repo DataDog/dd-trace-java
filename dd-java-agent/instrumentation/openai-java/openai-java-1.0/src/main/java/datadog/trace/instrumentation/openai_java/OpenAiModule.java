@@ -15,14 +15,14 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".OpenAiDecorator",
-        packageName + ".ResponseWrappers",
-        packageName + ".ResponseWrappers$DDHttpResponseFor",
-        packageName + ".ResponseWrappers$1",
-        packageName + ".ResponseWrappers$2",
-        packageName + ".ResponseWrappers$2$1",
-        packageName + ".ResponseWrappers$3",
-        packageName + ".ResponseWrappers$3$1",
+      packageName + ".OpenAiDecorator",
+      packageName + ".ResponseWrappers",
+      packageName + ".ResponseWrappers$DDHttpResponseFor",
+      packageName + ".ResponseWrappers$1",
+      packageName + ".ResponseWrappers$2",
+      packageName + ".ResponseWrappers$2$1",
+      packageName + ".ResponseWrappers$3",
+      packageName + ".ResponseWrappers$3$1",
     };
   }
 
@@ -35,7 +35,6 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
         new CompletionServiceInstrumentation(),
         new EmbeddingServiceInstrumentation(),
         new ResponseServiceAsyncInstrumentation(),
-        new ResponseServiceInstrumentation()
-    );
+        new ResponseServiceInstrumentation());
   }
 }

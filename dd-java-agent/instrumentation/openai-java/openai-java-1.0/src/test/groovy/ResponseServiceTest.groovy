@@ -40,7 +40,7 @@ class ResponseServiceTest extends OpenAiTest {
   def "create streaming response test"() {
     runnableUnderTrace("parent") {
       StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(responseCreateParams())
-      try (Stream stream = streamResponse.stream()) { // close the stream after use
+      try (Stream stream = streamResponse.stream()) {
         stream.forEach {
           // consume the stream
         }

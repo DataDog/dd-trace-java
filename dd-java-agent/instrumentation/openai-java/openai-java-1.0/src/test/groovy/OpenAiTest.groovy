@@ -106,31 +106,31 @@ abstract class OpenAiTest extends LlmObsSpecification {
 
   CompletionCreateParams completionCreateParams() {
     CompletionCreateParams.builder()
-        .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
-        .prompt("Tell me a story about building the best SDK!")
-        .build()
+    .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
+    .prompt("Tell me a story about building the best SDK!")
+    .build()
   }
 
   ChatCompletionCreateParams chatCompletionCreateParams() {
     ChatCompletionCreateParams.builder()
-        .model(ChatModel.GPT_4O_MINI)
-        .addSystemMessage("")
-        .addUserMessage("")
-        .build()
+    .model(ChatModel.GPT_4O_MINI)
+    .addSystemMessage("")
+    .addUserMessage("")
+    .build()
   }
 
   EmbeddingCreateParams embeddingCreateParams() {
     EmbeddingCreateParams.builder()
-      .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
-      .input("hello world")
-      .build()
+    .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+    .input("hello world")
+    .build()
   }
 
   ResponseCreateParams responseCreateParams() {
     ResponseCreateParams.builder()
-      .model(ChatModel.GPT_3_5_TURBO)
-      .input("Do not continue the Evan Li slander!")
-      .build()
+    .model(ChatModel.GPT_3_5_TURBO)
+    .input("Do not continue the Evan Li slander!")
+    .build()
   }
 }
 

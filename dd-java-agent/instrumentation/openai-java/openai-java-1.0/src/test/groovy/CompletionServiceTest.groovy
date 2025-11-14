@@ -39,7 +39,7 @@ class CompletionServiceTest extends OpenAiTest {
   def "create streaming completion test"() {
     runnableUnderTrace("parent") {
       StreamResponse<Completion> streamCompletion = openAiClient.completions().createStreaming(completionCreateParams())
-      try (Stream stream = streamCompletion.stream()) { // close the stream after use
+      try (Stream stream = streamCompletion.stream()) {
         stream.forEach {
           // consume the stream
         }
