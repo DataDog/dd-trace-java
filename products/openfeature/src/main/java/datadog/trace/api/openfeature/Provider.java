@@ -20,8 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Provider extends EventProvider implements Metadata {
 
   static final String METADATA = "datadog-openfeature-provider";
-  private static final String EVALUATOR_IMPL =
-      "datadog.trace.api.openfeature.DDFeatureFlaggingEvaluator";
+  private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
