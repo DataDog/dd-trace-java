@@ -1,11 +1,20 @@
 package datadog.gradle.plugin.csi
 
+import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
+import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
+import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.kotlin.dsl.listProperty
+import org.gradle.kotlin.dsl.property
 import java.io.File
 import javax.inject.Inject
 
@@ -14,6 +23,7 @@ import javax.inject.Inject
  * This extension allows to configure the Call Site Instrumenter plugin execution.
  */
 abstract class CallSiteInstrumentationExtension @Inject constructor(
+  project: Project,
   objectFactory: ObjectFactory,
   layout: ProjectLayout
 ) {
@@ -66,4 +76,20 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
    */
   val jvmArgs: ListProperty<String> =
     objectFactory.listProperty<String>().convention(listOf("-Xmx128m", "-Xms64m"))
+
+  /**
+   * The configurations to use to look for the call site instrumenter dependencies.
+   *
+   * By default, includes all `main*` source sets, but only the `test`
+   * (as wee don't want other test configurations by default).
+   */
+  val configurations = objectFactory.listProperty<Configuration>().convention(
+    project.provider {
+      project.configurations.matching {
+        // Includes all main* source sets, but only the test (as wee don;t want other )
+        (it.name.startsWith(MAIN_SOURCE_SET_NAME) || it.name == TEST_SOURCE_SET_NAME)
+            && (it.name.endsWith(RUNTIME_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true) || it.name.endsWith(COMPILE_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true))
+      }
+    }
+  )
 }

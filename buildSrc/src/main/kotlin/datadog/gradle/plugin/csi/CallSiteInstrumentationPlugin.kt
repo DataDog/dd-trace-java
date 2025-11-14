@@ -4,10 +4,10 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.JavaExec
-import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
+import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.api.tasks.testing.Test
@@ -43,7 +43,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     // create a new source set for the csi files
     val targetFolder = newBuildFolder(project, extension.targetFolder.get().asFile.toString())
     val sourceSets = getSourceSets(project)
-    val mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME).get()
+    val mainSourceSet = sourceSets.named(MAIN_SOURCE_SET_NAME).get()
     val csiSourceSet = sourceSets.create("csi") {
       compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
       annotationProcessorPath += mainSourceSet.annotationProcessorPath
@@ -60,7 +60,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     }
 
     // add csi classes to test classpath
-    sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME) {
+    sourceSets.named(TEST_SOURCE_SET_NAME) {
       compileClasspath += csiSourceSet.output.classesDirs
       runtimeClasspath += csiSourceSet.output.classesDirs
     }
@@ -152,7 +152,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
-        val programClassPath = getProgramClasspath(project).map { it.toString() }
+        val programClassPath = extension.configurations.get().flatMap {
+          it.files
+        }.map { it.toString() }
+
         val arguments = listOf(
           extension.srcFolder.get().asFile.toString(),
           inputProvider.get().asFile.toString(),
@@ -172,7 +175,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
     // make all sourcesets' class tasks depend on call site generator
     val sourceSets = getSourceSets(project)
-    sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME) {
+    sourceSets.named(MAIN_SOURCE_SET_NAME) {
       project.tasks.named(classesTaskName) {
         dependsOn(callSiteGeneratorTask)
       }
@@ -184,20 +187,5 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
         dependsOn(callSiteGeneratorTask)
       }
     }
-  }
-
-  private fun getProgramClasspath(project: Project): List<File> {
-    val classpath = ArrayList<File>()
-    // 1. Compilation outputs - exclude latestDep and forked test variants
-    project.tasks.withType<AbstractCompile>()
-      .filter { task -> !task.name.contains("LatestDep", ignoreCase = true) && !task.name.contains("Forked", ignoreCase = true) }
-      .map { it.destinationDirectory.asFile.get() }
-      .forEach(classpath::add)
-    // 2. Compile time dependencies - exclude latestDep and forked test variants
-    project.tasks.withType<AbstractCompile>()
-      .filter { task -> !task.name.contains("LatestDep", ignoreCase = true) && !task.name.contains("Forked", ignoreCase = true) }
-      .flatMap { it.classpath }
-      .forEach(classpath::add)
-    return classpath
   }
 }
