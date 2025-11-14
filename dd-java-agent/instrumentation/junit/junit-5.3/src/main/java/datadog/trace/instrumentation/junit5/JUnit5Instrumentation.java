@@ -11,7 +11,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -76,9 +75,6 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class ContextStoreAdvice {
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "executionRequest is the argument of the original method")
     @Advice.OnMethodEnter
     public static void setContextStores(@Advice.This TestEngine testEngine) {
       ContextStore<TestDescriptor, Object> contextStore =
@@ -89,9 +85,6 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class JUnit5Advice {
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "executionRequest is the argument of the original method")
     @Advice.OnMethodEnter
     public static void addTracingListener(
         @Advice.This TestEngine testEngine,

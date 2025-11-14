@@ -14,6 +14,7 @@ import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -367,6 +368,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
 
     private final long[] previousCounts = new long[50];
+
+    @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
 
     @Override
