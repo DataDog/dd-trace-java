@@ -104,7 +104,7 @@ class CompletionServiceTest extends OpenAiTest {
       openAiClient.async().completions().withRawResponse().createStreaming(completionCreateParams())
     }
     HttpResponseFor<StreamResponse<Completion>> resp = future.get()
-    try (Stream stream = resp.parse().stream()) { // close the stream after use
+    try (Stream stream = resp.parse().stream()) {
       stream.forEach {
         // consume the stream
       }

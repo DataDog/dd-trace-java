@@ -106,7 +106,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
       openAiClient.async().chat().completions().withRawResponse().createStreaming(chatCompletionCreateParams())
     }
     HttpResponseFor<StreamResponse<ChatCompletionChunk>> resp = future.get()
-    try (Stream stream = resp.parse().stream()) { // close the stream after use
+    try (Stream stream = resp.parse().stream()) {
       stream.forEach {
         // consume the stream
       }

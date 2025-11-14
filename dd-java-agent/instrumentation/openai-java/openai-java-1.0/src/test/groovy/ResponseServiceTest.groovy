@@ -105,7 +105,7 @@ class ResponseServiceTest extends OpenAiTest {
       openAiClient.async().responses().withRawResponse().createStreaming(responseCreateParams())
     }
     HttpResponseFor<StreamResponse<ResponseStreamEvent>> resp = future.get()
-    try (Stream stream = resp.parse().stream()) { // close the stream after use
+    try (Stream stream = resp.parse().stream()) {
       stream.forEach {
         // consume the stream
       }
