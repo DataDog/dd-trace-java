@@ -1,9 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_LOG_PROBES;
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_METRIC_PROBES;
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_SPAN_DECORATION_PROBES;
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_SPAN_PROBES;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static datadog.remoteconfig.PollingHinterNoop.NOOP;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -195,74 +191,6 @@ public class DebuggerProductChangesListenerTest {
         new DebuggerProductChangesListener(tracerConfig, acceptor);
     listener.accept(createConfigKey("bad-config-id"), null, NOOP);
     assertNull(acceptor.definitions);
-  }
-
-  @Test
-  public void maxLogProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      LogProbe probe =
-          LogProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptLogProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_LOG_PROBES, acceptor.getDefinitions().size());
-  }
-
-  @Test
-  public void maxMetricProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      MetricProbe probe =
-          MetricProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptMetricProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_METRIC_PROBES, acceptor.getDefinitions().size());
-  }
-
-  @Test
-  public void maxSpanProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      SpanProbe probe =
-          SpanProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptSpanProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_SPAN_PROBES, acceptor.getDefinitions().size());
-  }
-
-  @Test
-  public void maxSpanDecorationProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      SpanDecorationProbe probe =
-          SpanDecorationProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptSpanDecorationProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_SPAN_DECORATION_PROBES, acceptor.getDefinitions().size());
   }
 
   @Test

@@ -29,11 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DebuggerProductChangesListener implements ProductListener {
-  public static final int MAX_ALLOWED_TRIGGER_PROBES = 100;
-  public static final int MAX_ALLOWED_METRIC_PROBES = 100;
-  public static final int MAX_ALLOWED_LOG_PROBES = 100;
-  public static final int MAX_ALLOWED_SPAN_PROBES = 100;
-  public static final int MAX_ALLOWED_SPAN_DECORATION_PROBES = 100;
   public static final String LOG_PROBE_PREFIX = "logProbe_";
   public static final String METRIC_PROBE_PREFIX = "metricProbe_";
   public static final String SPAN_PROBE_PREFIX = "spanProbe_";
@@ -168,46 +163,26 @@ public class DebuggerProductChangesListener implements ProductListener {
     private int spanDecorationProbeCount = 0;
 
     void add(MetricProbe probe) {
-      if (metricProbeCount >= MAX_ALLOWED_METRIC_PROBES) {
-        LOGGER.debug("Max allowed metric probes reached, ignoring new probe: {}", probe);
-        return;
-      }
       definitions.add(probe);
       metricProbeCount++;
     }
 
     void add(LogProbe probe) {
-      if (logProbeCount >= MAX_ALLOWED_LOG_PROBES) {
-        LOGGER.debug("Max allowed log probes reached, ignoring new probe: {}", probe);
-        return;
-      }
       definitions.add(probe);
       logProbeCount++;
     }
 
     void add(SpanProbe probe) {
-      if (spanProbeCount >= MAX_ALLOWED_SPAN_PROBES) {
-        LOGGER.debug("Max allowed span probes reached, ignoring new probe: {}", probe);
-        return;
-      }
       definitions.add(probe);
       spanProbeCount++;
     }
 
     void add(TriggerProbe probe) {
-      if (triggerProbeCount >= MAX_ALLOWED_TRIGGER_PROBES) {
-        LOGGER.debug("Max allowed trigger probes reached, ignoring new probe: {}", probe);
-        return;
-      }
       definitions.add(probe);
       triggerProbeCount++;
     }
 
     void add(SpanDecorationProbe probe) {
-      if (spanDecorationProbeCount >= MAX_ALLOWED_SPAN_DECORATION_PROBES) {
-        LOGGER.debug("Max allowed span decoration probes reached, ignoring new probe: {}", probe);
-        return;
-      }
       definitions.add(probe);
       spanDecorationProbeCount++;
     }
