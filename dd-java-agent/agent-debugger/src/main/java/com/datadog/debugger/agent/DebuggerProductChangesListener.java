@@ -156,35 +156,25 @@ public class DebuggerProductChangesListener implements ProductListener {
 
   static class DefinitionBuilder {
     private final Collection<ProbeDefinition> definitions = new ArrayList<>();
-    private int triggerProbeCount = 0;
-    private int metricProbeCount = 0;
-    private int logProbeCount = 0;
-    private int spanProbeCount = 0;
-    private int spanDecorationProbeCount = 0;
 
     void add(MetricProbe probe) {
       definitions.add(probe);
-      metricProbeCount++;
     }
 
     void add(LogProbe probe) {
       definitions.add(probe);
-      logProbeCount++;
     }
 
     void add(SpanProbe probe) {
       definitions.add(probe);
-      spanProbeCount++;
     }
 
     void add(TriggerProbe probe) {
       definitions.add(probe);
-      triggerProbeCount++;
     }
 
     void add(SpanDecorationProbe probe) {
       definitions.add(probe);
-      spanDecorationProbeCount++;
     }
 
     void addAll(Collection<ProbeDefinition> newDefinitions) {
