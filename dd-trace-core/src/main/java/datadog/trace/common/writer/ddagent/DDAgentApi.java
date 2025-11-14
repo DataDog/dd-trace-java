@@ -37,10 +37,18 @@ public class DDAgentApi extends RemoteApi {
   // rather it identifies this tracer as one which has computed top level status
   private static final String DATADOG_CLIENT_COMPUTED_TOP_LEVEL =
       "Datadog-Client-Computed-Top-Level";
+  private static final String DATADOG_SEND_REAL_HTTP_STATUS = "Datadog-Send-Real-Http-Status";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
   private static final String DATADOG_DROPPED_TRACE_COUNT = "Datadog-Client-Dropped-P0-Traces";
   private static final String DATADOG_DROPPED_SPAN_COUNT = "Datadog-Client-Dropped-P0-Spans";
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
+
+  /** Result of submitting traces to the agent, distinguishing 429 for retry */
+  public enum SubmitResult {
+    OK,
+    RETRY_429,
+    ERROR
+  }
 
   private final List<RemoteResponseListener> responseListeners = new ArrayList<>();
   private final boolean metricsEnabled;
@@ -104,6 +112,7 @@ public class DDAgentApi extends RemoteApi {
     try {
       final Request request =
           prepareRequest(tracesUrl, headers)
+              .addHeader(DATADOG_SEND_REAL_HTTP_STATUS, "true")
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
               .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
               .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
@@ -122,6 +131,12 @@ public class DDAgentApi extends RemoteApi {
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
+        if (response.code() == 429) {
+          // Agent is overloaded, return retryable response
+          log.debug(
+              "Trace agent returned 429 (Too Many Requests) for {} traces", payload.traceCount());
+          return Response.retryable(response.code(), payload);
+        }
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
@@ -156,6 +171,23 @@ public class DDAgentApi extends RemoteApi {
     if (!Objects.equals(state, previous)) {
       featuresDiscovery.discover();
     }
+  }
+
+  /**
+   * Classifies a Response to determine if it should be retried, succeeded, or dropped.
+   *
+   * @param response the response from sendSerializedTraces
+   * @return OK if 200, RETRY_429 if 429, ERROR otherwise
+   */
+  public SubmitResult classifyResponse(Response response) {
+    if (!response.success()) {
+      // Check if it's a 429 status that should be retried
+      if (response.status().isPresent() && response.status().getAsInt() == 429) {
+        return SubmitResult.RETRY_429;
+      }
+      return SubmitResult.ERROR;
+    }
+    return SubmitResult.OK;
   }
 
   @Override
