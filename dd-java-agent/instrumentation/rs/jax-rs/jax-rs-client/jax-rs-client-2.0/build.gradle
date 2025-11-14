@@ -22,8 +22,8 @@ dependencies {
   compileOnly group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0.1'
   compileOnly group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
 
-  testImplementation project(':dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handling-jersey')
-  testImplementation project(':dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handling-resteasy')
+  testImplementation project(':dd-java-agent:instrumentation:jersey:jersey-client-2.0')
+  testImplementation project(':dd-java-agent:instrumentation:resteasy:resteasy-3.0')
 
   testImplementation group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0.1'
 
