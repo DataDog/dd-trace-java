@@ -48,8 +48,8 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
       annotationProcessorPath += mainSourceSet.annotationProcessorPath
       java.srcDir(targetFolder)
-
     }
+
     project.configurations.named(csiSourceSet.compileClasspathConfigurationName) {
       extendsFrom(project.configurations.named(mainSourceSet.compileClasspathConfigurationName).get())
     }
@@ -119,10 +119,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   }
 
   private fun registerGenerateCallSiteTask(project: Project,
-                                           extension: CallSiteInstrumentationExtension,
+                                           csiExtension: CallSiteInstrumentationExtension,
                                            compileTaskName: String) {
     val taskName = compileTaskName.replace("compile", "generateCallSite")
-    val rootFolder = extension.rootFolder.getOrElse(project.rootDir)
+    val rootFolder = csiExtension.rootFolder.getOrElse(project.rootDir)
     val pluginJarFile = Paths.get(
       rootFolder.toString(),
       "buildSrc",
@@ -137,31 +137,31 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       group = "call site instrumentation"
       description = "Generates call sites from $compileTaskName"
       // Task input & output
-      val output = extension.targetFolder
+      val output = csiExtension.targetFolder
       val inputProvider = compileTask.map { it.destinationDirectory.get() }
       inputs.dir(inputProvider)
       outputs.dir(output)
 
       // JavaExec configuration
-      if (extension.javaVersion.isPresent) {
-        configureLanguage(this, extension.javaVersion.get())
+      if (csiExtension.javaVersion.isPresent) {
+        configureLanguage(this, csiExtension.javaVersion.get())
       }
-      jvmArgumentProviders.add({ extension.jvmArgs.get() })
+      jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
 
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
-        val programClassPath = extension.configurations.get().flatMap {
+        val programClassPath = csiExtension.configurations.get().flatMap {
           it.files
         }.map { it.toString() }
 
         val arguments = listOf(
-          extension.srcFolder.get().asFile.toString(),
+          csiExtension.srcFolder.get().asFile.toString(),
           inputProvider.get().asFile.toString(),
           output.get().asFile.toString(),
-          extension.suffix.get(),
-          extension.reporters.get().joinToString(",")
+          csiExtension.suffix.get(),
+          csiExtension.reporters.get().joinToString(",")
         ) + programClassPath
 
         val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
