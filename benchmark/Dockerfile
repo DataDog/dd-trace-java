@@ -90,12 +90,6 @@ RUN wget -O k6.tar.gz https://github.com/grafana/k6/releases/download/v$K6_VERSI
 	&& rm k6.tar.gz \
   && mv k6 /usr/bin/k6
 
-# Install authanywhere which is used for accessing GitLab API
-RUN if [ $(uname -m) = x86_64 ]; then AAA="amd64"; else AAA="arm64"; fi; \
-  wget -O "authanywhere-linux-${AAA}" "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}" && \
-  mv "authanywhere-linux-${AAA}" /bin/authanywhere && \
-  chmod +x /bin/authanywhere
-
 RUN mkdir -p /app
 
 COPY --from=petclinic /spring-petclinic.jar /app/spring-petclinic.jar
