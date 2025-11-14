@@ -9,6 +9,18 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
   void trackBacklog(DataStreamsTags tags, long value);
 
   /**
+   * Tracks Schema Registry usage for Data Streams Monitoring.
+   *
+   * @param topic Kafka topic name
+   * @param clusterId Kafka cluster ID (important: schema IDs are only unique per cluster)
+   * @param schemaId Schema ID from Schema Registry
+   * @param isSuccess Whether the schema operation succeeded
+   * @param isKey Whether this is for the key (true) or value (false)
+   */
+  void setSchemaRegistryUsage(
+      String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey);
+
+  /**
    * Sets data streams checkpoint, used for both produce and consume operations.
    *
    * @param span active span

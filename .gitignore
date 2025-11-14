@@ -46,6 +46,10 @@ out/
 ######################
 .vscode
 
+# Cursor #
+##########
+.cursor
+
 # Others #
 ##########
 /logs/*
