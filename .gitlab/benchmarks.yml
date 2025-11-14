@@ -78,6 +78,8 @@ check-big-regressions:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    - if: '$CI_COMMIT_BRANCH =~ /backport-pr-/'
+      when: never
     - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
       when: on_success
     - when: never
