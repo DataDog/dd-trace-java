@@ -40,12 +40,12 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
   /**
    * The generated call site source file suffix (#CALL_SITE_CLASS_SUFFIX by default).
    */
-  val suffix: Property<String> = objectFactory.property(String::class.java).convention(CALL_SITE_CLASS_SUFFIX)
+  val suffix: Property<String> = objectFactory.property<String>().convention(CALL_SITE_CLASS_SUFFIX)
 
   /**
    * The reporters to use after call site instrumenter run (only #CALL_SITE_CONSOLE_REPORTER and #CALL_SITE_ERROR_CONSOLE_REPORTER supported for now).
    */
-  val reporters: ListProperty<String> = objectFactory.listProperty(String::class.java).convention(
+  val reporters: ListProperty<String> = objectFactory.listProperty<String>().convention(
     listOf(
       CALL_SITE_ERROR_CONSOLE_REPORTER
     )
@@ -65,5 +65,5 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
    * The JVM arguments to run the call site instrumenter.
    */
   val jvmArgs: ListProperty<String> =
-    objectFactory.listProperty(String::class.java).convention(listOf("-Xmx128m", "-Xms64m"))
+    objectFactory.listProperty<String>().convention(listOf("-Xmx128m", "-Xms64m"))
 }
