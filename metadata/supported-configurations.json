@@ -3,7 +3,7 @@
   "supportedConfigurations": {
     "DD_AAS_JAVA_EXTENSION_VERSION": [
       {
-        "version": ["A"]
+        "version": "A"
       }
     ]
   },
