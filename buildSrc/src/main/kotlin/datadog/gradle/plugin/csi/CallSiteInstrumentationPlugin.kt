@@ -4,6 +4,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet
@@ -13,6 +14,11 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.kotlin.dsl.create
+import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -26,7 +32,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
   override fun apply(project: Project) {
     // Create plugin extension
-    val extension = project.extensions.create("csi", CallSiteInstrumentationExtension::class.java)
+    val extension = project.extensions.create<CallSiteInstrumentationExtension>("csi")
     project.afterEvaluate {
       configureSourceSets(project, extension)
       createTasks(project, extension)
@@ -48,7 +54,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       extendsFrom(project.configurations.named(mainSourceSet.compileClasspathConfigurationName).get())
     }
 
-    project.tasks.named(csiSourceSet.getCompileTaskName("java"), AbstractCompile::class.java) {
+    project.tasks.named<AbstractCompile>(csiSourceSet.getCompileTaskName("java")) {
       sourceCompatibility = JavaVersion.VERSION_1_8.toString()
       targetCompatibility = JavaVersion.VERSION_1_8.toString()
     }
@@ -61,7 +67,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     project.dependencies.add("testImplementation", csiSourceSet.output)
 
     // include classes in final JAR
-    project.tasks.named("jar", Jar::class.java) {
+    project.tasks.named<Jar>("jar") {
       from(csiSourceSet.output.classesDirs)
     }
   }
@@ -86,19 +92,21 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   }
 
   private fun getSourceSets(project: Project): SourceSetContainer {
-    return project.extensions.getByType(JavaPluginExtension::class.java).sourceSets
+    return project.extensions.getByType<JavaPluginExtension>().sourceSets
   }
 
   private fun createTasks(project: Project, extension: CallSiteInstrumentationExtension) {
     registerGenerateCallSiteTask(project, extension, "compileJava")
     val targetFolder = extension.targetFolder.get().asFile
-    project.tasks.withType(AbstractCompile::class.java).matching {
+
+    project.tasks.withType<AbstractCompile>().matching {
       task -> task.name.startsWith("compileTest")
     }.configureEach {
       inputs.dir(extension.targetFolder)
       classpath += project.files(targetFolder)
     }
-    project.tasks.withType(Test::class.java).configureEach {
+
+    project.tasks.withType<Test>().configureEach {
       inputs.dir(extension.targetFolder)
       classpath += project.files(targetFolder)
     }
@@ -123,16 +131,17 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       "libs",
       "call-site-instrumentation-plugin-all.jar"
     ).toFile()
-    val compileTask = project.tasks.named(compileTaskName, AbstractCompile::class.java)
-    val callSiteGeneratorTask = project.tasks.register(taskName, JavaExec::class.java) {
+    val compileTask = project.tasks.named<AbstractCompile>(compileTaskName)
+    val callSiteGeneratorTask = project.tasks.register<JavaExec>(taskName) {
       // Task description
       group = "call site instrumentation"
-      description = "Generates call sites from ${compileTaskName}"
+      description = "Generates call sites from $compileTaskName"
       // Task input & output
       val output = extension.targetFolder
       val inputProvider = compileTask.map { it.destinationDirectory.get() }
       inputs.dir(inputProvider)
       outputs.dir(output)
+
       // JavaExec configuration
       if (extension.javaVersion.isPresent) {
         configureLanguage(this, extension.javaVersion.get())
@@ -140,6 +149,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       jvmArgumentProviders.add({ extension.jvmArgs.get() })
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
+
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
         val programClassPath = getProgramClasspath(project).map { it.toString() }
@@ -179,12 +189,12 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   private fun getProgramClasspath(project: Project): List<File> {
     val classpath = ArrayList<File>()
     // 1. Compilation outputs - exclude latestDep and forked test variants
-    project.tasks.withType(AbstractCompile::class.java)
+    project.tasks.withType<AbstractCompile>()
       .filter { task -> !task.name.contains("LatestDep", ignoreCase = true) && !task.name.contains("Forked", ignoreCase = true) }
       .map { it.destinationDirectory.asFile.get() }
       .forEach(classpath::add)
     // 2. Compile time dependencies - exclude latestDep and forked test variants
-    project.tasks.withType(AbstractCompile::class.java)
+    project.tasks.withType<AbstractCompile>()
       .filter { task -> !task.name.contains("LatestDep", ignoreCase = true) && !task.name.contains("Forked", ignoreCase = true) }
       .flatMap { it.classpath }
       .forEach(classpath::add)
