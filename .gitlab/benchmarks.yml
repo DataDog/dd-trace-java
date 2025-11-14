@@ -29,6 +29,7 @@
 
 benchmarks-startup:
   extends: .benchmarks
+  tags: ["arch:amd64"]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
