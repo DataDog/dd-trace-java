@@ -54,7 +54,7 @@ class ResponseServiceTest extends OpenAiTest {
   def "create streaming response test withRawResponse"() {
     runnableUnderTrace("parent") {
       HttpResponseFor<StreamResponse<ResponseStreamEvent>> streamResponse = openAiClient.responses().withRawResponse().createStreaming(responseCreateParams())
-      try (Stream stream = streamResponse.parse().stream()) { // close the stream after use
+      try (Stream stream = streamResponse.parse().stream()) {
         stream.forEach {
           // consume the stream
         }
