@@ -172,10 +172,11 @@ default:
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
     - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
     - |
-      cat >> gradle.properties <<'EOF'
+      JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
+      cat >> gradle.properties <<EOF
       org.gradle.java.installations.auto-detect=false
       org.gradle.java.installations.auto-download=false
-      org.gradle.java.installations.fromEnv=JAVA_8_HOME,JAVA_11_HOME,JAVA_17_HOME,JAVA_21_HOME,JAVA_25_HOME
+      org.gradle.java.installations.fromEnv=$JAVA_HOMES
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
