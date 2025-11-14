@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import groovy.servlet.AbstractHttpServlet
 
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -124,7 +124,7 @@ class HttpServletTest extends InstrumentationSpecification {
     }
   }
 
-  static class TestServlet extends AbstractHttpServlet {
+  static class TestServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
     }

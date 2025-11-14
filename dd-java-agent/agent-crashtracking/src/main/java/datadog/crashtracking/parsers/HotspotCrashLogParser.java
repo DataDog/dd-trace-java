@@ -115,12 +115,13 @@ public final class HotspotCrashLogParser {
     return null;
   }
 
-  public CrashLog parse(String crashLog) {
+  public CrashLog parse(String uuid, String crashLog) {
     String signal = null;
     String pid = null;
     List<StackFrame> frames = new ArrayList<>();
     String datetime = null;
     StringBuilder message = new StringBuilder();
+    boolean incomplete = false;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -197,7 +198,7 @@ public final class HotspotCrashLogParser {
 
     if (state != State.DONE) {
       // incomplete crash log
-      return null;
+      incomplete = true;
     }
 
     ErrorData error =
@@ -213,7 +214,7 @@ public final class HotspotCrashLogParser {
             SystemProperties.get("os.name"),
             SemanticVersion.of(SystemProperties.get("os.version")));
     ProcInfo procInfo = pid != null ? new ProcInfo(pid) : null;
-    return new CrashLog(false, datetime, error, metadata, osInfo, procInfo, "1.0");
+    return new CrashLog(uuid, incomplete, datetime, error, metadata, osInfo, procInfo, "1.0");
   }
 
   static String dateTimeToISO(String datetime) {

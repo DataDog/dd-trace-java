@@ -20,13 +20,11 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
-  testImplementation libs.spock.junit4 // This legacy module still needs JUnit4.
+  testImplementation libs.spock.junit4 // This module still needs Spock with JUnit4.
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '1.3.3.RELEASE'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '1.3.3.RELEASE'
@@ -38,7 +36,6 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-
 
   // IAST testing dependencies
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')

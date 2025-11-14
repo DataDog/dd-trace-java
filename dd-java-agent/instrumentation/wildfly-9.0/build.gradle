@@ -1,9 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 repositories {
   maven {
     url = 'https://maven.repository.redhat.com/ga/'
@@ -21,6 +15,10 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
 
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
@@ -109,11 +107,10 @@ tasks.named("forkedTest", Test) {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("latestDepForkedTest", Test) {
-  dependsOn 'extractLatestWildfly'
-}
-
 tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
   dependsOn 'extractLatestWildfly'
 }
 
@@ -174,6 +171,9 @@ tasks.named("forkedTest", Test) {
 }
 
 tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
   jvmArgumentProviders.add(
     objects.newInstance(DistributionLocationProvider).tap {
       distribution = extractLatestWildfly.map { it.destinationDir }

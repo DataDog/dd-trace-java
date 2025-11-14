@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spray
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
@@ -14,7 +15,8 @@ object SprayHelper {
   def wrapRequestContext(
       ctx: RequestContext,
       span: AgentSpan,
-      parentContext: Context
+      parentContext: Context,
+      scope: ContextScope
   ): RequestContext = {
     ctx.withRouteResponseMapped(message => {
       DECORATE.onRequest(span, ctx, ctx.request, parentContext)
@@ -23,7 +25,8 @@ object SprayHelper {
         case throwable: Throwable   => DECORATE.onError(span, throwable)
         case x                      =>
       }
-      DECORATE.beforeFinish(span)
+      DECORATE.beforeFinish(scope.context())
+      scope.close()
       span.finish()
       message
     })

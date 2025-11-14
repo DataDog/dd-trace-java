@@ -43,7 +43,6 @@ import org.apache.spark.scheduler.*;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
-import org.apache.spark.sql.execution.streaming.MicroBatchExecution;
 import org.apache.spark.sql.execution.streaming.StreamExecution;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
@@ -66,7 +65,7 @@ import scala.collection.JavaConverters;
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
-  private static final ObjectMapper objectMapper = new ObjectMapper();
+  protected static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
 
   public static volatile boolean finishTraceOnApplicationEnd = true;
@@ -796,8 +795,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    if (isRunningOnDatabricks || isStreamingJob) {
-      log.debug("Not emitting event when running on databricks or on streaming jobs");
+    if (isStreamingJob) {
+      log.debug("Not emitting event when running streaming jobs");
       return;
     }
     if (openLineageSparkListener != null) {
@@ -1243,7 +1242,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     Object queryId = properties.get(StreamExecution.QUERY_ID_KEY());
-    Object batchId = properties.get(MicroBatchExecution.BATCH_ID_KEY());
+    Object batchId = properties.get("streaming.sql.batchId");
 
     if (queryId == null || batchId == null) {
       return null;
@@ -1299,12 +1298,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return sparkAppName;
   }
 
-  private static String getServiceForOpenLineage(SparkConf conf, boolean isRunningOnDatabricks) {
-    // Service for OpenLineage in Databricks is not supported yet
+  private String getServiceForOpenLineage(SparkConf conf, boolean isRunningOnDatabricks) {
     if (isRunningOnDatabricks) {
-      return null;
+      return databricksServiceName;
     }
-
     // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
     String serviceName = Config.get().getServiceName();
     if (Config.get().isServiceNameSetByUser()

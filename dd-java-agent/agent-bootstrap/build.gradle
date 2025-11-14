@@ -25,11 +25,9 @@ dependencies {
   api project(':dd-java-agent:agent-debugger:debugger-bootstrap')
   api project(':components:environment')
   api project(':components:json')
+  api libs.instrumentjava
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
-  api(variantOf(libs.instrumentjava, { classifier("all") })) {
-    transitive = false
-  }
 
   testImplementation project(':dd-java-agent:testing')
 }
@@ -70,7 +68,7 @@ jmh {
 }
 
 tasks.withType(Test).configureEach {
-  configureJvmArgs(
+  conditionalJvmArgs(
     it,
     JavaVersion.VERSION_16,
     ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
