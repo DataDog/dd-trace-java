@@ -139,3 +139,6 @@ dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
 /internal-api/src/test/groovy/datadog/trace/api/rum/ @DataDog/rum
 /telemetry/src/main/java/datadog/telemetry/rum/      @DataDog/rum
 /telemetry/src/test/groovy/datadog/telemetry/rum/    @DataDog/rum
+
+# @DataDog/feature-flagging-and-experimentation-sdk
+/products/openfeature/      @DataDog/feature-flagging-and-experimentation-sdk

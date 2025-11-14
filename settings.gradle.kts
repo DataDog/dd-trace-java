@@ -141,6 +141,9 @@ include(
 // AI Guard
 include(":dd-java-agent:agent-aiguard")
 
+// Open feature provider
+include(":products:openfeature")
+
 // misc
 include(
   ":dd-java-agent:testing",
