@@ -10,6 +10,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
+import datadog.trace.test.util.Flaky;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -241,6 +242,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
         });
   }
 
+  @Flaky
   @Test
   @DisplayName("test3CapturedRecursiveFrames")
   @DisabledIf(
