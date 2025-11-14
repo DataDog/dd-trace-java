@@ -7,6 +7,7 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
+import datadog.environment.OperatingSystem;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
   public void write(String fileName, byte[] payload) {
     final LibC libc = Native.load("c", LibC.class);
 
-    String arch = System.getProperty("os.arch");
+    OperatingSystem.Architecture arch = OperatingSystem.architecture();
     int memfdSyscall = getMemfdSyscall(arch);
     if (memfdSyscall <= 0) {
       log.debug(SEND_TELEMETRY, "service discovery not supported for arch={}", arch);
@@ -69,27 +70,20 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
     // memfd is not closed to keep it readable for the lifetime of the process.
   }
 
-  private static int getMemfdSyscall(String arch) {
-    switch (arch.toLowerCase()) {
-      case "x86_64":
-      case "x64":
-      case "amd64":
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/x86_64/bits/syscall.h.in#L320
+  private static int getMemfdSyscall(OperatingSystem.Architecture arch) {
+    switch (arch) {
+      case X64:
+        // https://github.com/torvalds/linux/blob/v6.17/arch/x86/entry/syscalls/syscall_64.tbl#L331
         return 319;
-      case "x386":
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/i386/bits/syscall.h.in#L356
+      case X86:
+        // https://github.com/torvalds/linux/blob/v6.17/arch/x86/entry/syscalls/syscall_32.tbl#L371
         return 356;
-      case "aarch64":
-      case "arm64":
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/aarch64/bits/syscall.h.in#L264
+      case ARM64:
+        // https://github.com/torvalds/linux/blob/v6.17/scripts/syscall.tbl#L329
         return 279;
-      case "arm":
-      case "arm32":
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/arm/bits/syscall.h.in#L343
+      case ARM:
+        // https://github.com/torvalds/linux/blob/v6.17/arch/arm64/tools/syscall_32.tbl#L400
         return 385;
-      case "ppc64":
-        // https://elixir.bootlin.com/musl/v1.2.5/source/arch/powerpc64/bits/syscall.h.in#L350
-        return 360;
       default:
         return -1;
     }
