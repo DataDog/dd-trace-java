@@ -248,13 +248,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
           key.isKey(),
           value.getCount());
 
-      packer.startMap(5);
+      packer.startMap(6); // 6 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Count
 
       packer.writeUTF8(TOPIC);
-      packer.writeString(key.getTopic(), null);
+      packer.writeString(key.getTopic() != null ? key.getTopic() : "", null);
 
       packer.writeUTF8(KAFKA_CLUSTER_ID);
-      packer.writeString(key.getClusterId(), null);
+      packer.writeString(key.getClusterId() != null ? key.getClusterId() : "", null);
 
       packer.writeUTF8(SCHEMA_ID);
       packer.writeInt(key.getSchemaId());

@@ -88,7 +88,7 @@ class ConfluentSchemaRegistryDataStreamsTest extends InstrumentationSpecificatio
 
     cleanup:
     serializer.close()
-    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clear()
+    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clearAll()
   }
 
   def "test successful producer with key and value serializers"() {
@@ -149,7 +149,7 @@ class ConfluentSchemaRegistryDataStreamsTest extends InstrumentationSpecificatio
     cleanup:
     keySerializer.close()
     valueSerializer.close()
-    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clear()
+    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clearAll()
   }
 
   def "test serialization failure is tracked"() {
@@ -243,7 +243,7 @@ class ConfluentSchemaRegistryDataStreamsTest extends InstrumentationSpecificatio
 
     cleanup:
     serializer.close()
-    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clear()
+    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clearAll()
   }
 
   def "test schema registry usage metrics are aggregated by topic"() {
@@ -288,7 +288,7 @@ class ConfluentSchemaRegistryDataStreamsTest extends InstrumentationSpecificatio
 
     cleanup:
     serializer.close()
-    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clear()
+    datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext.clearAll()
   }
 }
 

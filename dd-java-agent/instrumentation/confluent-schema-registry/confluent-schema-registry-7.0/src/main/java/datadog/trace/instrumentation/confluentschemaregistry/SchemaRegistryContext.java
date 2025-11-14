@@ -53,6 +53,15 @@ public class SchemaRegistryContext {
 
   public static void clear() {
     currentTopic.remove();
+    // Don't clear clusterId - it should persist for the entire poll() batch
+    // clusterId.remove();
+    isKey.remove();
+    keySchemaId.remove();
+    valueSchemaId.remove();
+  }
+
+  public static void clearAll() {
+    currentTopic.remove();
     clusterId.remove();
     isKey.remove();
     keySchemaId.remove();
