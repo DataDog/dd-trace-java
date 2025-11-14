@@ -101,7 +101,7 @@ public final class TPEHelper {
       return null;
     }
     AgentScope scope = threadLocalScope.get();
-    threadLocalScope.set(null);
+    threadLocalScope.remove();
     return scope;
   }
 
