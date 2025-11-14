@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -7,11 +9,17 @@ import java.util.ListIterator;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 public class TracingList implements List<Message> {
+  private final ContextStore<Message, State> messageStateStore;
   private final List<Message> delegate;
   private final String queueUrl;
   private final String requestId;
 
-  public TracingList(List<Message> delegate, String queueUrl, String requestId) {
+  public TracingList(
+      ContextStore<Message, State> messageStateStore,
+      List<Message> delegate,
+      String queueUrl,
+      String requestId) {
+    this.messageStateStore = messageStateStore;
     this.delegate = delegate;
     this.queueUrl = queueUrl;
     this.requestId = requestId;
@@ -125,12 +133,14 @@ public class TracingList implements List<Message> {
   @Override
   public ListIterator<Message> listIterator(int index) {
     // every iteration will add spans. Not only the very first one
-    return new TracingListIterator(delegate.listIterator(index), queueUrl, requestId);
+    return new TracingListIterator(
+        messageStateStore, delegate.listIterator(index), queueUrl, requestId);
   }
 
   @Override
   public List<Message> subList(int fromIndex, int toIndex) {
-    return new TracingList(delegate.subList(fromIndex, toIndex), queueUrl, requestId);
+    return new TracingList(
+        messageStateStore, delegate.subList(fromIndex, toIndex), queueUrl, requestId);
   }
 
   @Override

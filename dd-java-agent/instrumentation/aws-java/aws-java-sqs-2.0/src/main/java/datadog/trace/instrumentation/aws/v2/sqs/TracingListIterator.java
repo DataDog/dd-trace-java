@@ -2,14 +2,20 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.ListIterator;
 import software.amazon.awssdk.services.sqs.model.Message;
 
 public class TracingListIterator extends TracingIterator<ListIterator<Message>>
     implements ListIterator<Message> {
 
-  public TracingListIterator(ListIterator<Message> delegate, String queueUrl, String requestId) {
-    super(delegate, queueUrl, requestId);
+  public TracingListIterator(
+      ContextStore<Message, State> messageStateStore,
+      ListIterator<Message> delegate,
+      String queueUrl,
+      String requestId) {
+    super(messageStateStore, delegate, queueUrl, requestId);
   }
 
   @Override
