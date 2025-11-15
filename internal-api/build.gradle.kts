@@ -6,7 +6,6 @@ plugins {
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/tries.gradle")
 
 java {
   toolchain {
@@ -176,8 +175,6 @@ val excludedClassesCoverage by extra(
     "datadog.trace.util.AgentTaskScheduler.ShutdownHook",
     "datadog.trace.util.AgentThreadFactory",
     "datadog.trace.util.AgentThreadFactory.1",
-    "datadog.trace.util.ClassNameTrie.Builder",
-    "datadog.trace.util.ClassNameTrie.JavaGenerator",
     "datadog.trace.util.CollectionUtils",
     "datadog.trace.util.ComparableVersion",
     "datadog.trace.util.ComparableVersion.BigIntegerItem",
@@ -256,10 +253,6 @@ val excludedClassesInstructionCoverage by extra(
     "datadog.trace.util.stacktrace.StackWalkerFactory"
   )
 )
-
-tasks.compileTestJava {
-  dependsOn("generateTestClassNameTries")
-}
 
 dependencies {
   // references TraceScope and Continuation from public api

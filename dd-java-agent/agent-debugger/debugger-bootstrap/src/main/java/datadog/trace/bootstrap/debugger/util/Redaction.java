@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.debugger.util;
 
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.api.Config;
-import datadog.trace.util.ClassNameTrie;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
