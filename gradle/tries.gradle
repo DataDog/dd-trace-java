@@ -19,7 +19,7 @@ def configureClassNameTrieTask(exec, sourceSetName) {
   exec.description = "Generate $sourceSetName ClassNameTries from .trie files"
   exec.inputs.files(trieFiles)
   exec.outputs.files(javaFiles)
-  exec.mainClass = 'datadog.trace.util.ClassNameTrie$JavaGenerator'
+  exec.mainClass = 'datadog.instrument.utils.ClassNameTrie$JavaGenerator'
   exec.classpath = sourceSets."$sourceSetName".compileClasspath
   exec.args = [trieDir, javaDir] + trieFiles
 }
