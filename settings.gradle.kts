@@ -126,6 +126,7 @@ include(
 // llm-observability
 include(
   ":dd-java-agent:agent-llmobs",
+  ":dd-java-agent:agent-llmobs:llmobs-test-fixtures",
 )
 
 // iast
@@ -479,6 +480,7 @@ include(
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
   ":dd-java-agent:instrumentation:ognl-appsec",
+  ":dd-java-agent:instrumentation:openai-java:openai-java-1.0",
   ":dd-java-agent:instrumentation:opensearch",
   ":dd-java-agent:instrumentation:opensearch:rest",
   ":dd-java-agent:instrumentation:opensearch:transport",
