@@ -1,4 +1,4 @@
-package datadog.trace.payloadtags.json
+package datadog.trace.util.json
 
 import spock.lang.Specification
 
@@ -132,5 +132,39 @@ class PathCursorSpec extends Specification {
 
     then:
     p2.push("c").toString("") == ".a.3.b.c"
+  }
+
+  def "get item at index of path cursor"() {
+    expect:
+    p().push("a").push(3).get(0) == "a"
+    p().push("a").push(3).get(1) == 3
+  }
+
+  def "pop on empty cursor does nothing"() {
+    def p = p()
+    when:
+    p.pop()
+
+    then:
+    p.length() == 0
+    p.toString("") == ""
+
+    when:
+    p.push("a").pop()
+    p.pop()
+
+    then:
+    p.length() == 0
+    p.toString("") == ""
+  }
+
+  def "advance on empty cursor does nothing"() {
+    when:
+    def p = p()
+    p.advance()
+
+    then:
+    p.length() == 0
+    p.toString("") == ""
   }
 }

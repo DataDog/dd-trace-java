@@ -3,12 +3,14 @@ package datadog.trace.llmobs.domain
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.api.llmobs.LLMObsSpan
 import datadog.trace.api.llmobs.LLMObsTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import org.apache.groovy.util.Maps
@@ -76,44 +78,59 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan)test.span
-    assert Tags.LLMOBS_WORKFLOW_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
+    Tags.LLMOBS_WORKFLOW_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
 
-    assert null == innerSpan.getTag("input")
-    assert input.equals(innerSpan.getTag(INPUT))
-    assert null == innerSpan.getTag("output")
-    assert output.equals(innerSpan.getTag(OUTPUT))
+    null == innerSpan.getTag("input")
+    input.equals(innerSpan.getTag(INPUT))
+    null == innerSpan.getTag("output")
+    output.equals(innerSpan.getTag(OUTPUT))
 
-    assert null == innerSpan.getTag("metadata")
+    null == innerSpan.getTag("metadata")
     def expectedMetadata = Maps.of("sport", "baseball", "price_data", Maps.of("gpt4", 100))
-    assert expectedMetadata.equals(innerSpan.getTag(METADATA))
+    expectedMetadata.equals(innerSpan.getTag(METADATA))
 
-    assert null == innerSpan.getTag("rank")
+    null == innerSpan.getTag("rank")
     def rankMetric = innerSpan.getTag(LLMOBS_METRIC_PREFIX + "rank")
-    assert rankMetric instanceof Number && 1 == (int)rankMetric
+    rankMetric instanceof Number && 1 == (int)rankMetric
 
-    assert null == innerSpan.getTag("likelihood")
+    null == innerSpan.getTag("likelihood")
     def likelihoodMetric = innerSpan.getTag(LLMOBS_METRIC_PREFIX + "likelihood")
-    assert likelihoodMetric instanceof Number
-    assert 0.1 == (double)likelihoodMetric
+    likelihoodMetric instanceof Number
+    0.1 == (double)likelihoodMetric
 
-    assert null == innerSpan.getTag("DOMAIN")
+    null == innerSpan.getTag("DOMAIN")
     def domain = innerSpan.getTag(LLMOBS_TAG_PREFIX + "DOMAIN")
-    assert domain instanceof String
-    assert "north-america".equals((String)domain)
+    domain instanceof String
+    "north-america".equals((String)domain)
 
-    assert null == innerSpan.getTag("bulk1")
+    null == innerSpan.getTag("bulk1")
     def tagBulk1 = innerSpan.getTag(LLMOBS_TAG_PREFIX + "bulk1")
-    assert tagBulk1 instanceof Number
-    assert 1 == ((int)tagBulk1)
+    tagBulk1 instanceof Number
+    1 == ((int)tagBulk1)
 
-    assert null == innerSpan.getTag("bulk2")
+    null == innerSpan.getTag("bulk2")
     def tagBulk2 = innerSpan.getTag(LLMOBS_TAG_PREFIX + "bulk2")
-    assert tagBulk2 instanceof String
-    assert "2".equals((String)tagBulk2)
+    tagBulk2 instanceof String
+    "2".equals((String)tagBulk2)
 
-    assert innerSpan.isError()
-    assert innerSpan.getTag(DDTags.ERROR_MSG) instanceof String
-    assert errMsg.equals(innerSpan.getTag(DDTags.ERROR_MSG))
+    innerSpan.isError()
+    innerSpan.getTag(DDTags.ERROR_MSG) instanceof String
+    errMsg.equals(innerSpan.getTag(DDTags.ERROR_MSG))
+
+    null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    tagEnv instanceof UTF8BytesString
+    "test-env" == tagEnv.toString()
+
+    null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    tagSvc instanceof UTF8BytesString
+    "test-svc" == tagSvc.toString()
+
+    null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    tagVersion instanceof UTF8BytesString
+    "v1" == tagVersion.toString()
   }
 
   def "test span with overwrites"() {
@@ -153,36 +170,52 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan)test.span
-    assert Tags.LLMOBS_AGENT_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
+    Tags.LLMOBS_AGENT_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
 
-    assert null == innerSpan.getTag("input")
-    assert input.equals(innerSpan.getTag(INPUT))
-    assert null == innerSpan.getTag("output")
-    assert expectedOutput.equals(innerSpan.getTag(OUTPUT))
+    null == innerSpan.getTag("input")
+    input.equals(innerSpan.getTag(INPUT))
+    null == innerSpan.getTag("output")
+    expectedOutput.equals(innerSpan.getTag(OUTPUT))
 
-    assert null == innerSpan.getTag("metadata")
+    null == innerSpan.getTag("metadata")
     def expectedMetadata = Maps.of("sport", "hockey", "price_data", Maps.of("gpt4", 100), "temperature", 30)
-    assert expectedMetadata.equals(innerSpan.getTag(METADATA))
+    expectedMetadata.equals(innerSpan.getTag(METADATA))
 
-    assert null == innerSpan.getTag("rank")
+    null == innerSpan.getTag("rank")
     def rankMetric = innerSpan.getTag(LLMOBS_METRIC_PREFIX + "rank")
-    assert rankMetric instanceof Number && 10 == (int)rankMetric
+    rankMetric instanceof Number && 10 == (int)rankMetric
 
-    assert null == innerSpan.getTag("DOMAIN")
+    null == innerSpan.getTag("DOMAIN")
     def domain = innerSpan.getTag(LLMOBS_TAG_PREFIX + "DOMAIN")
-    assert domain instanceof String
-    assert "europe".equals((String)domain)
+    domain instanceof String
+    "europe".equals((String)domain)
 
-    assert null == innerSpan.getTag("bulk1")
+    null == innerSpan.getTag("bulk1")
     def tagBulk1 = innerSpan.getTag(LLMOBS_TAG_PREFIX + "bulk1")
-    assert tagBulk1 instanceof Number
-    assert 1 == ((int)tagBulk1)
+    tagBulk1 instanceof Number
+    1 == ((int)tagBulk1)
 
-    assert !innerSpan.isError()
-    assert innerSpan.getTag(DDTags.ERROR_MSG) instanceof String
-    assert throwableMsg.equals(innerSpan.getTag(DDTags.ERROR_MSG))
-    assert innerSpan.getTag(DDTags.ERROR_STACK) instanceof String
-    assert ((String)innerSpan.getTag(DDTags.ERROR_STACK)).contains(throwableMsg)
+    !innerSpan.isError()
+    innerSpan.getTag(DDTags.ERROR_MSG) instanceof String
+    throwableMsg.equals(innerSpan.getTag(DDTags.ERROR_MSG))
+    innerSpan.getTag(DDTags.ERROR_STACK) instanceof String
+    ((String)innerSpan.getTag(DDTags.ERROR_STACK)).contains(throwableMsg)
+
+
+    null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    tagEnv instanceof UTF8BytesString
+    "test-env" == tagEnv.toString()
+
+    null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    tagSvc instanceof UTF8BytesString
+    "test-svc" == tagSvc.toString()
+
+    null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    tagVersion instanceof UTF8BytesString
+    "v1" == tagVersion.toString()
   }
 
   def "test llm span string input formatted to messages"() {
@@ -197,27 +230,43 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan)test.span
-    assert Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
+    Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
 
-    assert null == innerSpan.getTag("input")
+    null == innerSpan.getTag("input")
     def spanInput = innerSpan.getTag(INPUT)
-    assert spanInput instanceof List
-    assert ((List)spanInput).size() == 1
-    assert spanInput.get(0) instanceof LLMObs.LLMMessage
+    spanInput instanceof List
+    ((List)spanInput).size() == 1
+    spanInput.get(0) instanceof LLMObs.LLMMessage
     def expectedInputMsg = LLMObs.LLMMessage.from("unknown", input)
-    assert expectedInputMsg.getContent().equals(input)
-    assert expectedInputMsg.getRole().equals("unknown")
-    assert expectedInputMsg.getToolCalls().equals(null)
+    expectedInputMsg.getContent().equals(input)
+    expectedInputMsg.getRole().equals("unknown")
+    expectedInputMsg.getToolCalls().equals(null)
 
-    assert null == innerSpan.getTag("output")
+    null == innerSpan.getTag("output")
     def spanOutput = innerSpan.getTag(OUTPUT)
-    assert spanOutput instanceof List
-    assert ((List)spanOutput).size() == 1
-    assert spanOutput.get(0) instanceof LLMObs.LLMMessage
+    spanOutput instanceof List
+    ((List)spanOutput).size() == 1
+    spanOutput.get(0) instanceof LLMObs.LLMMessage
     def expectedOutputMsg = LLMObs.LLMMessage.from("unknown", output)
-    assert expectedOutputMsg.getContent().equals(output)
-    assert expectedOutputMsg.getRole().equals("unknown")
-    assert expectedOutputMsg.getToolCalls().equals(null)
+    expectedOutputMsg.getContent().equals(output)
+    expectedOutputMsg.getRole().equals("unknown")
+    expectedOutputMsg.getToolCalls().equals(null)
+
+
+    null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    tagEnv instanceof UTF8BytesString
+    "test-env" == tagEnv.toString()
+
+    null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    tagSvc instanceof UTF8BytesString
+    "test-svc" == tagSvc.toString()
+
+    null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    tagVersion instanceof UTF8BytesString
+    "v1" == tagVersion.toString()
   }
 
   def "test llm span with messages"() {
@@ -232,36 +281,51 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     def innerSpan = (AgentSpan)test.span
-    assert Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
+    Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
 
-    assert null == innerSpan.getTag("input")
+    null == innerSpan.getTag("input")
     def spanInput = innerSpan.getTag(INPUT)
-    assert spanInput instanceof List
-    assert ((List)spanInput).size() == 1
+    spanInput instanceof List
+    ((List)spanInput).size() == 1
     def spanInputMsg = spanInput.get(0)
-    assert spanInputMsg instanceof LLMObs.LLMMessage
-    assert spanInputMsg.getContent().equals(inputMsg.getContent())
-    assert spanInputMsg.getRole().equals("user")
-    assert spanInputMsg.getToolCalls().equals(null)
+    spanInputMsg instanceof LLMObs.LLMMessage
+    spanInputMsg.getContent().equals(inputMsg.getContent())
+    spanInputMsg.getRole().equals("user")
+    spanInputMsg.getToolCalls().equals(null)
 
-    assert null == innerSpan.getTag("output")
+    null == innerSpan.getTag("output")
     def spanOutput = innerSpan.getTag(OUTPUT)
-    assert spanOutput instanceof List
-    assert ((List)spanOutput).size() == 1
+    spanOutput instanceof List
+    ((List)spanOutput).size() == 1
     def spanOutputMsg = spanOutput.get(0)
-    assert spanOutputMsg instanceof LLMObs.LLMMessage
-    assert spanOutputMsg.getContent().equals(outputMsg.getContent())
-    assert spanOutputMsg.getRole().equals("assistant")
-    assert spanOutputMsg.getToolCalls().size() == 1
+    spanOutputMsg instanceof LLMObs.LLMMessage
+    spanOutputMsg.getContent().equals(outputMsg.getContent())
+    spanOutputMsg.getRole().equals("assistant")
+    spanOutputMsg.getToolCalls().size() == 1
     def toolCall = spanOutputMsg.getToolCalls().get(0)
-    assert toolCall.getName().equals("weather-tool")
-    assert toolCall.getType().equals("function")
-    assert toolCall.getToolId().equals("6176241000")
+    toolCall.getName().equals("weather-tool")
+    toolCall.getType().equals("function")
+    toolCall.getToolId().equals("6176241000")
     def expectedToolArgs = Maps.of("location", "paris")
-    assert toolCall.getArguments().equals(expectedToolArgs)
+    toolCall.getArguments().equals(expectedToolArgs)
+
+    null == innerSpan.getTag("env")
+    def tagEnv = innerSpan.getTag(LLMOBS_TAG_PREFIX + "env")
+    tagEnv instanceof UTF8BytesString
+    "test-env" == tagEnv.toString()
+
+    null == innerSpan.getTag("service")
+    def tagSvc = innerSpan.getTag(LLMOBS_TAG_PREFIX + "service")
+    tagSvc instanceof UTF8BytesString
+    "test-svc" == tagSvc.toString()
+
+    null == innerSpan.getTag("version")
+    def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
+    tagVersion instanceof UTF8BytesString
+    "v1" == tagVersion.toString()
   }
 
   private LLMObsSpan givenALLMObsSpan(String kind, name){
-    new DDLLMObsSpan(kind, name, "test-ml-app", null, "test-svc")
+    new DDLLMObsSpan(kind, name, "test-ml-app", null, "test-svc", new WellKnownTags("test-runtime-1", "host-1", "test-env", "test-svc", "v1", "java"))
   }
 }

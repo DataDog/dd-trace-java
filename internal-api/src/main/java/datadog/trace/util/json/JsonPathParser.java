@@ -1,6 +1,12 @@
-package datadog.trace.payloadtags.json;
+package datadog.trace.util.json;
 
 import static java.lang.Character.isDigit;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JsonPathParser {
 
@@ -25,6 +31,24 @@ public class JsonPathParser {
   private static final char SINGLE_QUOTE = '\'';
   private static final char DOUBLE_QUOTE = '"';
   private static final char ESC = '\\';
+
+  private static final Logger log = LoggerFactory.getLogger(JsonPathParser.class);
+
+  public static List<JsonPath> parseJsonPaths(List<String> rules) {
+    if (null == rules || rules.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<JsonPath> result = new ArrayList<>(rules.size());
+    for (String rule : rules) {
+      try {
+        JsonPath jp = parse(rule);
+        result.add(jp);
+      } catch (Exception ex) {
+        log.warn("Failed to parse redaction rule '{}'. {}. Skipping rule.", rule, ex.getMessage());
+      }
+    }
+    return result;
+  }
 
   public static JsonPath parse(String path) throws ParseError {
     Cursor cur = new Cursor(path);

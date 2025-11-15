@@ -65,7 +65,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-
+    codeOriginSetup()
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
@@ -1024,12 +1024,6 @@ class KafkaClientV0ForkedTest extends KafkaClientForkedTest {
 }
 
 class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    codeOriginSetup()
-  }
-
   @Override
   int version() {
     1

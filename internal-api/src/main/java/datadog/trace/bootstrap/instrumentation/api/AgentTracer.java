@@ -373,6 +373,11 @@ public class AgentTracer {
       return buildSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
     }
 
+    @Deprecated
+    default SpanBuilder singleSpanBuilder(CharSequence spanName) {
+      return singleSpanBuilder(DEFAULT_INSTRUMENTATION_NAME, spanName);
+    }
+
     /**
      * Returns a SpanBuilder that can be used to produce multiple spans. To minimize overhead, use
      * of {@link #singleSpanBuilder(String, CharSequence)} is preferred when only a single span is

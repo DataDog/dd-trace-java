@@ -5,6 +5,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
@@ -61,6 +62,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig('dd.iast.enabled', 'true')
+    injectSysConfig(TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED, 'true')
   }
 
   @Override
@@ -475,6 +477,123 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "$Tags.SPAN_KIND" 'server'
             defaultTags()
           }
+        }
+      }
+    }
+  }
+
+  def "test inferred proxy span is finished"() {
+    setup:
+    def request = request(SUCCESS, "GET", null)
+      .header("x-dd-proxy", "aws-apigateway")
+      .header("x-dd-proxy-request-time-ms", "12345")
+      .header("x-dd-proxy-path", "/success")
+      .header("x-dd-proxy-httpmethod", "GET")
+      .header("x-dd-proxy-domain-name", "api.example.com")
+      .header("x-dd-proxy-stage", "test")
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == SUCCESS.status
+
+    and:
+    // Verify that inferred proxy span was created and finished
+    // It should appear in the trace as an additional span
+    assertTraces(1) {
+      trace(spanCount(SUCCESS) + 1) {
+        sortSpansByStart()
+        // The inferred proxy span should be the first span (earliest start time)
+        // Verify it exists and was finished (appears in trace)
+        // Operation name is the proxy system name (aws.apigateway), not inferred_proxy
+        span {
+          operationName "aws.apigateway"
+          serviceName "api.example.com"
+          // Resource Name: httpmethod + " " + path
+          resourceName "GET /success"
+          spanType "web"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "aws-apigateway"
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_URL" "api.example.com/success"
+            "$Tags.HTTP_ROUTE" "/success"
+            "stage" "test"
+            "_dd.inferred_span" 1
+            // Standard tags that are automatically added
+            "_dd.agent_psr" Number
+            "_dd.base_service" String
+            "_dd.dsm.enabled" Number
+            "_dd.profiling.ctx" String
+            "_dd.profiling.enabled" Number
+            "_dd.trace_span_attribute_schema" Number
+            "_dd.tracer_host" String
+            "_sample_rate" Number
+            "language" "jvm"
+            "process_id" Number
+            "runtime-id" String
+            "thread.id" Number
+            "thread.name" String
+          }
+        }
+        // Server span should be a child of the inferred proxy span
+        // When there's an inferred proxy span parent, the server span inherits the parent's service name
+        span {
+          // Service name is inherited from the inferred proxy span parent
+          serviceName "api.example.com"
+          operationName operation()
+          resourceName expectedResourceName(SUCCESS, "GET", address)
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOfPrevious()
+          tags {
+            "$Tags.COMPONENT" component
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.HTTP_HOSTNAME" address.host
+            "$Tags.HTTP_URL" String
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" SUCCESS.status
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_ROUTE" "/success"
+            "servlet.context" "/boot-context"
+            "servlet.path" "/success"
+            defaultTags()
+          }
+        }
+        if (hasHandlerSpan()) {
+          // Handler span inherits service name from inferred proxy span parent
+          it.span {
+            serviceName "api.example.com"
+            operationName "spring.handler"
+            resourceName "TestController.success"
+            spanType DDSpanTypes.HTTP_SERVER
+            errored false
+            childOfPrevious()
+            tags {
+              "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+              defaultTags()
+            }
+          }
+        }
+        // Controller span also inherits service name
+        it.span {
+          serviceName "api.example.com"
+          operationName "controller"
+          resourceName "controller"
+          errored false
+          childOfPrevious()
+          tags {
+            defaultTags()
+          }
+        }
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
         }
       }
     }

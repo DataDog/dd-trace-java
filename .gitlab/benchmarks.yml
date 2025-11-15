@@ -71,12 +71,14 @@ check-big-regressions:
   needs:
     - job: benchmarks-startup
       artifacts: true
-    - job: benchmarks-load
+    - job: benchmarks-dacapo
       artifacts: true
   when: on_success
   tags: ["arch:amd64"]
   rules:
     - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /backport-pr-/'
       when: never
     - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
       when: on_success
@@ -86,7 +88,7 @@ check-big-regressions:
   script:
     - !reference [ .benchmarks, script ]
     - | 
-      for benchmarkType in startup load; do
+      for benchmarkType in startup dacapo; do
           find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
             relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
             prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json

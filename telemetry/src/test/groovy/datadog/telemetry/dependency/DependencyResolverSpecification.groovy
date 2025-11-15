@@ -1,6 +1,5 @@
 package datadog.telemetry.dependency
 
-import org.apache.tools.ant.taskdefs.Classloader
 import spock.lang.TempDir
 
 import java.nio.charset.Charset
@@ -136,8 +135,8 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'spring boot dependency'() throws IOException {
     when:
-    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
-    URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
+    URI zipPath = zipPath('datadog/telemetry/dependencies/spring-boot-app.jar')
+    URI uri = new URI("jar:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
 
     Dependency dep = DependencyResolver.resolve(uri).get(0)
 
@@ -151,8 +150,8 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'spring boot dependency without trailing slash'() throws IOException {
     when:
-    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
-    URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!")
+    URI zipPath = zipPath('datadog/telemetry/dependencies/spring-boot-app.jar')
+    URI uri = new URI("jar:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!")
 
     Dependency dep = DependencyResolver.resolve(uri).get(0)
 
@@ -166,8 +165,8 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'spring boot dependency new style'() throws IOException {
     when:
-    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
-    URI uri = new URI("jar:nested:$zipPath/!BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
+    String zipPath = zipPath('datadog/telemetry/dependencies/spring-boot-app.jar').toString().replace("file:", "nested:")
+    URI uri = new URI("jar:$zipPath/!BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
 
     Dependency dep = DependencyResolver.resolve(uri).get(0)
 
@@ -235,7 +234,7 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'fat jar with multiple pom.properties'() throws IOException {
     when:
-    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetapp.jar').toURI()
+    URI uri = zipPath('datadog/telemetry/dependencies/budgetapp.jar')
 
     List<Dependency> deps = DependencyResolver.resolve(uri)
 
@@ -246,7 +245,7 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'fat jar with two pom.properties'() throws IOException {
     when:
-    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreduced.jar').toURI()
+    URI uri = zipPath('datadog/telemetry/dependencies/budgetappreduced.jar')
 
     List<Dependency> deps = DependencyResolver.resolve(uri)
     Dependency dep1 = deps.get(0)
@@ -260,7 +259,7 @@ class DependencyResolverSpecification extends DepSpecification {
 
   void 'fat jar with two pom.properties one of them bad'() throws IOException {
     when:
-    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreducedbadproperties.jar').toURI()
+    URI uri = zipPath('datadog/telemetry/dependencies/budgetappreducedbadproperties.jar')
 
     List<Dependency> deps = DependencyResolver.resolve(uri)
     Dependency dep1 = deps.get(0)
@@ -351,5 +350,15 @@ class DependencyResolverSpecification extends DepSpecification {
 
     then:
     deps.size() == 1
+  }
+
+  private static URI zipPath(String outerJar) {
+    URL outerJarUrl = Thread.currentThread()
+      .contextClassLoader
+      .getResource(outerJar)
+
+    assert outerJarUrl != null : "Resource not found: ${outerJar}"
+
+    outerJarUrl.toURI()
   }
 }

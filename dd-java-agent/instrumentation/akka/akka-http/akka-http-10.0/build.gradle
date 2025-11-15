@@ -1,8 +1,3 @@
-// Set properties before any plugins get loaded
-ext {
-  lagomTestMaxJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 apply plugin: 'call-site-instrumentation'
@@ -21,6 +16,12 @@ addTestSuite('iastTest')
 addTestSuiteForDir 'version101IastTest', 'iastTest'
 addTestSuiteForDir 'version102IastTest', 'iastTest'
 addTestSuiteForDir 'latestDepIastTest', 'iastTest'
+
+tasks.named("lagomTest", Test) {
+  testJvmConstraints {
+    maxJavaVersion = JavaVersion.VERSION_1_8
+  }
+}
 
 tasks.named("compileLagomTestJava", JavaCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
