@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
+import java.util.Optional;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -190,16 +191,16 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   private String extractResponseModel(JsonField<ResponsesModel> model) {
-    return model.asString().orElseGet(
-        () -> model.asKnown().flatMap(k -> k.chat().flatMap(v -> v._value().asString()))
-            .orElse(null)
-    );
+    Optional<String> result = model.asString();
+    if (result.isPresent()) {
+      return result.get();
+    }
+    result = model.asKnown().flatMap(k -> k.chat().flatMap(v -> v._value().asString()));
+    return result.orElse("_UNKNOWN");
   }
 
   public void decorateWithResponse(AgentSpan span, Response response) {
-    span.setTag(
-        RESPONSE_MODEL,
-        extractResponseModel(response._model()));
+    span.setTag(RESPONSE_MODEL, extractResponseModel(response._model()));
 
     // TODO set LLMObs tags (not visible to APM)
   }
