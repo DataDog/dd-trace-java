@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.openai_java;
 
 import com.openai.core.ClientOptions;
+import com.openai.core.JsonField;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponse;
+import com.openai.models.ResponsesModel;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
@@ -184,21 +186,29 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, "gpt-3.5-turbo"); // TODO extract model, might not be set
+    span.setTag(REQUEST_MODEL, extractResponseModel(params._model()));
+  }
+
+  private String extractResponseModel(JsonField<ResponsesModel> model) {
+    return model.asString().orElseGet(
+        () -> model.asKnown().flatMap(k -> k.chat().flatMap(v -> v._value().asString()))
+            .orElse(null)
+    );
   }
 
   public void decorateWithResponse(AgentSpan span, Response response) {
     span.setTag(
         RESPONSE_MODEL,
-        "gpt-3.5-turbo-0125"); // TODO extract response model, there is no single method
+        extractResponseModel(response._model()));
 
     // TODO set LLMObs tags (not visible to APM)
   }
 
   public void decorateWithResponseStreamEvent(AgentSpan span, List<ResponseStreamEvent> events) {
-    // if (!events.isEmpty()) {
-    //   span.setTag(RESPONSE_MODEL, events.get(0).res()); // TODO there is no model
-    // }
+    if (!events.isEmpty()) {
+      // ResponseStreamEvent responseStreamEvent = events.get(0);
+      // span.setTag(RESPONSE_MODEL, responseStreamEvent.res()); // TODO there is no model
+    }
 
     // TODO set LLMObs tags (not visible to APM)
   }
