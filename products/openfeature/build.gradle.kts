@@ -120,9 +120,22 @@ tasks {
       exclude(dependency("org.ow2.asm:.*"))
     }
 
+    exclude(
+      "datadog/appsec/**",
+      "datadog/yaml/**",
+      "datadog/context/**",
+      "datadog/json/**",
+      "datadog/compiler/**",
+      "com/kenai/**",
+      "com/timgroup/**"
+    )
+
     relocate("datadog.communication", "datadog.openfeature.shaded.communication")
     relocate("datadog.remoteconfig", "datadog.openfeature.shaded.remoteconfig")
-    relocate("datadog.trace.api.internal", "datadog.openfeature.shaded.internal")
+    relocate("datadog.trace", "datadog.openfeature.shaded.trace")
+    relocate("datadog.common", "datadog.openfeature.shaded.common")
+    relocate("datadog.environment", "datadog.openfeature.shaded.environment")
+
     relocate("org.slf4j", "datadog.openfeature.shaded.slf4j")
     relocate("com.squareup.moshi", "datadog.openfeature.shaded.moshi")
     relocate("okhttp3", "datadog.openfeature.shaded.okhttp3")
