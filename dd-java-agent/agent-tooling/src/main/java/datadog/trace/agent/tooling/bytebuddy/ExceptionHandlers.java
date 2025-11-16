@@ -39,24 +39,14 @@ public class ExceptionHandlers {
               final boolean exitOnFailure = InstrumenterConfig.get().isInternalExitOnFailure();
               final String logMethod = exitOnFailure ? "error" : "debug";
 
-              // Writes the following bytecode if exitOnFailure is false:
+              // Writes the following bytecode (note that two statements are conditionally written):
               //
-              // BlockingExceptionHandler.rethrowIfBlockingException(t);
-              // try {
-              //   InstrumentationErrors.incrementErrorCount();
-              //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
-              //     .debug("Failed to handle exception in instrumentation for ...", t);
-              // } catch (Throwable t2) {
-              // }
-              //
-              // And the following bytecode if exitOnFailure is true:
-              //
-              // BlockingExceptionHandler.rethrowIfBlockingException(t);
+              // BlockingExceptionHandler.rethrowIfBlockingException(t); // when appSecEnabled=true
               // try {
               //   InstrumentationErrors.incrementErrorCount();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
-              //   System.exit(1);
+              //   System.exit(1); // when exitOnFailure=true
               // } catch (Throwable t2) {
               // }
               //
