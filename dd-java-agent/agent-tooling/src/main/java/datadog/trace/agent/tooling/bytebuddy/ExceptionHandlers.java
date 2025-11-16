@@ -43,7 +43,7 @@ public class ExceptionHandlers {
               //
               // BlockingExceptionHandler.rethrowIfBlockingException(t); // when appSecEnabled=true
               // try {
-              //   InstrumentationErrors.incrementErrorCount();
+              //   InstrumentationErrors.recordError(t);
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
               //   System.exit(1); // when exitOnFailure=true
@@ -71,12 +71,14 @@ public class ExceptionHandlers {
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
-              // invoke incrementAndGet on our exception counter
+              mv.visitInsn(Opcodes.DUP); // stack: (top) throwable,throwable
+              // invoke recordError on our exception tracker
               mv.visitMethodInsn(
                   Opcodes.INVOKESTATIC,
                   "datadog/trace/bootstrap/InstrumentationErrors",
-                  "incrementErrorCount",
-                  "()V");
+                  "recordError",
+                  "(Ljava/lang/Throwable;)V");
+
               // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
               mv.visitMethodInsn(
