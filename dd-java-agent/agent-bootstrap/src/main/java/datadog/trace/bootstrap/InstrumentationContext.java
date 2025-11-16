@@ -24,7 +24,10 @@ public class InstrumentationContext {
   public static <K, C> ContextStore<K, C> get(
       final Class<K> keyClass, final Class<C> contextClass) {
     throw new RuntimeException(
-        "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)");
+        "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)."
+            + " If you get this exception, this method has not been rewritten."
+            + " Ensure instrumentation class has a contextStore method and the call to InstrumentationContext.get happens directly in an instrumentation Advice class."
+            + " See how_instrumentations_work.md for details.");
   }
 
   /**
@@ -35,6 +38,9 @@ public class InstrumentationContext {
    */
   public static <K, C> ContextStore<K, C> get(final String keyClass, final String contextClass) {
     throw new RuntimeException(
-        "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)");
+        "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)."
+            + " If you get this exception, this method has not been rewritten."
+            + " Ensure instrumentation class has a contextStore method and the call to InstrumentationContext.get happens directly in an instrumentation Advice class."
+            + " See how_instrumentations_work.md for details.");
   }
 }
