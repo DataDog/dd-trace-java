@@ -1,7 +1,7 @@
 package datadog.trace.api.featureflag.exposure;
 
 public class ExposureEvent {
-  public final long timestamp;
+  public final long timestamp; // System.currentTimeMillis()
   public final Allocation allocation;
   public final Flag flag;
   public final Variant variant;

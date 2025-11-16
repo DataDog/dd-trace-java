@@ -17,6 +17,7 @@ dependencies {
   api(project(":internal-api"))
 
   testImplementation(project(":utils:test-utils"))
+  testRuntimeOnly(project(":dd-trace-core"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {
