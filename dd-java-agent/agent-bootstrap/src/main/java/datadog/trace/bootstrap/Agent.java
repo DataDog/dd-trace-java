@@ -22,6 +22,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.instrument.classinject.ClassInjector;
+import datadog.instrument.utils.ClassLoaderValue;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -100,6 +101,8 @@ public class Agent {
       "datadog.trace.agent.tooling.AgentInstaller";
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
+
+  private static final long CLASSLOADER_CLEAN_FREQUENCY_SECONDS = 30;
 
   private static final Logger log;
 
@@ -325,6 +328,14 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
+
+    AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            ClassLoaderValue::removeStaleEntries,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            TimeUnit.SECONDS);
+
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
