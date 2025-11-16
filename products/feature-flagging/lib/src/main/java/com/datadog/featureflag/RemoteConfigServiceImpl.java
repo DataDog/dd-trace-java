@@ -37,6 +37,7 @@ public class RemoteConfigServiceImpl
   @Override
   public void close() {
     configurationPoller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    configurationPoller.removeListeners(Product.FFE_FLAGS);
     configurationPoller.stop();
   }
 

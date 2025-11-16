@@ -201,6 +201,49 @@ class LRUExposureCacheTest extends Specification {
     cache.get(key4).variant == 'variant4'
   }
 
+  void 'test duplicate exposure keeps subject hot in LRU order'() {
+    given:
+    final cache = new LRUExposureCache(3)
+    final event1 = createEvent('flag1', 'subject1', 'variant1', 'allocation1')
+    final event2 = createEvent('flag2', 'subject2', 'variant2', 'allocation2')
+    final event3 = createEvent('flag3', 'subject3', 'variant3', 'allocation3')
+    // same key + same details as event1: will go through the "duplicate" path
+    final event1Duplicate = createEvent('flag1', 'subject1', 'variant1', 'allocation1')
+    final event4 = createEvent('flag4', 'subject4', 'variant4', 'allocation4')
+
+    final key1 = new ExposureCache.Key(event1)
+    final key2 = new ExposureCache.Key(event2)
+    final key4 = new ExposureCache.Key(event4)
+
+    when:
+    // Fill cache
+    def added1 = cache.add(event1)
+    def added2 = cache.add(event2)
+    def added3 = cache.add(event3)
+
+    // Duplicate exposure for subject1: should *not* change size, but *should* bump recency
+    def duplicateAdded = cache.add(event1Duplicate)
+
+    // Now push over capacity: the least recently used *non-hot* entry (event2) should be evicted
+    def added4 = cache.add(event4)
+
+    then:
+    added1
+    added2
+    added3
+    !duplicateAdded     // dedup correctly
+    added4
+
+    cache.size() == 3
+
+    cache.get(key1) != null          // hot subject1 should still be present
+    cache.get(key2) == null          // subject2 should be evicted
+    cache.get(key4) != null          // newest subject4 should be present
+
+    cache.get(key1).variant == 'variant1'
+    cache.get(key1).allocation == 'allocation1'
+  }
+
   private static ExposureEvent createEvent(String flag, String subject, String variant, String allocation) {
     return new ExposureEvent(
       System.currentTimeMillis(),

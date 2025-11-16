@@ -1,6 +1,8 @@
 package com.datadog.featureflag
 
+
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.PollingRateHinter
@@ -25,7 +27,7 @@ class RemoteConfigServiceTest extends DDSpecification {
   void 'test new config received'() {
     setup:
     def poller = Mock(ConfigurationPoller)
-    final sco = Mock(SharedCommunicationObjects) {
+    final sco = Stub(SharedCommunicationObjects) {
       configurationPoller(_ as Config) >> poller
     }
     FeatureFlaggingGateway.addConfigListener(listener)
@@ -48,6 +50,7 @@ class RemoteConfigServiceTest extends DDSpecification {
     service.init()
 
     then:
+    1 * poller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES)
     1 * poller.addListener(Product.FFE_FLAGS, _ as ConfigurationDeserializer, _) >> {
       deserializer = it[1] as ConfigurationDeserializer<ServerConfiguration>
     }
@@ -57,6 +60,13 @@ class RemoteConfigServiceTest extends DDSpecification {
 
     then:
     1 * listener.accept(_ as ServerConfiguration)
+
+    when:
+    service.close()
+
+    then:
+    1 * poller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES)
+    1 * poller.removeListeners(Product.FFE_FLAGS)
 
     cleanup:
     FeatureFlaggingGateway.removeConfigListener(listener)

@@ -11,7 +11,7 @@ apply(from = "$rootDir/gradle/publish.gradle")
 
 val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
 
-description = "dd-openfeature"
+description = "OpenFeature Provider interface implementation"
 
 idea {
   module {
@@ -28,6 +28,7 @@ java {
 dependencies {
   api(libs.slf4j)
   api("dev.openfeature:sdk:1.18.2")
+
   compileOnly(project(":internal-api"))
 
   testImplementation(project(":internal-api"))
@@ -60,8 +61,4 @@ tasks.withType<Javadoc>().configureEach {
 
 tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
   failOnMissingClasses = false
-}
-
-tasks.named<Jar>("jar") {
-  archiveBaseName.set("dd-openfeature")
 }
