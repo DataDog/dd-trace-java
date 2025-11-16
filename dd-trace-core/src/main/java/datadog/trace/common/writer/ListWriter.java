@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 
 /** List writer used by tests mostly */
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
+  public static final int WAIT_FOR_TRACES_TIMEOUT_SECONDS = 20;
+
   private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
   private static final Filter ACCEPT_ALL = trace -> true;
 
@@ -85,7 +87,12 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   public void waitForTraces(final int number) throws InterruptedException, TimeoutException {
-    if (!waitForTracesMax(number, 20)) {
+    waitForTraces(number, WAIT_FOR_TRACES_TIMEOUT_SECONDS);
+  }
+
+  public void waitForTraces(final int number, final int seconds)
+      throws InterruptedException, TimeoutException {
+    if (!waitForTracesMax(number, seconds)) {
       String msg =
           "Timeout waiting for "
               + number
