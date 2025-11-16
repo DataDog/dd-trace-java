@@ -42,7 +42,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
     // create a new source set for the csi files
     val targetFolder = newBuildFolder(project, extension.targetFolder.get().asFile.toString())
-    val sourceSets = getSourceSets(project)
+    val sourceSets = project.sourceSets
     val mainSourceSet = sourceSets.named(MAIN_SOURCE_SET_NAME).get()
     val csiSourceSet = sourceSets.create("csi") {
       compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
@@ -89,10 +89,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     }
     file.deleteOnExit()
     return file
-  }
-
-  private fun getSourceSets(project: Project): SourceSetContainer {
-    return project.extensions.getByType<JavaPluginExtension>().sourceSets
   }
 
   private fun createTasks(project: Project, extension: CallSiteInstrumentationExtension) {
@@ -152,9 +148,12 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
+        val sourceSetOutput = project.sourceSets.matching { it.name.startsWith(MAIN_SOURCE_SET_NAME) }.flatMap {
+          it.output.classesDirs.files
+        }
         val programClassPath = csiExtension.configurations.get().flatMap {
           it.files
-        }.map { it.toString() }
+        }
 
         val arguments = listOf(
           csiExtension.srcFolder.get().asFile.toString(),
@@ -162,7 +161,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
           output.get().asFile.toString(),
           csiExtension.suffix.get(),
           csiExtension.reporters.get().joinToString(",")
-        ) + programClassPath
+        ) + (sourceSetOutput + programClassPath).map { it.toString() }
 
         val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
         Files.write(argumentFile.toPath(), arguments)
@@ -174,7 +173,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     }
 
     // make all sourcesets' class tasks depend on call site generator
-    val sourceSets = getSourceSets(project)
+    val sourceSets = project.sourceSets
     sourceSets.named(MAIN_SOURCE_SET_NAME) {
       project.tasks.named(classesTaskName) {
         dependsOn(callSiteGeneratorTask)
@@ -188,4 +187,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       }
     }
   }
+
+  private val Project.sourceSets: SourceSetContainer
+    get() = project.extensions.getByType<JavaPluginExtension>().sourceSets
 }

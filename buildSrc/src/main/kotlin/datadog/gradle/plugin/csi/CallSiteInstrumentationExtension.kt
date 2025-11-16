@@ -5,7 +5,6 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.provider.ListProperty
@@ -16,6 +15,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.property
 import java.io.File
+import java.util.Locale
 import javax.inject.Inject
 
 
@@ -83,13 +83,35 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
    * By default, includes all `main*` source sets, but only the `test`
    * (as wee don't want other test configurations by default).
    */
-  val configurations = objectFactory.listProperty<Configuration>().convention(
+  val configurations: ListProperty<Configuration> = objectFactory.listProperty<Configuration>().convention(
     project.provider {
       project.configurations.matching {
         // Includes all main* source sets, but only the test (as wee don;t want other )
-        (it.name.startsWith(MAIN_SOURCE_SET_NAME) || it.name == TEST_SOURCE_SET_NAME)
-            && (it.name.endsWith(RUNTIME_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true) || it.name.endsWith(COMPILE_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true))
+        // * For main => runtimeClasspath, compileClasspath
+        // * For test => testRuntimeClasspath, testCompileClasspath
+        // * For other main* => "main_javaXXRuntimeClasspath", "main_javaXXCompileClasspath"
+
+        when (it.name) {
+          // Regular main and test source sets
+          RUNTIME_CLASSPATH_CONFIGURATION_NAME,
+          COMPILE_CLASSPATH_CONFIGURATION_NAME,
+          TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
+          TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
+
+          // Other main_javaXX source sets
+          else -> {
+            it.name.startsWith(MAIN_SOURCE_SET_NAME) &&
+                (it.name.endsWith(RUNTIME_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true) ||
+                    it.name.endsWith(COMPILE_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true))
+          }
+        }
       }
     }
   )
+
+  private fun String.capitalize(): String = replaceFirstChar {
+    if (it.isLowerCase()) it.titlecase(
+      Locale.getDefault()
+    ) else it.toString()
+  }
 }
