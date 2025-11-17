@@ -9,7 +9,6 @@ import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.kotlin.dsl.listProperty
@@ -98,12 +97,7 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
           TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
           TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
 
-          // Other main_javaXX source sets
-          else -> {
-            it.name.startsWith(MAIN_SOURCE_SET_NAME) &&
-                (it.name.endsWith(RUNTIME_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true) ||
-                    it.name.endsWith(COMPILE_CLASSPATH_CONFIGURATION_NAME, ignoreCase = true))
-          }
+          else -> false
         }
       }
     }

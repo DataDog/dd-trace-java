@@ -10,6 +10,7 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
@@ -27,6 +28,8 @@ import java.nio.file.Paths
 import javax.inject.Inject
 
 private const val CALL_SITE_INSTRUMENTER_MAIN_CLASS = "datadog.trace.plugin.csi.PluginApplication"
+private const val CSI = "csi"
+private const val CSI_SOURCE_SET = CSI
 
 abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   @get:Inject
@@ -36,11 +39,9 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     project.pluginManager.apply(JavaPlugin::class)
     
     // Create plugin extension
-    val extension = project.extensions.create<CallSiteInstrumentationExtension>("csi")
-    project.afterEvaluate {
-      configureSourceSets(project, extension)
-      createTasks(project, extension)
-    }
+    val extension = project.extensions.create<CallSiteInstrumentationExtension>(CSI)
+    configureSourceSets(project, extension)
+    createTasks(project, extension)
   }
 
   private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
@@ -48,7 +49,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     val targetFolder = newBuildFolder(project, extension.targetFolder.get().asFile.toString())
     val sourceSets = project.sourceSets
     val mainSourceSet = sourceSets.named(MAIN_SOURCE_SET_NAME).get()
-    val csiSourceSet = sourceSets.create("csi") {
+    val csiSourceSet = sourceSets.create(CSI_SOURCE_SET) {
       compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
       annotationProcessorPath += mainSourceSet.annotationProcessorPath
       java.srcDir(targetFolder)
@@ -96,9 +97,9 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   }
 
   private fun createTasks(project: Project, extension: CallSiteInstrumentationExtension) {
-    registerGenerateCallSiteTask(project, extension, "compileJava")
-    val targetFolder = extension.targetFolder.get().asFile
+    registerGenerateCallSiteTask(project, extension, project.tasks.named<AbstractCompile>("compileJava"))
 
+    val targetFolder = extension.targetFolder.get().asFile
     project.tasks.withType<AbstractCompile>().matching {
       task -> task.name.startsWith("compileTest")
     }.configureEach {
@@ -120,25 +121,28 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
   private fun registerGenerateCallSiteTask(project: Project,
                                            csiExtension: CallSiteInstrumentationExtension,
-                                           compileTaskName: String) {
-    val taskName = compileTaskName.replace("compile", "generateCallSite")
-    val rootFolder = csiExtension.rootFolder.getOrElse(project.rootDir)
+                                           mainCompileTask: TaskProvider<AbstractCompile>) {
+    val genTaskName = mainCompileTask.name.replace("compile", "generateCallSite")
     val pluginJarFile = Paths.get(
-      rootFolder.toString(),
+      csiExtension.rootFolder.getOrElse(project.rootDir).toString(),
       "buildSrc",
       "call-site-instrumentation-plugin",
       "build",
       "libs",
       "call-site-instrumentation-plugin-all.jar"
     ).toFile()
-    val compileTask = project.tasks.named<AbstractCompile>(compileTaskName)
-    val callSiteGeneratorTask = project.tasks.register<JavaExec>(taskName) {
+
+    val callSiteGeneratorTask = project.tasks.register<JavaExec>(genTaskName) {
       // Task description
       group = "call site instrumentation"
-      description = "Generates call sites from $compileTaskName"
+      description = "Generates call sites from ${mainCompileTask.name}"
+
+      // Remote Debug
+      // jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005")
+
       // Task input & output
       val output = csiExtension.targetFolder
-      val inputProvider = compileTask.map { it.destinationDirectory.get() }
+      val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
       inputs.dir(inputProvider)
       outputs.dir(output)
 
@@ -152,20 +156,29 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
-        val sourceSetOutput = project.sourceSets.matching { it.name.startsWith(MAIN_SOURCE_SET_NAME) }.flatMap {
-          it.output.classesDirs.files
-        }
-        val programClassPath = csiExtension.configurations.get().flatMap {
-          it.files
+        val callsitesClassPath = project.objects.fileCollection()
+          .from(
+            project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output },
+            csiExtension.configurations
+          )
+
+        if (project.logger.isInfoEnabled) {
+          project.logger.info(
+            "Aggregated CSI classpath:\n{}",
+            callsitesClassPath.toSet().sorted().joinToString("\n") { it.toString() }
+          )
         }
 
-        val arguments = listOf(
-          csiExtension.srcFolder.get().asFile.toString(),
-          inputProvider.get().asFile.toString(),
-          output.get().asFile.toString(),
-          csiExtension.suffix.get(),
-          csiExtension.reporters.get().joinToString(",")
-        ) + (sourceSetOutput + programClassPath).map { it.toString() }
+        val arguments = buildList {
+          add(csiExtension.srcFolder.get().asFile.toString())
+          add(inputProvider.get().asFile.toString())
+          add(output.get().asFile.toString())
+          add(csiExtension.suffix.get())
+          add(csiExtension.reporters.get().joinToString(","))
+
+          // module program classpath
+          addAll(callsitesClassPath.map { it.toString() })
+        }
 
         val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
         Files.write(argumentFile.toPath(), arguments)
@@ -173,7 +186,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       }
 
       // make task depends on compile
-      dependsOn(compileTask)
+      dependsOn(mainCompileTask)
     }
 
     // make all sourcesets' class tasks depend on call site generator
@@ -185,7 +198,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     }
 
     // compile generated sources
-    sourceSets.named("csi") {
+    sourceSets.named(CSI_SOURCE_SET) {
       project.tasks.named(compileJavaTaskName) {
         dependsOn(callSiteGeneratorTask)
       }
