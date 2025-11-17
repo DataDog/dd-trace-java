@@ -2,6 +2,7 @@ package datadog.common.queue;
 
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
 
+import datadog.common.queue.padding.PaddedSequence;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
@@ -16,18 +17,13 @@ import javax.annotation.Nonnull;
  * @param <E> the type of elements held by this queue
  */
 abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
-  protected static final VarHandle HEAD_HANDLE;
-  protected static final VarHandle TAIL_HANDLE;
   protected static final VarHandle ARRAY_HANDLE;
 
   static {
     try {
-      final MethodHandles.Lookup lookup = MethodHandles.lookup();
-      HEAD_HANDLE = lookup.findVarHandle(BaseQueue.class, "head", long.class);
-      TAIL_HANDLE = lookup.findVarHandle(BaseQueue.class, "tail", long.class);
       ARRAY_HANDLE = MethodHandles.arrayElementVarHandle(Object[].class);
-    } catch (ReflectiveOperationException e) {
-      throw new ExceptionInInitializerError(e);
+    } catch (Throwable t) {
+      throw new ExceptionInInitializerError(t);
     }
   }
 
@@ -45,14 +41,10 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue
   private long p0, p1, p2, p3, p4, p5, p6;
 
   /** Next free slot for producer (single-threaded) */
-  protected volatile long tail = 0L;
-
-  // Padding around tail
-  @SuppressWarnings("unused")
-  private long q0, q1, q2, q3, q4, q5, q6;
+  protected final PaddedSequence tail = new PaddedSequence();
 
   /** Next slot to consume (multi-threaded) */
-  protected volatile long head = 0L;
+  protected final PaddedSequence head = new PaddedSequence();
 
   // Padding around head
   @SuppressWarnings("unused")
@@ -124,8 +116,8 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue
 
   @Override
   public final int size() {
-    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    long currentTail = tail.getVolatile();
+    long currentHead = head.getVolatile();
     return (int) (currentTail - currentHead);
   }
 }
