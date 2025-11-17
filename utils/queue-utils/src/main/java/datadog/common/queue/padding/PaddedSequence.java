@@ -18,9 +18,7 @@ public final class PaddedSequence extends LongRhsPadding {
     }
   }
 
-  /**
-   * Creates a new {@code PaddedSequence} with initial value {@code 0}.
-   */
+  /** Creates a new {@code PaddedSequence} with initial value {@code 0}. */
   public PaddedSequence() {
     this(0L);
   }
