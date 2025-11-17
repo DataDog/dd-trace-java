@@ -113,4 +113,4 @@ org.testng:testng:7.5.1=testRuntimeClasspath
 org.webjars:jquery:3.5.1=testRuntimeClasspath
 org.xmlresolver:xmlresolver:4.4.3=spotbugs
 xml-apis:xml-apis:1.4.01=spotbugs
-empty=annotationProcessor,main_java11AnnotationProcessor,main_java11RuntimeClasspath,main_java8AnnotationProcessor,main_java8CompileClasspath,main_java8RuntimeClasspath,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,main_java11AnnotationProcessor,main_java11RuntimeClasspath,spotbugsPlugins,testAnnotationProcessor
