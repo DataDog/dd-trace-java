@@ -1,5 +1,6 @@
 package datadog.common.queue;
 
+import datadog.common.queue.padding.PaddedSequence;
 import java.util.Objects;
 import java.util.concurrent.locks.LockSupport;
 
@@ -12,16 +13,8 @@ import java.util.concurrent.locks.LockSupport;
  * @param <E> the type of elements stored
  */
 class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
-  // Padding to prevent false sharing
-  @SuppressWarnings("unused")
-  private long p0, p1, p2, p3, p4, p5, p6;
-
   /** Cached producer limit to reduce volatile head reads */
-  protected volatile long producerLimit = 0L;
-
-  // Padding around producerLimit
-  @SuppressWarnings("unused")
-  private long q0, q1, q2, q3, q4, q5, q6;
+  protected final PaddedSequence producerLimit;
 
   /**
    * Creates a new MPSC queue.
@@ -30,7 +23,8 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
    */
   public MpscArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
-    this.producerLimit = capacity;
+    this.producerLimit = new PaddedSequence(capacity);
+    ;
   }
 
   @Override
@@ -40,7 +34,7 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     // jctools does the same local copy to have the jitter optimise the accesses
     final Object[] localBuffer = this.buffer;
 
-    long localProducerLimit = producerLimit;
+    long localProducerLimit = producerLimit.getVolatile();
     long cachedHead = 0L; // Local cache of head to reduce volatile reads
 
     int spinCycles = 0;
@@ -60,7 +54,7 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
         }
 
         // Update producerLimit so other producers also benefit
-        producerLimit = localProducerLimit;
+        producerLimit.setVolatile(localProducerLimit);
       }
 
       // Attempt to claim a slot
