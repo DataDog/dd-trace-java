@@ -1554,7 +1554,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     protected final DDSpan buildSpan() {
-      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
+      return buildSpan(tracer, instrumentationName, timestampMicro, links, buildSpanContext());
+    }
+    
+    protected static final DDSpan buildSpan(
+      CoreTracer tracer,
+      String instrumentationName,
+      long timestampMicro,
+      List<AgentSpanLink> links,
+      DDSpanContext spanContext)
+    {
+      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, spanContext, links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         if (tracker != null) {
