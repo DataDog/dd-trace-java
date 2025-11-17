@@ -19,6 +19,22 @@ public final class PaddedSequence extends LongRhsPadding {
   }
 
   /**
+   * Creates a new {@code PaddedSequence} with initial value {@code 0}.
+   */
+  public PaddedSequence() {
+    this(0L);
+  }
+
+  /**
+   * Creates a new {@code PaddedSequence} with the specified initial value.
+   *
+   * @param initialValue the initial value of the sequence
+   */
+  public PaddedSequence(long initialValue) {
+    setPlain(initialValue);
+  }
+
+  /**
    * Returns the current value using a volatile read.
    *
    * <p>This provides full read visibility: all writes published via release/volatile stores by
