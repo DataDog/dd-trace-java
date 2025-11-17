@@ -27,7 +27,8 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
 
     // Create a real LLMObs span using the tracer
-    def llmSpan = tracer.buildSpan("chat-completion")
+    def llmSpan = tracer.buildSpan("openai.request")
+      .withResourceName("createCompletion")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "gpt-4")
       .withTag("_ml_obs_tag.model_provider", "openai")
