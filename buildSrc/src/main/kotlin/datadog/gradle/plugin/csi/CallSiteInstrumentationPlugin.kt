@@ -18,7 +18,6 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
-import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.apply
 import org.gradle.kotlin.dsl.create
@@ -36,13 +35,13 @@ private const val CALL_SITE_INSTRUMENTER_MAIN_CLASS = "datadog.trace.plugin.csi.
 private const val CSI = "csi"
 private const val CSI_SOURCE_SET = CSI
 
-abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
+abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
   @get:Inject
   abstract val javaToolchains: JavaToolchainService
 
   override fun apply(project: Project) {
     project.pluginManager.apply(JavaPlugin::class)
-    
+
     // Create plugin extension
     val extension = project.extensions.create<CallSiteInstrumentationExtension>(CSI)
     configureSourceSets(project, extension)
@@ -101,32 +100,27 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     return file
   }
 
-  private fun createTasks(project: Project, extension: CallSiteInstrumentationExtension) {
-    registerGenerateCallSiteTask(project, extension, project.tasks.named<AbstractCompile>("compileJava"))
+  private fun createTasks(project: Project, csiExtension: CallSiteInstrumentationExtension) {
+    registerGenerateCallSiteTask(project, csiExtension, project.tasks.named<AbstractCompile>("compileJava"))
 
-    val targetFolder = extension.targetFolder.get().asFile
-    project.tasks.withType<AbstractCompile>().matching {
-      task -> task.name.startsWith("compileTest")
+    project.tasks.withType<AbstractCompile>().matching { task ->
+      task.name.startsWith("compileTest")
     }.configureEach {
-      inputs.dir(extension.targetFolder)
-      classpath += project.files(targetFolder)
+      inputs.dir(csiExtension.targetFolder)
+      classpath += project.files(csiExtension.targetFolder)
     }
 
     project.tasks.withType<Test>().configureEach {
-      inputs.dir(extension.targetFolder)
-      classpath += project.files(targetFolder)
+      inputs.dir(csiExtension.targetFolder)
+      classpath += project.files(csiExtension.targetFolder)
     }
   }
 
-  private fun configureLanguage(task: JavaExec, version: JavaLanguageVersion) {
-      task.javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(version)
-      })
-  }
-
-  private fun registerGenerateCallSiteTask(project: Project,
-                                           csiExtension: CallSiteInstrumentationExtension,
-                                           mainCompileTask: TaskProvider<AbstractCompile>) {
+  private fun registerGenerateCallSiteTask(
+    project: Project,
+    csiExtension: CallSiteInstrumentationExtension,
+    mainCompileTask: TaskProvider<AbstractCompile>
+  ) {
     val genTaskName = mainCompileTask.name.replace("compile", "generateCallSite")
     val pluginJarFile = Paths.get(
       csiExtension.rootFolder.getOrElse(project.rootDir).toString(),
