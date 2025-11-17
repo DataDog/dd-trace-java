@@ -43,6 +43,7 @@ public class LambdaHandler {
   private static final String DATADOG_INVOCATION_ERROR_MSG = "x-datadog-invocation-error-msg";
   private static final String DATADOG_INVOCATION_ERROR_TYPE = "x-datadog-invocation-error-type";
   private static final String DATADOG_INVOCATION_ERROR_STACK = "x-datadog-invocation-error-stack";
+  private static final String LAMBDA_RUNTIME_AWS_REQUEST_ID = "lambda-runtime-aws-request-id";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
@@ -72,7 +73,8 @@ public class LambdaHandler {
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static AgentSpanContext notifyStartInvocation(CoreTracer tracer, Object event) {
+  public static AgentSpanContext notifyStartInvocation(
+      CoreTracer tracer, Object event, String requestId) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -80,6 +82,7 @@ public class LambdaHandler {
                 new Request.Builder()
                     .url(EXTENSION_BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
+                    .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, requestId)
                     .post(body)
                     .build())
             .execute()) {
@@ -99,7 +102,8 @@ public class LambdaHandler {
     return null;
   }
 
-  public static boolean notifyEndInvocation(AgentSpan span, Object result, boolean isError) {
+  public static boolean notifyEndInvocation(
+      AgentSpan span, Object result, boolean isError, String requestId) {
     if (null == span || null == span.getSamplingPriority()) {
       log.error(
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
@@ -113,6 +117,7 @@ public class LambdaHandler {
             .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
             .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, requestId)
             .post(body);
 
     Object errorMessage = span.getTag(DDTags.ERROR_MSG);
