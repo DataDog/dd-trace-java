@@ -13,7 +13,6 @@ import datadog.context.Context
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE
-import javax.servlet.http.HttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -26,6 +25,7 @@ import javax.servlet.AsyncListener
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 import javax.servlet.annotation.WebServlet
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
