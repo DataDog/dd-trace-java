@@ -1,0 +1,7 @@
+package datadog.common.queue.padding;
+
+/** Right-hand-side (RHS) padding to prevent false sharing. */
+public class ThreadRhsPadding extends ThreadValue {
+  /** 7 bytes fields to occupy space on the right side of the value. */
+  private long p9, p10, p11, p12, p13, p14, p15;
+}

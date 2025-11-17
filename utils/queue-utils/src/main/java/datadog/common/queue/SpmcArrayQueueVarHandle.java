@@ -35,9 +35,9 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
   public boolean offer(E e) {
     Objects.requireNonNull(e);
 
-    long currentTail = tail;
+    long currentTail = tail.getVolatile();
     long wrapPoint = currentTail - capacity;
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+    long currentHead = head.getVolatile();
 
     if (wrapPoint >= currentHead) {
       return false; // queue full
@@ -49,7 +49,7 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     ARRAY_HANDLE.setRelease(this.buffer, index, e);
 
     // Single-producer: simple volatile write to advance tail
-    TAIL_HANDLE.setVolatile(this, currentTail + 1);
+    tail.setVolatile(currentTail + 1);
     return true;
   }
 
@@ -62,12 +62,12 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
     boolean parkOnSpin = (Thread.currentThread().getId() & 1) == 0;
 
     while (true) {
-      long currentHead = (long) HEAD_HANDLE.getVolatile(this);
+      long currentHead = head.getVolatile();
       long limit = consumerLimit; // cached tail
 
       if (currentHead >= limit) {
         // refresh limit once from tail volatile
-        limit = (long) TAIL_HANDLE.getVolatile(this);
+        limit = tail.getVolatile();
         if (currentHead >= limit) {
           return null; // queue empty
         }
@@ -75,7 +75,7 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
       }
 
       // Attempt to claim this slot
-      if (!HEAD_HANDLE.compareAndSet(this, currentHead, currentHead + 1)) {
+      if (!head.compareAndSet(currentHead, currentHead + 1)) {
         // CAS failed. Backoff to reduce contention
         if ((spinCycles & 1) == 0) {
           Thread.onSpinWait();
@@ -107,8 +107,8 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    long currentHead = (long) HEAD_HANDLE.getVolatile(this);
-    long currentTail = (long) TAIL_HANDLE.getVolatile(this);
+    long currentHead = head.getVolatile();
+    long currentTail = tail.getVolatile();
 
     if (currentHead >= currentTail) return null;
 
