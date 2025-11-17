@@ -13,7 +13,7 @@ public final class FlatDirLibraryResolver implements LibraryResolver {
 
   @Override
   public final URL resolve(
-      PathLocator pathLocator, String component, PlatformSpec platformSpec, String libName)
+      PathLocator pathLocator, PlatformSpec platformSpec, String optionalComponent, String libName)
       throws Exception {
     PathLocatorHelper pathLocatorHelper = new PathLocatorHelper(libName, pathLocator);
 
@@ -28,22 +28,22 @@ public final class FlatDirLibraryResolver implements LibraryResolver {
 
     if (libcPath != null) {
       String specializedPath = regularPath + "-" + libcPath;
-      url = pathLocatorHelper.locate(component, specializedPath + "/" + libFileName);
+      url = pathLocatorHelper.locate(optionalComponent, specializedPath + "/" + libFileName);
       if (url != null) return url;
     }
 
-    url = pathLocatorHelper.locate(component, regularPath + "/" + libFileName);
+    url = pathLocatorHelper.locate(optionalComponent, regularPath + "/" + libFileName);
     if (url != null) return url;
 
-    url = pathLocatorHelper.locate(component, osPath + "/" + libFileName);
+    url = pathLocatorHelper.locate(optionalComponent, osPath + "/" + libFileName);
     if (url != null) return url;
 
     // fallback to searching at top-level, mostly concession to good out-of-box behavior
     // with java.library.path
-    url = pathLocatorHelper.locate(component, libFileName);
+    url = pathLocatorHelper.locate(optionalComponent, libFileName);
     if (url != null) return url;
 
-    if (component != null) {
+    if (optionalComponent != null) {
       url = pathLocatorHelper.locate(null, libFileName);
       if (url != null) return url;
     }

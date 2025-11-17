@@ -16,10 +16,14 @@ import okio.Okio;
 public class JsonStreamParser {
 
   public interface Visitor {
-    /** @return - true to visit the path, false to skip it */
+    /**
+     * @return - true to visit the path, false to skip it
+     */
     boolean visitCompound(PathCursor path);
 
-    /** @return - true to visit the path, false to skip it */
+    /**
+     * @return - true to visit the path, false to skip it
+     */
     boolean visitPrimitive(PathCursor path);
 
     void booleanValue(PathCursor path, boolean value);

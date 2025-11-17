@@ -18,9 +18,9 @@ public final class PathLocatorHelper implements PathLocator {
   }
 
   @Override
-  public URL locate(String component, String path) {
+  public URL locate(String optionalComponent, String path) {
     try {
-      return this.locator.locate(component, path);
+      return this.locator.locate(optionalComponent, path);
     } catch (Throwable t) {
       if (this.firstCause == null) this.firstCause = t;
       return null;

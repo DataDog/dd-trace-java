@@ -70,7 +70,9 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     workerProps.put("plugin.scan.classpath", "true")
 
     Map<String, String> workerPropsMap = workerProps.stringPropertyNames()
-    .collectEntries { [(it): workerProps.getProperty(it)] }
+    .collectEntries {
+      [(it): workerProps.getProperty(it)]
+    }
 
     // Create the Connect worker
     Time time = Time.SYSTEM
@@ -134,7 +136,8 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     consumer.subscribe(['test-topic'])
 
     String receivedMessage = null
-    for (int i = 0; i < 10; i++) { // Try for up to 10 seconds
+    for (int i = 0; i < 10; i++) {
+      // Try for up to 10 seconds
       ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(1))
       if (!records.isEmpty()) {
         receivedMessage = records.iterator().next().value()
@@ -146,7 +149,9 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     then:
     receivedMessage == "Hello Kafka"
 
-    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      it.parentHash == 0
+    }
     verifyAll(first) {
       tags.hasAllTags(
       "direction:out",
@@ -155,7 +160,9 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
       )
     }
 
-    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find {
+      it.parentHash == first.hash
+    }
     verifyAll(second) {
       tags.hasAllTags("direction:in", "group:test-consumer-group", "topic:test-topic", "type:kafka")
     }
@@ -199,7 +206,9 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     workerProps.put("plugin.scan.classpath", "true")
 
     Map<String, String> workerPropsMap = workerProps.stringPropertyNames()
-    .collectEntries { [(it): workerProps.getProperty(it)] }
+    .collectEntries {
+      [(it): workerProps.getProperty(it)]
+    }
 
     // Create the Connect worker
     Time time = Time.SYSTEM
@@ -260,7 +269,8 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     producer.flush()
     producer.close()
 
-    for (int i = 0; i < 100; i++) { // Try for up to 10 seconds
+    for (int i = 0; i < 100; i++) {
+      // Try for up to 10 seconds
       Thread.sleep(100)
       if (sinkFile.text.contains("Hello Kafka Sink")) {
         break
@@ -273,12 +283,16 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     then:
     fileContents.contains("Hello Kafka Sink")
 
-    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      it.parentHash == 0
+    }
     verifyAll(first) {
       tags.hasAllTags("direction:out", "topic:test-topic", "type:kafka")
     }
 
-    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find {
+      it.parentHash == first.hash
+    }
     verifyAll(second) {
       tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka")
     }

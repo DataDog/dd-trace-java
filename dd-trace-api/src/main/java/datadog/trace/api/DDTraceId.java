@@ -11,6 +11,7 @@ import datadog.trace.api.internal.util.LongStringUtils;
 public abstract class DDTraceId {
   /** Invalid TraceId value used to denote no TraceId. */
   public static final DDTraceId ZERO = from(0);
+
   /** Convenience constant used from tests */
   public static final DDTraceId ONE = from(1);
 

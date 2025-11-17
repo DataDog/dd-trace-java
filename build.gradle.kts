@@ -10,7 +10,7 @@ plugins {
   id("datadog.ci-jobs")
 
   id("com.diffplug.spotless") version "8.0.0"
-  id("com.github.spotbugs") version "6.4.4"
+  id("com.github.spotbugs") version "6.4.5"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.6" apply false
@@ -146,7 +146,8 @@ testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), empty
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
 testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
 testAggregate(
-  "base", listOf(":"),
+  "base",
+  listOf(":"),
   listOf(
     ":dd-java-agent:instrumentation",
     ":dd-smoke-tests",

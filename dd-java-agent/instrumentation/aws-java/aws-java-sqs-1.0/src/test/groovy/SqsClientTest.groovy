@@ -411,7 +411,8 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             defaultTags(!timeInQueue)
           }
         }
-        if (timeInQueue) { // only v1 has this automatically without legacy disabled
+        if (timeInQueue) {
+          // only v1 has this automatically without legacy disabled
           span {
             serviceName "sqs-queue"
             operationName "aws.sqs.deliver"
