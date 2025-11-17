@@ -4,6 +4,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
@@ -14,6 +15,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.kotlin.dsl.apply
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
@@ -31,6 +33,8 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   abstract val javaToolchains: JavaToolchainService
 
   override fun apply(project: Project) {
+    project.pluginManager.apply(JavaPlugin::class)
+    
     // Create plugin extension
     val extension = project.extensions.create<CallSiteInstrumentationExtension>("csi")
     project.afterEvaluate {
