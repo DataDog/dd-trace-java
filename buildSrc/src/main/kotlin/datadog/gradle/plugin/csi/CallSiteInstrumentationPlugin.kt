@@ -187,6 +187,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
       // make task depends on compile
       dependsOn(mainCompileTask)
+      // Workaround for instrument plugin modifying compile tasks
+      if (project.pluginManager.hasPlugin("instrument")) {
+        dependsOn("instrumentJava")
+      }
     }
 
     // make all sourcesets' class tasks depend on call site generator
