@@ -3,6 +3,7 @@ package opentelemetry14.context
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.baggage.Baggage
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
@@ -322,6 +323,64 @@ class ContextTest extends InstrumentationSpecification {
 
     then:
     context.get(CustomData.KEY) == null
+  }
+
+  def "test Baggage.current/makeCurrent()"() {
+    when:
+    def otelBaggage = Baggage.current()
+    def otelBaggageFromContext = Baggage.fromContext(Context.current())
+    def otelBaggageFromContextOrNull = Baggage.fromContextOrNull(Context.current())
+
+    then: "current baggage must be empty or null"
+    otelBaggage != null
+    otelBaggage.isEmpty()
+    otelBaggageFromContext != null
+    otelBaggageFromContext.isEmpty()
+    otelBaggageFromContextOrNull == null
+
+    when:
+    def ddContext = datadog.context.Context.current()
+    def ddBaggage = datadog.trace.bootstrap.instrumentation.api.Baggage.create([
+      "foo"           : "value_to_be_replaced",
+      "FOO"           : "UNTOUCHED",
+      "remove_me_key" : "remove_me_value"
+    ])
+    def ddScope = ddContext.with(ddBaggage).attach()
+    otelBaggage = Baggage.current()
+    otelBaggageFromContext = Baggage.fromContext(Context.current())
+    otelBaggageFromContextOrNull = Baggage.fromContextOrNull(Context.current())
+
+    then: "Datadog baggage must be current"
+    otelBaggage != null
+    otelBaggage.size() == 3
+    otelBaggage.getEntryValue("foo") == "value_to_be_replaced"
+    otelBaggage.getEntryValue("FOO") == "UNTOUCHED"
+    otelBaggage.getEntryValue("remove_me_key") == "remove_me_value"
+    otelBaggage.asMap() == otelBaggageFromContext.asMap()
+    otelBaggage.asMap() == otelBaggageFromContextOrNull.asMap()
+
+    when:
+    def builder = otelBaggage.toBuilder()
+    builder.put("new_foo", "new_value")
+    builder.put("foo", "overwrite_value")
+    builder.remove("remove_me_key")
+    def otelScope = builder.build().makeCurrent()
+    otelBaggage = Baggage.current()
+    otelBaggageFromContext = Baggage.fromContext(Context.current())
+    otelBaggageFromContextOrNull = Baggage.fromContextOrNull(Context.current())
+
+    then: "baggage must contain OTel changes"
+    otelBaggage != null
+    otelBaggage.size() == 3
+    otelBaggage.getEntryValue("foo") == "overwrite_value"
+    otelBaggage.getEntryValue("FOO") == "UNTOUCHED"
+    otelBaggage.getEntryValue("new_foo") == "new_value"
+    otelBaggage.asMap() == otelBaggageFromContext.asMap()
+    otelBaggage.asMap() == otelBaggageFromContextOrNull.asMap()
+
+    cleanup:
+    otelScope.close()
+    ddScope.close()
   }
 
   @Override

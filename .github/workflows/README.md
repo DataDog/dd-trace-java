@@ -36,6 +36,14 @@ _Action:_ Check the pull request did not introduce unexpected label.
 
 _Recovery:_ Update the pull request or add a comment to trigger the action again.
 
+### create-release-branch [🔗](create-release-branch.yaml)
+
+_Trigger:_ When a git tag matching the pattern "vM.N.0" is pushed (e.g. for a minor release).
+
+_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x").
+
+_Recovery:_ Manually create the branch from the "vM.N.0" git tag.
+
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
 _Trigger:_ When creating a tag, or manually (providing a tag)
@@ -60,6 +68,15 @@ _Actions:_
 _Recovery:_ Manually [close the related milestone and create a new one](https://github.com/DataDog/dd-trace-java/milestones).
 
 _Notes:_ This action will not apply to release candidate versions using `-RC` tags.
+
+### prune-old-pull-requests [🔗](prune-old-pull-requests.yaml)
+
+_Trigger:_ Every month or manually.
+
+_Action:_ Mark as stale and comment on pull requests with no update during the last quarter.
+Close them if no following update within a week.
+
+_Recovery:_ Manually trigger the action again.
 
 ### update-docker-build-image [🔗](update-docker-build-image.yaml)
 
@@ -93,16 +110,6 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
-
-### prune-old-pull-requests [🔗](prune-old-pull-requests.yaml)
-
-_Trigger:_ Every month or manually.
-
-_Action:_ Mark as stale and comment on pull requests with no update during the last quarter.
-Close them if no following update within a week.
-
-_Recovery:_ Manually trigger the action again.
-
 ## Code Quality and Security
 
 ### analyze-changes [🔗](analyze-changes.yaml)
@@ -122,14 +129,6 @@ _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
 
-### update-gradle-dependencies [🔗](update-gradle-dependencies.yaml)
-
-_Trigger:_ Every week or manually.
-
-_Action:_ Create a PR updating the Grade dependencies and their locking files.
-
-_Recovery:_ Manually trigger the action again.
-
 ### run-system-tests [🔗](run-system-tests.yaml)
 
 _Trigger:_ When pushing commits to `master` or manually.
@@ -137,6 +136,14 @@ _Trigger:_ When pushing commits to `master` or manually.
 _Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
 
 _Recovery:_ Manually trigger the action on the desired branch.
+
+### update-gradle-dependencies [🔗](update-gradle-dependencies.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Create a PR updating the Grade dependencies and their locking files.
+
+_Recovery:_ Manually trigger the action again.
 
 ### update-jmxfetch-submodule [🔗](update-jmxfetch-submodule.yaml)
 

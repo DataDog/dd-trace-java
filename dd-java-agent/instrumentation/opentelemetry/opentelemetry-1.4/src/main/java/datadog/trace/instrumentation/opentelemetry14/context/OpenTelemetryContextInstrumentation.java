@@ -56,6 +56,9 @@ public class OpenTelemetryContextInstrumentation extends InstrumenterModule.Trac
     return new String[] {
       "datadog.opentelemetry.shim.context.OtelContext",
       "datadog.opentelemetry.shim.context.OtelScope",
+      "datadog.opentelemetry.shim.baggage.OtelBaggage",
+      "datadog.opentelemetry.shim.baggage.OtelBaggage$ValueOnly",
+      "datadog.opentelemetry.shim.baggage.OtelBaggageBuilder",
       "datadog.opentelemetry.shim.trace.OtelExtractedContext",
       "datadog.opentelemetry.shim.trace.OtelConventions",
       "datadog.opentelemetry.shim.trace.OtelConventions$1",
