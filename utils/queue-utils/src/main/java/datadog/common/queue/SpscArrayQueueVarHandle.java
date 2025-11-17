@@ -26,7 +26,7 @@ final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     Objects.requireNonNull(e);
 
     final long currentTail = tail.getOpaque();
-    final int index = (int) (currentTail & mask);
+    final int index = arrayIndex(currentTail);
 
     if (currentTail - cachedHead >= capacity) {
       // Refresh cached head (read from consumer side)
@@ -45,7 +45,7 @@ final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   @SuppressWarnings("unchecked")
   public E poll() {
     final long currentHead = head.getOpaque();
-    final int index = (int) (currentHead & mask);
+    final int index = arrayIndex(currentHead);
 
     if (currentHead >= cachedTail) {
       // refresh tail cache
@@ -64,7 +64,6 @@ final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    final int index = (int) (head.getOpaque() & mask);
-    return (E) ARRAY_HANDLE.getVolatile(buffer, index);
+    return (E) ARRAY_HANDLE.getVolatile(buffer, arrayIndex(head.getOpaque()));
   }
 }

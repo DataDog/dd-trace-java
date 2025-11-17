@@ -18,7 +18,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
     implements BlockingConsumerNonBlockingQueue<E> {
 
   /** Reference to the waiting consumer thread (set atomically). */
-  private volatile PaddedThread consumerThread;
+  private final PaddedThread consumerThread = new PaddedThread();
 
   /**
    * Creates a new MPSC queue.
@@ -61,7 +61,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
 
       // Attempt to claim a slot
       if (tail.compareAndSet(currentTail, currentTail + 1)) {
-        final int index = (int) (currentTail & mask);
+        final int index = arrayIndex(currentTail);
 
         // Release-store ensures producer's write is visible to consumer
         ARRAY_HANDLE.setRelease(localBuffer, index, e);
