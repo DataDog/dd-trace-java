@@ -42,7 +42,7 @@ _Trigger:_ When a git tag matching the pattern "vM.N.0" is pushed (e.g. for a mi
 
 _Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x").
 
-_Recovery:_ Manually create the branch.
+_Recovery:_ Manually create the branch from the "vM.N.0" git tag.
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
