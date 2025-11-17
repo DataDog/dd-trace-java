@@ -7,6 +7,7 @@ import io.opentelemetry.api.baggage.BaggageBuilder;
 import io.opentelemetry.api.baggage.BaggageEntry;
 import io.opentelemetry.api.baggage.BaggageEntryMetadata;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -85,12 +86,12 @@ public class OtelBaggage implements Baggage {
 
     @Override
     public int hashCode() {
-      return value.hashCode();
+      return Objects.hashCode(value);
     }
 
     @Override
     public final boolean equals(Object o) {
-      return (o instanceof ValueOnly) && value.equals(((ValueOnly) o).value);
+      return (o instanceof ValueOnly) && Objects.equals(value, ((ValueOnly) o).value);
     }
   }
 }
