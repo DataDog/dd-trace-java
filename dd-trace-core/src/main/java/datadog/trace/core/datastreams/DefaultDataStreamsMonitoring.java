@@ -220,14 +220,20 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setSchemaRegistryUsage(
-      String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey) {
+      String topic,
+      String clusterId,
+      int schemaId,
+      boolean isSuccess,
+      boolean isKey,
+      String operation) {
     log.info(
-        "[DSM Schema Registry] Recording usage: topic={}, clusterId={}, schemaId={}, success={}, isKey={}",
+        "[DSM Schema Registry] Recording usage: topic={}, clusterId={}, schemaId={}, success={}, isKey={}, operation={}",
         topic,
         clusterId,
         schemaId,
         isSuccess,
-        isKey);
+        isKey,
+        operation);
 
     inbox.offer(
         new SchemaRegistryUsage(
@@ -236,6 +242,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             schemaId,
             isSuccess,
             isKey,
+            operation,
             timeSource.getCurrentTimeNanos(),
             getThreadServiceName()));
   }

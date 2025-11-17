@@ -10,6 +10,7 @@ public class SchemaRegistryUsage implements InboxItem {
   private final int schemaId;
   private final boolean isSuccess;
   private final boolean isKey;
+  private final String operation;
   private final long timestampNanos;
   private final String serviceNameOverride;
 
@@ -19,6 +20,7 @@ public class SchemaRegistryUsage implements InboxItem {
       int schemaId,
       boolean isSuccess,
       boolean isKey,
+      String operation,
       long timestampNanos,
       String serviceNameOverride) {
     this.topic = topic;
@@ -26,6 +28,7 @@ public class SchemaRegistryUsage implements InboxItem {
     this.schemaId = schemaId;
     this.isSuccess = isSuccess;
     this.isKey = isKey;
+    this.operation = operation;
     this.timestampNanos = timestampNanos;
     this.serviceNameOverride = serviceNameOverride;
   }
@@ -48,6 +51,10 @@ public class SchemaRegistryUsage implements InboxItem {
 
   public boolean isKey() {
     return isKey;
+  }
+
+  public String getOperation() {
+    return operation;
   }
 
   public long getTimestampNanos() {

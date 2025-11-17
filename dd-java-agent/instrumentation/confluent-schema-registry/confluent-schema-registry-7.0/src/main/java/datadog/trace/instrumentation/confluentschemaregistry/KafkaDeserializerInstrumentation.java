@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.MethodTransformer;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,6 +20,7 @@ import net.bytebuddy.asm.Advice;
  * Instruments Confluent Schema Registry deserializers (Avro, Protobuf, and JSON) to capture
  * deserialization operations.
  */
+@AutoService(InstrumenterModule.class)
 public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
@@ -33,6 +35,11 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
       "io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializer",
       "io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer"
     };
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder"};
   }
 
   @Override
@@ -94,11 +101,14 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
               .get(deserializer);
       boolean isKey = isKeyObj != null ? isKeyObj : false;
 
-      boolean isError = throwable != null;
+      // Get cluster ID from thread-local (set by Kafka consumer instrumentation)
+      String clusterId = ClusterIdHolder.get();
+
+      boolean isSuccess = throwable == null;
       int schemaId = -1;
 
       // Extract schema ID from the input bytes if successful
-      if (!isError && data != null && data.length >= 5 && data[0] == 0) {
+      if (isSuccess && data != null && data.length >= 5 && data[0] == 0) {
         try {
           // Confluent wire format: [magic_byte][4-byte schema id][data]
           schemaId =
@@ -114,7 +124,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
       // Record the schema registry usage
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .setSchemaRegistryUsage(topic, null, schemaId, isError, isKey);
+          .setSchemaRegistryUsage(topic, clusterId, schemaId, isSuccess, isKey, "deserialize");
     }
   }
 }

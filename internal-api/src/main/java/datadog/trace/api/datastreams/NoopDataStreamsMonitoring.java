@@ -13,7 +13,12 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
 
   @Override
   public void setSchemaRegistryUsage(
-      String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey) {}
+      String topic,
+      String clusterId,
+      int schemaId,
+      boolean isSuccess,
+      boolean isKey,
+      String operation) {}
 
   @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}

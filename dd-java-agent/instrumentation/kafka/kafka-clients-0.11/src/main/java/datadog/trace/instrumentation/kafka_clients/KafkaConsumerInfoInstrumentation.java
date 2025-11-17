@@ -205,6 +205,29 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This KafkaConsumer consumer) {
+      // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
+      KafkaConsumerInfo kafkaConsumerInfo =
+          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+      if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
+        Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
+        if (consumerMetadata != null) {
+          String clusterId =
+              InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+          if (clusterId != null) {
+            try {
+              Class<?> holderClass =
+                  Class.forName(
+                      "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
+                      false,
+                      consumer.getClass().getClassLoader());
+              holderClass.getMethod("set", String.class).invoke(null, clusterId);
+            } catch (Throwable ignored) {
+              // Ignore if Schema Registry instrumentation is not available
+            }
+          }
+        }
+      }
+
       if (traceConfig().isDataStreamsEnabled()) {
         final AgentSpan span = startSpan(KAFKA_POLL);
         return activateSpan(span);
@@ -227,6 +250,18 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
         recordsCount = records.count();
       }
+      // Clear cluster ID from Schema Registry instrumentation
+      try {
+        Class<?> holderClass =
+            Class.forName(
+                "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
+                false,
+                consumer.getClass().getClassLoader());
+        holderClass.getMethod("clear").invoke(null);
+      } catch (Throwable ignored) {
+        // Ignore if Schema Registry instrumentation is not available
+      }
+
       if (scope == null) {
         return;
       }

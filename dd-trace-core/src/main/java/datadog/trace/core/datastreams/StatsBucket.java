@@ -49,7 +49,8 @@ public class StatsBucket {
             usage.getClusterId(),
             usage.getSchemaId(),
             usage.isSuccess(),
-            usage.isKey());
+            usage.isKey(),
+            usage.getOperation());
     schemaRegistryUsages.compute(
         key, (k, v) -> (v == null) ? new SchemaRegistryCount(1) : v.increment());
   }
@@ -75,8 +76,8 @@ public class StatsBucket {
   }
 
   /**
-   * Key for aggregating schema registry usage by topic, cluster, schema ID, success, and key/value
-   * type.
+   * Key for aggregating schema registry usage by topic, cluster, schema ID, success, key/value
+   * type, and operation.
    */
   public static class SchemaRegistryKey {
     private final String topic;
@@ -84,14 +85,21 @@ public class StatsBucket {
     private final int schemaId;
     private final boolean isSuccess;
     private final boolean isKey;
+    private final String operation;
 
     public SchemaRegistryKey(
-        String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey) {
+        String topic,
+        String clusterId,
+        int schemaId,
+        boolean isSuccess,
+        boolean isKey,
+        String operation) {
       this.topic = topic;
       this.clusterId = clusterId;
       this.schemaId = schemaId;
       this.isSuccess = isSuccess;
       this.isKey = isKey;
+      this.operation = operation;
     }
 
     public String getTopic() {
@@ -114,6 +122,10 @@ public class StatsBucket {
       return isKey;
     }
 
+    public String getOperation() {
+      return operation;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
@@ -123,7 +135,8 @@ public class StatsBucket {
           && isSuccess == that.isSuccess
           && isKey == that.isKey
           && java.util.Objects.equals(topic, that.topic)
-          && java.util.Objects.equals(clusterId, that.clusterId);
+          && java.util.Objects.equals(clusterId, that.clusterId)
+          && java.util.Objects.equals(operation, that.operation);
     }
 
     @Override
@@ -133,6 +146,7 @@ public class StatsBucket {
       result = 31 * result + schemaId;
       result = 31 * result + (isSuccess ? 1 : 0);
       result = 31 * result + (isKey ? 1 : 0);
+      result = 31 * result + (operation != null ? operation.hashCode() : 0);
       return result;
     }
   }

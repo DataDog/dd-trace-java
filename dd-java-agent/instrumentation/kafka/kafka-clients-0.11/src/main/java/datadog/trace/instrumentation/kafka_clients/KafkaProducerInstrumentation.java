@@ -118,6 +118,20 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
 
+      // Set cluster ID for Schema Registry instrumentation
+      if (clusterId != null) {
+        try {
+          Class<?> holderClass =
+              Class.forName(
+                  "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
+                  false,
+                  metadata.getClass().getClassLoader());
+          holderClass.getMethod("set", String.class).invoke(null, clusterId);
+        } catch (Throwable ignored) {
+          // Ignore if Schema Registry instrumentation is not available
+        }
+      }
+
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
@@ -184,6 +198,18 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      // Clear cluster ID from Schema Registry instrumentation
+      try {
+        Class<?> holderClass =
+            Class.forName(
+                "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
+                false,
+                scope.getClass().getClassLoader());
+        holderClass.getMethod("clear").invoke(null);
+      } catch (Throwable ignored) {
+        // Ignore if Schema Registry instrumentation is not available
+      }
+
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();

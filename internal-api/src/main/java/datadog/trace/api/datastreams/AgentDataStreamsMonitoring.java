@@ -16,9 +16,15 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    * @param schemaId Schema ID from Schema Registry
    * @param isSuccess Whether the schema operation succeeded
    * @param isKey Whether this is for the key (true) or value (false)
+   * @param operation The operation type: "serialize" or "deserialize"
    */
   void setSchemaRegistryUsage(
-      String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey);
+      String topic,
+      String clusterId,
+      int schemaId,
+      boolean isSuccess,
+      boolean isKey,
+      String operation);
 
   /**
    * Sets data streams checkpoint, used for both produce and consume operations.

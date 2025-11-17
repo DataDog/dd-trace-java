@@ -45,6 +45,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] COUNT = "Count".getBytes(ISO_8859_1);
   private static final byte[] IS_SUCCESS = "IsSuccess".getBytes(ISO_8859_1);
   private static final byte[] IS_KEY = "IsKey".getBytes(ISO_8859_1);
+  private static final byte[] OPERATION = "Operation".getBytes(ISO_8859_1);
   private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
 
@@ -240,15 +241,17 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       StatsBucket.SchemaRegistryCount value = entry.getValue();
 
       log.info(
-          "[DSM Schema Registry] Flushing entry: topic={}, clusterId={}, schemaId={}, success={}, isKey={}, count={}",
+          "[DSM Schema Registry] Flushing entry: topic={}, clusterId={}, schemaId={}, success={}, isKey={}, operation={}, count={}",
           key.getTopic(),
           key.getClusterId(),
           key.getSchemaId(),
           key.isSuccess(),
           key.isKey(),
+          key.getOperation(),
           value.getCount());
 
-      packer.startMap(6); // 6 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Count
+      packer.startMap(
+          7); // 7 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Operation, Count
 
       packer.writeUTF8(TOPIC);
       packer.writeString(key.getTopic() != null ? key.getTopic() : "", null);
@@ -264,6 +267,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       packer.writeUTF8(IS_KEY);
       packer.writeBoolean(key.isKey());
+
+      packer.writeUTF8(OPERATION);
+      packer.writeString(key.getOperation() != null ? key.getOperation() : "", null);
 
       packer.writeUTF8(COUNT);
       packer.writeLong(value.getCount());
