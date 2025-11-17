@@ -1,8 +1,6 @@
 package datadog.common.queue;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.invoke.VarHandle;
+import datadog.common.queue.padding.PaddedThread;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -18,29 +16,9 @@ import javax.annotation.Nonnull;
  */
 class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E>
     implements BlockingConsumerNonBlockingQueue<E> {
-  private static final VarHandle CONSUMER_THREAD_HANDLE;
-
-  static {
-    try {
-      final Lookup lookup = MethodHandles.lookup();
-      CONSUMER_THREAD_HANDLE =
-          lookup.findVarHandle(
-              MpscBlockingConsumerArrayQueueVarHandle.class, "consumerThread", Thread.class);
-    } catch (Throwable t) {
-      throw new ExceptionInInitializerError(t);
-    }
-  }
-
-  // Padding to prevent false sharing
-  @SuppressWarnings("unused")
-  private long p0, p1, p2, p3, p4, p5, p6;
 
   /** Reference to the waiting consumer thread (set atomically). */
-  private volatile Thread consumerThread;
-
-  // Padding around consumerThread
-  @SuppressWarnings("unused")
-  private long q0, q1, q2, q3, q4, q5, q6;
+  private volatile PaddedThread consumerThread;
 
   /**
    * Creates a new MPSC queue.
@@ -65,12 +43,12 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
     boolean parkOnSpin = (Thread.currentThread().getId() & 1) == 0;
 
     while (true) {
-      long currentTail = (long) TAIL_HANDLE.getVolatile(this);
+      long currentTail = tail.getVolatile();
 
       // Check if producer limit exceeded
       if (currentTail >= localProducerLimit) {
         // Refresh head only when necessary
-        cachedHead = (long) HEAD_HANDLE.getVolatile(this);
+        cachedHead = head.getVolatile();
         localProducerLimit = cachedHead + capacity;
 
         if (currentTail >= localProducerLimit) {
@@ -82,14 +60,14 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
       }
 
       // Attempt to claim a slot
-      if (TAIL_HANDLE.compareAndSet(this, currentTail, currentTail + 1)) {
+      if (tail.compareAndSet(currentTail, currentTail + 1)) {
         final int index = (int) (currentTail & mask);
 
         // Release-store ensures producer's write is visible to consumer
         ARRAY_HANDLE.setRelease(localBuffer, index, e);
 
         // Atomically clear and unpark the consumer if waiting
-        Thread c = (Thread) CONSUMER_THREAD_HANDLE.getAndSet(this, null);
+        Thread c = consumerThread.getAndSet(null);
         if (c != null) {
           LockSupport.unpark(c);
         }
@@ -130,7 +108,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
 
   @Override
   public E take() throws InterruptedException {
-    consumerThread = Thread.currentThread();
+    consumerThread.setVolatile(Thread.currentThread());
     E e;
     while ((e = poll()) == null) {
       parkUntilNext(-1);
@@ -151,7 +129,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
   private void parkUntilNext(long nanos) throws InterruptedException {
     Thread current = Thread.currentThread();
     // Publish the consumer thread (no ordering required)
-    CONSUMER_THREAD_HANDLE.setOpaque(this, current);
+    consumerThread.setOpaque(current);
     if (nanos <= 0) {
       LockSupport.park(this);
     } else {
@@ -163,6 +141,6 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
     }
 
     // Cleanup (no fence needed, single consumer)
-    CONSUMER_THREAD_HANDLE.setOpaque(this, null);
+    consumerThread.setOpaque(null);
   }
 }
