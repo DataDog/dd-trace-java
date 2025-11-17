@@ -59,7 +59,7 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
 
       // Attempt to claim a slot
       if (tail.compareAndSet(currentTail, currentTail + 1)) {
-        final int index = (int) (currentTail & mask);
+        final int index = arrayIndex(currentTail);
 
         // Release-store ensures producer's write is visible to consumer
         ARRAY_HANDLE.setRelease(localBuffer, index, e);
@@ -86,7 +86,7 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     final Object[] localBuffer = this.buffer;
 
     long currentHead = head.getOpaque();
-    final int index = (int) (currentHead & mask);
+    final int index = arrayIndex(currentHead);
 
     // Acquire-load ensures visibility of producer write
     Object value = ARRAY_HANDLE.getAcquire(localBuffer, index);
@@ -106,7 +106,7 @@ class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   @Override
   @SuppressWarnings("unchecked")
   public final E peek() {
-    final int index = (int) (head.getOpaque() & mask);
+    final int index = arrayIndex(head.getOpaque());
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 }
