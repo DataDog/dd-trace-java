@@ -65,7 +65,8 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
   /**
    * The JVM to use to run the call site instrumenter (optional, default JVM used if not set).
    */
-  abstract val javaVersion: Property<JavaLanguageVersion>
+  val javaVersion: Property<JavaLanguageVersion> =
+    objectFactory.property<JavaLanguageVersion>().convention(JavaLanguageVersion.current())
 
   /**
    * The JVM arguments to run the call site instrumenter.

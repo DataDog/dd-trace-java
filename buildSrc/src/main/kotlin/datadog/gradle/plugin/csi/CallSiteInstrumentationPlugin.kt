@@ -143,7 +143,9 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       description = "Generates call sites from ${mainCompileTask.name}"
 
       // Remote Debug
-      // jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005")
+      if (project.providers.gradleProperty("debugCsiJar").isPresent) {
+        jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005")
+      }
 
       // Task input & output
       val output = csiExtension.targetFolder
@@ -152,9 +154,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       outputs.dir(output)
 
       // JavaExec configuration
-      if (csiExtension.javaVersion.isPresent) {
-        configureLanguage(this, csiExtension.javaVersion.get())
-      }
+      javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(csiExtension.javaVersion)
+      })
+
       jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
       classpath(pluginJarFile)
       mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
@@ -168,8 +171,8 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
             csiExtension.additionalPaths
           )
 
-        if (project.logger.isInfoEnabled) {
-          project.logger.info(
+        if (logger.isInfoEnabled) {
+          logger.info(
             "Aggregated CSI classpath:\n{}",
             callsitesClassPath.toSet().sorted().joinToString("\n") { it.toString() }
           )
