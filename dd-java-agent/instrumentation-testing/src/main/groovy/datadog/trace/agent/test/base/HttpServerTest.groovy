@@ -2560,16 +2560,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
     ({
       RequestContext rqCtxt, IGSpanInfo info ->
-      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
-      if (context.responseBodyTag) {
-        rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
-      }
-      if (context.extraSpanName) {
-        runUnderTrace(context.extraSpanName, false) {
-          def span = activeSpan()
-          context.tags.each {
-            key, val ->
-            span.setTag(key, val)
+      Object contextObj = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (contextObj instanceof Context) {
+        Context context = (Context) contextObj
+        if (context.responseBodyTag) {
+          rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
+        }
+        if (context.extraSpanName) {
+          runUnderTrace(context.extraSpanName, false) {
+            def span = activeSpan()
+            context.tags.each {
+              key, val ->
+              span.setTag(key, val)
+            }
           }
         }
       }
@@ -2790,8 +2793,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     final BiFunction<RequestContext, String, Flow<Void>> requestSessionCb = {
       RequestContext rqCtxt, String sessionId ->
-      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
-      if (sessionId != null) {
+      Object contextObj = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (contextObj instanceof Context && sessionId != null) {
+        Context context = (Context) contextObj
         context.extraSpanName = 'appsec-span'
         context.tags.put(IG_SESSION_ID_TAG, sessionId)
       }

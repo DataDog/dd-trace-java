@@ -1399,8 +1399,8 @@ public class Agent {
       final Class<?> debuggerAgentClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.debugger.agent.DebuggerAgent");
       final Method debuggerInstallerMethod =
-          debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
-      debuggerInstallerMethod.invoke(null, inst, sco);
+          debuggerAgentClass.getMethod("run", Config.class, Instrumentation.class, scoClass);
+      debuggerInstallerMethod.invoke(null, Config.get(), inst, sco);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {

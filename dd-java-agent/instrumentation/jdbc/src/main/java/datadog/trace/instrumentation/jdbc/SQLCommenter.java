@@ -102,10 +102,16 @@ public class SQLCommenter {
     Config config = Config.get();
 
     StringBuilder sb = new StringBuilder(sql.length() + INJECTED_COMMENT_ESTIMATED_SIZE);
+    int closingSemicolonIndex = indexOfClosingSemicolon(sql);
     if (appendComment) {
-      sb.append(sql);
+      if (closingSemicolonIndex > -1) {
+        sb.append(sql, 0, closingSemicolonIndex);
+      } else {
+        sb.append(sql);
+      }
       sb.append(SPACE);
     }
+
     sb.append(OPEN_COMMENT);
     int initSize = sb.length();
     append(sb, PARENT_SERVICE, config.getServiceName(), initSize);
@@ -128,6 +134,11 @@ public class SQLCommenter {
       sb.append(SPACE);
       sb.append(sql);
     }
+
+    if (appendComment && closingSemicolonIndex > -1) {
+      sb.append(';');
+    }
+
     return sb.toString();
   }
 
@@ -197,5 +208,24 @@ public class SQLCommenter {
       sb.append(COMMA);
     }
     sb.append(key).append(EQUALS).append(QUOTE).append(encodedValue).append(QUOTE);
+  }
+
+  /**
+   * @param query SQL query
+   * @return index of the semicolon that ends the query, or -1 if none
+   */
+  private static int indexOfClosingSemicolon(String query) {
+    for (int i = query.length() - 1; i >= 0; i--) {
+      char c = query.charAt(i);
+      if (c == ';') {
+        return i;
+      } else if (Character.isWhitespace(c)) {
+        continue;
+      }
+
+      break;
+    }
+
+    return -1;
   }
 }
