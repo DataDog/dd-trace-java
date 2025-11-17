@@ -1,0 +1,7 @@
+package datadog.common.queue.padding;
+
+/** Left-hand-side (LHS) padding to prevent false sharing. */
+class LhsPadding {
+  /** 7 bytes padding field to occupy space on the left side of the value. */
+  private long p1, p2, p3, p4, p5, p6, p7;
+}

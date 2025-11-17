@@ -25,31 +25,31 @@ final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   public boolean offer(E e) {
     Objects.requireNonNull(e);
 
-    final long currentTail = (long) TAIL_HANDLE.getOpaque(this);
+    final long currentTail = tail.getOpaque();
     final int index = (int) (currentTail & mask);
 
     if (currentTail - cachedHead >= capacity) {
       // Refresh cached head (read from consumer side)
-      cachedHead = (long) HEAD_HANDLE.getVolatile(this);
+      cachedHead = (long) head.getVolatile();
       if (currentTail - cachedHead >= capacity) {
         return false; // still full
       }
     }
 
     ARRAY_HANDLE.setRelease(buffer, index, e); // publish value
-    TAIL_HANDLE.setOpaque(this, currentTail + 1); // relaxed tail update
+    tail.setOpaque(currentTail + 1); // relaxed tail update
     return true;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
-    final long currentHead = (long) HEAD_HANDLE.getOpaque(this);
+    final long currentHead = head.getOpaque();
     final int index = (int) (currentHead & mask);
 
     if (currentHead >= cachedTail) {
       // refresh tail cache
-      cachedTail = (long) TAIL_HANDLE.getVolatile(this);
+      cachedTail = tail.getVolatile();
       if (currentHead >= cachedTail) {
         return null; // still empty
       }
@@ -57,14 +57,14 @@ final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
 
     Object value = ARRAY_HANDLE.getAcquire(buffer, index);
     ARRAY_HANDLE.setOpaque(buffer, index, null); // clear slot
-    HEAD_HANDLE.setOpaque(this, currentHead + 1); // relaxed head update
+    head.setOpaque(currentHead + 1); // relaxed head update
     return (E) value;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
-    final int index = (int) ((long) HEAD_HANDLE.getOpaque(this) & mask);
+    final int index = (int) (head.getOpaque() & mask);
     return (E) ARRAY_HANDLE.getVolatile(buffer, index);
   }
 }
