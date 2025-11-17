@@ -9,15 +9,23 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.MethodTransformer;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 /**
  * Instruments Confluent Schema Registry serializers (Avro, Protobuf, and JSON) to capture
  * serialization operations.
  */
-public class KafkaSerializerInstrumentation
+public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+
+  public KafkaSerializerInstrumentation() {
+    super("confluent-schema-registry", "kafka");
+  }
 
   @Override
   public String[] knownMatchingTypes() {
@@ -29,7 +37,23 @@ public class KafkaSerializerInstrumentation
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    Map<String, String> contextStores = new HashMap<>();
+    contextStores.put("org.apache.kafka.common.serialization.Serializer", Boolean.class.getName());
+    return contextStores;
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
+    // Instrument configure to capture isKey value
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("configure"))
+            .and(isPublic())
+            .and(takesArguments(2))
+            .and(takesArgument(1, boolean.class)),
+        getClass().getName() + "$ConfigureAdvice");
+
     // Instrument both serialize(String topic, Object data)
     // and serialize(String topic, Headers headers, Object data) for Kafka 2.1+
     transformer.applyAdvice(
@@ -41,6 +65,18 @@ public class KafkaSerializerInstrumentation
         getClass().getName() + "$SerializeAdvice");
   }
 
+  public static class ConfigureAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(
+        @Advice.This org.apache.kafka.common.serialization.Serializer serializer,
+        @Advice.Argument(1) boolean isKey) {
+      // Store the isKey value in InstrumentationContext for later use
+      InstrumentationContext.get(
+              org.apache.kafka.common.serialization.Serializer.class, Boolean.class)
+          .put(serializer, isKey);
+    }
+  }
+
   public static class SerializeAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
@@ -49,19 +85,12 @@ public class KafkaSerializerInstrumentation
         @Advice.Return byte[] result,
         @Advice.Thrown Throwable throwable) {
 
-      // Get isKey from the serializer object
-      boolean isKey = false;
-      if (serializer instanceof io.confluent.kafka.serializers.KafkaAvroSerializer) {
-        isKey = ((io.confluent.kafka.serializers.KafkaAvroSerializer) serializer).isKey();
-      } else if (serializer
-          instanceof io.confluent.kafka.serializer KafkaJsonSchemaSerializer) {
-        isKey =
-            ((io.confluent.kafka.serializers.KafkaJsonSchemaSerializer) serializer).isKey();
-      } else if (serializer
-          instanceof io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer) {
-        isKey =
-            ((io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer) serializer).isKey();
-      }
+      // Get isKey from InstrumentationContext (stored during configure)
+      Boolean isKeyObj =
+          InstrumentationContext.get(
+                  org.apache.kafka.common.serialization.Serializer.class, Boolean.class)
+              .get(serializer);
+      boolean isKey = isKeyObj != null ? isKeyObj : false;
 
       boolean isError = throwable != null;
       int schemaId = -1;
@@ -87,4 +116,3 @@ public class KafkaSerializerInstrumentation
     }
   }
 }
-

@@ -58,4 +58,3 @@ public class SchemaRegistryUsage implements InboxItem {
     return serviceNameOverride;
   }
 }
-
