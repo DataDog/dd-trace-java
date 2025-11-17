@@ -36,7 +36,7 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
       return false; // queue full
     }
 
-    int index = (int) (currentTail & mask);
+    int index = arrayIndex(currentTail);
 
     // Release-store ensures that the element is visible to consumers
     ARRAY_HANDLE.setRelease(this.buffer, index, e);
@@ -83,7 +83,7 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
         continue;
       }
 
-      int index = (int) (currentHead & mask);
+      int index = arrayIndex(currentHead);
       Object value;
 
       // Spin-wait until producer publishes
@@ -105,7 +105,6 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
 
     if (currentHead >= currentTail) return null;
 
-    int index = (int) (currentHead & mask);
-    return (E) ARRAY_HANDLE.getAcquire(buffer, index); // acquire-load ensures visibility
+    return (E) ARRAY_HANDLE.getAcquire(buffer, currentHead); // acquire-load ensures visibility
   }
 }

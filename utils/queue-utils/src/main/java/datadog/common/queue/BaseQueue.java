@@ -17,6 +17,7 @@ import javax.annotation.Nonnull;
  * @param <E> the type of elements held by this queue
  */
 abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
+  private static final int CACHE_LINE_LONGS = 8; // 64 bytes / 8 bytes per long/ref
   protected static final VarHandle ARRAY_HANDLE;
 
   static {
@@ -53,7 +54,11 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue
   public BaseQueue(int requestedCapacity) {
     this.capacity = nextPowerOfTwo(requestedCapacity);
     this.mask = this.capacity - 1;
-    this.buffer = new Object[capacity];
+    this.buffer = new Object[capacity + 2 * CACHE_LINE_LONGS];
+  }
+
+  protected final int arrayIndex(long sequence) {
+    return (int) (sequence & mask) + CACHE_LINE_LONGS;
   }
 
   @Override
