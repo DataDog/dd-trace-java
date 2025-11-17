@@ -45,10 +45,10 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     greclipse()
   }
   kotlinGradle {
-    ktlint("1.7.1")
+    ktlint("1.8.0")
   }
   kotlin {
-    ktlint("1.7.1")
+    ktlint("1.8.0")
   }
   scala {
     // TODO: For some reason Scala format is working correctly with this version only.
