@@ -47,7 +47,16 @@ public abstract class CallSiteUtils {
 
   public static URL toURL(final Path path) {
     try {
-      return path.toUri().toURL();
+      URL url = path.toUri().toURL();
+      // There's a subtle detail where `URLClassLoader` requires directory URLs to end with '/',
+      // otherwise they are assimilated to jar file, and vice versa.
+      if (path.toFile().isDirectory() || !path.toString().endsWith(".jar")) {
+        String urlString = url.toString();
+        if (!urlString.endsWith("/")) {
+          url = new URL(urlString + "/");
+        }
+      }
+      return url;
     } catch (MalformedURLException e) {
       throw new RuntimeException(e);
     }
