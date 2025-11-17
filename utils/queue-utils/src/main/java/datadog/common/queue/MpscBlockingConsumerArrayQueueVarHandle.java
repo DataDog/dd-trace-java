@@ -36,7 +36,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
     // jctools does the same local copy to have the jitter optimise the accesses
     final Object[] localBuffer = this.buffer;
 
-    long localProducerLimit = producerLimit;
+    long localProducerLimit = producerLimit.getVolatile();
     long cachedHead = 0L; // Local cache of head to reduce volatile reads
 
     int spinCycles = 0;
@@ -56,7 +56,7 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
         }
 
         // Update producerLimit so other producers also benefit
-        producerLimit = localProducerLimit;
+        producerLimit.setVolatile(localProducerLimit);
       }
 
       // Attempt to claim a slot

@@ -1,5 +1,6 @@
 package datadog.common.queue;
 
+import datadog.common.queue.padding.PaddedSequence;
 import java.util.Objects;
 import java.util.concurrent.locks.LockSupport;
 
@@ -11,16 +12,8 @@ import java.util.concurrent.locks.LockSupport;
  * @param <E> the element type
  */
 final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
-  // Padding around consumerLimit
-  @SuppressWarnings("unused")
-  private long p0, p1, p2, p3, p4, p5, p6;
-
   /** Cached consumer limit to avoid repeated volatile tail reads */
-  private volatile long consumerLimit = 0L;
-
-  // Padding around consumerLimit
-  @SuppressWarnings("unused")
-  private long q0, q1, q2, q3, q4, q5, q6;
+  private final PaddedSequence consumerLimit = new PaddedSequence();
 
   /**
    * Creates a new SPMC queue.
@@ -63,7 +56,7 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
 
     while (true) {
       long currentHead = head.getVolatile();
-      long limit = consumerLimit; // cached tail
+      long limit = consumerLimit.getVolatile(); // cached tail
 
       if (currentHead >= limit) {
         // refresh limit once from tail volatile
@@ -71,7 +64,7 @@ final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E> {
         if (currentHead >= limit) {
           return null; // queue empty
         }
-        consumerLimit = limit; // update local cache
+        consumerLimit.setVolatile(limit); // update local cache
       }
 
       // Attempt to claim this slot
