@@ -205,40 +205,6 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This KafkaConsumer consumer) {
-      // Set cluster ID in SchemaRegistryContext before deserialization
-      // Use reflection to avoid compile-time dependency on the schema registry module
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
-      System.out.println("[DEBUG Consumer] kafkaConsumerInfo: " + kafkaConsumerInfo);
-      if (kafkaConsumerInfo != null) {
-        // Extract cluster ID directly inline to avoid muzzle issues
-        String clusterId = null;
-        if (Config.get().isDataStreamsEnabled()) {
-          Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
-          System.out.println("[DEBUG Consumer] metadata: " + consumerMetadata);
-          if (consumerMetadata != null) {
-            clusterId =
-                InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
-          }
-        }
-        System.out.println("[DEBUG Consumer] Extracted clusterId: " + clusterId);
-        if (clusterId != null) {
-          try {
-            Class<?> contextClass =
-                Class.forName(
-                    "datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryContext",
-                    false,
-                    consumer.getClass().getClassLoader());
-            contextClass.getMethod("setClusterId", String.class).invoke(null, clusterId);
-            System.out.println(
-                "[DEBUG Consumer] Set clusterId in SchemaRegistryContext: " + clusterId);
-          } catch (Throwable t) {
-            // Ignore if SchemaRegistryContext is not available
-            System.out.println("[DEBUG Consumer] Failed to set clusterId: " + t.getMessage());
-          }
-        }
-      }
-
       if (traceConfig().isDataStreamsEnabled()) {
         final AgentSpan span = startSpan(KAFKA_POLL);
         return activateSpan(span);

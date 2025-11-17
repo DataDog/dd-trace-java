@@ -1,141 +1,74 @@
 # Confluent Schema Registry Instrumentation
 
-This instrumentation module provides detailed observability for Confluent Schema Registry operations in Kafka applications.
+This instrumentation module provides Data Streams Monitoring (DSM) support for Confluent Schema Registry operations in Kafka applications.
 
 ## Features
 
-This instrumentation captures:
+This instrumentation captures schema registry usage for both serialization and deserialization operations, reporting them to Datadog's Data Streams Monitoring.
 
 ### Producer Operations
-- **Schema Registration**: Tracks when schemas are registered with the Schema Registry
-  - Subject name
-  - Schema ID assigned
-  - Success/failure status
-  - Compatibility check results
-- **Serialization**: Logs every message serialization with:
+- **Serialization**: Tracks message serialization with:
   - Topic name
-  - Key schema ID (if applicable)
-  - Value schema ID
+  - Schema ID (extracted from serialized bytes)
+  - Key vs value serialization
   - Success/failure status
 
 ### Consumer Operations  
-- **Deserialization**: Tracks every message deserialization with:
+- **Deserialization**: Tracks message deserialization with:
   - Topic name
-  - Key schema ID (if present in message)
-  - Value schema ID (extracted from Confluent wire format)
+  - Schema ID (extracted from Confluent wire format)
+  - Key vs value deserialization
   - Success/failure status
-
-### Schema Registry Client Operations
-- **Schema Registration** (`register()` method)
-  - Successful registrations with schema ID
-  - Compatibility failures with error details
-- **Compatibility Checks** (`testCompatibility()` method)
-  - Pass/fail status
-  - Error messages for incompatible schemas
-- **Schema Retrieval** (`getSchemaById()` method)
-  - Schema ID lookups during deserialization
-
-## Metrics Collected
-
-The `SchemaRegistryMetrics` class tracks:
-
-- `schemaRegistrationSuccess` - Count of successful schema registrations
-- `schemaRegistrationFailure` - Count of failed schema registrations (compatibility issues)
-- `schemaCompatibilitySuccess` - Count of successful compatibility checks
-- `schemaCompatibilityFailure` - Count of failed compatibility checks
-- `serializationSuccess` - Count of successful message serializations
-- `serializationFailure` - Count of failed serializations
-- `deserializationSuccess` - Count of successful message deserializations
-- `deserializationFailure` - Count of failed deserializations
-
-## Log Output Examples
-
-### Successful Producer Operation
-```
-[Schema Registry] Schema registered successfully - Subject: myTopic-value, Schema ID: 123, Is Key: false, Topic: myTopic
-[Schema Registry] Produce to topic 'myTopic', schema for key: none, schema for value: 123, serializing: VALUE
-```
-
-### Failed Schema Registration (Incompatibility)
-```
-[Schema Registry] Schema registration FAILED - Subject: myTopic-value, Is Key: false, Topic: myTopic, Error: Schema being registered is incompatible with an earlier schema
-[Schema Registry] Schema compatibility check FAILED - Subject: myTopic-value, Error: Schema being registered is incompatible with an earlier schema
-[Schema Registry] Serialization FAILED for topic 'myTopic', VALUE - Error: Schema being registered is incompatible with an earlier schema
-```
-
-### Consumer Operation
-```
-[Schema Registry] Retrieved schema from registry - Schema ID: 123, Type: Schema
-[Schema Registry] Consume from topic 'myTopic', schema for key: none, schema for value: 123, deserializing: VALUE
-```
 
 ## Supported Serialization Formats
 
 - **Avro** (via `KafkaAvroSerializer`/`KafkaAvroDeserializer`)
+- **JSON Schema** (via `KafkaJsonSchemaSerializer`/`KafkaJsonSchemaDeserializer`)
 - **Protobuf** (via `KafkaProtobufSerializer`/`KafkaProtobufDeserializer`)
 
 ## Implementation Details
 
 ### Instrumented Classes
 
-1. **CachedSchemaRegistryClient** - The main Schema Registry client
-   - `register(String subject, Schema schema)` - Schema registration
-   - `testCompatibility(String subject, Schema schema)` - Compatibility testing
-   - `getSchemaById(int id)` - Schema retrieval
+1. **KafkaAvroSerializer** - Avro message serialization
+2. **KafkaJsonSchemaSerializer** - JSON Schema message serialization
+3. **KafkaProtobufSerializer** - Protobuf message serialization
+4. **KafkaAvroDeserializer** - Avro message deserialization
+5. **KafkaJsonSchemaDeserializer** - JSON Schema message deserialization
+6. **KafkaProtobufDeserializer** - Protobuf message deserialization
 
-2. **AbstractKafkaSchemaSerDe and subclasses** - Serializers
-   - `serialize(String topic, Object data)` - Message serialization
-   - `serialize(String topic, Headers headers, Object data)` - With headers (Kafka 2.1+)
+### Schema ID Extraction
 
-3. **AbstractKafkaSchemaSerDe and subclasses** - Deserializers
-   - `deserialize(String topic, byte[] data)` - Message deserialization  
-   - `deserialize(String topic, Headers headers, byte[] data)` - With headers (Kafka 2.1+)
+Schema IDs are extracted directly from the Confluent wire format:
+- **Format**: `[magic_byte][4-byte schema id][data]`
+- The magic byte (0x00) indicates Confluent wire format
+- Schema ID is a 4-byte big-endian integer
 
-### Context Management
+### Key vs Value Detection
 
-The `SchemaRegistryContext` class uses ThreadLocal storage to pass context between:
-- Serializer → Schema Registry Client (for logging topic information)
-- Deserializer → Schema Registry Client (for logging topic information)
-
-This allows the instrumentation to correlate schema operations with the topics they're associated with.
+The instrumentation determines whether a serializer/deserializer is for keys or values by calling the `isKey()` method available on all Confluent serializers/deserializers.
 
 ## Usage
 
 This instrumentation is automatically activated when:
 1. Confluent Schema Registry client (version 7.0.0+) is present on the classpath
 2. The Datadog Java agent is attached to the JVM
+3. Data Streams Monitoring is enabled
 
 No configuration or code changes are required.
 
-## Metrics Access
+## Data Streams Monitoring Integration
 
-To access metrics programmatically:
+Schema registry usage is reported directly to Datadog's Data Streams Monitoring via:
 
 ```java
-import datadog.trace.instrumentation.confluentschemaregistry.SchemaRegistryMetrics;
-
-// Get current counts
-long registrationFailures = SchemaRegistryMetrics.getSchemaRegistrationFailureCount();
-long compatibilityFailures = SchemaRegistryMetrics.getSchemaCompatibilityFailureCount();
-long serializationFailures = SchemaRegistryMetrics.getSerializationFailureCount();
-
-// Print summary
-SchemaRegistryMetrics.printSummary();
+AgentTracer.get()
+    .getDataStreamsMonitoring()
+    .setSchemaRegistryUsage(topic, clusterId, schemaId, isError, isKey);
 ```
 
-## Monitoring Schema Compatibility Issues
-
-The primary use case for this instrumentation is to detect and monitor schema compatibility issues that cause production failures. By tracking `schemaRegistrationFailure` and `schemaCompatibilityFailure` metrics, you can:
-
-1. **Alert on schema compatibility failures** before they impact production
-2. **Track the rate of schema-related errors** per topic
-3. **Identify problematic schema changes** that break compatibility
-4. **Monitor serialization/deserialization failure rates** as a proxy for schema issues
-
-## Future Enhancements
-
-Potential additions:
-- JSON Schema serializer support (currently excluded due to dependency issues)
-- Schema evolution tracking
-- Schema version diff logging
-- Integration with Datadog APM for schema-related span tags
+This allows tracking of:
+- Schema usage patterns across topics
+- Schema registry operation success rates
+- Key vs value schema usage
+- Schema evolution over time
