@@ -63,6 +63,10 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
     }
   }
 
+  csi {
+    additionalPaths.from(classPathConfiguration)
+  }
+
   return tasks.register("test$version", Test) {
     classpath = classpath
       .filter { !it.toString().contains('scala-library') }   // exclude default scala-library

@@ -2,19 +2,16 @@ package datadog.gradle.plugin.csi
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
-import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.property
 import java.io.File
-import java.util.Locale
 import javax.inject.Inject
 
 
@@ -77,35 +74,12 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
     objectFactory.listProperty<String>().convention(listOf("-Xmx128m", "-Xms64m"))
 
   /**
-   * The configurations to use to look for the call site instrumenter dependencies.
+   * The paths used to look for the call site instrumenter dependencies.
    *
-   * By default, includes all `main*` source sets, but only the `test`
-   * (as wee don't want other test configurations by default).
+   * The plugin includes by default **only** the `main` and `test` source sets, and their
+   * related compilation classpath. As we don't want other test configurations by default.
+   *
+   * However, it's possible to contribute additional paths to look for dependencies.
    */
-  val configurations: ListProperty<Configuration> = objectFactory.listProperty<Configuration>().convention(
-    project.provider {
-      project.configurations.matching {
-        // Includes all main* source sets, but only the test (as wee don;t want other )
-        // * For main => runtimeClasspath, compileClasspath
-        // * For test => testRuntimeClasspath, testCompileClasspath
-        // * For other main* => "main_javaXXRuntimeClasspath", "main_javaXXCompileClasspath"
-
-        when (it.name) {
-          // Regular main and test source sets
-          RUNTIME_CLASSPATH_CONFIGURATION_NAME,
-          COMPILE_CLASSPATH_CONFIGURATION_NAME,
-          TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
-          TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
-
-          else -> false
-        }
-      }
-    }
-  )
-
-  private fun String.capitalize(): String = replaceFirstChar {
-    if (it.isLowerCase()) it.titlecase(
-      Locale.getDefault()
-    ) else it.toString()
-  }
+  val additionalPaths: ConfigurableFileCollection = objectFactory.fileCollection()
 }

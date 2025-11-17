@@ -2,9 +2,13 @@ package datadog.gradle.plugin.csi
 
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
+import org.gradle.api.NamedDomainObjectSet
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
+import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
@@ -25,6 +29,7 @@ import org.gradle.kotlin.dsl.withType
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.Locale
 import javax.inject.Inject
 
 private const val CALL_SITE_INSTRUMENTER_MAIN_CLASS = "datadog.trace.plugin.csi.PluginApplication"
@@ -159,7 +164,8 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
         val callsitesClassPath = project.objects.fileCollection()
           .from(
             project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output },
-            csiExtension.configurations
+            project.defaultConfigurations,
+            csiExtension.additionalPaths
           )
 
         if (project.logger.isInfoEnabled) {
@@ -207,6 +213,30 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
         dependsOn(callSiteGeneratorTask)
       }
     }
+  }
+
+  private val Project.defaultConfigurations: NamedDomainObjectSet<Configuration>
+    get() = project.configurations.matching {
+      // Includes all main* source sets, but only the test (as wee don;t want other )
+      // * For main => runtimeClasspath, compileClasspath
+      // * For test => testRuntimeClasspath, testCompileClasspath
+      // * For other main* => "main_javaXXRuntimeClasspath", "main_javaXXCompileClasspath"
+
+      when (it.name) {
+        // Regular main and test source sets
+        RUNTIME_CLASSPATH_CONFIGURATION_NAME,
+        COMPILE_CLASSPATH_CONFIGURATION_NAME,
+        TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
+        TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
+
+        else -> false
+      }
+    }
+
+  private fun String.capitalize(): String = replaceFirstChar {
+    if (it.isLowerCase()) it.titlecase(
+      Locale.getDefault()
+    ) else it.toString()
   }
 
   private val Project.sourceSets: SourceSetContainer
