@@ -120,7 +120,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
       // Record the schema registry usage
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .setSchemaRegistryUsage(topic, clusterId, schemaId, isSuccess, isKey, "deserialize");
+          .reportSchemaRegistryUsage(topic, clusterId, schemaId, isSuccess, isKey, "deserialize");
     }
   }
 }

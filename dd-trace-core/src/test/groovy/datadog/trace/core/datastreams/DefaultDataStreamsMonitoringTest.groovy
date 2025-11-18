@@ -892,10 +892,10 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     dataStreams.start()
 
     // Record serialize and deserialize operations
-    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "serialize")
-    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "serialize") // duplicate serialize
-    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "deserialize")
-    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 456, true, true, "serialize") // different schema/key
+    dataStreams.reportSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "serialize")
+    dataStreams.reportSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "serialize") // duplicate serialize
+    dataStreams.reportSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "deserialize")
+    dataStreams.reportSchemaRegistryUsage("test-topic", "test-cluster", 456, true, true, "serialize") // different schema/key
 
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()

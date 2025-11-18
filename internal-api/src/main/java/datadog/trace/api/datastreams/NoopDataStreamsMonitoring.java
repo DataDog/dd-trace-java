@@ -12,7 +12,7 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void trackBacklog(DataStreamsTags tags, long value) {}
 
   @Override
-  public void setSchemaRegistryUsage(
+  public void reportSchemaRegistryUsage(
       String topic,
       String clusterId,
       int schemaId,

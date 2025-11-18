@@ -18,7 +18,7 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    * @param isKey Whether this is for the key (true) or value (false)
    * @param operation The operation type: "serialize" or "deserialize"
    */
-  void setSchemaRegistryUsage(
+  void reportSchemaRegistryUsage(
       String topic,
       String clusterId,
       int schemaId,

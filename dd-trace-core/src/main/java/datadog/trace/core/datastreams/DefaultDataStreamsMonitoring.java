@@ -219,7 +219,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public void setSchemaRegistryUsage(
+  public void reportSchemaRegistryUsage(
       String topic,
       String clusterId,
       int schemaId,
