@@ -15,7 +15,10 @@ import com.openai.models.embeddings.EmbeddingCreateParams;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseStreamEvent;
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -57,6 +60,24 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   protected CharSequence component() {
     return COMPONENT_NAME;
+  }
+
+  @Override
+  public AgentSpan afterStart(AgentSpan span) {
+    span.setTag("_ml_obs_tag.parent_id", currentLlmParentSpanId()); // TODO duplicates DDLLMObsSpan, test in LLMObsSpanMapperTest
+    return super.afterStart(span);
+  }
+
+  private String currentLlmParentSpanId() {
+    AgentSpanContext parentLlmContext = LLMObsContext.current();
+    if (parentLlmContext == null) {
+      return LLMObsContext.ROOT_SPAN_ID;
+    }
+    long parentLlmSpanId = parentLlmContext.getSpanId();
+    if (parentLlmSpanId == DDSpanId.ZERO) {
+      return LLMObsContext.ROOT_SPAN_ID;
+    }
+    return Long.toString(parentLlmSpanId);
   }
 
   public void decorateCompletion(AgentSpan span, CompletionCreateParams params) {

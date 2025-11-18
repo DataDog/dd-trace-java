@@ -13,7 +13,9 @@ import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -46,11 +48,16 @@ public class CompletionServiceInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
         @Advice.Argument(0) final CompletionCreateParams params,
-        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions,
+        @Advice.Local("llmScope") ContextScope llmScope) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
+      // TODO get span from context?
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
       DECORATE.decorateCompletion(span, params);
+
+      llmScope = LLMObsContext.attach(span.context());
+      // TODO should the agent span be activated via the context api or keep separate?
       return activateSpan(span);
     }
 
@@ -58,7 +65,8 @@ public class CompletionServiceInstrumentation
     public static void exit(
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) HttpResponseFor<Completion> response,
-        @Advice.Thrown final Throwable err) {
+        @Advice.Thrown final Throwable err,
+        @Advice.Local("llmScope") ContextScope llmScope) {
       final AgentSpan span = scope.span();
       try {
         if (err != null) {
@@ -72,6 +80,7 @@ public class CompletionServiceInstrumentation
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
+        llmScope.close();
         span.finish();
       }
     }

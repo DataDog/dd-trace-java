@@ -48,6 +48,7 @@ class EmbeddingServiceTest extends OpenAiTest {
           errored false
           spanType DDSpanTypes.LLMOBS
           tags {
+            "_ml_obs_tag.parent_id" "undefined"
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/embeddings"
             "openai.api_base" openAiBaseApi
