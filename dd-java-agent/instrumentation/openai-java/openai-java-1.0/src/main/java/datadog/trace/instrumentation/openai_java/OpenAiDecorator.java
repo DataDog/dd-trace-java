@@ -16,14 +16,20 @@ import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseStreamEvent;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -65,6 +71,7 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan afterStart(AgentSpan span) {
     span.setTag("_ml_obs_tag.parent_id", currentLlmParentSpanId()); // TODO duplicates DDLLMObsSpan, test in LLMObsSpanMapperTest
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND); // TODO also see DDLLMObsSpan
     return super.afterStart(span);
   }
 
@@ -87,20 +94,38 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
 
-    // TODO set LLMObs tags (not visible to APM)
+    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
+    params.prompt().flatMap(p -> p.string()).ifPresent(input ->
+        span.setTag("_ml_obs_tag.input", Collections.singletonList(LLMObs.LLMMessage.from(null, input)))
+    );
+
+    Map<String, Object> metadata = new HashMap<>();
+    params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
+    params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    span.setTag("_ml_obs_tag.metadata", metadata);
   }
 
   public void decorateWithCompletion(AgentSpan span, Completion completion) {
-    span.setTag(RESPONSE_MODEL, completion.model());
+    String modelName = completion.model();
+    span.setTag(RESPONSE_MODEL, modelName);
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g. gpt-3.5-turbo-instruct:20230824-v2
 
-    // TODO set LLMObs tags (not visible to APM)
+    List<LLMObs.LLMMessage> output = completion.choices().stream().map(v -> LLMObs.LLMMessage.from(null, v.text())).collect(Collectors.toList());
+    span.setTag("_ml_obs_tag.output", output);
+
+    completion.usage().ifPresent(u -> {
+      span.setTag("_ml_obs_metric.input_tokens", u.promptTokens());
+      span.setTag("_ml_obs_metric.output_tokens", u.completionTokens());
+      span.setTag("_ml_obs_metric.total_tokens", u.totalTokens());
+    });
   }
 
   public void decorateWithCompletions(AgentSpan span, List<Completion> completions) {
     if (!completions.isEmpty()) {
-      span.setTag(RESPONSE_MODEL, completions.get(0).model());
+      decorateWithCompletion(span, completions.get(0));
     }
 
     // TODO set LLMObs tags (not visible to APM)
