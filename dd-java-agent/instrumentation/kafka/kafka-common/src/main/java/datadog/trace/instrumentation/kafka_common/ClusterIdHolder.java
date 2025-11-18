@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.confluentschemaregistry;
+package datadog.trace.instrumentation.kafka_common;
 
 /**
  * Thread-local holder for Kafka cluster ID to be used during schema registry operations. The Kafka

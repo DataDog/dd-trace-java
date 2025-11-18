@@ -22,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -214,16 +215,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
           String clusterId =
               InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
           if (clusterId != null) {
-            try {
-              Class<?> holderClass =
-                  Class.forName(
-                      "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
-                      false,
-                      consumer.getClass().getClassLoader());
-              holderClass.getMethod("set", String.class).invoke(null, clusterId);
-            } catch (Throwable ignored) {
-              // Ignore if Schema Registry instrumentation is not available
-            }
+            ClusterIdHolder.set(clusterId);
           }
         }
       }
@@ -251,16 +243,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         recordsCount = records.count();
       }
       // Clear cluster ID from Schema Registry instrumentation
-      try {
-        Class<?> holderClass =
-            Class.forName(
-                "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
-                false,
-                consumer.getClass().getClassLoader());
-        holderClass.getMethod("clear").invoke(null);
-      } catch (Throwable ignored) {
-        // Ignore if Schema Registry instrumentation is not available
-      }
+      ClusterIdHolder.clear();
 
       if (scope == null) {
         return;

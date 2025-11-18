@@ -13,9 +13,11 @@ import datadog.trace.agent.tooling.Instrumenter.MethodTransformer;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.common.serialization.Serializer;
 
 /**
  * Instruments Confluent Schema Registry serializers (Avro, Protobuf, and JSON) to capture
@@ -40,13 +42,13 @@ public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder"};
+    return new String[] {"datadog.trace.instrumentation.kafka_common.ClusterIdHolder"};
   }
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.common.serialization.Serializer", Boolean.class.getName());
+    contextStores.put(Serializer.class.getName(), Boolean.class.getName());
     return contextStores;
   }
 
@@ -75,29 +77,24 @@ public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
   public static class ConfigureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This org.apache.kafka.common.serialization.Serializer serializer,
-        @Advice.Argument(1) boolean isKey) {
+        @Advice.This Serializer serializer, @Advice.Argument(1) boolean isKey) {
       // Store the isKey value in InstrumentationContext for later use
-      InstrumentationContext.get(
-              org.apache.kafka.common.serialization.Serializer.class, Boolean.class)
-          .put(serializer, isKey);
+      InstrumentationContext.get(Serializer.class, Boolean.class).put(serializer, isKey);
     }
   }
 
   public static class SerializeAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.This org.apache.kafka.common.serialization.Serializer serializer,
+        @Advice.This Serializer serializer,
         @Advice.Argument(0) String topic,
         @Advice.Return byte[] result,
         @Advice.Thrown Throwable throwable) {
 
       // Get isKey from InstrumentationContext (stored during configure)
       Boolean isKeyObj =
-          InstrumentationContext.get(
-                  org.apache.kafka.common.serialization.Serializer.class, Boolean.class)
-              .get(serializer);
-      boolean isKey = isKeyObj != null ? isKeyObj : false;
+          InstrumentationContext.get(Serializer.class, Boolean.class).get(serializer);
+      boolean isKey = isKeyObj != null && isKeyObj;
 
       // Get cluster ID from thread-local (set by Kafka producer instrumentation)
       String clusterId = ClusterIdHolder.get();

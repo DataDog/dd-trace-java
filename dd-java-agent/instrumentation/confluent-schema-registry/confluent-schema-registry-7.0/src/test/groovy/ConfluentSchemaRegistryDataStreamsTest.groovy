@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 import io.confluent.kafka.serializers.KafkaAvroDeserializer
 import io.confluent.kafka.serializers.KafkaAvroSerializer
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
@@ -67,11 +68,11 @@ class ConfluentSchemaRegistryDataStreamsTest extends InstrumentationSpecificatio
     record.put("field2", 42)
 
     when: "we produce a message (serialize)"
-    datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder.set(testClusterId)
+    ClusterIdHolder.set(testClusterId)
     byte[] serialized = serializer.serialize(topicName, record)
 
     and: "we consume the message (deserialize)"
-    datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder.set(testClusterId)
+    ClusterIdHolder.set(testClusterId)
     def deserialized = deserializer.deserialize(topicName, serialized)
 
     and: "we wait for DSM to flush"
@@ -116,6 +117,6 @@ class ConfluentSchemaRegistryDataStreamsTest extends InstrumentationSpecificatio
     cleanup:
     serializer.close()
     deserializer.close()
-    datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder.clear()
+    ClusterIdHolder.clear()
   }
 }

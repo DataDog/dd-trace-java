@@ -35,6 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -120,16 +121,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
       // Set cluster ID for Schema Registry instrumentation
       if (clusterId != null) {
-        try {
-          Class<?> holderClass =
-              Class.forName(
-                  "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
-                  false,
-                  metadata.getClass().getClassLoader());
-          holderClass.getMethod("set", String.class).invoke(null, clusterId);
-        } catch (Throwable ignored) {
-          // Ignore if Schema Registry instrumentation is not available
-        }
+        ClusterIdHolder.set(clusterId);
       }
 
       final AgentSpan parent = activeSpan();
@@ -199,16 +191,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       // Clear cluster ID from Schema Registry instrumentation
-      try {
-        Class<?> holderClass =
-            Class.forName(
-                "datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder",
-                false,
-                scope.getClass().getClassLoader());
-        holderClass.getMethod("clear").invoke(null);
-      } catch (Throwable ignored) {
-        // Ignore if Schema Registry instrumentation is not available
-      }
+      ClusterIdHolder.clear();
 
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);

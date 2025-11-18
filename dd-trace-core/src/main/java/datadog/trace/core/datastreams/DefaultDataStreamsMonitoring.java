@@ -226,15 +226,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       boolean isSuccess,
       boolean isKey,
       String operation) {
-    log.info(
-        "[DSM Schema Registry] Recording usage: topic={}, clusterId={}, schemaId={}, success={}, isKey={}, operation={}",
-        topic,
-        clusterId,
-        schemaId,
-        isSuccess,
-        isKey,
-        operation);
-
     inbox.offer(
         new SchemaRegistryUsage(
             topic,

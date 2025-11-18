@@ -131,8 +131,12 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
       boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
       int mapSize = 3;
-      if (hasBacklogs) mapSize++;
-      if (hasSchemaRegistryUsages) mapSize++;
+      if (hasBacklogs) {
+        mapSize++;
+      }
+      if (hasSchemaRegistryUsages) {
+        mapSize++;
+      }
       writer.startMap(mapSize);
 
       /* 1 */

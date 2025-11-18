@@ -12,9 +12,11 @@ import datadog.trace.agent.tooling.Instrumenter.MethodTransformer;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.common.serialization.Deserializer;
 
 /**
  * Instruments Confluent Schema Registry deserializers (Avro, Protobuf, and JSON) to capture
@@ -39,14 +41,13 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.confluentschemaregistry.ClusterIdHolder"};
+    return new String[] {"datadog.trace.instrumentation.kafka_common.ClusterIdHolder"};
   }
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put(
-        "org.apache.kafka.common.serialization.Deserializer", Boolean.class.getName());
+    contextStores.put(Deserializer.class.getName(), Boolean.class.getName());
     return contextStores;
   }
 
@@ -76,19 +77,16 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
   public static class ConfigureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This org.apache.kafka.common.serialization.Deserializer deserializer,
-        @Advice.Argument(1) boolean isKey) {
+        @Advice.This Deserializer deserializer, @Advice.Argument(1) boolean isKey) {
       // Store the isKey value in InstrumentationContext for later use
-      InstrumentationContext.get(
-              org.apache.kafka.common.serialization.Deserializer.class, Boolean.class)
-          .put(deserializer, isKey);
+      InstrumentationContext.get(Deserializer.class, Boolean.class).put(deserializer, isKey);
     }
   }
 
   public static class DeserializeAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.This org.apache.kafka.common.serialization.Deserializer deserializer,
+        @Advice.This Deserializer deserializer,
         @Advice.Argument(0) String topic,
         @Advice.Argument(2) byte[] data,
         @Advice.Return Object result,
@@ -96,10 +94,8 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
 
       // Get isKey from InstrumentationContext (stored during configure)
       Boolean isKeyObj =
-          InstrumentationContext.get(
-                  org.apache.kafka.common.serialization.Deserializer.class, Boolean.class)
-              .get(deserializer);
-      boolean isKey = isKeyObj != null ? isKeyObj : false;
+          InstrumentationContext.get(Deserializer.class, Boolean.class).get(deserializer);
+      boolean isKey = isKeyObj != null && isKeyObj;
 
       // Get cluster ID from thread-local (set by Kafka consumer instrumentation)
       String clusterId = ClusterIdHolder.get();
