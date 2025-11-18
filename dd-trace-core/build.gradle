@@ -80,8 +80,10 @@ dependencies {
 
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
 
-  // Antithesis SDK for assertions and property testing
-  implementation group: 'com.antithesis', name: 'antithesis-sdk-java', version: '0.1.5'
+  // Antithesis SDK for assertions and property testing (optional - only used when available)
+  compileOnly group: 'com.antithesis', name: 'antithesis-sdk-java', version: '0.1.5'
+  // Jackson for Antithesis assertion details (if not already available transitively)
+  compileOnly group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.2'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
