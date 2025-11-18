@@ -28,7 +28,7 @@ variables:
   GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  BUILDER_IMAGE_VERSION_PREFIX: "v25.10-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_VERSION_PREFIX: "v25.11-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/ # the latest "stable" version is LTS v25
   PROFILE_TESTS:
@@ -132,12 +132,12 @@ default:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
   variables:
-    MAVEN_OPTS: "-Xms64M -Xmx512M"
+    MAVEN_OPTS: "-Xms256M -Xmx1024M"
     GRADLE_WORKERS: 2
-    GRADLE_MEM: 2560M
+    GRADLE_MEM: 3G
     KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_MEMORY_REQUEST: 10Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
@@ -289,8 +289,7 @@ build_tests:
         CACHE_TYPE: "latestdep"
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
-        MAVEN_OPTS: "-Xms64M -Xmx512M -Dorg.slf4j.simpleLogger.defaultLogLevel=debug" # FIXME: Build :smokeTest build fails unless mvn debug logging is on
-
+        MAVEN_OPTS: "-Xms256M -Xmx1024M"
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
@@ -360,6 +359,14 @@ spotless:
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
+
+config-inversion-linter:
+  extends: .gradle_build
+  stage: tests
+  needs: []
+  script:
+    - ./gradlew --version
+    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
 
 test_published_artifacts:
   extends: .gradle_build
@@ -975,13 +982,14 @@ create_key:
     paths:
       - pubkeys
 
-validate_supported_configurations_local_file:
-  extends: .validate_supported_configurations_local_file
+validate_supported_configurations_v2_local_file:
+  extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "false"
 
-update_central_configurations_version_range:
-  extends: .update_central_configurations_version_range
+update_central_configurations_version_range_v2:
+  extends: .update_central_configurations_version_range_v2
   variables:
     LOCAL_REPO_NAME: "dd-trace-java"
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"

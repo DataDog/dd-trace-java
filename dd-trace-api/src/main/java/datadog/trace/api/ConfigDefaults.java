@@ -49,7 +49,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
+  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = true;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
   static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
@@ -101,6 +101,16 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
+  public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
+  // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
+  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10000; // ms
+  // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
+  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7500; // ms
+
+  static final String DEFAULT_OTLP_HTTP_METRIC_ENDPOINT = "v1/metrics";
+  static final String DEFAULT_OTLP_HTTP_PORT = "4318";
+  static final String DEFAULT_OTLP_GRPC_PORT = "4317";
+
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
   static final boolean DEFAULT_HEALTH_METRICS_ENABLED = true;
@@ -120,7 +130,7 @@ public final class ConfigDefaults {
   static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
   static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = true;
   static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
-  static final double DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE = 0.5D;
+  static final double DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE = 0.5D;
   static final int DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS = 1;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
