@@ -28,7 +28,3 @@ tasks.named<ShadowJar>("shadowJar") {
     excludeShared.call()
   }
 }
-
-tasks.named<Jar>("jar") {
-  archiveClassifier.set("unbundled")
-}
