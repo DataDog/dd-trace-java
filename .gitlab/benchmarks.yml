@@ -11,7 +11,11 @@
     - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
       when: manual
       allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      interruptible: false
     - when: on_success
+      interruptible: true
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
