@@ -35,9 +35,8 @@ dependencies {
 
   implementation(project(":internal-api"))
   
-  // Antithesis SDK for assertions and property testing (optional - only used when available)
-  compileOnly(group = "com.antithesis", name = "sdk", version = "1.4.5")
-  compileOnly(group = "com.fasterxml.jackson.core", name = "jackson-databind", version = "2.15.2")
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation(group = "com.antithesis", name = "sdk", version = "1.4.5")
 
   compileOnly(project(":dd-java-agent:agent-tooling"))
   testImplementation(project(":dd-java-agent:agent-tooling"))
