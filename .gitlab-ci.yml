@@ -61,6 +61,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
