@@ -21,7 +21,7 @@ class CompletionServiceTest extends OpenAiTest {
     expect:
     resp != null
     and:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
   }
 
   def "create completion test withRawResponse"() {
@@ -33,7 +33,7 @@ class CompletionServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
   }
 
   def "create streaming completion test"() {
@@ -47,7 +47,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(true)
   }
 
   def "create streaming completion test withRawResponse"() {
@@ -61,7 +61,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(true)
   }
 
   def "create async completion test"() {
@@ -72,7 +72,7 @@ class CompletionServiceTest extends OpenAiTest {
     completionFuture.get()
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
   }
 
   def "create async completion test withRawResponse"() {
@@ -84,7 +84,7 @@ class CompletionServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
   }
 
   def "create streaming async completion test"() {
@@ -96,7 +96,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(true)
   }
 
   def "create streaming async completion test withRawResponse"() {
@@ -111,10 +111,10 @@ class CompletionServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertCompletionTrace()
+    assertCompletionTrace(true)
   }
 
-  private void assertCompletionTrace() {
+  private void assertCompletionTrace(boolean isStreaming) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -130,6 +130,18 @@ class CompletionServiceTest extends OpenAiTest {
           errored false
           spanType DDSpanTypes.LLMOBS
           tags {
+            "_ml_obs_tag.span.kind" "llm"
+            "_ml_obs_tag.model_provider" "openai"
+            "_ml_obs_tag.model_name" String
+            "_ml_obs_tag.metadata" Map
+            "_ml_obs_tag.input" List
+            "_ml_obs_tag.output" List
+            if (!isStreaming) {
+              // streamed completions missing usage data
+              "_ml_obs_metric.input_tokens" Long
+              "_ml_obs_metric.output_tokens" Long
+              "_ml_obs_metric.total_tokens" Long
+            }
             "_ml_obs_tag.parent_id" "undefined"
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/completions"
