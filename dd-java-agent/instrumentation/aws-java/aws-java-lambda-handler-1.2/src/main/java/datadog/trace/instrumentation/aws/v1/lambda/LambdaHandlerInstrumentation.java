@@ -123,10 +123,6 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         }
         String lambdaRequestId = awsContext.getAwsRequestId();
 
-        // QUESTION would it be better to get request id from span tag instead? So we dont have to
-        // change method signature
-        // E.G:
-        // String lambdaRequestIdFromSpan = (String) span.getTag("request_id");
         span.finish();
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {

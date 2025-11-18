@@ -659,7 +659,7 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(
-        AgentSpan span, Object result, boolean isError, String requestId) {}
+        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
