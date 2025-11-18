@@ -20,7 +20,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private final Set<DataStreamsTags> backlogs = []
 
   @SuppressWarnings('UnusedPrivateField')
-  private final List<StatsBucket.SchemaRegistryKey> schemaRegistryUsages = []
+  private final List<StatsBucket.SchemaKey> schemaRegistryUsages = []
 
   private final Set<String> serviceNameOverrides = []
 
@@ -37,7 +37,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
         }
       }
       if (bucket.schemaRegistryUsages != null) {
-        for (Map.Entry<StatsBucket.SchemaRegistryKey, StatsBucket.SchemaRegistryCount> usage : bucket.schemaRegistryUsages) {
+        for (Map.Entry<StatsBucket.SchemaKey, Long> usage : bucket.schemaRegistryUsages) {
           this.@schemaRegistryUsages.add(usage.getKey())
         }
       }
@@ -60,7 +60,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     Collections.unmodifiableList(new ArrayList<>(this.@backlogs))
   }
 
-  synchronized List<StatsBucket.SchemaRegistryKey> getSchemaRegistryUsages() {
+  synchronized List<StatsBucket.SchemaKey> getSchemaRegistryUsages() {
     Collections.unmodifiableList(new ArrayList<>(this.@schemaRegistryUsages))
   }
 

@@ -15,11 +15,8 @@ import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
-  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
@@ -228,27 +225,12 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   }
 
   private void writeSchemaRegistryUsages(
-      Collection<Map.Entry<StatsBucket.SchemaRegistryKey, StatsBucket.SchemaRegistryCount>> usages,
-      Writable packer) {
-    if (!usages.isEmpty()) {
-      log.info("[DSM Schema Registry] Flushing {} schema registry usage entries", usages.size());
-    }
-
+      Collection<Map.Entry<StatsBucket.SchemaKey, Long>> usages, Writable packer) {
     packer.writeUTF8(SCHEMA_REGISTRY_USAGES);
     packer.startArray(usages.size());
-    for (Map.Entry<StatsBucket.SchemaRegistryKey, StatsBucket.SchemaRegistryCount> entry : usages) {
-      StatsBucket.SchemaRegistryKey key = entry.getKey();
-      StatsBucket.SchemaRegistryCount value = entry.getValue();
-
-      log.info(
-          "[DSM Schema Registry] Flushing entry: topic={}, clusterId={}, schemaId={}, success={}, isKey={}, operation={}, count={}",
-          key.getTopic(),
-          key.getClusterId(),
-          key.getSchemaId(),
-          key.isSuccess(),
-          key.isKey(),
-          key.getOperation(),
-          value.getCount());
+    for (Map.Entry<StatsBucket.SchemaKey, Long> entry : usages) {
+      StatsBucket.SchemaKey key = entry.getKey();
+      long count = entry.getValue();
 
       packer.startMap(
           7); // 7 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Operation, Count
@@ -272,7 +254,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.writeString(key.getOperation() != null ? key.getOperation() : "", null);
 
       packer.writeUTF8(COUNT);
-      packer.writeLong(value.getCount());
+      packer.writeLong(count);
     }
   }
 

@@ -4,6 +4,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.datastreams.DataStreamsTags
+import datadog.trace.api.datastreams.SchemaRegistryUsage
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.experimental.DataStreamsContextCarrier
 import datadog.trace.api.time.ControllableTimeSource
@@ -871,6 +872,151 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     cleanup:
     payloadWriter.close()
     dataStreams.close()
+  }
+
+  def "Schema registry usages are aggregated by operation"() {
+    given:
+    def conditions = new PollingConditions(timeout: 2)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def payloadWriter = new CapturingPayloadWriter()
+    def sink = Mock(Sink)
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+
+    // Record serialize and deserialize operations
+    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "serialize")
+    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "serialize") // duplicate serialize
+    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 123, true, false, "deserialize")
+    dataStreams.setSchemaRegistryUsage("test-topic", "test-cluster", 456, true, true, "serialize") // different schema/key
+
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then:
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      schemaRegistryUsages.size() == 3 // 3 unique combinations
+
+      // Find serialize operation for schema 123 (should have count 2)
+      def serializeUsage = schemaRegistryUsages.find { e ->
+        e.key.schemaId == 123 && e.key.operation == "serialize" && !e.key.isKey
+      }
+      serializeUsage != null
+      serializeUsage.value == 2L  // Aggregated 2 serialize operations
+
+      // Find deserialize operation for schema 123 (should have count 1)
+      def deserializeUsage = schemaRegistryUsages.find { e ->
+        e.key.schemaId == 123 && e.key.operation == "deserialize" && !e.key.isKey
+      }
+      deserializeUsage != null
+      deserializeUsage.value == 1L
+
+      // Find serialize operation for schema 456 with isKey=true (should have count 1)
+      def keySerializeUsage = schemaRegistryUsages.find { e ->
+        e.key.schemaId == 456 && e.key.operation == "serialize" && e.key.isKey
+      }
+      keySerializeUsage != null
+      keySerializeUsage.value == 1L
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "SchemaKey equals and hashCode work correctly"() {
+    given:
+    def key1 = new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "serialize")
+    def key2 = new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "serialize")
+    def key3 = new StatsBucket.SchemaKey("topic2", "cluster1", 123, true, false, "serialize") // different topic
+    def key4 = new StatsBucket.SchemaKey("topic1", "cluster2", 123, true, false, "serialize") // different cluster
+    def key5 = new StatsBucket.SchemaKey("topic1", "cluster1", 456, true, false, "serialize") // different schema
+    def key6 = new StatsBucket.SchemaKey("topic1", "cluster1", 123, false, false, "serialize") // different success
+    def key7 = new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, true, "serialize") // different isKey
+    def key8 = new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "deserialize") // different operation
+
+    expect:
+    // Reflexive
+    key1.equals(key1)
+    key1.hashCode() == key1.hashCode()
+
+    // Symmetric
+    key1.equals(key2)
+    key2.equals(key1)
+    key1.hashCode() == key2.hashCode()
+
+    // Different topic
+    !key1.equals(key3)
+    !key3.equals(key1)
+
+    // Different cluster
+    !key1.equals(key4)
+    !key4.equals(key1)
+
+    // Different schema ID
+    !key1.equals(key5)
+    !key5.equals(key1)
+
+    // Different success
+    !key1.equals(key6)
+    !key6.equals(key1)
+
+    // Different isKey
+    !key1.equals(key7)
+    !key7.equals(key1)
+
+    // Different operation
+    !key1.equals(key8)
+    !key8.equals(key1)
+
+    // Null check
+    !key1.equals(null)
+
+    // Different class
+    !key1.equals("not a schema key")
+  }
+
+  def "StatsBucket aggregates schema registry usages correctly"() {
+    given:
+    def bucket = new StatsBucket(1000L, 10000L)
+    def usage1 = new SchemaRegistryUsage("topic1", "cluster1", 123, true, false, "serialize", 1000L, null)
+    def usage2 = new SchemaRegistryUsage("topic1", "cluster1", 123, true, false, "serialize", 2000L, null)
+    def usage3 = new SchemaRegistryUsage("topic1", "cluster1", 123, true, false, "deserialize", 3000L, null)
+
+    when:
+    bucket.addSchemaRegistryUsage(usage1)
+    bucket.addSchemaRegistryUsage(usage2) // should increment count for same key
+    bucket.addSchemaRegistryUsage(usage3) // different operation, new key
+
+    def usages = bucket.getSchemaRegistryUsages()
+    def usageMap = usages.collectEntries { [(it.key): it.value] }
+
+    then:
+    usages.size() == 2
+
+    // Check serialize count
+    def serializeKey = new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "serialize")
+    usageMap[serializeKey] == 2L
+
+    // Check deserialize count
+    def deserializeKey = new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "deserialize")
+    usageMap[deserializeKey] == 1L
+
+    // Check that different operations create different keys
+    serializeKey != deserializeKey
   }
 }
 

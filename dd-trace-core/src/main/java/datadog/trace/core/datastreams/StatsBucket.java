@@ -13,7 +13,7 @@ public class StatsBucket {
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<DataStreamsTags, Long> backlogs = new HashMap<>();
-  private final Map<SchemaRegistryKey, SchemaRegistryCount> schemaRegistryUsages = new HashMap<>();
+  private final Map<SchemaKey, Long> schemaRegistryUsages = new HashMap<>();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -43,16 +43,15 @@ public class StatsBucket {
   }
 
   public void addSchemaRegistryUsage(SchemaRegistryUsage usage) {
-    SchemaRegistryKey key =
-        new SchemaRegistryKey(
+    SchemaKey key =
+        new SchemaKey(
             usage.getTopic(),
             usage.getClusterId(),
             usage.getSchemaId(),
             usage.isSuccess(),
             usage.isKey(),
             usage.getOperation());
-    schemaRegistryUsages.compute(
-        key, (k, v) -> (v == null) ? new SchemaRegistryCount(1) : v.increment());
+    schemaRegistryUsages.merge(key, 1L, Long::sum);
   }
 
   public long getStartTimeNanos() {
@@ -71,7 +70,7 @@ public class StatsBucket {
     return backlogs.entrySet();
   }
 
-  public Collection<Map.Entry<SchemaRegistryKey, SchemaRegistryCount>> getSchemaRegistryUsages() {
+  public Collection<Map.Entry<SchemaKey, Long>> getSchemaRegistryUsages() {
     return schemaRegistryUsages.entrySet();
   }
 
@@ -79,7 +78,7 @@ public class StatsBucket {
    * Key for aggregating schema registry usage by topic, cluster, schema ID, success, key/value
    * type, and operation.
    */
-  public static class SchemaRegistryKey {
+  public static class SchemaKey {
     private final String topic;
     private final String clusterId;
     private final int schemaId;
@@ -87,7 +86,7 @@ public class StatsBucket {
     private final boolean isKey;
     private final String operation;
 
-    public SchemaRegistryKey(
+    public SchemaKey(
         String topic,
         String clusterId,
         int schemaId,
@@ -130,7 +129,7 @@ public class StatsBucket {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      SchemaRegistryKey that = (SchemaRegistryKey) o;
+      SchemaKey that = (SchemaKey) o;
       return schemaId == that.schemaId
           && isSuccess == that.isSuccess
           && isKey == that.isKey
@@ -148,24 +147,6 @@ public class StatsBucket {
       result = 31 * result + (isKey ? 1 : 0);
       result = 31 * result + (operation != null ? operation.hashCode() : 0);
       return result;
-    }
-  }
-
-  /** Count of schema registry usages. */
-  public static class SchemaRegistryCount {
-    private long count;
-
-    public SchemaRegistryCount(long count) {
-      this.count = count;
-    }
-
-    public SchemaRegistryCount increment() {
-      count++;
-      return this;
-    }
-
-    public long getCount() {
-      return count;
     }
   }
 }
