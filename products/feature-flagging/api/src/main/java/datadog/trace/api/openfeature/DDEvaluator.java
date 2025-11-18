@@ -25,11 +25,6 @@ import dev.openfeature.sdk.Value;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
 import java.util.Date;
 import java.util.Deque;
@@ -49,10 +44,6 @@ import org.slf4j.LoggerFactory;
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DDEvaluator.class);
-  private static final List<DateTimeFormatter> DATE_FORMATTERS =
-      asList(
-          DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC),
-          DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC));
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
@@ -204,12 +195,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean isAllocationActive(final Allocation allocation, final Date now) {
-    final Date startDate = parseDate(allocation.startAt);
+    final Date startDate = allocation.startAt;
     if (startDate != null && now.before(startDate)) {
       return false;
     }
 
-    final Date endDate = parseDate(allocation.endAt);
+    final Date endDate = allocation.endAt;
     if (endDate != null && now.after(endDate)) {
       return false;
     }
@@ -386,22 +377,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       dispatchExposure(key, result, context);
     }
     return result;
-  }
-
-  static Date parseDate(final String dateString) {
-    if (dateString == null) {
-      return null;
-    }
-    for (final DateTimeFormatter formatter : DATE_FORMATTERS) {
-      try {
-        final TemporalAccessor temporalAccessor = formatter.parse(dateString);
-        final Instant instant = Instant.from(temporalAccessor);
-        return Date.from(instant);
-      } catch (DateTimeParseException e) {
-        // ignore it
-      }
-    }
-    return null;
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {

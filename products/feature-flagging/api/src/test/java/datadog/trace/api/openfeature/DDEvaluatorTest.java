@@ -40,12 +40,15 @@ import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -73,36 +76,6 @@ public class DDEvaluatorTest {
   @AfterEach
   public void tearDown() {
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
-  }
-
-  private static Arguments[] dateParsingTestCases() {
-    return new Arguments[] {
-      // Valid ISO 8601 formats
-      Arguments.of("2023-01-01T00:00:00Z", new Date(1672531200000L)), // 2023-01-01 00:00:00 UTC
-      Arguments.of("2023-12-31T23:59:59Z", new Date(1704067199000L)), // 2023-12-31 23:59:59 UTC
-      Arguments.of("2024-02-29T12:00:00Z", new Date(1709208000000L)), // Leap year date
-      Arguments.of("2023-01-01T00:00:00.000Z", new Date(1672531200000L)), // With milliseconds
-      Arguments.of("2023-06-15T14:30:45.123Z", new Date(1686839445123L)), // With milliseconds
-
-      // Non supported formats should return null
-      Arguments.of("2023-01-01T01:00:00+01:00", null), // UTC+1
-      Arguments.of("2023-01-01T00:00:00-05:00", null), // UTC-5
-      Arguments.of("2023-01-01", null), // Date only
-      Arguments.of("invalid-date", null),
-      Arguments.of("", null),
-      Arguments.of("not-a-date", null),
-      Arguments.of("2023/01/01T00:00:00Z", null), // Wrong separator
-
-      // Null input
-      Arguments.of(null, null)
-    };
-  }
-
-  @MethodSource("dateParsingTestCases")
-  @ParameterizedTest
-  public void testDateParsing(final String date, final Object expected) {
-    final Date value = DDEvaluator.parseDate(date);
-    assertThat(value, equalTo(expected));
   }
 
   private static Arguments[] valueMappingTestCases() {
@@ -684,7 +657,12 @@ public class DDEvaluatorTest {
     final List<Allocation> allocations =
         singletonList(
             new Allocation(
-                "time-alloc", null, "2022-01-01T00:00:00Z", "2022-12-31T23:59:59Z", splits, false));
+                "time-alloc",
+                null,
+                parseDate("2022-01-01T00:00:00Z"),
+                parseDate("2022-12-31T23:59:59Z"),
+                splits,
+                false));
 
     return new Flag("time-based-flag", true, ValueType.STRING, variants, allocations);
   }
@@ -1087,7 +1065,8 @@ public class DDEvaluatorTest {
 
     // Allocation that starts in the future (2050)
     final Allocation allocation =
-        new Allocation("future-alloc", null, "2050-01-01T00:00:00Z", null, splits, false);
+        new Allocation(
+            "future-alloc", null, parseDate("2050-01-01T00:00:00Z"), null, splits, false);
 
     return new Flag(
         "future-allocation-flag", true, ValueType.STRING, variants, singletonList(allocation));
@@ -1219,5 +1198,15 @@ public class DDEvaluatorTest {
       result.put(key, value);
     }
     return result;
+  }
+
+  private static Date parseDate(String dateString) {
+    try {
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+      formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+      return formatter.parse(dateString);
+    } catch (ParseException e) {
+      throw new RuntimeException("Failed to parse date: " + dateString, e);
+    }
   }
 }
