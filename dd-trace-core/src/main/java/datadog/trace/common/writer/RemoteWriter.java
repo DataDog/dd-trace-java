@@ -88,7 +88,6 @@ public abstract class RemoteWriter implements Writer {
       // Antithesis: Track when traces are dropped due to writer being closed
       ObjectNode shutdownDetails = JsonNodeFactory.instance.objectNode();
       shutdownDetails.put("trace_size", trace.size());
-      shutdownDetails.put("span_count", trace.stream().mapToInt(List::size).sum());
       shutdownDetails.put("reason", "writer_closed_during_shutdown");
       
       Assert.sometimes(
@@ -120,7 +119,6 @@ public abstract class RemoteWriter implements Writer {
             // Antithesis: Buffer overflow should NEVER happen - this indicates a serious problem
             ObjectNode overflowDetails = JsonNodeFactory.instance.objectNode();
             overflowDetails.put("trace_size", trace.size());
-            overflowDetails.put("span_count", trace.stream().mapToInt(List::size).sum());
             overflowDetails.put("sampling_priority", samplingPriority);
             overflowDetails.put("buffer_capacity", traceProcessingWorker.getCapacity());
             overflowDetails.put("reason", "buffer_overflow_backpressure");

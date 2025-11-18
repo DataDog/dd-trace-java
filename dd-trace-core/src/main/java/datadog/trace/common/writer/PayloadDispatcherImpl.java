@@ -135,13 +135,11 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       sendDetails.put("trace_count", messageCount);
       sendDetails.put("payload_size_bytes", sizeInBytes);
       sendDetails.put("success", response.success());
-      if (response.exception() != null) {
-        sendDetails.put("exception", response.exception().getClass().getName());
-        sendDetails.put("exception_message", response.exception().getMessage());
-      }
-      if (response.status() != null) {
-        sendDetails.put("http_status", response.status());
-      }
+      response.exception().ifPresent(ex -> {
+        sendDetails.put("exception", ex.getClass().getName());
+        sendDetails.put("exception_message", ex.getMessage());
+      });
+      response.status().ifPresent(status -> sendDetails.put("http_status", status));
 
       Assert.always(
           response.success(),
@@ -158,13 +156,11 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
         ObjectNode failureDetails = JsonNodeFactory.instance.objectNode();
         failureDetails.put("trace_count", messageCount);
         failureDetails.put("payload_size_bytes", sizeInBytes);
-        if (response.exception() != null) {
-          failureDetails.put("exception", response.exception().getClass().getName());
-          failureDetails.put("exception_message", response.exception().getMessage());
-        }
-        if (response.status() != null) {
-          failureDetails.put("http_status", response.status());
-        }
+        response.exception().ifPresent(ex -> {
+          failureDetails.put("exception", ex.getClass().getName());
+          failureDetails.put("exception_message", ex.getMessage());
+        });
+        response.status().ifPresent(status -> failureDetails.put("http_status", status));
 
         Assert.unreachable(
             "Trace sending failure path should never be reached - indicates traces are being lost",
