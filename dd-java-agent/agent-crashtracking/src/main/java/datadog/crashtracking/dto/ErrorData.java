@@ -1,11 +1,18 @@
 package datadog.crashtracking.dto;
 
 import com.squareup.moshi.Json;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonWriter;
+import com.squareup.moshi.Moshi;
+import java.io.IOException;
 import java.util.Objects;
 
 public final class ErrorData {
+  private static final JsonAdapter<ErrorData> ADAPTER =
+      new Moshi.Builder().build().adapter(ErrorData.class);
+
   @Json(name = "is_crash")
-  public final boolean isCrash = true;
+  public final boolean isCrash;
 
   public final String kind;
   public final String message;
@@ -16,9 +23,14 @@ public final class ErrorData {
   public final StackTrace stack;
 
   public ErrorData(String kind, String message, StackTrace stack) {
+    this(kind, message, stack, true);
+  }
+
+  public ErrorData(String kind, String message, StackTrace stack, boolean isCrash) {
     this.kind = kind;
     this.message = message;
     this.stack = stack;
+    this.isCrash = isCrash;
   }
 
   @Override
@@ -40,5 +52,9 @@ public final class ErrorData {
   @Override
   public int hashCode() {
     return Objects.hash(isCrash, kind, message, sourceType, stack);
+  }
+
+  public void writeAsJson(final JsonWriter writer) throws IOException {
+    ADAPTER.toJson(writer, this);
   }
 }
