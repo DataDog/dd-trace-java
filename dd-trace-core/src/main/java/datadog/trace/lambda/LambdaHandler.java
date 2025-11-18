@@ -74,15 +74,18 @@ public class LambdaHandler {
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
   public static AgentSpanContext notifyStartInvocation(
-      CoreTracer tracer, Object event, String requestId) {
-    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
+      CoreTracer tracer, Object event, String lambdaRequestId) {
+    RequestBody body =
+        RequestBody.create(
+            jsonMediaType,
+            writeValueAsString(event)); // MAYBE remove CoreTracer parameter since it is not used
     try (Response response =
         HTTP_CLIENT
             .newCall(
                 new Request.Builder()
                     .url(EXTENSION_BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
-                    .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, requestId)
+                    .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
                     .post(body)
                     .build())
             .execute()) {
@@ -103,7 +106,7 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(
-      AgentSpan span, Object result, boolean isError, String requestId) {
+      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
     if (null == span || null == span.getSamplingPriority()) {
       log.error(
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
@@ -117,7 +120,7 @@ public class LambdaHandler {
             .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
             .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, requestId)
+            .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
             .post(body);
 
     Object errorMessage = span.getTag(DDTags.ERROR_MSG);

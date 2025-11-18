@@ -1194,13 +1194,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentSpanContext notifyExtensionStart(Object event, String requestId) {
-    return LambdaHandler.notifyStartInvocation(this, event, requestId);
+  public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
+    return LambdaHandler.notifyStartInvocation(this, event, lambdaRequestId);
   }
 
   @Override
-  public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String requestId) {
-    LambdaHandler.notifyEndInvocation(span, result, isError, requestId);
+  public void notifyExtensionEnd(
+      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
+    LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
   }
 
   @Override

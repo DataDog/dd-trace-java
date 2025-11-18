@@ -406,9 +406,9 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    AgentSpanContext notifyExtensionStart(Object event, String requestId);
+    AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId);
 
-    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String requestId);
+    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -653,7 +653,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpanContext notifyExtensionStart(Object event, String requestId) {
+    public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
       return null;
     }
 
