@@ -120,7 +120,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 4
       writable.writeUTF8(NAME);
-      writable.writeString(span.getOperationName(), null);
+      writable.writeString(llmObsSpanName(span), null);
 
       // 5
       writable.writeUTF8(START_NS);
@@ -143,6 +143,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
       /* 9 (metrics), 10 (tags), 11 meta */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
+  }
+
+  private CharSequence llmObsSpanName(CoreSpan<?> span) {
+    CharSequence operationName = span.getOperationName();
+    CharSequence resourceName = span.getResourceName();
+    if ("openai.request".contentEquals(operationName)) {
+      return "OpenAI." + resourceName;
+    }
+    return operationName;
   }
 
   private static boolean isLLMObsSpan(CoreSpan<?> span) {
