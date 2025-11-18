@@ -20,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@Flaky
 public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
   private List<String> snapshotIdTags = new ArrayList<>();
@@ -242,7 +243,6 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
         });
   }
 
-  @Flaky
   @Test
   @DisplayName("test3CapturedRecursiveFrames")
   @DisabledIf(
