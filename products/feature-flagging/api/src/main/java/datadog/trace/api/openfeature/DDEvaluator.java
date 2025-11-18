@@ -83,36 +83,20 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     try {
       final ServerConfiguration config = configuration.get();
       if (config == null) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.PROVIDER_NOT_READY)
-            .build();
+        return error(defaultValue, ErrorCode.PROVIDER_NOT_READY);
       }
 
       if (context == null) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.INVALID_CONTEXT)
-            .build();
+        return error(defaultValue, ErrorCode.INVALID_CONTEXT);
       }
 
       if (context.getTargetingKey() == null) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.TARGETING_KEY_MISSING)
-            .build();
+        return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING);
       }
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.FLAG_NOT_FOUND)
-            .build();
+        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND);
       }
 
       if (!flag.enabled) {
@@ -123,12 +107,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
 
       if (isEmpty(flag.allocations)) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.GENERAL)
-            .errorMessage("Missing allocations for flag " + flag.key)
-            .build();
+        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + flag.key);
       }
 
       final Date now = new Date();
@@ -174,20 +153,30 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .build();
     } catch (final NumberFormatException e) {
       LOGGER.debug("Evaluation failed for key {}", key, e);
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.ERROR.name())
-          .errorCode(ErrorCode.TYPE_MISMATCH)
-          .build();
+      return error(defaultValue, ErrorCode.TYPE_MISMATCH);
     } catch (final Exception e) {
       LOGGER.debug("Evaluation failed for key {}", key, e);
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.ERROR.name())
-          .errorCode(ErrorCode.GENERAL)
-          .errorMessage(e.getMessage())
-          .build();
+      return error(defaultValue, ErrorCode.GENERAL, e);
     }
+  }
+
+  private static <T> ProviderEvaluation<T> error(final T defaultValue, final ErrorCode code) {
+    return error(defaultValue, code, (String) null);
+  }
+
+  private static <T> ProviderEvaluation<T> error(
+      final T defaultValue, final ErrorCode code, final Throwable cause) {
+    return error(defaultValue, code, cause == null ? null : cause.getMessage());
+  }
+
+  private static <T> ProviderEvaluation<T> error(
+      final T defaultValue, final ErrorCode code, final String errorMessage) {
+    return ProviderEvaluation.<T>builder()
+        .value(defaultValue)
+        .reason(Reason.ERROR.name())
+        .errorCode(code)
+        .errorMessage(errorMessage)
+        .build();
   }
 
   private static boolean isEmpty(final List<?> list) {
