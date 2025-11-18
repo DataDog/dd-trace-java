@@ -80,6 +80,9 @@ dependencies {
 
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
 
+  // Antithesis SDK for assertions and property testing
+  implementation group: 'com.antithesis', name: 'antithesis-sdk-java', version: '0.1.5'
+
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this

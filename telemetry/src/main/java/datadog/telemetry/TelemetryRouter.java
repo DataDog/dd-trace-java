@@ -1,5 +1,8 @@
 package datadog.telemetry;
 
+import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
@@ -41,8 +44,33 @@ public class TelemetryRouter {
             // interrupted request is most likely due to telemetry system shutdown,
             // we do not want to log errors and reattempt in this case
             && result != TelemetryClient.Result.INTERRUPTED;
+    
+    // Antithesis: Track telemetry routing and failover behavior
+    ObjectNode routingDetails = JsonNodeFactory.instance.objectNode();
+    routingDetails.put("result", result.toString());
+    routingDetails.put("current_client", currentClient == agentClient ? "agent" : "intake");
+    routingDetails.put("request_failed", requestFailed);
+    routingDetails.put("has_fallback", intakeClient != null);
+    routingDetails.put("url", currentClient.getUrl().toString());
+    
+    Assert.always(
+        result == TelemetryClient.Result.SUCCESS || result == TelemetryClient.Result.INTERRUPTED,
+        "Telemetry routing should always succeed - failures indicate data loss without retry mechanism",
+        routingDetails);
+    
     if (currentClient == agentClient) {
       if (requestFailed) {
+        // Antithesis: Track agent telemetry failures
+        ObjectNode agentFailureDetails = JsonNodeFactory.instance.objectNode();
+        agentFailureDetails.put("result", result.toString());
+        agentFailureDetails.put("url", currentClient.getUrl().toString());
+        agentFailureDetails.put("has_intake_fallback", intakeClient != null);
+        agentFailureDetails.put("reason", "agent_telemetry_failure");
+        
+        Assert.unreachable(
+            "Agent telemetry endpoint failed - switching to intake but current request data is lost",
+            agentFailureDetails);
+        
         reportErrorOnce(currentClient.getUrl(), result);
         if (intakeClient != null) {
           log.info("Agent Telemetry endpoint failed. Telemetry will be sent to Intake.");
@@ -52,6 +80,17 @@ public class TelemetryRouter {
       }
     } else {
       if (requestFailed) {
+        // Antithesis: Track intake telemetry failures
+        ObjectNode intakeFailureDetails = JsonNodeFactory.instance.objectNode();
+        intakeFailureDetails.put("result", result.toString());
+        intakeFailureDetails.put("url", currentClient.getUrl().toString());
+        intakeFailureDetails.put("will_fallback_to_agent", true);
+        intakeFailureDetails.put("reason", "intake_telemetry_failure");
+        
+        Assert.unreachable(
+            "Intake telemetry endpoint failed - switching to agent but current request data is lost",
+            intakeFailureDetails);
+        
         reportErrorOnce(currentClient.getUrl(), result);
       }
       if ((agentSupportsTelemetryProxy && !useIntakeClientByDefault) || requestFailed) {

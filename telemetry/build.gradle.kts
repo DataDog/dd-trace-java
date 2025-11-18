@@ -34,6 +34,10 @@ dependencies {
   implementation(libs.slf4j)
 
   implementation(project(":internal-api"))
+  
+  // Antithesis SDK for assertions and property testing
+  implementation(group = "com.antithesis", name = "antithesis-sdk-java", version = "0.1.5")
+  implementation(group = "com.fasterxml.jackson.core", name = "jackson-databind", version = "2.15.2")
 
   compileOnly(project(":dd-java-agent:agent-tooling"))
   testImplementation(project(":dd-java-agent:agent-tooling"))

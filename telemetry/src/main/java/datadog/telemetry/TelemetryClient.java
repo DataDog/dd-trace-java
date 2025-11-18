@@ -1,5 +1,8 @@
 package datadog.telemetry;
 
+import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -94,14 +97,50 @@ public class TelemetryClient {
 
     Request httpRequest = httpRequestBuilder.build();
     String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
+    
+    // Antithesis: Track telemetry sending attempts
+    Assert.reachable("Telemetry sending is exercised", null);
 
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(okHttpClient, httpRetryPolicy, httpRequest)) {
+      
+      // Antithesis: Assert that all telemetry requests should succeed
+      ObjectNode telemetryResponseDetails = JsonNodeFactory.instance.objectNode();
+      telemetryResponseDetails.put("request_type", requestType != null ? requestType : "unknown");
+      telemetryResponseDetails.put("http_status", response.code());
+      telemetryResponseDetails.put("http_message", response.message());
+      telemetryResponseDetails.put("url", url.toString());
+      telemetryResponseDetails.put("success", response.isSuccessful());
+      
       if (response.code() == 404) {
+        // Antithesis: Track 404 - endpoint disabled scenario
+        ObjectNode notFoundDetails = JsonNodeFactory.instance.objectNode();
+        notFoundDetails.put("request_type", requestType != null ? requestType : "unknown");
+        notFoundDetails.put("url", url.toString());
+        notFoundDetails.put("reason", "endpoint_disabled_404");
+        
+        Assert.sometimes(
+            response.code() == 404,
+            "Telemetry endpoint returns 404 - endpoint may be disabled",
+            notFoundDetails);
+        
         log.debug("Telemetry endpoint is disabled, dropping {} message.", requestType);
         return Result.NOT_FOUND;
       }
+      
       if (!response.isSuccessful()) {
+        // Antithesis: Telemetry should not fail - data should be retried/buffered
+        ObjectNode failureDetails = JsonNodeFactory.instance.objectNode();
+        failureDetails.put("request_type", requestType != null ? requestType : "unknown");
+        failureDetails.put("http_status", response.code());
+        failureDetails.put("http_message", response.message());
+        failureDetails.put("url", url.toString());
+        failureDetails.put("reason", "http_error_response");
+        
+        Assert.unreachable(
+            "Telemetry HTTP request failed - telemetry data should not be dropped, should retry",
+            failureDetails);
+        
         log.debug(
             "Telemetry message {} failed with: {} {}.",
             requestType,
@@ -109,11 +148,30 @@ public class TelemetryClient {
             response.message());
         return Result.FAILURE;
       }
+      
+      // Antithesis: Assert success
+      Assert.always(
+          response.isSuccessful(),
+          "Telemetry requests should always succeed - no telemetry data should be lost",
+          telemetryResponseDetails);
+          
     } catch (InterruptedIOException e) {
       log.debug("Telemetry message {} sending interrupted: {}.", requestType, e.toString());
       return Result.INTERRUPTED;
 
     } catch (IOException e) {
+      // Antithesis: Network failures should not cause telemetry loss
+      ObjectNode ioErrorDetails = JsonNodeFactory.instance.objectNode();
+      ioErrorDetails.put("request_type", requestType != null ? requestType : "unknown");
+      ioErrorDetails.put("exception_type", e.getClass().getName());
+      ioErrorDetails.put("exception_message", e.getMessage());
+      ioErrorDetails.put("url", url.toString());
+      ioErrorDetails.put("reason", "network_io_exception");
+      
+      Assert.unreachable(
+          "Telemetry network/IO failure - telemetry data should not be dropped, should retry",
+          ioErrorDetails);
+      
       log.debug("Telemetry message {} failed with exception: {}.", requestType, e.toString());
       return Result.FAILURE;
     }
