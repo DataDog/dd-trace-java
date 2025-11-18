@@ -28,10 +28,8 @@ java {
 dependencies {
   api(libs.slf4j)
   api("dev.openfeature:sdk:1.18.2")
+  api(project(":products:feature-flagging:bootstrap"))
 
-  compileOnly(project(":internal-api"))
-
-  testImplementation(project(":internal-api"))
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)

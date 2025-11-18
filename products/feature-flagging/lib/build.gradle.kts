@@ -19,8 +19,8 @@ dependencies {
   api(libs.slf4j)
   api(libs.moshi)
   api(libs.jctools)
-  api(project(":internal-api"))
   api(project(":communication"))
+  api(project(":products:feature-flagging:bootstrap"))
 
   compileOnly(project(":dd-trace-core")) // shading does not work with this one
 
