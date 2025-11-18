@@ -120,7 +120,6 @@ public final class HotspotCrashLogParser {
     String pid = null;
     List<StackFrame> frames = new ArrayList<>();
     String datetime = null;
-    StringBuilder message = new StringBuilder();
     boolean incomplete = false;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
@@ -130,7 +129,6 @@ public final class HotspotCrashLogParser {
         case NEW:
           if (line.startsWith(
               "# A fatal error has been detected by the Java Runtime Environment:")) {
-            message.append("\n\n");
             state = State.MESSAGE; // jump directly to MESSAGE state
           }
           break;
@@ -151,8 +149,6 @@ public final class HotspotCrashLogParser {
                 int endIdx = line.indexOf(',', pidIdx);
                 pid = line.substring(pidIdx + 4, endIdx);
               }
-            } else {
-              message.append(line.substring(2)).append('\n');
             }
           }
           break;
@@ -174,7 +170,6 @@ public final class HotspotCrashLogParser {
         case THREAD:
           // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
           if (line.startsWith("Native frames: ")) {
-            message.append('\n').append(line).append('\n');
             state = State.STACKTRACE;
           }
           break;
@@ -183,7 +178,6 @@ public final class HotspotCrashLogParser {
             state = State.DONE;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
-            message.append(line).append('\n');
             frames.add(parseLine(line));
           }
           break;
@@ -200,10 +194,10 @@ public final class HotspotCrashLogParser {
       // incomplete crash log
       incomplete = true;
     }
+    String message = "Process terminated by signal " + (signal != null ? signal : "UNKNOWN");
 
     ErrorData error =
-        new ErrorData(
-            signal, message.toString(), new StackTrace(frames.toArray(new StackFrame[0])));
+        new ErrorData(signal, message, new StackTrace(frames.toArray(new StackFrame[0])));
     // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);

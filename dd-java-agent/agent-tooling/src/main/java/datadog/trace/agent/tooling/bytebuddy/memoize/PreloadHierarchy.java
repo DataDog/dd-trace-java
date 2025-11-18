@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy.memoize;
 
+import datadog.instrument.classmatch.ClassFile;
+import datadog.instrument.classmatch.ClassHeader;
 import datadog.trace.bootstrap.instrumentation.classloading.ClassDefining;
-import net.bytebuddy.jar.asm.ClassReader;
 
 /** Ensures superclasses and interfaces are loaded before classes that extend/implement them. */
 final class PreloadHierarchy implements ClassDefining.Observer {
@@ -22,12 +23,12 @@ final class PreloadHierarchy implements ClassDefining.Observer {
         return; // ignore non-standard formats like J9 ROMs
       }
       // minimal parsing of bytecode to get name of superclass and any interfaces
-      ClassReader cr = new ClassReader(bytecode, offset, length);
-      String superName = cr.getSuperName();
+      ClassHeader header = ClassFile.header(bytecode, offset);
+      String superName = header.superName;
       if (null != superName && !"java/lang/Object".equals(superName)) {
         preload(loader, superName);
       }
-      for (String interfaceName : cr.getInterfaces()) {
+      for (String interfaceName : header.interfaces) {
         preload(loader, interfaceName);
       }
     } catch (Throwable ignore) {
