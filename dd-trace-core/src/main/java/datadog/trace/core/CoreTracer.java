@@ -1553,9 +1553,32 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    @Deprecated
     protected final DDSpan buildSpan() {
       return buildSpan(tracer, instrumentationName, timestampMicro, links, buildSpanContext());
     }
+    
+    protected static final DDSpan buildSpan(
+      final CoreTracer tracer,
+      long spanId,
+      String instrumentationName,
+      long timestampMicro,
+      String serviceName,
+      CharSequence operationName,
+      String resourceName,
+      AgentSpanContext incomingParentContext,
+      boolean ignoreScope,
+      boolean errorFlag,
+      CharSequence spanType,
+      TagMap.Ledger tagLedger,
+      List<AgentSpanLink> links,
+      Object builderRequestContextDataAppSec,
+      Object builderRequestContextDataIast,
+      Object builderCiVisibilityContextData)
+    {
+      return buildSpan(tracer, instrumentationName, timestampMicro, links, 
+    	buildSpanContext(tracer, spanId, serviceName, operationName, resourceName, incomingParentContext, ignoreScope, errorFlag, spanType, tagLedger, links, builderRequestContextDataAppSec, builderRequestContextDataIast, builderCiVisibilityContextData));
+    }    
     
     protected static final DDSpan buildSpan(
       CoreTracer tracer,
@@ -1625,11 +1648,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     	links.addAll(additionalLinks);
       }
       return links;
-    }
+    }    
 
     @Override
-    public abstract AgentSpan start();
-
+    public abstract AgentSpan start();    
+    
     protected AgentSpan startImpl() {
       AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
@@ -1643,6 +1666,54 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         return new BlackHoleSpan(pc.getTraceId());
       }
       return buildSpan();
+    }
+
+    protected static final AgentSpan startSpan(
+      final CoreTracer tracer,
+      long spanId,
+      String instrumentationName,
+      long timestampMicro,
+      String serviceName,
+      CharSequence operationName,
+      String resourceName,
+      AgentSpanContext incomingParentContext,
+      boolean ignoreScope,
+      boolean errorFlag,
+      CharSequence spanType,
+      TagMap.Ledger tagLedger,
+      List<AgentSpanLink> links,
+      Object builderRequestContextDataAppSec,
+      Object builderRequestContextDataIast,
+      Object builderCiVisibilityContextData)
+    {
+      AgentSpanContext pc = incomingParentContext;
+      if (pc == null && !ignoreScope) {
+        final AgentSpan span = tracer.activeSpan();
+        if (span != null) {
+          pc = span.context();
+        }
+      }
+
+      if (pc == BlackHoleSpan.Context.INSTANCE) {
+        return new BlackHoleSpan(pc.getTraceId());
+      }
+      return buildSpan(
+	      tracer,
+	      spanId,
+	      instrumentationName,
+	      timestampMicro,
+	      serviceName,
+	      operationName,
+	      resourceName,
+	      incomingParentContext,
+	      ignoreScope,
+	      errorFlag,
+	      spanType,
+	      tagLedger,
+	      links,
+	      builderRequestContextDataAppSec,
+	      builderRequestContextDataIast,
+	      builderCiVisibilityContextData);
     }
 
     @Override
