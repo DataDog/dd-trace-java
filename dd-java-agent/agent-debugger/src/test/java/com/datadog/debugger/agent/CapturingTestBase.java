@@ -425,11 +425,33 @@ public class CapturingTestBase {
       String compilerOutputDir = "/tmp/" + CapturedSnapshotTest.class.getSimpleName() + "-kotlin";
       args.setDestination(compilerOutputDir);
       args.setClasspath(System.getProperty("java.class.path"));
-      ExitCode exitCode =
-          compiler.exec(
-              new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
-              Services.EMPTY,
-              args);
+      // Temporarily patch `java.version` for Java 26-ea compatibility.
+      // We are using the following early access version of Java 26:
+      // https://hub.docker.com/layers/library/openjdk/26-ea-jdk-bookworm/images/sha256-d8323bd0ab1a5c12e93a46fcc6b9817d25e5a6a3cbd9505b8d57d13eea9d18e2
+      // TODO: Fix for Java 26. Revert change once GA version of Java 26 is released (Mar 2026).
+      // ExitCode exitCode =
+      //     compiler.exec(
+      //         new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
+      //         Services.EMPTY,
+      //         args);
+      String originalJavaVersion = System.getProperty("java.version");
+      boolean overrideEAJavaVersion =
+          originalJavaVersion != null && originalJavaVersion.contains("-ea");
+      ExitCode exitCode;
+      try {
+        if (overrideEAJavaVersion) {
+          System.setProperty("java.version", "25");
+        }
+        exitCode =
+            compiler.exec(
+                new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
+                Services.EMPTY,
+                args);
+      } finally {
+        if (overrideEAJavaVersion) {
+          System.setProperty("java.version", originalJavaVersion);
+        }
+      }
 
       if (exitCode.getCode() != 0) {
         throw new RuntimeException("Kotlin compilation failed");
