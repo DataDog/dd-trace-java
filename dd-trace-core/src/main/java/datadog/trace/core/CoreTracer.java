@@ -1574,7 +1574,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return span;
     }
 
-    private final void addParentContextAsLinks(AgentSpanContext parentContext) {
+    private static final List<AgentSpanLink> addParentContextLink(
+      List<AgentSpanLink> links,
+      AgentSpanContext parentContext) {
       SpanLink link;
       if (parentContext instanceof ExtractedContext) {
         String headers = ((ExtractedContext) parentContext).getPropagationStyle().toString();
@@ -1587,20 +1589,42 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       } else {
         link = SpanLink.from(parentContext);
       }
-      withLink(link);
+      return addLink(links, link);
     }
 
-    private final void addTerminatedContextAsLinks() {
-      if (this.parent instanceof TagContext) {
+    protected static final List<AgentSpanLink> addTerminatedContextAsLinks(
+      List<AgentSpanLink> links,
+      AgentSpanContext parentContext)
+    {
+      if (parentContext instanceof TagContext) {
         List<AgentSpanLink> terminatedContextLinks =
-            ((TagContext) this.parent).getTerminatedContextLinks();
+            ((TagContext) parentContext).getTerminatedContextLinks();
         if (!terminatedContextLinks.isEmpty()) {
-          if (this.links == null) {
-            this.links = new ArrayList<>();
-          }
-          this.links.addAll(terminatedContextLinks);
+          return addLinks(links, terminatedContextLinks);
         }
       }
+      return links;
+    }
+    
+    protected static final List<AgentSpanLink> addLink(
+      List<AgentSpanLink> links,
+      AgentSpanLink link)
+    {
+      if ( links == null ) links = new ArrayList<>();
+      links.add(link);
+      return links;
+    }
+
+    protected static final List<AgentSpanLink> addLinks(
+      List<AgentSpanLink> links,
+      List<AgentSpanLink> additionalLinks)
+    {
+      if ( links == null ) {
+    	links = new ArrayList<>(additionalLinks);
+      } else {
+    	links.addAll(additionalLinks);
+      }
+      return links;
     }
 
     @Override
@@ -1744,9 +1768,41 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      * @return the context
      */
     private final DDSpanContext buildSpanContext() {
-      final DDTraceId traceId;
-      final long spanId;
-      final long parentSpanId;
+      return this.buildSpanContext(
+    	this.tracer,
+    	this.spanId,
+    	this.serviceName,
+    	this.operationName,
+    	this.resourceName,
+    	this.parent,
+    	this.ignoreScope,
+    	this.errorFlag,
+    	this.spanType,
+    	this.tagLedger,
+    	this.links,
+    	this.builderRequestContextDataAppSec,
+    	this.builderRequestContextDataIast,
+    	this.builderCiVisibilityContextData);
+    }
+    
+    protected static final DDSpanContext buildSpanContext(
+      final CoreTracer tracer,
+      long spanId,
+      String serviceName,
+      CharSequence operationName,
+      String resourceName,
+      AgentSpanContext incomingParentContext,
+      boolean ignoreScope,
+      boolean errorFlag,
+      CharSequence spanType,
+      TagMap.Ledger tagLedger,
+      List<AgentSpanLink> links,
+      Object builderRequestContextDataAppSec,
+      Object builderRequestContextDataIast,
+      Object builderCiVisibilityContextData)
+    {
+      DDTraceId traceId;
+      long parentSpanId;
       final Map<String, String> baggage;
       final Baggage w3cBaggage;
       final TraceCollector parentTraceCollector;
@@ -1762,15 +1818,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
-
-      if (this.spanId == 0) {
+    	
+      if (spanId == 0) {
         spanId = tracer.idGenerationStrategy.generateSpanId();
-      } else {
-        spanId = this.spanId;
       }
 
       // Find the parent context
-      AgentSpanContext parentContext = parent;
+      AgentSpanContext parentContext = incomingParentContext;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
@@ -1778,11 +1832,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           parentContext = activeSpan.context();
         }
       }
+      
       // Handle remote terminated context as span links
       if (parentContext != null && parentContext.isRemote()) {
         switch (Config.get().getTracePropagationBehaviorExtract()) {
           case RESTART:
-            addParentContextAsLinks(parentContext);
+            links = addParentContextLink(links, parentContext);
             parentContext = null;
             break;
           case IGNORE:
@@ -1790,7 +1845,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             break;
           case CONTINUE:
           default:
-            addTerminatedContextAsLinks();
+            links = addTerminatedContextAsLinks(links, incomingParentContext);
         }
       }
 
@@ -1930,8 +1985,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         serviceName = tracer.serviceName;
       }
 
-      final CharSequence operationName =
-          this.operationName != null ? this.operationName : resourceName;
+      if ( operationName == null ) operationName = resourceName;
 
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
