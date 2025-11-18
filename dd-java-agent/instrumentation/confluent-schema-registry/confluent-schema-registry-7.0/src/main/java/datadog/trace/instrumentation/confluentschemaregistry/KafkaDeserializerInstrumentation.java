@@ -47,7 +47,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put(Deserializer.class.getName(), Boolean.class.getName());
+    contextStores.put("org.apache.kafka.common.serialization.Deserializer", "java.lang.Boolean");
     return contextStores;
   }
 

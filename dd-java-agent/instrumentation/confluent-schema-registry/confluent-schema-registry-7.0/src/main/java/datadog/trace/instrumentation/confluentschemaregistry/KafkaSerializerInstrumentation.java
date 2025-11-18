@@ -48,7 +48,7 @@ public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put(Serializer.class.getName(), Boolean.class.getName());
+    contextStores.put("org.apache.kafka.common.serialization.Serializer", "java.lang.Boolean");
     return contextStores;
   }
 

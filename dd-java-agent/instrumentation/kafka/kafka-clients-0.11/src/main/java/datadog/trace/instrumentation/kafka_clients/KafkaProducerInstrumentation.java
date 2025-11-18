@@ -79,6 +79,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".NoopTextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
+      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       packageName + ".AvroSchemaExtractor",
     };
   }
