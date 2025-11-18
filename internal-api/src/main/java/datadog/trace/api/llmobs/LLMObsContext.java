@@ -9,7 +9,7 @@ public final class LLMObsContext {
   public static final String ROOT_SPAN_ID = "undefined";
 
   private LLMObsContext() {
-    //~
+    // ~
   }
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");

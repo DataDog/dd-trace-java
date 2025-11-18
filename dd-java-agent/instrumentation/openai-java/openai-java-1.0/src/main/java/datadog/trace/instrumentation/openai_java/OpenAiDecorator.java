@@ -70,7 +70,9 @@ public class OpenAiDecorator extends ClientDecorator {
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
-    span.setTag("_ml_obs_tag.parent_id", currentLlmParentSpanId()); // TODO duplicates DDLLMObsSpan, test in LLMObsSpanMapperTest
+    span.setTag(
+        "_ml_obs_tag.parent_id",
+        currentLlmParentSpanId()); // TODO duplicates DDLLMObsSpan, test in LLMObsSpanMapperTest
     span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND); // TODO also see DDLLMObsSpan
     return super.afterStart(span);
   }
@@ -96,9 +98,14 @@ public class OpenAiDecorator extends ClientDecorator {
     }
 
     span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
-    params.prompt().flatMap(p -> p.string()).ifPresent(input ->
-        span.setTag("_ml_obs_tag.input", Collections.singletonList(LLMObs.LLMMessage.from(null, input)))
-    );
+    params
+        .prompt()
+        .flatMap(p -> p.string())
+        .ifPresent(
+            input ->
+                span.setTag(
+                    "_ml_obs_tag.input",
+                    Collections.singletonList(LLMObs.LLMMessage.from(null, input))));
 
     Map<String, Object> metadata = new HashMap<>();
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
@@ -111,16 +118,23 @@ public class OpenAiDecorator extends ClientDecorator {
     span.setTag(RESPONSE_MODEL, modelName);
     span.setTag("_ml_obs_tag.model_name", modelName);
     span.setTag("_ml_obs_tag.model_provider", "openai");
-    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g. gpt-3.5-turbo-instruct:20230824-v2
+    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g.
+    // gpt-3.5-turbo-instruct:20230824-v2
 
-    List<LLMObs.LLMMessage> output = completion.choices().stream().map(v -> LLMObs.LLMMessage.from(null, v.text())).collect(Collectors.toList());
+    List<LLMObs.LLMMessage> output =
+        completion.choices().stream()
+            .map(v -> LLMObs.LLMMessage.from(null, v.text()))
+            .collect(Collectors.toList());
     span.setTag("_ml_obs_tag.output", output);
 
-    completion.usage().ifPresent(u -> {
-      span.setTag("_ml_obs_metric.input_tokens", u.promptTokens());
-      span.setTag("_ml_obs_metric.output_tokens", u.completionTokens());
-      span.setTag("_ml_obs_metric.total_tokens", u.totalTokens());
-    });
+    completion
+        .usage()
+        .ifPresent(
+            u -> {
+              span.setTag("_ml_obs_metric.input_tokens", u.promptTokens());
+              span.setTag("_ml_obs_metric.output_tokens", u.completionTokens());
+              span.setTag("_ml_obs_metric.total_tokens", u.totalTokens());
+            });
   }
 
   public void decorateWithCompletions(AgentSpan span, List<Completion> completions) {
