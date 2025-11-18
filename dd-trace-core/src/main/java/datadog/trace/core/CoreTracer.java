@@ -1083,24 +1083,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-    return singleSpanBuilder(instrumentationName, spanName).start();
+    return CoreSpanBuilder.startSpan(this, instrumentationName, spanName, null, false, CoreSpanBuilder.DEFAULT_TIMESTAMP_MICRO);
   }
 
   @Override
   public AgentSpan startSpan(
       final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-    return singleSpanBuilder(instrumentationName, spanName)
-        .withStartTimestamp(startTimeMicros)
-        .start();
+	return CoreSpanBuilder.startSpan(this, instrumentationName, spanName, null, false, startTimeMicros);
   }
 
   @Override
   public AgentSpan startSpan(
       String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
-    return singleSpanBuilder(instrumentationName, spanName)
-        .ignoreActiveSpan()
-        .asChildOf(parent)
-        .start();
+	return CoreSpanBuilder.startSpan(this, instrumentationName, spanName, parent, true, CoreSpanBuilder.DEFAULT_TIMESTAMP_MICRO);
   }
 
   @Override
@@ -1108,12 +1103,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final String instrumentationName,
       final CharSequence spanName,
       final AgentSpanContext parent,
-      final long startTimeMicros) {
-    return singleSpanBuilder(instrumentationName, spanName)
-        .ignoreActiveSpan()
-        .asChildOf(parent)
-        .withStartTimestamp(startTimeMicros)
-        .start();
+      final long startTimeMicros)
+  {
+	return CoreSpanBuilder.startSpan(this, instrumentationName, spanName, parent, true, startTimeMicros);
   }
 
   @Override
@@ -1521,6 +1513,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   /** Spans are built using this builder */
   public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+	protected static final boolean IGNORE_SCOPE_DEFAULT = false;
+	protected static final int SPAN_ID_DEFAULT = 0;
+	protected static final long DEFAULT_TIMESTAMP_MICRO = 0L;
+	
     protected final CoreTracer tracer;
 
     protected String instrumentationName;
@@ -1535,12 +1531,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected String resourceName;
     protected boolean errorFlag;
     protected CharSequence spanType;
-    protected boolean ignoreScope = false;
+    protected boolean ignoreScope = IGNORE_SCOPE_DEFAULT;
     protected Object builderRequestContextDataAppSec;
     protected Object builderRequestContextDataIast;
     protected Object builderCiVisibilityContextData;
     protected List<AgentSpanLink> links;
-    protected long spanId;
+    protected long spanId = SPAN_ID_DEFAULT;
     // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
 
     CoreSpanBuilder(CoreTracer tracer) {
@@ -1553,11 +1549,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
-    @Deprecated
-    protected final DDSpan buildSpan() {
-      return buildSpan(tracer, instrumentationName, timestampMicro, links, buildSpanContext());
-    }
-
     protected static final DDSpan buildSpan(
         final CoreTracer tracer,
         long spanId,
@@ -1566,7 +1557,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         String serviceName,
         CharSequence operationName,
         String resourceName,
-        AgentSpanContext incomingParentContext,
+        AgentSpanContext resolvedParentContext,
         boolean ignoreScope,
         boolean errorFlag,
         CharSequence spanType,
@@ -1575,7 +1566,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         Object builderRequestContextDataAppSec,
         Object builderRequestContextDataIast,
         Object builderCiVisibilityContextData) {
-      return buildSpan(
+      return buildSpanImpl(
           tracer,
           instrumentationName,
           timestampMicro,
@@ -1586,8 +1577,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               serviceName,
               operationName,
               resourceName,
-              incomingParentContext,
-              ignoreScope,
+              resolvedParentContext,
               errorFlag,
               spanType,
               tagLedger,
@@ -1597,7 +1587,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               builderCiVisibilityContextData));
     }
 
-    protected static final DDSpan buildSpan(
+    protected static final DDSpan buildSpanImpl(
         CoreTracer tracer,
         String instrumentationName,
         long timestampMicro,
@@ -1663,19 +1653,52 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     public abstract AgentSpan start();
 
     protected AgentSpan startImpl() {
-      AgentSpanContext pc = parent;
-      if (pc == null && !ignoreScope) {
-        final AgentSpan span = tracer.activeSpan();
-        if (span != null) {
-          pc = span.context();
-        }
-      }
-
-      if (pc == BlackHoleSpan.Context.INSTANCE) {
-        return new BlackHoleSpan(pc.getTraceId());
-      }
-      return buildSpan();
+      return startSpan(
+        this.tracer,
+        this.spanId,
+        this.instrumentationName,
+        this.timestampMicro,
+        this.serviceName,
+        this.operationName,
+        this.resourceName,
+        this.parent,
+        this.ignoreScope,
+        this.errorFlag,
+        this.spanType,
+        this.tagLedger,
+        this.links,
+        this.builderRequestContextDataAppSec,
+        this.builderRequestContextDataIast,
+        this.builderCiVisibilityContextData);
     }
+    
+    protected static final AgentSpan startSpan(
+    	final CoreTracer tracer,
+    	String instrumentationName,
+    	CharSequence operationName,
+    	AgentSpanContext specifiedParentContext,
+    	boolean ignoreScope,
+    	long timestampMicros)
+    {        
+        return startSpan(
+          tracer,
+          SPAN_ID_DEFAULT,
+          instrumentationName,
+          timestampMicros,
+          null /* serviceName */,
+          operationName,
+          null /* resourceName */,
+          specifiedParentContext,
+          ignoreScope,
+          false /* errorFlag */,
+          null /* spanType */,
+          null /* tagLedger */,
+          null /* links */,
+          null /* appSec */,
+          null /* iast */,
+          null /* ciViz */);
+    }
+    	
 
     protected static final AgentSpan startSpan(
         final CoreTracer tracer,
@@ -1685,7 +1708,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         String serviceName,
         CharSequence operationName,
         String resourceName,
-        AgentSpanContext incomingParentContext,
+        AgentSpanContext specifiedParentContext,
         boolean ignoreScope,
         boolean errorFlag,
         CharSequence spanType,
@@ -1693,18 +1716,41 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         List<AgentSpanLink> links,
         Object builderRequestContextDataAppSec,
         Object builderRequestContextDataIast,
-        Object builderCiVisibilityContextData) {
-      AgentSpanContext pc = incomingParentContext;
-      if (pc == null && !ignoreScope) {
-        final AgentSpan span = tracer.activeSpan();
-        if (span != null) {
-          pc = span.context();
+        Object builderCiVisibilityContextData)
+    {
+        // Find the parent context
+        AgentSpanContext parentContext = specifiedParentContext;
+        if (parentContext == null && !ignoreScope) {
+          // use the Scope as parent unless overridden or ignored.
+          final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
+          if (activeSpan != null) {
+            parentContext = activeSpan.context();
+          }
+        }
+        
+        if (parentContext == BlackHoleSpan.Context.INSTANCE) {
+          return new BlackHoleSpan(parentContext.getTraceId());
+        }
+      
+      // Handle remote terminated context as span links
+      if (parentContext != null && parentContext.isRemote()) {
+        switch (Config.get().getTracePropagationBehaviorExtract()) {
+          case RESTART:
+            links = addParentContextLink(links, parentContext);
+            parentContext = null;
+            break;
+          
+          case IGNORE:
+            parentContext = null;
+            break;
+            
+          case CONTINUE:
+          default:
+            links = addTerminatedContextAsLinks(links, specifiedParentContext);
+            break;
         }
       }
-
-      if (pc == BlackHoleSpan.Context.INSTANCE) {
-        return new BlackHoleSpan(pc.getTraceId());
-      }
+      
       return buildSpan(
           tracer,
           spanId,
@@ -1713,7 +1759,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           serviceName,
           operationName,
           resourceName,
-          incomingParentContext,
+          parentContext,
           ignoreScope,
           errorFlag,
           spanType,
@@ -1846,32 +1892,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
      *
      * @return the context
      */
-    private final DDSpanContext buildSpanContext() {
-      return this.buildSpanContext(
-          this.tracer,
-          this.spanId,
-          this.serviceName,
-          this.operationName,
-          this.resourceName,
-          this.parent,
-          this.ignoreScope,
-          this.errorFlag,
-          this.spanType,
-          this.tagLedger,
-          this.links,
-          this.builderRequestContextDataAppSec,
-          this.builderRequestContextDataIast,
-          this.builderCiVisibilityContextData);
-    }
-
     protected static final DDSpanContext buildSpanContext(
         final CoreTracer tracer,
         long spanId,
         String serviceName,
         CharSequence operationName,
         String resourceName,
-        AgentSpanContext incomingParentContext,
-        boolean ignoreScope,
+        AgentSpanContext resolvedParentContext,
         boolean errorFlag,
         CharSequence spanType,
         TagMap.Ledger tagLedger,
@@ -1901,38 +1928,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         spanId = tracer.idGenerationStrategy.generateSpanId();
       }
 
-      // Find the parent context
-      AgentSpanContext parentContext = incomingParentContext;
-      if (parentContext == null && !ignoreScope) {
-        // use the Scope as parent unless overridden or ignored.
-        final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
-        if (activeSpan != null) {
-          parentContext = activeSpan.context();
-        }
-      }
-
-      // Handle remote terminated context as span links
-      if (parentContext != null && parentContext.isRemote()) {
-        switch (Config.get().getTracePropagationBehaviorExtract()) {
-          case RESTART:
-            links = addParentContextLink(links, parentContext);
-            parentContext = null;
-            break;
-          case IGNORE:
-            parentContext = null;
-            break;
-          case CONTINUE:
-          default:
-            links = addTerminatedContextAsLinks(links, incomingParentContext);
-        }
-      }
-
       String parentServiceName = null;
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing, and we are starting the first
       // root span, parentContext will be null at this point.
-      if (parentContext instanceof DDSpanContext) {
-        final DDSpanContext ddsc = (DDSpanContext) parentContext;
+      if (resolvedParentContext instanceof DDSpanContext) {
+        final DDSpanContext ddsc = (DDSpanContext) resolvedParentContext;
         traceId = ddsc.getTraceId();
         parentSpanId = ddsc.getSpanId();
         baggage = ddsc.getBaggageItems();
@@ -1948,7 +1949,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-        RequestContext requestContext = ((DDSpanContext) parentContext).getRequestContext();
+        RequestContext requestContext = ((DDSpanContext) resolvedParentContext).getRequestContext();
         if (requestContext != null) {
           requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
           requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
@@ -1962,21 +1963,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       } else {
         long endToEndStartTime;
 
-        if (parentContext instanceof ExtractedContext) {
+        if (resolvedParentContext instanceof ExtractedContext) {
           // Propagate external trace
-          final ExtractedContext extractedContext = (ExtractedContext) parentContext;
+          final ExtractedContext extractedContext = (ExtractedContext) resolvedParentContext;
           traceId = extractedContext.getTraceId();
           parentSpanId = extractedContext.getSpanId();
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           propagationTags = extractedContext.getPropagationTags();
-        } else if (parentContext != null) {
+        } else if (resolvedParentContext != null) {
           traceId =
-              parentContext.getTraceId() == DDTraceId.ZERO
+              resolvedParentContext.getTraceId() == DDTraceId.ZERO
                   ? tracer.idGenerationStrategy.generateTraceId()
-                  : parentContext.getTraceId();
-          parentSpanId = parentContext.getSpanId();
-          samplingPriority = parentContext.getSamplingPriority();
+                  : resolvedParentContext.getTraceId();
+          parentSpanId = resolvedParentContext.getSpanId();
+          samplingPriority = resolvedParentContext.getSamplingPriority();
           endToEndStartTime = 0;
           propagationTags = tracer.propagationTagsFactory.empty();
         } else {
@@ -1991,8 +1992,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         ConfigSnapshot traceConfig;
 
         // Get header tags and set origin whether propagating or not.
-        if (parentContext instanceof TagContext) {
-          TagContext tc = (TagContext) parentContext;
+        if (resolvedParentContext instanceof TagContext) {
+          TagContext tc = (TagContext) resolvedParentContext;
           traceConfig = (ConfigSnapshot) tc.getTraceConfig();
           coreTags = tc.getTags();
           coreTagsNeedsIntercept = true; // maybe intercept isn't needed?
@@ -2028,10 +2029,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // Use parent pathwayContext if present and started
       pathwayContext =
-          parentContext != null
-                  && parentContext.getPathwayContext() != null
-                  && parentContext.getPathwayContext().isStarted()
-              ? parentContext.getPathwayContext()
+          resolvedParentContext != null
+                  && resolvedParentContext.getPathwayContext() != null
+                  && resolvedParentContext.getPathwayContext().isStarted()
+              ? resolvedParentContext.getPathwayContext()
               : tracer.dataStreamsMonitoring.newPathwayContext();
 
       // when removing fake services the best upward service name to pick is the local root one
