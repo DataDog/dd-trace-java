@@ -16,12 +16,12 @@
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     # Install authanywhere at runtime for internal API authentication in benchmarking-platform:
     # https://github.com/DataDog/benchmarking-platform/blob/dd-trace-java/tracer-benchmarks-parallel/steps/fetch-artifacts.sh
-    - |
-      if [ $(uname -m) = x86_64 ]; then AAA="amd64"; else AAA="arm64"; fi
-      wget -q -O /tmp/authanywhere "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}"
-      chmod +x /tmp/authanywhere
-      mv /tmp/authanywhere /usr/local/bin/authanywhere
-      echo "Installed authanywhere: $(which authanywhere)"
+    # - |
+    #   if [ $(uname -m) = x86_64 ]; then AAA="amd64"; else AAA="arm64"; fi
+    #   wget -q -O /tmp/authanywhere "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}"
+    #   chmod +x /tmp/authanywhere
+    #   mv /tmp/authanywhere /usr/local/bin/authanywhere
+    #   echo "Installed authanywhere: $(which authanywhere)"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
     - git clone --branch dd-trace-java/tracer-benchmarks-parallel https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
   artifacts:
