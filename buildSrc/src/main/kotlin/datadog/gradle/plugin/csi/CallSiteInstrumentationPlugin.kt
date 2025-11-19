@@ -150,6 +150,13 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       val output = csiExtension.targetFolder
       val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
       inputs.dir(inputProvider)
+      inputs.dir(csiExtension.srcFolder)
+      inputs.dir(csiExtension.rootFolder).optional()
+      inputs.file(pluginJarFile)
+      inputs.property("cis.suffix", csiExtension.suffix)
+      inputs.property("csi.javaVersion", csiExtension.javaVersion)
+      inputs.property("csi.jvmArgs", csiExtension.jvmArgs)
+      inputs.property("csi.reporters", csiExtension.reporters)
       outputs.dir(output)
 
       // JavaExec configuration
