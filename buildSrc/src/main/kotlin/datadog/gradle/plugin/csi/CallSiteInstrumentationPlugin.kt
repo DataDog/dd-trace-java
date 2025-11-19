@@ -10,13 +10,13 @@ import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
-import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.apply
@@ -25,6 +25,7 @@ import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
+import org.gradle.testing.base.TestingExtension
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -43,9 +44,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     project.pluginManager.apply(JavaPlugin::class)
 
     // Create plugin extension
-    val extension = project.extensions.create<CallSiteInstrumentationExtension>(CSI)
-    configureSourceSets(project, extension)
-    createTasks(project, extension)
+    val csiExtension = project.extensions.create<CallSiteInstrumentationExtension>(CSI)
+    configureSourceSets(project, csiExtension)
+    registerGenerateCallSiteTask(project, csiExtension, project.tasks.named<AbstractCompile>("compileJava"))
+    configureTestConfigurations(project, csiExtension)
   }
 
   private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
@@ -100,23 +102,14 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     return file
   }
 
-  private fun createTasks(project: Project, csiExtension: CallSiteInstrumentationExtension) {
-    registerGenerateCallSiteTask(project, csiExtension, project.tasks.named<AbstractCompile>("compileJava"))
-
-    project.tasks.withType<AbstractCompile>().matching { task ->
-      task.name.startsWith("compileTest")
-    }.configureEach {
-      inputs.dir(csiExtension.targetFolder)
-      classpath += project.files(csiExtension.targetFolder)
-    }
-
-    // This afterEvaluate appear to be needed to ensure the good class classpath
-    // is appended, otherwise when the configureEach is applied when the plugin is applied,
-    // it will run before the JVM test suite plugins run and won't capture the correct classpath.
-    project.afterEvaluate {
-      project.tasks.withType<Test>().configureEach {
-        inputs.dir(csiExtension.targetFolder)
-        classpath += project.files(csiExtension.targetFolder)
+  private fun configureTestConfigurations(project: Project, csiExtension: CallSiteInstrumentationExtension) {
+    project.pluginManager.withPlugin("jvm-test-suite") {
+      project.extensions.getByType<TestingExtension>().suites.withType<JvmTestSuite>().configureEach {
+        project.logger.info("Configuring jvm test suite '{}' to use csiExtension.targetFolder", name)
+        dependencies {
+          compileOnly.add(project.files(csiExtension.targetFolder))
+          runtimeOnly.add(project.files(csiExtension.targetFolder))
+        }
       }
     }
   }
