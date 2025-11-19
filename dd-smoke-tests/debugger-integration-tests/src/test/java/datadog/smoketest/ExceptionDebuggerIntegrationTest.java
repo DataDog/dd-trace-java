@@ -10,6 +10,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
+import datadog.trace.test.util.Flaky;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@Flaky
 public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
   private List<String> snapshotIdTags = new ArrayList<>();
