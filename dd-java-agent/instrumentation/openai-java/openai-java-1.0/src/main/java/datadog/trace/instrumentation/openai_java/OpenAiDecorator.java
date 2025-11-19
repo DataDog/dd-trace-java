@@ -193,7 +193,8 @@ public class OpenAiDecorator extends ClientDecorator {
     // clientOptions.queryParams().values("api-version")
   }
 
-  public void decorateChatCompletion(AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
+  public void decorateChatCompletion(
+      AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag("openai.request.endpoint", "v1/chat/completions");
     span.setTag("openai.request.method", "POST");
@@ -213,11 +214,14 @@ public class OpenAiDecorator extends ClientDecorator {
     if (stream) {
       metadata.put("stream", true);
     }
-    params.streamOptions().ifPresent(v -> {
-      if (v.includeUsage().orElse(false)) {
-        metadata.put("stream_options", Collections.singletonMap("include_usage", true));
-      }
-    });
+    params
+        .streamOptions()
+        .ifPresent(
+            v -> {
+              if (v.includeUsage().orElse(false)) {
+                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+              }
+            });
     span.setTag("_ml_obs_tag.metadata", metadata);
   }
 
@@ -253,9 +257,7 @@ public class OpenAiDecorator extends ClientDecorator {
     // gpt-3.5-turbo-instruct:20230824-v2c
 
     List<LLMObs.LLMMessage> output =
-        completion.choices().stream()
-            .map(OpenAiDecorator::llmMessage)
-            .collect(Collectors.toList());
+        completion.choices().stream().map(OpenAiDecorator::llmMessage).collect(Collectors.toList());
     span.setTag("_ml_obs_tag.output", output);
 
     completion.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
@@ -295,7 +297,7 @@ public class OpenAiDecorator extends ClientDecorator {
     final int choiceNum = firstChunk.choices().size();
     // collect roles by choices by the first chunk
     String[] roles = new String[choiceNum];
-    for (int i=0; i < choiceNum; i++) {
+    for (int i = 0; i < choiceNum; i++) {
       ChatCompletionChunk.Choice choice = firstChunk.choices().get(i);
       Optional<String> role = choice.delta().role().flatMap(r -> r._value().asString());
       if (role.isPresent()) {
@@ -304,13 +306,13 @@ public class OpenAiDecorator extends ClientDecorator {
     }
     // collect content by choices for all chunks
     StringBuilder[] contents = new StringBuilder[choiceNum];
-    for (int i=0; i < choiceNum; i++) {
+    for (int i = 0; i < choiceNum; i++) {
       contents[i] = new StringBuilder(128);
     }
     for (ChatCompletionChunk chunk : chunks) {
       // choices can be empty for the last chunk
       List<ChatCompletionChunk.Choice> choices = chunk.choices();
-      for (int i=0; i < choiceNum && i < choices.size(); i++) {
+      for (int i = 0; i < choiceNum && i < choices.size(); i++) {
         ChatCompletionChunk.Choice choice = choices.get(i);
         ChatCompletionChunk.Choice.Delta delta = choice.delta();
         delta.content().ifPresent(contents[i]::append);
@@ -319,7 +321,7 @@ public class OpenAiDecorator extends ClientDecorator {
     }
     // build LLMMessages
     List<LLMObs.LLMMessage> llmMessages = new ArrayList<>(choiceNum);
-    for (int i=0; i < choiceNum; i++) {
+    for (int i = 0; i < choiceNum; i++) {
       llmMessages.add(LLMObs.LLMMessage.from(roles[i], contents[i].toString()));
     }
     span.setTag("_ml_obs_tag.output", llmMessages);
