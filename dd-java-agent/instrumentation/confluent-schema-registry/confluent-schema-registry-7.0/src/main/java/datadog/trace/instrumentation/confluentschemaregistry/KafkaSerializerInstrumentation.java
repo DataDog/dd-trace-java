@@ -42,7 +42,10 @@ public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.kafka_common.ClusterIdHolder"};
+    return new String[] {
+      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      packageName + ".SchemaIdExtractor"
+    };
   }
 
   @Override
@@ -100,21 +103,7 @@ public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
       String clusterId = ClusterIdHolder.get();
 
       boolean isSuccess = throwable == null;
-      int schemaId = -1;
-
-      // Extract schema ID from the serialized bytes if successful
-      if (isSuccess && result != null && result.length >= 5 && result[0] == 0) {
-        try {
-          // Confluent wire format: [magic_byte][4-byte schema id][data]
-          schemaId =
-              ((result[1] & 0xFF) << 24)
-                  | ((result[2] & 0xFF) << 16)
-                  | ((result[3] & 0xFF) << 8)
-                  | (result[4] & 0xFF);
-        } catch (Throwable ignored) {
-          // If extraction fails, keep schemaId as -1
-        }
-      }
+      int schemaId = isSuccess ? SchemaIdExtractor.extractSchemaId(result) : -1;
 
       // Record the schema registry usage
       AgentTracer.get()

@@ -17,6 +17,6 @@ public class ClusterIdHolder {
   }
 
   public static void clear() {
-    CLUSTER_ID.remove();
+    CLUSTER_ID.set(null);
   }
 }
