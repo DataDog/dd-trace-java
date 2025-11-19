@@ -110,9 +110,14 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       classpath += project.files(csiExtension.targetFolder)
     }
 
-    project.tasks.withType<Test>().configureEach {
-      inputs.dir(csiExtension.targetFolder)
-      classpath += project.files(csiExtension.targetFolder)
+    // This afterEvaluate appear to be needed to ensure the good class classpath
+    // is appended, otherwise when the configureEach is applied when the plugin is applied,
+    // it will run before the JVM test suite plugins run and won't capture the correct classpath.
+    project.afterEvaluate {
+      project.tasks.withType<Test>().configureEach {
+        inputs.dir(csiExtension.targetFolder)
+        classpath += project.files(csiExtension.targetFolder)
+      }
     }
   }
 
