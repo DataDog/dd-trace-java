@@ -16,7 +16,6 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -100,7 +99,7 @@ public class RemoteConfigServiceImpl
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable final Date value)
         throws IOException {
-      throw new UnsupportedEncodingException("Reading only adapter");
+      throw new UnsupportedOperationException("Reading only adapter");
     }
   }
 }

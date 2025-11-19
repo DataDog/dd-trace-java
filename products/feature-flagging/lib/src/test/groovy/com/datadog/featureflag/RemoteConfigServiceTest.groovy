@@ -1,6 +1,7 @@
 package com.datadog.featureflag
 
 import com.squareup.moshi.JsonReader
+import com.squareup.moshi.JsonWriter
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.ConfigurationDeserializer
@@ -104,5 +105,16 @@ class RemoteConfigServiceTest extends DDSpecification {
 
     // Null input
     null                        | null
+  }
+
+  void 'test parsing only adapter'() {
+    given:
+    final adapter = new RemoteConfigServiceImpl.DateAdapter()
+
+    when:
+    adapter.toJson(Stub(JsonWriter), new Date())
+
+    then:
+    thrown(UnsupportedOperationException)
   }
 }
