@@ -8,8 +8,11 @@ import com.openai.models.ResponsesModel;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.chat.completions.ChatCompletionMessage;
+import com.openai.models.chat.completions.ChatCompletionMessageParam;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
+import com.openai.models.completions.CompletionUsage;
 import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import com.openai.models.responses.Response;
@@ -127,22 +130,13 @@ public class OpenAiDecorator extends ClientDecorator {
             .collect(Collectors.toList());
     span.setTag("_ml_obs_tag.output", output);
 
-    completion
-        .usage()
-        .ifPresent(
-            u -> {
-              span.setTag("_ml_obs_metric.input_tokens", u.promptTokens());
-              span.setTag("_ml_obs_metric.output_tokens", u.completionTokens());
-              span.setTag("_ml_obs_metric.total_tokens", u.totalTokens());
-            });
+    completion.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
   }
 
   public void decorateWithCompletions(AgentSpan span, List<Completion> completions) {
     if (!completions.isEmpty()) {
       decorateWithCompletion(span, completions.get(0));
     }
-
-    // TODO set LLMObs tags (not visible to APM)
   }
 
   public void decorateWithHttpResponse(AgentSpan span, HttpResponse response) {
@@ -206,12 +200,73 @@ public class OpenAiDecorator extends ClientDecorator {
       return;
     }
     span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
+
+    span.setTag(
+        "_ml_obs_tag.input",
+        params.messages().stream().map(OpenAiDecorator::llmMessage).collect(Collectors.toList()));
+
+    Map<String, Object> metadata = new HashMap<>();
+    params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
+    // params.maxCompletionTokens().ifPresent(v -> metadata.put("max_tokens", v));
+    params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    span.setTag("_ml_obs_tag.metadata", metadata);
+  }
+
+  private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
+    String role = "unknown";
+    String content = null;
+    if (m.isAssistant()) {
+      role = "assistant";
+      content = m.asAssistant().content().map(v -> v.text().orElse(null)).orElse(null);
+    } else if (m.isDeveloper()) {
+      role = "developer";
+      content = m.asDeveloper().content().text().orElse(null);
+    } else if (m.isSystem()) {
+      role = "system";
+      content = m.asSystem().content().text().orElse(null);
+    } else if (m.isTool()) {
+      role = "tool";
+      content = m.asTool().content().text().orElse(null);
+    } else if (m.isUser()) {
+      role = "user";
+      content = m.asUser().content().text().orElse(null);
+    }
+    return LLMObs.LLMMessage.from(role, content);
   }
 
   public void decorateWithChatCompletion(AgentSpan span, ChatCompletion completion) {
-    span.setTag(RESPONSE_MODEL, completion.model());
+    String modelName = completion.model();
+    span.setTag(RESPONSE_MODEL, modelName);
 
-    // TODO set LLMObs tags (not visible to APM)
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g.
+    // gpt-3.5-turbo-instruct:20230824-v2c
+
+    List<LLMObs.LLMMessage> output =
+        completion.choices().stream()
+            .map(OpenAiDecorator::llmMessage)
+            .collect(Collectors.toList());
+    span.setTag("_ml_obs_tag.output", output);
+
+    completion.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
+  }
+
+  private static void annotateWithCompletionUsage(AgentSpan span, CompletionUsage usage) {
+    span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
+    span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
+    span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+  }
+
+  private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {
+    ChatCompletionMessage msg = choice.message();
+    Optional<?> roleOpt = msg._role().asString();
+    String role = "unknown";
+    if (roleOpt.isPresent()) {
+      role = String.valueOf(roleOpt.get());
+    }
+    String content = msg.content().orElse(null);
+    return LLMObs.LLMMessage.from(role, content);
   }
 
   public void decorateWithChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
@@ -219,7 +274,7 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(RESPONSE_MODEL, chunks.get(0).model());
     }
 
-    // TODO set LLMObs tags (not visible to APM)
+    // TODO set LLMObs tags
   }
 
   public void decorateEmbedding(AgentSpan span, EmbeddingCreateParams params) {
@@ -231,13 +286,13 @@ public class OpenAiDecorator extends ClientDecorator {
     }
     span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
 
-    // TODO set LLMObs tags (not visible to APM)
+    // TODO set LLMObs tags
   }
 
   public void decorateWithEmbedding(AgentSpan span, CreateEmbeddingResponse response) {
     span.setTag(RESPONSE_MODEL, response.model());
 
-    // TODO set LLMObs tags (not visible to APM)
+    // TODO set LLMObs tags
   }
 
   public void decorateResponse(AgentSpan span, ResponseCreateParams params) {
@@ -256,7 +311,7 @@ public class OpenAiDecorator extends ClientDecorator {
   public void decorateWithResponse(AgentSpan span, Response response) {
     span.setTag(RESPONSE_MODEL, extractResponseModel(response._model()));
 
-    // TODO set LLMObs tags (not visible to APM)
+    // TODO set LLMObs tags
   }
 
   private String extractResponseModel(JsonField<ResponsesModel> model) {
@@ -292,6 +347,6 @@ public class OpenAiDecorator extends ClientDecorator {
       // span.setTag(RESPONSE_MODEL, responseStreamEvent.res()); // TODO there is no model
     }
 
-    // TODO set LLMObs tags (not visible to APM)
+    // TODO set LLMObs tags
   }
 }
