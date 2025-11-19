@@ -51,10 +51,10 @@ for app in *; do
   # Using profiler variants for healthcheck as they are the slowest
   if [ "${app}" == "petclinic" ]; then
     HEALTHCHECK_URL=http://localhost:8082
-    REPETITIONS_COUNT=5
+    REPETITIONS_COUNT=7
   elif [ "${app}" == "insecure-bank" ]; then
     HEALTHCHECK_URL=http://localhost:8082/login
-    REPETITIONS_COUNT=5
+    REPETITIONS_COUNT=7
   else
     echo "Unknown app ${app}"
     exit 1
