@@ -1,7 +1,5 @@
 package datadog.gradle.plugin.csi
 
-import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
@@ -19,7 +17,6 @@ import javax.inject.Inject
  * This extension allows to configure the Call Site Instrumenter plugin execution.
  */
 abstract class CallSiteInstrumentationExtension @Inject constructor(
-  project: Project,
   objectFactory: ObjectFactory,
   layout: ProjectLayout
 ) {
