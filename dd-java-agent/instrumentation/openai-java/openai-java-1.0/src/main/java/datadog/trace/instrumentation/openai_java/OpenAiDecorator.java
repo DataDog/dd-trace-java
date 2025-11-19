@@ -247,7 +247,10 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, extractResponseModel(params._model())); // ResponseCreateParams.model() was dropped somewhere after v2
+    span.setTag(
+        REQUEST_MODEL,
+        extractResponseModel(
+            params._model())); // ResponseCreateParams.model() was dropped somewhere after v2
   }
 
   public void decorateWithResponse(AgentSpan span, Response response) {
