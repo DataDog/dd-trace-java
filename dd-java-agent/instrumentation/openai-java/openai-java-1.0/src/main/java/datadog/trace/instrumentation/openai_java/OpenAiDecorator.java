@@ -247,10 +247,10 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(
-        REQUEST_MODEL,
-        extractResponseModel(
-            params._model())); // ResponseCreateParams.model() was dropped somewhere after v2
+    // Use ResponseCreateParams._model() b/o ResponseCreateParams.model() changed type from
+    // ResponsesModel to Optional<ResponsesModel> in
+    // https://github.com/openai/openai-java/commit/87dd64658da6cec7564f3b571e15ec0e2db0660b
+    span.setTag(REQUEST_MODEL, extractResponseModel(params._model()));
   }
 
   public void decorateWithResponse(AgentSpan span, Response response) {
