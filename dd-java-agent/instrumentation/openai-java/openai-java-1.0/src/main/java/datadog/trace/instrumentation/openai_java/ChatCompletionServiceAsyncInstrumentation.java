@@ -56,7 +56,7 @@ public class ChatCompletionServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
-      DECORATE.decorateChatCompletion(span, params);
+      DECORATE.decorateChatCompletion(span, params, false);
       return activateSpan(span);
     }
 
@@ -91,7 +91,7 @@ public class ChatCompletionServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.decorateWithClientOptions(span, clientOptions);
-      DECORATE.decorateChatCompletion(span, params);
+      DECORATE.decorateChatCompletion(span, params, true);
       return activateSpan(span);
     }
 

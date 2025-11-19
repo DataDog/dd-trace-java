@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -192,7 +193,7 @@ public class OpenAiDecorator extends ClientDecorator {
     // clientOptions.queryParams().values("api-version")
   }
 
-  public void decorateChatCompletion(AgentSpan span, ChatCompletionCreateParams params) {
+  public void decorateChatCompletion(AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag("openai.request.endpoint", "v1/chat/completions");
     span.setTag("openai.request.method", "POST");
@@ -206,9 +207,17 @@ public class OpenAiDecorator extends ClientDecorator {
         params.messages().stream().map(OpenAiDecorator::llmMessage).collect(Collectors.toList()));
 
     Map<String, Object> metadata = new HashMap<>();
+    // maxTokens is deprecated but integration tests missing to provide maxCompletionTokens
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
-    // params.maxCompletionTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    if (stream) {
+      metadata.put("stream", true);
+    }
+    params.streamOptions().ifPresent(v -> {
+      if (v.includeUsage().orElse(false)) {
+        metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+      }
+    });
     span.setTag("_ml_obs_tag.metadata", metadata);
   }
 
@@ -270,11 +279,50 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void decorateWithChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
-    if (!chunks.isEmpty()) {
-      span.setTag(RESPONSE_MODEL, chunks.get(0).model());
+    if (chunks.isEmpty()) {
+      return;
     }
+    ChatCompletionChunk firstChunk = chunks.get(0);
+    String modelName = firstChunk.model();
+    span.setTag(RESPONSE_MODEL, modelName);
 
-    // TODO set LLMObs tags
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g.
+    // gpt-3.5-turbo-instruct:20230824-v2
+
+    // assume that number of choices is the same for each chunk
+    final int choiceNum = firstChunk.choices().size();
+    // collect roles by choices by the first chunk
+    String[] roles = new String[choiceNum];
+    for (int i=0; i < choiceNum; i++) {
+      ChatCompletionChunk.Choice choice = firstChunk.choices().get(i);
+      Optional<String> role = choice.delta().role().flatMap(r -> r._value().asString());
+      if (role.isPresent()) {
+        roles[i] = role.get();
+      }
+    }
+    // collect content by choices for all chunks
+    StringBuilder[] contents = new StringBuilder[choiceNum];
+    for (int i=0; i < choiceNum; i++) {
+      contents[i] = new StringBuilder(128);
+    }
+    for (ChatCompletionChunk chunk : chunks) {
+      // choices can be empty for the last chunk
+      List<ChatCompletionChunk.Choice> choices = chunk.choices();
+      for (int i=0; i < choiceNum && i < choices.size(); i++) {
+        ChatCompletionChunk.Choice choice = choices.get(i);
+        ChatCompletionChunk.Choice.Delta delta = choice.delta();
+        delta.content().ifPresent(contents[i]::append);
+      }
+      chunk.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
+    }
+    // build LLMMessages
+    List<LLMObs.LLMMessage> llmMessages = new ArrayList<>(choiceNum);
+    for (int i=0; i < choiceNum; i++) {
+      llmMessages.add(LLMObs.LLMMessage.from(roles[i], contents[i].toString()));
+    }
+    span.setTag("_ml_obs_tag.output", llmMessages);
   }
 
   public void decorateEmbedding(AgentSpan span, EmbeddingCreateParams params) {
