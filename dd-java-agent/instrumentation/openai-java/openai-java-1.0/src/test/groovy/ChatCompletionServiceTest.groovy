@@ -23,7 +23,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     expect:
     resp != null
     and:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(false)
   }
 
   def "create chat/completion test withRawResponse"() {
@@ -35,7 +35,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(false)
   }
 
   def "create streaming chat/completion test"() {
@@ -49,7 +49,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(true)
   }
 
   def "create streaming chat/completion test withRawResponse"() {
@@ -63,7 +63,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(true)
   }
 
   def "create async chat/completion test"() {
@@ -74,7 +74,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     completionFuture.get()
 
     expect:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(false)
   }
 
   def "create async chat/completion test withRawResponse"() {
@@ -86,7 +86,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(false)
   }
 
   def "create streaming async chat/completion test"() {
@@ -98,7 +98,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(true)
   }
 
   def "create streaming async chat/completion test withRawResponse"() {
@@ -113,10 +113,10 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertChatCompletionTrace()
+    assertChatCompletionTrace(true)
   }
 
-  private void assertChatCompletionTrace() {
+  private void assertChatCompletionTrace(boolean isStreaming) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -133,6 +133,17 @@ class ChatCompletionServiceTest extends OpenAiTest {
           spanType DDSpanTypes.LLMOBS
           tags {
             "_ml_obs_tag.span.kind" "llm"
+            "_ml_obs_tag.model_provider" "openai"
+            "_ml_obs_tag.model_name" String
+            "_ml_obs_tag.metadata" Map
+            "_ml_obs_tag.input" List
+            "_ml_obs_tag.output" List
+            if (!isStreaming) {
+              // streamed completions missing usage data
+              "_ml_obs_metric.input_tokens" Long
+              "_ml_obs_metric.output_tokens" Long
+              "_ml_obs_metric.total_tokens" Long
+            }
             "_ml_obs_tag.parent_id" "undefined"
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/chat/completions"
