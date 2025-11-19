@@ -39,8 +39,7 @@ java {
 }
 
 dependencies {
-  implementation(libs.slf4j)
-  implementation("dev.openfeature:sdk:1.18.2")
+  api("dev.openfeature:sdk:1.18.2")
 
   compileOnly(project(":products:feature-flagging:bootstrap"))
 

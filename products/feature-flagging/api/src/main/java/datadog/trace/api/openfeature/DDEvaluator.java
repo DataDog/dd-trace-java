@@ -38,12 +38,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DDEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
@@ -152,10 +149,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .reason(Reason.DEFAULT.name())
           .build();
     } catch (final NumberFormatException e) {
-      LOGGER.debug("Evaluation failed for key {}", key, e);
-      return error(defaultValue, ErrorCode.TYPE_MISMATCH);
+      return error(defaultValue, ErrorCode.TYPE_MISMATCH, e);
     } catch (final Exception e) {
-      LOGGER.debug("Evaluation failed for key {}", key, e);
       return error(defaultValue, ErrorCode.GENERAL, e);
     }
   }
