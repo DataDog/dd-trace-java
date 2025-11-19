@@ -134,7 +134,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       "build",
       "libs",
       "call-site-instrumentation-plugin-all.jar"
-    ).toFile()
+    )
 
     val callSiteGeneratorTask = project.tasks.register<JavaExec>(genTaskName) {
       // Task description
@@ -163,12 +163,11 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
 
       // Write the call site instrumenter arguments into a temporary file
       doFirst {
-        val callsitesClassPath = project.objects.fileCollection()
-          .from(
-            project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output },
-            project.defaultConfigurations,
-            csiExtension.additionalPaths
-          )
+        val callsitesClassPath = project.files(
+          project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output },
+          project.defaultConfigurations,
+          csiExtension.additionalPaths,
+        )
 
         if (logger.isInfoEnabled) {
           logger.info(
@@ -177,7 +176,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
           )
         }
 
-        val arguments = buildList {
+        val argFile = buildList {
           add(csiExtension.srcFolder.get().asFile.toString())
           add(inputProvider.get().asFile.toString())
           add(output.get().asFile.toString())
@@ -189,14 +188,17 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
         }
 
         val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
-        Files.write(argumentFile.toPath(), arguments)
+        Files.write(argumentFile.toPath(), argFile)
         args(argumentFile.toString())
       }
 
       // make task depends on compile
       dependsOn(mainCompileTask)
-      // Workaround for instrument plugin modifying compile tasks
-      if (project.pluginManager.hasPlugin("instrument")) {
+    }
+
+    // Workaround for instrument plugin modifying compile tasks
+    project.pluginManager.withPlugin("instrument") {
+      callSiteGeneratorTask.configure {
         dependsOn("instrumentJava")
       }
     }
