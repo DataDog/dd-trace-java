@@ -17,6 +17,7 @@ import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
+import org.gradle.internal.configuration.problems.projectPathFrom
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.apply
@@ -33,8 +34,8 @@ import java.util.Locale
 import javax.inject.Inject
 
 private const val CALL_SITE_INSTRUMENTER_MAIN_CLASS = "datadog.trace.plugin.csi.PluginApplication"
-private const val CSI = "csi"
-private const val CSI_SOURCE_SET = CSI
+const val CSI = "csi"
+const val CSI_SOURCE_SET = CSI
 
 abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
   @get:Inject
@@ -52,13 +53,12 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
 
   private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
     // create a new source set for the csi files
-    val targetFolder = newBuildFolder(project, extension.targetFolder.get().asFile.toString())
     val sourceSets = project.sourceSets
     val mainSourceSet = sourceSets.named(MAIN_SOURCE_SET_NAME).get()
     val csiSourceSet = sourceSets.create(CSI_SOURCE_SET) {
       compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
       annotationProcessorPath += mainSourceSet.annotationProcessorPath
-      java.srcDir(targetFolder)
+      java.srcDir(extension.targetFolder)
     }
 
     project.configurations.named(csiSourceSet.compileClasspathConfigurationName) {
@@ -81,16 +81,6 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     project.tasks.named<Jar>("jar") {
       from(csiSourceSet.output.classesDirs)
     }
-  }
-
-  private fun newBuildFolder(project: Project, name: String): File {
-    val folder = project.layout.buildDirectory.dir(name).get().asFile
-    if (!folder.exists()) {
-      if (!folder.mkdirs()) {
-        throw GradleException("Cannot create folder $folder")
-      }
-    }
-    return folder
   }
 
   private fun newTempFile(folder: File, name: String): File {

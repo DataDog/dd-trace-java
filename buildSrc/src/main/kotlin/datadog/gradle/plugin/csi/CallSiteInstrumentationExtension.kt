@@ -40,7 +40,7 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
    * The location to generate call site source code ({@code <project>/build/generated/sources/csi} by default).
    */
   val targetFolder: DirectoryProperty = objectFactory.directoryProperty().convention(
-    layout.buildDirectory.dir("generated${File.separatorChar}sources${File.separatorChar}csi")
+    layout.buildDirectory.dir("generated/sources/$CSI_SOURCE_SET")
   )
 
   /**
