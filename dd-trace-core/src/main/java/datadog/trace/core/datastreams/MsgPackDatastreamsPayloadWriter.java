@@ -98,11 +98,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     /* 2 */
     writer.writeUTF8(SERVICE);
     if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
-      System.out.println("### Service name from override: " + serviceNameOverride);
       writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
     } else {
-      System.out.println(
-          "### Well known tags: " + wellKnownTags + ", service " + wellKnownTags.getService());
       writer.writeUTF8(wellKnownTags.getService());
     }
 
