@@ -50,7 +50,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(ct, obj, "lambda-request-123")
+    def objTest = LambdaHandler.notifyStartInvocation(obj, "lambda-request-123")
 
     then:
     objTest.getTraceId().toString() == traceId
@@ -85,7 +85,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(ct, obj, "lambda-request-123")
+    def objTest = LambdaHandler.notifyStartInvocation(obj, "lambda-request-123")
 
     then:
     objTest.getTraceId().toHexString() == traceId
@@ -117,7 +117,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(ct, obj, "my-lambda-request")
+    def objTest = LambdaHandler.notifyStartInvocation(obj, "my-lambda-request")
 
     then:
     objTest == expected

@@ -9,7 +9,6 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.core.CoreTracer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -73,12 +72,8 @@ public class LambdaHandler {
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static AgentSpanContext notifyStartInvocation(
-      CoreTracer tracer, Object event, String lambdaRequestId) {
-    RequestBody body =
-        RequestBody.create(
-            jsonMediaType,
-            writeValueAsString(event)); // MAYBE remove CoreTracer parameter since it is not used
+  public static AgentSpanContext notifyStartInvocation(Object event, String lambdaRequestId) {
+    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
             .newCall(
