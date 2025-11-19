@@ -11,24 +11,24 @@ public final class BitUtils {
    * @return the next power of two ≥ {@code value}
    */
   public static int nextPowerOfTwo(int value) {
+    // The next power of two for 0 or 1 is 1.
     if (value <= 1) {
       return 1;
     }
 
-    // Round up to next power of two (bitwise equivalent of using log2 and pow again)
-    value--;
-    value |= value >> 1;
-    value |= value >> 2;
-    value |= value >> 4;
-    value |= value >> 8;
-    value |= value >> 16;
-    value++;
+    // Compute how many leading zero bits there are in (value - 1).  This gives us information about
+    // where the highest set bit is.
+    int n = Integer.numberOfLeadingZeros(value - 1);
 
-    // handle overflow (e.g., if value was already near Integer.MAX_VALUE)
-    if (value <= 0) {
-      return 1 << 30; // max power of two that fits in int
+    //  -1 in two's complement = 0xFFFF_FFFF (all bits set to 1). Unsigned right-shifting by n: (-1
+    // >>> n) produces a mask of (32 - n) one-bits.
+    int result = (-1 >>> n) + 1;
+
+    // If result overflowed clamp it to the largest unsigned power of two fitting an int.
+    if (result <= 0) {
+      return 1 << 30;
     }
 
-    return value;
+    return result;
   }
 }
