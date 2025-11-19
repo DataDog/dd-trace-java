@@ -2064,7 +2064,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         serviceName = tracer.serviceName;
       }
 
-      if (operationName == null) operationName = resourceName;
+      if (operationName == null) {
+        operationName = resourceName;
+      }
 
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
