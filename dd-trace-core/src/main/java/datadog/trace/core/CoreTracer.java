@@ -1109,7 +1109,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final CharSequence spanName,
       final AgentSpanContext parent,
       final long startTimeMicros) {
-    return buildSpan(instrumentationName, spanName)
+    return singleSpanBuilder(instrumentationName, spanName)
         .ignoreActiveSpan()
         .asChildOf(parent)
         .withStartTimestamp(startTimeMicros)

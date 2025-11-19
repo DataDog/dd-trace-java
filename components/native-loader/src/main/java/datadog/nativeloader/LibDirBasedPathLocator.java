@@ -14,8 +14,8 @@ final class LibDirBasedPathLocator implements PathLocator {
   }
 
   @Override
-  public URL locate(String component, String path) {
-    String fullPath = PathUtils.concatPath(component, path);
+  public URL locate(String optionalComponent, String path) {
+    String fullPath = PathUtils.concatPath(optionalComponent, path);
 
     for (File libDir : this.libDirs) {
       File libFile = new File(libDir, fullPath);

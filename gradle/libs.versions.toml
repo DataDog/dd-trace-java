@@ -29,7 +29,7 @@ scala33 = "3.3.0"
 autoservice = "1.1.1"
 asm = "9.9"
 byte-buddy = "1.17.7"
-instrument-java = "0.0.2"
+instrument-java = "0.0.3"
 
 # Benchmarks
 jmh = "1.37"
@@ -61,6 +61,7 @@ jackson = "2.20.0"
 moshi = "1.11.0"
 
 # Testing
+junit4 = "4.13.2"
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 mockito = "4.4.0"
@@ -135,6 +136,7 @@ jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", vers
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 
 # Testing
+junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }

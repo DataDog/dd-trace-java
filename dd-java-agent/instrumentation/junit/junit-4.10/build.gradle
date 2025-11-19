@@ -3,9 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'org.jetbrains.kotlin.jvm'
+  id 'datadog.instrumentation.testing-framework-tests'
 }
-
-ext.testingInstrumentation = true
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
