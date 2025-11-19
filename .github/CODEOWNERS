@@ -116,9 +116,7 @@
 **/DataStreams*                                                              @DataDog/data-streams-monitoring
 
 # @DataDog/feature-flagging-and-experimentation-sdk
-/internal-api/src/main/java/datadog/trace/api/featureflag/      @DataDog/feature-flagging-and-experimentation-sdk
-/internal-api/src/test/groovy/datadog/trace/api/featureflag/    @DataDog/feature-flagging-and-experimentation-sdk
-/products/feature-flagging/                                     @DataDog/feature-flagging-and-experimentation-sdk
+/products/feature-flagging/                           @DataDog/feature-flagging-and-experimentation-sdk
 
 # @DataDog/profiling-java
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
