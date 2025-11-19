@@ -44,7 +44,6 @@ public final class TransactionInfo implements InboxItem {
     result[2] = (byte) (timestamp >> 48);
     result[3] = (byte) (timestamp >> 40);
     result[4] = (byte) (timestamp >> 32);
-    ;
     result[5] = (byte) (timestamp >> 24);
     result[6] = (byte) (timestamp >> 16);
     result[7] = (byte) (timestamp >> 8);
