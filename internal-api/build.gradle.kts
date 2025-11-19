@@ -68,6 +68,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.datastreams.InboxItem",
     "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
     "datadog.trace.api.datastreams.NoopPathwayContext",
+    "datadog.trace.api.datastreams.SchemaRegistryUsage",
     "datadog.trace.api.datastreams.StatsPoint",
     // Debugger
     "datadog.trace.api.debugger.DebuggerConfigUpdate",
