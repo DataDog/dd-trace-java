@@ -27,12 +27,15 @@ import javax.ws.rs.container.AsyncResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   private static final String JAX_ENDPOINT_OPERATION_NAME = "jax-rs.request";
+  private static final Logger log = LoggerFactory.getLogger(JaxRsAnnotationsInstrumentation.class);
 
   public JaxRsAnnotationsInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-annotations");
@@ -96,6 +99,8 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
         @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
+      log.info("Matt Li Test:");
+      log.info(String.valueOf(target.getClass()));
       ContextStore<AsyncResponse, AgentSpan> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
