@@ -4,6 +4,7 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   idea
+  `maven-publish`
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -11,7 +12,19 @@ apply(from = "$rootDir/gradle/publish.gradle")
 
 val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
 
-description = "OpenFeature Provider interface implementation"
+description = "Implementation of the OpenFeature Provider interface."
+
+// Set both JAR and Maven artifact name
+val openFeatureArtifactId = "dd-openfeature"
+base {
+  archivesName.set(openFeatureArtifactId)
+}
+
+publishing {
+  publications.withType<MavenPublication>().configureEach {
+    artifactId = openFeatureArtifactId
+  }
+}
 
 idea {
   module {
@@ -26,10 +39,12 @@ java {
 }
 
 dependencies {
-  api(libs.slf4j)
-  api("dev.openfeature:sdk:1.18.2")
-  api(project(":products:feature-flagging:bootstrap"))
+  implementation(libs.slf4j)
+  implementation("dev.openfeature:sdk:1.18.2")
 
+  compileOnly(project(":products:feature-flagging:bootstrap"))
+
+  testImplementation(project(":products:feature-flagging:bootstrap"))
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
