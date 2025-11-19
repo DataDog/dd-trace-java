@@ -128,7 +128,8 @@ abstract class OpenAiTest extends LlmObsSpecification {
 
   ResponseCreateParams responseCreateParams() {
     ResponseCreateParams.builder()
-    .model(ChatModel.GPT_3_5_TURBO)
+    // .model(ChatModel.GPT_3_5_TURBO) // TODO add test param
+    .model("gpt-3.5-turbo")
     .input("Do not continue the Evan Li slander!")
     .build()
   }

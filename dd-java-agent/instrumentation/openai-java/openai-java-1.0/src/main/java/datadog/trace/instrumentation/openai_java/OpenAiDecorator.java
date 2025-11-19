@@ -247,22 +247,40 @@ public class OpenAiDecorator extends ClientDecorator {
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, extractResponseModel(params._model()));
-  }
-
-  private String extractResponseModel(JsonField<ResponsesModel> model) {
-    Optional<String> result = model.asString();
-    if (result.isPresent()) {
-      return result.get();
-    }
-    result = model.asKnown().flatMap(k -> k.chat().flatMap(v -> v._value().asString()));
-    return result.orElse("_UNKNOWN");
+    span.setTag(REQUEST_MODEL, extractResponseModel(params._model())); // ResponseCreateParams.model() was dropped somewhere after v2
   }
 
   public void decorateWithResponse(AgentSpan span, Response response) {
     span.setTag(RESPONSE_MODEL, extractResponseModel(response._model()));
 
     // TODO set LLMObs tags (not visible to APM)
+  }
+
+  private String extractResponseModel(JsonField<ResponsesModel> model) {
+    Optional<String> str = model.asString();
+    if (str.isPresent()) {
+      return str.get();
+    }
+    Optional<ResponsesModel> known = model.asKnown();
+    if (known.isPresent()) {
+      ResponsesModel m = known.get();
+      if (m.isString()) {
+        return m.asString();
+      }
+      if (m.isChat()) {
+        Optional<String> s = m.asChat()._value().asString();
+        if (s.isPresent()) {
+          return s.get();
+        }
+      }
+      if (m.isOnly()) {
+        Optional<String> s = m.asOnly()._value().asString();
+        if (s.isPresent()) {
+          return s.get();
+        }
+      }
+    }
+    return null;
   }
 
   public void decorateWithResponseStreamEvent(AgentSpan span, List<ResponseStreamEvent> events) {
