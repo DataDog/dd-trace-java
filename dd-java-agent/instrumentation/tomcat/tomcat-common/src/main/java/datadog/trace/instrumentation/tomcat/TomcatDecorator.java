@@ -73,6 +73,11 @@ public class TomcatDecorator
   }
 
   @Override
+  protected String getRequestHeader(final Request request, String key) {
+    return request.getHeader(key);
+  }
+
+  @Override
   protected int status(final Response response) {
     int status = response.getStatus();
     if (status == 500) {

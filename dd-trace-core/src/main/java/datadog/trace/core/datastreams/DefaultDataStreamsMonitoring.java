@@ -16,7 +16,15 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.datastreams.*;
+import datadog.trace.api.datastreams.Backlog;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.InboxItem;
+import datadog.trace.api.datastreams.NoopPathwayContext;
+import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
@@ -45,6 +54,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  static final List<DataStreamsTransactionExtractor> NO_EXTRACTORS = Collections.emptyList();
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -67,6 +77,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
+  private final ReentrantReadWriteLock extractorsLock = new ReentrantReadWriteLock();
+
+  // contains a list of active extractors by type
+  private static final Map<
+          DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
+      extractorsByType = new HashMap<>();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -182,6 +198,27 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     serviceNameOverride.remove();
   }
 
+  @Override
+  public void trackTransaction(String transactionId, String checkpointName) {
+    inbox.offer(
+        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
+  }
+
+  @Override
+  public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
+      DataStreamsTransactionExtractor.Type extractorType) {
+    if (!supportsDataStreams) {
+      return NO_EXTRACTORS;
+    }
+
+    extractorsLock.readLock().lock();
+    try {
+      return extractorsByType.getOrDefault(extractorType, NO_EXTRACTORS);
+    } finally {
+      extractorsLock.readLock().unlock();
+    }
+  }
+
   private static String getThreadServiceName() {
     return serviceNameOverride.get();
   }
@@ -213,6 +250,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  @Override
   public void trackBacklog(DataStreamsTags tags, long value) {
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
@@ -358,6 +396,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsBucket statsBucket =
                   getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
               statsBucket.addBacklog(backlog);
+            } else if (payload instanceof TransactionInfo) {
+              TransactionInfo transactionInfo = (TransactionInfo) payload;
+              StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
+              statsBucket.addTransaction(transactionInfo);
             }
           }
         } catch (Exception e) {
@@ -430,9 +472,33 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  private void updateExtractorsFromConfig() {
+    extractorsLock.writeLock().lock();
+    try {
+      extractorsByType.clear();
+      List<DataStreamsTransactionExtractor> extractors =
+          traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+      if (extractors == null) {
+        return;
+      }
+      for (DataStreamsTransactionExtractor extractor : extractors) {
+        List<DataStreamsTransactionExtractor> list =
+            extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
+        list.add(extractor);
+        log.debug("Added data streams transaction extractor: {}", extractor);
+      }
+    } finally {
+      extractorsLock.writeLock().unlock();
+    }
+  }
+
   private void checkDynamicConfig() {
     configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+
+    if (supportsDataStreams) {
+      updateExtractorsFromConfig();
+    }
   }
 
   private void checkFeatures() {

@@ -77,6 +77,11 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return true;
   }
 
+  @Override
+  protected String getRequestHeader(final Request request, String key) {
+    return request.getHeader(key);
+  }
+
   public AgentSpan onResponse(AgentSpan span, AbstractHttpConnection connection) {
     Request request = connection.getRequest();
     Response response = connection.getResponse();

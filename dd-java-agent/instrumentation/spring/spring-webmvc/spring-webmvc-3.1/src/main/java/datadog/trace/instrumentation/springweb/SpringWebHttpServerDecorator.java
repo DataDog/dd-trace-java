@@ -93,6 +93,11 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
+  protected String getRequestHeader(final HttpServletRequest request, String key) {
+    return request.getHeader(key);
+  }
+
+  @Override
   public AgentSpan onRequest(
       final AgentSpan span,
       final HttpServletRequest connection,

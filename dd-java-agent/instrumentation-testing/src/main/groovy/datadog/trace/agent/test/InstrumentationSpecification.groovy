@@ -1,5 +1,15 @@
 package datadog.trace.agent.test
 
+import static datadog.communication.http.OkHttpUtils.buildHttpClient
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
+
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -33,6 +43,7 @@ import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
 import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
@@ -56,6 +67,13 @@ import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
+import java.lang.instrument.ClassFileTransformer
+import java.lang.instrument.Instrumentation
+import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
@@ -68,24 +86,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
 import spock.lang.Shared
-
-import java.lang.instrument.ClassFileTransformer
-import java.lang.instrument.Instrumentation
-import java.nio.ByteBuffer
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
-
-import static datadog.communication.http.OkHttpUtils.buildHttpClient
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
-import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
-import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
-import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 /**
  * A specification that automatically applies instrumentation and exposes a global trace
@@ -248,6 +248,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     @Override
     List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
+      return null
+    }
+
+    List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
       return null
     }
   }

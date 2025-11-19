@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
@@ -37,6 +38,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
   private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
+  private static final byte[] TRANSACTIONS = "Transactions".getBytes(ISO_8859_1);
+  private static final byte[] TRANSACTION_CHECKPOINT_IDS =
+      "TransactionCheckpointIds".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -93,7 +97,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     /* 2 */
     writer.writeUTF8(SERVICE);
-    if (serviceNameOverride != null) {
+    if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
       writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
     } else {
       writer.writeUTF8(wellKnownTags.getService());
@@ -121,7 +125,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      writer.startMap(3 + (hasBacklogs ? 1 : 0));
+      boolean hasTransactions = !bucket.getTransactions().isEmpty();
+      writer.startMap(3 + (hasBacklogs ? 1 : 0) + (hasTransactions ? 2 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -138,6 +143,14 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (hasBacklogs) {
         /* 4 */
         writeBacklogs(bucket.getBacklogs(), writer);
+      }
+
+      if (hasTransactions) {
+        /* 5 */
+        writer.writeUTF8(TRANSACTIONS);
+        writer.writeBinary(bucket.getTransactions().getData());
+        writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
+        writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
       }
     }
 
