@@ -452,6 +452,14 @@ class AIGuardInternalTests extends DDSpecification {
     0 * span.setTag(AIGuardInternal.TOOL_TAG, _)
   }
 
+  void 'map requires even number of params'() {
+    when:
+    AIGuardInternal.mapOf('1', '2', '3')
+
+    then:
+    thrown(IllegalArgumentException)
+  }
+
   private static assertTelemetry(final String metric, final String...tags) {
     final metrics = WafMetricCollector.get().with {
       prepareMetrics()
