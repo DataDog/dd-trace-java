@@ -23,6 +23,9 @@ import org.slf4j.LoggerFactory;
 final class NoMatchFilter {
   private static final Logger log = LoggerFactory.getLogger(NoMatchFilter.class);
 
+  private static final String TRACER_VERSION_HEADER = "dd-java-agent";
+  private static final String NO_MATCH_FILTER_HEADER = "NoMatchFilter";
+
   public static ClassNameFilter build() {
     // support persisting/restoring no-match results?
     Path noMatchFile = discoverNoMatchFile();
@@ -71,10 +74,10 @@ final class NoMatchFilter {
         new DataInputStream(new BufferedInputStream(Files.newInputStream(noMatchFile)))) {
       while (true) {
         switch (in.readUTF()) {
-          case "dd-java-agent":
+          case TRACER_VERSION_HEADER:
             expectVersion(in, DDTraceApiInfo.VERSION);
             break;
-          case "NoMatchFilter":
+          case NO_MATCH_FILTER_HEADER:
             return ClassNameFilter.readFrom(in);
           default:
             throw new IOException("unexpected content");
@@ -100,9 +103,9 @@ final class NoMatchFilter {
     log.debug("Persisting NoMatchFilter to {}", noMatchFile);
     try (DataOutputStream out =
         new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(noMatchFile)))) {
-      out.writeUTF("dd-java-agent");
+      out.writeUTF(TRACER_VERSION_HEADER);
       out.writeUTF(DDTraceApiInfo.VERSION);
-      out.writeUTF("NoMatchFilter");
+      out.writeUTF(NO_MATCH_FILTER_HEADER);
       filter.writeTo(out);
     } catch (IOException e) {
       if (log.isDebugEnabled()) {
