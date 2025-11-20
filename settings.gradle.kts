@@ -21,6 +21,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "4.2.2"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -140,6 +141,14 @@ include(
 
 // AI Guard
 include(":dd-java-agent:agent-aiguard")
+
+// Feature Flagging
+include(
+  ":products:feature-flagging:agent",
+  ":products:feature-flagging:api",
+  ":products:feature-flagging:bootstrap",
+  ":products:feature-flagging:lib"
+)
 
 // misc
 include(
@@ -301,6 +310,7 @@ include(
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-2.1",
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-3.5",
   ":dd-java-agent:instrumentation:commons-text-1.0",
+  ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-7.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",

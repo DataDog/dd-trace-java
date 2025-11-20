@@ -28,7 +28,7 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.9"
-byte-buddy = "1.17.7"
+byte-buddy = "1.18.1"
 instrument-java = "0.0.3"
 
 # Benchmarks
@@ -102,7 +102,7 @@ asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
 asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
 bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
 bytebuddyagent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byte-buddy" }
-instrumentjava = { module = "com.datadoghq:dd-instrument-java", version.ref = "instrument-java" }
+instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "instrument-java" }
 
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }

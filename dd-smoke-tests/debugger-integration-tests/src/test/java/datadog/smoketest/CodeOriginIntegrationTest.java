@@ -51,6 +51,7 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
             }
           }
         });
-    processRequests(codeOrigin::get);
+    processRequests(
+        codeOrigin::get, () -> String.format("timeout codeOrigin=%s", codeOrigin.get()));
   }
 }
