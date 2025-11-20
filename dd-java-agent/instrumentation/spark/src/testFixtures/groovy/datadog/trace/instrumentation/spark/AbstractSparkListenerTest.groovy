@@ -553,6 +553,26 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     true                 | "hadoop"                | "expected-service-name"
   }
 
+  def "test setupOpenLineage gets service name on databricks environment"() {
+    setup:
+    SparkConf sparkConf = new SparkConf()
+    sparkConf.set("spark.databricks.sparkContextId", "some-context")
+    sparkConf.set("spark.databricks.clusterUsageTags.clusterAllTags", "[{\"key\":\"RunName\",\"value\":\"some-run-name\"}]")
+
+
+    def listener = getTestDatadogSparkListener(sparkConf)
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .get("spark.openlineage.run.tags")
+    .split(";")
+    .contains("_dd.ol_service:databricks.job-cluster.some-run-name")
+  }
+
   def "test setupOpenLineage fills ProcessTags"() {
     setup:
     def listener = getTestDatadogSparkListener()

@@ -84,6 +84,20 @@ public class SpanDecorationProbe extends ProbeDefinition {
     public String toString() {
       return "Tag{" + "name='" + name + '\'' + ", value=" + value + '}';
     }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) return false;
+      Tag tag = (Tag) o;
+      return Objects.equals(name, tag.name) && Objects.equals(value, tag.value);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, value);
+    }
   }
 
   public static class Decoration {
@@ -107,6 +121,20 @@ public class SpanDecorationProbe extends ProbeDefinition {
     @Override
     public String toString() {
       return "Decoration{" + "when=" + when + ", tags=" + tags + '}';
+    }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) return false;
+      Decoration that = (Decoration) o;
+      return Objects.equals(when, that.when) && Objects.equals(tags, that.tags);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(when, tags);
     }
   }
 

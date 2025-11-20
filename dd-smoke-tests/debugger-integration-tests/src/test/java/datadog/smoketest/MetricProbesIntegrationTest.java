@@ -109,7 +109,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(statusResult::get);
+    processRequests(
+        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
 
   private void doMethodInvalidMetric(
@@ -140,7 +141,9 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
             error.set(true);
           }
         });
-    processRequests(() -> received.get() && error.get());
+    processRequests(
+        () -> received.get() && error.get(),
+        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
   }
 
   @Test
@@ -213,6 +216,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(statusResult::get);
+    processRequests(
+        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
 }

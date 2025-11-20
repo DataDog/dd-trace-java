@@ -14,5 +14,5 @@ public interface PathLocator {
    * <p>If the returned URL uses a non-file protocol, then {@link NativeLoader} will call {@link
    * URL#openStream()} and copy the contents to a temporary file
    */
-  URL locate(String component, String path) throws Exception;
+  URL locate(String optionalComponent, String path) throws Exception;
 }
