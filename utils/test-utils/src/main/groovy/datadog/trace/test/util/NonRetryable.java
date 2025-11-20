@@ -6,7 +6,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.junit.jupiter.api.Tag;
 
-/** Use this annotation for test cases that are not designed to be retryable (develocity). */
+/** 
+ * Use this annotation for test cases that are not designed to be retryable
+ * (gradle retry plugin / develocity).
+ * 
+ * <a href="https://github.com/gradle/test-retry-gradle-plugin">Retry plugin doc</a>.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Tag("NonRetryable")
