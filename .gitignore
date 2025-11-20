@@ -77,3 +77,6 @@ mise*.local.toml
 .config/mise*.toml
 # asdf
 .tool-versions
+
+# Exclude kotlin build files
+.kotlin
