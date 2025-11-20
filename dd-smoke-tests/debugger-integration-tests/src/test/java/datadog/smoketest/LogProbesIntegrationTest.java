@@ -52,7 +52,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
@@ -92,7 +94,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s statusResult=%s",
+                snapshotReceived.get(), statusResult.get()));
   }
 
   @Test
@@ -119,7 +126,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s statusResult=%s",
+                snapshotReceived.get(), statusResult.get()));
   }
 
   @Test
@@ -148,7 +160,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s statusResult=%s",
+                snapshotReceived.get(), statusResult.get()));
   }
 
   @Test
@@ -176,7 +193,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s statusResult=%s",
+                snapshotReceived.get(), statusResult.get()));
   }
 
   @Test
@@ -208,7 +230,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && correctLogMessage.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && correctLogMessage.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s correctLogMessage=%s statusResult=%s",
+                snapshotReceived.get(), correctLogMessage.get(), statusResult.get()));
   }
 
   @Test
@@ -255,7 +282,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s statusResult=%s",
+                snapshotReceived.get(), statusResult.get()));
   }
 
   @Test
@@ -296,7 +328,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
                   && statuses.values().stream()
                       .allMatch(status -> status == ProbeStatus.Status.EMITTING));
         });
-    processRequests(() -> allSnapshotReceived.get() && allStatusEmitting.get());
+    processRequests(
+        () -> allSnapshotReceived.get() && allStatusEmitting.get(),
+        () ->
+            String.format(
+                "timeout allSnapshotReceived=%s allStatusEmitting=%s",
+                allSnapshotReceived.get(), allStatusEmitting.get()));
     assertEquals(NB_PROBES, probeIds.size());
     for (int i = 0; i < NB_PROBES; i++) {
       assertTrue(probeIds.contains(String.valueOf(i)));
@@ -328,7 +365,12 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(() -> snapshotReceived.get() && statusResult.get());
+    processRequests(
+        () -> snapshotReceived.get() && statusResult.get(),
+        () ->
+            String.format(
+                "timeout snapshotReceived=%s statusResult=%s",
+                snapshotReceived.get(), statusResult.get()));
   }
 
   @Test
@@ -386,7 +428,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
           return snapshotCount.get() >= 2 && snapshotCount.get() <= 20;
-        });
+        },
+        () -> String.format("timeout snapshotCount=%d", snapshotCount.get()));
   }
 
   @Test
@@ -420,7 +463,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
           return snapshotCount.get() >= 850 && snapshotCount.get() <= 1000;
-        });
+        },
+        () -> String.format("timeout snapshotCount=%d", snapshotCount.get()));
   }
 
   @Test
@@ -454,7 +498,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
           return snapshotCount.get() > 0 && snapshotCount.get() < 200;
-        });
+        },
+        () -> String.format("timeout snapshotCount=%d", snapshotCount.get()));
   }
 
   @Test
@@ -485,7 +530,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               throwable.getStacktrace().get(0).getFunction());
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
   }
 
   @Test
@@ -516,7 +563,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               throwable.getStacktrace().get(0).getFunction());
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
   }
 
   private ProbeId getProbeId(int i) {

@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.source.index
 
+import datadog.instrument.utils.ClassNameTrie
 import datadog.trace.api.civisibility.domain.Language
 import datadog.trace.civisibility.source.SourceResolutionException
-import datadog.trace.util.ClassNameTrie
 import spock.lang.Specification
 
 class RepoIndexTest extends Specification {

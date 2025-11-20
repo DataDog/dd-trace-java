@@ -11,15 +11,18 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.util.Flaky;
+import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@NonRetryable
 @Flaky
 public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
@@ -28,6 +31,11 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   private boolean snapshotReceived;
   private Map<String, Snapshot> snapshots = new HashMap<>();
   private List<String> additionalJvmArgs = new ArrayList<>();
+  private Supplier<String> timeoutMessage =
+      () ->
+          String.format(
+              "Timeout! traceReceived=%s snapshotReceived=%s #snapshots=%d",
+              traceReceived, snapshotReceived, snapshots.size());
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -74,7 +82,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             return true;
           }
           return false;
-        });
+        },
+        timeoutMessage);
   }
 
   @Test
@@ -98,7 +107,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             }
           }
         });
-    processRequests(() -> traceReceived && !snapshotReceived);
+    processRequests(() -> traceReceived && !snapshotReceived, timeoutMessage);
   }
 
   // DeepOops exception stacktrace:
@@ -163,7 +172,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             return true;
           }
           return false;
-        });
+        },
+        timeoutMessage);
   }
 
   @Test
@@ -240,7 +250,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             return true;
           }
           return false;
-        });
+        },
+        timeoutMessage);
   }
 
   @Test
@@ -276,7 +287,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             return true;
           }
           return false;
-        });
+        },
+        timeoutMessage);
   }
 
   private static void assertRecursiveSnapshot(Snapshot snapshot) {
@@ -321,7 +333,8 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             return true;
           }
           return false;
-        });
+        },
+        timeoutMessage);
   }
 
   private void resetSnapshotsAndTraces() {
