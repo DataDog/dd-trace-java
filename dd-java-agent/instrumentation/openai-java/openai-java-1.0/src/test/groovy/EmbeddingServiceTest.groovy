@@ -3,6 +3,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import com.openai.core.http.HttpResponseFor
 import com.openai.models.embeddings.CreateEmbeddingResponse
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.openai_java.OpenAiDecorator
 
@@ -50,8 +51,10 @@ class EmbeddingServiceTest extends OpenAiTest {
           tags {
             "_ml_obs_tag.span.kind" "embedding"
             "_ml_obs_tag.model_provider" "openai"
-            "_ml_obs_tag.model_name" String
-
+            "_ml_obs_tag.model_name" "text-embedding-ada-002-v2"
+            "_ml_obs_tag.input" List<LLMObs.Document>
+            "_ml_obs_tag.metadata" Map
+            "_ml_obs_tag.output" "[1 embedding(s) returned with size 1536]"
             "_ml_obs_tag.parent_id" "undefined"
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/embeddings"

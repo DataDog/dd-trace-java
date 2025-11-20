@@ -288,10 +288,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
           writable.writeString(key, null);
           writable.startMap(1);
-          if (!spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
-            writable.writeString("value", null);
-            writable.writeObject(val, null);
-          } else {
+          if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             if (!(val instanceof List)) {
               LOGGER.warn(
                   "unexpectedly found incorrect type for LLM span IO {}, expecting list",
@@ -334,6 +331,24 @@ public class LLMObsSpanMapper implements RemoteMapper {
                 }
               }
             }
+          } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
+            if (!(val instanceof List)) {
+              LOGGER.warn(
+                  "unexpectedly found incorrect type for embedding span input {}, expecting list",
+                  val.getClass().getName());
+              continue;
+            }
+            List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
+            writable.writeString("documents", null);
+            writable.startArray(documents.size());
+            for (LLMObs.Document document : documents) {
+              writable.startMap(1);
+              writable.writeString("text", null);
+              writable.writeString(document.getText(), null);
+            }
+          } else {
+            writable.writeString("value", null);
+            writable.writeObject(val, null);
           }
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
           Map<String, Object> metadataMap = (Map) val;
