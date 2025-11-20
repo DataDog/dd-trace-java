@@ -36,7 +36,6 @@ benchmarks-startup:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh startup
-    - ./steps/analyze-results.sh startup
 
 benchmarks-load-petclinic:
   extends: .benchmarks
@@ -47,7 +46,6 @@ benchmarks-load-petclinic:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh load petclinic
-    - ./steps/analyze-results.sh load
 
 benchmarks-load-insecure-bank:
   extends: .benchmarks
@@ -58,7 +56,6 @@ benchmarks-load-insecure-bank:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh load insecure-bank
-    - ./steps/analyze-results.sh load
 
 benchmarks-dacapo:
   extends: .benchmarks
@@ -66,13 +63,15 @@ benchmarks-dacapo:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh dacapo
-    - ./steps/analyze-results.sh dacapo
 
 benchmarks-post-results:
   extends: .benchmarks
   tags: ["arch:amd64"]
   script:
     - !reference [ .benchmarks, script ]
+    - ./steps/analyze-results.sh startup
+    - ./steps/analyze-results.sh load
+    - ./steps/analyze-results.sh dacapo
     - ./steps/upload-results-to-s3.sh
     - ./steps/post-pr-comment.sh
   needs:
