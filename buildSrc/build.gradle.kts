@@ -57,7 +57,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.17.7")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.1")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

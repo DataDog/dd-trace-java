@@ -228,16 +228,14 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
   private fun getProgramClasspath(project: Project): List<File> {
     val classpath = ArrayList<File>()
-    // 1. Compilation outputs
+    // 1. Compilation outputs - exclude latestDep and forked test variants
     project.tasks.withType(AbstractCompile::class.java)
+      .filter { task -> !task.name.contains("LatestDep", ignoreCase = true) && !task.name.contains("Forked", ignoreCase = true) }
       .map { it.destinationDirectory.asFile.get() }
       .forEach(classpath::add)
-    // 2. Compile time dependencies
+    // 2. Compile time dependencies - exclude latestDep and forked test variants
     project.tasks.withType(AbstractCompile::class.java)
-      .flatMap { it.classpath }
-      .forEach(classpath::add)
-    // 3. Test time dependencies
-    project.tasks.withType(Test::class.java)
+      .filter { task -> !task.name.contains("LatestDep", ignoreCase = true) && !task.name.contains("Forked", ignoreCase = true) }
       .flatMap { it.classpath }
       .forEach(classpath::add)
     return classpath
