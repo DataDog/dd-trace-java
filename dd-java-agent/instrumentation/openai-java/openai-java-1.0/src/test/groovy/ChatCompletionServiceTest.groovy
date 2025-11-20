@@ -15,6 +15,8 @@ import java.util.stream.Stream
 
 class ChatCompletionServiceTest extends OpenAiTest {
 
+  // TODO add a multi-choice response tests
+
   def "create chat/completion test"() {
     ChatCompletion resp = runUnderTrace("parent") {
       openAiClient.chat().completions().create(chatCompletionCreateParams())

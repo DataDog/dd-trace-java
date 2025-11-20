@@ -51,8 +51,8 @@ public class ResponseServiceAsyncInstrumentation
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorateWithClientOptions(span, clientOptions);
-      DECORATE.decorateResponse(span, params);
+      DECORATE.withClientOptions(span, clientOptions);
+      DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -67,8 +67,7 @@ public class ResponseServiceAsyncInstrumentation
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future =
-              ResponseWrappers.wrapFutureResponse(future, span, DECORATE::decorateWithResponse);
+          future = ResponseWrappers.wrapFutureResponse(future, span, DECORATE::withResponse);
         } else {
           span.finish();
         }
@@ -86,8 +85,8 @@ public class ResponseServiceAsyncInstrumentation
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorateWithClientOptions(span, clientOptions);
-      DECORATE.decorateResponse(span, params);
+      DECORATE.withClientOptions(span, clientOptions);
+      DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -105,7 +104,7 @@ public class ResponseServiceAsyncInstrumentation
         if (future != null) {
           future =
               ResponseWrappers.wrapFutureStreamResponse(
-                  future, span, DECORATE::decorateWithResponseStreamEvent);
+                  future, span, DECORATE::withResponseStreamEvent);
         } else {
           span.finish();
         }

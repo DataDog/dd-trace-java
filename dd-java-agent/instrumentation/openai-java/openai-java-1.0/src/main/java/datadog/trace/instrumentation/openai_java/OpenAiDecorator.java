@@ -74,10 +74,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
-    span.setTag(
-        "_ml_obs_tag.parent_id",
-        currentLlmParentSpanId()); // TODO duplicates DDLLMObsSpan, test in LLMObsSpanMapperTest
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND); // TODO also see DDLLMObsSpan
+    span.setTag("_ml_obs_tag.parent_id", currentLlmParentSpanId());
     return super.afterStart(span);
   }
 
@@ -93,54 +90,7 @@ public class OpenAiDecorator extends ClientDecorator {
     return Long.toString(parentLlmSpanId);
   }
 
-  public void decorateCompletion(AgentSpan span, CompletionCreateParams params) {
-    span.setResourceName(COMPLETIONS_CREATE);
-    span.setTag("openai.request.endpoint", "v1/completions");
-    span.setTag("openai.request.method", "POST");
-    if (params == null) {
-      return;
-    }
-
-    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
-    params
-        .prompt()
-        .flatMap(p -> p.string())
-        .ifPresent(
-            input ->
-                span.setTag(
-                    "_ml_obs_tag.input",
-                    Collections.singletonList(LLMObs.LLMMessage.from(null, input))));
-
-    Map<String, Object> metadata = new HashMap<>();
-    params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
-    params.temperature().ifPresent(v -> metadata.put("temperature", v));
-    span.setTag("_ml_obs_tag.metadata", metadata);
-  }
-
-  public void decorateWithCompletion(AgentSpan span, Completion completion) {
-    String modelName = completion.model();
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
-    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g.
-    // gpt-3.5-turbo-instruct:20230824-v2
-
-    List<LLMObs.LLMMessage> output =
-        completion.choices().stream()
-            .map(v -> LLMObs.LLMMessage.from(null, v.text()))
-            .collect(Collectors.toList());
-    span.setTag("_ml_obs_tag.output", output);
-
-    completion.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
-  }
-
-  public void decorateWithCompletions(AgentSpan span, List<Completion> completions) {
-    if (!completions.isEmpty()) {
-      decorateWithCompletion(span, completions.get(0));
-    }
-  }
-
-  public void decorateWithHttpResponse(AgentSpan span, HttpResponse response) {
+  public void withHttpResponse(AgentSpan span, HttpResponse response) {
     Headers headers = response.headers();
     setTagFromHeader(span, OPENAI_ORGANIZATION_NAME, headers, "openai-organization");
 
@@ -186,22 +136,70 @@ public class OpenAiDecorator extends ClientDecorator {
     }
   }
 
-  public void decorateWithClientOptions(AgentSpan span, ClientOptions clientOptions) {
+  public void withClientOptions(AgentSpan span, ClientOptions clientOptions) {
     span.setTag("openai.api_base", clientOptions.baseUrl());
 
     // TODO api_version (either last part of the URL, or api-version param if Azure)
     // clientOptions.queryParams().values("api-version")
   }
 
-  public void decorateChatCompletion(
+  public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
+
+    span.setResourceName(COMPLETIONS_CREATE);
+    span.setTag("openai.request.endpoint", "v1/completions");
+    span.setTag("openai.request.method", "POST");
+    if (params == null) {
+      return;
+    }
+
+    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
+    params
+        .prompt()
+        .flatMap(p -> p.string())
+        .ifPresent(
+            input ->
+                span.setTag(
+                    "_ml_obs_tag.input",
+                    Collections.singletonList(LLMObs.LLMMessage.from(null, input))));
+
+    Map<String, Object> metadata = new HashMap<>();
+    params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
+    params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    span.setTag("_ml_obs_tag.metadata", metadata);
+  }
+
+  public void withCompletion(AgentSpan span, Completion completion) {
+    String modelName = completion.model();
+    span.setTag(RESPONSE_MODEL, modelName);
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+
+    List<LLMObs.LLMMessage> output =
+        completion.choices().stream()
+            .map(v -> LLMObs.LLMMessage.from(null, v.text()))
+            .collect(Collectors.toList());
+    span.setTag("_ml_obs_tag.output", output);
+
+    completion.usage().ifPresent(usage -> withCompletionUsage(span, usage));
+  }
+
+  public void withCompletions(AgentSpan span, List<Completion> completions) {
+    if (!completions.isEmpty()) {
+      withCompletion(span, completions.get(0));
+    }
+  }
+
+  public void withChatCompletionCreateParams(
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag("openai.request.endpoint", "v1/chat/completions");
     span.setTag("openai.request.method", "POST");
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
+    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
 
     span.setTag(
         "_ml_obs_tag.input",
@@ -247,23 +245,20 @@ public class OpenAiDecorator extends ClientDecorator {
     return LLMObs.LLMMessage.from(role, content);
   }
 
-  public void decorateWithChatCompletion(AgentSpan span, ChatCompletion completion) {
+  public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
     String modelName = completion.model();
     span.setTag(RESPONSE_MODEL, modelName);
-
     span.setTag("_ml_obs_tag.model_name", modelName);
     span.setTag("_ml_obs_tag.model_provider", "openai");
-    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g.
-    // gpt-3.5-turbo-instruct:20230824-v2c
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream().map(OpenAiDecorator::llmMessage).collect(Collectors.toList());
     span.setTag("_ml_obs_tag.output", output);
 
-    completion.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
+    completion.usage().ifPresent(usage -> withCompletionUsage(span, usage));
   }
 
-  private static void annotateWithCompletionUsage(AgentSpan span, CompletionUsage usage) {
+  private static void withCompletionUsage(AgentSpan span, CompletionUsage usage) {
     span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
     span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
     span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
@@ -280,18 +275,15 @@ public class OpenAiDecorator extends ClientDecorator {
     return LLMObs.LLMMessage.from(role, content);
   }
 
-  public void decorateWithChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
+  public void withChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
     if (chunks.isEmpty()) {
       return;
     }
     ChatCompletionChunk firstChunk = chunks.get(0);
     String modelName = firstChunk.model();
     span.setTag(RESPONSE_MODEL, modelName);
-
     span.setTag("_ml_obs_tag.model_name", modelName);
     span.setTag("_ml_obs_tag.model_provider", "openai");
-    // span.setTag("_ml_obs_tag.model_version", ); // TODO split and set version, e.g.
-    // gpt-3.5-turbo-instruct:20230824-v2
 
     // assume that number of choices is the same for each chunk
     final int choiceNum = firstChunk.choices().size();
@@ -317,7 +309,7 @@ public class OpenAiDecorator extends ClientDecorator {
         ChatCompletionChunk.Choice.Delta delta = choice.delta();
         delta.content().ifPresent(contents[i]::append);
       }
-      chunk.usage().ifPresent(usage -> OpenAiDecorator.annotateWithCompletionUsage(span, usage));
+      chunk.usage().ifPresent(usage -> withCompletionUsage(span, usage));
     }
     // build LLMMessages
     List<LLMObs.LLMMessage> llmMessages = new ArrayList<>(choiceNum);
@@ -327,25 +319,42 @@ public class OpenAiDecorator extends ClientDecorator {
     span.setTag("_ml_obs_tag.output", llmMessages);
   }
 
-  public void decorateEmbedding(AgentSpan span, EmbeddingCreateParams params) {
+  public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND);
     span.setResourceName(EMBEDDINGS_CREATE);
     span.setTag("openai.request.endpoint", "v1/embeddings");
     span.setTag("openai.request.method", "POST");
     if (params == null) {
       return;
     }
-    span.setTag(REQUEST_MODEL, params.model().asString()); // TODO extract model, might not be set
+    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
 
-    // TODO set LLMObs tags
+    // span.setTag("_ml_obs_tag.input", llmMessages(params.input()));
+
+    // "_ml_obs.meta.input.documents"
   }
 
-  public void decorateWithEmbedding(AgentSpan span, CreateEmbeddingResponse response) {
-    span.setTag(RESPONSE_MODEL, response.model());
-
-    // TODO set LLMObs tags
+  private List<LLMObs.LLMMessage> llmMessages(EmbeddingCreateParams.Input input) {
+    List<String> inputs = Collections.emptyList();
+    if (input.isString()) {
+      inputs = Collections.singletonList(input.asString());
+    } else if (input.isArrayOfStrings()) {
+      inputs = input.asArrayOfStrings();
+    }
+    return inputs.stream()
+        .map(str -> LLMObs.LLMMessage.from(null, str))
+        .collect(Collectors.toList());
   }
 
-  public void decorateResponse(AgentSpan span, ResponseCreateParams params) {
+  public void withCreateEmbeddingResponse(AgentSpan span, CreateEmbeddingResponse response) {
+    String modelName = response.model();
+    span.setTag(RESPONSE_MODEL, modelName);
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+  }
+
+  public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     span.setResourceName(RESPONSES_CREATE);
     span.setTag("openai.request.endpoint", "v1/responses");
     span.setTag("openai.request.method", "POST");
@@ -358,7 +367,7 @@ public class OpenAiDecorator extends ClientDecorator {
     span.setTag(REQUEST_MODEL, extractResponseModel(params._model()));
   }
 
-  public void decorateWithResponse(AgentSpan span, Response response) {
+  public void withResponse(AgentSpan span, Response response) {
     span.setTag(RESPONSE_MODEL, extractResponseModel(response._model()));
 
     // TODO set LLMObs tags
@@ -391,7 +400,7 @@ public class OpenAiDecorator extends ClientDecorator {
     return null;
   }
 
-  public void decorateWithResponseStreamEvent(AgentSpan span, List<ResponseStreamEvent> events) {
+  public void withResponseStreamEvent(AgentSpan span, List<ResponseStreamEvent> events) {
     if (!events.isEmpty()) {
       // ResponseStreamEvent responseStreamEvent = events.get(0);
       // span.setTag(RESPONSE_MODEL, responseStreamEvent.res()); // TODO there is no model

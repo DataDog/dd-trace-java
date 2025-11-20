@@ -55,7 +55,7 @@ public class ResponseWrappers {
 
   public static <T> HttpResponseFor<T> wrapResponse(
       HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
-    DECORATE.decorateWithHttpResponse(span, response);
+    DECORATE.withHttpResponse(span, response);
     return new DDHttpResponseFor<T>(response) {
       @Override
       public T afterParse(T t) {
@@ -82,7 +82,7 @@ public class ResponseWrappers {
       HttpResponseFor<StreamResponse<T>> response,
       final AgentSpan span,
       BiConsumer<AgentSpan, List<T>> decorate) {
-    DECORATE.decorateWithHttpResponse(span, response);
+    DECORATE.withHttpResponse(span, response);
     return new DDHttpResponseFor<StreamResponse<T>>(response) {
       @Override
       public StreamResponse<T> afterParse(StreamResponse<T> streamResponse) {

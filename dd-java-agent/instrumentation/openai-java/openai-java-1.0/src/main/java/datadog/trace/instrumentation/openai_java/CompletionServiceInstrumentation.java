@@ -53,8 +53,8 @@ public class CompletionServiceInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       // TODO get span from context?
       DECORATE.afterStart(span);
-      DECORATE.decorateWithClientOptions(span, clientOptions);
-      DECORATE.decorateCompletion(span, params);
+      DECORATE.withClientOptions(span, clientOptions);
+      DECORATE.withCompletionCreateParams(span, params);
 
       llmScope = LLMObsContext.attach(span.context());
       // TODO should the agent span be activated via the context api or keep separate?
@@ -75,7 +75,7 @@ public class CompletionServiceInstrumentation
         if (response != null) {
           response =
               ResponseWrappers.wrapResponse(
-                  response, span, OpenAiDecorator.DECORATE::decorateWithCompletion);
+                  response, span, OpenAiDecorator.DECORATE::withCompletion);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -94,8 +94,8 @@ public class CompletionServiceInstrumentation
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
-      DECORATE.decorateWithClientOptions(span, clientOptions);
-      DECORATE.decorateCompletion(span, params);
+      DECORATE.withClientOptions(span, clientOptions);
+      DECORATE.withCompletionCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -110,9 +110,7 @@ public class CompletionServiceInstrumentation
           DECORATE.onError(span, err);
         }
         if (response != null) {
-          response =
-              ResponseWrappers.wrapStreamResponse(
-                  response, span, DECORATE::decorateWithCompletions);
+          response = ResponseWrappers.wrapStreamResponse(response, span, DECORATE::withCompletions);
         } else {
           span.finish();
         }
