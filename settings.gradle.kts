@@ -141,6 +141,14 @@ include(
 // AI Guard
 include(":dd-java-agent:agent-aiguard")
 
+// Feature Flagging
+include(
+  ":products:feature-flagging:agent",
+  ":products:feature-flagging:api",
+  ":products:feature-flagging:bootstrap",
+  ":products:feature-flagging:lib"
+)
+
 // misc
 include(
   ":dd-java-agent:testing",
