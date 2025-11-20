@@ -1,3 +1,4 @@
+import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
@@ -10,7 +11,9 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/publish.gradle")
 
-val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
+configure<TestJvmConstraintsExtension> {
+  minJavaVersion.set(JavaVersion.VERSION_11)
+}
 
 description = "Implementation of the OpenFeature Provider interface."
 
