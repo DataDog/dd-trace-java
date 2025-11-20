@@ -136,7 +136,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       inputs.dir(csiExtension.srcFolder)
       inputs.dir(csiExtension.rootFolder).optional()
       inputs.file(pluginJarFile)
-      inputs.property("cis.suffix", csiExtension.suffix)
+      inputs.property("csi.suffix", csiExtension.suffix)
       inputs.property("csi.javaVersion", csiExtension.javaVersion)
       inputs.property("csi.jvmArgs", csiExtension.jvmArgs)
       inputs.property("csi.reporters", csiExtension.reporters)
