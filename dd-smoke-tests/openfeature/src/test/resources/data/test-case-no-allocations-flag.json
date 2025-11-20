@@ -1,0 +1,52 @@
+[
+  {
+    "flag": "no_allocations_flag",
+    "variationType": "JSON",
+    "defaultValue": {
+      "hello": "world"
+    },
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": {
+        "hello": "world"
+      }
+    }
+  },
+  {
+    "flag": "no_allocations_flag",
+    "variationType": "JSON",
+    "defaultValue": {
+      "hello": "world"
+    },
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": {
+        "hello": "world"
+      }
+    }
+  },
+  {
+    "flag": "no_allocations_flag",
+    "variationType": "JSON",
+    "defaultValue": {
+      "hello": "world"
+    },
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 50
+    },
+    "result": {
+      "value": {
+        "hello": "world"
+      }
+    }
+  }
+]
