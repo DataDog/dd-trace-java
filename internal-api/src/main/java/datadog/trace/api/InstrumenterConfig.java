@@ -80,6 +80,8 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -107,6 +109,14 @@ import java.util.Set;
  * @see Config for other configurations
  */
 public class InstrumenterConfig {
+  static {
+    // skip registration when building native-images as telemetry is not available
+    if (!Platform.isNativeImageBuilder()) {
+      ConfigInversionMetricCollectorProvider.register(
+          ConfigInversionMetricCollectorImpl.getInstance());
+    }
+  }
+
   private final ConfigProvider configProvider;
 
   private final boolean triageEnabled;

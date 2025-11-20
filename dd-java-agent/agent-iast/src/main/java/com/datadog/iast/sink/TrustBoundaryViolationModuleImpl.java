@@ -2,9 +2,9 @@ package com.datadog.iast.sink;
 
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.VulnerabilityType;
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.TrustBoundaryViolationModule;
-import datadog.trace.util.ClassNameTrie;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
