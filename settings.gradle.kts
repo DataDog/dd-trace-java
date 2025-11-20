@@ -189,6 +189,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",
