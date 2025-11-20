@@ -11,7 +11,8 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 
 # Languages
 ## Groovy
-groovy = "4.0.26"
+groovy3 = "3.0.24"
+groovy4 = "4.0.26"
 
 ## Kotlin
 kotlin = "1.6.21"
@@ -66,7 +67,8 @@ junit4 = "4.13.2"
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 mockito = "4.4.0"
-spock = "2.4-M6-groovy-4.0"
+spock-groovy3 = "2.4-M6-groovy-3.0"
+spock-groovy4 = "2.4-M6-groovy-4.0"
 testcontainers = "1.21.3"
 
 [libraries]
@@ -80,12 +82,19 @@ okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "okhttp" }
 
 # Languages
 ## Groovy
-groovy = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
-groovy-json = { module = "org.apache.groovy:groovy-json", version.ref = "groovy" }
-groovy-templates = { module = "org.apache.groovy:groovy-templates", version.ref = "groovy" }
-groovy-test-junit5 = { module = "org.apache.groovy:groovy-test-junit5", version.ref = "groovy" }
-groovy-yaml = { module = "org.apache.groovy:groovy-yaml", version.ref = "groovy" }
-groovy-xml = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy" }
+groovy3 = { module = "org.codehaus.groovy:groovy", version.ref = "groovy3" }
+groovy3-json = { module = "org.codehaus.groovy:groovy-json", version.ref = "groovy3" }
+groovy3-templates = { module = "org.codehaus.groovy:groovy-templates", version.ref = "groovy3" }
+groovy3-test-junit5 = { module = "org.codehaus.groovy:groovy-test-junit5", version.ref = "groovy3" }
+groovy3-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy3" }
+groovy3-xml = { module = "org.codehaus.groovy:groovy-xml", version.ref = "groovy3" }
+
+groovy4 = { module = "org.apache.groovy:groovy", version.ref = "groovy4" }
+groovy4-json = { module = "org.apache.groovy:groovy-json", version.ref = "groovy4" }
+groovy4-templates = { module = "org.apache.groovy:groovy-templates", version.ref = "groovy4" }
+groovy4-test-junit5 = { module = "org.apache.groovy:groovy-test-junit5", version.ref = "groovy4" }
+groovy4-yaml = { module = "org.apache.groovy:groovy-yaml", version.ref = "groovy4" }
+groovy4-xml = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy4" }
 
 ## Kotlin
 kotlin = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
@@ -150,17 +159,14 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
-spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
-spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
-spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
+spock-core-groovy3 = { module = "org.spockframework:spock-core", version.ref = "spock-groovy3" }
+spock-core-groovy4 = { module = "org.spockframework:spock-core", version.ref = "spock-groovy4" }
+spock-junit4-groovy4 = { module = "org.spockframework:spock-junit4", version.ref = "spock-groovy4" }
+spock-spring-groovy4 = { module = "org.spockframework:spock-spring", version.ref = "spock-groovy4" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 
 [bundles]
-# Languages
-## Groovy
-groovy = ["groovy", "groovy-json", "groovy-test-junit5"]
-
 # Bytecode manipulations & codegen
 asm = ["asm", "asm-commons"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
@@ -175,4 +181,3 @@ test-logging = ["logback-classic", "log4j-over-slf4j", "jcl-over-slf4j", "jul-to
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
-spock = ["spock-core", "objenesis"]

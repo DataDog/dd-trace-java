@@ -18,11 +18,15 @@ configurations.configureEach {
   exclude group: 'org.wso2.uri.template', module: 'wso2-uri-templates'
 }
 
+groovySpock {
+  configureDefaultDependencies("testImplementation")
+  configureDependency("testImplementation", libs.groovy4.templates)
+}
+
 dependencies {
   compileOnly group: 'org.apache.synapse', name: 'synapse-nhttp-transport', version: '3.0.0'
 
   testImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '3.0.0'
-  testImplementation libs.groovy.templates
 
   latestDepTestImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '+'
 }

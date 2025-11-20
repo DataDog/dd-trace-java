@@ -37,7 +37,7 @@ dependencies {
   compileOnly(group: 'org.springframework', name: 'spring-aop', version: '1.2')
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
+  testImplementation libs.spock.spring.groovy4
   testImplementation group: 'org.springframework', name: 'spring-test', version: '3.0.0.RELEASE'
 
   // JPA dependencies

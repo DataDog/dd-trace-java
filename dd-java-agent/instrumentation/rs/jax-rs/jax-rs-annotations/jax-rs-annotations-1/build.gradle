@@ -16,7 +16,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'javax.ws.rs', name: 'jsr311-api', version: '1.1.1'
 
-  testImplementation libs.spock.junit4 // This module still needs Spock with JUnit4.
+  testImplementation libs.spock.junit4.groovy4 // This module still needs Spock with JUnit4.
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.7.1'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
 }

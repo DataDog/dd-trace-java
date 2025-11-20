@@ -785,8 +785,8 @@ class WAFModuleSpecification extends DDSpecification {
     stackTrace.language == 'java'
     stackTrace.message == 'Exploit detected'
     stackTrace.frames.size() >= 1
-    stackTrace.frames[0].class_name == 'org.codehaus.groovy.vmplugin.v8.IndyInterface' // TODO was 'org.codehaus.groovy.runtime.callsite.CallSiteArray'
-    stackTrace.frames[0].function == 'fromCache' // TODO was 'defaultCall'
+    stackTrace.frames[0].class_name == 'org.codehaus.groovy.vmplugin.v8.IndyInterface' // With Groovy 3 it was 'org.codehaus.groovy.runtime.callsite.CallSiteArray'
+    stackTrace.frames[0].function == 'fromCache' // With Groovy 3 it was 'defaultCall'
 
   }
 

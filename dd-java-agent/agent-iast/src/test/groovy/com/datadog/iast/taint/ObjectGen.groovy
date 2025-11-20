@@ -2,9 +2,12 @@ package com.datadog.iast.taint
 
 import static TaintedMap.POSITIVE_MASK
 
+import groovy.transform.CompileStatic
+
 /**
  * Generate objects to test {@link TaintedMap}.
  */
+@CompileStatic // Workaround to avoid java.lang.AbstractMethodError with Groovy 4.
 class ObjectGen {
 
   final int capacity
@@ -36,7 +39,8 @@ class ObjectGen {
     }
   }
 
-  def genBucket(int nObjects, Closure<Boolean> isValid) {
+  // Have to return specific type to avoid java.lang.AbstractMethodError with Groovy 4.
+  List<Object> genBucket(int nObjects, Closure<Boolean> isValid) {
     assert nObjects > 0
     while (true) {
       for (int i = 0; i < capacity; i++) {

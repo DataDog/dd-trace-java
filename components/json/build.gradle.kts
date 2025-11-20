@@ -5,5 +5,5 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 
 jmh {
-  version = "1.28"
+  jmhVersion = libs.versions.jmh.get()
 }

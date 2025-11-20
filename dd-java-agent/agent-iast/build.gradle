@@ -34,6 +34,11 @@ protobuf {
   }
 }
 
+groovySpock {
+  configureDefaultDependencies("testImplementation")
+  configureDependency("testImplementation", libs.groovy4.yaml)
+}
+
 dependencies {
   api libs.slf4j
 
@@ -49,7 +54,6 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
-  testImplementation libs.groovy.yaml
   testImplementation libs.guava
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
@@ -90,15 +94,6 @@ ext {
     'com.datadog.iast.model.json.FormattingAdapter',
     'com.datadog.iast.model.json.SourceTypeAdapter',
     'com.datadog.iast.model.json.VulnerabilityTypeAdapter',
-    'com.datadog.iast.taint.TaintedMap',
-    // TODO: Groovy 4 issues
-    'com.datadog.iast.taint.TaintedMap.TaintedMapImpl',
-    // TODO: Groovy 4 issues
-    'com.datadog.iast.taint.TaintedMap.TaintedMapImpl.1',
-    // TODO: Groovy 4 issues
-    'com.datadog.iast.taint.TaintedMap.Debug',
-    // TODO: Groovy 4 issues
-    'com.datadog.iast.taint.TaintedMap.NoOp', // TODO: Groovy 4 issues
   ]
   excludedClassesBranchCoverage = []
   excludedClassesInstructionCoverage = []

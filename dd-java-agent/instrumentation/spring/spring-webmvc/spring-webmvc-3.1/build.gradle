@@ -66,7 +66,7 @@ dependencies {
   testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
   testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
+  testImplementation libs.spock.spring.groovy4
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'

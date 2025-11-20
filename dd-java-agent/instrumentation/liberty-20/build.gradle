@@ -28,6 +28,11 @@ def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
 }
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 
+groovySpock {
+  configureDefaultDependencies("testImplementation")
+  configureDependency("testImplementation", libs.groovy4.xml)
+}
+
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
   testLogging libs.bundles.test.logging
@@ -36,7 +41,6 @@ dependencies {
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
   implementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')
 
-  testImplementation(libs.groovy.xml)
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')

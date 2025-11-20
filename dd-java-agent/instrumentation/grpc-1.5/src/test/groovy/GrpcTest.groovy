@@ -29,7 +29,6 @@ import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.NettyServerBuilder
 import io.grpc.stub.StreamObserver
-import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutorService
@@ -671,7 +670,6 @@ abstract class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
   }
 }
 
-@Ignore("Groovy 4 crashing on this test")
 class GrpcDataStreamsEnabledV0Test extends GrpcDataStreamsEnabledForkedTest {
 
   @Override

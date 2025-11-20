@@ -50,6 +50,10 @@ tasks.register('relocatedJavaxJar', ShadowJar) {
   includeEmptyDirs = false
 }
 
+groovySpock {
+  configureDefaultDependencies("testFixturesApi")
+}
+
 dependencies {
   implementation files(relocatedJavaxJar.outputs.files)
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'

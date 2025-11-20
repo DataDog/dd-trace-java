@@ -4,6 +4,10 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
+groovySpock {
+  configureDefaultDependencies("compileOnly")
+}
+
 dependencies {
   api(libs.bytebuddy)
   api(libs.bytebuddyagent)
@@ -11,8 +15,7 @@ dependencies {
   api(project(":components:environment"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
-  compileOnly(libs.bundles.groovy)
-  compileOnly(libs.bundles.spock)
+  compileOnly(libs.junit.jupiter)
   compileOnly(libs.logback.core)
   compileOnly(libs.logback.classic)
 }

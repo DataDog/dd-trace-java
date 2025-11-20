@@ -32,6 +32,11 @@ def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 def shadowJar = tasks.named("shadowJar", ShadowJar)
 
+groovySpock {
+  configureDefaultDependencies("testImplementation")
+  configureDependency("testImplementation", libs.groovy4.xml)
+}
+
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '22.0.0.1', ext: 'zip'
   testLogging libs.bundles.test.logging
@@ -40,7 +45,6 @@ dependencies {
   compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
   implementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
-  testImplementation(libs.groovy.xml)
   testImplementation files(unpackOpenLiberty.map {it.extractedJars.get() })
   testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')

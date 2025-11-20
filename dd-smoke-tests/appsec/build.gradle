@@ -2,6 +2,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'appsec-smoke-tests'
 
+groovySpock {
+  configureDefaultDependencies("compileOnly")
+}
+
 dependencies {
   api project(':dd-smoke-tests')
 }

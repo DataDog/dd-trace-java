@@ -5,11 +5,12 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Gradle Daemon Instrumentation Smoke Tests.'
 
-dependencies {
-  testImplementation 'org.codehaus.groovy:groovy:3.0.24'
-  testImplementation 'org.spockframework:spock-core:2.4-M6-groovy-3.0'
-  testImplementation 'org.objenesis:objenesis:3.3'
+groovySpock {
+  // Gradle 8.x uses Groovy 3.
+  groovyVersion(3)
+}
 
+dependencies {
   testImplementation gradleTestKit()
   testImplementation project(':dd-smoke-tests:backend-mock')
   testImplementation project(':internal-api')

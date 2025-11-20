@@ -16,9 +16,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import spock.lang.Ignore
 
-@Ignore("Failing under Groovy 4 with NPE for identityHashCode")
 class TaintedMapTest extends DDSpecification {
 
 

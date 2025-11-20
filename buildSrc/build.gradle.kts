@@ -13,34 +13,46 @@ java {
 }
 
 gradlePlugin {
+  // Sorted list of plugins:
   plugins {
-    create("instrument-plugin") {
-      id = "instrument"
-      implementationClass = "InstrumentPlugin"
-    }
-    create("muzzle-plugin") {
-      id = "muzzle"
-      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
-    }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
-    create("tracer-version-plugin") {
-      id = "datadog.tracer-version"
-      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
-    }
+
     create("dump-hanged-test-plugin") {
       id = "datadog.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
+
+    create("groovy-spock-plugin") {
+      id = "datadog.groovy-spock"
+      implementationClass = "datadog.gradle.plugin.config.groovy.GroovySpockConventionPlugin"
+    }
+
+    create("instrument-plugin") {
+      id = "instrument"
+      implementationClass = "InstrumentPlugin"
+    }
+
+    create("muzzle-plugin") {
+      id = "muzzle"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
+    }
+
     create("supported-config-generation") {
-      id = "supported-config-generator"
+      id = "datadog.supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }
+
     create("supported-config-linter") {
-      id = "config-inversion-linter"
+      id = "datadog.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
+    }
+
+    create("tracer-version-plugin") {
+      id = "datadog.tracer-version"
+      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
   }
 }
@@ -76,6 +88,10 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
+
+  // We have to use Spock with Groovy3 as Gradle 8.x bundled with Groovy3.
+  // TODO: We can refactor `buildSrc` folder to not use Groovy at all.
+  testImplementation(libs.spock.core.groovy3)
 }
 
 tasks.compileKotlin {
@@ -86,10 +102,6 @@ testing {
   @Suppress("UnstableApiUsage")
   suites {
     val test by getting(JvmTestSuite::class) {
-      dependencies {
-        implementation(libs.groovy)
-        implementation(libs.spock.core)
-      }
       targets.configureEach {
         testTask.configure {
           enabled = project.hasProperty("runBuildSrcTests")

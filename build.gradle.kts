@@ -2,21 +2,23 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
-  id("datadog.gradle-debug")
-  id("datadog.dependency-locking")
-  id("datadog.tracer-version")
-  id("datadog.dump-hanged-test")
-  id("config-inversion-linter")
+  kotlin("jvm") version libs.versions.kotlin.plugin apply false
+
   id("datadog.ci-jobs")
+  id("datadog.config-inversion-linter")
+  id("datadog.dependency-locking")
+  id("datadog.dump-hanged-test")
+  id("datadog.gradle-debug")
+  id("datadog.groovy-spock")
+  id("datadog.tracer-version")
 
   id("com.diffplug.spotless") version "6.13.0"
   id("com.github.spotbugs") version "5.0.14"
+  id("com.gradleup.shadow") version "8.3.6" apply false
   id("de.thetaphi.forbiddenapis") version "3.8"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-  id("com.gradleup.shadow") version "8.3.6" apply false
   id("me.champeau.jmh") version "0.7.3" apply false
   id("org.gradle.playframework") version "0.13" apply false
-  kotlin("jvm") version libs.versions.kotlin.plugin apply false
 }
 
 description = "dd-trace-java"

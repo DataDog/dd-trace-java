@@ -1,14 +1,13 @@
 package com.datadog.iast.taint
 
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
+import groovy.transform.CompileStatic
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 /**
  * Test our assumptions about identity hash codes in tested JVMs.
  */
-@Ignore("Failing under Groovy 4 with NPE for identityHashCode")
 class HashCodeTest extends DDSpecification {
 
   @Shared
@@ -53,6 +52,7 @@ class HashCodeTest extends DDSpecification {
     }
   }
 
+  @CompileStatic // Workaround to avoid NPE in Groovy 4 `org.codehaus.groovy.vmplugin.v8.IndyInterface.fromCache()` method.
   private static List<Integer> genHashCodes(final int n) {
     (1..n).collect {
       System.identityHashCode(Double.toString(Math.random()))

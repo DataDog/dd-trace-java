@@ -588,7 +588,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         byte[] fileDecoded = Base64.decoder.decode(it['target_files'][0]['raw'])
         byte[] newFile = new byte[fileDecoded.length + 1]
         System.arraycopy(fileDecoded, 0, newFile, 0, fileDecoded.length)
-        newFile[fileDecoded.length] = '\n'
+        newFile[fileDecoded.length] = (byte) '\n' // Groovy 4 has strict coercion rules.
         it['target_files'][0]['raw'] = Base64.encoder.encodeToString(newFile)
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = SLURPER.parse(targetDecoded)
@@ -599,7 +599,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
-    // TODO: fix test 1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _ as PollingRateHinter)
+    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _ as PollingRateHinter)
     0 * _._
   }
 
