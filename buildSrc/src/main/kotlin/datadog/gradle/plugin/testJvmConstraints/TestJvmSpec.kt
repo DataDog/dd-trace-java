@@ -24,7 +24,7 @@ import java.nio.file.Paths
  * which JVM to use for running tests. E.g.
  *
  * ```shell
- * ./gradlew test -DtestJvm=ZULU11
+ * ./gradlew test -PtestJvm=ZULU11
  * ```
  *
  * This handles local setup, and CI environment, where the environment variables are defined here:
