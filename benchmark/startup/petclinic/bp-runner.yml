@@ -1,0 +1,102 @@
+# bp-runner configuration for petclinic startup benchmarks based on sirun's benchmark.json format
+#
+# Each variant (tracing, profiling, appsec, iast) is defined as a separate experiment.
+#
+# CPU pinning uses cores 24-47 for consistency with CI configuration.
+experiments:
+  # tracing variant
+  - name: startup-tracing
+    setup:
+      - name: service-monitor
+        run: shell
+        script: ${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080 'pkill java'
+    
+    steps:
+      - name: run-startup-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="tracing"
+          export JAVA_OPTS=""
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          # Run benchmark iterations (converted from sirun's iterations: 10)
+          for i in $(seq 1 10); do
+            java -javaagent:${TRACER} \
+              -Ddd.benchmark.enabled=true \
+              -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} \
+              ${JAVA_OPTS} \
+              -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log || true
+          done
+
+  # profiling variant
+  - name: startup-profiling
+    setup:
+      - name: service-monitor
+        run: shell
+        script: ${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080 'pkill java'
+    
+    steps:
+      - name: run-startup-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="profiling"
+          export JAVA_OPTS="-Ddd.profiling.enabled=true"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          for i in $(seq 1 10); do
+            java -javaagent:${TRACER} \
+              -Ddd.benchmark.enabled=true \
+              -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} \
+              ${JAVA_OPTS} \
+              -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log || true
+          done
+
+  # appsec variant
+  - name: startup-appsec
+    setup:
+      - name: service-monitor
+        run: shell
+        script: ${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080 'pkill java'
+    
+    steps:
+      - name: run-startup-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="appsec"
+          export JAVA_OPTS="-Ddd.appsec.enabled=true"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          for i in $(seq 1 10); do
+            java -javaagent:${TRACER} \
+              -Ddd.benchmark.enabled=true \
+              -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} \
+              ${JAVA_OPTS} \
+              -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log || true
+          done
+
+  # iast variant
+  - name: startup-iast
+    setup:
+      - name: service-monitor
+        run: shell
+        script: ${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080 'pkill java'
+    
+    steps:
+      - name: run-startup-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="iast"
+          export JAVA_OPTS="-Ddd.iast.enabled=true"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          for i in $(seq 1 10); do
+            java -javaagent:${TRACER} \
+              -Ddd.benchmark.enabled=true \
+              -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} \
+              ${JAVA_OPTS} \
+              -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log || true
+          done

@@ -1,0 +1,53 @@
+# bp-runner configuration for insecure-bank startup benchmarks based on sirun's benchmark.json format
+#
+# Each variant (tracing, iast) is defined as a separate experiment.
+#
+# CPU pinning uses cores 24-47 for consistency with CI configuration.
+experiments:
+  # tracing variant
+  - name: startup-insecure-bank-tracing
+    setup:
+      - name: service-monitor
+        run: shell
+        script: ${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080/login 'pkill java'
+    
+    steps:
+      - name: run-startup-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="tracing"
+          export JAVA_OPTS=""
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          for i in $(seq 1 10); do
+            java -javaagent:${TRACER} \
+              -Ddd.benchmark.enabled=true \
+              -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} \
+              ${JAVA_OPTS} \
+              -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log || true
+          done
+
+  # iast variant
+  - name: startup-insecure-bank-iast
+    setup:
+      - name: service-monitor
+        run: shell
+        script: ${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080/login 'pkill java'
+    
+    steps:
+      - name: run-startup-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="iast"
+          export JAVA_OPTS="-Ddd.iast.enabled=true"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          for i in $(seq 1 10); do
+            java -javaagent:${TRACER} \
+              -Ddd.benchmark.enabled=true \
+              -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} \
+              ${JAVA_OPTS} \
+              -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log || true
+          done

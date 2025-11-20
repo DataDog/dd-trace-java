@@ -78,11 +78,7 @@ ENV JAVA_17_HOME=/usr/lib/jvm/17
 ENV JAVA_HOME=${JAVA_8_HOME}
 ENV PATH=${PATH}:${JAVA_HOME}/bin
 
-ARG SIRUN_VERSION=0.1.11
-RUN wget -O sirun.tar.gz https://github.com/DataDog/sirun/releases/download/v$SIRUN_VERSION/sirun-v$SIRUN_VERSION-x86_64-unknown-linux-musl.tar.gz \
-	&& tar -xzf sirun.tar.gz \
-	&& rm sirun.tar.gz \
-  && mv sirun /usr/bin/sirun
+# Install bp-runner somehow
 
 ARG K6_VERSION=0.45.1
 RUN wget -O k6.tar.gz https://github.com/grafana/k6/releases/download/v$K6_VERSION/k6-v$K6_VERSION-linux-amd64.tar.gz \

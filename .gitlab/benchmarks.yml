@@ -35,7 +35,7 @@ benchmarks-startup:
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh startup
+    - BENCHMARK_TYPE=startup bp-runner "${CI_PROJECT_DIR:-.}/.gitlab/benchmarks/bp-runner.yml" --debug -t
     - ./steps/analyze-results.sh startup
 
 benchmarks-load:
@@ -43,7 +43,7 @@ benchmarks-load:
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh load
+    - BENCHMARK_TYPE=load bp-runner "${CI_PROJECT_DIR:-.}/.gitlab/benchmarks/bp-runner.yml" --debug -t
     - ./steps/analyze-results.sh load
 
 benchmarks-dacapo:
@@ -51,7 +51,7 @@ benchmarks-dacapo:
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh dacapo
+    - BENCHMARK_TYPE=dacapo bp-runner "${CI_PROJECT_DIR:-.}/.gitlab/benchmarks/bp-runner.yml" --debug -t
     - ./steps/analyze-results.sh dacapo
 
 benchmarks-post-results:
