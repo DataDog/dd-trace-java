@@ -76,6 +76,7 @@ public abstract class RemoteWriter implements Writer {
     writeAttemptDetails.put("trace_size", trace.size());
     writeAttemptDetails.put("has_traces", !trace.isEmpty());
     
+    log.debug("ANTITHESIS_ASSERT: Checking writer not closed when writing (always) - closed: {}, trace_size: {}", closed, trace.size());
     Assert.always(
         !closed,
         "Writer should never be closed when attempting to write traces",
@@ -90,6 +91,7 @@ public abstract class RemoteWriter implements Writer {
       shutdownDetails.put("trace_size", trace.size());
       shutdownDetails.put("reason", "writer_closed_during_shutdown");
       
+      log.debug("ANTITHESIS_ASSERT: Traces dropped due to shutdown (sometimes) - closed: {}, trace_size: {}", closed, trace.size());
       Assert.sometimes(
           closed && !trace.isEmpty(),
           "Traces are dropped due to writer shutdown - tracking shutdown behavior",
@@ -123,6 +125,7 @@ public abstract class RemoteWriter implements Writer {
             overflowDetails.put("buffer_capacity", traceProcessingWorker.getCapacity());
             overflowDetails.put("reason", "buffer_overflow_backpressure");
             
+            log.debug("ANTITHESIS_ASSERT: Buffer overflow occurred (unreachable) - trace_size: {}, capacity: {}", trace.size(), traceProcessingWorker.getCapacity());
             Assert.unreachable(
                 "Buffer overflow should never occur - traces are being dropped due to backpressure",
                 overflowDetails);

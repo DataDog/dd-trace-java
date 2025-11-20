@@ -53,6 +53,7 @@ public class TelemetryRouter {
     routingDetails.put("has_fallback", intakeClient != null);
     routingDetails.put("url", currentClient.getUrl().toString());
     
+    log.debug("ANTITHESIS_ASSERT: Checking telemetry routing success (always) - result: {}, client: {}", result, currentClient == agentClient ? "agent" : "intake");
     Assert.always(
         result == TelemetryClient.Result.SUCCESS || result == TelemetryClient.Result.INTERRUPTED,
         "Telemetry routing should always succeed - failures indicate data loss without retry mechanism",
@@ -67,6 +68,7 @@ public class TelemetryRouter {
         agentFailureDetails.put("has_intake_fallback", intakeClient != null);
         agentFailureDetails.put("reason", "agent_telemetry_failure");
         
+        log.debug("ANTITHESIS_ASSERT: Agent telemetry endpoint failed (unreachable) - result: {}, has_fallback: {}", result, intakeClient != null);
         Assert.unreachable(
             "Agent telemetry endpoint failed - switching to intake but current request data is lost",
             agentFailureDetails);
@@ -87,6 +89,7 @@ public class TelemetryRouter {
         intakeFailureDetails.put("will_fallback_to_agent", true);
         intakeFailureDetails.put("reason", "intake_telemetry_failure");
         
+        log.debug("ANTITHESIS_ASSERT: Intake telemetry endpoint failed (unreachable) - result: {}, will_fallback: true", result);
         Assert.unreachable(
             "Intake telemetry endpoint failed - switching to agent but current request data is lost",
             intakeFailureDetails);

@@ -99,6 +99,7 @@ public class TelemetryClient {
     String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
     
     // Antithesis: Track telemetry sending attempts
+    log.debug("ANTITHESIS_ASSERT: Telemetry sending exercised (reachable) - request_type: {}", requestType);
     Assert.reachable("Telemetry sending is exercised", null);
 
     try (okhttp3.Response response =
@@ -119,6 +120,7 @@ public class TelemetryClient {
         notFoundDetails.put("url", url.toString());
         notFoundDetails.put("reason", "endpoint_disabled_404");
         
+        log.debug("ANTITHESIS_ASSERT: Telemetry endpoint 404 (sometimes) - request_type: {}, url: {}", requestType, url);
         Assert.sometimes(
             response.code() == 404,
             "Telemetry endpoint returns 404 - endpoint may be disabled",
@@ -137,6 +139,7 @@ public class TelemetryClient {
         failureDetails.put("url", url.toString());
         failureDetails.put("reason", "http_error_response");
         
+        log.debug("ANTITHESIS_ASSERT: Telemetry HTTP request failed (unreachable) - request_type: {}, status: {}", requestType, response.code());
         Assert.unreachable(
             "Telemetry HTTP request failed - telemetry data should not be dropped, should retry",
             failureDetails);
@@ -150,6 +153,7 @@ public class TelemetryClient {
       }
       
       // Antithesis: Assert success
+      log.debug("ANTITHESIS_ASSERT: Checking telemetry request success (always) - successful: {}, request_type: {}", response.isSuccessful(), requestType);
       Assert.always(
           response.isSuccessful(),
           "Telemetry requests should always succeed - no telemetry data should be lost",
@@ -168,6 +172,7 @@ public class TelemetryClient {
       ioErrorDetails.put("url", url.toString());
       ioErrorDetails.put("reason", "network_io_exception");
       
+      log.debug("ANTITHESIS_ASSERT: Telemetry network/IO exception (unreachable) - request_type: {}, exception: {}", requestType, e.getClass().getName());
       Assert.unreachable(
           "Telemetry network/IO failure - telemetry data should not be dropped, should retry",
           ioErrorDetails);

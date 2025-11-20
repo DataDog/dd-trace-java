@@ -66,6 +66,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     dropDetails.put("total_dropped_traces", droppedTraceCount.sum() + 1);
     dropDetails.put("total_dropped_spans", droppedSpanCount.sum() + spanCount);
 
+    log.debug("ANTITHESIS_ASSERT: Traces dropped before sending (unreachable) - span_count: {}, total_dropped: {}", spanCount, droppedTraceCount.sum() + 1);
     Assert.unreachable(
         "Traces should not be dropped before attempting to send - indicates buffer overflow or backpressure",
         dropDetails);
@@ -117,7 +118,9 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       // Antithesis: Verify that we're attempting to send traces
+      log.debug("ANTITHESIS_ASSERT: Trace sending code path exercised (reachable) - message_count: {}", messageCount);
       Assert.reachable("Trace sending code path is exercised", null);
+      log.debug("ANTITHESIS_ASSERT: Checking if traces are being sent to API (sometimes) - message_count: {}", messageCount);
       Assert.sometimes(
           messageCount > 0,
           "Traces are being sent to the API",
@@ -141,6 +144,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       });
       response.status().ifPresent(status -> sendDetails.put("http_status", status));
 
+      log.debug("ANTITHESIS_ASSERT: Checking trace sending success (always) - success: {}, trace_count: {}", response.success(), messageCount);
       Assert.always(
           response.success(),
           "Trace sending to API should always succeed - no traces should be lost",
@@ -162,6 +166,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
         });
         response.status().ifPresent(status -> failureDetails.put("http_status", status));
 
+        log.debug("ANTITHESIS_ASSERT: Trace sending failed (unreachable) - trace_count: {}, size: {} bytes", messageCount, sizeInBytes);
         Assert.unreachable(
             "Trace sending failure path should never be reached - indicates traces are being lost",
             failureDetails);

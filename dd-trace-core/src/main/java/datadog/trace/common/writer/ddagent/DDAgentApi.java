@@ -94,7 +94,9 @@ public class DDAgentApi extends RemoteApi {
     final int sizeInBytes = payload.sizeInBytes();
     
     // Antithesis: Track that agent API send is being exercised
+    log.debug("ANTITHESIS_ASSERT: Verifying DDAgentApi trace sending is exercised (reachable) with {} traces", payload.traceCount());
     Assert.reachable("DDAgentApi trace sending is exercised", null);
+    log.debug("ANTITHESIS_ASSERT: Checking if traces are being sent through DDAgentApi (sometimes) - count: {}", payload.traceCount());
     Assert.sometimes(
         payload.traceCount() > 0,
         "Traces are being sent through DDAgentApi",
@@ -112,6 +114,7 @@ public class DDAgentApi extends RemoteApi {
         agentDetectionDetails.put("agent_url", agentUrl.toString());
         agentDetectionDetails.put("failure_reason", "agent_not_detected");
         
+        log.debug("ANTITHESIS_ASSERT: Agent not detected (unreachable) - url: {}, traces: {}", agentUrl, payload.traceCount());
         Assert.unreachable(
             "Datadog agent should always be detected - agent communication failure",
             agentDetectionDetails);
@@ -154,6 +157,7 @@ public class DDAgentApi extends RemoteApi {
         httpResponseDetails.put("success", response.code() == 200);
         httpResponseDetails.put("agent_url", tracesUrl.toString());
         
+        log.debug("ANTITHESIS_ASSERT: Checking HTTP response status (always) - code: {}, traces: {}", response.code(), payload.traceCount());
         Assert.always(
             response.code() == 200,
             "HTTP response from Datadog agent should always be 200 - API communication failure",
@@ -168,6 +172,7 @@ public class DDAgentApi extends RemoteApi {
           errorDetails.put("http_message", response.message());
           errorDetails.put("failure_reason", "http_error_response");
           
+          log.debug("ANTITHESIS_ASSERT: Non-200 HTTP response (unreachable) - code: {}, message: {}, traces: {}", response.code(), response.message(), payload.traceCount());
           Assert.unreachable(
               "Non-200 HTTP response from agent indicates API failure - traces may be lost",
               errorDetails);
@@ -204,6 +209,7 @@ public class DDAgentApi extends RemoteApi {
       networkErrorDetails.put("agent_url", agentUrl.toString());
       networkErrorDetails.put("failure_reason", "network_io_exception");
       
+      log.debug("ANTITHESIS_ASSERT: Network/IO exception (unreachable) - type: {}, message: {}, traces: {}", e.getClass().getName(), e.getMessage(), payload.traceCount());
       Assert.unreachable(
           "Network/IO exceptions should not occur when sending to agent - indicates connectivity issues",
           networkErrorDetails);
