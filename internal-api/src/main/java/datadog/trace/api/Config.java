@@ -337,6 +337,8 @@ import static datadog.trace.api.config.DebuggerConfig.SYMBOL_DATABASE_COMPRESSED
 import static datadog.trace.api.config.DebuggerConfig.SYMBOL_DATABASE_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.SYMBOL_DATABASE_FLUSH_THRESHOLD;
 import static datadog.trace.api.config.DebuggerConfig.SYMBOL_DATABASE_FORCE_UPLOAD;
+import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_EXCLUDES;
+import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
@@ -2606,8 +2608,14 @@ public class Config {
         configProvider.getBoolean(
             DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
 
-    debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
-    debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+    debuggerThirdPartyIncludes =
+        tryMakeImmutableSet(
+            configProvider.getList(
+                THIRD_PARTY_INCLUDES, Collections.emptyList(), THIRD_PARTY_DETECTION_INCLUDES));
+    debuggerThirdPartyExcludes =
+        tryMakeImmutableSet(
+            configProvider.getList(
+                THIRD_PARTY_EXCLUDES, Collections.emptyList(), THIRD_PARTY_DETECTION_EXCLUDES));
     debuggerShadingIdentifiers =
         tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
