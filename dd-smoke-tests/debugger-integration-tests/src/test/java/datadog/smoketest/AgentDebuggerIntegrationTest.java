@@ -35,7 +35,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
@@ -53,7 +55,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     assertFalse(logHasErrors(logFilePath, it -> false));
     // Wait for the app exit with some extra time.
     // The expectation is that agent doesn't prevent app from exiting.
@@ -78,7 +82,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     targetProcess.destroy();
     // Wait for the app exit with some extra time.
     // The expectation is that agent doesn't prevent app from exiting.

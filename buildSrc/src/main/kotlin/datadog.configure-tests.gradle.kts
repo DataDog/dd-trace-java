@@ -101,6 +101,9 @@ tasks.withType<Test>().configureEach {
   develocity.testRetry {
     if (providers.environmentVariable("CI").isPresent()) {
       maxRetries = 3
+      filter {
+        excludeAnnotationClasses.add("*NonRetryable") // allow to mark classes non retryable
+      }
     }
   }
 }
