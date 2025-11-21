@@ -1,9 +1,15 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
+groovySpock {
+  configureDependencies("compileOnly")
+}
+
 dependencies {
   api project(':dd-java-agent:appsec')
   api project(':dd-java-agent:instrumentation-testing')
+
+  compileOnly(libs.junit.jupiter)
 }
 
 configurations.named('api') {

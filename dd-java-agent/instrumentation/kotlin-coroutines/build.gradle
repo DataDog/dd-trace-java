@@ -36,6 +36,10 @@ kotlin {
   }
 }
 
+groovySpock {
+  configureDependencies("testFixturesApi")
+}
+
 addTestSuite('latestDepTest')
 
 tasks.named("compileTestFixturesGroovy", GroovyCompile) {

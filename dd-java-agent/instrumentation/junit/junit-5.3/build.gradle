@@ -74,3 +74,5 @@ tasks.named("latestDepTest", Test) {
     minJavaVersion = JavaVersion.VERSION_17
   }
 }
+
+configureGroovyCompiler(17, "compileLatestDepTestGroovy")
