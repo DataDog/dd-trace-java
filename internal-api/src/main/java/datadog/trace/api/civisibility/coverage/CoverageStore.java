@@ -8,7 +8,9 @@ public interface CoverageStore extends TestReportHolder {
 
   CoverageProbes getProbes();
 
-  /** @return {@code true} if coverage was gathered successfully */
+  /**
+   * @return {@code true} if coverage was gathered successfully
+   */
   boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId);
 
   interface Factory extends Registry {

@@ -99,7 +99,9 @@ public class JettyOnCommitBlockingHelper {
       this.channel = channel;
     }
 
-    /** @see org.eclipse.jetty.server.HttpChannel.CommitCallback */
+    /**
+     * @see org.eclipse.jetty.server.HttpChannel.CommitCallback
+     */
     private void close() {
       closed(channel.getResponse().getHttpOutput());
       channel.getEndPoint().close();

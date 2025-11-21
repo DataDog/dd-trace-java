@@ -10,7 +10,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
-/** @see org.springframework.http.codec.json.Jackson2Tokenizer */
+/**
+ * @see org.springframework.http.codec.json.Jackson2Tokenizer
+ */
 @AutoService(InstrumenterModule.class)
 public class Json2TokenizerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

@@ -17,7 +17,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
-/** @see akka.http.scaladsl.common.StrictForm$#unmarshaller(Unmarshaller, Unmarshaller) */
+/**
+ * @see akka.http.scaladsl.common.StrictForm$#unmarshaller(Unmarshaller, Unmarshaller)
+ */
 @AutoService(InstrumenterModule.class)
 public class StrictFormCompanionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {

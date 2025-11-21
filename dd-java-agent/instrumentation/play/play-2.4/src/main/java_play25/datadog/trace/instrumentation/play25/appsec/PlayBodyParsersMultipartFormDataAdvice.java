@@ -5,7 +5,9 @@ import play.api.mvc.BodyParser;
 import play.core.Execution;
 import scala.Function1;
 
-/** @see play.api.mvc.BodyParsers.parse$#multipartFormData(Function1, long) */
+/**
+ * @see play.api.mvc.BodyParsers.parse$#multipartFormData(Function1, long)
+ */
 public class PlayBodyParsersMultipartFormDataAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(

@@ -19,7 +19,9 @@ public final class InstanceStore<T> {
   private static final ClassValue<InstanceStore> classInstanceStore =
       GenericClassValue.of(type -> new InstanceStore<>());
 
-  /** @return global store of instances with the same common type */
+  /**
+   * @return global store of instances with the same common type
+   */
   @SuppressWarnings("unchecked")
   public static <T> InstanceStore<T> of(Class<T> type) {
     return classInstanceStore.get(type);

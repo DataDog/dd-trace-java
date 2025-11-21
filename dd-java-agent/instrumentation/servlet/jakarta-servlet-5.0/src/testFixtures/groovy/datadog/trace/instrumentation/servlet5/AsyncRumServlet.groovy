@@ -40,7 +40,6 @@ class AsyncRumServlet extends HttpServlet {
             asyncContext.complete()
           }
         }
-
       }, 2000)
   }
 }

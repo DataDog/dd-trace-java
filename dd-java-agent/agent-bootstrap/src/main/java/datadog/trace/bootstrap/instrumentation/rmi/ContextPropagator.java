@@ -62,7 +62,9 @@ public class ContextPropagator {
     return result;
   }
 
-  /** @return {@code true} when no error happened during call */
+  /**
+   * @return {@code true} when no error happened during call
+   */
   private boolean syntheticCall(
       final Connection c, final ContextPayload payload, final int operationId) {
     final StreamRemoteCall shareContextCall = new StreamRemoteCall(c);

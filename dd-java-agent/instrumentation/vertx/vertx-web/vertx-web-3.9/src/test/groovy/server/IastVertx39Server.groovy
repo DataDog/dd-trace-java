@@ -65,6 +65,4 @@ class IastVertx39Server extends IastHttpServerTest<Vertx> {
   String routerBasePath() {
     return "/"
   }
-
-
 }

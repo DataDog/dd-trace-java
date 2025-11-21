@@ -452,5 +452,4 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
       assertEquals(expected.toString(), actual.toString())
     }
   }
-
 }

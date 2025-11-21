@@ -158,8 +158,9 @@ object PekkoHttpTestWebServer {
       endpoint,
       new Closure[Future[RouteResult]](()) {
         def doCall(): Future[RouteResult] = {
-          try inner(())(ctx).fast
-            .recoverWith(handleException)(ctx.executionContext)
+          try
+            inner(())(ctx).fast
+              .recoverWith(handleException)(ctx.executionContext)
           catch {
             case NonFatal(e) =>
               handleException

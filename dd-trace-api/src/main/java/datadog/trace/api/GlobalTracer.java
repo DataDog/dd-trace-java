@@ -85,7 +85,9 @@ public class GlobalTracer {
     return provider;
   }
 
-  /** @deprecated use static methods in {@link EventTrackerV2} directly */
+  /**
+   * @deprecated use static methods in {@link EventTrackerV2} directly
+   */
   @Deprecated
   public static EventTracker getEventTracker() {
     return eventTracker;

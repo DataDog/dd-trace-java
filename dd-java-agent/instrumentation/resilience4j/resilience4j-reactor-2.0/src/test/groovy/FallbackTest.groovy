@@ -19,11 +19,19 @@ class FallbackTest extends InstrumentationSpecification {
     .failAfterMaxAttempts(true)
     .build()
     Retry retry = Retry.of("R0", config)
-    def fallback = Flux.just(-1, -2).map({ v -> runUnderTrace("in"+v) { v } })
+    def fallback = Flux.just(-1, -2).map({
+      v -> runUnderTrace("in"+v) {
+        v
+      }
+    })
 
     def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback)
     Flux<Integer> flux = Flux
-    .just(1, 2).map({ v -> runUnderTrace("in"+v) { v } })
+    .just(1, 2).map({
+      v -> runUnderTrace("in"+v) {
+        v
+      }
+    })
     .transformDeferred(retryOperator)
 
     when:
@@ -103,11 +111,19 @@ class FallbackTest extends InstrumentationSpecification {
     .failAfterMaxAttempts(true)
     .build()
     Retry retry = Retry.of("R0", config)
-    def fallback = Mono.just(-1).map({ v -> runUnderTrace("in"+v) { v } })
+    def fallback = Mono.just(-1).map({
+      v -> runUnderTrace("in"+v) {
+        v
+      }
+    })
 
     def retryOperator = ReactorOperatorFallbackDecorator.decorateRetry(RetryOperator.of(retry), fallback)
     Mono<Integer> source = Mono
-    .just(1).map({ v -> runUnderTrace("in"+v) { v } })
+    .just(1).map({
+      v -> runUnderTrace("in"+v) {
+        v
+      }
+    })
     .transformDeferred(retryOperator)
 
     when:
@@ -129,17 +145,20 @@ class FallbackTest extends InstrumentationSpecification {
           childOf span(0)
           errored false
         }
-        span(2) { // first attempt
+        span(2) {
+          // first attempt
           operationName "in1"
           childOf span(1)
           errored false
         }
-        span(3) { // second attempt
+        span(3) {
+          // second attempt
           operationName "in1"
           childOf span(1)
           errored false
         }
-        span(4) {// fallback
+        span(4) {
+          // fallback
           operationName "in-1"
           childOf span(1)
           errored false

@@ -884,7 +884,6 @@ abstract class RabbitMQForkedTest extends RabbitMQTestBase {
 }
 
 class RabbitMQNamingV0Test extends RabbitMQForkedTest {
-
 }
 
 class RabbitMQNamingV1ForkedTest extends RabbitMQForkedTest {

@@ -62,6 +62,5 @@ class HandlerMethodReturnValueHandlerCompositeInstrumentationTest extends Instru
     ModelAndView| false | 1  | 0
     String | true | 0 | 1
     String | false | 1 | 0
-
   }
 }

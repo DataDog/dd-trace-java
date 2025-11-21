@@ -3,7 +3,6 @@ plugins {
   id 'org.springframework.boot' version '3.0.0'
   id 'io.spring.dependency-management' version '1.0.14.RELEASE'
   id 'org.graalvm.buildtools.native' version '0.9.28'
-  id 'com.diffplug.spotless' version '6.13.0'
 }
 
 def sharedRootDir = "$rootDir/../../../"
@@ -11,7 +10,6 @@ def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
-apply from: "$sharedConfigDirectory/spotless.gradle"
 
 ext.withProfiler = hasProperty('profiler')
 

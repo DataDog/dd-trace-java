@@ -299,7 +299,6 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
       }
 
       throw new AssertionError("No flare file created in ${flareDir} within ${timeoutSeconds} seconds")
-
     } finally {
       watchService.close()
     }

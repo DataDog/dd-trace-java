@@ -37,5 +37,4 @@ class CouchbaseConfig extends AbstractCouchbaseConfiguration {
   protected String getBucketPassword() {
     return bucketSettings.password()
   }
-
 }

@@ -115,5 +115,4 @@ class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
   static isWindows() {
     return System.getProperty('os.name').toLowerCase().contains('win')
   }
-
 }

@@ -128,7 +128,9 @@ public class TelemetryRequestBody extends RequestBody {
     }
   }
 
-  /** @return body size in bytes */
+  /**
+   * @return body size in bytes
+   */
   public long endRequest() {
     try {
       switch (this.requestType) {

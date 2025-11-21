@@ -184,14 +184,18 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
     return getRemoteAddr(serverTransaction).getPort();
   }
 
-  /** @param serverTransaction instance of {@value #SERVERTRANSACTION_CLASSNAME} */
+  /**
+   * @param serverTransaction instance of {@value #SERVERTRANSACTION_CLASSNAME}
+   */
   @Override
   protected int status(final Object serverTransaction) {
     // TODO will be done manually
     return 0;
   }
 
-  /** @param stateInstance type com.vordel.circuit.net.State */
+  /**
+   * @param stateInstance type com.vordel.circuit.net.State
+   */
   public AgentSpan onTransaction(AgentSpan span, Object stateInstance) {
     if (span != null) {
       setStringTagFromStateField(span, Tags.PEER_HOSTNAME, stateInstance, hostField_mh);

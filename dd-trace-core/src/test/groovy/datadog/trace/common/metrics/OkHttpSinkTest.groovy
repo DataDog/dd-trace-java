@@ -130,5 +130,4 @@ class OkHttpSinkTest extends DDSpecification {
       latch.countDown()
     }
   }
-
 }
