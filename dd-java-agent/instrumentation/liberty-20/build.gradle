@@ -29,7 +29,6 @@ def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 
 groovySpock {
-  configureDependencies("testImplementation")
   configureDependencies("testImplementation", libs.groovy4.xml)
 }
 

@@ -33,7 +33,6 @@ def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 def shadowJar = tasks.named("shadowJar", ShadowJar)
 
 groovySpock {
-  configureDependencies("testImplementation")
   configureDependencies("testImplementation", libs.groovy4.xml)
 }
 
