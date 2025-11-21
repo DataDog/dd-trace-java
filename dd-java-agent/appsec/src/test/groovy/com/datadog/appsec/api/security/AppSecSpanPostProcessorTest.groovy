@@ -255,7 +255,6 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
-    def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
 
