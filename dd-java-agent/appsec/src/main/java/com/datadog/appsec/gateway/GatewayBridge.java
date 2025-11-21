@@ -856,11 +856,12 @@ public class GatewayBridge {
         log.info(
             "[APPSEC-57815] Setting ASM_KEEP=true (API Security sampled, APM tracing disabled)");
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        // Verify the tag was set and check sampling priority
+        // Must set _dd.p.ts locally so TraceCollector respects force-keep in standalone mode
+        // (TraceCollector.java lines 67-74 ignore force-keep without _dd.p.ts when APM disabled)
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        // Verify the tag was set
         Object asmKeepAfterSet = traceSeg.getTagTop(Tags.ASM_KEEP);
         log.info("[APPSEC-57815] ASM_KEEP after setTagTop: {}", asmKeepAfterSet);
-        // Note: _dd.p.ts (PROPAGATED_TRACE_SOURCE) is only set when there are actual AppSec events
-        // (see lines below where collectedEvents is checked), not just for API Security sampling
       }
     } else {
       ctx.closeWafContext();
