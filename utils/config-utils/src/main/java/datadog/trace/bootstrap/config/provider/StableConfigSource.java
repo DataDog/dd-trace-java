@@ -28,16 +28,14 @@ public final class StableConfigSource extends ConfigProvider.Source {
   private final StableConfig config;
 
   StableConfigSource(String filePath, ConfigOrigin origin) {
+    StableConfig cfg = StableConfig.EMPTY;
     this.fileOrigin = origin;
-    File file = new File(filePath);
-    if (!file.exists()) {
-      this.config = StableConfig.EMPTY;
-      return;
-    }
-    StableConfig cfg;
     try {
+      File file = new File(filePath);
       log.debug("Stable configuration file found at path: {}", file);
-      cfg = StableConfigParser.parse(filePath);
+      if (file.exists()) {
+        cfg = StableConfigParser.parse(filePath);
+      }
     } catch (Throwable e) {
       if (e instanceof StableConfigMappingException
           || e instanceof IllegalArgumentException
@@ -55,8 +53,6 @@ public final class StableConfigSource extends ConfigProvider.Source {
             filePath,
             e.getMessage());
       }
-
-      cfg = StableConfig.EMPTY;
     }
     this.config = cfg;
   }

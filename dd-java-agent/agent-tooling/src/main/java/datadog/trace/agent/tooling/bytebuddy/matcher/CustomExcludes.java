@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.util.ClassNameTrie;
 import java.nio.file.Paths;
 import java.util.List;
 import org.slf4j.Logger;
