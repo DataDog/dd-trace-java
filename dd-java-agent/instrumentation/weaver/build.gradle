@@ -19,12 +19,15 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestDepTest', 'latestDepTest')
 // weaver 0.8.4 is the earliest supported version before the org migration
 addTestSuiteForDir('weaver084Test', 'test')
 
 dependencies {
   compileOnly group: 'org.typelevel', name: 'weaver-cats_3', version: '0.9.0'
+
+  // Weaver is only published for Scala > 2.12
+  runtimeOnly group: 'org.scala-lang', name: 'scala-library', version: '2.12.20'
 
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
