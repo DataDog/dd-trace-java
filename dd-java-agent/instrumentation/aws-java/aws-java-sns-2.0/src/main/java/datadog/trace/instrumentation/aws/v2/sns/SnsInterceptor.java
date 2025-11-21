@@ -51,7 +51,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
-    if (!Config.get().isAwsInjectDatadogAttributeEnabled()) {
+    if (!Config.get().isSnsInjectDatadogAttributeEnabled()) {
       return context.request();
     }
     // Injecting the trace context into SNS messageAttributes.

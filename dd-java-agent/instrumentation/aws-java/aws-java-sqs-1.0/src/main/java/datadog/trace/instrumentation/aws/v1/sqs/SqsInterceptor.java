@@ -70,7 +70,7 @@ public class SqsInterceptor extends RequestHandler2 {
       }
     } else if (request instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest rmRequest = (ReceiveMessageRequest) request;
-      if (Config.get().isAwsInjectDatadogAttributeEnabled()
+      if (Config.get().isSqsInjectDatadogAttributeEnabled()
           && rmRequest.getMessageAttributeNames().size() < 10
           && !rmRequest.getMessageAttributeNames().contains(DATADOG_KEY)) {
         List<String> attributeNames = new ArrayList<>(rmRequest.getMessageAttributeNames());

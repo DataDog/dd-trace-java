@@ -445,7 +445,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
-import static datadog.trace.api.config.TracerConfig.TRACE_AWS_INJECT_DATADOG_ATTRIBUTE;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
@@ -1127,7 +1126,10 @@ public class Config {
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
 
-  private final boolean awsInjectDatadogAttributeEnabled;
+  private final boolean sfnInjectDatadogAttributeEnabled;
+  private final boolean sqsInjectDatadogAttributeEnabled;
+  private final boolean snsInjectDatadogAttributeEnabled;
+  private final boolean eventbridgeInjectDatadogAttributeEnabled;
 
   private final RumInjectorConfig rumInjectorConfig;
 
@@ -1411,9 +1413,16 @@ public class Config {
     awsServerless =
         getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
 
-    awsInjectDatadogAttributeEnabled =
-        configProvider.getBoolean(
-            TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE);
+    sfnInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(
+            DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "sfn", "step.functions");
+    eventbridgeInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(
+            DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "events", "eventbridge");
+    snsInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "sns");
+    sqsInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "sqs");
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -4551,8 +4560,20 @@ public class Config {
     return stackTraceLengthLimit;
   }
 
-  public boolean isAwsInjectDatadogAttributeEnabled() {
-    return this.awsInjectDatadogAttributeEnabled;
+  public boolean isSqsInjectDatadogAttributeEnabled() {
+    return this.sqsInjectDatadogAttributeEnabled;
+  }
+
+  public boolean isSnsInjectDatadogAttributeEnabled() {
+    return this.snsInjectDatadogAttributeEnabled;
+  }
+
+  public boolean isEventbridgeInjectDatadogAttributeEnabled() {
+    return this.eventbridgeInjectDatadogAttributeEnabled;
+  }
+
+  public boolean isSfnInjectDatadogAttributeEnabled() {
+    return sfnInjectDatadogAttributeEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4988,6 +5009,12 @@ public class Config {
       final boolean defaultEnabled, final String... integrationNames) {
     return configProvider.isEnabled(
         Arrays.asList(integrationNames), "", ".propagation.enabled", defaultEnabled);
+  }
+
+  public boolean isInjectDatadogAttributeEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return configProvider.isEnabled(
+        Arrays.asList(integrationNames), "", ".inject.datadog.attribute.enabled", defaultEnabled);
   }
 
   public boolean isLegacyTracingEnabled(

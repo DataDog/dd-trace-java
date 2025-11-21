@@ -18,7 +18,7 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
       final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
     if (carrier.size() < 10
         && !carrier.containsKey(DATADOG_KEY)
-        && Config.get().isAwsInjectDatadogAttributeEnabled()) {
+        && Config.get().isSqsInjectDatadogAttributeEnabled()) {
 
       String jsonPathway = String.format("{\"%s\": \"%s\"}", key, value);
       carrier.put(

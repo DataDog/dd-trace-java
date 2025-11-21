@@ -36,7 +36,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
     if (!(context.request() instanceof PutEventsRequest)
-        || !Config.get().isAwsInjectDatadogAttributeEnabled()) {
+        || !Config.get().isEventbridgeInjectDatadogAttributeEnabled()) {
       return context.request();
     }
 

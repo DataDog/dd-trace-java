@@ -79,7 +79,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
       if (request.messageAttributeNames().size() < 10
           && !request.messageAttributeNames().contains(DATADOG_KEY)
-          && Config.get().isAwsInjectDatadogAttributeEnabled()) {
+          && Config.get().isSqsInjectDatadogAttributeEnabled()) {
         List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
         messageAttributeNames.add(DATADOG_KEY);
         return request.toBuilder().messageAttributeNames(messageAttributeNames).build();

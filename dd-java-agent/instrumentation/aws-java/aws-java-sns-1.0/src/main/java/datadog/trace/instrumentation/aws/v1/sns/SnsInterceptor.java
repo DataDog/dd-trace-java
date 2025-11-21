@@ -50,7 +50,7 @@ public class SnsInterceptor extends RequestHandler2 {
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(AmazonWebServiceRequest request) {
-    if (!Config.get().isAwsInjectDatadogAttributeEnabled()) {
+    if (!Config.get().isSnsInjectDatadogAttributeEnabled()) {
       return request;
     }
     // Injecting the trace context into SNS messageAttributes.
