@@ -307,11 +307,11 @@ class ExposureWriterTests extends DDSpecification {
   private static ExposureEvent buildExposure() {
     final idx = UUID.randomUUID().toString()
     return new ExposureEvent(
-      System.currentTimeMillis(),
-      new Allocation("Allocation_$idx"),
-      new Flag("Flag_$idx"),
-      new Variant("Variant_$idx"),
-      new Subject("Subject_$idx", [("key_$idx".toString()): "value_$idx".toString()])
-      )
+    System.currentTimeMillis(),
+    new Allocation("Allocation_$idx"),
+    new Flag("Flag_$idx"),
+    new Variant("Variant_$idx"),
+    new Subject("Subject_$idx", [("key_$idx".toString()): "value_$idx".toString()])
+    )
   }
 }
