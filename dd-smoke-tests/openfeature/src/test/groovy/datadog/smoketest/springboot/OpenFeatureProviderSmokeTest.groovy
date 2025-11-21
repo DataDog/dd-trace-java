@@ -1,10 +1,8 @@
 package datadog.smoketest.springboot
 
-import com.squareup.moshi.Moshi
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
 import datadog.smoketest.AbstractServerSmokeTest
-import datadog.trace.api.featureflag.exposure.ExposuresRequest
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
@@ -12,22 +10,18 @@ import java.nio.file.Paths
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import okio.Okio
 import spock.lang.Shared
+import spock.lang.Stepwise
 import spock.util.concurrent.PollingConditions
 
-class  OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
+/** Due to the exposure cache it's important to run the tests in the specified order */
+@Stepwise
+class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
   private final rcPayload = new JsonSlurper().parse(fetchResource("config/flags-v1.json")).with { json ->
     return JsonOutput.toJson(json.data.attributes)
   }
-
-  @Shared
-  private final moshi = new Moshi.Builder().build().adapter(ExposuresRequest)
-
-  @Shared
-  private final exposurePoll = new PollingConditions(timeout: 5, initialDelay: 0, delay: 0.1D, factor: 2)
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -51,19 +45,55 @@ class  OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       if (!path.contains('api/v2/exposures')) {
         return null
       }
-      return moshi.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(body))))
+      return new JsonSlurper().parse(body)
     }
   }
 
   void 'test remote config'() {
     when:
-    final rcRequest = waitForRcClientRequest {req ->
-      decodeProducts(req).find {it == Product.FFE_FLAGS } != null
+    final rcRequest = waitForRcClientRequest { req ->
+      decodeProducts(req).find { it == Product.FFE_FLAGS } != null
     }
 
     then:
     final capabilities = decodeCapabilities(rcRequest)
     hasCapability(capabilities, Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES)
+  }
+
+  void 'test open feature exposures'() {
+    setup:
+    setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
+    final url = "http://localhost:${httpPort}/openfeature/evaluate"
+    final testCases = parseTestCases().findAll {
+      it.result.flagMetadata?.doLog
+    }
+
+    when:
+    final responses = testCases.collect {
+      testCase ->
+      final request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson(testCase)))
+      .build()
+      client.newCall(request).execute()
+    }
+
+    then:
+    responses.every {
+      it.code() == 200
+    }
+    new PollingConditions(timeout: 10).eventually {
+      final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
+      final events = requests*.exposures.flatten()
+      assert events.size() == testCases.size()
+      testCases.each {
+        testCase ->
+        assert events.find {
+          event ->
+          event.flag.key == testCase.flag && event.subject.id == testCase.targetingKey
+        } != null : "Unable to find exposure with flag=${testCase.flag} and targetingKey=${testCase.targetingKey}"
+      }
+    }
   }
 
   void 'test open feature evaluation'() {
@@ -84,14 +114,6 @@ class  OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     responseBody.value == testCase.result.value
     responseBody.variant == testCase.result.variant
     responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
-    if (testCase.result.flagMetadata?.doLog) {
-      waitForEvpProxyMessage(exposurePoll) {
-        final exposure = it.v2 as ExposuresRequest
-        return exposure.exposures.first().with {
-          it.flag.key == testCase.flag && it.subject.id == testCase.targetingKey
-        }
-      }
-    }
 
     where:
     testCase << parseTestCases()
@@ -123,7 +145,7 @@ class  OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   }
 
   private static Set<Product> decodeProducts(final Map<String, Object> request) {
-    return request.client.products.collect { Product.valueOf(it)}
+    return request.client.products.collect { Product.valueOf(it) }
   }
 
   private static long decodeCapabilities(final Map<String, Object> request) {

@@ -183,13 +183,10 @@ abstract class AbstractSmokeTest extends ProcessManager {
           if (decoded) {
             evpProxyMessages.add(new Tuple2<>(path, decoded))
           }
-          response.status(200).send()
         } catch (Throwable t) {
-          println("=== Failure during evp proxy message decoding ===")
-          t.printStackTrace(System.out)
           evpProxyMessageDecodingFailure = t
-          throw t
         }
+        response.status(200).send()
       }
     }
   }
