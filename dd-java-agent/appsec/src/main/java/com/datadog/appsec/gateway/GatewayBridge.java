@@ -836,8 +836,25 @@ public class GatewayBridge {
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
-    if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
-      if (!Config.get().isApmTracingEnabled()) {
+    // Log upstream propagated tags
+    Object upstreamPropagatedTs = tags.get(Tags.PROPAGATED_TRACE_SOURCE);
+    log.info(
+        "[APPSEC-57815] Request ended - spanId={}, upstream _dd.p.ts={}",
+        spanInfo.getSpanId(),
+        upstreamPropagatedTs);
+
+    boolean sampledForApiSec = maybeSampleForApiSecurity(ctx, spanInfo, tags);
+    boolean apmTracingEnabled = Config.get().isApmTracingEnabled();
+
+    log.info(
+        "[APPSEC-57815] sampledForApiSec={}, apmTracingEnabled={}",
+        sampledForApiSec,
+        apmTracingEnabled);
+
+    if (sampledForApiSec) {
+      if (!apmTracingEnabled) {
+        log.info(
+            "[APPSEC-57815] Setting ASM_KEEP=true (API Security sampled, APM tracing disabled)");
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
         // Note: _dd.p.ts (PROPAGATED_TRACE_SOURCE) is only set when there are actual AppSec events
         // (see lines below where collectedEvents is checked), not just for API Security sampling
@@ -853,6 +870,8 @@ public class GatewayBridge {
 
       Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
 
+      log.info("[APPSEC-57815] Collected {} AppSec events", collectedEvents.size());
+
       for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
         pp.processTraceSegment(traceSeg, ctx, collectedEvents);
       }
@@ -864,8 +883,12 @@ public class GatewayBridge {
 
       // If detected any events - mark span at appsec.event
       if (!collectedEvents.isEmpty()) {
-        if (ctx.isManuallyKept()) {
+        boolean manuallyKept = ctx.isManuallyKept();
+        log.info("[APPSEC-57815] AppSec events detected - manuallyKept={}", manuallyKept);
+        if (manuallyKept) {
           // Set asm keep in case that root span was not available when events are detected
+          log.info(
+              "[APPSEC-57815] Setting ASM_KEEP=true and _dd.p.ts=ASM (AppSec events + manually kept)");
           traceSeg.setTagTop(Tags.ASM_KEEP, true);
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         }
@@ -929,6 +952,14 @@ public class GatewayBridge {
               );
     }
 
+    // Log final state of propagation tags
+    Object finalPropagatedTs = tags.get(Tags.PROPAGATED_TRACE_SOURCE);
+    Object finalAsmKeep = tags.get(Tags.ASM_KEEP);
+    log.info(
+        "[APPSEC-57815] Request ended - final state: _dd.p.ts={}, _dd.appsec.keep={}",
+        finalPropagatedTs,
+        finalAsmKeep);
+
     ctx.close();
     return NoopFlow.INSTANCE;
   }
@@ -942,7 +973,10 @@ public class GatewayBridge {
       ctx.setRoute(route.toString());
     }
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
-    return requestSampler.preSampleRequest(ctx);
+    boolean sampled = requestSampler.preSampleRequest(ctx);
+    log.info(
+        "[APPSEC-57815] API Security sampling decision - route={}, sampled={}", route, sampled);
+    return sampled;
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {
