@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.util.ClassNameTrie;
+import datadog.instrument.utils.ClassNameTrie;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;

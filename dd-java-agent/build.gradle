@@ -187,6 +187,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
+includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   it.configurations = [project.configurations.sharedShadowInclude]
@@ -316,6 +317,7 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  shadowInclude project(path: ':products:feature-flagging:bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared

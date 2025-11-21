@@ -234,7 +234,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     if (span == rootSpan) {
       tracer.onRootSpanPublished(rootSpan);
     }
-    return decrementRefAndMaybeWrite(span == rootSpan);
+    return decrementRefAndMaybeWrite(span == rootSpan, true);
   }
 
   @Override
@@ -267,10 +267,10 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   @Override
   public void removeContinuation(final AgentScope.Continuation continuation) {
-    decrementRefAndMaybeWrite(false);
+    decrementRefAndMaybeWrite(false, false);
   }
 
-  private PublishState decrementRefAndMaybeWrite(boolean isRootSpan) {
+  private PublishState decrementRefAndMaybeWrite(boolean isRootSpan, boolean addedSpan) {
     final int count = PENDING_REFERENCE_COUNT.decrementAndGet(this);
     if (strictTraceWrites && count < 0) {
       throw new IllegalStateException("Pending reference count " + count + " is negative");
@@ -285,8 +285,19 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
       return PublishState.ROOT_BUFFERED;
-    } else if (partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
+    } else if (addedSpan && partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
       // Trace is getting too big, write anything completed.
+
+      // DQH - We only trigger a partial flush, when a span has just been added
+      // This prevents a bunch of threads which are only performing scope/context operations
+      // from all fighting to perform the partialFlush after the threshold is crossed.
+
+      // This is an important optimization for virtual threads where a continuation might
+      // be created even though no span is created.  In that situation, virtual threads
+      // can end up fighting to perform the partialFlush.  And even trying to perform a
+      // partialFlush requires taking the PendingTrace lock which can lead to unmounting
+      // the virtual thread from its carrier thread.
+
       partialFlush();
       return PublishState.PARTIAL_FLUSH;
     } else if (rootSpanWritten) {

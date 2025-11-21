@@ -2099,6 +2099,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     rootSpan.tags['appsec.blocked'] == 'true'
   }
 
+  @Flaky(value = "AppSec overwrites test context when enabled, causing test context to be lost", suites = ["Jetty10V0ForkedTest", "Jetty10V1ForkedTest"])
   def 'test session id publishes to IG'() {
     setup:
     assumeTrue(testSessionId())
