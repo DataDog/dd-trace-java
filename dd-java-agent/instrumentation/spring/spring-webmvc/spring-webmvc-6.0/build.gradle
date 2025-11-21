@@ -27,6 +27,10 @@ tasks.withType(GroovyCompile).configureEach {
   groovyOptions.setParameters(true)
 }
 
+groovySpock {
+  configureDependencies("testImplementation", libs.spock.spring.groovy4)
+}
+
 dependencies {
   main_java17CompileOnly(group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0')
   main_java17CompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
@@ -46,8 +50,6 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
-
-  testImplementation libs.spock.spring.groovy4
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'

@@ -29,6 +29,10 @@ testJvmConstraints {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+groovySpock {
+  configureDependencies("testImplementation", libs.spock.spring.groovy4)
+}
+
 // DQH - API changes that impact instrumentation occurred in spring-data-commons in March 2014.
 // For now, that limits support to spring-data-commons 1.9.0 (maybe 1.8.0).
 // For testing, chose a couple spring-data modules that are old enough to work with 1.9.0.
@@ -37,7 +41,6 @@ dependencies {
   compileOnly(group: 'org.springframework', name: 'spring-aop', version: '1.2')
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
-  testImplementation libs.spock.spring.groovy4
   testImplementation group: 'org.springframework', name: 'spring-test', version: '3.0.0.RELEASE'
 
   // JPA dependencies
