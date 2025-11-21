@@ -856,6 +856,9 @@ public class GatewayBridge {
         log.info(
             "[APPSEC-57815] Setting ASM_KEEP=true (API Security sampled, APM tracing disabled)");
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        // Verify the tag was set and check sampling priority
+        Object asmKeepAfterSet = traceSeg.getTagTop(Tags.ASM_KEEP);
+        log.info("[APPSEC-57815] ASM_KEEP after setTagTop: {}", asmKeepAfterSet);
         // Note: _dd.p.ts (PROPAGATED_TRACE_SOURCE) is only set when there are actual AppSec events
         // (see lines below where collectedEvents is checked), not just for API Security sampling
       }
@@ -952,11 +955,12 @@ public class GatewayBridge {
               );
     }
 
-    // Log final state of propagation tags
-    Object finalPropagatedTs = tags.get(Tags.PROPAGATED_TRACE_SOURCE);
-    Object finalAsmKeep = tags.get(Tags.ASM_KEEP);
+    // Log final state of propagation tags from TraceSegment (not from spanInfo.getTags() which is
+    // immutable)
+    Object finalPropagatedTs = traceSeg.getTagTop(Tags.PROPAGATED_TRACE_SOURCE);
+    Object finalAsmKeep = traceSeg.getTagTop(Tags.ASM_KEEP);
     log.info(
-        "[APPSEC-57815] Request ended - final state: _dd.p.ts={}, _dd.appsec.keep={}",
+        "[APPSEC-57815] Request ended - final state from TraceSegment: _dd.p.ts={}, _dd.appsec.keep={}",
         finalPropagatedTs,
         finalAsmKeep);
 
