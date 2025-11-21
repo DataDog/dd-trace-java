@@ -159,6 +159,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
             error.set(true);
           }
         });
-    processRequests(() -> received.get() && error.get());
+    processRequests(
+        () -> received.get() && error.get(),
+        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
   }
 }

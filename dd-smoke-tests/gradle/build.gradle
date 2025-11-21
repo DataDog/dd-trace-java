@@ -22,4 +22,3 @@ tasks.named("test", Test) {
     environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
   }
 }
-

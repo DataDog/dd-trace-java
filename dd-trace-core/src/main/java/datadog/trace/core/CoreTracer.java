@@ -25,7 +25,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
-import datadog.environment.ThreadUtils;
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -1047,7 +1047,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final ReusableSingleSpanBuilderThreadLocalCache tlCache,
       final String instrumentationName,
       final CharSequence operationName) {
-    if (ThreadUtils.isCurrentThreadVirtual()) {
+    if (ThreadSupport.isVirtual()) {
       // Since virtual threads are created and destroyed often,
       // cautiously decided not to create a thread local for the virtual threads.
 
@@ -1109,7 +1109,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final CharSequence spanName,
       final AgentSpanContext parent,
       final long startTimeMicros) {
-    return buildSpan(instrumentationName, spanName)
+    return singleSpanBuilder(instrumentationName, spanName)
         .ignoreActiveSpan()
         .asChildOf(parent)
         .withStartTimestamp(startTimeMicros)

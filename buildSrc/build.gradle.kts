@@ -3,7 +3,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.0.0"
+  id("com.diffplug.spotless") version "8.1.0"
 }
 
 java {
@@ -24,7 +24,7 @@ gradlePlugin {
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
-      implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
+      implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
       id = "datadog.tracer-version"
@@ -57,7 +57,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.17.7")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.1")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

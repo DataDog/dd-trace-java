@@ -27,7 +27,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
     }
     
     dependencies {
-      implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.17.7'
+      implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.1'
       implementation group: 'com.google.auto.service', name: 'auto-service-annotations', version: '1.1.1'
     }
   '''

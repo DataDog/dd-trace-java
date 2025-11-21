@@ -3,6 +3,7 @@ package datadog.trace.plugin.csi.util;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -47,7 +48,20 @@ public abstract class CallSiteUtils {
 
   public static URL toURL(final Path path) {
     try {
-      return path.toUri().toURL();
+      URL url = path.toUri().toURL();
+      // URLClassLoader interprets URLs ending with '/' as directories. If the trailing '/' is
+      // missing, a directory URL is treated as a JAR. If the path does yet exist on disk
+      // assumes that paths not ending with ".jar" are directories.
+      boolean shouldAddSlash =
+          Files.exists(path) ? Files.isDirectory(path) : !path.toString().endsWith(".jar");
+
+      if (shouldAddSlash) {
+        String urlString = url.toString();
+        if (!urlString.endsWith("/")) {
+          url = new URL(urlString + "/");
+        }
+      }
+      return url;
     } catch (MalformedURLException e) {
       throw new RuntimeException(e);
     }
