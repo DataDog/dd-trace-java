@@ -1935,7 +1935,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
-      if (spanId == 0) {
+      if (spanId == AUTO_ASSIGN_SPAN_ID) {
         spanId = tracer.idGenerationStrategy.generateSpanId();
       }
 
