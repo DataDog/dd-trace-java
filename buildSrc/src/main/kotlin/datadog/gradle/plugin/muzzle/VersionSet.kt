@@ -30,7 +30,7 @@ class VersionSet(versions: Collection<Version>) {
       return resultSet.map { it.version }
     }
 
-    class ParsedVersion(val version: Version) : Comparable<ParsedVersion> {
+    internal class ParsedVersion(val version: Version) : Comparable<ParsedVersion> {
         companion object {
             private val dotPattern = Regex("\\.")
             private const val VERSION_SHIFT = 12
