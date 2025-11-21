@@ -34,7 +34,7 @@ tasks.named("shadowJar", ShadowJar) {
 }
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
+  configureDependencies("implementation")
 }
 
 dependencies {

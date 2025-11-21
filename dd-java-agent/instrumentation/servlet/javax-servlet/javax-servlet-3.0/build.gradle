@@ -31,7 +31,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
 groovySpock {
-  configureDefaultDependencies("testFixturesApi")
+  configureDependencies("testFixturesApi")
 }
 
 dependencies {

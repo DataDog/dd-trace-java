@@ -51,7 +51,7 @@ tasks.register('relocatedJavaxJar', ShadowJar) {
 }
 
 groovySpock {
-  configureDefaultDependencies("testFixturesApi")
+  configureDependencies("testFixturesApi")
 }
 
 dependencies {

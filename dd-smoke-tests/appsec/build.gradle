@@ -3,7 +3,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'appsec-smoke-tests'
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
+  configureDependencies("compileOnly")
 }
 
 dependencies {

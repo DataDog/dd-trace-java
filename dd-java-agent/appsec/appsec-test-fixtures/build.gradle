@@ -2,7 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
+  configureDependencies("compileOnly")
 }
 
 dependencies {

@@ -1,8 +1,8 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
-  configureDefaultDependencies("testImplementation")
+  configureDependencies("compileOnly")
+  configureDependencies("testImplementation")
 }
 
 dependencies {

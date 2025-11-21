@@ -25,8 +25,8 @@ tasks.named("compileJava", JavaCompile) {
 }
 
 groovySpock {
-  configureDefaultDependencies("testImplementation")
-  configureDependency("testImplementation", libs.spock.spring.groovy4)
+  configureDependencies("testImplementation")
+  configureDependencies("testImplementation", libs.spock.spring.groovy4)
 }
 
 dependencies {

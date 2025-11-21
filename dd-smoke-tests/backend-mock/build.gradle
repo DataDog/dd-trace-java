@@ -2,7 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Mock Datadog backend used by smoke tests.'
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
+  configureDependencies("compileOnly")
 }
 
 dependencies {

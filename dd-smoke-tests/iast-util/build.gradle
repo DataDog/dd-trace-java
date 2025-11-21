@@ -7,7 +7,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'iast-smoke-tests-utils'
 
 groovySpock {
-  configureDefaultDependencies("testFixturesApi")
+  configureDependencies("testFixturesApi")
 }
 
 dependencies {

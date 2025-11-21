@@ -24,11 +24,10 @@ tasks.named("iastTest", Test) {
 }
 
 groovySpock {
-  configureDefaultDependencies("testImplementation")
-  configureDependency("testImplementation", libs.spock.spring.groovy4)
-  configureDependency("bootTestImplementation", libs.spock.spring.groovy4)
-  configureDependency("latestDepBootTestImplementation", libs.spock.spring.groovy4)
-  configureDependency("iastTestImplementation", libs.spock.spring.groovy4)
+  configureDependencies("testImplementation", libs.spock.spring.groovy4)
+  configureDependencies("bootTestImplementation", libs.spock.spring.groovy4)
+  configureDependencies("latestDepBootTestImplementation", libs.spock.spring.groovy4)
+  configureDependencies("iastTestImplementation", libs.spock.spring.groovy4)
 }
 
 dependencies {

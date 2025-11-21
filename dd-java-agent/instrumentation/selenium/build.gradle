@@ -18,7 +18,7 @@ muzzle {
 addTestSuite('latestDepTest')
 
 groovySpock {
-  configureDefaultDependencies("testFixturesApi")
+  configureDependencies("testFixturesApi")
 }
 
 dependencies {

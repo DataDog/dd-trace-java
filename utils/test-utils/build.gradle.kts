@@ -5,7 +5,7 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
+  configureDependencies("compileOnly")
 }
 
 dependencies {

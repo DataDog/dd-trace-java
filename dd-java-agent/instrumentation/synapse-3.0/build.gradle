@@ -19,8 +19,8 @@ configurations.configureEach {
 }
 
 groovySpock {
-  configureDefaultDependencies("testImplementation")
-  configureDependency("testImplementation", libs.groovy4.templates)
+  configureDependencies("testImplementation")
+  configureDependencies("testImplementation", libs.groovy4.templates)
 }
 
 dependencies {

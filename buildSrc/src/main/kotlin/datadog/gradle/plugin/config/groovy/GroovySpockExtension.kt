@@ -21,12 +21,8 @@ abstract class GroovySpockExtension @Inject constructor(
     groovyVersion.set(version)
   }
 
-  fun configureDependency(taskName: String, dependency: Any) {
-    configurations.computeIfAbsent(taskName) { mutableListOf() }.add(dependency)
-  }
-
-  fun configureDefaultDependencies(taskName: String) {
-    configureDependency(taskName, "default")
+  fun configureDependencies(taskName: String, vararg dependencies: Any) {
+    configurations.computeIfAbsent(taskName) { mutableListOf() }.addAll(dependencies)
   }
 }
 

@@ -37,7 +37,7 @@ kotlin {
 }
 
 groovySpock {
-  configureDefaultDependencies("testFixturesApi")
+  configureDependencies("testFixturesApi")
 }
 
 addTestSuite('latestDepTest')

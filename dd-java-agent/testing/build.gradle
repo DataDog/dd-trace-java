@@ -32,7 +32,7 @@ configurations.named('api') {
 }
 
 groovySpock {
-  configureDefaultDependencies("compileOnly")
+  configureDependencies("compileOnly")
 }
 
 dependencies {

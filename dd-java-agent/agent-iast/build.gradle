@@ -35,8 +35,8 @@ protobuf {
 }
 
 groovySpock {
-  configureDefaultDependencies("testImplementation")
-  configureDependency("testImplementation", libs.groovy4.yaml)
+  configureDependencies("testImplementation")
+  configureDependencies("testImplementation", libs.groovy4.yaml)
 }
 
 dependencies {

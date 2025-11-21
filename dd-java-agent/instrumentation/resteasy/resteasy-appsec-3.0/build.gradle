@@ -30,8 +30,8 @@ configurations.configureEach {
 }
 
 groovySpock {
-  configureDefaultDependencies("testFixturesApi")
-  configureDefaultDependencies("testImplementation")
+  configureDependencies("testFixturesApi")
+  configureDependencies("testImplementation")
 }
 
 dependencies {

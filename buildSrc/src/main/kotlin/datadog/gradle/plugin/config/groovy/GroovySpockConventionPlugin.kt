@@ -39,12 +39,10 @@ class GroovySpockConventionPlugin : Plugin<Project> {
         else -> error("Unsupported groovyVersion=$groovyVersion (only 3 or 4 supported)")
       }
 
-      val catalogs = project.extensions.getByType(VersionCatalogsExtension::class.java)
-      val libsCatalog = catalogs.named("libs")
+      val catalogs = project.extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
 
-      fun findLibrary(alias: String) =
-        libsCatalog.findLibrary(alias)
-          .orElseThrow { IllegalArgumentException("No library '$alias' in version catalog 'libs'") }
+      fun findLibrary(alias: String) = catalogs.findLibrary(alias)
+        .orElseThrow { IllegalArgumentException("Library not found in catalog for alias: $alias") }
 
       val defaultLibs = listOf(
         findLibrary(groovyAlias),
@@ -56,21 +54,15 @@ class GroovySpockConventionPlugin : Plugin<Project> {
       fun configureDependencies(cfg: String, deps: List<Any>) =
         deps.forEach { project.dependencies.add(cfg, it) }
 
-      // If nothing configured, setup default configuration
       val configurations = extension.configurations
 
       if (configurations.isEmpty()) {
-          configureDependencies("testImplementation", defaultLibs)
+        // If nothing configured, setup default configuration, suitable in most cases.
+        configureDependencies("testImplementation", defaultLibs)
       } else {
         configurations.forEach { (cfg, deps) ->
-          deps.forEach { dep ->
-            if (dep is String && "default".equals(dep, ignoreCase = true)) {
-              configureDependencies(cfg, defaultLibs)
-            }
-            else {
-              project.dependencies.add(cfg, dep)
-            }
-          }
+          configureDependencies(cfg, defaultLibs)
+          deps.forEach { project.dependencies.add(cfg, it) }
         }
       }
     }
