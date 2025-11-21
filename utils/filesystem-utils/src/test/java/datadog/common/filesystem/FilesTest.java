@@ -7,24 +7,12 @@ import datadog.environment.JavaVirtualMachine;
 import java.io.File;
 import java.io.IOException;
 import java.security.Permission;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
 public class FilesTest {
 
   private SecurityManager originalSM;
-
-  @BeforeEach
-  void saveSecurityManager() {
-    originalSM = System.getSecurityManager();
-  }
-
-  @AfterEach
-  void restoreSecurityManager() {
-    System.setSecurityManager(originalSM);
-  }
 
   @Test
   void existsReturnsTrueWhenFileExistsAndIsAccessible() throws IOException {
@@ -37,7 +25,7 @@ public class FilesTest {
   @Test
   void existsReturnsFalseWhenFileDoesNotExist() throws IOException {
     File file = File.createTempFile("missing", "txt");
-    file.delete(); // ensure it does not exist
+    assertTrue(file.delete()); // ensure it does not exist
 
     assertFalse(Files.exists(file));
   }
@@ -48,12 +36,14 @@ public class FilesTest {
     File file = File.createTempFile("test", "txt");
     file.deleteOnExit();
 
-    // Install restrictive SecurityManager
+    // --- install restrictive SecurityManager only in this test ---
+    SecurityManager originalSM = System.getSecurityManager();
+
     System.setSecurityManager(
         new SecurityManager() {
           @Override
           public void checkRead(String filePath) {
-            // Deny only THIS file so we don't break classloading
+            // Deny only THIS file so classloading still works
             if (filePath.equals(file.getAbsolutePath())) {
               throw new SecurityException("Access denied");
             }
@@ -61,18 +51,22 @@ public class FilesTest {
 
           @Override
           public void checkPermission(Permission perm) {
-            // Allow everything else
+            // allow everything else
           }
 
           @Override
           public void checkPermission(Permission perm, Object context) {
-            // Allow everything else
+            // allow everything else
           }
         });
 
-    boolean result = Files.exists(file);
-
-    assertFalse(result);
+    try {
+      boolean result = Files.exists(file);
+      assertFalse(result);
+    } finally {
+      // --- restore original security manager ---
+      System.setSecurityManager(originalSM);
+    }
   }
 
   static boolean isJava18OrLater() {
