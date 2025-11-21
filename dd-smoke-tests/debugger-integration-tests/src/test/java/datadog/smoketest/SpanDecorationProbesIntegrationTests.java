@@ -73,7 +73,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
         });
-    processRequests(traceReceived::get);
+    processRequests(
+        traceReceived::get, () -> String.format("timeout traceReceived=%s", traceReceived.get()));
   }
 
   @Test
@@ -120,7 +121,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
         });
-    processRequests(traceReceived::get);
+    processRequests(
+        traceReceived::get, () -> String.format("timeout traceReceived=%s", traceReceived.get()));
   }
 
   @Test
@@ -159,7 +161,11 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
         });
-    processRequests(() -> snapshotTest.get() && spanTest.get());
+    processRequests(
+        () -> snapshotTest.get() && spanTest.get(),
+        () ->
+            String.format(
+                "timeout snapshotTest=%s spanTest=%s", snapshotTest.get(), spanTest.get()));
   }
 
   @Test
@@ -200,7 +206,11 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
         });
-    processRequests(() -> snapshotTest.get() && spanTest.get());
+    processRequests(
+        () -> snapshotTest.get() && spanTest.get(),
+        () ->
+            String.format(
+                "timeout snapshotTest=%s spanTest=%s", snapshotTest.get(), spanTest.get()));
   }
 
   @Test
@@ -247,7 +257,11 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
         });
-    processRequests(() -> snapshotTest.get() && spanTest.get());
+    processRequests(
+        () -> snapshotTest.get() && spanTest.get(),
+        () ->
+            String.format(
+                "timeout snapshotTest=%s spanTest=%s", snapshotTest.get(), spanTest.get()));
   }
 
   @Test
@@ -277,7 +291,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
             }
           }
         });
-    processRequests(() -> count.get() >= 100);
+    processRequests(() -> count.get() >= 100, () -> String.format("timeout count=%d", count.get()));
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {

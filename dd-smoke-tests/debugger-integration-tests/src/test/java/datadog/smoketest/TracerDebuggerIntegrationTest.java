@@ -83,7 +83,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe, processTagsEnabled);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -115,7 +117,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -144,7 +148,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -173,7 +179,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -202,7 +210,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   private void doTestTracer(LogProbe logProbe) throws Exception {
