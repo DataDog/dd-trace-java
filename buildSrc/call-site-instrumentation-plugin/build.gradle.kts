@@ -37,6 +37,7 @@ dependencies {
   testImplementation(libs.bytebuddy)
   testImplementation(libs.groovy4)
   testImplementation(libs.spock.core.groovy4)
+  testImplementation(libs.objenesis)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.2.0")
 }
