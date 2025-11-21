@@ -57,6 +57,7 @@ dependencies {
   implementation(project(":components:environment"))
   implementation(project(":components:yaml"))
   implementation(project(":dd-trace-api"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(libs.slf4j)
 
   testImplementation(project(":utils:test-utils"))
