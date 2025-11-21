@@ -76,6 +76,8 @@ public class DDSpanContext
   /** The collection of all span related to this one */
   private final TraceCollector traceCollector;
 
+  private final TagInterceptor tagInterceptor;
+
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
 
@@ -327,6 +329,7 @@ public class DDSpanContext
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
+    this.tagInterceptor = this.traceCollector.getTracer().getTagInterceptor();
 
     assert traceId != null;
     this.traceId = traceId;
@@ -761,9 +764,94 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }
-    } else if (!traceCollector.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeSetTag(tag, value);
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final String value) {
+    if (null == tag) {
+      return;
+    }
+    if (null == value) {
+      synchronized (unsafeTags) {
+        unsafeTags.remove(tag);
+      }
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final boolean value) {
+    if (null == tag) {
+      return;
+    }
+    // check needsIntercept first to avoid unnecessary boxing
+    boolean intercepted =
+        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final int value) {
+    if (null == tag) {
+      return;
+    }
+    // check needsIntercept first to avoid unnecessary boxing
+    boolean intercepted =
+        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final long value) {
+    if (null == tag) {
+      return;
+    }
+    // check needsIntercept first to avoid unnecessary boxing
+    boolean intercepted =
+        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final float value) {
+    if (null == tag) {
+      return;
+    }
+    // check needsIntercept first to avoid unnecessary boxing
+    boolean intercepted =
+        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final double value) {
+    if (null == tag) {
+      return;
+    }
+    // check needsIntercept first to avoid unnecessary boxing
+    boolean intercepted =
+        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
       }
     }
   }
@@ -784,12 +872,11 @@ public class DDSpanContext
         // to avoid using a capturing lambda
         map.forEach(
             this,
-            traceCollector.getTracer().getTagInterceptor(),
-            (ctx, tagInterceptor, tagEntry) -> {
+            (ctx, tagEntry) -> {
               String tag = tagEntry.tag();
               Object value = tagEntry.objectValue();
 
-              if (!tagInterceptor.interceptTag(ctx, tag, value)) {
+              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
                 ctx.unsafeTags.set(tagEntry);
               }
             });
@@ -804,7 +891,6 @@ public class DDSpanContext
       return;
     }
 
-    TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
       for (final TagMap.EntryChange entryChange : ledger) {
         if (entryChange.isRemoval()) {
@@ -829,7 +915,6 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
       synchronized (unsafeTags) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
           if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
@@ -841,7 +926,19 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    unsafeTags.put(tag, value);
+    unsafeTags.set(tag, value);
+  }
+
+  void unsafeSetTag(final String tag, final CharSequence value) {
+    unsafeTags.set(tag, value);
+  }
+
+  void unsafeSetTag(final String tag, final byte value) {
+    unsafeTags.set(tag, value);
+  }
+
+  void unsafeSetTag(final String tag, final double value) {
+    unsafeTags.set(tag, value);
   }
 
   Object getTag(final String key) {
