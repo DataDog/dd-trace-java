@@ -4,6 +4,7 @@ import com.ibm.wsspi.kernel.embeddable.Server
 import com.ibm.wsspi.kernel.embeddable.ServerBuilder
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.utils.PortUtils
+import groovy.xml.XmlParser
 import groovy.xml.XmlUtil
 
 import java.util.concurrent.TimeUnit

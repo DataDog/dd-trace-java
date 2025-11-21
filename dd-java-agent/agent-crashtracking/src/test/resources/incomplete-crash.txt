@@ -1,0 +1,25 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0x00007f37a18bc187, pid=161958, tid=2169438
+#
+# JRE version: OpenJDK Runtime Environment Zulu17.42+20-SA (17.0.7+7) (build 17.0.7+7-LTS)
+# Java VM: OpenJDK 64-Bit Server VM Zulu17.42+20-SA (17.0.7+7-LTS, mixed mode, tiered, compressed oops, compressed class ptrs, g1 gc, linux-amd64)
+# Problematic frame:
+# V  [libjvm.so+0x6b7187]  vframeStreamForte::forte_next()+0x797
+#
+# Core dump will be written. Default location: Core dumps may be processed with "/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %e" (or dumping to /opt/REDACT_THIS/REDACT_THIS/log/run/dir/core.161958)
+#
+# JFR recording file will be written. Location: /opt/REDACT_THIS/REDACT_THIS/log/run/dir/hs_err_pid161958.jfr
+#
+# If you would like to submit a bug report, please visit:
+#   http://www.azul.com/support/
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -Xms4G -Xmx16G -XX:+UnlockDiagnosticVMOptions -XX:MaxMetaspaceSize=1G -XX:+HeapDumpOnOutOfMemoryError -Xlog:gc*:file=gc.log:time,level,tags -Djavax.xml.ws.spi.Provider=REDACT_THIS -Djavax.xml.soap.SAAJMetaFactory=REDACT_THIS -javaagent:/opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar -Ddd.profiling.enabled=true -XX:FlightRecorderOptions=stackdepth=256 -Ddd.service=REDACT_THIS -Ddd.env=REDACT_THIS --add-reads=java.xml=java.logging --add-exports=java.base/org.apache.karaf.specs.locator=java.xml,ALL-UNNAMED --patch-module=java.base=/opt/REDACT_THIS/REDACT_THIS/lib/endorsed/org.apache.karaf.specs.locator-4.3.9.SEE2.jar --patch-module=java.xml=/opt/REDACT_THIS/REDACT_THIS/lib/endorsed/org.apache.karaf.specs.java.xml-4.3.9.SEE2.jar --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/javax.security.auth.login=ALL-UNNAMED --add-opens=java.base/sun.security.ssl=ALL-UNNAMED --add-opens=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.management/javax.management=ALL-UNNAMED --add-opens=java.naming/javax.naming.spi=ALL-UNNAMED --add-opens=java.naming/javax.naming=ALL-UNNAMED --add-opens=java.xml/com.sun.org.apache.xerces.internal.dom=ALL-UNNAMED --add-opens=java.xml/com.sun.org.apache.xerces.internal.jaxp=ALL-UNNAMED --add-opens=java.xml/com.sun.org.apache.xerces.internal.jaxp.datatype=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED --add-opens=java.xml/org.xml.sax=ALL-UNNAMED --add-opens=java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED --add-exports=java.base/sun.net.www.protocol.file=ALL-UNNAMED --add-exports=java.base/sun.net.www.protocol.ftp=ALL-UNNAMED --add-exports=java.base/sun.net.www.protocol.http=ALL-UNNAMED --add-exports=java.base/sun.net.www.protocol.https=ALL-UNNAMED --add-exports=java.base/sun.net.www.protocol.jar=ALL-UNNAMED --add-exports=java.base/sun.net.www.content.text=ALL-UNNAMED --add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED --add-exports=jdk.xml.dom/org.w3c.dom.html=ALL-UNNAMED --add-exports=jdk.naming.rmi/com.sun.jndi.url.rmi=ALL-UNNAMED --add-exports=jdk.crypto.cryptoki/sun.security.pkcs11=ALL-UNNAMED --add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED --add-exports=java.security.sasl/com.sun.security.sasl=ALL-UNNAMED --module-path=/opt/REDACT_THIS/REDACT_THIS/lib/jdk9-additional-modules --add-modules=REDACT_THIS, -Dkaraf.instances=REDACT_THIS -Dkaraf.home=/opt/REDACT_THIS/REDACT_THIS -Dkaraf.base=/opt/REDACT_THIS/REDACT_THIS -Dkaraf.data=/opt/REDACT_THIS/REDACT_THIS/temp -Dkaraf.etc=/opt/REDACT_THIS/REDACT_THIS/etc -Dkaraf.log=/opt/REDACT_THIS/REDACT_THIS/temp/log -Djavax.xml.bind.JAXBContextFactory=REDACT_THIS -Dkaraf.restart.jvm.supported=REDACT_THIS -Djava.io.tmpdir=/opt/REDACT_THIS/REDACT_THIS/temp/tmp -Djava.util.logging.config.file=/opt/REDACT_THIS/REDACT_THIS/etc/java.util.logging.properties -Dkaraf.startLocalConsole=REDACT_THIS -Dkaraf.startRemoteShell=REDACT_THIS REDACT_THIS
+
+Host: Intel(R) Xeon(R) CPU @ 2.80GHz, 8 cores, 23G, Red Hat Enterprise Linux release 8.7 (Ootpa)
+Time: Tue Oct 17 20:25:14 2023 +08 elapsed time: 2029121.315666 seconds (23d 11h 38m 41s)
+

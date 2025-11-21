@@ -40,7 +40,12 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
           assertEquals("Main.fullMethod", decodedSpan.getResource());
           traceReceived.set(true);
         });
-    processRequests(() -> statusResult.get() && traceReceived.get());
+    processRequests(
+        () -> statusResult.get() && traceReceived.get(),
+        () ->
+            String.format(
+                "timeout statusResult=%s traceReceived=%s",
+                statusResult.get(), traceReceived.get()));
   }
 
   @Test
@@ -65,7 +70,12 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
           assertEquals("Main.fullMethod:L88-97", decodedSpan.getResource());
           traceReceived.set(true);
         });
-    processRequests(() -> statusResult.get() && traceReceived.get());
+    processRequests(
+        () -> statusResult.get() && traceReceived.get(),
+        () ->
+            String.format(
+                "timeout statusResult=%s traceReceived=%s",
+                statusResult.get(), traceReceived.get()));
   }
 
   @Test
@@ -98,6 +108,8 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
             error.set(true);
           }
         });
-    processRequests(() -> received.get() && error.get());
+    processRequests(
+        () -> received.get() && error.get(),
+        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
   }
 }

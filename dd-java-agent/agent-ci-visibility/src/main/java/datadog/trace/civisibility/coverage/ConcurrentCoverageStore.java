@@ -9,7 +9,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** A store that keeps track of coverage probes allocated for multiple threads. */
 public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implements CoverageStore {

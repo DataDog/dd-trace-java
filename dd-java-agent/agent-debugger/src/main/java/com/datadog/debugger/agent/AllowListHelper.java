@@ -1,6 +1,6 @@
 package com.datadog.debugger.agent;
 
-import datadog.trace.util.ClassNameTrie;
+import datadog.instrument.utils.ClassNameTrie;
 import java.util.HashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
