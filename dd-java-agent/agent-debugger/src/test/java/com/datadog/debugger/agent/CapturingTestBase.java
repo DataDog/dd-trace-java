@@ -425,8 +425,6 @@ public class CapturingTestBase {
       String compilerOutputDir = "/tmp/" + CapturedSnapshotTest.class.getSimpleName() + "-kotlin";
       args.setDestination(compilerOutputDir);
       args.setClasspath(System.getProperty("java.class.path"));
-      @EnabledForJreRange(
-          max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
       ExitCode exitCode =
           compiler.exec(
               new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
