@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 
+import datadog.common.filesystem.Files;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException;
 import java.io.File;
@@ -33,7 +34,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     try {
       File file = new File(filePath);
       log.debug("Stable configuration file found at path: {}", file);
-      if (file.exists()) {
+      if (Files.exists(file)) {
         cfg = StableConfigParser.parse(filePath);
       }
     } catch (Throwable e) {
