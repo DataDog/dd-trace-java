@@ -785,17 +785,48 @@ public class DDSpanContext
       }
     }
   }
+  
+  /*
+   * Uses to determine if there's an opportunity to avoid primitve boxing.
+   * If the underlying map doesn't support efficient primitives, then boxing is used.
+   * If the tag may be intercepted, then boxing is also used.
+   */
+  private boolean precheckIntercept(String tag) {
+	// Usually only a single instanceof TagMap will be loaded, 
+	// so isOptimized is turned into a direct call and then inlines to a constant
+	// Since isOptimized just returns a constant - doesn't require synchronization
+	return !unsafeTags.isOptimized() || tagInterceptor.needsIntercept(tag);
+  }
+  
+  /*
+   * Used when precheckIntercept determines that boxing is unavoidable
+   * 
+   * Either because the tagInterceptor needs to be fully checked (which requires boxing)
+   * In that case, a box has already been created so it makes sense to pass the box 
+   * onto TagMap, since optimized TagMap will cache the box
+   * 
+   * -- OR --
+   * 
+   * The TagMap isn't optimized and will need to box the primitive regardless of 
+   * tag interception
+   */
+  private boolean setBox(String tag, Object box) {
+	if (tagInterceptor.interceptTag(this, tag, box)) {
+      synchronized (unsafeTags) {
+    	unsafeTags.set(tag, box);
+      }
+	}
+  }
 
   public void setTag(final String tag, final boolean value) {
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if ( precheckIntercept(tag) ) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+    	unsafeTags.set(tag, value);
       }
     }
   }
@@ -804,12 +835,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if ( precheckIntercept(tag) ) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      	unsafeTags.set(tag, value);
       }
     }
   }
@@ -828,16 +858,15 @@ public class DDSpanContext
     }
   }
 
-  public void setTag(final String tag, final float value) {
+  public void setTag(final String tag, final long value) {
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if ( precheckIntercept(tag) ) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      	unsafeTags.set(tag, value);
       }
     }
   }
@@ -846,12 +875,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    if ( precheckIntercept(tag) ) {
+      this.setBox(tag, value);
+    } else {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      	unsafeTags.set(tag, value);
       }
     }
   }
