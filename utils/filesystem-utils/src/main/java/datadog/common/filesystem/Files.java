@@ -4,7 +4,7 @@ import java.io.File;
 import javax.annotation.Nonnull;
 
 /** Utility methods related to file operations. */
-public class Files {
+public final class Files {
 
   private Files() {
     // Prevent instantiation
