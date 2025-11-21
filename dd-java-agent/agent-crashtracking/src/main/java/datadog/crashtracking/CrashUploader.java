@@ -155,7 +155,7 @@ public final class CrashUploader {
             dispatcher, /* dispatcher */
             telemetryUrl, // will be overridden in each request
             true, /* retryOnConnectionFailure */
-            4, /* maxRunningRequests */ // allows 1 blocked ping and two crash request
+            4, /* maxRunningRequests */ // not having one request blocking the others
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
             configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
             configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
@@ -200,8 +200,7 @@ public final class CrashUploader {
                   null,
                   "Crashtracker crash ping: "
                       + (error != null ? error : "crash processing started"),
-                  null,
-                  false),
+                  null),
               null,
               OSInfo.current(),
               null,
@@ -293,6 +292,7 @@ public final class CrashUploader {
   }
 
   // @VisibleForTesting
+  @SuppressForbidden
   static String extractErrorKind(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
     if (!matcher.find()) {
@@ -324,6 +324,7 @@ public final class CrashUploader {
           Pattern.DOTALL | Pattern.MULTILINE);
 
   // @VisibleForTesting
+  @SuppressForbidden
   static String extractErrorMessage(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
     if (!matcher.find()) {
@@ -491,8 +492,23 @@ public final class CrashUploader {
         writer.name("timestamp").value(payload.timestamp);
         writer.name("ddsource").value("crashtracker");
         // error payload
-        writer.name("error");
-        payload.error.writeAsJson(writer); // flat write an already serialized json object
+        if (payload.error != null) {
+          writer.name("error");
+          writer.beginObject();
+          writer.name("source_type").value("crashtracking");
+          if (!isPing) {
+            writer.name("is_crash").value(true);
+          }
+          writer.name("type").value(payload.error.kind);
+          writer.name("message").value(payload.error.message);
+          if (payload.error.stack != null) {
+            writer.name("stack");
+            // payload.error.message
+            payload.error.stack.writeAsJson(writer);
+            // flat write an already serialized json object
+          }
+          writer.endObject();
+        }
         // signal info
         if (payload.sigInfo != null) {
           writer.name("sig_info");
