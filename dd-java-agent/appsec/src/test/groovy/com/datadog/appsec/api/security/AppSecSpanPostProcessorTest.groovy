@@ -248,4 +248,86 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * sampler.releaseOne()
     0 * _
   }
+
+  void 'permit is released even if extractSchemas throws exception'() {
+    given:
+    def sampler = Mock(ApiSecuritySamplerImpl)
+    def producer = Mock(EventProducerService)
+    def span = Mock(AgentSpan)
+    def reqCtx = Mock(RequestContext)
+    def traceSegment = Mock(TraceSegment)
+    def ctx = Mock(AppSecRequestContext)
+    def processor = new AppSecSpanPostProcessor(sampler, producer)
+
+    when:
+    processor.process(span, { false })
+
+    then:
+    def ex = thrown(RuntimeException)
+    ex.message == "Unexpected error"
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(_) >> ctx
+    1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
+    1 * sampler.sampleRequest(_) >> true
+    1 * reqCtx.getTraceSegment() >> { throw new RuntimeException("Unexpected error") }
+    1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
+    1 * ctx.closeWafContext()
+    1 * ctx.close()
+    1 * sampler.releaseOne() // Critical: permit is still released despite exception
+    0 * _
+  }
+
+  void 'multiple requests do not exhaust semaphore permits'() {
+    given:
+    // Use real ApiSecuritySamplerImpl which has a semaphore with 4 permits
+    def realSampler = new ApiSecuritySamplerImpl()
+    def producer = Mock(EventProducerService)
+    def processor = new AppSecSpanPostProcessor(realSampler, producer)
+
+    when: 'Process 5 consecutive requests that acquire permits'
+    5.times { i ->
+      def span = Mock(AgentSpan)
+      def reqCtx = Mock(RequestContext)
+      def ctx = Mock(AppSecRequestContext)
+
+      // Mock the interactions
+      span.getRequestContext() >> reqCtx
+      reqCtx.getData(_) >> ctx
+      ctx.isKeepOpenForApiSecurityPostProcessing() >> true
+      ctx.setKeepOpenForApiSecurityPostProcessing(false)
+      ctx.closeWafContext()
+      ctx.close()
+
+      // Process should complete without issues, releasing permit each time
+      processor.process(span, { false })
+    }
+
+    then: 'All requests complete successfully without permit exhaustion'
+    noExceptionThrown()
+  }
+
+  void 'permit is released when ctx cleanup operations fail'() {
+    given:
+    def sampler = Mock(ApiSecuritySamplerImpl)
+    def producer = Mock(EventProducerService)
+    def span = Mock(AgentSpan)
+    def reqCtx = Mock(RequestContext)
+    def ctx = Mock(AppSecRequestContext)
+    def processor = new AppSecSpanPostProcessor(sampler, producer)
+
+    when:
+    processor.process(span, { false })
+
+    then:
+    noExceptionThrown()
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(_) >> ctx
+    1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
+    1 * sampler.sampleRequest(_) >> false
+    1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
+    1 * ctx.closeWafContext() >> { throw new RuntimeException("WAF context close failed") }
+    1 * ctx.close() >> { throw new RuntimeException("Context close failed") }
+    1 * sampler.releaseOne() // Critical: permit is still released despite cleanup failures
+    0 * _
+  }
 }
