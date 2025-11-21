@@ -24,7 +24,7 @@ gradlePlugin {
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
-      implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
+      implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
       id = "datadog.tracer-version"
