@@ -9,7 +9,7 @@ plugins {
   id("config-inversion-linter")
   id("datadog.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.0.0"
+  id("com.diffplug.spotless") version "8.1.0"
   id("com.github.spotbugs") version "6.4.5"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
