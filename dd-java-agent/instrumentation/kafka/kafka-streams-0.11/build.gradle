@@ -13,7 +13,7 @@ addTestSuite('latestDepTest')
 
 groovySpock {
   // This module still needs Spock with JUnit4.
-  configureDependencies("latestDepTestImplementation", libs.spock.junit4.groovy4)
+  configureDependencies("testImplementation", libs.spock.junit4.groovy4)
 }
 
 dependencies {
