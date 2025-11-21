@@ -839,7 +839,8 @@ public class GatewayBridge {
     if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
       if (!Config.get().isApmTracingEnabled()) {
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        // Note: _dd.p.ts (PROPAGATED_TRACE_SOURCE) is only set when there are actual AppSec events
+        // (see lines below where collectedEvents is checked), not just for API Security sampling
       }
     } else {
       ctx.closeWafContext();
