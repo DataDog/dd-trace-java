@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
@@ -30,6 +32,9 @@ import java.util.concurrent.TimeoutException
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
+@IgnoreIf(reason = "TODO: Fix for Java 26. Maven compiler fails to compile the tests for Java 26-ea.", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(26)
+})
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest)
