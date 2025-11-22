@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.UNKNOWN_CLASS_
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
 
+import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
@@ -86,7 +87,8 @@ final class TypeFactory {
   private static final TypeInfoCache<TypeDescription> fullTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
 
-  static final IsPublicFilter isPublicFilter = new IsPublicFilter();
+  static final ClassNameFilter isPublicFilter =
+      new ClassNameFilter(InstrumenterConfig.get().getResolverVisibilitySize());
 
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
