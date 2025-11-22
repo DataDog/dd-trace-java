@@ -1,0 +1,115 @@
+# bp-runner configuration for dacapo benchmarks based on sirun's benchmark.json format
+#
+# Each variant (no_agent, tracing, profiling, appsec, iast, iast_GLOBAL) is defined
+# as a separate experiment.
+#
+# CPU pinning uses cores 24-47 for consistency with CI configuration.
+
+experiments:
+  # no-agent variant
+  - name: dacapo-no-agent
+    steps:
+      - name: run-dacapo-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="${NO_AGENT_VARIANT}"
+          export JAVA_OPTS=""
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          java ${JAVA_OPTS} \
+            -jar ${DACAPO} \
+            --converge \
+            --scratch-directory=${OUTPUT_DIR}/${VARIANT}/scratch \
+            --latency-csv \
+            ${BENCHMARK} &> ${OUTPUT_DIR}/${VARIANT}/dacapo.log
+
+  # tracing variant
+  - name: dacapo-tracing
+    steps:
+      - name: run-dacapo-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="tracing"
+          export JAVA_OPTS="-javaagent:${TRACER}"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          java ${JAVA_OPTS} \
+            -jar ${DACAPO} \
+            --converge \
+            --scratch-directory=${OUTPUT_DIR}/${VARIANT}/scratch \
+            --latency-csv \
+            ${BENCHMARK} &> ${OUTPUT_DIR}/${VARIANT}/dacapo.log
+
+  # profiling variant
+  - name: dacapo-profiling
+    steps:
+      - name: run-dacapo-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="profiling"
+          export JAVA_OPTS="-javaagent:${TRACER} -Ddd.profiling.enabled=true"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          java ${JAVA_OPTS} \
+            -jar ${DACAPO} \
+            --converge \
+            --scratch-directory=${OUTPUT_DIR}/${VARIANT}/scratch \
+            --latency-csv \
+            ${BENCHMARK} &> ${OUTPUT_DIR}/${VARIANT}/dacapo.log
+
+  # appsec variant
+  - name: dacapo-appsec
+    steps:
+      - name: run-dacapo-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="appsec"
+          export JAVA_OPTS="-javaagent:${TRACER} -Ddd.appsec.enabled=true -Ddd.iast.enabled=false"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          java ${JAVA_OPTS} \
+            -jar ${DACAPO} \
+            --converge \
+            --scratch-directory=${OUTPUT_DIR}/${VARIANT}/scratch \
+            --latency-csv \
+            ${BENCHMARK} &> ${OUTPUT_DIR}/${VARIANT}/dacapo.log
+
+  # iast variant
+  - name: dacapo-iast
+    steps:
+      - name: run-dacapo-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="iast"
+          export JAVA_OPTS="-javaagent:${TRACER} -Ddd.iast.enabled=true"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          java ${JAVA_OPTS} \
+            -jar ${DACAPO} \
+            --converge \
+            --scratch-directory=${OUTPUT_DIR}/${VARIANT}/scratch \
+            --latency-csv \
+            ${BENCHMARK} &> ${OUTPUT_DIR}/${VARIANT}/dacapo.log
+
+  # iast_GLOBAL variant
+  - name: dacapo-iast-global
+    steps:
+      - name: run-dacapo-benchmark
+        cpus: 24-47
+        run: shell
+        script: |
+          export VARIANT="iast_GLOBAL"
+          export JAVA_OPTS="-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.context.mode=GLOBAL"
+          mkdir -p ${OUTPUT_DIR}/${VARIANT}
+          
+          java ${JAVA_OPTS} \
+            -jar ${DACAPO} \
+            --converge \
+            --scratch-directory=${OUTPUT_DIR}/${VARIANT}/scratch \
+            --latency-csv \
+            ${BENCHMARK} &> ${OUTPUT_DIR}/${VARIANT}/dacapo.log

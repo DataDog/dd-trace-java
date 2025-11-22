@@ -4,7 +4,7 @@ This directory contains different types of benchmarks.
 
 ## Running Benchmarks via Docker
 
-Docker allows the execution of benchmarks without needing to install and configure your development environment. For example, package installation and installation of sirun are performed automatically.
+Docker allows the execution of benchmarks without needing to install and configure your development environment.
 
 In order to run benchmarks using Docker, issue the following command from the `benchmark/` folder of this project:
 
