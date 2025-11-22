@@ -7,6 +7,7 @@ import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.test.util.NonRetryable;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@NonRetryable
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
   @BeforeEach

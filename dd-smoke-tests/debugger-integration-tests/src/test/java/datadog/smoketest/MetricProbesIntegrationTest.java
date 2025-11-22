@@ -7,12 +7,14 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.MetricProbe;
+import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@NonRetryable
 public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @AfterEach

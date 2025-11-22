@@ -18,6 +18,7 @@ import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@NonRetryable
 public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerIntegrationTest {
 
   @BeforeEach
