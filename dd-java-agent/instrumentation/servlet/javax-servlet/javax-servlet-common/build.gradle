@@ -24,10 +24,12 @@ dependencies {
   // servlet request instrumentation required for linking request to response.
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
 
-  // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 }
+
+configurations.named('testImplementation') {
+  // Don't want to conflict with jetty from the test server.
+  // because :dd-java-agent:testing brings its own version of jetty-server
+  exclude(group: 'org.eclipse.jetty')
+}
+
