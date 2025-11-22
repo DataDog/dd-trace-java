@@ -122,8 +122,10 @@ public class ConfigManager {
     return filename.substring(0, dotIndex);
   }
 
-  private static String getMergedTagsForSerialization(Config config) {
+  // @VisibleForTesting
+  static String getMergedTagsForSerialization(Config config) {
     return config.getMergedCrashTrackingTags().entrySet().stream()
+        .filter(e -> e.getValue() != null)
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.joining(","));
   }

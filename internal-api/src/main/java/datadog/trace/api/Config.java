@@ -826,6 +826,7 @@ public class Config {
   private final String agentUnixDomainSocket;
   private final String agentNamedPipe;
   private final int agentTimeout;
+
   /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
   private final boolean forceClearTextHttpForIntakeClient;
 
@@ -4863,7 +4864,7 @@ public class Config {
                 + crashTrackingTags.size()
                 + jmxTags.size()
                 + runtimeTags.size()
-                + 3 /* for serviceName and host and language */);
+                + 5 /* for serviceName and host and language and env and version */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
     result.putAll(jmxTags);
@@ -4873,6 +4874,8 @@ public class Config {
     // and may chose to override it.
     result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    result.put(VERSION, getVersion());
+    result.put(ENV, getEnv());
     return Collections.unmodifiableMap(result);
   }
 
@@ -5082,6 +5085,16 @@ public class Config {
     } else {
       // when agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
+    }
+  }
+
+  public String getFinalCrashTrackingErrorTrackingUrl() {
+    if (crashTrackingAgentless) {
+      // when agentless crashTracking is turned on we send directly to our intake
+      return "https://error-tracking-intake." + site + "/api/v2/errorsintake";
+    } else {
+      // when agentless are not set we send to the dd trace agent running locally
+      return "http://" + agentHost + ":" + agentPort + "/evp_proxy/v4/api/v2/errorsintake";
     }
   }
 
