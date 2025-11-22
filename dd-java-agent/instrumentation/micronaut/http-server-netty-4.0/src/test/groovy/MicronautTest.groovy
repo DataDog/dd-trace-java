@@ -8,8 +8,6 @@ import datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import test.MicronautServer
 
-import java.lang.reflect.Method
-
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -35,7 +33,7 @@ class MicronautTest extends HttpServerTest<Object> {
         }
 
         @Override
-        String captureCodeOrigin(Method method, boolean entry) {
+        String captureCodeOrigin(String typeName, String methodName, String descriptor, boolean entry) {
           invoked = true
           return "done"
         }

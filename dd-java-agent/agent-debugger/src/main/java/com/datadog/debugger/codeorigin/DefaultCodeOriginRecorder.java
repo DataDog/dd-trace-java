@@ -5,6 +5,7 @@ import static datadog.trace.api.DDTags.*;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
+import com.datadog.debugger.instrumentation.Types;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.LogProbe.Builder;
@@ -20,7 +21,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,11 +82,13 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   @Override
-  public String captureCodeOrigin(Method method, boolean entry) {
-    String fingerprint = method.toString();
+  public String captureCodeOrigin(
+      String typeName, String methodName, String descriptor, boolean entry) {
+    String fingerprint = typeName + "." + methodName + descriptor;
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
     if (probe == null) {
-      probe = createProbe(fingerprint, entry, Where.of(method));
+      String signature = Types.descriptorToSignature(descriptor);
+      probe = createProbe(fingerprint, entry, Where.of(typeName, methodName, signature));
       LOG.debug("Creating probe for method {}", fingerprint);
     }
     return probe.getId();
