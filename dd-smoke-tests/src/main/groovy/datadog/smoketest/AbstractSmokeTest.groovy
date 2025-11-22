@@ -48,6 +48,15 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private Throwable telemetryDecodingFailure = null
 
   @Shared
+  private Closure decodeEvpMessage = decodedEvpProxyMessageCallback()
+
+  @Shared
+  protected CopyOnWriteArrayList<Tuple2<String, ?>> evpProxyMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  private Throwable evpProxyMessageDecodingFailure = null
+
+  @Shared
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
 
   @Shared
@@ -70,7 +79,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
           "endpoints": [
             "/v0.4/traces",
             "/v0.5/traces",
-            "/telemetry/proxy/"
+            "/telemetry/proxy/",
+            "/evp_proxy/v2/"
           ],
           "client_drop_p0s": true,
           "span_meta_structs": true,
@@ -165,6 +175,19 @@ abstract class AbstractSmokeTest extends ProcessManager {
         }
         response.status(202).send()
       }
+      prefix("/evp_proxy/v2/") {
+        try {
+          final path = request.path.toString()
+          final body = request.getBody()
+          final decoded = decodeEvpMessage?.call(path, body)
+          if (decoded) {
+            evpProxyMessages.add(new Tuple2<>(path, decoded))
+          }
+        } catch (Throwable t) {
+          evpProxyMessageDecodingFailure = t
+        }
+        response.status(200).send()
+      }
     }
   }
 
@@ -252,6 +275,10 @@ abstract class AbstractSmokeTest extends ProcessManager {
     if (traceDecodingFailure != null) {
       throw traceDecodingFailure
     }
+    evpProxyMessages.clear()
+    if (evpProxyMessageDecodingFailure) {
+      throw evpProxyMessageDecodingFailure
+    }
   }
 
   def setupSpec() {
@@ -272,6 +299,10 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   Closure decodedTracesCallback() {
+    null
+  }
+
+  Closure decodedEvpProxyMessageCallback() {
     null
   }
 
@@ -374,6 +405,21 @@ abstract class AbstractSmokeTest extends ProcessManager {
         throw rcClientDecodingFailure
       }
       assert (message = rcClientMessages.find { predicate.apply(it) }) != null
+    }
+    return message
+  }
+
+  <T> Tuple2<String, T> waitForEvpProxyMessage(final Function<Tuple2<String, T>, Boolean> predicate) {
+    waitForEvpProxyMessage(defaultPoll, predicate)
+  }
+
+  <T> Tuple2<String, T> waitForEvpProxyMessage(final PollingConditions poll, final Function<Tuple2<String, T>, Boolean> predicate) {
+    def message = null
+    poll.eventually {
+      if (evpProxyMessageDecodingFailure != null) {
+        throw evpProxyMessageDecodingFailure
+      }
+      assert (message = evpProxyMessages.find { predicate.apply(it) }) != null
     }
     return message
   }

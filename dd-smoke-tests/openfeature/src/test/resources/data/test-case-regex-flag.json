@@ -1,0 +1,65 @@
+[
+  {
+    "flag": "regex-flag",
+    "variationType": "STRING",
+    "defaultValue": "none",
+    "targetingKey": "alice",
+    "attributes": {
+      "version": "1.15.0",
+      "email": "alice@example.com"
+    },
+    "result": {
+      "value": "partial-example",
+      "variant": "partial-example",
+      "flagMetadata": {
+        "allocationKey": "partial-example",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "regex-flag",
+    "variationType": "STRING",
+    "defaultValue": "none",
+    "targetingKey": "bob",
+    "attributes": {
+      "version": "0.20.1",
+      "email": "bob@test.com"
+    },
+    "result": {
+      "value": "test",
+      "variant": "test",
+      "flagMetadata": {
+        "allocationKey": "test",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "regex-flag",
+    "variationType": "STRING",
+    "defaultValue": "none",
+    "targetingKey": "charlie",
+    "attributes": {
+      "version": "2.1.13"
+    },
+    "result": {
+      "value": "none"
+    }
+  },
+  {
+    "flag": "regex-flag",
+    "variationType": "STRING",
+    "defaultValue": "none",
+    "targetingKey": "derek",
+    "attributes": {
+      "version": "2.1.13",
+      "email": "derek@gmail.com"
+    },
+    "result": {
+      "value": "none"
+    }
+  }
+]
