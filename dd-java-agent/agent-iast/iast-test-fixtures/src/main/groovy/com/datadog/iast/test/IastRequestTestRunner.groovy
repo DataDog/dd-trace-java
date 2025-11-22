@@ -6,11 +6,13 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import okhttp3.OkHttpClient
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
+@SuppressFBWarnings("HSM_HIDING_METHOD")
 class IastRequestTestRunner extends IastAgentTestRunner implements IastRequestContextPreparationTrait {
 
   private static final LinkedBlockingQueue<TaintedObjectCollection> TAINTED_OBJECTS = new LinkedBlockingQueue<>()

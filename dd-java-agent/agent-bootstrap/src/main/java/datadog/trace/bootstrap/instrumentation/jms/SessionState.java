@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Comparator;
@@ -65,7 +64,6 @@ public final class SessionState {
   private volatile int timeInQueueSpanCount = 0;
 
   // this field is protected by synchronization of capturedSpans, but SpotBugs miss that
-  @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   private boolean capturingFlipped = false;
 
   public SessionState(int ackMode, boolean timeInQueueEnabled) {

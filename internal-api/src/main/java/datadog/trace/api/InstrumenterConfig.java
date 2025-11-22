@@ -108,6 +108,9 @@ import java.util.Set;
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  * @see Config for other configurations
  */
+@SuppressFBWarnings(
+    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+    justification = "Instance also created in Config")
 public class InstrumenterConfig {
   static {
     // skip registration when building native-images as telemetry is not available
@@ -616,7 +619,6 @@ public class InstrumenterConfig {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
-  @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
           Platform.isNativeImageBuilder()

@@ -25,7 +25,8 @@ tasks.named("shadowJar", ShadowJar) {
   transform(PropertiesFileTransformer) {
     paths = ['META-INF/spring.factories']
     mergeStrategy = "append"
-  }}
+  }
+}
 
 dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.6.0+'

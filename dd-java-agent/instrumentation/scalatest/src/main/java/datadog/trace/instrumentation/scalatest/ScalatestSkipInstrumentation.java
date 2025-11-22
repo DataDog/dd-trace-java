@@ -10,7 +10,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -100,9 +99,6 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   public static class SingleTestFilterAdvice {
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "filterResult is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void apply(
         @Advice.This Filter filter,
@@ -129,9 +125,6 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   public static class MultipleTestsFilterAdvice {
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "filterResult is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void apply(
         @Advice.This Filter filter,
