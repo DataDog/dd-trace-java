@@ -588,6 +588,28 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     .contains("_dd.ol_intake.process_tags:" + ProcessTags.getTagsForSerialization())
   }
 
+  def "test all custom tags get propagated into a single attributes of application span"() {
+    setup:
+    def customTags = "tagKey1:tagKeyValue1,tagKey2:tagKeyValue2"
+    injectSysConfig("dd.tags", customTags)
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(5000L))
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["dd.tags.tagKey1"] == "tagKeyValue1"
+          assert span.tags["dd.tags.tagKey2"] == "tagKeyValue2"
+          assert span.tags["run_group_by"] == customTags
+        }
+      }
+    }
+  }
+
   def "test setupOpenLineage fills circuit breaker config"(
     Boolean configEnabled,
     String sparkConfCircuitBreakerType,

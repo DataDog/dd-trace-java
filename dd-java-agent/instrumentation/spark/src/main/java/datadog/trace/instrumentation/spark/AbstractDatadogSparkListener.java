@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
@@ -244,10 +245,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
+      String customTags =
+          Config.get().getGlobalTags().entrySet().stream()
+              .map(e -> e.getKey() + ":" + e.getValue())
+              .collect(Collectors.joining(","));
+      Config.get().getGlobalTags().entrySet().stream()
+          .forEach(e -> builder.withTag("dd.tags." + e.getKey(), e.getValue()));
+
       builder
           .withStartTimestamp(applicationStart.time() * 1000)
           .withTag("application_name", applicationStart.appName())
-          .withTag("spark_user", applicationStart.sparkUser());
+          .withTag("spark_user", applicationStart.sparkUser())
+          .withTag("run_group_by", customTags);
 
       if (applicationStart.appAttemptId().isDefined()) {
         builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
