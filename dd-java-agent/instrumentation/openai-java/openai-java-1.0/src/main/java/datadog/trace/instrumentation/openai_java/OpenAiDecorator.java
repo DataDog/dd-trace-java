@@ -10,6 +10,7 @@ import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionMessageParam;
+import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import com.openai.models.completions.CompletionUsage;
@@ -273,6 +274,22 @@ public class OpenAiDecorator extends ClientDecorator {
       role = String.valueOf(roleOpt.get());
     }
     String content = msg.content().orElse(null);
+
+    Optional<List<ChatCompletionMessageToolCall>> toolCallsOpt = msg.toolCalls();
+    if (toolCallsOpt.isPresent() && !toolCallsOpt.get().isEmpty()) {
+      List<LLMObs.ToolCall> toolCalls = new ArrayList<>();
+      for (ChatCompletionMessageToolCall toolCall : toolCallsOpt.get()) {
+        LLMObs.ToolCall llmObsToolCall = ToolCallExtractor.getToolCall(toolCall);
+        if (llmObsToolCall != null) {
+          toolCalls.add(llmObsToolCall);
+        }
+      }
+
+      if (!toolCalls.isEmpty()) {
+        return LLMObs.LLMMessage.from(role, content, toolCalls);
+      }
+    }
+
     return LLMObs.LLMMessage.from(role, content);
   }
 

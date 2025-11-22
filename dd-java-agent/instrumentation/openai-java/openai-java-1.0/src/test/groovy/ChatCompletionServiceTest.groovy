@@ -118,6 +118,21 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace(true)
   }
 
+  def "create chat/completion test with tool calls"() {
+    ChatCompletion resp = runUnderTrace("parent") {
+      openAiClient.chat().completions().create(chatCompletionCreateParamsWithTools())
+    }
+
+    expect:
+    resp != null
+    resp.choices().size() == 1
+    resp.choices().get(0).message().toolCalls().isPresent()
+    resp.choices().get(0).message().toolCalls().get().size() == 1
+    resp.choices().get(0).message().toolCalls().get().get(0).function().name() == "extract_student_info"
+    and:
+    assertChatCompletionTrace(false)
+  }
+
   private void assertChatCompletionTrace(boolean isStreaming) {
     assertTraces(1) {
       trace(3) {

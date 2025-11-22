@@ -5,8 +5,12 @@ import com.openai.client.okhttp.OkHttpClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
 import com.openai.credential.BearerTokenCredential
+import com.openai.core.JsonValue
 import com.openai.models.ChatModel
+import com.openai.models.FunctionDefinition
+import com.openai.models.FunctionParameters
 import com.openai.models.chat.completions.ChatCompletionCreateParams
+import com.openai.models.chat.completions.ChatCompletionTool
 import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
 import com.openai.models.embeddings.EmbeddingModel
@@ -133,5 +137,35 @@ abstract class OpenAiTest extends LlmObsSpecification {
     .input("Do not continue the Evan Li slander!")
     .build()
   }
+
+  ChatCompletionCreateParams chatCompletionCreateParamsWithTools() {
+    ChatCompletionCreateParams.builder()
+    .model(ChatModel.GPT_4O_MINI)
+    .addUserMessage("""David Nguyen is a sophomore majoring in computer science at Stanford University and has a GPA of 3.8.
+David is an active member of the university's Chess Club and the South Asian Student Association.
+He hopes to pursue a career in software engineering after graduating.""")
+    .addTool(ChatCompletionTool.builder()
+    .function(FunctionDefinition.builder()
+    .name("extract_student_info")
+    .description("Get the student information from the body of the input text")
+    .parameters(FunctionParameters.builder()
+    .putAdditionalProperty("type", JsonValue.from("object"))
+    .putAdditionalProperty("properties", JsonValue.from([
+      name: [type: "string", description: "Name of the person"],
+      major: [type: "string", description: "Major subject."],
+      school: [type: "string", description: "The university name."],
+      grades: [type: "integer", description: "GPA of the student."],
+      clubs: [
+        type: "array",
+        description: "School clubs for extracurricular activities. ",
+        items: [type: "string", description: "Name of School Club"]
+      ]
+    ]))
+    .build())
+    .build())
+    .build())
+    .build()
+  }
 }
+
 

@@ -5,15 +5,16 @@ muzzle {
   pass {
     group = "com.openai"
     module = "openai-java"
-    versions = "[0.45.0,)"
-    assertInverse = true
+    versions = "[0.45.0,3)"
+    // TODO com.openai.models.chat.completions.ChatCompletionMessageToolCall changes in v3
+    // assertInverse = true
   }
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'com.openai', name: 'openai-java', version: '1.0.0'
+  compileOnly group: 'com.openai', name: 'openai-java', version: '0.45.0'
   implementation project(':internal-api')
 
   testImplementation group: 'com.openai', name: 'openai-java', version: '0.45.0'
