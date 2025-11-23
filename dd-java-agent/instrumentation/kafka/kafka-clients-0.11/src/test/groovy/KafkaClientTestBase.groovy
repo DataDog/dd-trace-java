@@ -25,7 +25,11 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.header.internals.RecordHeader
+import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.StringSerializer
+
+import java.nio.charset.StandardCharsets
 import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
@@ -1016,6 +1020,44 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     value   | expected
     "false" | false
     "true"  | true
+  }
+
+  def "test producer extracts and uses existing trace context from record headers"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps)
+
+    // Create a trace context to inject into headers (simulating a message with existing context)
+    def traceId = 1234567890123456L
+    def spanId = 9876543210987654L
+    def headers = new RecordHeaders()
+    headers.add(new RecordHeader("x-datadog-trace-id",
+      String.valueOf(traceId).getBytes(StandardCharsets.UTF_8)))
+    headers.add(new RecordHeader("x-datadog-parent-id",
+      String.valueOf(spanId).getBytes(StandardCharsets.UTF_8)))
+
+    when:
+    // Send a message with pre-existing trace context in headers
+    def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-context-extraction", headers)
+    producer.send(record).get()
+
+    then:
+    // Verify that a produce span was created that used the extracted context
+    assertTraces(1) {
+      trace(1) {
+        producerSpan(it, senderProps, null, false)
+        // Verify the span used the extracted context as parent
+        def producedSpan = TEST_WRITER[0][0]
+        assert producedSpan.context().traceId == traceId
+        assert producedSpan.context().parentId == spanId
+        // Verify a NEW span was created (not reusing the extracted span ID)
+        assert producedSpan.context().spanId != spanId
+        assert producedSpan.context().spanId != 0
+      }
+    }
+
+    cleanup:
+    producer?.close()
   }
 
   def containerProperties() {
