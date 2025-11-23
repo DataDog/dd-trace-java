@@ -7,6 +7,7 @@ import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCh
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -33,6 +34,7 @@ import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
@@ -125,8 +127,18 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         ClusterIdHolder.set(clusterId);
       }
 
+      // Try to extract existing trace context from record headers
+      final AgentSpanContext extractedContext =
+          extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
+
       final AgentSpan parent = activeSpan();
-      final AgentSpan span = startSpan(KAFKA_PRODUCE);
+      // Use extracted context as parent if available, otherwise use activeSpan
+      final AgentSpan span;
+      if (extractedContext != null) {
+        span = startSpan(KAFKA_PRODUCE, extractedContext);
+      } else {
+        span = startSpan(KAFKA_PRODUCE);
+      }
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
 
