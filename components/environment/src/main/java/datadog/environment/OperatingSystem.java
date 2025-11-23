@@ -5,6 +5,7 @@ import static datadog.environment.OperatingSystem.Type.MACOS;
 import static datadog.environment.OperatingSystem.Type.WINDOWS;
 import static java.util.Locale.ROOT;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -14,12 +15,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /** Detects operating systems and libc library. */
 public final class OperatingSystem {
   private static final String OS_NAME_PROPERTY = "os.name";
   private static final String OS_ARCH_PROPERTY = "os.arch";
+  private static final Path TEMP_DIR = Paths.get(computeTempPath());
   private static final Type TYPE = Type.current();
   private static final Architecture ARCHITECTURE = Architecture.current();
 
@@ -64,6 +69,10 @@ public final class OperatingSystem {
   /** Gets the operating system architecture . */
   public static Architecture architecture() {
     return ARCHITECTURE;
+  }
+
+  public static Path getTempDir() {
+    return TEMP_DIR;
   }
 
   /**
@@ -152,6 +161,56 @@ public final class OperatingSystem {
       }
     }
     return true;
+  }
+
+  private static String computeTempPath() {
+    if (JavaVirtualMachine.isJ9()) {
+      return computeJ9TempDir();
+    }
+    // See
+    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha#remarks
+    // and
+    // the JDK OS-specific implementations of os::get_temp_directory(), i.e.
+    // https://github.com/openjdk/jdk/blob/f50bd0d9ec65a6b9596805d0131aaefc1bb913f3/src/hotspot/os/bsd/os_bsd.cpp#L886-L904
+    if (OperatingSystem.isLinux()) {
+      return "/tmp";
+    } else if (OperatingSystem.isWindows()) {
+      return computeWindowsTempDir();
+    } else if (OperatingSystem.isMacOs()) {
+      return EnvironmentVariables.getOrDefault("TMPDIR", ".");
+    } else {
+      return SystemProperties.getOrDefault("java.io.tmpdir", ".");
+    }
+  }
+
+  private static String computeWindowsTempDir() {
+    return Stream.of("TMP", "TEMP", "USERPROFILE")
+        .map(EnvironmentVariables::get)
+        .filter(Objects::nonNull)
+        .filter(((Predicate<String>) String::isEmpty).negate())
+        .findFirst()
+        .orElse("C:\\Windows");
+  }
+
+  @SuppressForbidden // Class.forName() as J9 specific
+  private static String computeJ9TempDir() {
+    try {
+      https: // github.com/eclipse-openj9/openj9/blob/196082df056a990756a5571bfac29585fbbfbb42/jcl/src/java.base/share/classes/openj9/internal/tools/attach/target/IPC.java#L351
+      return (String)
+          Class.forName("openj9.internal.tools.attach.target.IPC")
+              .getDeclaredMethod("getTmpDir")
+              .invoke(null);
+    } catch (Throwable t) {
+      // Fall back to constants based on J9 source code, may not have perfect coverage
+      String tmpDir = SystemProperties.get("java.io.tmpdir");
+      if (tmpDir != null && !tmpDir.isEmpty()) {
+        return tmpDir;
+      } else if (OperatingSystem.isWindows()) {
+        return "C:\\Documents";
+      } else {
+        return "/tmp";
+      }
+    }
   }
 
   public enum Type {
