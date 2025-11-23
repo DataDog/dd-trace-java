@@ -15,25 +15,25 @@ public class DDTelemetryLogger extends DDLogger {
   @Override
   public void formatLog(LogLevel level, Marker marker, String format, Object arg) {
     telemetryLog(level, marker, format, getIfThrowable(arg));
-    super.formatLog(level, marker, format, arg);
+    super.formatLog(level, filterTelemetryLogMarkers(marker), format, arg);
   }
 
   @Override
   public void formatLog(LogLevel level, Marker marker, String format, Object arg1, Object arg2) {
     telemetryLog(level, marker, format, getIfThrowable(arg2));
-    super.formatLog(level, marker, format, arg1, arg2);
+    super.formatLog(level, filterTelemetryLogMarkers(marker), format, arg1, arg2);
   }
 
   @Override
   public void formatLog(LogLevel level, Marker marker, String format, Object... arguments) {
     telemetryLog(level, marker, format, MessageFormatter.getThrowableCandidate(arguments));
-    super.formatLog(level, marker, format, arguments);
+    super.formatLog(level, filterTelemetryLogMarkers(marker), format, arguments);
   }
 
   @Override
   protected void log(LogLevel level, Marker marker, String msg, Throwable t) {
     telemetryLog(level, marker, msg, t);
-    super.log(level, marker, msg, t);
+    super.log(level, filterTelemetryLogMarkers(marker), msg, t);
   }
 
   private void telemetryLog(LogLevel level, Marker marker, String msgOrgFormat, Throwable t) {
@@ -46,6 +46,14 @@ public class DDTelemetryLogger extends DDLogger {
       return;
     }
     LogCollector.get().addLogMessage(level.name(), msgOrgFormat, t);
+  }
+
+  private Marker filterTelemetryLogMarkers(Marker marker) {
+    if (marker == LogCollector.EXCLUDE_TELEMETRY || marker == LogCollector.SEND_TELEMETRY) {
+      // Do not log telemetry markers
+      return null;
+    }
+    return marker;
   }
 
   private Throwable getIfThrowable(final Object obj) {
