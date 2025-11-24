@@ -54,22 +54,49 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
     final String route = ctx.getRoute();
     if (route == null) {
+      log.info("[APPSEC-57815] preSampleRequest returning false - route is null");
       return false;
     }
     final String method = ctx.getMethod();
     if (method == null) {
+      log.info("[APPSEC-57815] preSampleRequest returning false - method is null, route={}", route);
       return false;
     }
     final int statusCode = ctx.getResponseStatus();
     if (statusCode <= 0) {
+      log.info(
+          "[APPSEC-57815] preSampleRequest returning false - invalid statusCode={}, route={}, method={}",
+          statusCode,
+          route,
+          method);
       return false;
     }
     long hash = computeApiHash(route, method, statusCode);
     ctx.setApiSecurityEndpointHash(hash);
-    if (!isApiAccessExpired(hash)) {
+
+    boolean isExpired = isApiAccessExpired(hash);
+    log.info(
+        "[APPSEC-57815] preSampleRequest checking expiration - route={}, method={}, statusCode={}, hash={}, isExpired={}, expirationTimeMs={}",
+        route,
+        method,
+        statusCode,
+        hash,
+        isExpired,
+        expirationTimeInMs);
+
+    if (!isExpired) {
       return false;
     }
-    if (counter.tryAcquire()) {
+
+    int availablePermits = counter.availablePermits();
+    boolean acquired = counter.tryAcquire();
+    log.info(
+        "[APPSEC-57815] preSampleRequest semaphore check - availablePermits={}, acquired={}, route={}",
+        availablePermits,
+        acquired,
+        route);
+
+    if (acquired) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
       return true;
