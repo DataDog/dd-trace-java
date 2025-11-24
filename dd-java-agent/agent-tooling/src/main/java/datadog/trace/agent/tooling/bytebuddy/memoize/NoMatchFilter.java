@@ -29,21 +29,24 @@ final class NoMatchFilter {
   private NoMatchFilter() {}
 
   public static ClassNameFilter build() {
-    // support persisting/restoring no-match results?
     Path noMatchFile = discoverNoMatchFile();
     if (null != noMatchFile) {
-      if (Files.exists(noMatchFile)) {
-        // restore existing filter with previously collected results
-        return seedNoMatchFilter(noMatchFile);
-      } else {
-        // populate filter from current run and persist at shutdown
-        ClassNameFilter filter = emptyNoMatchFilter();
-        Runtime.getRuntime().addShutdownHook(new ShutdownHook(noMatchFile, filter));
-        return filter;
+      // support persisting/restoring no-match results
+      try {
+        if (Files.exists(noMatchFile)) {
+          // restore existing filter with previously collected results
+          return seedNoMatchFilter(noMatchFile);
+        } else {
+          // populate filter from current run and persist at shutdown
+          ClassNameFilter filter = emptyNoMatchFilter();
+          Runtime.getRuntime().addShutdownHook(new ShutdownHook(noMatchFile, filter));
+          return filter;
+        }
+      } catch (Throwable e) {
+        log.debug("Unable to use NoMatchFilter at {}", noMatchFile, e);
       }
-    } else {
-      return emptyNoMatchFilter();
     }
+    return emptyNoMatchFilter();
   }
 
   private static Path discoverNoMatchFile() {
