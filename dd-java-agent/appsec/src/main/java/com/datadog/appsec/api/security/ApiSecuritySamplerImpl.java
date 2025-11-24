@@ -99,6 +99,13 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     if (acquired) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
+      // Update the map immediately to prevent race condition where multiple concurrent
+      // requests see the same expired state before any of them updates the map
+      updateApiAccessIfExpired(hash);
+      log.info(
+          "[APPSEC-57815] preSampleRequest updated accessMap immediately - route={}, hash={}",
+          route,
+          hash);
       return true;
     }
     return false;
@@ -115,7 +122,14 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       // This should never happen, it should have been short-circuited before.
       return false;
     }
-    return updateApiAccessIfExpired(hash);
+    // Note: With the race condition fix, the map was already updated by preSampleRequest()
+    // when the semaphore was acquired. We just need to confirm the sampling decision.
+    // No need to check expiration again since that would fail (we just updated it).
+    log.info(
+        "[APPSEC-57815] sampleRequest called - hash={}, route={}, returning true (map already updated in preSampleRequest)",
+        hash,
+        ctx.getRoute());
+    return true;
   }
 
   @Override
