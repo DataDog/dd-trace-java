@@ -19,12 +19,14 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Compact filter that records uninteresting types. */
+/** Builds a persistable compact filter that records uninteresting types. */
 final class NoMatchFilter {
   private static final Logger log = LoggerFactory.getLogger(NoMatchFilter.class);
 
   private static final String TRACER_VERSION_HEADER = "dd-java-agent";
   private static final String NO_MATCH_FILTER_HEADER = "NoMatchFilter";
+
+  private NoMatchFilter() {}
 
   public static ClassNameFilter build() {
     // support persisting/restoring no-match results?
