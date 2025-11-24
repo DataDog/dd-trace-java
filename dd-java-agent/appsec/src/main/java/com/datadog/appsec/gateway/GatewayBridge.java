@@ -847,12 +847,20 @@ public class GatewayBridge {
     boolean apmTracingEnabled = Config.get().isApmTracingEnabled();
 
     log.info(
-        "[APPSEC-57815] sampledForApiSec={}, apmTracingEnabled={}",
+        "[APPSEC-57815] sampledForApiSec={}, apmTracingEnabled={}, traceSeg={}, isNoOp={}",
         sampledForApiSec,
-        apmTracingEnabled);
+        apmTracingEnabled,
+        traceSeg,
+        traceSeg == TraceSegment.NoOp.INSTANCE);
 
-    if (sampledForApiSec) {
-      if (!apmTracingEnabled) {
+    if (!sampledForApiSec) {
+      ctx.closeWafContext();
+    }
+
+    // AppSec report metric and events for web span only
+    if (traceSeg != null) {
+      // Set API Security sampling tags if needed
+      if (sampledForApiSec && !apmTracingEnabled) {
         log.info(
             "[APPSEC-57815] Setting ASM_KEEP=true (API Security sampled, APM tracing disabled)");
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
@@ -861,14 +869,13 @@ public class GatewayBridge {
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         // Verify the tag was set
         Object asmKeepAfterSet = traceSeg.getTagTop(Tags.ASM_KEEP);
-        log.info("[APPSEC-57815] ASM_KEEP after setTagTop: {}", asmKeepAfterSet);
+        Object propagatedTsAfterSet = traceSeg.getTagTop(Tags.PROPAGATED_TRACE_SOURCE);
+        log.info(
+            "[APPSEC-57815] After setTagTop - ASM_KEEP: {}, _dd.p.ts: {}",
+            asmKeepAfterSet,
+            propagatedTsAfterSet);
       }
-    } else {
-      ctx.closeWafContext();
-    }
 
-    // AppSec report metric and events for web span only
-    if (traceSeg != null) {
       traceSeg.setTagTop("_dd.appsec.enabled", 1);
       traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
