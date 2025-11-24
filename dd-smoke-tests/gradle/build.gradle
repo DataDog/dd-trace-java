@@ -1,3 +1,6 @@
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -16,6 +19,9 @@ tasks.named("test", Test) {
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }
+
+  // Overriding the default timeout as Maven smoke tests might run for a longer duration.
+  timeout = Duration.of(25, ChronoUnit.MINUTES)
 
   if (project.hasProperty("mavenRepositoryProxy")) {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds
