@@ -12,7 +12,7 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 # Languages
 ## Groovy
 groovy3 = "3.0.24"
-groovy4 = "4.0.29"
+groovy4 = "4.0.26"
 
 ## Kotlin
 kotlin = "1.6.21"
@@ -67,8 +67,8 @@ junit4 = "4.13.2"
 junit5 = "5.12.2"
 junit-platform = "1.12.2"
 mockito = "4.4.0"
-spock-groovy3 = "2.4-M7-groovy-3.0"
-spock-groovy4 = "2.4-M7-groovy-4.0"
+spock-groovy3 = "2.4-M6-groovy-3.0"
+spock-groovy4 = "2.4-M6-groovy-4.0"
 testcontainers = "1.21.3"
 
 [libraries]
