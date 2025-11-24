@@ -17,6 +17,10 @@ muzzle {
 
 addTestSuite('latestDepTest')
 
+groovySpock {
+  configureDependencies("testFixturesApi")
+}
+
 dependencies {
   compileOnly group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
 

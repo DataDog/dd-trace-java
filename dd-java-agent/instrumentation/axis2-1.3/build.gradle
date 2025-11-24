@@ -32,12 +32,14 @@ configurations.configureEach {
   }
 }
 
-configureGroovyCompiler(11, "compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy")
-
 ["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each {
   tasks.named(it, JavaCompile) {
     configureCompiler(it, 11)
   }
+}
+
+groovySpock {
+  configureGroovyCompiler(11, "compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy")
 }
 
 dependencies {

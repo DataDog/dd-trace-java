@@ -29,6 +29,10 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+groovySpock {
+  configureGroovyCompiler(17, "compileLatestDepTestGroovy")
+}
+
 dependencies {
   implementation project(':dd-java-agent:instrumentation:junit:junit-5.3')
 

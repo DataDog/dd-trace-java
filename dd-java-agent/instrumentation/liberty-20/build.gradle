@@ -28,6 +28,10 @@ def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
 }
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 
+groovySpock {
+  configureDependencies("testImplementation", libs.groovy.xml)
+}
+
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
   testLogging libs.bundles.test.logging
@@ -50,15 +54,10 @@ dependencies {
   add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))) {
     transitive = false
   }
-  // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-  // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly libs.groovy
 }
 
 configurations.named("testRuntimeOnly") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
-  exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'

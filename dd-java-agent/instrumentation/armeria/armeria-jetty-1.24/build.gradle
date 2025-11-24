@@ -26,12 +26,16 @@ tasks.named("jetty11Test", Test) {
   }
 }
 
-configureGroovyCompiler(11, "compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy")
+
 
 ["jetty11Test", "jetty11LatestDepTest"].each { name ->
   tasks.named(name, Test) {
     javaLauncher = getJavaLauncherFor(11)
   }
+}
+
+groovySpock {
+  configureGroovyCompiler(11, "compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy")
 }
 
 dependencies {

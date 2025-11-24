@@ -1,6 +1,10 @@
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Mock Datadog backend used by smoke tests.'
 
+groovySpock {
+  configureDependencies("compileOnly")
+}
+
 dependencies {
   implementation project(':dd-smoke-tests')
   api project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')

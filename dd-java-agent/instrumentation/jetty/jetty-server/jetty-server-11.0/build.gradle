@@ -17,6 +17,10 @@ tracerJava {
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
+groovySpock {
+  configureDependencies("testFixturesCompileOnly")
+}
+
 dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
     exclude group: 'org.slf4j', module: 'slf4j-api'

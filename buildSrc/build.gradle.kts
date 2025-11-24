@@ -18,6 +18,7 @@ gradlePlugin {
       id = "instrument"
       implementationClass = "InstrumentPlugin"
     }
+
     create("muzzle-plugin") {
       id = "muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
@@ -26,18 +27,27 @@ gradlePlugin {
       id = "call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
+
+    create("groovy-spock-plugin") {
+      id = "datadog.groovy-spock"
+      implementationClass = "datadog.gradle.plugin.config.GroovySpockConventionPlugin"
+    }
+
     create("tracer-version-plugin") {
       id = "datadog.tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
+
     create("dump-hanged-test-plugin") {
       id = "datadog.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
+
     create("supported-config-generation") {
       id = "supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }
+
     create("supported-config-linter") {
       id = "config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
@@ -87,6 +97,7 @@ testing {
   suites {
     val test by getting(JvmTestSuite::class) {
       dependencies {
+        // TODO: We can refactor `buildSrc` code and tests to not use Groovy and Spock at all.
         implementation(libs.groovy)
         implementation(libs.spock.core)
       }

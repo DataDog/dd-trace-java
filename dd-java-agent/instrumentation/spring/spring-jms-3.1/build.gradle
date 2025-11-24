@@ -16,6 +16,11 @@ tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 
+groovySpock {
+  // Groovy 3 needs `org.junit.rules.ExternalResource` from JUnit4.
+  configureDependencies("testImplementation", libs.junit4)
+}
+
 dependencies {
   implementation project(':dd-java-agent:instrumentation:jms')
 

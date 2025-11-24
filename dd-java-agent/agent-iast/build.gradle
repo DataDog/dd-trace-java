@@ -34,6 +34,10 @@ protobuf {
   }
 }
 
+groovySpock {
+  configureDependencies("testImplementation", libs.groovy.yaml)
+}
+
 dependencies {
   api libs.slf4j
 
@@ -50,7 +54,6 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
-  testImplementation libs.groovy.yaml
   testImplementation libs.guava
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion

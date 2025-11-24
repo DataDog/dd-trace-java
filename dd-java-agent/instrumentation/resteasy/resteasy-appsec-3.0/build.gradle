@@ -28,6 +28,12 @@ tasks.named("test", Test) {
 configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
+
+groovySpock {
+  configureDependencies("testFixturesApi")
+  configureDependencies("testImplementation")
+}
+
 dependencies {
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.0.Final'
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-multipart-provider', version: '3.0.0.Final'

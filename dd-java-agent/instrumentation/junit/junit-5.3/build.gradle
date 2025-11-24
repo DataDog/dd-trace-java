@@ -30,6 +30,10 @@ addTestSuiteForDir('v513Test', 'test')
 addTestSuiteForDir('latest5Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
+groovySpock {
+  configureGroovyCompiler(17, "compileLatestDepTestGroovy")
+}
+
 dependencies {
   compileOnly group: 'org.junit.platform', name: 'junit-platform-launcher', version: "$platformVersion"
   compileOnly group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: "$jupiterVersion"

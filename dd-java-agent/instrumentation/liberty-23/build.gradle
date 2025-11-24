@@ -32,6 +32,10 @@ def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 def shadowJar = tasks.named("shadowJar", ShadowJar)
 
+groovySpock {
+  configureDependencies("testImplementation", libs.groovy.xml)
+}
+
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '22.0.0.1', ext: 'zip'
   testLogging libs.bundles.test.logging
@@ -57,10 +61,6 @@ dependencies {
   add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))) {
     transitive = false
   }
-  // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
-  // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly libs.groovy
 }
 
 configurations.named("testRuntimeOnly") {
