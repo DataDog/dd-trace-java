@@ -27,7 +27,7 @@ import javax.inject.Inject
  *   * objenesis
  */
 @Suppress("unused")
-class GroovySpockConventionPlugin : Plugin<Project> {
+class GroovySpockConfigPlugin : Plugin<Project> {
   abstract class GroovySpockProperties @Inject constructor(objects: ObjectFactory) {
     internal val compilerSettings: MapProperty<Int, List<String>> = objects.mapProperty()
 
@@ -45,7 +45,7 @@ class GroovySpockConventionPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     if (project == project.rootProject) {
       project.subprojects {
-        this.pluginManager.apply(GroovySpockConventionPlugin::class.java)
+        this.pluginManager.apply(GroovySpockConfigPlugin::class.java)
       }
       return
     }
