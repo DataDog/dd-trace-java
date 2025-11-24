@@ -836,22 +836,8 @@ public class GatewayBridge {
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
-    // Log upstream propagated tags
-    Object upstreamPropagatedTs = tags.get(Tags.PROPAGATED_TRACE_SOURCE);
-    log.info(
-        "[APPSEC-57815] Request ended - spanId={}, upstream _dd.p.ts={}",
-        spanInfo.getSpanId(),
-        upstreamPropagatedTs);
-
     boolean sampledForApiSec = maybeSampleForApiSecurity(ctx, spanInfo, tags);
     boolean apmTracingEnabled = Config.get().isApmTracingEnabled();
-
-    log.info(
-        "[APPSEC-57815] sampledForApiSec={}, apmTracingEnabled={}, traceSeg={}, isNoOp={}",
-        sampledForApiSec,
-        apmTracingEnabled,
-        traceSeg,
-        traceSeg == TraceSegment.NoOp.INSTANCE);
 
     if (!sampledForApiSec) {
       ctx.closeWafContext();
@@ -959,25 +945,13 @@ public class GatewayBridge {
 
     // API Security sampling requires http.route tag.
     final Object route = tags.get(Tags.HTTP_ROUTE);
-    final String existingRoute = ctx.getRoute();
-
-    log.info(
-        "[APPSEC-57815] maybeSampleForApiSecurity called - spanId={}, route from tags={}, existingRoute={}, ctx.hashCode={}",
-        spanInfo.getSpanId(),
-        route,
-        existingRoute,
-        System.identityHashCode(ctx));
 
     if (route != null) {
       ctx.setRoute(route.toString());
     }
 
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
-    boolean sampled = requestSampler.preSampleRequest(ctx);
-
-    log.info(
-        "[APPSEC-57815] API Security sampling decision - route={}, sampled={}", route, sampled);
-    return sampled;
+    return requestSampler.preSampleRequest(ctx);
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {

@@ -54,64 +54,40 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
     final String route = ctx.getRoute();
     if (route == null) {
-      log.info("[APPSEC-57815] preSampleRequest returning false - route is null");
       return false;
     }
     final String method = ctx.getMethod();
     if (method == null) {
-      log.info("[APPSEC-57815] preSampleRequest returning false - method is null, route={}", route);
       return false;
     }
     final int statusCode = ctx.getResponseStatus();
     if (statusCode <= 0) {
-      log.info(
-          "[APPSEC-57815] preSampleRequest returning false - invalid statusCode={}, route={}, method={}",
-          statusCode,
-          route,
-          method);
       return false;
     }
     long hash = computeApiHash(route, method, statusCode);
     ctx.setApiSecurityEndpointHash(hash);
 
-    boolean isExpired = isApiAccessExpired(hash);
-    log.info(
-        "[APPSEC-57815] preSampleRequest checking expiration - route={}, method={}, statusCode={}, hash={}, isExpired={}, expirationTimeMs={}",
-        route,
-        method,
-        statusCode,
-        hash,
-        isExpired,
-        expirationTimeInMs);
-
-    if (!isExpired) {
+    if (!isApiAccessExpired(hash)) {
       return false;
     }
 
-    int availablePermits = counter.availablePermits();
-    boolean acquired = counter.tryAcquire();
-    log.info(
-        "[APPSEC-57815] preSampleRequest semaphore check - availablePermits={}, acquired={}, route={}",
-        availablePermits,
-        acquired,
-        route);
-
-    if (acquired) {
+    if (counter.tryAcquire()) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
-      // Update the map immediately to prevent race condition where multiple concurrent
-      // requests see the same expired state before any of them updates the map
+      // Update immediately to prevent concurrent requests from seeing the same expired state
       updateApiAccessIfExpired(hash);
-      log.info(
-          "[APPSEC-57815] preSampleRequest updated accessMap immediately - route={}, hash={}",
-          route,
-          hash);
       return true;
     }
     return false;
   }
 
-  /** Get the final sampling decision. This method is NOT thread-safe. */
+  /**
+   * Confirms the final sampling decision.
+   *
+   * <p>This method is called after the span completes. The actual sampling decision and map update
+   * already happened in {@link #preSampleRequest(AppSecRequestContext)} to prevent race conditions.
+   * This method only serves as a final confirmation gate before schema extraction.
+   */
   @Override
   public boolean sampleRequest(AppSecRequestContext ctx) {
     if (ctx == null) {
@@ -119,16 +95,8 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     }
     final Long hash = ctx.getApiSecurityEndpointHash();
     if (hash == null) {
-      // This should never happen, it should have been short-circuited before.
       return false;
     }
-    // Note: With the race condition fix, the map was already updated by preSampleRequest()
-    // when the semaphore was acquired. We just need to confirm the sampling decision.
-    // No need to check expiration again since that would fail (we just updated it).
-    log.info(
-        "[APPSEC-57815] sampleRequest called - hash={}, route={}, returning true (map already updated in preSampleRequest)",
-        hash,
-        ctx.getRoute());
     return true;
   }
 
