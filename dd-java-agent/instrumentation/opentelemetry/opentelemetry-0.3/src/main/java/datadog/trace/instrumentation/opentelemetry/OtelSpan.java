@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.opentelemetry;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.common.AttributeValue;
 import io.opentelemetry.trace.EndSpanOptions;
@@ -13,7 +14,7 @@ import io.opentelemetry.trace.Status;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class OtelSpan implements Span, MutableSpan, WithAgentSpan {
+public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
   private final TypeConverter converter;
 

@@ -94,7 +94,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // The span ID is pre-determined so that we can reference it when setting the context
             final long spanID = DECORATE.setContextInfo(connection, dbInfo);
             // we then force that pre-determined span ID for the span covering the actual query
-            span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+            span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
           } else if (isOracle) {
             span = startSpan(DATABASE_QUERY);
             DECORATE.setAction(span, connection);
@@ -127,7 +127,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
 
           // prepend mode will prepend the SQL comment to the raw sql query
-          boolean appendComment = false;
+          boolean appendComment = DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT;
 
           // There is a bug in the SQL Server JDBC driver that prevents
           // the generated keys from being returned when the
@@ -135,6 +135,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           // We only append in this case to avoid the comment from being truncated.
           // @see https://github.com/microsoft/mssql-jdbc/issues/2729
           if (isSqlServer
+              && !appendComment
               && args.length == 2
               && args[1] instanceof Integer
               && (Integer) args[1] == Statement.RETURN_GENERATED_KEYS) {

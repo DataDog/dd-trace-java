@@ -16,66 +16,114 @@ public final class LibFile implements AutoCloseable {
   static final boolean NO_CLEAN_UP = false;
   static final boolean CLEAN_UP = true;
 
-  static final LibFile preloaded(String libName) {
-    return new LibFile(libName, null, NO_CLEAN_UP);
+  static final LibFile preloaded(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      SafeLibraryLoadingListener listeners) {
+    return new LibFile(platformSpec, optionalComponent, libName, null, NO_CLEAN_UP, listeners);
   }
 
-  static final LibFile fromFile(String libName, File file) {
-    return new LibFile(libName, file, NO_CLEAN_UP);
+  static final LibFile fromFile(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      File optionalFile,
+      SafeLibraryLoadingListener listeners) {
+    return new LibFile(
+        platformSpec, optionalComponent, libName, optionalFile, NO_CLEAN_UP, listeners);
   }
 
-  static final LibFile fromTempFile(String libName, File file) {
-    return new LibFile(libName, file, CLEAN_UP);
+  static final LibFile fromTempFile(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      File optionalFile,
+      SafeLibraryLoadingListener listeners) {
+    return new LibFile(platformSpec, optionalComponent, libName, optionalFile, CLEAN_UP, listeners);
   }
 
+  final PlatformSpec platformSpec;
+  final String optionalComponent;
   final String libName;
 
-  final File file;
+  final File optionalFile;
   final boolean needsCleanup;
 
-  LibFile(String libName, File file, boolean needsCleanup) {
+  final SafeLibraryLoadingListener listeners;
+
+  LibFile(
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      File optionalFile,
+      boolean needsCleanup,
+      SafeLibraryLoadingListener listeners) {
+    this.platformSpec = platformSpec;
+    this.optionalComponent = optionalComponent;
     this.libName = libName;
 
-    this.file = file;
+    this.optionalFile = optionalFile;
     this.needsCleanup = needsCleanup;
+
+    this.listeners = listeners;
   }
 
   /** Indicates if this library was "preloaded" */
   public boolean isPreloaded() {
-    return (this.file == null);
+    return (this.optionalFile == null);
   }
 
   /** Loads the underlying library into the JVM */
   public void load() throws LibraryLoadException {
-    if (this.isPreloaded()) return;
+    boolean isPreloaded = this.isPreloaded();
+    if (isPreloaded) {
+      this.listeners.onLoad(
+          this.platformSpec, this.optionalComponent, this.libName, isPreloaded, null);
+      return;
+    }
 
     try {
       Runtime.getRuntime().load(this.getAbsolutePath());
+
+      if (true) throw new RuntimeException("real load - worked?");
     } catch (Throwable t) {
+      this.listeners.onLoadFailure(this.platformSpec, this.optionalComponent, this.libName, t);
       throw new LibraryLoadException(this.libName, t);
     }
+
+    this.listeners.onLoad(
+        this.platformSpec,
+        this.optionalComponent,
+        this.libName,
+        isPreloaded,
+        this.optionalFile.toPath());
   }
 
   /** Provides a File to the library -- returns null for pre-loaded libraries */
   public final File toFile() {
-    return this.file;
+    return this.optionalFile;
   }
 
   /** Provides a Path to the library -- return null for pre-loaded libraries */
   public final Path toPath() {
-    return this.file == null ? null : this.file.toPath();
+    return this.optionalFile == null ? null : this.optionalFile.toPath();
   }
 
   /** Provides the an absolute path to the library -- returns null for pre-loaded libraries */
   public final String getAbsolutePath() {
-    return this.file == null ? null : this.file.getAbsolutePath();
+    return this.optionalFile == null ? null : this.optionalFile.getAbsolutePath();
   }
 
-  /** Schedules clean-up of underlying file -- if the file is a temp file */
+  /** Schedules clean-up of underlying optionalFile -- if the file is a temp file */
   @Override
   public void close() {
     if (this.needsCleanup) {
-      NativeLoader.delete(this.file);
+      boolean deleted = NativeLoader.delete(this.optionalFile);
+      if (deleted) {
+        this.listeners.onTempFileCleanup(
+            this.platformSpec, this.optionalComponent, this.libName, this.optionalFile.toPath());
+      }
     }
   }
 }

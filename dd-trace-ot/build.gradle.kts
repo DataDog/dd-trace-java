@@ -120,6 +120,8 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude(dependency("io.opentracing.contrib:"))
     exclude(dependency("org.slf4j:"))
     exclude(dependency("com.github.jnr:"))
+    // indirect dependency of JNR, no need to embed
+    exclude(dependency("org.ow2.asm:"))
   }
 
   relocate("com.", "ddtrot.com.") {

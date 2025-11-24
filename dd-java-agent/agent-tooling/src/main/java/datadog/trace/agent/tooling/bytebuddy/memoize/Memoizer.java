@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.memoize;
 
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
+import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
@@ -61,7 +62,7 @@ public final class Memoizer {
   private static final boolean namesAreUnique = InstrumenterConfig.get().isResolverNamesAreUnique();
 
   // compact filter recording uninteresting types
-  private static final NoMatchFilter noMatchFilter = new NoMatchFilter();
+  private static final ClassNameFilter noMatchFilter = NoMatchFilter.build();
 
   // caches positive memoized matches
   private static final TypeInfoCache<BitSet> memos =

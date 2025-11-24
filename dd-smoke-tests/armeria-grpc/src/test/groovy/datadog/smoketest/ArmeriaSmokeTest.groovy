@@ -2,7 +2,7 @@ package datadog.smoketest
 
 
 import datadog.armeria.grpc.Hello
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import spock.lang.Shared
 
 import java.util.concurrent.ThreadLocalRandom

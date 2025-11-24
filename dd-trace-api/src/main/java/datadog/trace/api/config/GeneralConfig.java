@@ -80,6 +80,10 @@ public final class GeneralConfig {
   public static final String DATA_JOBS_OPENLINEAGE_ENABLED = "data.jobs.openlineage.enabled";
   public static final String DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED =
       "data.jobs.openlineage.timeout.enabled";
+  public static final String DATA_JOBS_PARSE_SPARK_PLAN_ENABLED =
+      "data.jobs.parse_spark_plan.enabled";
+  public static final String DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED =
+      "data.jobs.experimental_features.enabled";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =

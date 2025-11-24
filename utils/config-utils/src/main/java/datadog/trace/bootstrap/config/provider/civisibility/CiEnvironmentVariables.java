@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.config.provider.civisibility;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.util.ConfigStrings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -52,7 +52,7 @@ public class CiEnvironmentVariables {
     if (propertyValue != null) {
       return propertyValue;
     }
-    return EnvironmentVariables.get(ConfigStrings.toEnvVar(propertyName));
+    return ConfigHelper.get().getEnvironmentVariable(ConfigStrings.toEnvVar(propertyName));
   }
 
   static Map<String, String> getRemoteEnvironmentWithRetries(

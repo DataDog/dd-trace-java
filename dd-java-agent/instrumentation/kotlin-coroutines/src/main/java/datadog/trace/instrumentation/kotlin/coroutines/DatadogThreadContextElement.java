@@ -3,12 +3,12 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.ThreadContextElement;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
@@ -25,13 +25,13 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   private Context context;
   private AgentScope.Continuation continuation;
 
-  @NotNull
+  @Nonnull
   @Override
   public Key<?> getKey() {
     return DATADOG_KEY;
   }
 
-  public static void captureDatadogContext(@NotNull AbstractCoroutine<?> coroutine) {
+  public static void captureDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
     if (datadog != null && datadog.context == null) {
       // record context to use for this coroutine
@@ -41,7 +41,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
     }
   }
 
-  public static void cancelDatadogContext(@NotNull AbstractCoroutine<?> coroutine) {
+  public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
     if (datadog != null && datadog.continuation != null) {
       // release enclosing trace now the coroutine has completed
@@ -50,7 +50,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   }
 
   @Override
-  public Context updateThreadContext(@NotNull CoroutineContext coroutineContext) {
+  public Context updateThreadContext(@Nonnull CoroutineContext coroutineContext) {
     if (context == null) {
       // record context to use for this coroutine
       context = Context.current();
@@ -62,31 +62,31 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   @Override
   public void restoreThreadContext(
-      @NotNull CoroutineContext coroutineContext, Context originalContext) {
+      @Nonnull CoroutineContext coroutineContext, Context originalContext) {
     context = originalContext.swap();
   }
 
-  @NotNull
+  @Nonnull
   @Override
-  public CoroutineContext plus(@NotNull CoroutineContext coroutineContext) {
+  public CoroutineContext plus(@Nonnull CoroutineContext coroutineContext) {
     return CoroutineContext.DefaultImpls.plus(this, coroutineContext);
   }
 
   @Override
   public <R> R fold(
-      R initial, @NotNull Function2<? super R, ? super Element, ? extends R> operation) {
+      R initial, @Nonnull Function2<? super R, ? super Element, ? extends R> operation) {
     return CoroutineContext.Element.DefaultImpls.fold(this, initial, operation);
   }
 
   @Nullable
   @Override
-  public <E extends Element> E get(@NotNull Key<E> key) {
+  public <E extends Element> E get(@Nonnull Key<E> key) {
     return CoroutineContext.Element.DefaultImpls.get(this, key);
   }
 
-  @NotNull
+  @Nonnull
   @Override
-  public CoroutineContext minusKey(@NotNull Key<?> key) {
+  public CoroutineContext minusKey(@Nonnull Key<?> key) {
     return CoroutineContext.Element.DefaultImpls.minusKey(this, key);
   }
 }

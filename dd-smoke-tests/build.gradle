@@ -27,7 +27,6 @@ allprojects {
   }
 }
 
-Project parent_project = project
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }

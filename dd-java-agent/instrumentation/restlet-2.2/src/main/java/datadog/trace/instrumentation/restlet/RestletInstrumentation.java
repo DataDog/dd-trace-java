@@ -81,7 +81,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
         DECORATE.onError(span, error);
       }
 
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(scope.context());
       scope.close();
       span.finish();
     }
