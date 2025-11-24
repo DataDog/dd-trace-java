@@ -6,13 +6,13 @@ plugins {
   id 'io.spring.dependency-management' version '1.0.15.RELEASE'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'Open Feature provider Smoke Tests.'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
 
 tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
