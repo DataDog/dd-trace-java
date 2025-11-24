@@ -138,35 +138,40 @@ class ApiSecuritySamplerTest extends DDSpecification {
     !sampled
   }
 
-  void 'sampleRequest honors expiration'() {
+  void 'preSampleRequest honors expiration'() {
     given:
-    def ctx = createContext('route1', 'GET', 200)
-    ctx.setApiSecurityEndpointHash(42L)
-    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    def ctx1 = createContext('route1', 'GET', 200)
+    def ctx2 = createContext('route1', 'GET', 200)
+    def ctx3 = createContext('route1', 'GET', 200)
     final timeSource = new ControllableTimeSource()
     timeSource.set(0)
     final long expirationTimeInMs = 10L
     final long expirationTimeInNs = expirationTimeInMs * 1_000_000
     def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
-    when:
-    def sampled = sampler.sampleRequest(ctx)
+    when: 'first request samples'
+    def preSampled1 = sampler.preSampleRequest(ctx1)
+    def sampled1 = sampler.sampleRequest(ctx1)
 
     then:
-    sampled
+    preSampled1
+    sampled1
 
-    when:
-    sampled = sampler.sampleRequest(ctx)
+    when: 'second request to same endpoint before expiration'
+    def preSampled2 = sampler.preSampleRequest(ctx2)
 
     then: 'second request is not sampled'
-    !sampled
+    !preSampled2
 
     when: 'expiration time has passed'
+    sampler.releaseOne()
     timeSource.advance(expirationTimeInNs)
-    sampled = sampler.sampleRequest(ctx)
+    def preSampled3 = sampler.preSampleRequest(ctx3)
+    def sampled3 = sampler.sampleRequest(ctx3)
 
     then: 'request is sampled again'
-    sampled
+    preSampled3
+    sampled3
   }
 
   void 'internal accessMap never goes beyond capacity'() {
@@ -198,10 +203,13 @@ class ApiSecuritySamplerTest extends DDSpecification {
 
     expect:
     for (int i = 0; i < maxCapacity * 10; i++) {
-      final ctx = createContext('route1', 'GET', 200 + 1)
-      ctx.setApiSecurityEndpointHash(i as long)
-      ctx.setKeepOpenForApiSecurityPostProcessing(true)
-      assert sampler.sampleRequest(ctx)
+      final ctx = createContext('route1', 'GET', 200 + i)
+      def preSampled = sampler.preSampleRequest(ctx)
+      // First request always samples, then we advance time so each subsequent request expires
+      assert preSampled
+      def sampled = sampler.sampleRequest(ctx)
+      assert sampled
+      sampler.releaseOne()
       assert sampler.accessMap.size() <= 2
       if (i % 2) {
         timeSource.advance(expirationTimeInMs * 1_000_000)
