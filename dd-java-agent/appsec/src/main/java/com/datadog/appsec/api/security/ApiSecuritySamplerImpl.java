@@ -66,11 +66,9 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     }
     long hash = computeApiHash(route, method, statusCode);
     ctx.setApiSecurityEndpointHash(hash);
-
     if (!isApiAccessExpired(hash)) {
       return false;
     }
-
     if (counter.tryAcquire()) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
@@ -95,6 +93,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     }
     final Long hash = ctx.getApiSecurityEndpointHash();
     if (hash == null) {
+      // This should never happen, it should have been short-circuited before.
       return false;
     }
     return true;

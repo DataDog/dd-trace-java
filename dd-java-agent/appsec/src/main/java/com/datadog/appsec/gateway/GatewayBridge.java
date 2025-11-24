@@ -837,7 +837,6 @@ public class GatewayBridge {
     Map<String, Object> tags = spanInfo.getTags();
 
     boolean sampledForApiSec = maybeSampleForApiSecurity(ctx, spanInfo, tags);
-    boolean apmTracingEnabled = Config.get().isApmTracingEnabled();
 
     if (!sampledForApiSec) {
       ctx.closeWafContext();
@@ -845,11 +844,8 @@ public class GatewayBridge {
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
-      // Set API Security sampling tags if needed
-      if (sampledForApiSec && !apmTracingEnabled) {
+      if (sampledForApiSec && !Config.get().isApmTracingEnabled()) {
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        // Must set _dd.p.ts locally so TraceCollector respects force-keep in standalone mode
-        // (TraceCollector.java lines 67-74 ignore force-keep without _dd.p.ts when APM disabled)
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
       }
 
@@ -869,8 +865,7 @@ public class GatewayBridge {
 
       // If detected any events - mark span at appsec.event
       if (!collectedEvents.isEmpty()) {
-        boolean manuallyKept = ctx.isManuallyKept();
-        if (manuallyKept) {
+        if (ctx.isManuallyKept()) {
           // Set asm keep in case that root span was not available when events are detected
           traceSeg.setTagTop(Tags.ASM_KEEP, true);
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
@@ -942,14 +937,11 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-
     // API Security sampling requires http.route tag.
     final Object route = tags.get(Tags.HTTP_ROUTE);
-
     if (route != null) {
       ctx.setRoute(route.toString());
     }
-
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
     return requestSampler.preSampleRequest(ctx);
   }
