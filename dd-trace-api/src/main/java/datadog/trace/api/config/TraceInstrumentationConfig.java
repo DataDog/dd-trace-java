@@ -194,5 +194,14 @@ public final class TraceInstrumentationConfig {
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
   public static final String ADD_SPAN_POINTERS = "add.span.pointers";
 
+  public static final String SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED =
+      "sfn.inject.datadog.attribute.enabled";
+  public static final String SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED =
+      "sqs.inject.datadog.attribute.enabled";
+  public static final String SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED =
+      "sns.inject.datadog.attribute.enabled";
+  public static final String EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED =
+      "eventbridge.inject.datadog.attribute.enabled";
+
   private TraceInstrumentationConfig() {}
 }

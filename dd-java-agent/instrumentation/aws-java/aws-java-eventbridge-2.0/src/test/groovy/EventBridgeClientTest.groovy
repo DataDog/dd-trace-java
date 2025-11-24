@@ -1,7 +1,10 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import groovy.json.JsonSlurper
+import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -16,9 +19,6 @@ import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import spock.lang.Shared
-
-import java.time.Duration
-import java.util.concurrent.CompletableFuture
 
 class EventBridgeClientTest extends InstrumentationSpecification {
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
@@ -494,5 +494,32 @@ class EventBridgeClientTest extends InstrumentationSpecification {
       'traceparent',
       'tracestate'
     ]
+  }
+
+  def "datadog context is not injected when eventbridgeInjectDatadogAttribute is disabled"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+
+    when:
+    TEST_WRITER.clear()
+    eventBridgeClient.putEvents { req ->
+      req.entries(
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("test-no-inject")
+        .detail('{"message":"no-inject"}')
+        .eventBusName(testBusARN)
+        .build()
+        )
+    }
+
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+    def messageBody = new JsonSlurper().parseText(message.body())
+
+    then:
+    def detail = messageBody["detail"]
+    assert detail instanceof Map
+    assert detail["message"] == "no-inject"
+    assert detail["_datadog"] == null
   }
 }

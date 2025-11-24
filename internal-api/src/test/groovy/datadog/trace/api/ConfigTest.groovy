@@ -1,5 +1,10 @@
 package datadog.trace.api
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED
+
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
@@ -189,6 +194,11 @@ class ConfigTest extends DDSpecification {
   private static final DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING"
   private static final DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING"
 
+  private static final DD_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+  private static final DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+  private static final DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+  private static final DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+
   private static final DD_TRACE_OTEL_ENABLED_ENV = "DD_TRACE_OTEL_ENABLED"
   private static final DD_TRACE_OTEL_ENABLED_PROP = "dd.trace.otel.enabled"
 
@@ -320,6 +330,11 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
     prop.setProperty(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
 
+    prop.setProperty(SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    prop.setProperty(EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    prop.setProperty(SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    prop.setProperty(SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+
     prop.setProperty(METRICS_OTEL_ENABLED, "True")
     prop.setProperty(METRICS_OTEL_INTERVAL, "11000")
     prop.setProperty(METRICS_OTEL_TIMEOUT, "9000")
@@ -427,6 +442,11 @@ class ConfigTest extends DDSpecification {
 
     config.cloudRequestPayloadTagging == []
     config.cloudResponsePayloadTagging == []
+
+    !config.isSfnInjectDatadogAttributeEnabled()
+    !config.isSqsInjectDatadogAttributeEnabled()
+    !config.isSnsInjectDatadogAttributeEnabled()
+    !config.isEventbridgeInjectDatadogAttributeEnabled()
 
     config.xDatadogTagsMaxLength == 128
     config.metricsOtelEnabled
@@ -722,6 +742,11 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
     System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
 
+    System.setProperty(PREFIX + SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    System.setProperty(PREFIX + EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    System.setProperty(PREFIX + SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    System.setProperty(PREFIX + SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+
     System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "True")
     System.setProperty(OTEL_METRIC_EXPORT_INTERVAL_PROP, "11000")
     System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT_PROP, "9000")
@@ -826,6 +851,11 @@ class ConfigTest extends DDSpecification {
     config.cloudRequestPayloadTagging == []
     config.cloudResponsePayloadTagging == []
 
+    !config.isSfnInjectDatadogAttributeEnabled()
+    !config.isSqsInjectDatadogAttributeEnabled()
+    !config.isSnsInjectDatadogAttributeEnabled()
+    !config.isEventbridgeInjectDatadogAttributeEnabled()
+
     config.xDatadogTagsMaxLength == 128
 
     config.metricsOtelEnabled
@@ -859,6 +889,10 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
     environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
     environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+    environmentVariables.set(DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+    environmentVariables.set(DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+    environmentVariables.set(DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
 
     environmentVariables.set(DD_METRICS_OTEL_ENABLED_ENV, "True")
     environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
@@ -890,6 +924,10 @@ class ConfigTest extends DDSpecification {
     config.getLongRunningTraceFlushInterval() == 81
     config.cloudRequestPayloadTagging == []
     config.cloudResponsePayloadTagging == []
+    !config.isSfnInjectDatadogAttributeEnabled()
+    !config.isSqsInjectDatadogAttributeEnabled()
+    !config.isSnsInjectDatadogAttributeEnabled()
+    !config.isEventbridgeInjectDatadogAttributeEnabled()
 
     config.requestHeaderTags == ["*": "http.request.headers."]
     config.responseHeaderTags == ["*": "http.response.headers."]

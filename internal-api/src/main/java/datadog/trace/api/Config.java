@@ -1414,15 +1414,13 @@ public class Config {
         getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
 
     sfnInjectDatadogAttributeEnabled =
-        isInjectDatadogAttributeEnabled(
-            DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "sfn", "step.functions");
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sfn", "step.functions");
     eventbridgeInjectDatadogAttributeEnabled =
-        isInjectDatadogAttributeEnabled(
-            DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "events", "eventbridge");
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "eventbridge", "events");
     snsInjectDatadogAttributeEnabled =
-        isInjectDatadogAttributeEnabled(DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "sns");
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sns");
     sqsInjectDatadogAttributeEnabled =
-        isInjectDatadogAttributeEnabled(DEFAULT_TRACE_AWS_INJECT_DATADOG_ATTRIBUTE, "sqs");
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sqs");
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
