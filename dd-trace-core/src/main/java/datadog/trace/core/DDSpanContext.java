@@ -858,7 +858,7 @@ public class DDSpanContext
     }
   }
 
-  public void setTag(final String tag, final long value) {
+  public void setTag(final String tag, final float value) {
     if (null == tag) {
       return;
     }
