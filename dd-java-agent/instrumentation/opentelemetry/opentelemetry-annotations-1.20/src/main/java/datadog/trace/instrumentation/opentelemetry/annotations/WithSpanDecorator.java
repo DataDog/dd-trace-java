@@ -77,7 +77,7 @@ public class WithSpanDecorator extends AsyncResultDecorator {
     }
 
     AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get().buildSpan(INSTRUMENTATION_NAME, operationName);
+        AgentTracer.get().singleSpanBuilder(INSTRUMENTATION_NAME, operationName);
 
     if (!inheritContext) {
       spanBuilder = spanBuilder.ignoreActiveSpan();

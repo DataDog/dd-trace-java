@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.AXWAY_TRY_TRANSACTION;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -34,11 +35,12 @@ public class StateAdvice {
       return;
     }
     final AgentSpan span = scope.span();
+    final Context context = scope.context();
     try {
       if (throwable != null) {
         DECORATE.onError(span, throwable);
       }
-      DECORATE.beforeFinish(span);
+      DECORATE.beforeFinish(context);
     } finally {
       scope.close();
       span.finish();

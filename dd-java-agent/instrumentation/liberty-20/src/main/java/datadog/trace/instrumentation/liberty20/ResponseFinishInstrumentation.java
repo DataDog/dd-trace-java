@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.liberty20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -11,6 +12,7 @@ import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.WebContainerRequestState;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedRequest;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -80,33 +82,39 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class ResponseFinishAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static AgentSpan onEnter(@Advice.This SRTServletResponse resp) {
+    static Context onEnter(@Advice.This SRTServletResponse resp) {
       // this is the last opportunity to have any meaningful
       // interaction with the response
-      AgentSpan span = null;
+      Context context = null;
       IExtendedRequest req = resp.getRequest();
       try {
-        Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-        if (spanObj instanceof AgentSpan) {
-          span = (AgentSpan) spanObj;
-          req.setAttribute(DD_SPAN_ATTRIBUTE, null);
-          DECORATE.onResponse(span, resp);
+        Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+        if (contextObj instanceof Context) {
+          context = (Context) contextObj;
+          req.setAttribute(DD_CONTEXT_ATTRIBUTE, null);
+          AgentSpan span = fromContext(context);
+          if (span != null) {
+            DECORATE.onResponse(span, resp);
+          }
         }
       } catch (NullPointerException e) {
         // OpenLiberty will throw NPE on getAttribute if the response has already been closed.
       }
 
-      return span;
+      return context;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This SRTServletResponse resp, @Advice.Enter AgentSpan span) {
-      if (span == null) {
+        @Advice.This SRTServletResponse resp, @Advice.Enter Context context) {
+      if (context == null) {
         return;
       }
-      DECORATE.beforeFinish(span);
-      span.finish();
+      AgentSpan span = fromContext(context);
+      if (span != null) {
+        DECORATE.beforeFinish(context);
+        span.finish();
+      }
     }
   }
 }

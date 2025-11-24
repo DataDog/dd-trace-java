@@ -47,13 +47,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.AgentBuilder.InitializationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.TypeStrategy;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
-import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -133,8 +133,8 @@ public class CodeOriginTest extends CapturingTestBase {
     final String className = "com.datadog.debugger.CodeOrigin02";
     installProbes();
     final Class<?> testClass = compileAndLoadClass(className);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
+    codeOriginRecorder.captureCodeOrigin(className, "entry", "()", true);
+    codeOriginRecorder.captureCodeOrigin(className, "exit", "()", false);
     checkResults(testClass, "fullTrace", 0);
     checkResults(testClass, "debug_1", 2);
   }
@@ -145,8 +145,8 @@ public class CodeOriginTest extends CapturingTestBase {
     installProbes(
         createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()").captureSnapshot(true).build());
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
+    codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "entry", "()", true);
+    codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "exit", "()", false);
     checkResults(testClass, "debug_1", 3);
   }
 
@@ -230,7 +230,7 @@ public class CodeOriginTest extends CapturingTestBase {
     installProbes();
     CodeOriginProbe probe =
         codeOriginRecorder.getProbe(
-            codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true));
+            codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "main", "(I)", true));
     assertNotNull(probe, "The probe should have been created.");
     assertTrue(probe.entrySpanProbe(), "Should be an entry probe.");
   }
@@ -241,14 +241,12 @@ public class CodeOriginTest extends CapturingTestBase {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     installProbes();
-    String probe1 =
-        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true);
-    String probe2 =
-        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true);
+    String probe1 = codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "main", "(I)", true);
+    String probe2 = codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "main", "(I)", true);
     assertEquals(probe1, probe2);
   }
 
-  @NotNull
+  @Nonnull
   private static CodeOriginProbe[] codeOriginProbes(String type) {
     CodeOriginProbe entry =
         new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"));

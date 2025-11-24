@@ -7,10 +7,6 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
-val isTestingInstrumentation = providers.provider { 
-  project.findProperty("testingInstrumentation") as? Boolean ?: false 
-}
-
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
 // Forked tests will fail with OOM if the memory is set too high. Gitlab allows at least a limit of 3.
@@ -41,25 +37,6 @@ tasks.withType<Test>().configureEach {
   // Enable force rerun of tests with -Prerun.tests.${project.name}
   outputs.upToDateWhen {
     !rootProject.providers.gradleProperty("rerun.tests.${project.name}").isPresent
-  }
-
-  // Avoid executing classes used to test testing frameworks instrumentation
-  if (isTestingInstrumentation.get()) {
-    exclude("**/TestAssumption*", "**/TestSuiteSetUpAssumption*")
-    exclude("**/TestDisableTestTrace*")
-    exclude("**/TestError*")
-    exclude("**/TestFactory*")
-    exclude("**/TestFailed*")
-    exclude("**/TestFailedWithSuccessPercentage*")
-    exclude("**/TestInheritance*", "**/BaseTestInheritance*")
-    exclude("**/TestParameterized*")
-    exclude("**/TestRepeated*")
-    exclude("**/TestSkipped*")
-    exclude("**/TestSkippedClass*")
-    exclude("**/TestSucceed*")
-    exclude("**/TestTemplate*")
-    exclude("**/TestUnskippable*")
-    exclude("**/TestWithSetup*")
   }
 
   // Split up tests that want to run forked in their own separate JVM for generated tasks
@@ -124,6 +101,9 @@ tasks.withType<Test>().configureEach {
   develocity.testRetry {
     if (providers.environmentVariable("CI").isPresent()) {
       maxRetries = 3
+      filter {
+        excludeAnnotationClasses.add("*NonRetryable") // allow to mark classes non retryable
+      }
     }
   }
 }

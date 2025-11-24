@@ -15,6 +15,7 @@ public interface LibraryResolver {
     return false;
   }
 
-  URL resolve(PathLocator pathLocator, String component, PlatformSpec platformSpec, String libName)
+  URL resolve(
+      PathLocator pathLocator, PlatformSpec platformSpec, String optionalComponent, String libName)
       throws Exception;
 }

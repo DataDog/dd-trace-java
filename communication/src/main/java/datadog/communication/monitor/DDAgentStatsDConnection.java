@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.timgroup.statsd.NoOpDirectStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClientErrorHandler;
+import datadog.common.filesystem.Files;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.IOLogger;
@@ -186,7 +187,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     }
 
     if (null == host) {
-      if (!OperatingSystem.isWindows() && new File(DEFAULT_DOGSTATSD_SOCKET_PATH).exists()) {
+      if (!OperatingSystem.isWindows() && Files.exists(new File(DEFAULT_DOGSTATSD_SOCKET_PATH))) {
         log.info("Detected {}. Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
         host = DEFAULT_DOGSTATSD_SOCKET_PATH;
         port = 0; // tells dogstatsd client to treat host as a socket path
