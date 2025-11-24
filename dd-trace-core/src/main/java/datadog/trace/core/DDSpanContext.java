@@ -810,7 +810,7 @@ public class DDSpanContext
    * The TagMap isn't optimized and will need to box the primitive regardless of 
    * tag interception
    */
-  private boolean setBox(String tag, Object box) {
+  private void setBox(String tag, Object box) {
 	if (tagInterceptor.interceptTag(this, tag, box)) {
       synchronized (unsafeTags) {
     	unsafeTags.set(tag, box);
