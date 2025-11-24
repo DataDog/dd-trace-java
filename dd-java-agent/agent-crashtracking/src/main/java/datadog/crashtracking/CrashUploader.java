@@ -7,6 +7,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.CRASHTRACKING_HTTP_DISPATCHER;
 import static datadog.trace.util.TraceUtils.normalizeServiceName;
 import static datadog.trace.util.TraceUtils.normalizeTagValue;
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
@@ -24,6 +25,7 @@ import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -37,6 +39,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,6 +56,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.Buffer;
+import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,6 +119,7 @@ public final class CrashUploader {
   private final HttpUrl errorTrackingUrl;
   private final OkHttpClient uploadClient;
   private final Dispatcher dispatcher;
+  private final ExecutorService executor;
   private final boolean agentless;
   private final String tags;
   private final long timeout;
@@ -127,8 +135,16 @@ public final class CrashUploader {
     this.telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
     this.errorTrackingUrl = HttpUrl.get(config.getFinalCrashTrackingErrorTrackingUrl());
     this.agentless = config.isCrashTrackingAgentless();
-    this.dispatcher = new Dispatcher();
-    dispatcher.setMaxRequests(4);
+    // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
+    this.executor =
+        new ThreadPoolExecutor(
+            0,
+            4,
+            60,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            new AgentThreadFactory(CRASHTRACKING_HTTP_DISPATCHER));
+    this.dispatcher = new Dispatcher(executor);
 
     final StringBuilder tagsBuilder =
         new StringBuilder(storedConfig.tags != null ? storedConfig.tags : "");
@@ -227,7 +243,11 @@ public final class CrashUploader {
     } catch (Throwable t) {
       log.error("Unable to print the error crash as a log message", t);
     }
-    remoteUpload(fileContent, true, true);
+    try {
+      remoteUpload(fileContent, true, true);
+    } finally {
+      uploadClient.dispatcher().cancelAll();
+    }
   }
 
   // @VisibleForTesting
@@ -258,6 +278,7 @@ public final class CrashUploader {
     }
     if (remaining > 0) {
       dispatcher.cancelAll();
+      uploadClient.connectionPool().evictAll();
       log.error(
           SEND_TELEMETRY,
           "Failed to fully send the crash report with UUID {}. Still {} calls remaining",
@@ -491,21 +512,22 @@ public final class CrashUploader {
         writer.beginObject();
         writer.name("timestamp").value(payload.timestamp);
         writer.name("ddsource").value("crashtracker");
+        // tags
+        writer.name("ddtags").value(tagsForErrorTracking(payload.uuid, isPing, payload.incomplete));
         // error payload
         if (payload.error != null) {
           writer.name("error");
           writer.beginObject();
-          writer.name("source_type").value("crashtracking");
           if (!isPing) {
             writer.name("is_crash").value(true);
           }
           writer.name("type").value(payload.error.kind);
           writer.name("message").value(payload.error.message);
+          writer.name("source_type").value("crashtracking");
           if (payload.error.stack != null) {
             writer.name("stack");
-            // payload.error.message
-            payload.error.stack.writeAsJson(writer);
             // flat write an already serialized json object
+            payload.error.stack.writeAsJson(writer);
           }
           writer.endObject();
         }
@@ -537,11 +559,11 @@ public final class CrashUploader {
                       "os.version")); // this has been restructured under OsInfo so taking raw here
           writer.endObject();
         }
-        // tags
-        writer.name("ddtags").value(tagsForErrorTracking(payload.uuid, isPing, payload.incomplete));
         writer.endObject();
       }
-      return RequestBody.create(APPLICATION_JSON, buf.readByteString());
+      final ByteString tmp = buf.readByteString();
+      System.err.println(tmp.utf8());
+      return RequestBody.create(APPLICATION_JSON, tmp);
     }
   }
 

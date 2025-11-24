@@ -26,6 +26,7 @@ public final class HotspotCrashLogParser {
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
   private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy X", Locale.getDefault());
+  private static final String OOM_MARKER = "OutOfMemory encountered: ";
 
   enum State {
     NEW,
@@ -122,6 +123,7 @@ public final class HotspotCrashLogParser {
     List<StackFrame> frames = new ArrayList<>();
     String datetime = null;
     boolean incomplete = false;
+    String oomMessage = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -137,8 +139,11 @@ public final class HotspotCrashLogParser {
           if (line.toLowerCase().contains("core dump")) {
             // break out of the message block
             state = State.HEADER;
-          } else if (!"#".equals(line)) {
-            if (sigInfo == null) {
+          } else if (!"#".equals(line) && (sigInfo == null && oomMessage == null)) {
+            final int oomIdx = line.indexOf(OOM_MARKER);
+            if (oomIdx > 0) {
+              oomMessage = line.substring(oomIdx + OOM_MARKER.length());
+            } else {
               String name = null, address = null;
               int number = 0;
               // first non-empty line after the message is the signal
@@ -157,7 +162,9 @@ public final class HotspotCrashLogParser {
                 int endIdx = line.indexOf(',', pcIdx);
                 address = line.substring(pcIdx + 3, endIdx);
               }
-              sigInfo = new SigInfo(number, name, address);
+              if (name != null) {
+                sigInfo = new SigInfo(number, name, address);
+              }
 
               int pidIdx = line.indexOf("pid=");
               if (pidIdx > -1) {
@@ -193,7 +200,10 @@ public final class HotspotCrashLogParser {
             state = State.DONE;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
-            frames.add(parseLine(line));
+            final StackFrame frame = parseLine(line);
+            if (frame != null) {
+              frames.add(frame);
+            }
           }
           break;
         case DONE:
@@ -209,13 +219,18 @@ public final class HotspotCrashLogParser {
       // incomplete crash log
       incomplete = true;
     }
-    String message = "Process terminated by signal " + (sigInfo != null ? sigInfo.name : "UNKNOWN");
+    final String kind;
+    final String message;
+    if (oomMessage != null) {
+      kind = "OutOfMemory";
+      message = oomMessage;
+    } else {
+      kind = sigInfo != null && sigInfo.name != null ? sigInfo.name : "UNKNOWN";
+      message = "Process terminated by signal " + kind;
+    }
 
     ErrorData error =
-        new ErrorData(
-            sigInfo != null ? sigInfo.name : null,
-            message,
-            new StackTrace(frames.toArray(new StackFrame[0])));
+        new ErrorData(kind, message, new StackTrace(frames.toArray(new StackFrame[0])));
     // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);

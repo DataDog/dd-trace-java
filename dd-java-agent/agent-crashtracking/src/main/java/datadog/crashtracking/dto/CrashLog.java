@@ -36,8 +36,8 @@ public final class CrashLog {
   @Json(name = "version_id")
   public final int version = VERSION;
 
-  // not serialized
-  public final transient SigInfo sigInfo;
+  @Json(name = "sig_info")
+  public final SigInfo sigInfo;
 
   public CrashLog(
       String uuid,
@@ -118,6 +118,7 @@ public final class CrashLog {
         && Objects.equals(timestamp, crashLog.timestamp)
         && Objects.equals(error, crashLog.error)
         && Objects.equals(procInfo, crashLog.procInfo)
+        && Objects.equals(sigInfo, crashLog.sigInfo)
         && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
   }
 }

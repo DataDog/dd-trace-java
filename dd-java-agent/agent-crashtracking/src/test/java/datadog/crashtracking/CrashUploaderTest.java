@@ -242,7 +242,8 @@ public class CrashUploaderTest {
       strings = {
         "sample-crash-for-telemetry.txt",
         "sample-crash-for-telemetry-2.txt",
-        "sample-crash-for-telemetry-3.txt"
+        "sample-crash-for-telemetry-3.txt",
+        "sample_oom.txt"
       })
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
@@ -289,7 +290,8 @@ public class CrashUploaderTest {
       strings = {
         "sample-crash-for-telemetry.txt",
         "sample-crash-for-telemetry-2.txt",
-        "sample-crash-for-telemetry-3.txt"
+        "sample-crash-for-telemetry-3.txt",
+        "sample_oom.txt"
       })
   public void testErrorTrackingHappyPath(String log) throws Exception {
     // Given
