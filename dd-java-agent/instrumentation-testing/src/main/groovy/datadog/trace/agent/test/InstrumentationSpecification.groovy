@@ -252,7 +252,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
   }
 
-  volatile boolean originalAppSecRuntimeValue
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+  boolean originalAppSecRuntimeValue
 
   @Shared
   ConcurrentHashMap<DDSpan, List<Exception>> spanFinishLocations = new ConcurrentHashMap<>()

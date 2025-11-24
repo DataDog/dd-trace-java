@@ -32,6 +32,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -91,7 +92,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile long durationNano;
 
-  private volatile boolean forceKeep;
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+  private boolean forceKeep;
 
   private volatile EndpointTracker endpointTracker;
 
