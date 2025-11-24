@@ -56,7 +56,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.Buffer;
-import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -561,9 +560,7 @@ public final class CrashUploader {
         }
         writer.endObject();
       }
-      final ByteString tmp = buf.readByteString();
-      System.err.println(tmp.utf8());
-      return RequestBody.create(APPLICATION_JSON, tmp);
+      return RequestBody.create(APPLICATION_JSON, buf.readByteString());
     }
   }
 
