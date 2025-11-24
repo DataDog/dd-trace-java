@@ -811,7 +811,7 @@ public class DDSpanContext
    * tag interception
    */
   private void setBox(String tag, Object box) {
-	if (tagInterceptor.interceptTag(this, tag, box)) {
+	if (!tagInterceptor.interceptTag(this, tag, box)) {
       synchronized (unsafeTags) {
     	unsafeTags.set(tag, box);
       }
