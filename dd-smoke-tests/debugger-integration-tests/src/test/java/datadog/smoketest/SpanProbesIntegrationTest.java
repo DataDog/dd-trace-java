@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@NonRetryable
 public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Override

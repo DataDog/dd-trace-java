@@ -23,6 +23,8 @@ public class TestApplicationHelper {
       "[dd-remote-config] DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
       "com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done";
+  private static final String EXCEPTION_FINGERPRINT_ADDED =
+      "DEBUG com.datadog.debugger.exception.AbstractExceptionDebugger - Exception Fingerprint ";
   private static final long SLEEP_MS = 100;
   private static final long TIMEOUT_S = 10;
 
@@ -88,6 +90,10 @@ public class TestApplicationHelper {
         () -> {},
         Duration.ofMillis(SLEEP_MS),
         Duration.ofSeconds(TIMEOUT_S));
+  }
+
+  public static String waitForExceptionFingerprint(String logFileName) throws IOException {
+    return waitForSpecificLine(logFileName, EXCEPTION_FINGERPRINT_ADDED, null);
   }
 
   public static String waitForSpecificLine(String logFileName, String specificLine, String fromLine)
