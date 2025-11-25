@@ -26,7 +26,11 @@ class InstrumentPluginTest extends Specification {
       compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.1' // just to build TestPlugin
     }
 
-    apply plugin: 'instrument'
+    configurations {
+      instrumentPluginClasspath {
+        canBeResolved = true
+      }
+    }
 
     instrument.plugins = [
       'TestPlugin'
