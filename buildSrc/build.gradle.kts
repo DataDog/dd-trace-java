@@ -30,7 +30,7 @@ gradlePlugin {
 
     create("groovy-spock-plugin") {
       id = "datadog.groovy-spock"
-      implementationClass = "datadog.gradle.plugin.config.GroovySpockConventionPlugin"
+      implementationClass = "datadog.gradle.plugin.config.GroovySpockConfigPlugin"
     }
 
     create("tracer-version-plugin") {
