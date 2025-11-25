@@ -3,7 +3,6 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
@@ -184,7 +183,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
   def "datadog context is not injected when SnsInjectDatadogAttribute is disabled"() {
     setup:
     TEST_WRITER.clear()
-    injectSysConfig(TraceInstrumentationConfig.SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    injectSysConfig("sns.inject.datadog.attribute.enabled", "false")
 
     when:
     snsClient.publish { it.message("sometext").topicArn(testTopicARN)}

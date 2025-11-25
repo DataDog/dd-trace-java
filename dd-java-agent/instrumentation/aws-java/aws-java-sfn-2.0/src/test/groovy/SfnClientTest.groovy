@@ -3,7 +3,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
 import java.time.Duration
@@ -118,7 +117,7 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
 
   def "datadog context is not injected when SfnInjectDatadogAttribute is disabled"() {
     setup:
-    injectSysConfig(TraceInstrumentationConfig.SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    injectSysConfig("sfn.inject.datadog.attribute.enabled", "false")
 
     when:
     StartExecutionResponse response = sfnClient.startExecution { builder ->

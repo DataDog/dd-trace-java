@@ -1,10 +1,5 @@
 package datadog.trace.api
 
-import static datadog.trace.api.config.TraceInstrumentationConfig.EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED
-import static datadog.trace.api.config.TraceInstrumentationConfig.SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED
-import static datadog.trace.api.config.TraceInstrumentationConfig.SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED
-import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED
-
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
@@ -198,6 +193,11 @@ class ConfigTest extends DDSpecification {
   private static final DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED"
   private static final DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED"
   private static final DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+
+  private static final EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED = "eventbridge.inject.datadog.attribute.enabled"
+  private static final SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sfn.inject.datadog.attribute.enabled"
+  private static final SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sns.inject.datadog.attribute.enabled"
+  private static final SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sqs.inject.datadog.attribute.enabled"
 
   private static final DD_TRACE_OTEL_ENABLED_ENV = "DD_TRACE_OTEL_ENABLED"
   private static final DD_TRACE_OTEL_ENABLED_PROP = "dd.trace.otel.enabled"

@@ -20,7 +20,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -191,7 +190,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
   def "dadatog context is not injected if SqsInjectDatadogAttribute is disabled"() {
     setup:
-    injectSysConfig(TraceInstrumentationConfig.SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    injectSysConfig("sqs.inject.datadog.attribute.enabled", "false")
     def client = AmazonSQSClientBuilder.standard()
     .withEndpointConfiguration(endpoint)
     .withCredentials(credentialsProvider)

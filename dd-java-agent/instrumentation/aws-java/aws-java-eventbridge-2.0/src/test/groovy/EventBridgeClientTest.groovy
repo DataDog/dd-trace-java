@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.config.TraceInstrumentationConfig
 import groovy.json.JsonSlurper
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
@@ -498,7 +497,7 @@ class EventBridgeClientTest extends InstrumentationSpecification {
 
   def "datadog context is not injected when eventbridgeInjectDatadogAttribute is disabled"() {
     setup:
-    injectSysConfig(TraceInstrumentationConfig.EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    injectSysConfig("eventbridge.inject.datadog.attribute.enabled", "false")
 
     when:
     TEST_WRITER.clear()
