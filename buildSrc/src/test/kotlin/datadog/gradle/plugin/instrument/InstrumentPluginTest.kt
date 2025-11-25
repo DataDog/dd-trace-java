@@ -1,17 +1,19 @@
 package datadog.gradle.plugin.instrument
 
 import net.bytebuddy.utility.OpenedClassReader
-import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
-import spock.lang.Specification
-import spock.lang.TempDir
+import java.io.File
+import java.io.FileInputStream
 
-class InstrumentPluginTest extends Specification {
+class InstrumentPluginTest {
 
-  def buildGradle = '''
+  private val buildGradle = """
     plugins {
       id 'java'
       id 'instrument'
@@ -37,9 +39,9 @@ class InstrumentPluginTest extends Specification {
     instrument.plugins = [
       'TestPlugin'
     ]
-  '''
+  """.trimIndent()
 
-  def testPlugin = '''
+  private val testPlugin = """
     import java.io.File;
     import java.io.IOException;
     import net.bytebuddy.build.Plugin;
@@ -72,56 +74,55 @@ class InstrumentPluginTest extends Specification {
         // no-op
       }
     }
-  '''
+  """.trimIndent()
 
-  def exampleCode = '''
-    package example; public class ExampleCode {}
-  '''
+  private val exampleCode = """
+    package example;
+    public class ExampleCode {}
+  """.trimIndent()
 
   @TempDir
-  File buildDir
+  lateinit var buildDir: File
 
-  def 'test instrument plugin'() {
-    setup:
-    def tree = new FileTreeBuilder(buildDir)
-    tree.'build.gradle'(buildGradle)
-    tree.src {
-      main {
-        java {
-          'TestPlugin.java'(testPlugin)
-          example {
-            'ExampleCode.java'(exampleCode)
-          }
-        }
-      }
-    }
+  @Test
+  fun `test instrument plugin`() {
+    val buildFile = File(buildDir, "build.gradle")
+    buildFile.writeText(buildGradle)
 
-    when:
-    BuildResult result = GradleRunner.create()
-      .withTestKitDir(new File(buildDir, '.gradle-test-kit'))  // workaround in case the global test-kit cache becomes corrupted
-      .withDebug(true)                                         // avoids starting daemon which can leave undeleted files post-cleanup
+    val srcMainJava = File(buildDir, "src/main/java").apply { mkdirs() }
+    File(srcMainJava, "TestPlugin.java").writeText(testPlugin)
+
+    val examplePackageDir = File(srcMainJava, "example").apply { mkdirs() }
+    File(examplePackageDir, "ExampleCode.java").writeText(exampleCode)
+
+    // Run Gradle build with TestKit
+    val result = GradleRunner.create().withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
+      .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
       .withProjectDir(buildDir)
-      .withArguments('build', '--stacktrace')
+      .withArguments("build", "--stacktrace")
       .withPluginClasspath()
       .forwardOutput()
       .build()
 
-    File classFile = new File(buildDir, 'build/classes/java/main/example/ExampleCode.class')
+    val classFile = File(buildDir, "build/classes/java/main/example/ExampleCode.class")
+    assertTrue(classFile.isFile)
 
-    then:
-    assert classFile.isFile()
+    var foundInsertedField = false
+    FileInputStream(classFile).use { input ->
+      val classReader = ClassReader(input)
+      classReader.accept(
+        object : ClassVisitor(OpenedClassReader.ASM_API) {
+          override fun visitField(access: Int, fieldName: String?, descriptor: String?, signature: String?, value: Any?): FieldVisitor? {
+            if ("__TEST__FIELD__" == fieldName) {
+              foundInsertedField = true
+            }
+            return null
+          }
+        },
+        OpenedClassReader.ASM_API
+      )
+    }
 
-    boolean foundInsertedField = false
-    new ClassReader(new FileInputStream(classFile)).accept(new ClassVisitor(OpenedClassReader.ASM_API) {
-      @Override
-      FieldVisitor visitField(int access, String fieldName, String descriptor, String signature, Object value) {
-        if ('__TEST__FIELD__' == fieldName) {
-          foundInsertedField = true
-        }
-        return null
-      }
-    }, OpenedClassReader.ASM_API)
-
-    assert foundInsertedField
+    assertTrue(foundInsertedField)
   }
 }
