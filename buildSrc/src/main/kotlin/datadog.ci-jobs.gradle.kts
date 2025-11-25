@@ -134,7 +134,7 @@ if (gitBaseRefProvider.isPresent) {
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
     val activePartition = p.extra.get("activePartition") as Boolean
-    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("muzzle")
+    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("datadog.muzzle")
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }

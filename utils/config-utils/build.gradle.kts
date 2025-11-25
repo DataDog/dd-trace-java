@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("supported-config-generator")
+  id("datadog.supported-config-generator")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")

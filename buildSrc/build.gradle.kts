@@ -15,15 +15,15 @@ java {
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "instrument"
+      id = "datadog.instrument"
       implementationClass = "InstrumentPlugin"
     }
     create("muzzle-plugin") {
-      id = "muzzle"
+      id = "datadog.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
-      id = "call-site-instrumentation"
+      id = "datadog.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
@@ -35,11 +35,11 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
     create("supported-config-generation") {
-      id = "supported-config-generator"
+      id = "datadog.supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }
     create("supported-config-linter") {
-      id = "config-inversion-linter"
+      id = "datadog.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
     }
   }

@@ -1,6 +1,6 @@
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'datadog.call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {

@@ -16,7 +16,7 @@ class InstrumentPluginTest {
   private val buildGradle = """
     plugins {
       id 'java'
-      id 'instrument'
+      id 'datadog.instrument'
     }
     
     sourceCompatibility = JavaVersion.VERSION_1_8
