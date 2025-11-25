@@ -1,3 +1,4 @@
+import java.nio.file.Files
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildFailure
@@ -10,7 +11,6 @@ class CallSiteInstrumentationPluginTest extends Specification {
     plugins {
       id 'java'
       id 'call-site-instrumentation'
-      id 'com.diffplug.spotless' version '6.13.0'
     }
     
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -18,7 +18,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
 
     csi {
       suffix = 'CallSite'
-      targetFolder = 'csi'
+      targetFolder = project.layout.buildDirectory.dir('csi')
       rootFolder = file('$$ROOT_FOLDER$$')
     }
     
@@ -89,7 +89,15 @@ class CallSiteInstrumentationPluginTest extends Specification {
 
   private static void createGradleProject(final File buildDir, final String gradleFile, final String advice) {
     final projectFolder = new File(System.getProperty('user.dir')).parentFile
-    final callSiteJar = resolve(projectFolder, 'buildSrc', 'call-site-instrumentation-plugin')
+    final callSiteJar = resolve(projectFolder, 'buildSrc', 'call-site-instrumentation-plugin', 'build', 'libs', 'call-site-instrumentation-plugin-all.jar')
+    final testCallSiteJarDir = resolve(buildDir, 'buildSrc', 'call-site-instrumentation-plugin', 'build', 'libs')
+    testCallSiteJarDir.mkdirs()
+
+    Files.copy(
+        callSiteJar.toPath(),
+        testCallSiteJarDir.toPath().resolve(callSiteJar.name)
+    )
+
     final gradleFileContent = gradleFile.replace('$$ROOT_FOLDER$$', projectFolder.toString().replace("\\","\\\\"))
 
     final buildGradle = resolve(buildDir, 'build.gradle')

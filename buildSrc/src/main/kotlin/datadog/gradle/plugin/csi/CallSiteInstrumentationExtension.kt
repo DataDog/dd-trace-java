@@ -50,6 +50,7 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
    */
   val reporters: ListProperty<String> = objectFactory.listProperty<String>().convention(
     listOf(
+      CALL_SITE_CONSOLE_REPORTER,
       CALL_SITE_ERROR_CONSOLE_REPORTER
     )
   )
