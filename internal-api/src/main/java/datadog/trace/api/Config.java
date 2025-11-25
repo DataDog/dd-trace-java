@@ -299,6 +299,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLE
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -976,6 +978,7 @@ public class Config {
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
+  private final boolean crashTrackingErrorsIntakeEnabled;
 
   private final boolean clientIpEnabled;
 
@@ -2123,6 +2126,9 @@ public class Config {
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
+    crashTrackingErrorsIntakeEnabled =
+        configProvider.getBoolean(
+            CRASH_TRACKING_ERRORS_INTAKE_ENABLED, CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT);
 
     float telemetryInterval =
         configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
@@ -3688,6 +3694,10 @@ public class Config {
 
   public boolean isCrashTrackingAgentless() {
     return crashTrackingAgentless;
+  }
+
+  public boolean isCrashTrackingErrorsIntakeEnabled() {
+    return crashTrackingErrorsIntakeEnabled;
   }
 
   public boolean isTelemetryEnabled() {
@@ -5897,6 +5907,8 @@ public class Config {
         + crashTrackingTags
         + ", crashTrackingAgentless="
         + crashTrackingAgentless
+        + ", crashTrackingErrorsIntakeEnabled="
+        + crashTrackingErrorsIntakeEnabled
         + ", remoteConfigEnabled="
         + remoteConfigEnabled
         + ", remoteConfigUrl="

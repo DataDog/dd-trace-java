@@ -257,7 +257,7 @@ public class CrashUploaderTest {
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.remoteUpload(readFileAsString(log), true, false);
+    uploader.upload(getResourcePath(log));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
