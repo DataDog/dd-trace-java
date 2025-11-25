@@ -1,3 +1,5 @@
+package datadog.gradle.plugin.csi
+
 import java.nio.file.Files
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
