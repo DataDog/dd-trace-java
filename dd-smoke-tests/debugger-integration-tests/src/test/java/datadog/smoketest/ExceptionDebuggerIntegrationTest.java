@@ -10,7 +10,6 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
 @NonRetryable
-@Flaky
 public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
   private List<String> snapshotIdTags = new ArrayList<>();
@@ -59,7 +57,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   void testSimpleSingleFrameException() throws Exception {
     appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
+    waitForExceptionFingerprint();
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
@@ -127,7 +125,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   void test3CapturedFrames() throws Exception {
     appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // instrumenting first exception
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
+    waitForExceptionFingerprint();
     execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
@@ -185,7 +183,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     additionalJvmArgs.add("-Ddd.exception.replay.capture.max.frames=5");
     appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // instrumenting first exception
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
+    waitForExceptionFingerprint();
     execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
@@ -262,7 +260,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   void test3CapturedRecursiveFrames() throws Exception {
     appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "recursiveOops"); // instrumenting first exception
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
+    waitForExceptionFingerprint();
     execute(appUrl, TRACED_METHOD_NAME, "recursiveOops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
@@ -310,7 +308,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     additionalJvmArgs.add("-XX:+ShowHiddenFrames");
     appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "lambdaOops"); // instrumenting first exception
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
+    waitForExceptionFingerprint();
     execute(appUrl, TRACED_METHOD_NAME, "lambdaOops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
