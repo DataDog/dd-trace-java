@@ -86,23 +86,11 @@ testing {
   @Suppress("UnstableApiUsage")
   suites {
     val test by getting(JvmTestSuite::class) {
-      dependencies {
-        implementation(libs.groovy)
-        implementation(libs.spock.core)
-      }
       targets.configureEach {
         testTask.configure {
           enabled = project.hasProperty("runBuildSrcTests")
         }
       }
-    }
-
-    val integTest by registering(JvmTestSuite::class) {
-      dependencies {
-        implementation(gradleTestKit())
-      }
-      // Makes the gradle plugin publish its declared plugins to this source set
-      gradlePlugin.testSourceSet(sources)
     }
 
     withType(JvmTestSuite::class).configureEach {
