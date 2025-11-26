@@ -106,11 +106,13 @@ class CallSiteInstrumentationPluginTest {
     )
 
     val gradleFileContent = gradleFile.replace("__ROOT_FOLDER__", projectFolder.toString().replace("\\", "\\\\"))
-    val buildGradle = resolve(buildDir, "build.gradle")
-    buildGradle.writeText(gradleFileContent)
+    val buildGradle = resolve(buildDir, "build.gradle").apply {
+      writeText(gradleFileContent)
+    }
 
-    val javaFolder = resolve(buildDir, "src", "main", "java")
-    javaFolder.mkdirs()
+    val javaFolder = resolve(buildDir, "src", "main", "java").apply {
+      mkdirs()
+    }
 
     val advicePackage = parsePackage(advice)
     val adviceClassName = parseClassName(advice)
