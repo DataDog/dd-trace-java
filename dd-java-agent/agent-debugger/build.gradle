@@ -44,6 +44,9 @@ dependencies {
   implementation libs.dogstatsd
   implementation libs.moshi
 
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation group: 'com.antithesis', name: 'sdk', version: '1.4.5'
+
   testImplementation libs.asm.util
   testImplementation libs.bundles.junit5
   testImplementation libs.junit.jupiter.params

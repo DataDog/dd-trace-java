@@ -37,6 +37,9 @@ dependencies {
   implementation(libs.moshi)
   implementation(libs.bundles.cafe.crypto)
 
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation(group = "com.antithesis", name = "sdk", version = "1.4.5")
+
   implementation(project(":internal-api"))
 
   testImplementation(project(":utils:test-utils"))

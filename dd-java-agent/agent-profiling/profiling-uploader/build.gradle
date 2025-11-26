@@ -33,6 +33,9 @@ dependencies {
   implementation libs.lz4
   implementation libs.aircompressor
 
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation group: 'com.antithesis', name: 'sdk', version: '1.4.5'
+
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation project(':utils:test-utils')
   testImplementation libs.bundles.junit5

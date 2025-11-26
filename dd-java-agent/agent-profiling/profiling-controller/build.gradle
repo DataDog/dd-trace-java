@@ -22,6 +22,9 @@ dependencies {
   api project(':components:environment')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
 
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation group: 'com.antithesis', name: 'sdk', version: '1.4.5'
+
   testImplementation libs.bundles.junit5
   testImplementation libs.guava
   testImplementation libs.bundles.mockito
