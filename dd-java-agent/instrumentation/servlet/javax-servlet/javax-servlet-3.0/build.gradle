@@ -30,6 +30,10 @@ apply plugin: 'call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
+groovySpock {
+  configureDependencies("testFixturesApi")
+}
+
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

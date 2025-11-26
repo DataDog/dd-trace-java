@@ -1,8 +1,6 @@
 apply plugin: 'groovy'
 
 dependencies {
-  testImplementation libs.bundles.spock
-  testImplementation libs.groovy
   testImplementation libs.bundles.test.logging
 
   // JUnit and Mockito compatible with Spock 2.4.0
