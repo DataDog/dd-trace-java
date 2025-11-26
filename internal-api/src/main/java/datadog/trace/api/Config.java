@@ -299,6 +299,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLE
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -826,6 +828,7 @@ public class Config {
   private final String agentUnixDomainSocket;
   private final String agentNamedPipe;
   private final int agentTimeout;
+
   /** Should be set to {@code true} when running in agentless mode in a JVM without TLS */
   private final boolean forceClearTextHttpForIntakeClient;
 
@@ -975,6 +978,7 @@ public class Config {
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
+  private final boolean crashTrackingErrorsIntakeEnabled;
 
   private final boolean clientIpEnabled;
 
@@ -2122,6 +2126,9 @@ public class Config {
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
+    crashTrackingErrorsIntakeEnabled =
+        configProvider.getBoolean(
+            CRASH_TRACKING_ERRORS_INTAKE_ENABLED, CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT);
 
     float telemetryInterval =
         configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
@@ -3689,6 +3696,10 @@ public class Config {
     return crashTrackingAgentless;
   }
 
+  public boolean isCrashTrackingErrorsIntakeEnabled() {
+    return crashTrackingErrorsIntakeEnabled;
+  }
+
   public boolean isTelemetryEnabled() {
     return instrumenterConfig.isTelemetryEnabled();
   }
@@ -4863,7 +4874,7 @@ public class Config {
                 + crashTrackingTags.size()
                 + jmxTags.size()
                 + runtimeTags.size()
-                + 3 /* for serviceName and host and language */);
+                + 5 /* for serviceName and host and language and env and version */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
     result.putAll(jmxTags);
@@ -4873,6 +4884,8 @@ public class Config {
     // and may chose to override it.
     result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    result.put(VERSION, getVersion());
+    result.put(ENV, getEnv());
     return Collections.unmodifiableMap(result);
   }
 
@@ -5082,6 +5095,16 @@ public class Config {
     } else {
       // when agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
+    }
+  }
+
+  public String getFinalCrashTrackingErrorTrackingUrl() {
+    if (crashTrackingAgentless) {
+      // when agentless crashTracking is turned on we send directly to our intake
+      return "https://error-tracking-intake." + site + "/api/v2/errorsintake";
+    } else {
+      // when agentless are not set we send to the dd trace agent running locally
+      return "http://" + agentHost + ":" + agentPort + "/evp_proxy/v4/api/v2/errorsintake";
     }
   }
 
@@ -5884,6 +5907,8 @@ public class Config {
         + crashTrackingTags
         + ", crashTrackingAgentless="
         + crashTrackingAgentless
+        + ", crashTrackingErrorsIntakeEnabled="
+        + crashTrackingErrorsIntakeEnabled
         + ", remoteConfigEnabled="
         + remoteConfigEnabled
         + ", remoteConfigUrl="
