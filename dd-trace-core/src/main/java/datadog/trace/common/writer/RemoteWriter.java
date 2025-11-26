@@ -3,9 +3,6 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
-import com.antithesis.sdk.Assert;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -70,33 +67,9 @@ public abstract class RemoteWriter implements Writer {
 
   @Override
   public void write(final List<DDSpan> trace) {
-    // Antithesis: Assert that we should never attempt to write when writer is closed
-    ObjectNode writeAttemptDetails = JsonNodeFactory.instance.objectNode();
-    writeAttemptDetails.put("writer_closed", closed);
-    writeAttemptDetails.put("trace_size", trace.size());
-    writeAttemptDetails.put("has_traces", !trace.isEmpty());
-    
-    log.debug("ANTITHESIS_ASSERT: Checking writer not closed when writing (always) - closed: {}, trace_size: {}", closed, trace.size());
-    Assert.always(
-        !closed,
-        "Writer should never be closed when attempting to write traces",
-        writeAttemptDetails);
-    
     if (closed) {
       // We can't add events after shutdown otherwise it will never complete shutting down.
       log.debug("Dropped due to shutdown: {}", trace);
-      
-      // Antithesis: Track when traces are dropped due to writer being closed
-      ObjectNode shutdownDetails = JsonNodeFactory.instance.objectNode();
-      shutdownDetails.put("trace_size", trace.size());
-      shutdownDetails.put("reason", "writer_closed_during_shutdown");
-      
-      log.debug("ANTITHESIS_ASSERT: Traces dropped due to shutdown (sometimes) - closed: {}, trace_size: {}", closed, trace.size());
-      Assert.sometimes(
-          closed && !trace.isEmpty(),
-          "Traces are dropped due to writer shutdown - tracking shutdown behavior",
-          shutdownDetails);
-      
       handleDroppedTrace(trace);
     } else {
       if (trace.isEmpty()) {
@@ -118,18 +91,6 @@ public abstract class RemoteWriter implements Writer {
             handleDroppedTrace(trace);
             break;
           case DROPPED_BUFFER_OVERFLOW:
-            // Antithesis: Buffer overflow should NEVER happen - this indicates a serious problem
-            ObjectNode overflowDetails = JsonNodeFactory.instance.objectNode();
-            overflowDetails.put("trace_size", trace.size());
-            overflowDetails.put("sampling_priority", samplingPriority);
-            overflowDetails.put("buffer_capacity", traceProcessingWorker.getCapacity());
-            overflowDetails.put("reason", "buffer_overflow_backpressure");
-            
-            log.debug("ANTITHESIS_ASSERT: Buffer overflow occurred (unreachable) - trace_size: {}, capacity: {}", trace.size(), traceProcessingWorker.getCapacity());
-            Assert.unreachable(
-                "Buffer overflow should never occur - traces are being dropped due to backpressure",
-                overflowDetails);
-            
             if (log.isDebugEnabled()) {
               log.debug("Dropped due to a buffer overflow: {}", trace);
             } else {

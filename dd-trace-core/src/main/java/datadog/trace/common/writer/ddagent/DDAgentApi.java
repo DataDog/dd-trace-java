@@ -2,9 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 
-import com.antithesis.sdk.Assert;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -92,33 +89,11 @@ public class DDAgentApi extends RemoteApi {
 
   public Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
-    
-    // Antithesis: Track that agent API send is being exercised
-    log.debug("ANTITHESIS_ASSERT: Verifying DDAgentApi trace sending is exercised (reachable) with {} traces", payload.traceCount());
-    Assert.reachable("DDAgentApi trace sending is exercised", null);
-    log.debug("ANTITHESIS_ASSERT: Checking if traces are being sent through DDAgentApi (sometimes) - count: {}", payload.traceCount());
-    Assert.sometimes(
-        payload.traceCount() > 0,
-        "Traces are being sent through DDAgentApi",
-        null);
-    
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
     if (null == tracesEndpoint) {
       featuresDiscovery.discoverIfOutdated();
       tracesEndpoint = featuresDiscovery.getTraceEndpoint();
       if (null == tracesEndpoint) {
-        // Antithesis: Agent should always be detectable
-        ObjectNode agentDetectionDetails = JsonNodeFactory.instance.objectNode();
-        agentDetectionDetails.put("trace_count", payload.traceCount());
-        agentDetectionDetails.put("payload_size_bytes", sizeInBytes);
-        agentDetectionDetails.put("agent_url", agentUrl.toString());
-        agentDetectionDetails.put("failure_reason", "agent_not_detected");
-        
-        log.debug("ANTITHESIS_ASSERT: Agent not detected (unreachable) - url: {}, traces: {}", agentUrl, payload.traceCount());
-        Assert.unreachable(
-            "Datadog agent should always be detected - agent communication failure",
-            agentDetectionDetails);
-        
         log.error("No datadog agent detected");
         countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
         return Response.failed(404);
@@ -147,36 +122,7 @@ public class DDAgentApi extends RemoteApi {
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
-        
-        // Antithesis: Track HTTP response status and assert success
-        ObjectNode httpResponseDetails = JsonNodeFactory.instance.objectNode();
-        httpResponseDetails.put("trace_count", payload.traceCount());
-        httpResponseDetails.put("payload_size_bytes", sizeInBytes);
-        httpResponseDetails.put("http_status", response.code());
-        httpResponseDetails.put("http_message", response.message());
-        httpResponseDetails.put("success", response.code() == 200);
-        httpResponseDetails.put("agent_url", tracesUrl.toString());
-        
-        log.debug("ANTITHESIS_ASSERT: Checking HTTP response status (always) - code: {}, traces: {}", response.code(), payload.traceCount());
-        Assert.always(
-            response.code() == 200,
-            "HTTP response from Datadog agent should always be 200 - API communication failure",
-            httpResponseDetails);
-        
         if (response.code() != 200) {
-          // Antithesis: Mark non-200 path as unreachable
-          ObjectNode errorDetails = JsonNodeFactory.instance.objectNode();
-          errorDetails.put("trace_count", payload.traceCount());
-          errorDetails.put("payload_size_bytes", sizeInBytes);
-          errorDetails.put("http_status", response.code());
-          errorDetails.put("http_message", response.message());
-          errorDetails.put("failure_reason", "http_error_response");
-          
-          log.debug("ANTITHESIS_ASSERT: Non-200 HTTP response (unreachable) - code: {}, message: {}, traces: {}", response.code(), response.message(), payload.traceCount());
-          Assert.unreachable(
-              "Non-200 HTTP response from agent indicates API failure - traces may be lost",
-              errorDetails);
-          
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
@@ -200,20 +146,6 @@ public class DDAgentApi extends RemoteApi {
         }
       }
     } catch (final IOException e) {
-      // Antithesis: Network failures should not occur
-      ObjectNode networkErrorDetails = JsonNodeFactory.instance.objectNode();
-      networkErrorDetails.put("trace_count", payload.traceCount());
-      networkErrorDetails.put("payload_size_bytes", sizeInBytes);
-      networkErrorDetails.put("exception_type", e.getClass().getName());
-      networkErrorDetails.put("exception_message", e.getMessage());
-      networkErrorDetails.put("agent_url", agentUrl.toString());
-      networkErrorDetails.put("failure_reason", "network_io_exception");
-      
-      log.debug("ANTITHESIS_ASSERT: Network/IO exception (unreachable) - type: {}, message: {}, traces: {}", e.getClass().getName(), e.getMessage(), payload.traceCount());
-      Assert.unreachable(
-          "Network/IO exceptions should not occur when sending to agent - indicates connectivity issues",
-          networkErrorDetails);
-      
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }

@@ -1,8 +1,5 @@
 package datadog.trace.common.writer;
 
-import com.antithesis.sdk.Assert;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
@@ -60,17 +57,6 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
 
   @Override
   public void onDroppedTrace(int spanCount) {
-    // Antithesis: Assert that traces should not be dropped before sending
-    ObjectNode dropDetails = JsonNodeFactory.instance.objectNode();
-    dropDetails.put("span_count", spanCount);
-    dropDetails.put("total_dropped_traces", droppedTraceCount.sum() + 1);
-    dropDetails.put("total_dropped_spans", droppedSpanCount.sum() + spanCount);
-
-    log.debug("ANTITHESIS_ASSERT: Traces dropped before sending (unreachable) - span_count: {}, total_dropped: {}", spanCount, droppedTraceCount.sum() + 1);
-    Assert.unreachable(
-        "Traces should not be dropped before attempting to send - indicates buffer overflow or backpressure",
-        dropDetails);
-
     droppedSpanCount.add(spanCount);
     droppedTraceCount.increment();
   }
@@ -117,15 +103,6 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
-      // Antithesis: Verify that we're attempting to send traces
-      log.debug("ANTITHESIS_ASSERT: Trace sending code path exercised (reachable) - message_count: {}", messageCount);
-      Assert.reachable("Trace sending code path is exercised", null);
-      log.debug("ANTITHESIS_ASSERT: Checking if traces are being sent to API (sometimes) - message_count: {}", messageCount);
-      Assert.sometimes(
-          messageCount > 0,
-          "Traces are being sent to the API",
-          null);
-
       batchTimer.reset();
       Payload payload = newPayload(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
@@ -133,44 +110,12 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       RemoteApi.Response response = api.sendSerializedTraces(payload);
       mapper.reset();
 
-      // Antithesis: Assert that trace sending should always succeed
-      ObjectNode sendDetails = JsonNodeFactory.instance.objectNode();
-      sendDetails.put("trace_count", messageCount);
-      sendDetails.put("payload_size_bytes", sizeInBytes);
-      sendDetails.put("success", response.success());
-      response.exception().ifPresent(ex -> {
-        sendDetails.put("exception", ex.getClass().getName());
-        sendDetails.put("exception_message", ex.getMessage());
-      });
-      response.status().ifPresent(status -> sendDetails.put("http_status", status));
-
-      log.debug("ANTITHESIS_ASSERT: Checking trace sending success (always) - success: {}, trace_count: {}", response.success(), messageCount);
-      Assert.always(
-          response.success(),
-          "Trace sending to API should always succeed - no traces should be lost",
-          sendDetails);
-
       if (response.success()) {
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
         }
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
-        // Antithesis: This code path should be unreachable if traces are never lost
-        ObjectNode failureDetails = JsonNodeFactory.instance.objectNode();
-        failureDetails.put("trace_count", messageCount);
-        failureDetails.put("payload_size_bytes", sizeInBytes);
-        response.exception().ifPresent(ex -> {
-          failureDetails.put("exception", ex.getClass().getName());
-          failureDetails.put("exception_message", ex.getMessage());
-        });
-        response.status().ifPresent(status -> failureDetails.put("http_status", status));
-
-        log.debug("ANTITHESIS_ASSERT: Trace sending failed (unreachable) - trace_count: {}, size: {} bytes", messageCount, sizeInBytes);
-        Assert.unreachable(
-            "Trace sending failure path should never be reached - indicates traces are being lost",
-            failureDetails);
-
         if (log.isDebugEnabled()) {
           log.debug(
               "Failed to send {} traces of size {} bytes to the API", messageCount, sizeInBytes);
