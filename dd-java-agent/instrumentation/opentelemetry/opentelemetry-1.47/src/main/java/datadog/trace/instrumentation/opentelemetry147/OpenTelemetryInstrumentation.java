@@ -25,7 +25,7 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    // TODO: return InstrumenterConfig.get().isMetricsOtelEnabled();
+    // TODO: return InstrumenterConfig.get().isMetricsOtelEnabled(); when fully implemented
     return false;
   }
 
