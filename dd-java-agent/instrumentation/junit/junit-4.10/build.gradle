@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'org.jetbrains.kotlin.jvm'
+  id 'datadog.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

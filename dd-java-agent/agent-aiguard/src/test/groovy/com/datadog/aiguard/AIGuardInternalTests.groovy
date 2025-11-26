@@ -4,8 +4,10 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
+import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
 import datadog.trace.api.aiguard.AIGuard
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
@@ -35,7 +37,11 @@ class AIGuardInternalTests extends DDSpecification {
   protected static final URL = HttpUrl.parse('https://app.datadoghq.com/api/v2/ai-guard/evaluate')
 
   @Shared
-  protected static final HEADERS = ['DD-API-KEY': 'api', 'DD-APPLICATION-KEY': 'app']
+  protected static final HEADERS = ['DD-API-KEY': 'api',
+    'DD-APPLICATION-KEY': 'app',
+    'DD-AI-GUARD-VERSION': VersionInfo.VERSION,
+    'DD-AI-GUARD-SOURCE': 'SDK',
+    'DD-AI-GUARD-LANGUAGE': 'jvm']
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()
@@ -79,6 +85,11 @@ class AIGuardInternalTests extends DDSpecification {
       buildSpan(_ as String, _ as String) >> builder
     }
     AgentTracer.forceRegister(tracer)
+
+    WafMetricCollector.get().tap {
+      prepareMetrics()
+      drain()
+    }
   }
 
   void cleanup() {
@@ -146,13 +157,14 @@ class AIGuardInternalTests extends DDSpecification {
     Request request = null
     Throwable error = null
     AIGuard.Evaluation eval = null
+    Map<String, Object> receivedMeta = null
     final throwAbortError = suite.blocking && suite.action != ALLOW
     final call = Mock(Call) {
       execute() >> {
         return mockResponse(
           request,
           200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, is_blocking_enabled: suite.blocking]]]
+          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
           )
       }
     }
@@ -178,11 +190,18 @@ class AIGuardInternalTests extends DDSpecification {
     }
     1 * span.setTag(AIGuardInternal.ACTION_TAG, suite.action)
     1 * span.setTag(AIGuardInternal.REASON_TAG, suite.reason)
-    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, [messages: suite.messages])
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _ as Map) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
     if (throwAbortError) {
       1 * span.addThrowable(_ as AIGuard.AIGuardAbortError)
     }
 
+    receivedMeta.messages == suite.messages
+    if (suite.tags) {
+      receivedMeta.attack_categories == suite.tags
+    }
     assertRequest(request, suite.messages)
     if (throwAbortError) {
       error instanceof AIGuard.AIGuardAbortError
@@ -193,6 +212,7 @@ class AIGuardInternalTests extends DDSpecification {
       eval.action == suite.action
       eval.reason == suite.reason
     }
+    assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
 
     where:
     suite << TestSuite.build()
@@ -222,6 +242,7 @@ class AIGuardInternalTests extends DDSpecification {
     final exception = thrown(AIGuard.AIGuardClientError)
     exception.errors == errors
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with invalid JSON'() {
@@ -246,6 +267,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with missing action'() {
@@ -270,6 +292,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with non JSON response'() {
@@ -294,6 +317,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test evaluate with empty response'() {
@@ -318,6 +342,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     thrown(AIGuard.AIGuardClientError)
     1 * span.addThrowable(_ as AIGuard.AIGuardClientError)
+    assertTelemetry('ai_guard.requests', 'error:true')
   }
 
   void 'test message length truncation'() {
@@ -349,6 +374,7 @@ class AIGuardInternalTests extends DDSpecification {
       assert received.size() == maxMessages
       assert received.size() < messages.size()
     }
+    assertTelemetry('ai_guard.truncated', 'type:messages')
   }
 
   void 'test message content truncation'() {
@@ -380,6 +406,7 @@ class AIGuardInternalTests extends DDSpecification {
         assert it.content.length() < message.content.length()
       }
     }
+    assertTelemetry('ai_guard.truncated', 'type:content')
   }
 
   void 'test no messages'() {
@@ -425,6 +452,29 @@ class AIGuardInternalTests extends DDSpecification {
     0 * span.setTag(AIGuardInternal.TOOL_TAG, _)
   }
 
+  void 'map requires even number of params'() {
+    when:
+    AIGuardInternal.mapOf('1', '2', '3')
+
+    then:
+    thrown(IllegalArgumentException)
+  }
+
+  private static assertTelemetry(final String metric, final String...tags) {
+    final metrics = WafMetricCollector.get().with {
+      prepareMetrics()
+      drain()
+    }
+    final filtered = metrics.findAll {
+      it.namespace == 'appsec'
+      && it.metricName == metric
+      && it.tags == tags.toList()
+    }
+    assert filtered.size() == 1 : metrics
+    assert filtered*.value.sum() == 1
+    return true
+  }
+
   private static assertRequest(final Request request, final List<AIGuard.Message> messages) {
     assert request.url() == URL
     assert request.method() == 'POST'
@@ -452,25 +502,27 @@ class AIGuardInternalTests extends DDSpecification {
 
   private static Response mockResponse(final Request request, final int status, final Object body) {
     return new Response.Builder()
-      .protocol(Protocol.HTTP_1_1)
-      .message('ok')
-      .request(request)
-      .code(status)
-      .body(body == null ? null : ResponseBody.create(MediaType.parse('application/json'), MOSHI.adapter(Object).toJson(body)))
-      .build()
+    .protocol(Protocol.HTTP_1_1)
+    .message('ok')
+    .request(request)
+    .code(status)
+    .body(body == null ? null : ResponseBody.create(MediaType.parse('application/json'), MOSHI.adapter(Object).toJson(body)))
+    .build()
   }
 
   private static class TestSuite {
     private final AIGuard.Action action
     private final String reason
+    private final List<String> tags
     private final boolean blocking
     private final String description
     private final String target
     private final List<AIGuard.Message> messages
 
-    TestSuite(AIGuard.Action action, String reason, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
+    TestSuite(AIGuard.Action action, String reason, List<String> tags, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
       this.action = action
       this.reason = reason
+      this.tags = tags
       this.blocking = blocking
       this.description = description
       this.target = target
@@ -478,7 +530,11 @@ class AIGuardInternalTests extends DDSpecification {
     }
 
     static List<TestSuite> build() {
-      def actionValues = [[ALLOW, 'Go ahead'], [DENY, 'Nope'], [ABORT, 'Kill it with fire']]
+      def actionValues = [
+        [ALLOW, 'Go ahead', []],
+        [DENY, 'Nope', ['deny_everything', 'test_deny']],
+        [ABORT, 'Kill it with fire', ['alarm_tag', 'abort_everything']]
+      ]
       def blockingValues = [true, false]
       def suiteValues = [
         ['tool call', 'tool', TOOL_CALL],
@@ -487,7 +543,7 @@ class AIGuardInternalTests extends DDSpecification {
       ]
       return combinations([actionValues, blockingValues, suiteValues] as Iterable)
       .collect { action, blocking, suite ->
-        new TestSuite(action[0], action[1], blocking, suite[0], suite[1], suite[2])
+        new TestSuite(action[0], action[1], action[2], blocking, suite[0], suite[1], suite[2])
       }
     }
 
@@ -495,13 +551,13 @@ class AIGuardInternalTests extends DDSpecification {
     @Override
     String toString() {
       return "TestSuite{" +
-        "description='" + description + '\'' +
-        ", action=" + action +
-        ", reason='" + reason + '\'' +
-        ", blocking=" + blocking +
-        ", target='" + target + '\'' +
-        ", messages=" + messages +
-        '}'
+      "description='" + description + '\'' +
+      ", action=" + action +
+      ", reason='" + reason + '\'' +
+      ", blocking=" + blocking +
+      ", target='" + target + '\'' +
+      ", messages=" + messages +
+      '}'
     }
   }
 }

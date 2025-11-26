@@ -2,6 +2,7 @@ package datadog.trace.llmobs;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -31,12 +32,9 @@ public class LLMObsSystem {
 
     sco.createRemaining(config);
 
-    LLMObsInternal.setLLMObsSpanFactory(
-        new LLMObsManualSpanFactory(config.getLlmObsMlApp(), config.getServiceName()));
-
     String mlApp = config.getLlmObsMlApp();
-    LLMObsInternal.setLLMObsSpanFactory(
-        new LLMObsManualSpanFactory(mlApp, config.getServiceName()));
+    WellKnownTags wellKnownTags = config.getWellKnownTags();
+    LLMObsInternal.setLLMObsSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
 
     LLMObsInternal.setLLMObsEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
   }
@@ -129,12 +127,14 @@ public class LLMObsSystem {
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
 
-    private final String serviceName;
     private final String defaultMLApp;
+    private final String serviceName;
+    private final WellKnownTags wellKnownTags;
 
-    public LLMObsManualSpanFactory(String defaultMLApp, String serviceName) {
+    public LLMObsManualSpanFactory(String defaultMLApp, WellKnownTags wellKnownTags) {
       this.defaultMLApp = defaultMLApp;
-      this.serviceName = serviceName;
+      this.serviceName = wellKnownTags.getService().toString();
+      this.wellKnownTags = wellKnownTags;
     }
 
     @Override
@@ -147,7 +147,12 @@ public class LLMObsSystem {
 
       DDLLMObsSpan span =
           new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+              Tags.LLMOBS_LLM_SPAN_KIND,
+              spanName,
+              getMLApp(mlApp),
+              sessionId,
+              serviceName,
+              wellKnownTags);
 
       if (modelName == null || modelName.isEmpty()) {
         modelName = CUSTOM_MODEL_VAL;
@@ -165,28 +170,48 @@ public class LLMObsSystem {
     public LLMObsSpan startAgentSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_AGENT_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+          Tags.LLMOBS_AGENT_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startToolSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TOOL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+          Tags.LLMOBS_TOOL_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startTaskSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TASK_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+          Tags.LLMOBS_TASK_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startWorkflowSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+          Tags.LLMOBS_WORKFLOW_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
     }
 
     @Override
@@ -201,7 +226,12 @@ public class LLMObsSystem {
       }
       DDLLMObsSpan embeddingSpan =
           new DDLLMObsSpan(
-              Tags.LLMOBS_EMBEDDING_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+              Tags.LLMOBS_EMBEDDING_SPAN_KIND,
+              spanName,
+              getMLApp(mlApp),
+              sessionId,
+              serviceName,
+              wellKnownTags);
       embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
       embeddingSpan.setTag(LLMObsTags.MODEL_NAME, modelName);
       return embeddingSpan;
@@ -210,7 +240,12 @@ public class LLMObsSystem {
     public LLMObsSpan startRetrievalSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_RETRIEVAL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+          Tags.LLMOBS_RETRIEVAL_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
     }
 
     private String getMLApp(String mlApp) {

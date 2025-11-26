@@ -73,11 +73,15 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENA
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -105,6 +109,14 @@ import java.util.Set;
  * @see Config for other configurations
  */
 public class InstrumenterConfig {
+  static {
+    // skip registration when building native-images as telemetry is not available
+    if (!Platform.isNativeImageBuilder()) {
+      ConfigInversionMetricCollectorProvider.register(
+          ConfigInversionMetricCollectorImpl.getInstance());
+    }
+  }
+
   private final ConfigProvider configProvider;
 
   private final boolean triageEnabled;
@@ -161,6 +173,9 @@ public class InstrumenterConfig {
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
+  private final boolean visitorClassParsing;
+
+  private final boolean unsafeClassInjection;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
@@ -279,6 +294,9 @@ public class InstrumenterConfig {
         Platform.isNativeImageBuilder()
             ? 0
             : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+
+    unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, false);
+    visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, false);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -503,6 +521,14 @@ public class InstrumenterConfig {
 
   public String getResolverCacheDir() {
     return resolverCacheDir;
+  }
+
+  public boolean isUnsafeClassInjection() {
+    return unsafeClassInjection;
+  }
+
+  public boolean isVisitorClassParsing() {
+    return visitorClassParsing;
   }
 
   public String getInstrumentationConfigId() {

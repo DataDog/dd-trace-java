@@ -1,9 +1,6 @@
 plugins {
   id 'java-test-fixtures'
-}
-
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  id 'datadog.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -45,3 +42,10 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('late
 tasks.named("compileLatestDepTestJava", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+

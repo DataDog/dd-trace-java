@@ -68,7 +68,7 @@ public class LoadGenerator implements Callable<Integer> {
     }
 
     while (true) {
-      Thread.sleep(printInterval * 1000);
+      Thread.sleep(printInterval * 1000L);
 
       final long currentTracesSent = tracesSent.get();
       final long intervalEnd = System.currentTimeMillis();

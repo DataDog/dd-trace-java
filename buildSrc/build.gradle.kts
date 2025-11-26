@@ -24,7 +24,7 @@ gradlePlugin {
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
-      implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
+      implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
       id = "datadog.tracer-version"
@@ -49,17 +49,22 @@ apply {
   from("$rootDir/../gradle/repositories.gradle")
 }
 
+repositories {
+  gradlePluginPortal()
+}
+
 dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.17.7")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.1")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
+  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
   implementation("com.google.guava", "guava", "20.0")
   implementation(libs.asm)
@@ -69,6 +74,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
   implementation("com.fasterxml.jackson.core:jackson-core")
+
+  compileOnly(libs.develocity)
 }
 
 tasks.compileKotlin {
@@ -79,23 +86,11 @@ testing {
   @Suppress("UnstableApiUsage")
   suites {
     val test by getting(JvmTestSuite::class) {
-      dependencies {
-        implementation(libs.spock.core)
-        implementation(libs.groovy)
-      }
       targets.configureEach {
         testTask.configure {
           enabled = project.hasProperty("runBuildSrcTests")
         }
       }
-    }
-
-    val integTest by registering(JvmTestSuite::class) {
-      dependencies {
-        implementation(gradleTestKit())
-      }
-      // Makes the gradle plugin publish its declared plugins to this source set
-      gradlePlugin.testSourceSet(sources)
     }
 
     withType(JvmTestSuite::class).configureEach {

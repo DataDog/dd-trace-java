@@ -20,9 +20,11 @@ tasks.named("test", Test) {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }
 
+  // Overriding the default timeout as Gradle smoke tests might run for a longer duration.
+  timeout = Duration.of(25, ChronoUnit.MINUTES)
+
   if (project.hasProperty("mavenRepositoryProxy")) {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds
     environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
   }
 }
-

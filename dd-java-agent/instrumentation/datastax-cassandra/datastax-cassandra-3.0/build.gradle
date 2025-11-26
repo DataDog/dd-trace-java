@@ -1,13 +1,8 @@
-// Set properties before any plugins get loaded
 ext {
-  // Test use Cassandra 3 which requires Java 8. (Currently incompatible with Java 9.)
-  maxJavaVersionForTests = JavaVersion.VERSION_1_8
   cassandraDriverTestVersions = "[3.0,4.0)"
 }
 
-
 muzzle {
-
   pass {
     group = "com.datastax.cassandra"
     module = "cassandra-driver-core"
@@ -42,6 +37,12 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+
+testJvmConstraints {
+  // Test use Cassandra 3 which requires Java 8. (Currently incompatible with Java 9.)
+  maxJavaVersion = JavaVersion.VERSION_1_8
+}
 
 addTestSuiteForDir('latestDepTest', 'test')
 
