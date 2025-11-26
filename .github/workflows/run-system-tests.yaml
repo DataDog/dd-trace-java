@@ -84,4 +84,15 @@ jobs:
     if: ${{ always() }}
     needs: [build, main]
     steps:
-    - run: exit 0
+      - name: Fail if build failed
+        if: ${{ needs.build.result != 'success' }}
+        run: |
+          echo "❌ Build job did not succeed: ${{ needs.build.result }}"
+          exit 1
+      - name: Fail if main failed or is skipped
+        if: ${{ needs.main.result != 'success' }}
+        run: |
+          echo "❌ Main job did not succeed: ${{ needs.main.result }}"
+          exit 1    
+      - name: Success
+        run: echo "✅ All required jobs succeeded."
