@@ -97,8 +97,7 @@ class CallSiteInstrumentationPluginTest {
   private fun createGradleProject(buildDir: File, gradleFile: String, advice: String) {
     val projectFolder = File(System.getProperty("user.dir")).parentFile
     val callSiteJar = resolve(projectFolder, "buildSrc", "call-site-instrumentation-plugin", "build", "libs", "call-site-instrumentation-plugin-all.jar")
-    val testCallSiteJarDir = resolve(buildDir, "buildSrc", "call-site-instrumentation-plugin", "build", "libs")
-    testCallSiteJarDir.mkdirs()
+    val testCallSiteJarDir = resolve(buildDir, "buildSrc", "call-site-instrumentation-plugin", "build", "libs", makeDirs = true)
 
     Files.copy(
       callSiteJar.toPath(),
@@ -106,28 +105,18 @@ class CallSiteInstrumentationPluginTest {
     )
 
     val gradleFileContent = gradleFile.replace("__ROOT_FOLDER__", projectFolder.toString().replace("\\", "\\\\"))
-    val buildGradle = resolve(buildDir, "build.gradle").apply {
-      writeText(gradleFileContent)
-    }
+    writeText(resolve(buildDir, "build.gradle"), gradleFileContent)
 
-    val javaFolder = resolve(buildDir, "src", "main", "java").apply {
-      mkdirs()
-    }
-
+    val javaFolder = resolve(buildDir, "src", "main", "java", makeDirs = true)
     val advicePackage = parsePackage(advice)
     val adviceClassName = parseClassName(advice)
-    val adviceFolder = resolve(javaFolder, *advicePackage.split("\\.").toTypedArray())
-    adviceFolder.mkdirs()
-
-    val adviceFile = resolve(adviceFolder, "$adviceClassName.java")
-    adviceFile.writeText(advice)
+    val adviceFolder = resolve(javaFolder, *advicePackage.split("\\.").toTypedArray(), makeDirs = true)
+    writeText(resolve(adviceFolder, "$adviceClassName.java"), advice)
 
     val csiSource = resolve(projectFolder, "dd-java-agent", "agent-tooling", "src", "main", "java", "datadog", "trace", "agent", "tooling", "csi")
-    val csiTarget = resolve(javaFolder, "datadog", "trace", "agent", "tooling", "csi")
-    csiTarget.mkdirs()
+    val csiTarget = resolve(javaFolder, "datadog", "trace", "agent", "tooling", "csi", makeDirs = true)
     csiSource.listFiles()?.forEach {
-      val targetFile = File(csiTarget, it.name)
-      targetFile.writeText(it.readText())
+      writeText(File(csiTarget, it.name), it.readText())
     }
   }
 
@@ -154,7 +143,13 @@ class CallSiteInstrumentationPluginTest {
     return match?.groupValues?.getOrNull(1) ?: ""
   }
 
-  private fun resolve(parent: File, vararg path: String): File {
-    return path.fold(parent) { acc, next -> File(acc, next) }
+  private fun resolve(parent: File, vararg path: String, makeDirs: Boolean = false): File {
+    return path.fold(parent) { acc, next -> File(acc, next) }.apply {
+      if (makeDirs) {
+        mkdirs()
+      }
+    }
   }
+
+  private fun writeText(file: File, content: String) = file.writeText(content)
 }
