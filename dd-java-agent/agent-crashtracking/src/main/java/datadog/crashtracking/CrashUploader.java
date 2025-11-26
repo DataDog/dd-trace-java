@@ -243,7 +243,7 @@ public final class CrashUploader {
       log.error("Unable to print the error crash as a log message", t);
     }
     try {
-      remoteUpload(fileContent, true, config.isCrashTrackingErrorsIntakeEnabled());
+      remoteUpload(fileContent, true, storedConfig.sendToErrorTracking);
     } finally {
       uploadClient.dispatcher().cancelAll();
     }
