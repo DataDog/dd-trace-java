@@ -1,7 +1,7 @@
 import aQute.bnd.gradle.Bundle
 
 plugins {
-  id 'biz.aQute.bnd.builder' version '6.1.0' apply true
+  id 'biz.aQute.bnd.builder' version '6.4.0' apply true
 }
 
 repositories {
@@ -70,6 +70,7 @@ def clientBundle = tasks.register('clientBundle', Bundle) {
     attributes('Bundle-Activator': 'datadog.smoketest.osgi.client.Activator')
   }
 }
+clientBundle.get()
 
 def messagingBundle = tasks.register('messagingBundle', Bundle) {
   archiveClassifier = 'messaging'
