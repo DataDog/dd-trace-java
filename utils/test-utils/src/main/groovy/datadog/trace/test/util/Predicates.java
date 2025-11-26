@@ -1,6 +1,6 @@
 package datadog.trace.test.util;
 
-import java.math.BigDecimal;
+import datadog.environment.JavaVirtualMachine;
 import java.util.function.Predicate;
 
 public abstract class Predicates {
@@ -12,21 +12,18 @@ public abstract class Predicates {
 
     @Override
     public boolean test(String s) {
-      return System.getProperty("java.vendor", "").contains(IBM_VENDOR_STRING);
+      return JavaVirtualMachine.getRuntimeVendor().contains(IBM_VENDOR_STRING);
     }
   }
 
   public static final class IBM8 extends IBM {
-    private static final BigDecimal VERSION = new BigDecimal("1.8");
 
     @Override
     public boolean test(final String spec) {
       if (!super.test(spec)) {
         return false;
       }
-      final BigDecimal version =
-          new BigDecimal(System.getProperty("java.specification.version", "-1"));
-      return version.equals(VERSION);
+      return JavaVirtualMachine.isJavaVersion(8);
     }
   }
 
@@ -35,21 +32,18 @@ public abstract class Predicates {
 
     @Override
     public boolean test(String s) {
-      return System.getProperty("java.vendor", "").contains(ORACLE_VENDOR_STRING);
+      return JavaVirtualMachine.getRuntimeVendor().contains(ORACLE_VENDOR_STRING);
     }
   }
 
   public static final class ORACLE8 extends ORACLE {
-    private static final BigDecimal VERSION = new BigDecimal("1.8");
 
     @Override
     public boolean test(final String spec) {
       if (!super.test(spec)) {
         return false;
       }
-      final BigDecimal version =
-          new BigDecimal(System.getProperty("java.specification.version", "-1"));
-      return version.equals(VERSION);
+      return JavaVirtualMachine.isJavaVersion(8);
     }
   }
 }
