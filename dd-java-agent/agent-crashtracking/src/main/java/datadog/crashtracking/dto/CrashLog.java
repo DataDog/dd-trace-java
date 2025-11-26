@@ -36,6 +36,9 @@ public final class CrashLog {
   @Json(name = "version_id")
   public final int version = VERSION;
 
+  @Json(name = "sig_info")
+  public final SigInfo sigInfo;
+
   public CrashLog(
       String uuid,
       boolean incomplete,
@@ -44,6 +47,7 @@ public final class CrashLog {
       Metadata metadata,
       OSInfo osInfo,
       ProcInfo procInfo,
+      SigInfo sigInfo,
       String dataSchemaVersion) {
     this.uuid = uuid != null ? uuid : RandomUtils.randomUUID().toString();
     this.incomplete = incomplete;
@@ -52,6 +56,7 @@ public final class CrashLog {
     this.metadata = metadata;
     this.osInfo = osInfo;
     this.procInfo = procInfo;
+    this.sigInfo = sigInfo;
     this.dataSchemaVersion = dataSchemaVersion;
   }
 
@@ -79,13 +84,23 @@ public final class CrashLog {
         && Objects.equals(metadata, crashLog.metadata)
         && Objects.equals(osInfo, crashLog.osInfo)
         && Objects.equals(procInfo, crashLog.procInfo)
+        && Objects.equals(sigInfo, crashLog.sigInfo)
         && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        uuid, timestamp, incomplete, error, metadata, osInfo, procInfo, version, dataSchemaVersion);
+        uuid,
+        timestamp,
+        incomplete,
+        error,
+        metadata,
+        osInfo,
+        procInfo,
+        sigInfo,
+        version,
+        dataSchemaVersion);
   }
 
   public boolean equalsForTest(Object o) {
@@ -103,6 +118,7 @@ public final class CrashLog {
         && Objects.equals(timestamp, crashLog.timestamp)
         && Objects.equals(error, crashLog.error)
         && Objects.equals(procInfo, crashLog.procInfo)
+        && Objects.equals(sigInfo, crashLog.sigInfo)
         && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
   }
 }
