@@ -101,7 +101,10 @@ public final class TPEHelper {
       return null;
     }
     AgentScope scope = threadLocalScope.get();
-    threadLocalScope.remove();
+    // Intentionally use `.set(null)` instead of `.remove()` for performance reasons.
+    // For details see: https://github.com/DataDog/dd-trace-java/pull/9856#discussion_r2527729963
+    // noinspection ThreadLocalSetWithNull
+    threadLocalScope.set(null);
     return scope;
   }
 
