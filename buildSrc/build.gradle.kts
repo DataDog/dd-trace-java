@@ -88,10 +88,6 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
-
-  // We have to use Spock with Groovy3 as Gradle 8.x bundled with Groovy3.
-  // TODO: We can refactor `buildSrc` folder to not use Groovy at all.
-  testImplementation(libs.spock.core.groovy3)
 }
 
 tasks.compileKotlin {
