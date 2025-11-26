@@ -109,14 +109,6 @@ testing {
       }
     }
 
-    val integTest by registering(JvmTestSuite::class) {
-      dependencies {
-        implementation(gradleTestKit())
-      }
-      // Makes the gradle plugin publish its declared plugins to this source set
-      gradlePlugin.testSourceSet(sources)
-    }
-
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
       targets.configureEach {

@@ -124,10 +124,9 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-if (tasks.matching({ it.name == 'forkedTest' }).empty) {
-  tasks.register('forkedTest', Test) {
-    useJUnitPlatform()
-  }
+tasks.register('forkedTest', Test) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  useJUnitPlatform()
 }
 
 def applyCodeCoverage = !(
