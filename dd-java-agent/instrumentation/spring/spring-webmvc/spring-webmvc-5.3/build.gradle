@@ -8,7 +8,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'datadog.call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '5.3.23'

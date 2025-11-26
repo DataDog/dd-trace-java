@@ -4,7 +4,6 @@
  * with -PgitBaseRef.
  */
 
-import datadog.gradle.plugin.ci.findAffectedTaskPath
 import org.gradle.api.tasks.testing.Test
 import java.io.File
 import kotlin.math.abs
@@ -134,7 +133,7 @@ if (gitBaseRefProvider.isPresent) {
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
     val activePartition = p.extra.get("activePartition") as Boolean
-    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("datadog.muzzle")
+    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("dd-trace-java.muzzle")
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }

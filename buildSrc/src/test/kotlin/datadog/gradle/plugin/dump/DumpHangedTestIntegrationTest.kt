@@ -55,7 +55,7 @@ class DumpHangedTestIntegrationTest {
       
       plugins {
         id("java")
-        id("datadog.dump-hanged-test")
+        id("dd-trace-java.dump-hanged-test")
       }
       
       group = "datadog.dump.test"

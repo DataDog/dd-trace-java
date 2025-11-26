@@ -187,7 +187,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     }
 
     // Workaround for instrument plugin modifying compile tasks
-    project.pluginManager.withPlugin("datadog.instrument") {
+    project.pluginManager.withPlugin("dd-trace-java.instrument") {
       callSiteGeneratorTask.configure {
         dependsOn("instrumentJava")
       }

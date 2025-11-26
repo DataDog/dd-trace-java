@@ -3,7 +3,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'datadog.call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_1_9

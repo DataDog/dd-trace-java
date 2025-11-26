@@ -15,31 +15,31 @@ java {
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "datadog.instrument"
+      id = "dd-trace-java.instrument"
       implementationClass = "InstrumentPlugin"
     }
     create("muzzle-plugin") {
-      id = "datadog.muzzle"
+      id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
-      id = "datadog.call-site-instrumentation"
+      id = "dd-trace-java.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
     create("tracer-version-plugin") {
-      id = "datadog.tracer-version"
+      id = "dd-trace-java.tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
     create("dump-hanged-test-plugin") {
-      id = "datadog.dump-hanged-test"
+      id = "dd-trace-java.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
     create("supported-config-generation") {
-      id = "datadog.supported-config-generator"
+      id = "dd-trace-java.supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }
     create("supported-config-linter") {
-      id = "datadog.config-inversion-linter"
+      id = "dd-trace-java.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
     }
   }

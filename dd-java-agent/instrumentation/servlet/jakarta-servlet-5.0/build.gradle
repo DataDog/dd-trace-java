@@ -13,7 +13,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'datadog.call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 // jakarta.servlet-api dependencies are compiled with Java 11 and
 // the gradle muzzle tasks uses the JVM gradle is running with

@@ -2,9 +2,9 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
 
-apply plugin: 'datadog.configure-tests'
+apply plugin: 'dd-trace-java.configure-tests'
 apply plugin: 'java-library'
-apply plugin: 'datadog.test-jvm-contraints'
+apply plugin: 'dd-trace-java.test-jvm-contraints'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"

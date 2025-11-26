@@ -4,6 +4,9 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.testing.base.TestingExtension
 import org.gradle.api.plugins.jvm.JvmTestSuite
+import org.gradle.kotlin.dsl.develocity
+import org.gradle.kotlin.dsl.findByType
+import org.gradle.kotlin.dsl.withType
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 

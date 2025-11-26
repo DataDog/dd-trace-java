@@ -15,7 +15,7 @@ class CallSiteInstrumentationPluginTest {
   private val buildGradle = """
     plugins {
       id 'java'
-      id 'datadog.call-site-instrumentation'
+      id 'dd-trace-java.call-site-instrumentation'
     }
 
     sourceCompatibility = JavaVersion.VERSION_1_8
