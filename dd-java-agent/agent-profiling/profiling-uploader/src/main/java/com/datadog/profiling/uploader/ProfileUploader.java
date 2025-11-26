@@ -303,7 +303,7 @@ public final class ProfileUploader {
           // sync request to a misbehaving server.
           if (handled.compareAndSet(false, true)) {
             log.debug("ANTITHESIS_ASSERT: Upload timeout (unreachable)");
-            Assert.unreachable("Upload timeout");
+            Assert.unreachable("Upload timeout", null);
             handleFailure(call, null, data, onCompletion);
           }
         }
@@ -355,7 +355,7 @@ public final class ProfileUploader {
         JfrCliHelper.invokeOn(data, ioLogger);
       } else {
         log.debug("ANTITHESIS_ASSERT: Failed to upload profile (unreachable) - response code: {}", response.code());
-        Assert.unreachable("Failed to upload profile");
+        Assert.unreachable("Failed to upload profile", null);
         ioLogger.error("Failed to upload profile", getLoggerResponse(response));
       }
     }

@@ -190,7 +190,7 @@ public final class DatadogProfiler {
     } catch (IOException | IllegalStateException e) {
       log.debug("Failed to start Datadog profiler recording", e);
       log.debug("ANTITHESIS_ASSERT: Failed to start Datadog profiler recording (unreachable)");
-      Assert.unreachable("Failed to start Datadog profiler recording");
+      Assert.unreachable("Failed to start Datadog profiler recording", null);
       return null;
     }
   }
@@ -206,7 +206,7 @@ public final class DatadogProfiler {
     if (recordingFlag.compareAndSet(true, false)) {
       profiler.stop();
       log.debug("ANTITHESIS_ASSERT: Checking if profiling is still active after stop (sometimes) - active: {}", isActive());
-      Assert.sometimes(isActive(),"Profiling is still active. Waiting to stop.");
+      Assert.sometimes(isActive(),"Profiling is still active. Waiting to stop.", null);
       if (isActive()) {
         log.debug("Profiling is still active. Waiting to stop.");
         while (isActive()) {
@@ -214,7 +214,7 @@ public final class DatadogProfiler {
         }
       }
       log.debug("ANTITHESIS_ASSERT: Profiling should be stopped (always) - active: {}", isActive());
-      Assert.always(!isActive(),"Profiling is stopped");
+      Assert.always(!isActive(),"Profiling is stopped", null);
     }
   }
 
@@ -229,7 +229,7 @@ public final class DatadogProfiler {
       return !status.contains("not active");
     } catch (IOException ignored) {
       log.debug("ANTITHESIS_ASSERT: Failed to get Datadog profiler status (unreachable)");
-      Assert.unreachable("Failed to get Datadog profiler status");
+      Assert.unreachable("Failed to get Datadog profiler status", null);
     }
     return false;
   }
@@ -253,13 +253,13 @@ public final class DatadogProfiler {
         }
         recordingFlag.set(false);
         log.debug("ANTITHESIS_ASSERT: Unable to start Datadog profiler recording (unreachable)");
-        Assert.unreachable("Unable to start Datadog profiler recording");
+        Assert.unreachable("Unable to start Datadog profiler recording", null);
         throw e;
       }
       return recFile;
     }
     log.debug("ANTITHESIS_ASSERT: Datadog profiler session has already been started (unreachable)");
-    Assert.unreachable("Datadog profiler session has already been started");
+    Assert.unreachable("Datadog profiler session has already been started", null);
     throw new IllegalStateException("Datadog profiler session has already been started");
   }
 

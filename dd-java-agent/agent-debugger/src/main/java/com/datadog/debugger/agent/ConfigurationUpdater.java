@@ -97,7 +97,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     } catch (RuntimeException e) {
       ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
       LOGGER.debug("ANTITHESIS_ASSERT: ConfigurationUpdater.accept should sometimes throw a runtime exception (sometimes)");
-      Assert.sometimes("ConfigurationUpdater.accept should sometimes throw a runtime exception");
+      Assert.sometimes(true, "ConfigurationUpdater.accept should sometimes throw a runtime exception", null);
       throw e;
     }
   }
@@ -147,14 +147,14 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       if (changes.hasProbeRelatedChanges()) {
         LOGGER.debug("Applying new probe configuration, changes: {}", changes);
         LOGGER.debug("ANTITHESIS_ASSERT: ConfigurationUpdater.handleProbesChanges should sometimes be called (sometimes)");
-        Assert.sometimes("ConfigurationUpdater.handleProbesChanges should sometimes be called");
+        Assert.sometimes(true, "ConfigurationUpdater.handleProbesChanges should sometimes be called", null);
         handleProbesChanges(changes, newConfiguration);
       }
       LOGGER.debug("ANTITHESIS_ASSERT: ConfigurationUpdater.applyNewConfiguration should always be successful (always)");
-      Assert.always("ConfigurationUpdater.applyNewConfiguration should always be successful");
+      Assert.always(true, "ConfigurationUpdater.applyNewConfiguration should always be successful", null);
     } finally {
       LOGGER.debug("ANTITHESIS_ASSERT: ConfigurationUpdater.applyNewConfiguration should always be reachable (reachable)");
-      Assert.reachable("ConfigurationUpdater.applyNewConfiguration should always be reachable");
+      Assert.reachable("ConfigurationUpdater.applyNewConfiguration should always be reachable", null);
       configurationLock.unlock();
     }
   }

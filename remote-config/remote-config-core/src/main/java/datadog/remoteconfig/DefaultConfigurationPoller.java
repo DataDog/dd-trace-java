@@ -284,7 +284,7 @@ public class DefaultConfigurationPoller
       // We can't recover from this, so we'll not try to initialize again.
       log.error("Remote configuration poller initialization failed", e);
       log.debug("ANTITHESIS_ASSERT: Remote configuration poller initialization failed (unreachable)", e);
-      Assert.unreachable("Remote configuration poller initialization failed");
+      Assert.unreachable("Remote configuration poller initialization failed", null);
       fatalOnInitialization = true;
     }
     return true;
@@ -383,7 +383,7 @@ public class DefaultConfigurationPoller
       // no error can be reported, as we don't have the data client.state.targets_version avail
       ratelimitedLogger.warn("Error parsing remote config response", e);
       log.debug("ANTITHESIS_ASSERT: Error parsing remote config response (unreachable)", e);
-      Assert.unreachable("Error parsing remote config response");
+      Assert.unreachable("Error parsing remote config response", null);
       return;
     }
 
@@ -452,7 +452,7 @@ public class DefaultConfigurationPoller
     try {
       listener.onConfigurationEnd();
       log.debug("ANTITHESIS_ASSERT: Configuration end listener should always be reachable (reachable)");
-      Assert.reachable("Configuration end listener should always be reachable");
+      Assert.reachable("Configuration end listener should always be reachable", null);
     } catch (ReportableException re) {
       errors.add(re);
     } catch (RuntimeException rte) {
@@ -462,7 +462,7 @@ public class DefaultConfigurationPoller
       ratelimitedLogger.warn(
           "Error running configuration listener {}: {}", listener, rte.getMessage(), rte);
       log.debug("ANTITHESIS_ASSERT: Error running configuration listener (unreachable)", rte);
-      Assert.unreachable("Error running configuration listener");
+      Assert.unreachable("Error running configuration listener", null);
     }
   }
 
