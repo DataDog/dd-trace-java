@@ -1,4 +1,4 @@
-package datadog.gradle.plugin.version
+package datadog.gradle.plugin.dump
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildFailure
