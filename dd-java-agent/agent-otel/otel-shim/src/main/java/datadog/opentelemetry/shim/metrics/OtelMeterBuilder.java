@@ -2,36 +2,37 @@ package datadog.opentelemetry.shim.metrics;
 
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class OtelMeterBuilder implements MeterBuilder {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeterBuilder.class);
+@ParametersAreNonnullByDefault
+final class OtelMeterBuilder implements MeterBuilder {
+  private final OtelMeterProvider meterProvider;
+
   private final String instrumentationScopeName;
-  private String schemaUrl;
-  private String instrumentationVersion;
+  @Nullable private String instrumentationScopeVersion;
+  @Nullable private String schemaUrl;
 
-  public OtelMeterBuilder(String instrumentationScopeName) {
+  OtelMeterBuilder(OtelMeterProvider meterProvider, String instrumentationScopeName) {
+    this.meterProvider = meterProvider;
     this.instrumentationScopeName = instrumentationScopeName;
   }
 
   @Override
-  @ParametersAreNonnullByDefault
+  public MeterBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
+    this.instrumentationScopeVersion = instrumentationScopeVersion;
+    return this;
+  }
+
+  @Override
   public MeterBuilder setSchemaUrl(String schemaUrl) {
     this.schemaUrl = schemaUrl;
     return this;
   }
 
   @Override
-  @ParametersAreNonnullByDefault
-  public MeterBuilder setInstrumentationVersion(String instrumentationVersion) {
-    this.instrumentationVersion = instrumentationVersion;
-    return this;
-  }
-
-  @Override
   public Meter build() {
-    return new OtelMeter(instrumentationScopeName, instrumentationVersion, schemaUrl);
+    return meterProvider.getMeterShim(
+        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
   }
 }

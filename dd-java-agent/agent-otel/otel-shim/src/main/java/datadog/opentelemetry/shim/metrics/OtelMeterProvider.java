@@ -1,62 +1,48 @@
 package datadog.opentelemetry.shim.metrics;
 
+import datadog.opentelemetry.shim.OtelInstrumentationScope;
+import datadog.trace.util.Strings;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OtelMeterProvider implements MeterProvider {
+@ParametersAreNonnullByDefault
+public final class OtelMeterProvider implements MeterProvider {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeterProvider.class);
-  private static final String DEFAULT_METER_NAME = "";
+  private static final String DEFAULT_METER_NAME = "unknown";
+
   public static final MeterProvider INSTANCE = new OtelMeterProvider();
-  /** Meter instances, indexed by instrumentation scope name. */
-  private final Map<String, List<Meter>> scopedMeters = new ConcurrentHashMap<>();
+
+  /** Meter shims, indexed by instrumentation scope. */
+  private final Map<OtelInstrumentationScope, OtelMeter> meters = new ConcurrentHashMap<>();
 
   @Override
-  @ParametersAreNonnullByDefault
   public Meter get(String instrumentationScopeName) {
-    return get(instrumentationScopeName, null);
-  }
-
-  public Meter get(String instrumentationScopeName, String instrumentationVersion) {
-    return get(instrumentationScopeName, instrumentationVersion, null);
-  }
-
-  public Meter get(
-      String instrumentationScopeName, String instrumentationVersion, String urlSchema) {
-    List<Meter> meters = this.scopedMeters.get(instrumentationScopeName);
-    if (meters != null) {
-      for (Meter meter : meters) {
-        if ((meter instanceof OtelMeter)
-            && ((OtelMeter) meter)
-                .match(instrumentationScopeName, instrumentationVersion, urlSchema)) {
-          return meter;
-        }
-      }
-    }
-    Meter meter =
-        meterBuilder(instrumentationScopeName)
-            .setInstrumentationVersion(instrumentationVersion)
-            .setSchemaUrl(urlSchema)
-            .build();
-    this.scopedMeters.put(instrumentationScopeName, new ArrayList<>());
-    this.scopedMeters.get(instrumentationScopeName).add(meter);
-
-    return meter;
+    return getMeterShim(instrumentationScopeName, null, null);
   }
 
   @Override
   public MeterBuilder meterBuilder(String instrumentationScopeName) {
-    if (instrumentationScopeName.trim().isEmpty()) {
+    return new OtelMeterBuilder(this, instrumentationScopeName);
+  }
+
+  OtelMeter getMeterShim(
+      String instrumentationScopeName,
+      @Nullable String instrumentationScopeVersion,
+      @Nullable String schemaUrl) {
+    if (Strings.isBlank(instrumentationScopeName)) {
       LOGGER.debug("Meter requested without instrumentation scope name.");
       instrumentationScopeName = DEFAULT_METER_NAME;
     }
-    return new OtelMeterBuilder(instrumentationScopeName);
+    return meters.computeIfAbsent(
+        new OtelInstrumentationScope(
+            instrumentationScopeName, instrumentationScopeVersion, schemaUrl),
+        OtelMeter::new);
   }
 }
