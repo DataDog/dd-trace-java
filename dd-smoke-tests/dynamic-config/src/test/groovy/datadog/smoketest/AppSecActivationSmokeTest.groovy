@@ -3,6 +3,9 @@ package datadog.smoketest
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
 import datadog.smoketest.dynamicconfig.AppSecApplication
+import datadog.trace.test.util.Flaky
+
+import static datadog.trace.test.util.Predicates.ORACLE8
 
 class AppSecActivationSmokeTest extends AbstractSmokeTest {
 
@@ -24,6 +27,7 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
+  @Flaky(value = "Telemetry product change event flakes in oracle8", condition = ORACLE8)
   void 'test activation via RC workflow'() {
     given:
     final asmRuleProducts = [Product.ASM, Product.ASM_DD, Product.ASM_DATA]
