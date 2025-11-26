@@ -107,44 +107,62 @@ public abstract class RemoteApi {
   public static final class Response {
     /** Factory method for a successful request with a trivial response body */
     public static Response success(final int status) {
-      return new Response(true, status, null, null);
+      return new Response(true, false, status, null, null, null);
     }
 
     /** Factory method for a successful request with a trivial response body */
     public static Response success(final int status, String response) {
-      return new Response(true, status, null, response);
+      return new Response(true, false, status, null, response, null);
     }
 
     /** Factory method for a successful request will a malformed response body */
     public static Response success(final int status, final Throwable exception) {
-      return new Response(true, status, exception, null);
+      return new Response(true, false, status, exception, null, null);
     }
 
     /** Factory method for a request that receive an error status in response */
     public static Response failed(final int status) {
-      return new Response(false, status, null, null);
+      return new Response(false, false, status, null, null, null);
     }
 
     /** Factory method for a failed communication attempt */
     public static Response failed(final Throwable exception) {
-      return new Response(false, null, exception, null);
+      return new Response(false, false, null, exception, null, null);
+    }
+
+    /** Factory method for a 429 response that should be retried */
+    public static Response retryable(final int status, final Payload payload) {
+      return new Response(false, true, status, null, null, payload);
     }
 
     private final boolean success;
+    private final boolean retryable;
     private final Integer status;
     private final Throwable exception;
     private final String response;
+    private final Payload payload;
 
     private Response(
-        final boolean success, final Integer status, final Throwable exception, String response) {
+        final boolean success,
+        final boolean retryable,
+        final Integer status,
+        final Throwable exception,
+        String response,
+        Payload payload) {
       this.success = success;
+      this.retryable = retryable;
       this.status = status;
       this.exception = exception;
       this.response = response;
+      this.payload = payload;
     }
 
     public boolean success() {
       return success;
+    }
+
+    public boolean retryable() {
+      return retryable;
     }
 
     public OptionalInt status() {
@@ -157,6 +175,10 @@ public abstract class RemoteApi {
 
     public String response() {
       return response;
+    }
+
+    public Payload payload() {
+      return payload;
     }
   }
 }
