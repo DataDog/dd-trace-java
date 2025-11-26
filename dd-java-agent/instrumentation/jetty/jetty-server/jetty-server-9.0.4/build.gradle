@@ -17,10 +17,6 @@ dependencies {
   implementation project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.4.v20130625'
 
-  // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.4.v20130625'
@@ -29,6 +25,22 @@ dependencies {
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+
+  constraints {
+    // Don't want to conflict with jetty from the test server.
+    testImplementation('org.eclipse.jetty:jetty-server') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '9.0.4.v20130625'
+      }
+    }
+    testImplementation('org.eclipse.jetty:jetty-servlet') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '9.0.4.v20130625'
+      }
+    }
+  }
 
   // Include all jetty-server instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")

@@ -6,15 +6,26 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
-  // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   // First version with DropwizardTestSupport:
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.8.0'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: '2.9.10'
+
+  constraints {
+    // Don't want to conflict with jetty from the test server.
+    testImplementation('org.eclipse.jetty:jetty-server') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '9.2.9.v20150224'
+      }
+    }
+    testImplementation('org.eclipse.jetty:jetty-servlet') {
+      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
+      version {
+        strictly '9.2.9.v20150224'
+      }
+    }
+  }
 
   // Anything 1.0+ fails with a java.lang.NoClassDefFoundError: org/eclipse/jetty/server/RequestLog
   //  latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
