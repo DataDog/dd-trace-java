@@ -228,6 +228,16 @@ public class JettyBlockingHelper {
     return true;
   }
 
+  public static boolean block(
+      TraceSegment segment,
+      Request request,
+      Response response,
+      int statusCode,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders) {
+    return block(segment, request, response, statusCode, bct, extraHeaders, null);
+  }
+
   public static boolean block(Request request, Response response, Context context) {
     AgentSpan span = spanFromContext(context);
     Flow.Action.RequestBlockingAction rba;
