@@ -141,13 +141,10 @@ public class BlockingActionHelper {
       // Remove the security_response_id field/placeholder entirely when securityResponseId is not
       // present
       if (type == TemplateType.JSON) {
-        // Remove the entire security_response_id field from JSON:
-        // ,"security_response_id":"[security_response_id]"
-        // Try both variants: with comma before and with comma after
+        // Remove the entire security_response_id field from JSON
+        // Template format: }],"security_response_id":"[security_response_id]"}
         templateString =
             templateString.replace(",\"security_response_id\":\"[security_response_id]\"", "");
-        templateString =
-            templateString.replace("\"security_response_id\":\"[security_response_id]\",", "");
       } else {
         // For HTML, remove the entire security_response_id section including any attributes
         Matcher matcher = HTML_SECURITY_RESPONSE_ID_PATTERN.matcher(templateString);
