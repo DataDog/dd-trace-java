@@ -60,7 +60,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
-    !features.supportsDropping()
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
@@ -118,7 +117,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
-    !features.supportsDropping()
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
@@ -145,7 +143,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
     features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
-    features.supportsDropping()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
     0 * _
   }
@@ -201,7 +198,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
-    !features.supportsDropping()
     !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
@@ -222,7 +218,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
-    !features.supportsDropping()
     !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
@@ -245,7 +240,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
-    !features.supportsDropping()
     features.state() == PROBE_STATE
     0 * _
   }
@@ -267,7 +261,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
-    !features.supportsDropping()
     features.state() == PROBE_STATE
     0 * _
   }
@@ -290,7 +283,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.3/traces"
     !features.supportsLongRunning()
-    !features.supportsDropping()
     features.state() == PROBE_STATE
     0 * _
   }
@@ -308,7 +300,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.6/stats" })
     !features.supportsMetrics()
-    !features.supportsDropping()
     !(features as DroppingPolicy).active()
     features.state() == PROBE_STATE
 
@@ -318,7 +309,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
     !features.supportsMetrics()
-    !features.supportsDropping()
     !(features as DroppingPolicy).active()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
 
@@ -328,7 +318,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
     !features.supportsMetrics()
-    !features.supportsDropping()
     !(features as DroppingPolicy).active()
     features.state() == INFO_STATE
     0 * _
@@ -346,7 +335,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.6/stats" })
-    !features.supportsDropping()
     !features.supportsMetrics()
     !(features as DroppingPolicy).active()
     features.state() == PROBE_STATE
@@ -357,7 +345,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then: "metrics endpoint not probed, metrics and dropping enabled"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
-    features.supportsDropping()
     features.supportsMetrics()
     (features as DroppingPolicy).active()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
@@ -376,7 +363,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall(_)
-    features.supportsDropping()
     features.supportsMetrics()
     (features as DroppingPolicy).active()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
@@ -388,7 +374,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall(_)
-    !features.supportsDropping()
     !features.supportsMetrics()
     !(features as DroppingPolicy).active()
     features.state() == PROBE_STATE
@@ -407,7 +392,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall(_)
-    features.supportsDropping()
     features.supportsMetrics()
     (features as DroppingPolicy).active()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
@@ -418,8 +402,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITHOUT_METRICS_RESPONSE) }
     0 * client.newCall(_)
-    // misconfigured agent allows dropping but not metrics
-    features.supportsDropping()
     !features.supportsMetrics()
     // but we don't permit dropping anyway
     !(features as DroppingPolicy).active()
@@ -481,7 +463,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE) }
     features.state() == INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE
-    features.supportsDropping()
     features.peerTags().containsAll(
     "_dd.base_service",
     "active_record.db.vendor",
@@ -519,7 +500,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
       infoResponse(request, response)
     }
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
-    features.supportsDropping() == true
     features.supportsMetrics() == expected
 
     where:
