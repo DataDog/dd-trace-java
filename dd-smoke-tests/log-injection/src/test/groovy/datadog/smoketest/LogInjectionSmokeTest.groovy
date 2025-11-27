@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
@@ -9,7 +10,6 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
-import static datadog.trace.test.util.Predicates.IBM8
 import static java.util.concurrent.TimeUnit.SECONDS
 
 /**
@@ -256,7 +256,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  @Flaky(condition = IBM8)
+  @Flaky(condition = () -> JavaVirtualMachine.isIbm8())
   def "check raw file injection"() {
     when:
     def count = waitForTraceCount(2)
