@@ -358,7 +358,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public boolean supportsMetrics() {
     return metricsEnabled
         && null != discoveryState.metricsEndpoint
-        && discoveryState.supportsDropping;
+        && discoveryState.supportsDropping
+        && AgentVersion.isVersionAtLeast(discoveryState.version, 7, 65, 0);
   }
 
   public boolean supportsDebugger() {
