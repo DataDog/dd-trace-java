@@ -103,7 +103,7 @@ public class GrizzlyHttpBlockingHelper {
           BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
 
       httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       httpResponse.setContentLength(template.length);
       httpContent =
           HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
@@ -137,7 +137,8 @@ public class GrizzlyHttpBlockingHelper {
       int statusCode,
       BlockingContentType templateType,
       Map<String, String> extraHeaders,
-      TraceSegment segment) {
+      TraceSegment segment,
+      String securityResponseId) {
     if (ENCODE_HTTP_PACKET == null) {
       return false;
     }
@@ -164,7 +165,7 @@ public class GrizzlyHttpBlockingHelper {
           BlockingActionHelper.determineTemplateType(templateType, acceptHeader);
 
       httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
       httpResponse.setContentLength(template.length);
       httpContent =
           HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();

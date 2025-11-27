@@ -44,7 +44,8 @@ public class GrizzlyBlockingHelper {
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders(),
-        context);
+        context,
+        rba.getSecurityResponseId());
   }
 
   public static boolean block(
@@ -53,7 +54,8 @@ public class GrizzlyBlockingHelper {
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      Context context) {
+      Context context,
+      String securityResponseId) {
     if (GET_OUTPUT_STREAM == null) {
       return false;
     }
@@ -72,7 +74,7 @@ public class GrizzlyBlockingHelper {
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
         response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-        byte[] template = BlockingActionHelper.getTemplate(type);
+        byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
         response.setHeader("Content-length", Integer.toString(template.length));
         os.write(template);
       }

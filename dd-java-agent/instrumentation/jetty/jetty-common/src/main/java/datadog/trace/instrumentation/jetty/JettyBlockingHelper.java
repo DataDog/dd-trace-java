@@ -161,7 +161,8 @@ public class JettyBlockingHelper {
       Response response,
       int statusCode,
       BlockingContentType bct,
-      Map<String, String> extraHeaders) {
+      Map<String, String> extraHeaders,
+      String securityResponseId) {
     if (!INITIALIZED) {
       return false;
     }
@@ -185,7 +186,7 @@ public class JettyBlockingHelper {
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
         response.setCharacterEncoding("utf-8");
         response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
-        byte[] template = BlockingActionHelper.getTemplate(type);
+        byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
 
         if (!response.isWriting()) {
           response.setHeader("Content-length", Integer.toString(template.length));
@@ -239,7 +240,8 @@ public class JettyBlockingHelper {
         response,
         rba.getStatusCode(),
         rba.getBlockingContentType(),
-        rba.getExtraHeaders());
+        rba.getExtraHeaders(),
+        rba.getSecurityResponseId());
   }
 
   public static boolean hasRequestBlockingAction(Context context) {

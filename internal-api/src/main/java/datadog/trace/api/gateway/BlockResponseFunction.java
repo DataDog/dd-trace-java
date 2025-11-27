@@ -17,5 +17,21 @@ public interface BlockResponseFunction {
       TraceSegment segment,
       int statusCode,
       BlockingContentType templateType,
-      Map<String, String> extraHeaders);
+      Map<String, String> extraHeaders,
+      String securityResponseId);
+
+  /**
+   * Commits blocking response without security response ID.
+   *
+   * @deprecated Use {@link #tryCommitBlockingResponse(TraceSegment, int, BlockingContentType, Map,
+   *     String)} instead
+   */
+  @Deprecated
+  default boolean tryCommitBlockingResponse(
+      TraceSegment segment,
+      int statusCode,
+      BlockingContentType templateType,
+      Map<String, String> extraHeaders) {
+    return tryCommitBlockingResponse(segment, statusCode, templateType, extraHeaders, null);
+  }
 }
