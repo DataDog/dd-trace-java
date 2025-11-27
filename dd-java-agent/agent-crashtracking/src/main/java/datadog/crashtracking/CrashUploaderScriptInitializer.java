@@ -11,6 +11,7 @@ import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 import static java.util.Locale.ROOT;
 
+import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
@@ -63,7 +64,11 @@ public final class CrashUploaderScriptInitializer {
       Path scriptPath, String onErrorFile, String agentJar) {
     Path scriptDirectory = scriptPath.getParent();
     try {
-      Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+      if (OperatingSystem.isWindows()) {
+        Files.createDirectories(scriptDirectory);
+      } else {
+        Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+      }
     } catch (UnsupportedOperationException e) {
       LOG.warn(
           SEND_TELEMETRY,
@@ -109,7 +114,9 @@ public final class CrashUploaderScriptInitializer {
           bw.newLine();
         }
       }
-      Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
+      if (!OperatingSystem.isWindows()) {
+        Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
+      }
     }
   }
 

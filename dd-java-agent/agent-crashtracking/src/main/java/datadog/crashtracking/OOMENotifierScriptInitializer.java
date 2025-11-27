@@ -13,6 +13,7 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -81,12 +82,16 @@ public final class OOMENotifierScriptInitializer {
           return false;
         }
       } else {
-        Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+        if (OperatingSystem.isWindows()) {
+          Files.createDirectories(scriptDirectory);
+        } else {
+          Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+        }
       }
     } catch (UnsupportedOperationException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Unsupported permissions '{"
+          "Unsupported permissions '"
               + RWXRWXRWX
               + "' for {}. OOME notification will not work properly.",
           scriptDirectory);
@@ -107,7 +112,9 @@ public final class OOMENotifierScriptInitializer {
       if (!Files.exists(scriptPath)) {
         Files.copy(getOomeNotifierTemplate(), scriptPath);
       }
-      Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
+      if (!OperatingSystem.isWindows()) {
+        Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
+      }
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
