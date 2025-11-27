@@ -122,6 +122,7 @@ public class RocketMqDecorator extends ClientDecorator {
     if (log.isDebugEnabled()) {
       log.debug("consumer span start topic:{}", ext.getTopic());
     }
+    log.info("message start consume queueid{}", ext.getQueueId());
     return scope;
   }
 
@@ -143,6 +144,9 @@ public class RocketMqDecorator extends ClientDecorator {
     }
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
+    }
+    if (context.getMsgList() != null && context.getMsgList().get(0) != null) {
+      log.info("message end consume {}", context.getMsgList().get(0).getQueueId());
     }
   }
 
