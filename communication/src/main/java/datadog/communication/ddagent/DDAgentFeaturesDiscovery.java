@@ -87,6 +87,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String dataStreamsEndpoint;
     boolean supportsLongRunning;
     boolean supportsClientSideStats;
+    boolean supportsDropping;
     String state;
     String configEndpoint;
     String debuggerLogEndpoint;
@@ -184,10 +185,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsClientSideStats={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           newState.traceEndpoint,
           newState.metricsEndpoint,
-          newState.supportsClientSideStats,
+          newState.supportsDropping,
           newState.supportsLongRunning,
           newState.dataStreamsEndpoint,
           newState.configEndpoint,
@@ -306,12 +307,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
 
       if (metricsEnabled) {
-        newState.supportsClientSideStats = !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
         Object canDrop = map.get("client_drop_p0s");
-        newState.supportsClientSideStats &=
+        newState.supportsDropping =
             null != canDrop
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
                     || Boolean.TRUE.equals(canDrop));
+
+        newState.supportsClientSideStats =
+            newState.supportsDropping && !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
 
         Object peer_tags = map.get("peer_tags");
         newState.peerTags =
