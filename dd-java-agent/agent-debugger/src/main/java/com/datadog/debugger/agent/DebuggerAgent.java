@@ -70,6 +70,7 @@ public class DebuggerAgent {
   static final AtomicBoolean exceptionReplayEnabled = new AtomicBoolean();
   static final AtomicBoolean codeOriginEnabled = new AtomicBoolean();
   static final AtomicBoolean distributedDebuggerEnabled = new AtomicBoolean();
+  static final AtomicBoolean symDBEnabled = new AtomicBoolean();
   private static ClassesToRetransformFinder classesToRetransformFinder;
 
   public static synchronized void run(
@@ -89,9 +90,13 @@ public class DebuggerAgent {
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation(config);
       startCodeOriginForSpans(config);
+      startSymbolDatabase(config);
       if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
+    }
+    if (config.isSymbolDatabaseEnabled()) {
+      startSymbolDatabase(config);
     }
     try {
       /*
@@ -165,24 +170,7 @@ public class DebuggerAgent {
       return;
     }
     if (configurationPoller != null) {
-      if (config.isSymbolDatabaseEnabled()) {
-        initClassNameFilter();
-        List<ScopeFilter> scopeFilters =
-            Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
-        SymbolAggregator symbolAggregator =
-            new SymbolAggregator(
-                classNameFilter,
-                scopeFilters,
-                sink.getSymbolSink(),
-                config.getSymbolDatabaseFlushThreshold());
-        symbolAggregator.start();
-        symDBEnablement =
-            new SymDBEnablement(instrumentation, config, symbolAggregator, classNameFilter);
-        if (config.isSymbolDatabaseForceUpload()) {
-          symDBEnablement.startSymbolExtraction();
-        }
-      }
-      subscribeConfigurationPoller(config, configurationUpdater, symDBEnablement);
+      subscribeLiveDebugging(config, configurationUpdater);
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
@@ -201,6 +189,66 @@ public class DebuggerAgent {
     }
     if (symDBEnablement != null) {
       symDBEnablement.stopSymbolExtraction();
+      symDBEnablement = null;
+    }
+  }
+
+  private static void subscribeLiveDebugging(
+      Config config, ConfigurationUpdater configurationUpdater) {
+    LOGGER.debug("Subscribing to Live Debugging...");
+    configurationPoller.addListener(
+        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
+    if (symDBEnablement != null && !config.isSymbolDatabaseForceUpload()) {
+      LOGGER.debug("Subscribing to Symbol DB...");
+      configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
+    }
+  }
+
+  public static void startSymbolDatabase(Config config) {
+    if (!symDBEnabled.compareAndSet(false, true)) {
+      return;
+    }
+    LOGGER.debug("Starting Symbol Database");
+    commonInit(config);
+    initClassNameFilter();
+    List<ScopeFilter> scopeFilters =
+        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
+    SymbolAggregator symbolAggregator =
+        new SymbolAggregator(
+            classNameFilter,
+            scopeFilters,
+            sink.getSymbolSink(),
+            config.getSymbolDatabaseFlushThreshold());
+    symbolAggregator.start();
+    symDBEnablement =
+        new SymDBEnablement(instrumentation, config, symbolAggregator, classNameFilter);
+    if (config.isSymbolDatabaseForceUpload()) {
+      symDBEnablement.startSymbolExtraction();
+    }
+    subscribeSymDB(symDBEnablement);
+    LOGGER.debug("Started Symbol Database");
+  }
+
+  private static void subscribeSymDB(SymDBEnablement symDBEnablement) {
+    LOGGER.debug("Subscribing to Symbol DB...");
+    if (configurationPoller != null) {
+      configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
+    } else {
+      LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
+    }
+  }
+
+  public static void stopSymbolDatabase() {
+    if (!symDBEnabled.compareAndSet(true, false)) {
+      return;
+    }
+    LOGGER.info("Stopping Symbol Database");
+    if (configurationPoller != null) {
+      configurationPoller.removeListeners(Product.LIVE_DEBUGGING_SYMBOL_DB);
+    }
+    SymDBEnablement localSymDBEnablement = symDBEnablement;
+    if (localSymDBEnablement != null) {
+      localSymDBEnablement.stopSymbolExtraction();
       symDBEnablement = null;
     }
   }
@@ -367,17 +415,6 @@ public class DebuggerAgent {
         new SourceFileTrackingTransformer(finder);
     sourceFileTrackingTransformer.start();
     instrumentation.addTransformer(sourceFileTrackingTransformer);
-  }
-
-  private static void subscribeConfigurationPoller(
-      Config config, ConfigurationUpdater configurationUpdater, SymDBEnablement symDBEnablement) {
-    LOGGER.debug("Subscribing to Live Debugging...");
-    configurationPoller.addListener(
-        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
-    if (symDBEnablement != null && !config.isSymbolDatabaseForceUpload()) {
-      LOGGER.debug("Subscribing to Symbol DB...");
-      configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
-    }
   }
 
   private static void unsubscribeConfigurationPoller() {
