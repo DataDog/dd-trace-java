@@ -31,26 +31,20 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
   @Override
   public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {
-    AppSecRequestContext ctx = null;
-    RequestContext ctx_ = null;
-    boolean needsRelease = false;
+    final RequestContext ctx_ = span.getRequestContext();
+    if (ctx_ == null) {
+      return;
+    }
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+
+    if (!ctx.isKeepOpenForApiSecurityPostProcessing()) {
+      return;
+    }
 
     try {
-      ctx_ = span.getRequestContext();
-      if (ctx_ == null) {
-        return;
-      }
-      ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
-        return;
-      }
-
-      // Check if we acquired a permit for this request - must be inside try to ensure finally runs
-      needsRelease = ctx.isKeepOpenForApiSecurityPostProcessing();
-      if (!needsRelease) {
-        return;
-      }
-
       if (timeoutCheck.getAsBoolean()) {
         log.debug("Timeout detected, skipping API security post-processing");
         return;
@@ -62,25 +56,21 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       log.debug("Request sampled, processing API security post-processing");
       extractSchemas(ctx, ctx_.getTraceSegment());
     } finally {
-      // Always release the semaphore permit if we acquired one
-      if (needsRelease) {
-        if (ctx != null) {
-          ctx.setKeepOpenForApiSecurityPostProcessing(false);
-          // XXX: Close the additive first. This is not strictly needed, but it'll prevent getting
-          // it detected as a missed request-ended event.
-          try {
-            ctx.closeWafContext();
-          } catch (Exception e) {
-            log.debug("Error closing WAF context", e);
-          }
-          try {
-            ctx.close();
-          } catch (Exception e) {
-            log.debug("Error closing AppSecRequestContext", e);
-          }
-        }
-        sampler.releaseOne();
+      ctx.setKeepOpenForApiSecurityPostProcessing(false);
+      // XXX: Close the additive first. This is not strictly needed, but it'll prevent getting it
+      // detected as a
+      // missed request-ended event.
+      try {
+        ctx.closeWafContext();
+      } catch (Exception e) {
+        log.debug("Error closing WAF context", e);
       }
+      try {
+        ctx.close();
+      } catch (Exception e) {
+        log.debug("Error closing AppSecRequestContext", e);
+      }
+      sampler.releaseOne();
     }
   }
 
