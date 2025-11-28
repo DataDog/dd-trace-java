@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.*;
@@ -89,9 +90,10 @@ public class RocketMqDecorator extends ClientDecorator {
 
   public AgentScope start(ConsumeMessageContext context) {
     MessageExt ext = context.getMsgList().get(0);
+
     AgentSpanContext parentContext = extractContextAndGetSpanContext(ext, GETTER);
     UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " receive");
-    final AgentSpan span;
+    AgentSpan span;
     if (ignore) {
       span = startSpan("rocketmq", name);
       if (null != parentContext && null != parentContext.getTraceId()) {
@@ -118,11 +120,11 @@ public class RocketMqDecorator extends ClientDecorator {
       span.setTag(MESSAGING_ROCKETMQ_BROKER_ADDRESS, getBrokerHost(storeHost));
     }
     afterStart(span);
-    final AgentScope scope = activateSpan(span);
+    AgentScope scope = activateSpan(span);
     if (log.isDebugEnabled()) {
       log.debug("consumer span start topic:{}", ext.getTopic());
     }
-    log.info("message start consume queueid{}", ext.getQueueId());
+
     return scope;
   }
 
@@ -130,30 +132,29 @@ public class RocketMqDecorator extends ClientDecorator {
     return storeHost.toString().replace("/", "");
   }
 
-  public void end(ConsumeMessageContext context) {
-    String status = context.getStatus();
-    final AgentSpan span = activeSpan();
+  public void end(ConsumeMessageContext context, AgentScope scope) {
+    if (null == scope || null == scope.span()) {
+      return;
+    }
 
+    String status = context.getStatus();
+
+    AgentSpan span = scope.span();
     span.setTag("status", status);
     beforeFinish(span);
 
-    final AgentScope scope = activateSpan(span);
-    if (scope != null) {
-      scope.span().finish();
-      scope.close();
-    }
+    scope.span().finish();
+    scope.close();
+
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
-    }
-    if (context.getMsgList() != null && context.getMsgList().get(0) != null) {
-      log.info("message end consume {}", context.getMsgList().get(0).getQueueId());
     }
   }
 
   public AgentScope start(SendMessageContext context) {
     String topic = context.getMessage().getTopic();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " send");
-    final AgentSpan span = startSpan(spanName);
+    AgentSpan span = startSpan(spanName);
     span.setResourceName(spanName);
 
     span.setTag(BROKER_HOST, context.getBornHost());
@@ -179,7 +180,7 @@ public class RocketMqDecorator extends ClientDecorator {
     }
 
     defaultPropagator().inject(span, context, SETTER);
-    final AgentScope scope = activateSpan(span);
+    AgentScope scope = activateSpan(span);
     afterStart(span);
     if (log.isDebugEnabled()) {
       log.debug("consumer span start topic:{}", topic);
@@ -187,14 +188,16 @@ public class RocketMqDecorator extends ClientDecorator {
     return scope;
   }
 
-  public void end(SendMessageContext context) {
+  public void end(SendMessageContext context, AgentScope scope) {
+    if (scope == null) {
+      return;
+    }
     Exception exception = context.getException();
-    final AgentSpan span = activeSpan();
+    AgentSpan span = scope.span();
 
     if (span == null) {
       return;
     }
-    final AgentScope scope = activateSpan(span);
     if (null != exception) {
       onError(span, exception);
     }
@@ -203,10 +206,9 @@ public class RocketMqDecorator extends ClientDecorator {
     }
 
     beforeFinish(span);
-    if (scope != null) {
-      scope.close();
-      scope.span().finish();
-    }
+    scope.span().finish();
+    scope.close();
+
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
     }

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.rocketmq;
 
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import org.apache.rocketmq.client.hook.ConsumeMessageContext;
 import org.apache.rocketmq.client.hook.ConsumeMessageHook;
 
@@ -8,13 +9,12 @@ import static datadog.trace.instrumentation.rocketmq.RocketMqDecorator.CONSUMER_
 
 public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
   private final RocketMqDecorator rocketMqDecorator;
-  //private final ContextStore<ConsumeMessageContext,AgentScope> scopeAccessor;
+
 
   TracingConsumeMessageHookImpl() {
     this.rocketMqDecorator = CONSUMER_DECORATE;
- //   this.scopeAccessor = scopeAccessor;
   }
-
+  private AgentScope scope;
   @Override
   public String hookName() {
     return "ConsumeMessageTraceHook";
@@ -25,7 +25,7 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
       return;
     }
-     rocketMqDecorator.start(context);
+    scope = rocketMqDecorator.start(context);
   }
 
   @Override
@@ -33,7 +33,7 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
       return;
     }
-      rocketMqDecorator.end(context);
+      rocketMqDecorator.end(context,scope);
   }
 }
 

@@ -26,7 +26,7 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (context == null) {
       return;
     }
-     rocketMqDecorator.start(context);
+    scope = rocketMqDecorator.start(context);
   }
 
   @Override
@@ -34,6 +34,6 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (context == null) {
       return;
     }
-      rocketMqDecorator.end(context);
+    rocketMqDecorator.end(context, scope);
   }
 }
