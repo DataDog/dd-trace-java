@@ -23,6 +23,17 @@ public class JakartaServletBlockingHelper {
       int statusCode_,
       BlockingContentType bct,
       Map<String, String> extraHeaders) {
+    commitBlockingResponse(segment, httpServletRequest, resp, statusCode_, bct, extraHeaders, null);
+  }
+
+  public static void commitBlockingResponse(
+      TraceSegment segment,
+      HttpServletRequest httpServletRequest,
+      HttpServletResponse resp,
+      int statusCode_,
+      BlockingContentType bct,
+      Map<String, String> extraHeaders,
+      String securityResponseId) {
     int statusCode = BlockingActionHelper.getHttpCode(statusCode_);
     if (!start(resp, statusCode)) {
       return;
@@ -37,7 +48,7 @@ public class JakartaServletBlockingHelper {
       String acceptHeader = httpServletRequest.getHeader("Accept");
       BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-      template = BlockingActionHelper.getTemplate(type);
+      template = BlockingActionHelper.getTemplate(type, securityResponseId);
       String contentType = BlockingActionHelper.getContentType(type);
 
       resp.setHeader("Content-length", Integer.toString(template.length));
@@ -68,7 +79,8 @@ public class JakartaServletBlockingHelper {
         resp,
         rba.getStatusCode(),
         rba.getBlockingContentType(),
-        rba.getExtraHeaders());
+        rba.getExtraHeaders(),
+        rba.getSecurityResponseId());
   }
 
   private static boolean start(HttpServletResponse resp, int statusCode) {

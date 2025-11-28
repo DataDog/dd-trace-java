@@ -180,12 +180,13 @@ public class GrizzlyDecorator
         TraceSegment segment,
         int statusCode,
         BlockingContentType templateType,
-        Map<String, String> extraHeaders) {
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
       if (ctx == null) {
         return false;
       }
       return GrizzlyHttpBlockingHelper.block(
-          ctx, acceptHeader, statusCode, templateType, extraHeaders, segment);
+          ctx, acceptHeader, statusCode, templateType, extraHeaders, segment, securityResponseId);
     }
   }
 }

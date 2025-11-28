@@ -46,7 +46,8 @@ public class BlockingResponseHelper {
             requestContext.getTraceSegment(),
             rba.getStatusCode(),
             rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+            rba.getExtraHeaders(),
+            rba.getSecurityResponseId());
         HttpResponse altResponse =
             ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
         if (altResponse != null) {
@@ -74,7 +75,7 @@ public class BlockingResponseHelper {
     if (bct != BlockingContentType.NONE) {
       BlockingActionHelper.TemplateType tt =
           BlockingActionHelper.determineTemplateType(bct, accept.map(h -> h.value()).orElse(null));
-      byte[] template = BlockingActionHelper.getTemplate(tt);
+      byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
       if (tt == BlockingActionHelper.TemplateType.HTML) {
         entity =
             HttpEntity$.MODULE$.apply(
