@@ -1,21 +1,36 @@
 package datadog.trace.bootstrap;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class InstrumentationErrors {
-  private static final AtomicLong COUNTER = new AtomicLong();
+  private static final List<String> ERRORS = new CopyOnWriteArrayList<>();
+  private static volatile boolean recordErrors = false;
 
-  public static long getErrorCount() {
-    return COUNTER.get();
-  }
-
+  /**
+   * Record an error from {@link datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers} for test
+   * visibility.
+   */
   @SuppressWarnings("unused")
-  public static void incrementErrorCount() {
-    COUNTER.incrementAndGet();
+  public static void recordError(final Throwable throwable) {
+    if (recordErrors) {
+      StringWriter stackTrace = new StringWriter();
+      throwable.printStackTrace(new PrintWriter(stackTrace));
+      ERRORS.add(stackTrace.toString());
+    }
   }
 
   // Visible for testing
-  public static void resetErrorCount() {
-    COUNTER.set(0);
+  public static void enableRecordingAndReset() {
+    recordErrors = true;
+    ERRORS.clear();
+  }
+
+  // Visible for testing
+  public static List<String> getErrors() {
+    return Collections.unmodifiableList(ERRORS);
   }
 }
