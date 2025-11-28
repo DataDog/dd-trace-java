@@ -104,9 +104,9 @@ class SpanSamplingWorkerTest extends DDSpecification {
     singleSpanSampler.setSamplingPriority(span7) >> true
 
     when:
-    worker.getSpanSamplingQueue().offer([span1, span2, span3])
-    worker.getSpanSamplingQueue().offer([span4, span5])
-    worker.getSpanSamplingQueue().offer([span6, span7])
+    assert worker.getSpanSamplingQueue().offer([span1, span2, span3])
+    assert worker.getSpanSamplingQueue().offer([span4, span5])
+    assert worker.getSpanSamplingQueue().offer([span6, span7])
 
     then:
     primaryQueue.take() == [span1, span3]

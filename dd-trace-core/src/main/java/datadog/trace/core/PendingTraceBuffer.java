@@ -6,6 +6,8 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Comparator.comparingLong;
 
+import datadog.common.queue.BlockingConsumerNonBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
@@ -18,10 +20,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.zip.ZipOutputStream;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +63,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
     private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
-    private final MpscBlockingConsumerArrayQueue<Element> queue;
+    private final BlockingConsumerNonBlockingQueue<Element> queue;
     private final Thread worker;
     private final TimeSource timeSource;
 
@@ -136,7 +138,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    private static final class WriteDrain implements MessagePassingQueue.Consumer<Element> {
+    private static final class WriteDrain implements Consumer<Element> {
       private static final WriteDrain WRITE_DRAIN = new WriteDrain();
 
       @Override
@@ -145,8 +147,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    private static final class DumpDrain
-        implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
+    private static final class DumpDrain implements Consumer<Element>, Supplier<Element> {
       private static final Logger LOGGER = LoggerFactory.getLogger(DumpDrain.class);
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
       private static final int MAX_DUMPED_TRACES = 50;
@@ -292,7 +293,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         Config config,
         SharedCommunicationObjects sharedCommunicationObjects,
         HealthMetrics healthMetrics) {
-      this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
+      this.queue = Queues.mpscBlockingConsumerArrayQueue(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTraceEnabled();
