@@ -80,8 +80,6 @@ dependencies {
 
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
 
-  compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
-
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor
   testCompileOnly libs.autoservice.annotation

@@ -38,7 +38,7 @@ dependencies {
   testImplementation(libs.groovy)
   testImplementation(libs.bundles.spock)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.2.0")
+  testImplementation(libs.spotbugs.annotations)
 }
 
 sourceSets {
