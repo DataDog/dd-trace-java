@@ -72,12 +72,20 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     if (counter.tryAcquire()) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
+      // Update immediately to prevent concurrent requests from seeing the same expired state
+      updateApiAccessIfExpired(hash);
       return true;
     }
     return false;
   }
 
-  /** Get the final sampling decision. This method is NOT thread-safe. */
+  /**
+   * Confirms the final sampling decision.
+   *
+   * <p>This method is called after the span completes. The actual sampling decision and map update
+   * already happened in {@link #preSampleRequest(AppSecRequestContext)} to prevent race conditions.
+   * This method only serves as a final confirmation gate before schema extraction.
+   */
   @Override
   public boolean sampleRequest(AppSecRequestContext ctx) {
     if (ctx == null) {
@@ -88,7 +96,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       // This should never happen, it should have been short-circuited before.
       return false;
     }
-    return updateApiAccessIfExpired(hash);
+    return true;
   }
 
   @Override
