@@ -103,7 +103,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     /**
      * Flag for the current alive tainted objects (red/black style marking for max age calculation).
      */
-    @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+    @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The design explicitly tolerates losses in high-concurrency scenarios. The delayed visibility of the generation flag can cause some entries to be purged a bit earlier or later than ideal, but this is still within the acceptable boundaries of the design.")
     protected boolean generation;
 
     /** Whether to collect the {@link IastMetric#TAINTED_FLAT_MODE} metric or not */

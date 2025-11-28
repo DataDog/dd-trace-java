@@ -15,7 +15,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
 
   private volatile TestExecutionPolicy executionPolicy;
 
-  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "the field is confined to a single thread")
   private boolean suppressFailures;
 
   public void createExecutionPolicy(ITestResult result) {

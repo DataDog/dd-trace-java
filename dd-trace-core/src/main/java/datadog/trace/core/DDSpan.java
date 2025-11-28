@@ -92,7 +92,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile long durationNano;
 
-  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "This field is never accessed concurrently")
   private boolean forceKeep;
 
   private volatile EndpointTracker endpointTracker;

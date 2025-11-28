@@ -252,7 +252,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
   }
 
-  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The variable is accessed only by the test thread in setup and cleanup.")
   boolean originalAppSecRuntimeValue
 
   @Shared

@@ -35,7 +35,7 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
-  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "TODO")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "the field is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
   Aggregator(
