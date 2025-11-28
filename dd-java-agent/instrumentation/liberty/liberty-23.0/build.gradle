@@ -45,7 +45,7 @@ dependencies {
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
   testRuntimeOnly files(filterLogbackClassic.map { it.destinationDir })
-  testRuntimeOnly project(':dd-java-agent:instrumentation:liberty-20')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:liberty:liberty-20.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly files(shadowJar.map { it.archiveFile })
 
