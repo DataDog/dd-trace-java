@@ -1,8 +1,5 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
-import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Objects;
@@ -65,12 +62,12 @@ public final class TypeInfoCache<T> {
    *
    * @return previously shared information for the named type
    */
-  public SharedTypeInfo<T> share(String className, ClassLoader loader, URL classFile, T typeInfo) {
+  public SharedTypeInfo<T> share(String className, int classLoaderId, URL classFile, T typeInfo) {
     SharedTypeInfo<T> newValue;
     if (namesAreUnique) {
       newValue = new SharedTypeInfo<>(className, typeInfo);
     } else {
-      newValue = new DisambiguatingTypeInfo<>(className, typeInfo, loader, classFile);
+      newValue = new DisambiguatingTypeInfo<>(className, typeInfo, classLoaderId, classFile);
     }
 
     int nameHash = className.hashCode();
@@ -117,7 +114,7 @@ public final class TypeInfoCache<T> {
       this.typeInfo = typeInfo;
     }
 
-    public boolean sameClassLoader(ClassLoader loader) {
+    public boolean sameClassLoader(int classLoaderId) {
       return true;
     }
 
@@ -132,25 +129,18 @@ public final class TypeInfoCache<T> {
 
   /** Includes the classloader and class file resource it originated from. */
   static final class DisambiguatingTypeInfo<T> extends SharedTypeInfo<T> {
-    private static final ClassLoader BOOTSTRAP_LOADER = null;
-    private static final LoaderId BOOTSTRAP_LOADER_ID = null;
-
-    private static final DDCache<ClassLoader, LoaderId> loaderIds =
-        DDCaches.newFixedSizeWeakKeyCache(64);
-
-    private final LoaderId loaderId;
+    private final int classLoaderId;
     private final URL classFile;
 
-    DisambiguatingTypeInfo(String className, T typeInfo, ClassLoader loader, URL classFile) {
+    DisambiguatingTypeInfo(String className, T typeInfo, int classLoaderId, URL classFile) {
       super(className, typeInfo);
-      this.loaderId = loaderId(loader);
+      this.classLoaderId = classLoaderId;
       this.classFile = classFile;
     }
 
-    public boolean sameClassLoader(ClassLoader loader) {
-      return BOOTSTRAP_LOADER_ID == loaderId
-          ? BOOTSTRAP_LOADER == loader
-          : loaderId.sameClassLoader(loader);
+    @Override
+    public boolean sameClassLoader(int classLoaderId) {
+      return this.classLoaderId == classLoaderId;
     }
 
     public boolean sameClassFile(URL classFile) {
@@ -159,32 +149,12 @@ public final class TypeInfoCache<T> {
           && sameClassFile(this.classFile, classFile);
     }
 
-    private static LoaderId loaderId(ClassLoader loader) {
-      return BOOTSTRAP_LOADER == loader
-          ? BOOTSTRAP_LOADER_ID
-          : loaderIds.computeIfAbsent(loader, LoaderId::new);
-    }
-
     /** Matches class file resources without triggering network lookups. */
     private static boolean sameClassFile(URL lhs, URL rhs) {
       return Objects.equals(lhs.getFile(), rhs.getFile())
           && Objects.equals(lhs.getRef(), rhs.getRef())
           && Objects.equals(lhs.getAuthority(), rhs.getAuthority())
           && Objects.equals(lhs.getProtocol(), rhs.getProtocol());
-    }
-  }
-
-  /** Supports classloader comparisons without strongly referencing the classloader. */
-  static final class LoaderId extends WeakReference<ClassLoader> {
-    private final int loaderHash;
-
-    LoaderId(ClassLoader loader) {
-      super(loader);
-      this.loaderHash = System.identityHashCode(loader);
-    }
-
-    boolean sameClassLoader(ClassLoader loader) {
-      return loaderHash == System.identityHashCode(loader) && loader == get();
     }
   }
 }

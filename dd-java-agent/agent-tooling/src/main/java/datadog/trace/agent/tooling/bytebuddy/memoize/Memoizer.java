@@ -239,10 +239,10 @@ public final class Memoizer {
 
     // otherwise share result for this location (other locations may have different results)
     if (namesAreUnique || name.startsWith("java.") || !(type instanceof WithLocation)) {
-      memos.share(name, null, null, memo);
+      memos.share(name, 0, null, memo);
     } else {
       WithLocation origin = (WithLocation) type;
-      memos.share(name, origin.getClassLoader(), origin.getClassFile(), memo);
+      memos.share(name, origin.getClassLoaderId(), origin.getClassFile(), memo);
     }
 
     return memo;
@@ -255,7 +255,7 @@ public final class Memoizer {
 
   private static boolean sameOrigin(TypeDescription type, SharedTypeInfo<BitSet> sharedMemo) {
     return !(type instanceof WithLocation)
-        || sharedMemo.sameClassLoader(((WithLocation) type).getClassLoader())
+        || sharedMemo.sameClassLoader(((WithLocation) type).getClassLoaderId())
         || sharedMemo.sameClassFile(((WithLocation) type).getClassFile());
   }
 

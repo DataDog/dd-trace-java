@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.UNKNOWN_CLASS_
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
 
+import datadog.instrument.utils.ClassLoaderIndex;
 import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
@@ -101,7 +102,9 @@ final class TypeFactory {
 
   ClassLoader originalClassLoader;
 
-  ClassLoader classLoader;
+  ClassLoader currentClassLoader;
+
+  int currentClassLoaderId;
 
   ClassFileLocator classFileLocator;
 
@@ -111,8 +114,9 @@ final class TypeFactory {
 
   /** Sets the current class-loader context of this type-factory. */
   void switchContext(ClassLoader classLoader) {
-    if (this.classLoader != classLoader || null == classFileLocator) {
-      this.classLoader = classLoader;
+    if (currentClassLoader != classLoader || null == classFileLocator) {
+      currentClassLoader = classLoader;
+      currentClassLoaderId = -1; // lazily computed
       classFileLocator = classFileLocator(classLoader);
       // clear local type cache whenever the class-loader context changes
       deferredTypes.clear();
@@ -120,7 +124,7 @@ final class TypeFactory {
   }
 
   ClassLoader currentContext() {
-    return classLoader;
+    return currentClassLoader;
   }
 
   void beginInstall() {
@@ -151,7 +155,7 @@ final class TypeFactory {
     targetBytecode = bytecode;
 
     if (installing) {
-      originalClassLoader = classLoader;
+      originalClassLoader = currentClassLoader;
     }
   }
 
@@ -187,7 +191,8 @@ final class TypeFactory {
 
   private void clearReferences() {
     if (null != classFileLocator) {
-      classLoader = null;
+      currentClassLoader = null;
+      currentClassLoaderId = -1;
       classFileLocator = null;
       deferredTypes.clear();
     }
@@ -249,13 +254,14 @@ final class TypeFactory {
   private TypeDescription lookupType(
       LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
     String name = request.name;
+    int classLoaderId = request.getClassLoaderId();
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
 
     // existing type description from same classloader?
     SharedTypeInfo<TypeDescription> sharedType = types.find(name);
     if (null != sharedType
-        && (name.startsWith("java.") || sharedType.sameClassLoader(classLoader))) {
+        && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
       return sharedType.get();
     }
@@ -287,7 +293,7 @@ final class TypeFactory {
     }
 
     // share result, whether we found it or not
-    types.share(name, classLoader, classFile, type);
+    types.share(name, classLoaderId, classFile, type);
 
     return type;
   }
@@ -297,17 +303,17 @@ final class TypeFactory {
     LOCATING_CLASS.begin();
     try {
       Class<?> loadedType;
-      if (BOOTSTRAP_LOADER == classLoader) {
+      if (BOOTSTRAP_LOADER == currentClassLoader) {
         loadedType = Class.forName(name, false, BOOTSTRAP_LOADER);
-      } else if (skipLoadClass(classLoader.getClass().getName())) {
+      } else if (skipLoadClass(currentClassLoader.getClass().getName())) {
         return null; // avoid known problematic class-loaders
       } else {
-        loadedType = classLoader.loadClass(name);
+        loadedType = currentClassLoader.loadClass(name);
       }
       log.debug(
           "Direct loadClass type resolution of {} from class loader {} bypasses transformation",
           name,
-          classLoader);
+          currentClassLoader);
       return typeParser.parse(loadedType);
     } catch (Throwable ignored) {
       return null;
@@ -333,8 +339,11 @@ final class TypeFactory {
     }
 
     @Override
-    public ClassLoader getClassLoader() {
-      return classLoader;
+    public int getClassLoaderId() {
+      if (currentClassLoaderId < 0) {
+        currentClassLoaderId = ClassLoaderIndex.getClassLoaderKeyId(currentClassLoader);
+      }
+      return currentClassLoaderId;
     }
 
     @Override
