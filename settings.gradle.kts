@@ -296,7 +296,7 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-1.0",
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:axis2-1.3",
-  ":dd-java-agent:instrumentation:axway-api",
+  ":dd-java-agent:instrumentation:axway-api-7.5",
   ":dd-java-agent:instrumentation:azure-functions",
   ":dd-java-agent:instrumentation:caffeine",
   ":dd-java-agent:instrumentation:cdi-1.2",
