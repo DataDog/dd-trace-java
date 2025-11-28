@@ -131,18 +131,22 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       final AgentSpanContext extractedContext =
           extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
 
-      final AgentSpan parent = activeSpan();
-      // Use extracted context as parent if available, otherwise use activeSpan
+      final AgentSpan localActiveSpan = activeSpan();
+
       final AgentSpan span;
+      final AgentSpan callbackParentSpan;
+
       if (extractedContext != null) {
         span = startSpan(KAFKA_PRODUCE, extractedContext);
+        callbackParentSpan = span;
       } else {
         span = startSpan(KAFKA_PRODUCE);
+        callbackParentSpan = localActiveSpan;
       }
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
 
-      callback = new KafkaProducerCallback(callback, parent, span, clusterId);
+      callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
