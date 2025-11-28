@@ -377,20 +377,35 @@ class TestHttpServer implements AutoCloseable {
     }
 
     void handleDistributedRequest() {
+      final String ddSpanAttribute = "datadog.span"
+
       boolean isDDServer = true
       if (request.getHeader("is-dd-server") != null) {
         isDDServer = Boolean.parseBoolean(request.getHeader("is-dd-server"))
       }
       if (isDDServer) {
-        final AgentSpanContext extractedContext = extractContextAndGetSpanContext(req.orig, GETTER)
-        if (extractedContext != null) {
-          startSpan("test", "test-http-server", extractedContext)
-            .setTag("path", request.path)
-            .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
-        } else {
-          startSpan("test", "test-http-server")
-            .setTag("path", request.path)
-            .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
+        // Synchronize on the request to make check-and-set atomic across threads
+        synchronized (req.orig) {
+          // Check if span already exists for this request to prevent duplicates
+          Object existingSpan = req.orig.getAttribute(ddSpanAttribute)
+          if (existingSpan != null) {
+            // Span already created by another thread, skip creating duplicate
+            return
+          }
+
+          final AgentSpanContext extractedContext = extractContextAndGetSpanContext(req.orig, GETTER)
+          def span
+          if (extractedContext != null) {
+            span = startSpan("test", "test-http-server", extractedContext)
+          } else {
+            span = startSpan("test", "test-http-server")
+          }
+          span.setTag("path", request.path)
+            .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+            .finish()
+
+          // Store span in request attribute before finishing to prevent race conditions
+          req.orig.setAttribute(ddSpanAttribute, span)
         }
       }
     }
