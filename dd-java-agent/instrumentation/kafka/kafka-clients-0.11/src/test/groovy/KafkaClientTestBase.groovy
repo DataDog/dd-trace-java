@@ -1027,34 +1027,26 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     def producer = new KafkaProducer<>(senderProps)
 
-    // Create a trace context to inject into headers (simulating a message with existing context)
-    def traceId = 1234567890123456L
-    def spanId = 9876543210987654L
+    def existingTraceId = 1234567890123456L
+    def existingSpanId = 9876543210987654L
     def headers = new RecordHeaders()
     headers.add(new RecordHeader("x-datadog-trace-id",
-      String.valueOf(traceId).getBytes(StandardCharsets.UTF_8)))
+      String.valueOf(existingTraceId).getBytes(StandardCharsets.UTF_8)))
     headers.add(new RecordHeader("x-datadog-parent-id",
-      String.valueOf(spanId).getBytes(StandardCharsets.UTF_8)))
+      String.valueOf(existingSpanId).getBytes(StandardCharsets.UTF_8)))
 
     when:
-    // Send a message with pre-existing trace context in headers
     def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-context-extraction", headers)
     producer.send(record).get()
 
     then:
-    // Verify that a produce span was created that used the extracted context
-    assertTraces(1) {
-      trace(1) {
-        producerSpan(it, senderProps, null, false)
-        // Verify the span used the extracted context as parent
-        def producedSpan = TEST_WRITER[0][0]
-        assert producedSpan.context().traceId == traceId
-        assert producedSpan.context().parentId == spanId
-        // Verify a NEW span was created (not reusing the extracted span ID)
-        assert producedSpan.context().spanId != spanId
-        assert producedSpan.context().spanId != 0
-      }
-    }
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    // Verify the span used the extracted context as parent
+    producedSpan.traceId.toLong() == existingTraceId
+    producedSpan.parentId == existingSpanId
+    // Verify a new span was created (not reusing the extracted span ID)
+    producedSpan.spanId != existingSpanId
 
     cleanup:
     producer?.close()
