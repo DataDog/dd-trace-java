@@ -391,7 +391,7 @@ include(
   ":dd-java-agent:instrumentation:java:java-security-1.8",
   ":dd-java-agent:instrumentation:java:java-util-1.8",
   ":dd-java-agent:instrumentation:javax-mail-1.4.4",
-  ":dd-java-agent:instrumentation:javax-naming",
+  ":dd-java-agent:instrumentation:javax-naming-1.0",
   ":dd-java-agent:instrumentation:javax-xml",
   ":dd-java-agent:instrumentation:jboss:jboss-logmanager-1.1",
   ":dd-java-agent:instrumentation:jboss:jboss-modules-1.3",
