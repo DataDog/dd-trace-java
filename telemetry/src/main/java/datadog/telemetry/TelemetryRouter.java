@@ -41,6 +41,7 @@ public class TelemetryRouter {
             // interrupted request is most likely due to telemetry system shutdown,
             // we do not want to log errors and reattempt in this case
             && result != TelemetryClient.Result.INTERRUPTED;
+    
     if (currentClient == agentClient) {
       if (requestFailed) {
         reportErrorOnce(currentClient.getUrl(), result);
