@@ -1,3 +1,6 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -11,8 +14,9 @@ import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
-import datadog.trace.instrumentation.aws.v2.sqs.TracingList
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
+import datadog.trace.instrumentation.aws.v2.sqs.TracingList
+import javax.jms.Session
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.core.SdkBytes
@@ -26,11 +30,6 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import spock.lang.IgnoreIf
 import spock.lang.Shared
-
-import javax.jms.Session
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
 
@@ -189,6 +188,31 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.close()
   }
 
+  def "dadatog context is not injected if SqsInjectDatadogAttribute is disabled"() {
+    setup:
+    injectSysConfig("sqs.inject.datadog.attribute.enabled", "false")
+    def client = SqsClient.builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue(CreateQueueRequest.builder().queueName('somequeue').build()).queueUrl()
+    TEST_WRITER.clear()
+
+    when:
+    client.sendMessage(SendMessageRequest.builder().queueUrl(queueUrl).messageBody('sometext').build())
+    def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
+
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    assert !messages[0].messageAttributes().containsKey("_datadog")
+
+    cleanup:
+    client.close()
+  }
   @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated via embedded SQS message attribute (string)"() {
     setup:
