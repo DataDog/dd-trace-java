@@ -498,6 +498,67 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     )
   }
 
+  def "test metrics disabled for agent version below 7.65"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "agent version is below 7.65"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request ->
+      def response = """
+      {
+        "version": "${version}",
+        "endpoints": ["/v0.5/traces", "/v0.6/stats"],
+        "client_drop_p0s": true,
+        "config": {}
+      }
+      """
+      infoResponse(request, response)
+    }
+    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.supportsDropping() == true
+    features.supportsMetrics() == expected
+
+    where:
+    version       | expected
+    "7.64.0"      | false
+    "7.64.9"      | false
+    "7.64.9-rc.1" | false
+    "7.65.0"      | true
+    "7.65.1"      | true
+    "7.70.0"      | true
+    "8.0.0"       | true
+  }
+
+  def "test metrics disabled for agent with unparseable version"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "agent version is unparseable"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request ->
+      def response = """
+      {
+        "version": "${version}",
+        "endpoints": ["/v0.5/traces", "/v0.6/stats"],
+        "client_drop_p0s": true,
+        "config": {}
+      }
+      """
+      infoResponse(request, response)
+    }
+    !features.supportsMetrics()
+
+    where:
+    version << ["invalid", "7", "7.65", "", null]
+  }
+
   def "should send container id as header on the info request and parse the hash in the response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)

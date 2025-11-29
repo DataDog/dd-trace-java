@@ -35,7 +35,7 @@ class MetricsReliabilityTest extends DDCoreSpecification {
     httpServer {
       handlers {
         get("/info") {
-          final def res = '{"endpoints":[' + (state.agentMetricsAvailable ? '"/v0.6/stats", ' : '') + '"/v0.4/traces"], "client_drop_p0s" : true}'
+          final def res = '{"version":"7.65.0","endpoints":[' + (state.agentMetricsAvailable ? '"/v0.6/stats", ' : '') + '"/v0.4/traces"], "client_drop_p0s" : true}'
           state.hash = Strings.sha256(res)
           response.send(res)
           state.latch.countDown()
