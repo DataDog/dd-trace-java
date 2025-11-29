@@ -8,13 +8,12 @@ import io.opentelemetry.api.trace.Tracer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-class OtelTracer implements Tracer {
+final class OtelTracer implements Tracer {
   private static final String INSTRUMENTATION_NAME = otelInstrumentationName();
-  private final AgentTracer.TracerAPI tracer;
-  private final String instrumentationScopeName;
 
-  public OtelTracer(String instrumentationScopeName) {
-    this.instrumentationScopeName = instrumentationScopeName;
+  private final AgentTracer.TracerAPI tracer;
+
+  OtelTracer(@SuppressWarnings("unused") String instrumentationScopeName) {
     this.tracer = AgentTracer.get();
   }
 

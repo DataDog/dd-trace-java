@@ -1,0 +1,23 @@
+def openTelemetryVersion = '1.47.0'
+
+muzzle {
+  pass {
+    module = 'opentelemetry-api'
+    group = 'io.opentelemetry'
+    versions = "[$openTelemetryVersion,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
+  compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
+
+  implementation project(':dd-java-agent:agent-otel:otel-shim')
+
+  testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
+  latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'
+}
