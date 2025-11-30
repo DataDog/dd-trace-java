@@ -19,14 +19,8 @@ run_benchmark() {
   export OUTPUT_DIR="${REPORTS_DIR}/dacapo/${type}"
   mkdir -p "${OUTPUT_DIR}"
 
-  # substitute environment variables in the json file
-  benchmark=$(mktemp)
-  # shellcheck disable=SC2046
-  # shellcheck disable=SC2016
-  envsubst "$(printf '${%s} ' $(env | cut -d'=' -f1))" <benchmark.json >"${benchmark}"
-
-  # run the sirun test
-  sirun "${benchmark}" &>"${OUTPUT_DIR}/${type}.json"
+  # run the bp-runner test
+  bp-runner bp-runner.yml &>"${OUTPUT_DIR}/${type}.json"
 
   message "dacapo benchmark: ${type} finished"
 }
