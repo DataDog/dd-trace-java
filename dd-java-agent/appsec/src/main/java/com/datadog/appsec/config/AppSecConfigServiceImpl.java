@@ -101,10 +101,16 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
-  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification =  "The variable is only read and written by the single configuration-poller thread.")
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The variable is only read and written by the single configuration-poller thread.")
   private boolean hasUserWafConfig;
 
-  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification =  "The variable is only read and written by the single configuration-poller thread.")
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The variable is only read and written by the single configuration-poller thread.")
   private boolean defaultConfigActivated;
 
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();

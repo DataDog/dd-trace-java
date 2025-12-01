@@ -9,7 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Retries a test case if it failed, up to a maximum number of times. */
 @SuppressFBWarnings(
     value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
-    justification = "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
+    justification =
+        "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private final int maxExecutions;
