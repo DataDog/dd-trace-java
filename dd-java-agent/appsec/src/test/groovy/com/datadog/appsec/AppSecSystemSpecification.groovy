@@ -33,6 +33,10 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
   ConfigurationPoller poller = Mock()
+  java.lang.instrument.Instrumentation inst = Mock() {
+    isRetransformClassesSupported() >> true
+    getAllLoadedClasses() >> ([] as Class[])
+  }
 
   def cleanup() {
     AppSecSystem.stop()
@@ -40,7 +44,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'registers powerwaf module'() {
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then:
     'ddwaf' in AppSecSystem.startedModulesInfo
@@ -51,7 +55,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then:
     def exception = thrown(AbortStartupException)
@@ -66,7 +70,7 @@ class AppSecSystemSpecification extends DDSpecification {
     rebuildConfig()
 
     when: 'starting the AppSec system'
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then: 'an AbortStartupException should be thrown'
     def exception = thrown(AbortStartupException)
@@ -88,7 +92,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.ipheader', 'foo-bar')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
     requestEndedCB.apply(requestContext, span)
 
     then:
@@ -110,7 +114,7 @@ class AppSecSystemSpecification extends DDSpecification {
     rebuildConfig()
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException
@@ -126,7 +130,7 @@ class AppSecSystemSpecification extends DDSpecification {
     ConfigurationEndListener savedConfEndListener
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
     EventProducerService initialEPS = AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur
 
     then:

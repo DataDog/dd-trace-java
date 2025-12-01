@@ -659,7 +659,7 @@ public class Agent {
         resumeRemoteComponents();
       }
 
-      maybeStartAppSec(scoClass, sco);
+      maybeStartAppSec(instrumentation, scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLLMObs(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
@@ -973,7 +973,7 @@ public class Agent {
     }
   }
 
-  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
+  private static void maybeStartAppSec(Instrumentation inst, Class<?> scoClass, Object o) {
 
     try {
       // event tracking SDK must be available for customers even if AppSec is fully disabled
@@ -990,7 +990,7 @@ public class Agent {
 
     try {
       SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
-      startAppSec(ss, scoClass, o);
+      startAppSec(inst, ss, scoClass, o);
     } catch (Exception e) {
       log.error("Error starting AppSec System", e);
     }
@@ -998,13 +998,14 @@ public class Agent {
     StaticEventLogger.end("AppSec");
   }
 
-  private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
+  private static void startAppSec(
+      Instrumentation inst, SubscriptionService ss, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, ss, sco);
+          appSecSysClass.getMethod("start", Instrumentation.class, SubscriptionService.class, scoClass);
+      appSecInstallerMethod.invoke(null, inst, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }
