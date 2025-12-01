@@ -37,8 +37,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
   testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
 
-  testImplementation libs.spock.spring
-
   // These two version sets are compatible together:
   testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:2.3.5.RELEASE') {
     exclude group: 'net.bytebuddy', module: 'byte-buddy' // we don't want this shared dependency pinned
@@ -64,4 +62,6 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web'
   testImplementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-netflix-zuul'
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind'
+
+  testImplementation(libs.spock.spring)
 }

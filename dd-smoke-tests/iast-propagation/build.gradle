@@ -37,11 +37,12 @@ dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
   implementation libs.scala213
-  implementation libs.groovy
   implementation libs.kotlin
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+
+  compileOnly(libs.bundles.groovy)
 }
 
 tasks.withType(Test).configureEach {
