@@ -49,7 +49,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     @Suppress("UNCHECKED_CAST")
     val deprecated = (fileData["deprecations"] as? Map<String, String>) ?: emptyMap()
 
-    // Generate alias map and reverse alias mapping
+    // Parse supportedConfigurations key to into a V2 format
     val supported: Map<String, List<SupportedConfiguration>> = supportedRaw.mapValues { (_, configList) ->
       configList.map { configMap ->
         SupportedConfiguration(
@@ -62,7 +62,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
     }
 
-    // Top-level mapping from config -> list of aliases.
+    // Generate top-level mapping from config -> list of aliases and reverse alias mapping from alias -> top-level config
     // Note: This top-level alias mapping will be deprecated once Config Registry is mature enough to understand which version of a config a customer is using
     val aliases: Map<String, List<String>> = supported.mapValues { (_, configList) ->
       configList.flatMap { it.aliases }.distinct()
