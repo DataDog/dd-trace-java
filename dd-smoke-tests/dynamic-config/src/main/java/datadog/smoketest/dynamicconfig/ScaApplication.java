@@ -5,8 +5,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * Simple test application for SCA smoke tests.
  *
- * This application uses Jackson's ObjectMapper which will be instrumented
- * by SCA to detect vulnerable method invocations.
+ * <p>This application uses Jackson's ObjectMapper which will be instrumented by SCA to detect
+ * vulnerable method invocations.
  */
 public class ScaApplication {
 

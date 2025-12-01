@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Handles dynamic instrumentation updates for Supply Chain Analysis (SCA) vulnerability detection.
  *
- * <p>This class receives SCA configuration updates from Remote Config and triggers
- * retransformation of classes that match the instrumentation targets.
+ * <p>This class receives SCA configuration updates from Remote Config and triggers retransformation
+ * of classes that match the instrumentation targets.
  *
  * <p>Thread-safe: Multiple threads can call {@link #onConfigUpdate(AppSecSCAConfig)} concurrently.
  */
@@ -70,8 +70,7 @@ public class AppSecSCAInstrumentationUpdater {
       }
 
       log.info(
-          "Applying SCA instrumentation for {} targets",
-          newConfig.instrumentationTargets.size());
+          "Applying SCA instrumentation for {} targets", newConfig.instrumentationTargets.size());
 
       AppSecSCAConfig oldConfig = currentConfig;
       currentConfig = newConfig;
@@ -190,9 +189,7 @@ public class AppSecSCAInstrumentationUpdater {
     return currentConfig;
   }
 
-  /**
-   * For testing: checks if a transformer is currently installed.
-   */
+  /** For testing: checks if a transformer is currently installed. */
   boolean hasTransformer() {
     return currentTransformer != null;
   }

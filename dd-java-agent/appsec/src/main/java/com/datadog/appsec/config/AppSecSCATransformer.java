@@ -16,11 +16,11 @@ import org.slf4j.LoggerFactory;
 /**
  * ClassFileTransformer for Supply Chain Analysis (SCA) vulnerability detection.
  *
- * <p>Instruments methods specified in the SCA configuration to detect when vulnerable
- * third-party library methods are called at runtime.
+ * <p>Instruments methods specified in the SCA configuration to detect when vulnerable third-party
+ * library methods are called at runtime.
  *
- * <p>This is a POC implementation that logs method invocations. Future versions will report
- * to the Datadog backend with vulnerability details.
+ * <p>This is a POC implementation that logs method invocations. Future versions will report to the
+ * Datadog backend with vulnerability details.
  */
 public class AppSecSCATransformer implements ClassFileTransformer {
 
@@ -106,9 +106,7 @@ public class AppSecSCATransformer implements ClassFileTransformer {
     }
   }
 
-  /**
-   * ASM ClassVisitor that instruments methods matching SCA targets.
-   */
+  /** ASM ClassVisitor that instruments methods matching SCA targets. */
   private static class SCAClassVisitor extends ClassVisitor {
     private final String className;
     private final TargetMethods targetMethods;
@@ -134,9 +132,7 @@ public class AppSecSCATransformer implements ClassFileTransformer {
     }
   }
 
-  /**
-   * ASM MethodVisitor that injects SCA detection logic at method entry.
-   */
+  /** ASM MethodVisitor that injects SCA detection logic at method entry. */
   private static class SCAMethodVisitor extends MethodVisitor {
     private final String className;
     private final String methodName;
@@ -180,9 +176,7 @@ public class AppSecSCATransformer implements ClassFileTransformer {
     }
   }
 
-  /**
-   * Helper class to store target methods for a class.
-   */
+  /** Helper class to store target methods for a class. */
   private static class TargetMethods {
     private final Map<String, Boolean> methods = new HashMap<>();
 

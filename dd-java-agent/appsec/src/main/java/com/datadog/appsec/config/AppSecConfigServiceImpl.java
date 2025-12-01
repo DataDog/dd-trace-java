@@ -129,8 +129,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   /**
-   * Sets the Instrumentation instance for SCA hot instrumentation.
-   * Must be called before {@link #maybeSubscribeConfigPolling()} for SCA to work.
+   * Sets the Instrumentation instance for SCA hot instrumentation. Must be called before {@link
+   * #maybeSubscribeConfigPolling()} for SCA to work.
    *
    * @param instrumentation the Java Instrumentation API instance
    */
@@ -379,8 +379,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   /**
-   * Subscribes to Supply Chain Analysis (SCA) configuration from Remote Config.
-   * Receives instrumentation targets for vulnerability detection in third-party dependencies.
+   * Subscribes to Supply Chain Analysis (SCA) configuration from Remote Config. Receives
+   * instrumentation targets for vulnerability detection in third-party dependencies.
    */
   private void subscribeSCA() {
     if (subscribedToSCA.compareAndSet(false, true)) {
@@ -410,9 +410,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  /**
-   * Unsubscribes from SCA Remote Config product and clears current configuration.
-   */
+  /** Unsubscribes from SCA Remote Config product and clears current configuration. */
   private void unsubscribeSCA() {
     if (subscribedToSCA.compareAndSet(true, false)) {
       log.debug("Unsubscribing from ASM_SCA Remote Config product");

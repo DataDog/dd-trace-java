@@ -3,13 +3,13 @@ package com.datadog.appsec.config;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.ConfigurationDeserializer;
-import okio.Okio;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import okio.Okio;
 
 /**
- * Deserializer for Supply Chain Analysis (SCA) configuration from Remote Config.
- * Converts JSON payload from ASM_SCA product into typed AppSecSCAConfig objects.
+ * Deserializer for Supply Chain Analysis (SCA) configuration from Remote Config. Converts JSON
+ * payload from ASM_SCA product into typed AppSecSCAConfig objects.
  */
 public class AppSecSCAConfigDeserializer implements ConfigurationDeserializer<AppSecSCAConfig> {
 

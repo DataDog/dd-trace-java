@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Detection handler for Supply Chain Analysis (SCA) vulnerability detection.
  *
- * <p>This class is called from instrumented methods to report when vulnerable third-party
- * library methods are invoked at runtime.
+ * <p>This class is called from instrumented methods to report when vulnerable third-party library
+ * methods are invoked at runtime.
  *
  * <p>POC implementation: Currently just logs detections. Future versions will report to Datadog
  * backend with vulnerability metadata, stack traces, and context.

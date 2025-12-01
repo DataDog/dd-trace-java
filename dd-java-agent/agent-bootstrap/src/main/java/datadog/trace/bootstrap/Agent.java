@@ -1004,7 +1004,8 @@ public class Agent {
       final Class<?> appSecSysClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", Instrumentation.class, SubscriptionService.class, scoClass);
+          appSecSysClass.getMethod(
+              "start", Instrumentation.class, SubscriptionService.class, scoClass);
       appSecInstallerMethod.invoke(null, inst, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
