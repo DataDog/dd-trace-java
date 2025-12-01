@@ -17,6 +17,7 @@ dependencies {
   implementation project(':telemetry')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '17.2.0'
   implementation libs.moshi
+  implementation libs.bundles.asm
 
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')

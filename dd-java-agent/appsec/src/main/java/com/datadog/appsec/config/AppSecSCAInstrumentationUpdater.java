@@ -103,10 +103,9 @@ public class AppSecSCAInstrumentationUpdater {
     }
 
     // Install new transformer
-    // TODO: Create AppSecSCATransformer
     log.debug("Installing new SCA transformer for targets: {}", targetClassNames);
-    // currentTransformer = new AppSecSCATransformer(newConfig);
-    // instrumentation.addTransformer(currentTransformer, true);
+    currentTransformer = new AppSecSCATransformer(newConfig);
+    instrumentation.addTransformer(currentTransformer, true);
 
     // Find loaded classes that match targets
     List<Class<?>> classesToRetransform = findLoadedClasses(targetClassNames);
