@@ -4,7 +4,6 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpanContext;
@@ -22,7 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Post-processor that extracts tags from payload data injected as tags by instrumentations. */
-public final class PayloadTagsProcessor extends TagsPostProcessor {
+public final class PayloadTagsProcessor implements TagsPostProcessor {
   private static final Logger log = LoggerFactory.getLogger(PayloadTagsProcessor.class);
 
   private static final String REDACTED = "redacted";
@@ -70,19 +69,17 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
   }
 
   @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+  public Map<String, Object> processTags(
+      Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
     int spanMaxTags = maxTags + unsafeTags.size();
     for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
         redactionRulesByTagPrefix.entrySet()) {
       String tagPrefix = tagPrefixRedactionRules.getKey();
       RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
-      Object tagValue = unsafeTags.getObject(tagPrefix);
+      Object tagValue = unsafeTags.get(tagPrefix);
       if (tagValue instanceof PayloadTagsData) {
-        if (unsafeTags.remove(tagPrefix)) {
-          spanMaxTags -= 1;
-        }
-
+        unsafeTags.remove(tagPrefix);
+        spanMaxTags -= 1;
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
         PayloadTagsCollector payloadTagsCollector =
             new PayloadTagsCollector(maxDepth, spanMaxTags, redactionRules, tagPrefix, unsafeTags);
@@ -95,6 +92,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
             tagValue);
       }
     }
+    return unsafeTags;
   }
 
   private void collectPayloadTags(
@@ -181,14 +179,14 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
     private final RedactionRules redactionRules;
     private final String tagPrefix;
 
-    private final TagMap collectedTags;
+    private final Map<String, Object> collectedTags;
 
     public PayloadTagsCollector(
         int maxDepth,
         int maxTags,
         RedactionRules redactionRules,
         String tagPrefix,
-        TagMap collectedTags) {
+        Map<String, Object> collectedTags) {
       this.maxDepth = maxDepth;
       this.maxTags = maxTags;
       this.redactionRules = redactionRules;

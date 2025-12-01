@@ -11,6 +11,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SimplePooledMap;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -93,6 +94,7 @@ public class DDSpanContext
 
   private volatile short httpStatusCode;
   private CharSequence integrationName;
+  private final String poolKey;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -103,7 +105,7 @@ public class DDSpanContext
    * rather read and accessed in a serial fashion on thread after thread. The synchronization can
    * then be wrapped around bulk operations to minimize the costly atomic operations.
    */
-  private final TagMap unsafeTags;
+  private final SimplePooledMap unsafeTags;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -112,10 +114,13 @@ public class DDSpanContext
   private volatile CharSequence resourceName;
 
   private volatile byte resourceNamePriority = ResourceNamePriorities.DEFAULT;
+
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
+
   /** The type of the span. If null, the Datadog Agent will report as a custom */
   private volatile CharSequence spanType;
+
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
 
@@ -351,7 +356,8 @@ public class DDSpanContext
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags = TagMap.create(capacity);
+    this.poolKey = operationName != null ? operationName.toString() : "";
+    this.unsafeTags = SimplePooledMap.acquire(poolKey, capacity);
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -790,7 +796,7 @@ public class DDSpanContext
               Object value = tagEntry.objectValue();
 
               if (!tagInterceptor.interceptTag(ctx, tag, value)) {
-                ctx.unsafeTags.set(tagEntry);
+                ctx.unsafeTags.put(tag, value);
               }
             });
       } else {
@@ -816,7 +822,7 @@ public class DDSpanContext
           Object value = entry.objectValue();
 
           if (!tagInterceptor.interceptTag(this, tag, value)) {
-            unsafeTags.set(entry);
+            unsafeTags.put(tag, value);
           }
         }
       }
@@ -863,6 +869,10 @@ public class DDSpanContext
     }
   }
 
+  void releaseTags() {
+    SimplePooledMap.release(poolKey, unsafeTags);
+  }
+
   /**
    * This is not thread-safe and must only be used when it can be guaranteed that the context will
    * not be mutated. This is internal API and must not be exposed to users.
@@ -871,13 +881,13 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return unsafeTags.getObject(tag);
+    return unsafeTags.get(tag);
   }
 
   @Deprecated
   public TagMap getTags() {
     synchronized (unsafeTags) {
-      TagMap tags = unsafeTags.copy();
+      TagMap tags = TagMap.fromMap(unsafeTags);
 
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|

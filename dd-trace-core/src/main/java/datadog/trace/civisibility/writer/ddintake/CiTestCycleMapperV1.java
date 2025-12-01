@@ -9,7 +9,6 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
@@ -317,7 +316,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      TagMap tags = metadata.getTags().copy();
+      Map<String, Object> tags = new HashMap<>(metadata.getTags());
 
       for (String ignoredTag : DEFAULT_TOP_LEVEL_TAGS) {
         tags.remove(ignoredTag);

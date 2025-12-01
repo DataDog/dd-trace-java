@@ -10,15 +10,17 @@ class PostProcessorChainTest extends DDSpecification {
     setup:
     def processor1 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           unsafeTags.put("key1", "processor1")
           unsafeTags.put("key2", "processor1")
+          unsafeTags
         }
       }
     def processor2 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           unsafeTags.put("key1", "processor2")
+          unsafeTags
         }
       }
 
@@ -36,17 +38,19 @@ class PostProcessorChainTest extends DDSpecification {
     setup:
     def processor1 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           unsafeTags.clear()
           unsafeTags.put("my", "tag")
+          unsafeTags
         }
       }
     def processor2 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+        Map<String, Object> processTags(Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           if (unsafeTags.containsKey("test")) {
             unsafeTags.put("found", "true")
           }
+          unsafeTags
         }
       }
 

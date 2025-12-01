@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DY
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2_VALUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
 
-import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
@@ -26,7 +25,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SpanPointersProcessor extends TagsPostProcessor {
+public class SpanPointersProcessor implements TagsPostProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(SpanPointersProcessor.class);
 
   // The pointer direction will always be down. The serverless agent handles cases where the
@@ -37,8 +36,8 @@ public class SpanPointersProcessor extends TagsPostProcessor {
   public static final String LINK_KIND = "span-pointer";
 
   @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+  public Map<String, Object> processTags(
+      Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
     // DQH - TODO - There's a lot room to optimize this using TagMap's capabilities
     AgentSpanLink s3Link = handleS3SpanPointer(unsafeTags);
     if (s3Link != null) {
@@ -49,6 +48,7 @@ public class SpanPointersProcessor extends TagsPostProcessor {
     if (dynamoDbLink != null) {
       spanLinks.add(dynamoDbLink);
     }
+    return unsafeTags;
   }
 
   private static AgentSpanLink handleS3SpanPointer(Map<String, Object> unsafeTags) {

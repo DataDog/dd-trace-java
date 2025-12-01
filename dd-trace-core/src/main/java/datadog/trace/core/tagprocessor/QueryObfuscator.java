@@ -4,16 +4,16 @@ import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.Strings;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class QueryObfuscator extends TagsPostProcessor {
+public final class QueryObfuscator implements TagsPostProcessor {
 
   private static final Logger log = LoggerFactory.getLogger(QueryObfuscator.class);
 
@@ -58,18 +58,19 @@ public final class QueryObfuscator extends TagsPostProcessor {
   }
 
   @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
+  public Map<String, Object> processTags(
+      Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+    Object query = unsafeTags.get(DDTags.HTTP_QUERY);
     if (query instanceof CharSequence) {
       query = obfuscate(query.toString());
 
       unsafeTags.put(DDTags.HTTP_QUERY, query);
 
-      Object url = unsafeTags.getObject(Tags.HTTP_URL);
+      Object url = unsafeTags.get(Tags.HTTP_URL);
       if (url instanceof CharSequence) {
         unsafeTags.put(Tags.HTTP_URL, url + "?" + query);
       }
     }
+    return unsafeTags;
   }
 }
