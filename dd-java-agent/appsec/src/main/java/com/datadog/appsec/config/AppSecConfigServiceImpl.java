@@ -21,6 +21,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
@@ -103,6 +104,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private boolean hasUserWafConfig;
   private boolean defaultConfigActivated;
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
+  private final AtomicBoolean subscribedToSCA = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Set<String> ignoredConfigKeys =
@@ -110,6 +112,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
+  private volatile AppSecSCAConfig currentSCAConfig;
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -133,6 +136,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       log.debug("Will not subscribe to ASM, ASM_DD and ASM_DATA (AppSec custom rules in use)");
     }
+
+    subscribeSCA();
 
     this.configurationPoller.addConfigurationEndListener(applyRemoteConfigListener);
   }
@@ -345,6 +350,51 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE);
   }
 
+  /**
+   * Subscribes to Supply Chain Analysis (SCA) configuration from Remote Config.
+   * Receives instrumentation targets for vulnerability detection in third-party dependencies.
+   */
+  private void subscribeSCA() {
+    if (subscribedToSCA.compareAndSet(false, true)) {
+      log.debug("Subscribing to ASM_SCA Remote Config product");
+      this.configurationPoller.addListener(
+          Product.ASM_SCA,
+          AppSecSCAConfigDeserializer.INSTANCE,
+          (configKey, newConfig, hinter) -> {
+            if (newConfig == null) {
+              log.debug("Received removal for SCA config key: {}", configKey);
+              currentSCAConfig = null;
+              // TODO: Trigger retransformation to remove instrumentation when updater exists
+            } else {
+              log.debug(
+                  "Received SCA config update for key: {} - enabled: {}, targets: {}",
+                  configKey,
+                  newConfig.enabled,
+                  newConfig.instrumentationTargets != null
+                      ? newConfig.instrumentationTargets.size()
+                      : 0);
+              currentSCAConfig = newConfig;
+              // TODO: Trigger retransformation when AppSecInstrumentationUpdater exists
+            }
+          });
+      this.configurationPoller.addCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
+      log.info("Successfully subscribed to ASM_SCA Remote Config product");
+    }
+  }
+
+  /**
+   * Unsubscribes from SCA Remote Config product and clears current configuration.
+   */
+  private void unsubscribeSCA() {
+    if (subscribedToSCA.compareAndSet(true, false)) {
+      log.debug("Unsubscribing from ASM_SCA Remote Config product");
+      this.configurationPoller.removeListeners(Product.ASM_SCA);
+      this.configurationPoller.removeCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
+      currentSCAConfig = null;
+      log.info("Successfully unsubscribed from ASM_SCA Remote Config product");
+    }
+  }
+
   private void distributeSubConfigurations(
       String key, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
     maybeInitializeDefaultConfig();
@@ -547,6 +597,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
     this.configurationPoller.removeListeners(Product.ASM_FEATURES);
+    unsubscribeSCA();
     this.configurationPoller.removeConfigurationEndListener(applyRemoteConfigListener);
     this.subscribedToRulesAndData.set(false);
     this.configurationPoller.stop();
