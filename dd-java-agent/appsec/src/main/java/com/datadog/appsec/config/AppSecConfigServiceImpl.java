@@ -113,6 +113,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
   private volatile AppSecSCAConfig currentSCAConfig;
+  private AppSecSCAInstrumentationUpdater scaInstrumentationUpdater;
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -124,6 +125,33 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     traceSegmentPostProcessors.add(initReporter);
     if (tracerConfig.isAppSecWafMetrics()) {
       traceSegmentPostProcessors.add(statsReporter);
+    }
+  }
+
+  /**
+   * Sets the Instrumentation instance for SCA hot instrumentation.
+   * Must be called before {@link #maybeSubscribeConfigPolling()} for SCA to work.
+   *
+   * @param instrumentation the Java Instrumentation API instance
+   */
+  public void setInstrumentation(java.lang.instrument.Instrumentation instrumentation) {
+    if (instrumentation == null) {
+      log.debug("Instrumentation is null, SCA hot instrumentation will not be available");
+      return;
+    }
+
+    if (!instrumentation.isRetransformClassesSupported()) {
+      log.warn(
+          "SCA requires retransformation support, but it's not available in this JVM. "
+              + "SCA vulnerability detection will not work.");
+      return;
+    }
+
+    try {
+      this.scaInstrumentationUpdater = new AppSecSCAInstrumentationUpdater(instrumentation);
+      log.debug("SCA instrumentation updater initialized successfully");
+    } catch (Exception e) {
+      log.error("Failed to initialize SCA instrumentation updater", e);
     }
   }
 
@@ -364,7 +392,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             if (newConfig == null) {
               log.debug("Received removal for SCA config key: {}", configKey);
               currentSCAConfig = null;
-              // TODO: Trigger retransformation to remove instrumentation when updater exists
+              triggerSCAInstrumentationUpdate(null);
             } else {
               log.debug(
                   "Received SCA config update for key: {} - enabled: {}, targets: {}",
@@ -374,7 +402,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
                       ? newConfig.instrumentationTargets.size()
                       : 0);
               currentSCAConfig = newConfig;
-              // TODO: Trigger retransformation when AppSecInstrumentationUpdater exists
+              triggerSCAInstrumentationUpdate(newConfig);
             }
           });
       this.configurationPoller.addCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
@@ -392,6 +420,26 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.configurationPoller.removeCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
       currentSCAConfig = null;
       log.info("Successfully unsubscribed from ASM_SCA Remote Config product");
+    }
+  }
+
+  /**
+   * Triggers SCA instrumentation update when configuration changes.
+   *
+   * @param newConfig the new SCA configuration, or null to remove instrumentation
+   */
+  private void triggerSCAInstrumentationUpdate(AppSecSCAConfig newConfig) {
+    if (scaInstrumentationUpdater == null) {
+      log.debug(
+          "SCA instrumentation updater not initialized. "
+              + "Call setInstrumentation() before subscribing to enable SCA.");
+      return;
+    }
+
+    try {
+      scaInstrumentationUpdater.onConfigUpdate(newConfig);
+    } catch (Exception e) {
+      log.error("Error updating SCA instrumentation", e);
     }
   }
 
