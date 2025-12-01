@@ -5,7 +5,9 @@
     "attributes": {
       "repository_url"  : "${tracerEnvironment.repositoryUrl}",
       "commit_message"  : "${tracerEnvironment.commitMessage}",
-      "sha"             : "${tracerEnvironment.sha}"
+      "module"          : "${tracerEnvironment.configurations.testBundle}",
+      "sha"             : "${tracerEnvironment.sha}",
+      "branch"          : "${tracerEnvironment.branch}"
       }
     }
   }
