@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("supported-config-generator")
+  id("dd-trace-java.supported-config-generator")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
