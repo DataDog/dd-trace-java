@@ -136,7 +136,6 @@ public class SharedCommunicationObjects {
     String containerId = ContainerInfo.get().getContainerId();
     String entityId = ContainerInfo.getEntityId();
     Supplier<String> configUrlSupplier;
-
     String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     if (remoteConfigUrl != null) {
       configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
