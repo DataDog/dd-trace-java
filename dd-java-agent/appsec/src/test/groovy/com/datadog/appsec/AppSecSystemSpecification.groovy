@@ -33,7 +33,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
   ConfigurationPoller poller = Mock()
-  java.lang.instrument.Instrumentation inst = Mock() {
+  java.lang.instrument.Instrumentation inst = Mock {
     isRetransformClassesSupported() >> true
     getAllLoadedClasses() >> ([] as Class[])
   }
