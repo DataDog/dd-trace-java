@@ -1,9 +1,7 @@
 package datadog.trace.instrumentation.springweb6;
 
-import static datadog.context.Context.root;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,21 +10,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.servlet.HandlerExecutionChain;
-import org.springframework.web.servlet.HandlerMapping;
-import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 public class HandlerMappingResourceNameFilter extends OncePerRequestFilter implements Ordered {
 
-  private static final Logger log = LoggerFactory.getLogger(HandlerMappingResourceNameFilter.class);
-  private final List<HandlerMapping> handlerMappings = new CopyOnWriteArrayList<>();
+  private boolean hasPatternMatchers = true;
 
   @Override
   protected void doFilterInternal(
@@ -35,55 +25,22 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       final FilterChain filterChain)
       throws ServletException, IOException {
 
-    final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (contextObj instanceof Context) {
+    final Object contextObj;
+    HttpServletRequest requestToUse = request;
+    if (hasPatternMatchers
+        && (contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE)) instanceof Context) {
       Context context = (Context) contextObj;
       AgentSpan parentSpan = spanFromContext(context);
       if (parentSpan != null) {
-        PathMatchingHttpServletRequestWrapper wrappedRequest =
-            new PathMatchingHttpServletRequestWrapper(request);
-        try {
-          if (findMapping(wrappedRequest)) {
-            // Name the parent span based on the matching pattern
-            // Let the parent span resource name be set with the attribute set in findMapping.
-            DECORATE.onRequest(parentSpan, wrappedRequest, wrappedRequest, root());
-          }
-        } catch (final Exception ignored) {
-          // mapping.getHandler() threw exception.  Ignore
-        }
+        requestToUse = new PathMatchingHttpServletRequestWrapper(request, parentSpan);
       }
     }
 
-    filterChain.doFilter(request, response);
+    filterChain.doFilter(requestToUse, response);
   }
 
-  /**
-   * When a HandlerMapping matches a request, it sets HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE
-   * as an attribute on the request. This attribute is read by
-   * SpringWebHttpServerDecorator.onRequest and set as the resource name.
-   */
-  private boolean findMapping(final HttpServletRequest request) throws Exception {
-    for (final HandlerMapping mapping : handlerMappings) {
-      final HandlerExecutionChain handler = mapping.getHandler(request);
-      if (handler != null) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public void setHandlerMappings(final List<HandlerMapping> handlerMappings) {
-    for (HandlerMapping handlerMapping : handlerMappings) {
-      if (handlerMapping instanceof RequestMappingInfoHandlerMapping) {
-        if (!this.handlerMappings.contains(handlerMapping)) {
-          this.handlerMappings.add(handlerMapping);
-        }
-      } else {
-        log.debug(
-            "discarding handler mapping {} which won't set BEST_MATCHING_PATTERN_ATTRIBUTE",
-            handlerMapping);
-      }
-    }
+  public void setHasPatternMatchers(boolean hasPatternMatchers) {
+    this.hasPatternMatchers = hasPatternMatchers;
   }
 
   @Override

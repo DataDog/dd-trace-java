@@ -25,6 +25,7 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.context.ApplicationContext;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 @AutoService(InstrumenterModule.class)
 public final class DispatcherServletInstrumentation extends InstrumenterModule.Tracing
@@ -86,9 +87,16 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
       if (springCtx.containsBean("ddDispatcherFilter")) {
         final HandlerMappingResourceNameFilter filter =
             (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
-        if (handlerMappings != null && filter != null) {
-          filter.setHandlerMappings(handlerMappings);
+        boolean found = false;
+        if (handlerMappings != null) {
+          for (final HandlerMapping handlerMapping : handlerMappings) {
+            if (handlerMapping instanceof RequestMappingInfoHandlerMapping) {
+              found = true;
+              break;
+            }
+          }
         }
+        filter.setHasPatternMatchers(found);
       }
     }
   }

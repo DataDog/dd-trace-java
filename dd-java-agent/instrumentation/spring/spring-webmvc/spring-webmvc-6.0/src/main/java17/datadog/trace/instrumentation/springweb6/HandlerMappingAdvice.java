@@ -17,11 +17,18 @@ public class HandlerMappingAdvice {
       @Advice.Argument(0) final ApplicationContext springCtx,
       @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
     if (springCtx.containsBean("ddDispatcherFilter")) {
-      final datadog.trace.instrumentation.springweb6.HandlerMappingResourceNameFilter filter =
+      final HandlerMappingResourceNameFilter filter =
           (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
-      if (handlerMappings != null && filter != null) {
-        filter.setHandlerMappings(handlerMappings);
+      boolean found = false;
+      if (handlerMappings != null) {
+        for (final HandlerMapping handlerMapping : handlerMappings) {
+          if (handlerMapping.usesPathPatterns()) {
+            found = true;
+            break;
+          }
+        }
       }
+      filter.setHasPatternMatchers(found);
     }
   }
 }
