@@ -3,16 +3,20 @@ package datadog.trace.civisibility.execution;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import java.util.concurrent.atomic.AtomicBoolean;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification =
+        "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private final int maxExecutions;
   private final boolean suppressFailures;
-  private final AtomicInteger executions = new AtomicInteger(0);
-  private final AtomicBoolean successfulExecutionSeen = new AtomicBoolean(false);
+  private int executions;
+  private boolean successfulExecutionSeen;
 
   /** Total retry counter that is shared by all retry until successful policies (currently ATR) */
   private final AtomicInteger totalRetryCount;
@@ -22,29 +26,29 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
     this.maxExecutions = maxExecutions;
     this.suppressFailures = suppressFailures;
     this.totalRetryCount = totalRetryCount;
+    this.executions = 0;
   }
 
   @Override
   public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
-    int execs = executions.incrementAndGet();
-    boolean success = successfulExecutionSeen.get() | (status != TestStatus.fail);
-    successfulExecutionSeen.set(success);
-    if (execs > 1) {
+    ++executions;
+    successfulExecutionSeen |= (status != TestStatus.fail);
+    if (executions > 1) {
       totalRetryCount.incrementAndGet();
     }
 
     boolean lastExecution = !retriesLeft();
-    boolean retry = execs > 1; // first execution is not a retry
+    boolean retry = executions > 1; // first execution is not a retry
     return new ExecutionOutcomeImpl(
         status == TestStatus.fail && (!lastExecution || suppressFailures),
         lastExecution,
-        lastExecution && !success,
+        lastExecution && !successfulExecutionSeen,
         false,
         retry ? RetryReason.atr : null);
   }
 
   private boolean retriesLeft() {
-    return !successfulExecutionSeen.get() && executions.get() < maxExecutions;
+    return !successfulExecutionSeen && executions < maxExecutions;
   }
 
   @Override
@@ -58,7 +62,7 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   public boolean suppressFailures() {
     // do not suppress failures for last execution (unless flag to suppress all failures is set);
     // the +1 is because this method is called _before_ subsequent execution is registered
-    return executions.get() + 1 < maxExecutions || suppressFailures;
+    return executions + 1 < maxExecutions || suppressFailures;
   }
 
   @Override

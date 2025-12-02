@@ -7,6 +7,7 @@ import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -102,7 +103,11 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     /**
      * Flag for the current alive tainted objects (red/black style marking for max age calculation).
      */
-    protected volatile boolean generation;
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification =
+            "The design explicitly tolerates losses in high-concurrency scenarios. The delayed visibility of the generation flag can cause some entries to be purged a bit earlier or later than ideal, but this is still within the acceptable boundaries of the design.")
+    protected boolean generation;
 
     /** Whether to collect the {@link IastMetric#TAINTED_FLAT_MODE} metric or not */
     protected boolean collectFlatBucketMetric;

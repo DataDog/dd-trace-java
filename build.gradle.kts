@@ -2,15 +2,15 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
-  id("datadog.gradle-debug")
-  id("datadog.dependency-locking")
-  id("datadog.tracer-version")
-  id("datadog.dump-hanged-test")
-  id("config-inversion-linter")
-  id("datadog.ci-jobs")
+  id("dd-trace-java.gradle-debug")
+  id("dd-trace-java.dependency-locking")
+  id("dd-trace-java.tracer-version")
+  id("dd-trace-java.dump-hanged-test")
+  id("dd-trace-java.config-inversion-linter")
+  id("dd-trace-java.ci-jobs")
 
   id("com.diffplug.spotless") version "8.1.0"
-  id("com.github.spotbugs") version "6.4.5"
+  id("com.github.spotbugs") version "6.4.7"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.6" apply false

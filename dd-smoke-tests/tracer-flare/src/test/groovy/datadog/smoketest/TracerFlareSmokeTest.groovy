@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
 import spock.lang.Shared
 
 import java.nio.file.FileSystems
@@ -153,6 +154,7 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     fileName.startsWith(FLARE_FILE_PREFIX) && fileName.endsWith(FLARE_FILE_EXTENSION)
   }
 
+  @Flaky("No flare file created in 30 seconds under various JDKs: oracle8, ibm8, zulu8")
   def "tracer generates flare with profiling enabled (default)"() {
     when:
     // Wait for flare file to be created using filesystem watcher
