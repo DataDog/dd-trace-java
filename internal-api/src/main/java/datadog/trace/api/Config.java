@@ -107,6 +107,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_INJECT_DATADOG_ATTRIBUTE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -1308,6 +1309,11 @@ public class Config {
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
 
+  private final boolean sfnInjectDatadogAttributeEnabled;
+  private final boolean sqsInjectDatadogAttributeEnabled;
+  private final boolean snsInjectDatadogAttributeEnabled;
+  private final boolean eventbridgeInjectDatadogAttributeEnabled;
+
   private final RumInjectorConfig rumInjectorConfig;
 
   private final boolean aiGuardEnabled;
@@ -1589,6 +1595,15 @@ public class Config {
 
     awsServerless =
         getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
+
+    sfnInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sfn");
+    eventbridgeInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "eventbridge");
+    snsInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sns");
+    sqsInjectDatadogAttributeEnabled =
+        isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sqs");
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -4733,6 +4748,22 @@ public class Config {
     return stackTraceLengthLimit;
   }
 
+  public boolean isSqsInjectDatadogAttributeEnabled() {
+    return sqsInjectDatadogAttributeEnabled;
+  }
+
+  public boolean isSnsInjectDatadogAttributeEnabled() {
+    return snsInjectDatadogAttributeEnabled;
+  }
+
+  public boolean isEventbridgeInjectDatadogAttributeEnabled() {
+    return eventbridgeInjectDatadogAttributeEnabled;
+  }
+
+  public boolean isSfnInjectDatadogAttributeEnabled() {
+    return sfnInjectDatadogAttributeEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -5178,6 +5209,12 @@ public class Config {
       final boolean defaultEnabled, final String... integrationNames) {
     return configProvider.isEnabled(
         Arrays.asList(integrationNames), "", ".propagation.enabled", defaultEnabled);
+  }
+
+  public boolean isInjectDatadogAttributeEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return configProvider.isEnabled(
+        Arrays.asList(integrationNames), "", ".inject.datadog.attribute.enabled", defaultEnabled);
   }
 
   public boolean isLegacyTracingEnabled(
@@ -6151,6 +6188,14 @@ public class Config {
         + otlpMetricsTemporalityPreference
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
+        + ", sfnInjectDatadogAttributeEnabled="
+        + sfnInjectDatadogAttributeEnabled
+        + ", eventbridgeInjectDatadogAttributeEnabled="
+        + eventbridgeInjectDatadogAttributeEnabled
+        + ", sqsInjectDatadogAttributeEnabled="
+        + sqsInjectDatadogAttributeEnabled
+        + ", snsInjectDatadogAttributeEnabled="
+        + snsInjectDatadogAttributeEnabled
         + '}';
   }
 }
