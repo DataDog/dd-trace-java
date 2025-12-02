@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
@@ -29,7 +28,6 @@ tasks.named("processResources") {
 sourceSets {
   "main_java6" {
     java.srcDirs "${project.projectDir}/src/main/java6"
-
   }
   main.resources.srcDir(includedAgentDir)
 }
@@ -43,7 +41,7 @@ tasks.named("compileJava") {
 }
 
 dependencies {
-  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
 

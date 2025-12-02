@@ -50,7 +50,7 @@ public final class EnvironmentChecker {
     boolean result = false;
     result |= checkJFR(sb);
     result |= checkDdprof(sb);
-    if (!result) {;
+    if (!result) {
       appendLine("Profiler is not supported on this JVM.", sb);
       return false;
     } else {
