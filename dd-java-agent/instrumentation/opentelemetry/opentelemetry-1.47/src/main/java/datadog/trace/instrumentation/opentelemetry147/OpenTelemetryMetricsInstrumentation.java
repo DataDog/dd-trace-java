@@ -15,11 +15,12 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+/** Provides our metrics implementations to OpenTelemetry clients. */
 @AutoService(InstrumenterModule.class)
-public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
+public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public OpenTelemetryInstrumentation() {
+  public OpenTelemetryMetricsInstrumentation() {
     super("opentelemetry.metrics", "opentelemetry-147");
   }
 
@@ -70,7 +71,7 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
             .and(named("getMeterProvider"))
             .and(takesNoArguments())
             .and(returns(named("io.opentelemetry.api.metrics.MeterProvider"))),
-        OpenTelemetryInstrumentation.class.getName() + "$MeterProviderAdvice");
+        OpenTelemetryMetricsInstrumentation.class.getName() + "$MeterProviderAdvice");
   }
 
   public static class MeterProviderAdvice {
