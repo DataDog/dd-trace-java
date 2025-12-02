@@ -8,11 +8,18 @@ class AppSecSCAConfigDeserializerTest extends Specification {
     given:
     def json = '''
       {
-        "enabled": true,
-        "instrumentation_targets": [
+        "vulnerabilities": [
           {
-            "class_name": "org/springframework/web/client/RestTemplate",
-            "method_name": "execute"
+            "advisory": "GHSA-24rp-q3w6-vc56",
+            "cve": "CVE-2024-1597",
+            "vulnerable_internal_code": {
+              "class": "org.postgresql.core.v3.SimpleParameterList",
+              "method": "toString"
+            },
+            "external_entrypoint": {
+              "class": "org.postgresql.jdbc.PgPreparedStatement",
+              "methods": ["executeQuery", "executeUpdate", "execute"]
+            }
           }
         ]
       }
@@ -24,10 +31,13 @@ class AppSecSCAConfigDeserializerTest extends Specification {
 
     then:
     config != null
-    config.enabled == true
-    config.instrumentationTargets.size() == 1
-    config.instrumentationTargets[0].className == "org/springframework/web/client/RestTemplate"
-    config.instrumentationTargets[0].methodName == "execute"
+    config.vulnerabilities.size() == 1
+    config.vulnerabilities[0].advisory == "GHSA-24rp-q3w6-vc56"
+    config.vulnerabilities[0].cve == "CVE-2024-1597"
+    config.vulnerabilities[0].vulnerableInternalCode.className == "org.postgresql.core.v3.SimpleParameterList"
+    config.vulnerabilities[0].vulnerableInternalCode.methodName == "toString"
+    config.vulnerabilities[0].externalEntrypoint.className == "org.postgresql.jdbc.PgPreparedStatement"
+    config.vulnerabilities[0].externalEntrypoint.methods == ["executeQuery", "executeUpdate", "execute"]
   }
 
   def "returns null for null content"() {
@@ -48,7 +58,7 @@ class AppSecSCAConfigDeserializerTest extends Specification {
 
   def "deserializes minimal configuration"() {
     given:
-    def json = '{"enabled": false}'
+    def json = '{"vulnerabilities": []}'
     def bytes = json.bytes
 
     when:
@@ -56,27 +66,38 @@ class AppSecSCAConfigDeserializerTest extends Specification {
 
     then:
     config != null
-    config.enabled == false
-    config.instrumentationTargets == null
+    config.vulnerabilities != null
+    config.vulnerabilities.isEmpty()
   }
 
-  def "handles multiple instrumentation targets"() {
+  def "handles multiple vulnerabilities"() {
     given:
     def json = '''
       {
-        "enabled": true,
-        "instrumentation_targets": [
+        "vulnerabilities": [
           {
-            "class_name": "com/example/Class1",
-            "method_name": "method1"
+            "advisory": "GHSA-1111-2222-3333",
+            "cve": "CVE-2024-0001",
+            "vulnerable_internal_code": {
+              "class": "com.example.Class1",
+              "method": "method1"
+            }
           },
           {
-            "class_name": "com/example/Class2",
-            "method_name": "method2"
+            "advisory": "GHSA-4444-5555-6666",
+            "cve": "CVE-2024-0002",
+            "vulnerable_internal_code": {
+              "class": "com.example.Class2",
+              "method": "method2"
+            }
           },
           {
-            "class_name": "com/example/Class3",
-            "method_name": "method3"
+            "advisory": "GHSA-7777-8888-9999",
+            "cve": "CVE-2024-0003",
+            "vulnerable_internal_code": {
+              "class": "com.example.Class3",
+              "method": "method3"
+            }
           }
         ]
       }
@@ -88,17 +109,22 @@ class AppSecSCAConfigDeserializerTest extends Specification {
 
     then:
     config != null
-    config.enabled == true
-    config.instrumentationTargets.size() == 3
+    config.vulnerabilities.size() == 3
 
-    config.instrumentationTargets[0].className == "com/example/Class1"
-    config.instrumentationTargets[0].methodName == "method1"
+    config.vulnerabilities[0].advisory == "GHSA-1111-2222-3333"
+    config.vulnerabilities[0].cve == "CVE-2024-0001"
+    config.vulnerabilities[0].vulnerableInternalCode.className == "com.example.Class1"
+    config.vulnerabilities[0].vulnerableInternalCode.methodName == "method1"
 
-    config.instrumentationTargets[1].className == "com/example/Class2"
-    config.instrumentationTargets[1].methodName == "method2"
+    config.vulnerabilities[1].advisory == "GHSA-4444-5555-6666"
+    config.vulnerabilities[1].cve == "CVE-2024-0002"
+    config.vulnerabilities[1].vulnerableInternalCode.className == "com.example.Class2"
+    config.vulnerabilities[1].vulnerableInternalCode.methodName == "method2"
 
-    config.instrumentationTargets[2].className == "com/example/Class3"
-    config.instrumentationTargets[2].methodName == "method3"
+    config.vulnerabilities[2].advisory == "GHSA-7777-8888-9999"
+    config.vulnerabilities[2].cve == "CVE-2024-0003"
+    config.vulnerabilities[2].vulnerableInternalCode.className == "com.example.Class3"
+    config.vulnerabilities[2].vulnerableInternalCode.methodName == "method3"
   }
 
   def "INSTANCE is a singleton"() {

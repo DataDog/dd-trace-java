@@ -55,22 +55,15 @@ public class AppSecSCAInstrumentationUpdater {
         return;
       }
 
-      if (!isEnabled(newConfig)) {
-        log.debug("SCA config disabled, removing instrumentation");
-        removeInstrumentation();
-        currentConfig = newConfig;
-        return;
-      }
-
-      if (newConfig.instrumentationTargets == null || newConfig.instrumentationTargets.isEmpty()) {
-        log.debug("SCA config has no instrumentation targets");
+      if (newConfig.vulnerabilities == null || newConfig.vulnerabilities.isEmpty()) {
+        log.debug("SCA config has no vulnerabilities");
         removeInstrumentation();
         currentConfig = newConfig;
         return;
       }
 
       log.info(
-          "Applying SCA instrumentation for {} targets", newConfig.instrumentationTargets.size());
+          "Applying SCA instrumentation for {} vulnerabilities", newConfig.vulnerabilities.size());
 
       AppSecSCAConfig oldConfig = currentConfig;
       currentConfig = newConfig;
@@ -79,10 +72,6 @@ public class AppSecSCAInstrumentationUpdater {
     } finally {
       updateLock.unlock();
     }
-  }
-
-  private boolean isEnabled(AppSecSCAConfig config) {
-    return config.enabled != null && config.enabled;
   }
 
   private void applyInstrumentation(AppSecSCAConfig oldConfig, AppSecSCAConfig newConfig) {
@@ -122,15 +111,22 @@ public class AppSecSCAInstrumentationUpdater {
   private Set<String> extractTargetClassNames(AppSecSCAConfig config) {
     Set<String> classNames = new HashSet<>();
 
-    for (AppSecSCAConfig.InstrumentationTarget target : config.instrumentationTargets) {
-      if (target.className == null || target.className.isEmpty()) {
-        log.warn("Skipping target with null or empty className");
-        continue;
+    for (AppSecSCAConfig.Vulnerability vulnerability : config.vulnerabilities) {
+      // Extract vulnerable internal code class
+      if (vulnerability.vulnerableInternalCode != null
+          && vulnerability.vulnerableInternalCode.className != null
+          && !vulnerability.vulnerableInternalCode.className.isEmpty()) {
+        // className is already in binary format (org.foo.Bar), no conversion needed
+        classNames.add(vulnerability.vulnerableInternalCode.className);
       }
 
-      // Convert internal format (org/foo/Bar) to binary name (org.foo.Bar)
-      String binaryName = target.className.replace('/', '.');
-      classNames.add(binaryName);
+      // Extract external entrypoint class
+      if (vulnerability.externalEntrypoint != null
+          && vulnerability.externalEntrypoint.className != null
+          && !vulnerability.externalEntrypoint.className.isEmpty()) {
+        // className is already in binary format (org.foo.Bar), no conversion needed
+        classNames.add(vulnerability.externalEntrypoint.className);
+      }
     }
 
     return classNames;

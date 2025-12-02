@@ -41,20 +41,27 @@ public class AppSecSCATransformer implements ClassFileTransformer {
   private Map<String, TargetMethods> buildTargetsMap(AppSecSCAConfig config) {
     Map<String, TargetMethods> map = new HashMap<>();
 
-    if (config.instrumentationTargets == null) {
+    if (config.vulnerabilities == null) {
       return map;
     }
 
-    for (AppSecSCAConfig.InstrumentationTarget target : config.instrumentationTargets) {
-      if (target.className == null || target.methodName == null) {
-        continue;
+    for (AppSecSCAConfig.Vulnerability vulnerability : config.vulnerabilities) {
+      // Instrument the vulnerable internal code location
+      if (vulnerability.vulnerableInternalCode != null
+          && vulnerability.vulnerableInternalCode.className != null
+          && vulnerability.vulnerableInternalCode.methodName != null) {
+
+        // Convert binary format (org.foo.Bar) to internal format (org/foo/Bar)
+        String internalClassName =
+            vulnerability.vulnerableInternalCode.className.replace('.', '/');
+
+        TargetMethods methods =
+            map.computeIfAbsent(internalClassName, k -> new TargetMethods(vulnerability));
+        methods.addMethod(vulnerability.vulnerableInternalCode.methodName);
       }
 
-      // Convert internal format (org/foo/Bar) to internal format (already is internal)
-      String internalClassName = target.className;
-
-      TargetMethods methods = map.computeIfAbsent(internalClassName, k -> new TargetMethods());
-      methods.addMethod(target.methodName);
+      // Optionally instrument external entrypoints (for now POC only instruments vulnerable code)
+      // TODO: Add external_entrypoint instrumentation for entry point tracking
     }
 
     return map;
@@ -176,9 +183,14 @@ public class AppSecSCATransformer implements ClassFileTransformer {
     }
   }
 
-  /** Helper class to store target methods for a class. */
+  /** Helper class to store target methods and vulnerability metadata for a class. */
   private static class TargetMethods {
+    private final AppSecSCAConfig.Vulnerability vulnerability;
     private final Map<String, Boolean> methods = new HashMap<>();
+
+    TargetMethods(AppSecSCAConfig.Vulnerability vulnerability) {
+      this.vulnerability = vulnerability;
+    }
 
     void addMethod(String methodName) {
       methods.put(methodName, Boolean.TRUE);
@@ -186,6 +198,10 @@ public class AppSecSCATransformer implements ClassFileTransformer {
 
     boolean contains(String methodName) {
       return methods.containsKey(methodName);
+    }
+
+    AppSecSCAConfig.Vulnerability getVulnerability() {
+      return vulnerability;
     }
   }
 }
