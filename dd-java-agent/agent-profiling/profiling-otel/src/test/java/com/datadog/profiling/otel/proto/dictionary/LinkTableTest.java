@@ -1,6 +1,5 @@
-package com.datadog.profiling.otel.dictionary;
+package com.datadog.profiling.otel.proto.dictionary;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 

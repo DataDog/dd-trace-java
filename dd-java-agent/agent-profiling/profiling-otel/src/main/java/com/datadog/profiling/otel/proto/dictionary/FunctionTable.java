@@ -1,4 +1,4 @@
-package com.datadog.profiling.otel.dictionary;
+package com.datadog.profiling.otel.proto.dictionary;
 
 import java.util.ArrayList;
 import java.util.HashMap;
