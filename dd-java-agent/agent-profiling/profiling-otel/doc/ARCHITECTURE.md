@@ -21,19 +21,21 @@ Based on: https://github.com/open-telemetry/opentelemetry-proto/blob/main/opente
 ```
 ProfilesData
 ├── dictionary: ProfilesDictionary (shared across all profiles)
-│   ├── string_table[]      - interned strings
-│   ├── function_table[]    - function metadata
-│   ├── location_table[]    - stack frame locations
+│   ├── string_table[]      - interned strings (used for function names, filenames,
+│   │                         attribute keys, attribute units, value type names, etc.)
+│   ├── function_table[]    - function metadata (nameIndex, systemNameIndex, filenameIndex → string_table)
+│   ├── location_table[]    - stack frame locations (functionIndex → function_table)
 │   ├── mapping_table[]     - binary/library mappings
-│   ├── stack_table[]       - call stacks (arrays of location indices)
-│   ├── link_table[]        - trace context links
-│   └── attribute_table[]   - key-value attributes
+│   ├── stack_table[]       - call stacks (arrays of locationIndex → location_table)
+│   ├── link_table[]        - trace context links (traceId, spanId as raw bytes)
+│   └── attribute_table[]   - key-value attributes (keyIndex, unitIndex → string_table;
+│                             string values stored as raw strings, NOT indices)
 │
 └── resource_profiles[]
     └── scope_profiles[]
         └── profiles[]
-            ├── sample_type: ValueType
-            ├── period_type: ValueType
+            ├── sample_type: ValueType (type, unit → string_table)
+            ├── period_type: ValueType (type, unit → string_table)
             ├── samples[]
             │   ├── stack_index      -> stack_table
             │   ├── attribute_indices[] -> attribute_table
@@ -59,7 +61,19 @@ com.datadog.profiling.otel/
 │   ├── ProtobufEncoder   # Wire format encoder
 │   └── OtlpProtoFields   # Field number constants
 │
-└── (future: converter, writer classes)
+├── jfr/                  # JFR event type definitions
+│   ├── ExecutionSample   # CPU profiling (datadog.ExecutionSample)
+│   ├── MethodSample      # Wall-clock profiling (datadog.MethodSample)
+│   ├── ObjectSample      # Allocation profiling (datadog.ObjectSample)
+│   ├── JavaMonitorEnter  # Lock contention (jdk.JavaMonitorEnter)
+│   ├── JavaMonitorWait   # Monitor wait (jdk.JavaMonitorWait)
+│   ├── JfrStackTrace     # Stack trace container
+│   ├── JfrStackFrame     # Individual stack frame
+│   ├── JfrMethod         # Method descriptor
+│   └── JfrClass          # Class descriptor
+│
+├── JfrToOtlpConverter    # Main converter (JFR -> OTLP)
+└── OtlpProfileWriter     # Profile writer interface
 ```
 
 ## JFR Event to OTLP Mapping
@@ -95,7 +109,7 @@ All dictionary tables follow a common pattern:
 
 **LinkTable**: Links connect samples to trace spans. Stores 16-byte traceId and 8-byte spanId. Provides convenience method for 64-bit DD trace/span IDs.
 
-**AttributeTable**: Supports STRING, BOOL, INT, DOUBLE value types. Key includes (keyIndex, valueType, value, unitIndex).
+**AttributeTable**: Supports STRING, BOOL, INT, DOUBLE value types. Key includes (keyIndex, valueType, value, unitIndex). Important: Per OTLP spec, attribute keys and units are stored as indices into StringTable, but string VALUES are stored as raw String objects (not indices). This matches the protobuf `AnyValue.string_value` field which holds raw strings. Only the keyIndex and unitIndex reference the StringTable.
 
 #### ProtobufEncoder
 
@@ -119,19 +133,297 @@ Key methods:
 
 Constants for all OTLP protobuf field numbers, organized by message type. Enables type-safe field references without magic numbers.
 
-### Phase 2: JFR Parsing & CPU Profile (In Progress)
+### Phase 2: JFR Parsing & Event Conversion (Completed)
 
-(To be documented as implementation progresses)
+#### TypedJafarParser Integration
+
+Uses the typed JafarParser API (from `io.btrace:jafar-parser`) for efficient JFR event parsing. The typed parser generates implementations at runtime for interfaces annotated with `@JfrType`.
+
+**JFR Type Interfaces** (`com.datadog.profiling.otel.jfr`):
+
+Each interface maps to a specific JFR event type:
+
+```java
+@JfrType("datadog.ExecutionSample")
+public interface ExecutionSample {
+    long startTime();
+    JfrStackTrace stackTrace();
+    long spanId();
+    long localRootSpanId();
+}
+```
+
+Supporting types for stack trace traversal:
+- `JfrStackTrace` - contains array of `JfrStackFrame`
+- `JfrStackFrame` - references `JfrMethod`, line number, bytecode index
+- `JfrMethod` - references `JfrClass`, method name, descriptor
+- `JfrClass` - class name, package info
+
+#### JfrToOtlpConverter
+
+Main converter class that:
+
+1. **Parses JFR stream** using `TypedJafarParser`:
+   - Creates temp file from input stream (parser requires file path)
+   - Registers handlers for each event type
+   - Runs parser to process all events
+
+2. **Builds dictionary tables** during parsing:
+   - Strings → `StringTable`
+   - Methods → `FunctionTable`
+   - Stack frames → `LocationTable`
+   - Call stacks → `StackTable`
+   - Trace context → `LinkTable`
+   - Profile type labels → `AttributeTable`
+
+3. **Aggregates samples** by identity `{stack_index, attribute_indices, link_index}`:
+   - Samples with same identity are merged
+   - Values (count, duration, bytes) are summed
+   - Timestamps are collected
+
+4. **Encodes output** using `ProtobufEncoder`:
+   - First encodes dictionary (ProfilesDictionary)
+   - Then encodes samples with references to dictionary
+   - Outputs binary protobuf format
+
+#### Profile Type Discrimination
+
+Samples are tagged with profile type via attributes:
+- `profile.type` attribute with values: `cpu`, `wall`, `alloc-samples`, `lock-contention`
+- Each event handler sets appropriate type when creating sample
+
+#### Trace Context Integration
+
+For events with span context (ExecutionSample, MethodSample, ObjectSample):
+- Extracts `spanId` and `localRootSpanId` from JFR event
+- Creates Link entry in `LinkTable`
+- Links samples to originating trace spans
+
+### Phase 3-4: Additional Event Types & Trace Context (Completed)
+
+All event types implemented in Phase 2:
+- CPU profiling via `datadog.ExecutionSample`
+- Wall-clock via `datadog.MethodSample`
+- Allocation via `datadog.ObjectSample` (includes allocation size)
+- Lock contention via `jdk.JavaMonitorEnter` and `jdk.JavaMonitorWait` (includes duration)
+
+Trace context fully integrated via LinkTable for span correlation.
+
+### Phase 5: JSON Output & Integration Tests (Completed)
+
+#### JSON Output Format
+
+The converter now supports both binary protobuf and JSON text output via an enum-based API:
+
+```java
+public enum Kind {
+  /** Protobuf binary format (default). */
+  PROTO,
+  /** JSON text format. */
+  JSON
+}
+
+// Convert to protobuf (default)
+byte[] protobuf = converter.addFile(jfrFile, start, end).convert();
+// OR explicitly
+byte[] protobuf = converter.addFile(jfrFile, start, end).convert(Kind.PROTO);
+
+// Convert to JSON
+byte[] json = converter.addFile(jfrFile, start, end).convert(Kind.JSON);
+```
+
+**JSON Encoding Implementation**:
+- Uses DataDog's `JsonWriter` component (`components/json`)
+- Produces human-readable JSON matching the OTLP protobuf structure
+- Binary IDs (trace_id, span_id, profile_id) encoded as hex strings
+- Dictionary tables fully serialized in the `dictionary` section
+- Samples reference dictionary entries by index (same as protobuf)
+
+**Example JSON output structure**:
+```json
+{
+  "resource_profiles": [{
+    "scope_profiles": [{
+      "profiles": [{
+        "sample_type": {"type": 1, "unit": 2},
+        "samples": [{
+          "stack_index": 3,
+          "attribute_indices": [4, 5],
+          "link_index": 1,
+          "values": [100],
+          "timestamps_unix_nano": [1234567890000000]
+        }],
+        "time_unix_nano": 1234567890000000,
+        "duration_nano": 60000000000,
+        "profile_id": "0123456789abcdef"
+      }]
+    }]
+  }],
+  "dictionary": {
+    "string_table": ["", "cpu", "samples", ...],
+    "function_table": [...],
+    "location_table": [...],
+    "stack_table": [...],
+    "link_table": [...],
+    "attribute_table": [...]
+  }
+}
+```
+
+#### Integration Tests
+
+Smoke tests implemented using JMC JFR Writer API:
+- `JfrToOtlpConverterSmokeTest.java` - 8 tests covering all event types
+- Tests verify both protobuf and JSON output
+- Events tested: ExecutionSample, MethodSample, ObjectSample, JavaMonitorEnter
+- Multi-file conversion and converter reuse validated
+
+### Phase 5.5: Performance Benchmarking (Completed)
+
+JMH microbenchmarks implemented in `src/jmh/java/com/datadog/profiling/otel/benchmark/`:
+
+1. **DictionaryTableBenchmark** - Dictionary interning performance
+   - Tests StringTable, FunctionTable, StackTable interning
+   - Measures cold (unique entries) vs warm (cache hits) performance
+   - Parameterized by entry count and hit rate
+
+2. **StackTraceConversionBenchmark** - JFR stack trace conversion overhead
+   - End-to-end conversion of JFR events to OTLP samples
+   - Parameterized by stack depth and unique stack count
+   - Measures throughput in samples/second
+
+3. **ProtobufEncoderBenchmark** - Wire format encoding performance
+   - Measures varint, fixed64, string, and nested message encoding
+   - Tests packed repeated field encoding
+   - Validates low-level encoder efficiency
+
+**Benchmark Execution**:
+```bash
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmh
+```
+
+**Key Performance Characteristics**:
+- Dictionary interning: ~8-26 ops/µs (cold to warm cache)
+- Stack trace conversion: Scales linearly with stack depth
+- Protobuf encoding: Minimal overhead for varint/fixed encoding
+
+### Phase 6: OTLP Compatibility Testing & Validation (In Progress)
+
+#### Objective
+
+Establish comprehensive validation to ensure generated OTLP profiles comply with OpenTelemetry specifications and are compatible with OTLP collectors/receivers.
+
+#### Validation Rules
+
+Based on [OTLP profiles.proto v1development](https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/profiles/v1development/profiles.proto):
+
+1. **Index 0 Semantics**: All dictionary tables must have index 0 reserved for null/unset values
+2. **No Duplicates**: Dictionary entries should be unique by value
+3. **No Orphans**: Unreferenced dictionary items should not exist
+4. **Sample Identity**: `{stack_index, set_of(attribute_indices), link_index}` tuple defines sample uniqueness
+5. **Timestamp Consistency**: Sample timestamps must fall within profile time bounds `[time_unix_nano, time_unix_nano + duration_nano)`
+6. **Valid References**: All sample indices must reference valid dictionary entries
+7. **Non-zero Trace Context**: Link trace/span IDs must be non-zero when present
+
+#### Current Testing Gaps
+
+✅ **Existing Coverage**:
+- ProtobufEncoder unit tests (26 tests) for wire format correctness
+- Dictionary table unit tests for basic functionality
+- Smoke tests for end-to-end conversion
+- Performance benchmarks
+
+❌ **Missing Coverage**:
+- Index 0 reservation validation across all dictionaries
+- Dictionary uniqueness constraint verification
+- Orphaned entry detection
+- Timestamp consistency validation
+- Round-trip validation (encode → parse → compare)
+- Interoperability testing with OTLP collectors
+- Semantic validation of OTLP requirements
+
+#### Implementation Plan
+
+**Phase 6A: Validation Utilities (Mandatory)**
+
+Create validation infrastructure:
+
+1. **`OtlpProfileValidator.java`** - Static validation methods:
+   - `validateDictionaries()` - Check index 0, uniqueness, references
+   - `validateSamples()` - Check timestamps, indices, consistency
+   - `validateProfile()` - Comprehensive validation of entire profile
+
+2. **`ValidationResult.java`** - Result object with:
+   - Pass/fail status
+   - List of validation errors with details
+   - Warnings for non-critical issues
+
+3. **`OtlpProfileRoundTripTest.java`** - Round-trip validation:
+   - Generate profile with known data
+   - Parse back the encoded protobuf
+   - Validate structure matches expectations
+   - Verify no data loss or corruption
+
+4. **Integration with existing tests** - Add validation calls to:
+   - Dictionary table unit tests
+   - `JfrToOtlpConverterSmokeTest`
+   - Any new profile generation tests
+
+**Phase 6B: External Tool Integration (Optional)**
+
+1. **Buf CLI Integration** - Schema linting:
+   - Add `bufLint` Gradle task
+   - Validate against official OTLP proto files
+   - Detect breaking changes
+
+2. **OpenTelemetry Collector Integration** - Interoperability testing:
+   - Docker Compose setup with OTel Collector
+   - Send generated profiles to collector endpoint
+   - Verify acceptance and processing
+   - Check exported data format
+
+#### Success Criteria
+
+1. ✅ All dictionary tables have index 0 validation
+2. ✅ No duplicate entries in dictionaries (verified by tests)
+3. ✅ All sample indices reference valid entries (verified by tests)
+4. ✅ Timestamp consistency validated
+5. ✅ Round-trip validation passes
+6. ✅ Documentation updated with validation approach
+
+#### Trade-offs
+
+**Validation Strictness**: Validation is strict in tests (fail on violations), but optional in production (can be enabled via feature flag for debugging).
+
+**Performance Impact**: Validation has overhead and should:
+- Always run in tests
+- Be optional in production
+- Skip in performance-critical paths
+
+**External Tools**: Buf CLI and OpenTelemetry Collector integration are documented but not required for builds (optional for enhanced validation).
 
 ## Testing Strategy
 
 - **Unit Tests**: Each dictionary table and encoder method tested independently
-- **Integration Tests**: End-to-end conversion with JMC JFR Writer API for creating test recordings
-- **Round-trip Validation**: Verify protobuf output can be parsed correctly
+  - 26 ProtobufEncoder tests for wire format correctness
+  - Dictionary table tests for interning, deduplication, and index 0 handling
+- **Smoke Tests**: End-to-end conversion with JMC JFR Writer API for creating test recordings
+  - `JfrToOtlpConverterSmokeTest` with 8 test cases covering all event types
+  - Tests both protobuf and JSON output formats
+- **Performance Benchmarks**: JMH microbenchmarks for hot-path validation
+  - Dictionary interning performance (cold vs warm cache)
+  - Stack trace conversion throughput
+  - Protobuf encoding overhead
+- **Validation Tests** (Phase 6): Compliance with OTLP specification
+  - Dictionary constraint validation (index 0, uniqueness, no orphans)
+  - Sample consistency validation (timestamps, references)
+  - Round-trip validation (encode → parse → verify)
 
 ## Dependencies
 
-- `jafar-parser` - JFR parsing library
+- `jafar-parser` - JFR parsing library (snapshot from Sonatype)
 - `internal-api` - RecordingData abstraction
+- `components:json` - DataDog's JSON serialization component (for JSON output)
 - `libs.bundles.jmc` - JMC libraries for test JFR creation (test scope)
 - `libs.bundles.junit5` - Testing framework (test scope)
+- `libs.jmc.flightrecorder.writer` - JMC JFR writer API for test recording generation (test scope)
