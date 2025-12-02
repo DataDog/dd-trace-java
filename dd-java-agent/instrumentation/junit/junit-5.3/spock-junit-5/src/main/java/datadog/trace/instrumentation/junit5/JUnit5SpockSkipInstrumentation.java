@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -84,6 +85,9 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
     }
 
     @SuppressWarnings("bytebuddy-exception-suppression")
+    @SuppressFBWarnings(
+        value = "UC_USELESS_OBJECT",
+        justification = "skipResult is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void shouldBeSkipped(
         @Advice.This SpockNode<?> spockNode,

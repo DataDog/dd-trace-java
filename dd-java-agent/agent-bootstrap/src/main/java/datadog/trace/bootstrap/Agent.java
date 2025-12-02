@@ -58,7 +58,6 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -203,7 +202,6 @@ public class Agent {
    * <p>The Agent is considered to start successfully if Instrumentation can be activated. All other
    * pieces are considered optional.
    */
-  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   public static void start(
       final Object bootstrapInitTelemetry,
       final Instrumentation inst,
@@ -462,7 +460,6 @@ public class Agent {
     }
   }
 
-  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   private static void configureCiVisibility(URL agentJarURL) {
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))

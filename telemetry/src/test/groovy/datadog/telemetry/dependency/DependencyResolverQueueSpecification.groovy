@@ -98,5 +98,6 @@ class DependencyResolverQueueSpecification extends DepSpecification {
 
     then:
     assert deps.isEmpty()
+
   }
 }

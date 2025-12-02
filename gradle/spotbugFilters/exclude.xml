@@ -3,6 +3,7 @@
   <Match>
     <Or>
       <Class name="~com.datadog.debugger.util.WeakIdentityHashMap.*" />
+      <Package name="io.sqreen.testapp.sampleapp" />
       <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />
       <Package name="datadog.smoketest.appsec.springboot.controller" />
       <Package name="datadog.smoketest.appsec.springboot.service" />

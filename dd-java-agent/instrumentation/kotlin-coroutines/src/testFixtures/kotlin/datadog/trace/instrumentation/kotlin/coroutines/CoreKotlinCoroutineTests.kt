@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
@@ -27,6 +28,7 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+@SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace

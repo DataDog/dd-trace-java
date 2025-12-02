@@ -1,6 +1,5 @@
 package datadog.trace.api.telemetry;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,9 +29,7 @@ public class LogCollector {
     this(DEFAULT_MAX_CAPACITY);
   }
 
-  @SuppressFBWarnings(
-      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-      justification = "Usage in tests")
+  // For testing purpose
   LogCollector(int maxCapacity) {
     this.maxCapacity = maxCapacity;
     this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);

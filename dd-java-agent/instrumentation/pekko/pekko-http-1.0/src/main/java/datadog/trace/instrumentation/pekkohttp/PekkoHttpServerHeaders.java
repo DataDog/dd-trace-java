@@ -12,8 +12,6 @@ public class PekkoHttpServerHeaders<T extends HttpMessage>
   @SuppressWarnings("rawtypes")
   private static final PekkoHttpServerHeaders GETTER = new PekkoHttpServerHeaders();
 
-  private PekkoHttpServerHeaders() {}
-
   @SuppressWarnings("unchecked")
   public static AgentPropagation.ContextVisitor<HttpRequest> requestGetter() {
     return (AgentPropagation.ContextVisitor<HttpRequest>) GETTER;

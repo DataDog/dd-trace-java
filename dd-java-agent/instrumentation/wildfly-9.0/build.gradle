@@ -122,8 +122,7 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 
 ["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 17)
-  }
+    configureCompiler(it, 17)}
 }
 
 tasks.named("compileTestJava", JavaCompile) {

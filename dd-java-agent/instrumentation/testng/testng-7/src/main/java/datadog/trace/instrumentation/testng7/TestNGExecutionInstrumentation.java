@@ -11,6 +11,7 @@ import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.instrumentation.testng.TracingListener;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import datadog.trace.util.Strings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -95,6 +96,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
     }
 
     @SuppressWarnings("bytebuddy-exception-suppression")
+    @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodExit
     public static void shouldRetryTestMethod(
         @Advice.Argument(1) final ITestResult result,
