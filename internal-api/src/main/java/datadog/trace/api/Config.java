@@ -6190,6 +6190,14 @@ public class Config {
         + otlpMetricsTemporalityPreference
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
+        + ", sfnInjectDatadogAttributeEnabled="
+        + sfnInjectDatadogAttributeEnabled
+        + ", eventbridgeInjectDatadogAttributeEnabled="
+        + eventbridgeInjectDatadogAttributeEnabled
+        + ", sqsInjectDatadogAttributeEnabled="
+        + sqsInjectDatadogAttributeEnabled
+        + ", snsInjectDatadogAttributeEnabled="
+        + snsInjectDatadogAttributeEnabled
         + '}';
   }
 }
