@@ -131,6 +131,7 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
+jmc-flightrecorder-writer = { module = "org.openjdk.jmc:flightrecorder.writer", version.ref = "jmc" }
 
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
