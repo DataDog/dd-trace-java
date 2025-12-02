@@ -1,8 +1,8 @@
-# macrobenchmarks are located in the `apm-sdks-benchmarks` repository.
-stages:
-  - java-spring-petclinic-macrobenchmarks
+# # macrobenchmarks are located in the `apm-sdks-benchmarks` repository.
+# stages:
+#   - java-spring-petclinic-macrobenchmarks
 
-include:
-  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-    file: '.gitlab/ci-java-spring-petclinic.yml'
-    ref: 'sarahchen6/migrate-java-macrobenchmarks'
+# include:
+#   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+#     file: '.gitlab/ci-java-spring-petclinic.yml'
+#     ref: 'sarahchen6/migrate-java-macrobenchmarks'
