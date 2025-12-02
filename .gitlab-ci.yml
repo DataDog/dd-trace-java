@@ -6,14 +6,16 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic.yml'
-    ref: 'sarahchen6/migrate-java-macrobenchmarks'
+    ref: 'main'
+    # ref: 'sarahchen6/migrate-java-macrobenchmarks'
 
 stages:
   - build
   - publish
   - shared-pipeline
   - benchmarks
-  - java-spring-petclinic-macrobenchmarks
+  - java-spring-petclinic-tests
+  # - java-spring-petclinic-macrobenchmarks
   - tests
   - exploration-tests
   - ci-visibility-tests
