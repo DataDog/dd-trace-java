@@ -3,6 +3,7 @@ package datadog.smoketest.springboot
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
 import datadog.smoketest.AbstractServerSmokeTest
+import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
@@ -41,11 +42,11 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Override
   Closure decodedEvpProxyMessageCallback() {
-    return { String path, byte[] body ->
+    return { String path, RequestApi request ->
       if (!path.contains('api/v2/exposures')) {
         return null
       }
-      return new JsonSlurper().parse(body)
+      return new JsonSlurper().parse(request.body)
     }
   }
 
