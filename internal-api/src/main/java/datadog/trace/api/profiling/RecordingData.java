@@ -16,8 +16,10 @@
 package datadog.trace.api.profiling;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Platform-agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public abstract class RecordingData implements ProfilingSnapshot {
@@ -87,6 +89,19 @@ public abstract class RecordingData implements ProfilingSnapshot {
   @Nonnull
   public final Kind getKind() {
     return kind;
+  }
+
+  /**
+   * Returns the path to the underlying JFR file if available.
+   *
+   * <p>This method provides direct file access for parsers that can work with file paths more
+   * efficiently than streams. Implementations backed by files should override this method.
+   *
+   * @return the path to the JFR file, or {@code null} if the recording is not backed by a file
+   */
+  @Nullable
+  public Path getFile() {
+    return null;
   }
 
   @Override
