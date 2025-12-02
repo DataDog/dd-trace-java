@@ -123,7 +123,7 @@ public final class JsonPath {
 
       private final String repr;
 
-      private Singleton(String repr) {
+      public Singleton(String repr) {
         super();
         this.repr = repr;
       }

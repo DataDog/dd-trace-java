@@ -1,19 +1,18 @@
 package datadog.trace.util.stacktrace;
 
 import datadog.environment.JavaVirtualMachine;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class HotSpotStackWalker extends AbstractStackWalker {
-  @SuppressForbidden sun.misc.JavaLangAccess access;
 
-  @SuppressForbidden
+  sun.misc.JavaLangAccess access;
+
   HotSpotStackWalker() {
     try {
       access = sun.misc.SharedSecrets.getJavaLangAccess();
-    } catch (Throwable ignored) {
+    } catch (Throwable e) {
     }
   }
 

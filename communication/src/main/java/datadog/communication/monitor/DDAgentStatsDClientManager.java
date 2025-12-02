@@ -16,8 +16,6 @@ import java.util.function.Function;
 public final class DDAgentStatsDClientManager implements StatsDClientManager {
   private static final DDAgentStatsDClientManager INSTANCE = new DDAgentStatsDClientManager();
 
-  private DDAgentStatsDClientManager() {}
-
   private static final boolean USE_LOGGING_CLIENT =
       LOGGING_WRITER_TYPE.equals(Config.get().getWriterType());
 

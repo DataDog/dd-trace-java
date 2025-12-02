@@ -4,13 +4,9 @@ import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Usage in tests")
 public final class RumInjector {
   private static final RumInjector INSTANCE =
       new RumInjector(Config.get(), InstrumenterConfig.get());

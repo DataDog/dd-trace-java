@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Optional;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -75,6 +76,9 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       CallDepthThreadLocalMap.incrementCallDepth(JupiterConfiguration.class);
     }
 
+    @SuppressFBWarnings(
+        value = "UC_USELESS_OBJECT",
+        justification = "classOrderer is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void onGetClassOrdererExit(
         @Advice.Return(readOnly = false) Optional<ClassOrderer> classOrderer) {
@@ -101,6 +105,9 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
       CallDepthThreadLocalMap.incrementCallDepth(JupiterConfiguration.class);
     }
 
+    @SuppressFBWarnings(
+        value = "UC_USELESS_OBJECT",
+        justification = "methodOrderer is the return value of the instrumented method")
     @Advice.OnMethodExit
     public static void onGetMethodOrdererExit(
         @Advice.Return(readOnly = false) Optional<MethodOrderer> methodOrderer) {

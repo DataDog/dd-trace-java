@@ -1,6 +1,5 @@
 package com.datadog.profiling.utils;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public interface Timestamper {
@@ -34,7 +33,6 @@ public interface Timestamper {
         Registration.INSTANCE, Timestamper.DEFAULT, timestamper);
   }
 
-  @SuppressFBWarnings("SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR")
   final class Singleton {
     //
     static final Timestamper TIMESTAMPER = Registration.INSTANCE.pending;

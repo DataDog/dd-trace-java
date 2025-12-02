@@ -29,7 +29,7 @@ public class PatchLogger {
     return SAFE_LOGGER;
   }
 
-  private PatchLogger(final String name, final String resourceBundleName) {
+  protected PatchLogger(final String name, final String resourceBundleName) {
     // super(name, resourceBundleName);
   }
 

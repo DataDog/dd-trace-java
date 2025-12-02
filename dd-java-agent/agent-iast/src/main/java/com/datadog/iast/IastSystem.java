@@ -55,7 +55,6 @@ import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -71,11 +70,7 @@ import org.slf4j.LoggerFactory;
 public class IastSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IastSystem.class);
-
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public static boolean DEBUG = false;
-
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public static Verbosity VERBOSITY = Verbosity.OFF;
 
   public static void start(final SubscriptionService ss) {

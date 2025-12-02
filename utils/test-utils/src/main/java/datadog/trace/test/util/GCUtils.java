@@ -2,9 +2,11 @@ package datadog.trace.test.util;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.TimeUnit;
 
+@SuppressFBWarnings("DM_GC")
 public abstract class GCUtils {
 
   public static void awaitGC() throws InterruptedException {

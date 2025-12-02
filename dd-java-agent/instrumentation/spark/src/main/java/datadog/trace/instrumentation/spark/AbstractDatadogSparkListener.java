@@ -39,21 +39,7 @@ import java.util.function.Consumer;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
-import org.apache.spark.scheduler.AccumulableInfo;
-import org.apache.spark.scheduler.JobFailed;
-import org.apache.spark.scheduler.SparkListener;
-import org.apache.spark.scheduler.SparkListenerApplicationEnd;
-import org.apache.spark.scheduler.SparkListenerApplicationStart;
-import org.apache.spark.scheduler.SparkListenerEvent;
-import org.apache.spark.scheduler.SparkListenerExecutorAdded;
-import org.apache.spark.scheduler.SparkListenerExecutorRemoved;
-import org.apache.spark.scheduler.SparkListenerInterface;
-import org.apache.spark.scheduler.SparkListenerJobEnd;
-import org.apache.spark.scheduler.SparkListenerJobStart;
-import org.apache.spark.scheduler.SparkListenerStageCompleted;
-import org.apache.spark.scheduler.SparkListenerStageSubmitted;
-import org.apache.spark.scheduler.SparkListenerTaskEnd;
-import org.apache.spark.scheduler.StageInfo;
+import org.apache.spark.scheduler.*;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
@@ -91,7 +77,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
   private static final int OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS = 60;
 
-  volatile SparkListenerInterface openLineageSparkListener = null;
+  public volatile SparkListenerInterface openLineageSparkListener = null;
   public volatile SparkConf openLineageSparkConf = null;
 
   private final SparkConf sparkConf;

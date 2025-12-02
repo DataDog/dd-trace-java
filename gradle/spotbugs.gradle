@@ -5,70 +5,53 @@ spotbugs {
   excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
 }
 
-// Configure spotbugs for Main tasks and disable it for all other
-// Can't use the class here due to being different class
-tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
-  // Needs Java 11+ to run spotbugs
-  it.launcher = javaToolchains.launcherFor {
-    it.languageVersion = JavaLanguageVersion.current()
-  }
-
-  def name = it.name
-  if (project.path.startsWith(":dd-smoke-tests")
-    || !(name.endsWith("Main")
-    || name.endsWith("Main_java11"))
-    ) {
-    it.enabled = false
-    return
-  }
-
-  it.showProgress = !providers.environmentVariable("CI").isPresent()
-  it.ignoreFailures = false
-  // detector documentation is in the following link:
-  // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
-  it.omitVisitors = [
-    'ConstructorThrow',
-    'DefaultEncodingDetector',
-    'DoInsideDoPrivileged',
-    'DontUseEnum',
-    'DroppedException',
-    'FindDeadLocalStores',
-    'FindHEmismatch',
-    'FindNullDeref',
-    'FindReturnRef',
-    'FindRunInvocations',
-    'FindUselessControlFlow',
-    'InitializationChain',
-    'LazyInit',
-    'LoadOfKnownNullValue',
-    'LostLoggerDueToWeakReference',
-    'MethodReturnCheck',
-    'MutableStaticFields',
-    'Naming',
-    'RuntimeExceptionCapture',
-    'SerializableIdiom',
-    'UnreadFields',
-  ]
-  it.reports {
-    html {
-      required = true
-      destination(file("$buildDir/reports/spotbugs/${name}.html"))
-      stylesheet = 'fancy-hist.xsl'
+// configure spotbugs for Main tasks and disable it for all other
+afterEvaluate {
+  tasks.withType(spotbugsMain.class).configureEach {
+    def name = it.name
+    if (name.endsWith("Main") || name.endsWith("Main_java11")) {
+      it.ignoreFailures = false
+      // detector documentation is in the following link:
+      // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
+      it.omitVisitors = [
+        'DefaultEncodingDetector',
+        'DoInsideDoPrivileged',
+        'DontUseEnum',
+        'DroppedException',
+        'FindDeadLocalStores',
+        'FindHEmismatch',
+        'FindNullDeref',
+        'FindReturnRef',
+        'FindRunInvocations',
+        'FindUselessControlFlow',
+        'InitializationChain',
+        'LazyInit',
+        'LoadOfKnownNullValue',
+        'LostLoggerDueToWeakReference',
+        'MethodReturnCheck',
+        'MutableStaticFields',
+        'Naming',
+        'RuntimeExceptionCapture',
+        'SerializableIdiom',
+        'UnreadFields',
+      ]
+      it.reports {
+        html {
+          enabled = true
+          destination = file("$buildDir/reports/spotbugs/${name}.html")
+          stylesheet = 'fancy-hist.xsl'
+        }
+      }
+    } else {
+      it.enabled = false
     }
   }
 }
 
 dependencies {
-  compileOnly(libs.spotbugs.annotations)
+  compileOnly 'net.jcip:jcip-annotations:1.0'
+  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 
-  testImplementation(libs.spotbugs.annotations) {
-    // Exclude conflicting JUnit5.
-    exclude group: 'org.junit'
-    exclude group: 'org.junit.jupiter'
-    exclude group: 'org.junit.platform'
-    // Exclude conflicting logback.
-    exclude group: 'ch.qos.logback'
-    // Exclude conflicting log4j.
-    exclude group: 'org.apache.logging.log4j'
-  }
+  testImplementation 'net.jcip:jcip-annotations:1.0'
+  testImplementation 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 }

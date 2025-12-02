@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.util.Strings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -61,6 +62,9 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
   public static class SpockParameterizedExecutionAdvice {
 
     @SuppressWarnings("bytebuddy-exception-suppression")
+    @SuppressFBWarnings(
+        value = "UC_USELESS_OBJECT",
+        justification = "executionListener is a field in the instrumented class")
     @Advice.OnMethodExit
     public static void afterConstructor(
         @Advice.FieldValue(value = "executionListener", readOnly = false)

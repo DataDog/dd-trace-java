@@ -19,9 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Not a singleton")
 public class AgentTaskScheduler implements Executor {
   private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
 

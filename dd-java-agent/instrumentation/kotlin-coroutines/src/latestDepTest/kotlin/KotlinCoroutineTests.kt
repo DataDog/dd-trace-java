@@ -1,5 +1,6 @@
 import datadog.trace.api.Trace
 import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flow
@@ -8,6 +9,7 @@ import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
+@SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutineTests(dispatcher) {
 
   @Trace

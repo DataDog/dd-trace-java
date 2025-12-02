@@ -712,6 +712,7 @@ import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
 import datadog.trace.util.json.JsonPath;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -5669,6 +5670,7 @@ public class Config {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
+  @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE =
       new Config(
           Platform.isNativeImageBuilder()
