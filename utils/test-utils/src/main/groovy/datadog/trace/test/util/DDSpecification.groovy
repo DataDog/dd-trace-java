@@ -2,11 +2,12 @@ package datadog.trace.test.util
 
 import datadog.environment.EnvironmentVariables
 import de.thetaphi.forbiddenapis.SuppressForbidden
+import spock.lang.Shared
+import spock.lang.Specification
+
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
-import spock.lang.Shared
-import spock.lang.Specification
 
 @SuppressForbidden
 abstract class DDSpecification extends Specification {

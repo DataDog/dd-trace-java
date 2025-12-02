@@ -28,7 +28,7 @@ tasks.named("compileMain_java11Java", JavaCompile) {
 
 dependencies {
   main_java11CompileOnly group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
-  main_java11CompileOnly libs.spotbugs.annotations
+  main_java11CompileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
   testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'

@@ -19,8 +19,6 @@ import java.util.function.Function;
 public class ConfigCollector {
   private static final ConfigCollector INSTANCE = new ConfigCollector();
 
-  private ConfigCollector() {}
-
   private static final AtomicReferenceFieldUpdater<ConfigCollector, Map> COLLECTED_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ConfigCollector.class, Map.class, "collected");
 

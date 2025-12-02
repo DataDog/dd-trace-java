@@ -30,7 +30,7 @@ public class ServiceNameCollector {
 
   volatile boolean limitReachedLogged = false;
 
-  private ServiceNameCollector() {
+  ServiceNameCollector() {
     // singleton
   }
 

@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -49,6 +50,9 @@ public class GradleLauncherInstrumentation extends InstrumenterModule.CiVisibili
     };
   }
 
+  @SuppressFBWarnings(
+      value = "UC_USELESS_OBJECT",
+      justification = "jvmOptions is the return value of the original method")
   public static class PropertiesAugmentationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addJavaagentToGradleDaemonProperties(

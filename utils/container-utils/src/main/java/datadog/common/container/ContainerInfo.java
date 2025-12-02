@@ -53,16 +53,9 @@ public class ContainerInfo {
 
   private static final String ENTITY_ID;
 
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerId;
-
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerTagsHash;
-
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String podId;
-
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public List<CGroupInfo> cGroups = new ArrayList<>();
 
   public String getContainerId() {

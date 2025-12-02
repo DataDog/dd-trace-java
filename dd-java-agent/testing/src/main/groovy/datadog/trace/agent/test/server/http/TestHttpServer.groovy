@@ -42,10 +42,7 @@ import static org.eclipse.jetty.http.HttpMethod.GET
 import static org.eclipse.jetty.http.HttpMethod.POST
 import static org.eclipse.jetty.http.HttpMethod.PUT
 
-@SuppressFBWarnings([
-  "IS2_INCONSISTENT_SYNC",
-  "PA_PUBLIC_PRIMITIVE_ATTRIBUTE"
-])
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 class TestHttpServer implements AutoCloseable {
 
   static TestHttpServer httpServer(@DelegatesTo(value = TestHttpServer, strategy = Closure.DELEGATE_FIRST) Closure spec) {

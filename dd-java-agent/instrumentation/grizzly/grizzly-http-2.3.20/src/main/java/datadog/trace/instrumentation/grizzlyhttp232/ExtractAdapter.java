@@ -12,8 +12,6 @@ public class ExtractAdapter<T extends HttpHeader> implements AgentPropagation.Co
   @SuppressWarnings("rawtypes")
   private static final ExtractAdapter GETTER = new ExtractAdapter();
 
-  private ExtractAdapter() {}
-
   @SuppressWarnings("unchecked")
   public static AgentPropagation.ContextVisitor<HttpRequestPacket> requestGetter() {
     return (AgentPropagation.ContextVisitor<HttpRequestPacket>) GETTER;

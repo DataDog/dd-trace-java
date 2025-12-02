@@ -18,7 +18,7 @@ buildscript {
   }
 
   dependencies {
-    classpath libs.forbiddenapis
+    classpath "de.thetaphi:forbiddenapis:3.8"
   }
 }
 
@@ -33,10 +33,12 @@ forbiddenApis {
 }
 
 // disable forbiddenApis for all test tasks
-tasks.matching { it.name.startsWith('forbiddenApis') && it.name.endsWith('Test') }.configureEach {
-  it.enabled = false
+afterEvaluate {
+  tasks.matching({it.name.startsWith('forbiddenApis') && it.name.endsWith('Test')}).configureEach {
+    it.enabled = false
+  }
 }
 
 dependencies {
-  compileOnly libs.forbiddenapis
+  compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.8'
 }
