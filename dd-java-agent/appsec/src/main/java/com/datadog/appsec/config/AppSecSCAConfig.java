@@ -4,8 +4,8 @@ import com.squareup.moshi.Json;
 import java.util.List;
 
 /**
- * Configuration model for  SCA vulnerability detection. Received via Remote
- * Config in the ASM_SCA product.
+ * Configuration model for SCA vulnerability detection. Received via Remote Config in the ASM_SCA
+ * product.
  *
  * <p>This configuration enables dynamic instrumentation of third-party dependencies to detect and
  * report known vulnerabilities at runtime. Each vulnerability specifies:
@@ -64,7 +64,8 @@ public class AppSecSCAConfig {
   /** Represents external entrypoint(s) for a vulnerability. */
   public static class ExternalEntrypoint {
     /**
-     * Fully qualified class name in binary format (e.g., "org.postgresql.jdbc.PgPreparedStatement").
+     * Fully qualified class name in binary format (e.g.,
+     * "org.postgresql.jdbc.PgPreparedStatement").
      */
     @Json(name = "class")
     public String className;

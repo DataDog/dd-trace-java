@@ -52,8 +52,7 @@ public class AppSecSCATransformer implements ClassFileTransformer {
           && vulnerability.vulnerableInternalCode.methodName != null) {
 
         // Convert binary format (org.foo.Bar) to internal format (org/foo/Bar)
-        String internalClassName =
-            vulnerability.vulnerableInternalCode.className.replace('.', '/');
+        String internalClassName = vulnerability.vulnerableInternalCode.className.replace('.', '/');
 
         TargetMethods methods =
             map.computeIfAbsent(internalClassName, k -> new TargetMethods(vulnerability));

@@ -1704,20 +1704,20 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         ]
       ],
       targets: signAndBase64EncodeTargets(
-        signed: [
-          expires: '2022-09-17T12:49:15Z',
-          spec_version: '1.0.0',
-          targets: [
-            (scaConfigKey): [
-              custom: [v: 1],
-              hashes: [
-                sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
-              ],
-              length: scaConfigContent.size(),
-            ]
-          ],
-          version: 1
-        ]
+      signed: [
+        expires: '2022-09-17T12:49:15Z',
+        spec_version: '1.0.0',
+        targets: [
+          (scaConfigKey): [
+            custom: [v: 1],
+            hashes: [
+              sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
+            ],
+            length: scaConfigContent.size(),
+          ]
+        ],
+        version: 1
+      ]
       ))
 
     ConfigurationChangesTypedListener scaListener = Mock()
@@ -1769,18 +1769,18 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         ]
       ],
       targets: signAndBase64EncodeTargets(
-        signed: [
-          expires: '2022-09-17T12:49:15Z',
-          spec_version: '1.0.0',
-          targets: [
-            (debugConfigKey): [
-              custom: [v: 1],
-              hashes: [sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
-              length: 15,
-            ]
-          ],
-          version: 1
-        ]
+      signed: [
+        expires: '2022-09-17T12:49:15Z',
+        spec_version: '1.0.0',
+        targets: [
+          (debugConfigKey): [
+            custom: [v: 1],
+            hashes: [sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
+            length: 15,
+          ]
+        ],
+        version: 1
+      ]
       ))
 
     when:
@@ -1834,25 +1834,25 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         ]
       ],
       targets: signAndBase64EncodeTargets(
-        signed: [
-          expires: '2022-09-17T12:49:15Z',
-          spec_version: '1.0.0',
-          targets: [
-            (asmConfigKey): [
-              custom: [v: 1],
-              hashes: [sha256: '6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819'],
-              length: 919,
-            ],
-            (scaConfigKey): [
-              custom: [v: 1],
-              hashes: [
-                sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
-              ],
-              length: scaConfigContent.size(),
-            ]
+      signed: [
+        expires: '2022-09-17T12:49:15Z',
+        spec_version: '1.0.0',
+        targets: [
+          (asmConfigKey): [
+            custom: [v: 1],
+            hashes: [sha256: '6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819'],
+            length: 919,
           ],
-          version: 1
-        ]
+          (scaConfigKey): [
+            custom: [v: 1],
+            hashes: [
+              sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
+            ],
+            length: scaConfigContent.size(),
+          ]
+        ],
+        version: 1
+      ]
       ))
 
     ConfigurationChangesTypedListener asmListener = Mock()

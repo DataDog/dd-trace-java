@@ -379,8 +379,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   /**
-   * Subscribes to SCA configuration from Remote Config. Receives
-   * instrumentation targets for vulnerability detection in third-party dependencies.
+   * Subscribes to SCA configuration from Remote Config. Receives instrumentation targets for
+   * vulnerability detection in third-party dependencies.
    *
    * <p>TODO: Remove debugging URL support once backend properly implements
    */

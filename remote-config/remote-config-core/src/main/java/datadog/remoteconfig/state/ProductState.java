@@ -26,9 +26,12 @@ public class ProductState {
   final Product product;
 
   // TODO(POC): Revert to ParsedConfigKey once DEBUG endpoint is removed
-  // These maps were changed to ConfigKey to support RemappedConfigKey wrapper for DEBUG->ASM_SCA remapping
-  // Original: private final Map<ParsedConfigKey, RemoteConfigRequest.CachedTargetFile> cachedTargetFiles
-  // Original: private final Map<ParsedConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState> configStates
+  // These maps were changed to ConfigKey to support RemappedConfigKey wrapper for DEBUG->ASM_SCA
+  // remapping
+  // Original: private final Map<ParsedConfigKey, RemoteConfigRequest.CachedTargetFile>
+  // cachedTargetFiles
+  // Original: private final Map<ParsedConfigKey,
+  // RemoteConfigRequest.ClientInfo.ClientState.ConfigState> configStates
   private final Map<ConfigKey, RemoteConfigRequest.CachedTargetFile> cachedTargetFiles =
       new HashMap<>();
   private final Map<ConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState>
@@ -56,8 +59,10 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to List<ParsedConfigKey> once DEBUG endpoint is removed
-  // Changed to List<? extends ConfigKey> to support RemappedConfigKey wrapper for DEBUG->ASM_SCA remapping
-  // Original signature: public boolean apply(RemoteConfigResponse fleetResponse, List<ParsedConfigKey> relevantKeys, PollingRateHinter hinter)
+  // Changed to List<? extends ConfigKey> to support RemappedConfigKey wrapper for DEBUG->ASM_SCA
+  // remapping
+  // Original signature: public boolean apply(RemoteConfigResponse fleetResponse,
+  // List<ParsedConfigKey> relevantKeys, PollingRateHinter hinter)
   public boolean apply(
       RemoteConfigResponse fleetResponse,
       List<? extends ConfigKey> relevantKeys,
@@ -113,7 +118,8 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to ParsedConfigKey once DEBUG endpoint is removed
-  // Original: private void callListenerApplyTarget(RemoteConfigResponse fleetResponse, PollingRateHinter hinter, ParsedConfigKey configKey, byte[] content)
+  // Original: private void callListenerApplyTarget(RemoteConfigResponse fleetResponse,
+  // PollingRateHinter hinter, ParsedConfigKey configKey, byte[] content)
   private void callListenerApplyTarget(
       RemoteConfigResponse fleetResponse,
       PollingRateHinter hinter,
@@ -142,7 +148,8 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to ParsedConfigKey once DEBUG endpoint is removed
-  // Original: private void callListenerRemoveTarget(PollingRateHinter hinter, ParsedConfigKey configKey)
+  // Original: private void callListenerRemoveTarget(PollingRateHinter hinter, ParsedConfigKey
+  // configKey)
   private void callListenerRemoveTarget(PollingRateHinter hinter, ConfigKey configKey) {
     try {
       for (ProductListener listener : productListeners) {
@@ -176,7 +183,8 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to ParsedConfigKey once DEBUG endpoint is removed
-  // Original: RemoteConfigResponse.Targets.ConfigTarget getTargetOrThrow(RemoteConfigResponse fleetResponse, ParsedConfigKey configKey)
+  // Original: RemoteConfigResponse.Targets.ConfigTarget getTargetOrThrow(RemoteConfigResponse
+  // fleetResponse, ParsedConfigKey configKey)
   RemoteConfigResponse.Targets.ConfigTarget getTargetOrThrow(
       RemoteConfigResponse fleetResponse, ConfigKey configKey) {
     RemoteConfigResponse.Targets.ConfigTarget target =
@@ -191,7 +199,8 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to ParsedConfigKey once DEBUG endpoint is removed
-  // Original: boolean isTargetChanged(ParsedConfigKey parsedConfigKey, RemoteConfigResponse.Targets.ConfigTarget target)
+  // Original: boolean isTargetChanged(ParsedConfigKey parsedConfigKey,
+  // RemoteConfigResponse.Targets.ConfigTarget target)
   boolean isTargetChanged(
       ConfigKey parsedConfigKey, RemoteConfigResponse.Targets.ConfigTarget target) {
     RemoteConfigRequest.CachedTargetFile cachedTargetFile = cachedTargetFiles.get(parsedConfigKey);
@@ -203,7 +212,8 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to ParsedConfigKey once DEBUG endpoint is removed
-  // Original: byte[] getTargetFileContent(RemoteConfigResponse fleetResponse, ParsedConfigKey configKey)
+  // Original: byte[] getTargetFileContent(RemoteConfigResponse fleetResponse, ParsedConfigKey
+  // configKey)
   byte[] getTargetFileContent(RemoteConfigResponse fleetResponse, ConfigKey configKey) {
     // fetch the content
     byte[] maybeFileContent;
@@ -225,7 +235,8 @@ public class ProductState {
   }
 
   // TODO(POC): Revert parameter type to ParsedConfigKey once DEBUG endpoint is removed
-  // Original: private void updateConfigState(RemoteConfigResponse fleetResponse, ParsedConfigKey parsedConfigKey, Exception error)
+  // Original: private void updateConfigState(RemoteConfigResponse fleetResponse, ParsedConfigKey
+  // parsedConfigKey, Exception error)
   private void updateConfigState(
       RemoteConfigResponse fleetResponse, ConfigKey parsedConfigKey, Exception error) {
     String configKey = parsedConfigKey.toString();
