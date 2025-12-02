@@ -39,12 +39,12 @@ class ScaSmokeTest extends AbstractSmokeTest {
   void 'test SCA subscription and capability reporting'() {
     when: 'AppSec is started with SCA support'
     final request = waitForRcClientRequest { req ->
-      decodeProducts(req).contains(Product.ASM_SCA)
+      decodeProducts(req).contains(Product.DEBUG)
     }
 
     then: 'ASM_SCA product should be reported'
     final products = decodeProducts(request)
-    assert products.contains(Product.ASM_SCA)
+    assert products.contains(Product.DEBUG)
 
     and: 'SCA vulnerability detection capability should be reported'
     final capabilities = decodeCapabilities(request)
@@ -72,7 +72,7 @@ class ScaSmokeTest extends AbstractSmokeTest {
 
     when: 'AppSec is started'
     waitForRcClientRequest { req ->
-      decodeProducts(req).contains(Product.ASM_SCA)
+      decodeProducts(req).contains(Product.DEBUG)
     }
 
     and: 'SCA configuration is sent via Remote Config'
@@ -104,7 +104,7 @@ class ScaSmokeTest extends AbstractSmokeTest {
 
     when: 'AppSec is started and subscribes to SCA'
     waitForRcClientRequest { req ->
-      decodeProducts(req).contains(Product.ASM_SCA)
+      decodeProducts(req).contains(Product.DEBUG)
     }
 
     and: 'Application signals it is ready for instrumentation'

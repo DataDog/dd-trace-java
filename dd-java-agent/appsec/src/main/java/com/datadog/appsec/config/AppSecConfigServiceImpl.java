@@ -406,9 +406,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
    */
   private void subscribeSCA() {
     if (subscribedToSCA.compareAndSet(false, true)) {
-      log.debug("Subscribing to ASM_SCA Remote Config product");
+      log.debug("Subscribing to DEBUG Remote Config product");
       this.configurationPoller.addListener(
-          Product.ASM_SCA,
+          Product.DEBUG,
           AppSecSCAConfigDeserializer.INSTANCE,
           (configKey, newConfig, hinter) -> {
             if (newConfig == null) {
@@ -435,8 +435,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   /** Unsubscribes from SCA Remote Config product and clears current configuration. */
   private void unsubscribeSCA() {
     if (subscribedToSCA.compareAndSet(true, false)) {
-      log.debug("Unsubscribing from ASM_SCA Remote Config product");
-      this.configurationPoller.removeListeners(Product.ASM_SCA);
+      log.debug("Unsubscribing from DEBUG Remote Config product");
+      this.configurationPoller.removeListeners(Product.DEBUG);
       this.configurationPoller.removeCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
       currentSCAConfig = null;
       log.info("Successfully unsubscribed from ASM_SCA Remote Config product");

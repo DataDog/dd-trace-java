@@ -99,7 +99,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addListener(Product.ASM, _)
     1 * poller.addListener(Product.ASM_DATA, _)
-    1 * poller.addListener(Product.ASM_SCA, _, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
     0 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
@@ -136,7 +136,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
-    1 * poller.addListener(Product.ASM_SCA, _, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
   }
@@ -213,7 +213,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_SCA, _, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_) >> {
       listeners.savedConfEndListener = it[0]
     }
@@ -256,7 +256,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_SCA, _, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_) >> {
       listeners.savedConfEndListener = it[0]
     }
@@ -422,7 +422,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_SCA, _, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_) >> {
       listeners.savedConfEndListener = it[0]
     }
@@ -561,7 +561,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_HEADER_FINGERPRINT
       | CAPABILITY_ASM_TRACE_TAGGING_RULES
       | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
-    1 * poller.removeListeners(Product.ASM_SCA)
+    1 * poller.removeListeners(Product.DEBUG)
     1 * poller.removeCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
@@ -796,7 +796,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
-    1 * poller.addListener(Product.ASM_SCA, AppSecSCAConfigDeserializer.INSTANCE, _)
+    1 * poller.addListener(Product.DEBUG, AppSecSCAConfigDeserializer.INSTANCE, _)
     1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
   }
 
@@ -811,7 +811,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.close()
 
     then:
-    1 * poller.removeListeners(Product.ASM_SCA)
+    1 * poller.removeListeners(Product.DEBUG)
     1 * poller.removeCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
   }
 

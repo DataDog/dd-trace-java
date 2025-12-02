@@ -1723,7 +1723,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     ConfigurationChangesTypedListener scaListener = Mock()
 
     when:
-    poller.addListener(Product.ASM_SCA,
+    poller.addListener(Product.DEBUG,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
       scaListener)
     poller.start()
@@ -1862,7 +1862,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     poller.addListener(Product.ASM_DD,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
       asmListener)
-    poller.addListener(Product.ASM_SCA,
+    poller.addListener(Product.DEBUG,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
       scaListener)
     poller.start()

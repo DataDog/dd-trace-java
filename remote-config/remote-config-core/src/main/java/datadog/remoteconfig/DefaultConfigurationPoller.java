@@ -412,6 +412,16 @@ public class DefaultConfigurationPoller
         // This allows using RemappedConfigKey wrapper for DEBUG->ASM_SCA remapping
         // After removal, directly add parsedConfigKey to the map
         datadog.remoteconfig.state.ConfigKey configKeyToAdd = parsedConfigKey;
+        //TODO for debugging
+        if (product == Product.DEBUG
+            && "DEBUG".equalsIgnoreCase(parsedConfigKey.getProductName())
+            && parsedConfigKey.getConfigId().startsWith("SCA_")) {
+          product = Product.DEBUG;
+          configKeyToAdd = new RemappedConfigKey(parsedConfigKey, Product.DEBUG);
+          log.debug(
+              "POC: Detected SCA config from DEBUG endpoint, remapping to ASM_SCA: {}",
+              configKey);
+        }
 
         // POC/TEMPORARY: Detect SCA configs from debugging endpoint
         // Backend serves SCA configs via: GET /api/unstable/remote-config/debugging/configs/SCA_{id}
@@ -422,8 +432,8 @@ public class DefaultConfigurationPoller
         if (product == Product._UNKNOWN
             && "DEBUG".equalsIgnoreCase(parsedConfigKey.getProductName())
             && parsedConfigKey.getConfigId().startsWith("SCA_")) {
-          product = Product.ASM_SCA;
-          configKeyToAdd = new RemappedConfigKey(parsedConfigKey, Product.ASM_SCA);
+          product = Product.DEBUG;
+          configKeyToAdd = new RemappedConfigKey(parsedConfigKey, Product.DEBUG);
           log.debug(
               "POC: Detected SCA config from DEBUG endpoint, remapping to ASM_SCA: {}",
               configKey);
