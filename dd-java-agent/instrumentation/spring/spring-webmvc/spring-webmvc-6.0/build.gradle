@@ -47,7 +47,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
+  testImplementation libs.spock.spring
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'

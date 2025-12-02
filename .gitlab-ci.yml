@@ -62,6 +62,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -435,6 +436,11 @@ test_published_artifacts:
       - unmet_prerequisites
       - scheduler_failure
       - data_integrity_failure
+
+check_build_src:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":buildSrc:build"
 
 check_base:
   extends: .check_job

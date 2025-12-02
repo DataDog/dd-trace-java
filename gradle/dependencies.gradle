@@ -26,6 +26,7 @@ final class CachedData {
       exclude(project(':telemetry'))
       exclude(project(':utils:config-utils'))
       exclude(project(':utils:container-utils'))
+      exclude(project(':utils:filesystem-utils'))
       exclude(project(':utils:socket-utils'))
       exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))

@@ -128,6 +128,13 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     LOG.info("instrumentation done");
   }
 
+  protected void waitForExceptionFingerprint() throws Exception {
+    String url = String.format(appUrl + "/waitForExceptionFingerprint");
+    LOG.info("waitForExceptionFingerprint with url={}", url);
+    sendRequest(url);
+    LOG.info("exceptionFingerprint added");
+  }
+
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
     AtomicBoolean statusResult = new AtomicBoolean();
     registerProbeStatusListener(
