@@ -114,6 +114,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   private void applyExceptionConfiguration(String fingerprint) {
     configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
     exceptionProbeManager.addFingerprint(fingerprint);
+    LOGGER.debug("Exception Fingerprint {} added", fingerprint);
   }
 
   protected void addStackFrameTags(

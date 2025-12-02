@@ -45,7 +45,7 @@ jobs:
               repo: context.repo.repo
             })
             const commentMarker = '<!-- dd-trace-java-check-pr-labels-workflow -->'
-            const blockingComment = comments.data.find(comment => comment.body.includes(commentMarker))
+            let blockingComment = comments.data.find(comment => comment.body.includes(commentMarker))
             // Create or update blocking comment if there are invalid labels
             if (hasInvalidLabels) {
               const commentBody = '**PR Blocked - Invalid Label**\n\n' +
