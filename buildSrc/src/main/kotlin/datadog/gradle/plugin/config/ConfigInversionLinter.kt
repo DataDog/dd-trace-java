@@ -23,6 +23,46 @@ class ConfigInversionLinter : Plugin<Project> {
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
     registerCheckConfigStringsTask(target, extension)
+    verifyAliasKeysAreSupported(target, extension)
+  }
+}
+
+// Data class for fields from generated class
+private data class LoadedConfigFields(
+  val supported: Set<String>,
+  val aliases: Map<String, List<String>> = emptyMap(),
+  val aliasMapping: Map<String, String> = emptyMap()
+)
+
+// Cache for fields from generated class
+private var cachedConfigFields: LoadedConfigFields? = null
+
+// Helper function to load fields from the generated class
+private fun loadConfigFields(
+  mainSourceSetOutput: org.gradle.api.file.FileCollection,
+  generatedClassName: String
+): LoadedConfigFields {
+  return cachedConfigFields ?: run {
+    val urls = mainSourceSetOutput.files.map { it.toURI().toURL() }.toTypedArray()
+    URLClassLoader(urls, LoadedConfigFields::class.java.classLoader).use { cl ->
+      val clazz = Class.forName(generatedClassName, true, cl)
+
+      val supportedField = clazz.getField("SUPPORTED").get(null)
+      @Suppress("UNCHECKED_CAST")
+      val supportedSet = when (supportedField) {
+        is Set<*> -> supportedField as Set<String>
+        is Map<*, *> -> supportedField.keys as Set<String>
+        else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
+      }
+
+      @Suppress("UNCHECKED_CAST")
+      val aliases = clazz.getField("ALIASES").get(null) as Map<String, List<String>>
+
+      @Suppress("UNCHECKED_CAST")
+      val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
+
+      LoadedConfigFields(supportedSet, aliases, aliasMappingMap)
+    }.also { cachedConfigFields = it }
   }
 }
 
@@ -52,16 +92,11 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
     inputs.files(javaFiles)
     outputs.upToDateWhen { true }
     doLast {
-      // 1) Build classloader from the owner project’s runtime classpath
-      val urls = mainSourceSetOutput.get().get().files.map { it.toURI().toURL() }.toTypedArray()
-      val supported: Set<String> = URLClassLoader(urls, javaClass.classLoader).use { cl ->
-        // 2) Load the generated class + read static field
-        val clazz = Class.forName(generatedFile.get(), true, cl)
-        @Suppress("UNCHECKED_CAST")
-        clazz.getField("SUPPORTED").get(null) as Set<String>
-      }
+      // 1) Load configuration fields from the generated class
+      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
+      val supported = configFields.supported
 
-      // 3) Scan our sources and compare
+      // 2) Scan our sources and compare
       val repoRoot = target.projectDir.toPath()
       val tokenRegex = Regex("\"(?:DD_|OTEL_)[A-Za-z0-9_]+\"")
 
@@ -79,7 +114,7 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
             }
             tokenRegex.findAll(raw).forEach { m ->
               val token = m.value.trim('"')
-              if (token !in supported) add("$rel:${i + 1} -> Unsupported token'$token'")
+              if (token !in supported) add("$rel:${i + 1} -> Unsupported token '$token'")
             }
           }
         }
@@ -167,15 +202,9 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         throw GradleException("Config directory not found: ${configDir.absolutePath}")
       }
 
-      val urls = mainSourceSetOutput.get().get().files.map { it.toURI().toURL() }.toTypedArray()
-      val (supported, aliasMapping) = URLClassLoader(urls, javaClass.classLoader).use { cl ->
-        val clazz = Class.forName(generatedFile.get(), true, cl)
-        @Suppress("UNCHECKED_CAST")
-        val supportedSet = clazz.getField("SUPPORTED").get(null) as Set<String>
-        @Suppress("UNCHECKED_CAST")
-        val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
-        Pair(supportedSet, aliasMappingMap)
-      }
+      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
+      val supported = configFields.supported
+      val aliasMapping = configFields.aliasMapping
 
       var parserConfig = ParserConfiguration()
       parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
@@ -192,23 +221,23 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
               .map { it as? FieldDeclaration }
               .ifPresent { field ->
                 if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
-                varDecl.typeAsString == "String") {
+                  varDecl.typeAsString == "String") {
 
-                val fieldName = varDecl.nameAsString
-                if (fieldName.endsWith("_DEFAULT")) return@ifPresent
-                val init = varDecl.initializer.orElse(null) ?: return@ifPresent
+                  val fieldName = varDecl.nameAsString
+                  if (fieldName.endsWith("_DEFAULT")) return@ifPresent
+                  val init = varDecl.initializer.orElse(null) ?: return@ifPresent
 
-                if (init !is StringLiteralExpr) return@ifPresent
-                val rawValue = init.value
+                  if (init !is StringLiteralExpr) return@ifPresent
+                  val rawValue = init.value
 
-                val normalized = normalize(rawValue)
-                if (normalized !in supported && normalized !in aliasMapping) {
-                  val line = varDecl.range.map { it.begin.line }.orElse(1)
-                  add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
-                      "which is missing from '${extension.jsonFile.get()}'")
+                  val normalized = normalize(rawValue)
+                  if (normalized !in supported && normalized !in aliasMapping) {
+                    val line = varDecl.range.map { it.begin.line }.orElse(1)
+                    add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
+                        "which is missing from '${extension.jsonFile.get()}'")
+                  }
                 }
               }
-            }
           }
         }
       }
@@ -219,6 +248,47 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
       } else {
         logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
+      }
+    }
+  }
+}
+
+
+/** Registers `verifyAliasKeysAreSupported` to ensure all alias keys are documented as supported configurations. */
+private fun verifyAliasKeysAreSupported(project: Project, extension: SupportedTracerConfigurations) {
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
+
+  project.tasks.register("verifyAliasKeysAreSupported") {
+    group = "verification"
+    description =
+      "Verifies that all alias keys in `metadata/supported-configurations.json` are also documented as supported configurations."
+
+    val mainSourceSetOutput = ownerPath.map {
+      project.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
+    inputs.files(mainSourceSetOutput)
+
+    doLast {
+      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
+      val supported = configFields.supported
+      val aliases = configFields.aliases.keys
+
+      val unsupportedAliasKeys = aliases - supported
+      val violations = buildList {
+        unsupportedAliasKeys.forEach { key ->
+          add("$key is listed as an alias key but is not documented as a supported configuration in the `supportedConfigurations` key")
+        }
+      }
+      if (violations.isNotEmpty()) {
+        logger.error("\nFound alias keys not documented as supported configurations:")
+        violations.forEach { logger.lifecycle(it) }
+        throw GradleException("Undocumented alias keys found. Please add the above keys to the `supportedConfigurations` in '${extension.jsonFile.get()}'.")
+      } else {
+        logger.info("All alias keys are documented as supported configurations.")
       }
     }
   }

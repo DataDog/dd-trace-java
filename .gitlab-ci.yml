@@ -374,7 +374,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
+    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings verifyAliasKeysAreSupported
 
 test_published_artifacts:
   extends: .gradle_build
