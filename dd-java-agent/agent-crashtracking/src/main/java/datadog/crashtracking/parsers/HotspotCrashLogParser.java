@@ -139,7 +139,10 @@ public final class HotspotCrashLogParser {
           if (line.toLowerCase().contains("core dump")) {
             // break out of the message block
             state = State.HEADER;
-          } else if (!"#".equals(line) && (sigInfo == null && oomMessage == null)) {
+          } else if ((oomMessage == null
+              && (sigInfo == null || "INVALID".equals(sigInfo.name))
+              && !"#".equals(line))) {
+            // note: some jvm might use INVALID to represent a OOM crash too.
             final int oomIdx = line.indexOf(OOM_MARKER);
             if (oomIdx > 0) {
               oomMessage = line.substring(oomIdx + OOM_MARKER.length());

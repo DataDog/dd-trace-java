@@ -1,4 +1,4 @@
-package datadog.gradle.plugin.version
+package datadog.gradle.plugin.dump
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildFailure
@@ -55,7 +55,7 @@ class DumpHangedTestIntegrationTest {
       
       plugins {
         id("java")
-        id("datadog.dump-hanged-test")
+        id("dd-trace-java.dump-hanged-test")
       }
       
       group = "datadog.dump.test"
