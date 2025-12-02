@@ -56,7 +56,7 @@ class TestJvmSpec(val project: Project) {
       "stable" -> {
         val javaVersions = project.providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
           javaHomes
-            .filter { it.key.matches(Regex("^JAVA_[0-9]+_HOME$")) }
+            .filter { it.key.matches(Regex("^JAVA_[0-9]+_HOME$")) && it.key != "JAVA_26_HOME" } // JDK 26 is EA
             .map { Regex("^JAVA_(\\d+)_HOME$").find(it.key)!!.groupValues[1].toInt() }
         }.get()
 
