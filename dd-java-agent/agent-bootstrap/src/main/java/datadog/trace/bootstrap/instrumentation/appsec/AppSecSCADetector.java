@@ -14,8 +14,7 @@ public class AppSecSCADetector {
   /**
    * Called when a vulnerable method is invoked.
    *
-   * <p>This method is invoked from instrumented bytecode injected by {@code
-   * AppSecSCATransformer}.
+   * <p>This method is invoked from instrumented bytecode injected by {@code AppSecSCATransformer}.
    *
    * @param className The internal class name (e.g., "com/example/Foo")
    * @param methodName The method name

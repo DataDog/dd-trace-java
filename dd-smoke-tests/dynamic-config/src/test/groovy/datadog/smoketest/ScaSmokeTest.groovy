@@ -133,8 +133,8 @@ class ScaSmokeTest extends AbstractSmokeTest {
     then: 'SCA detection callback is triggered and logged'
     def detectionFound = isLogPresent { String log ->
       log.contains('[SCA DETECTION] Vulnerable method invoked') &&
-      log.contains('ObjectMapper') &&
-      log.contains('readValue')
+        log.contains('ObjectMapper') &&
+        log.contains('readValue')
     }
     assert detectionFound, 'SCA detection should have been triggered'
 
