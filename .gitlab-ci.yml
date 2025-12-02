@@ -10,7 +10,7 @@ stages:
   - publish
   - shared-pipeline
   - benchmarks
-  - macrobenchmarks
+  - java-spring-petclinic-macrobenchmarks
   - tests
   - exploration-tests
   - ci-visibility-tests
