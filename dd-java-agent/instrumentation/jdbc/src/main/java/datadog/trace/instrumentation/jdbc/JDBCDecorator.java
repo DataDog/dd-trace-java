@@ -60,10 +60,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
-  private static final boolean FETCH_DB_METADATA_ON_QUERY =
-      Config.get().isDbMetadataFetchingOnQueryEnabled();
   public static final boolean FETCH_DB_METADATA_ON_CONNECT =
       Config.get().isDbMetadataFetchingOnConnectEnabled();
+  private static final boolean FETCH_DB_METADATA_ON_QUERY =
+      Config.get().isDbMetadataFetchingOnQueryEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
