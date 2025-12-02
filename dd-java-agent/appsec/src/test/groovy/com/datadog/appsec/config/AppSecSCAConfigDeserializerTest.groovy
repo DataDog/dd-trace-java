@@ -131,4 +131,83 @@ class AppSecSCAConfigDeserializerTest extends Specification {
     expect:
     AppSecSCAConfigDeserializer.INSTANCE === AppSecSCAConfigDeserializer.INSTANCE
   }
+
+  def "deserializes direct array format (backend format)"() {
+    given:
+    def json = '''
+      [
+        {
+          "advisory": "GHSA-77xx-rxvh-q682",
+          "cve": "CVE-2022-41853",
+          "vulnerable_internal_code": {
+            "class": "org.hsqldb.Routine",
+            "method": "getMethods"
+          },
+          "external_entrypoint": {
+            "class": "org.hsqldb.jdbc.JDBCStatement",
+            "methods": ["execute", "executeQuery", "executeUpdate"]
+          },
+          "description": "HSQLDB RCE vulnerability"
+        }
+      ]
+    '''
+    def bytes = json.bytes
+
+    when:
+    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(bytes)
+
+    then:
+    config != null
+    config.vulnerabilities != null
+    config.vulnerabilities.size() == 1
+    config.vulnerabilities[0].advisory == "GHSA-77xx-rxvh-q682"
+    config.vulnerabilities[0].cve == "CVE-2022-41853"
+    config.vulnerabilities[0].vulnerableInternalCode.className == "org.hsqldb.Routine"
+    config.vulnerabilities[0].vulnerableInternalCode.methodName == "getMethods"
+    config.vulnerabilities[0].externalEntrypoint.className == "org.hsqldb.jdbc.JDBCStatement"
+    config.vulnerabilities[0].externalEntrypoint.methods == ["execute", "executeQuery", "executeUpdate"]
+  }
+
+  def "deserializes object format with vulnerabilities property"() {
+    given:
+    def json = '''
+      {
+        "vulnerabilities": [
+          {
+            "advisory": "GHSA-test-1234-abcd",
+            "cve": "CVE-2024-9999",
+            "vulnerable_internal_code": {
+              "class": "com.example.Vulnerable",
+              "method": "badMethod"
+            }
+          }
+        ]
+      }
+    '''
+    def bytes = json.bytes
+
+    when:
+    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(bytes)
+
+    then:
+    config != null
+    config.vulnerabilities != null
+    config.vulnerabilities.size() == 1
+    config.vulnerabilities[0].advisory == "GHSA-test-1234-abcd"
+    config.vulnerabilities[0].cve == "CVE-2024-9999"
+  }
+
+  def "deserializes empty direct array"() {
+    given:
+    def json = '[]'
+    def bytes = json.bytes
+
+    when:
+    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(bytes)
+
+    then:
+    config != null
+    config.vulnerabilities != null
+    config.vulnerabilities.isEmpty()
+  }
 }
