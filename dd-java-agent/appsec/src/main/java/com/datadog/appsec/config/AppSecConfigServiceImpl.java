@@ -381,6 +381,28 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   /**
    * Subscribes to Supply Chain Analysis (SCA) configuration from Remote Config. Receives
    * instrumentation targets for vulnerability detection in third-party dependencies.
+   *
+   * <p><b>POC/TEMPORARY (APPSEC-57815)</b>: For POC testing, configs can be served from a debugging
+   * endpoint by setting: {@code -Ddd.rc.debugging.url=http://agent:8126/api/unstable/remote-config/debugging/configs}
+   *
+   * <p>The config key should use prefix {@code SCA_} to differentiate from other products sharing
+   * the debugging endpoint: {@code datadog/2/ASM_SCA/SCA_{service_id}/config}
+   *
+   * <p>Example POC config:
+   * <pre>{@code
+   * {
+   *   "enabled": true,
+   *   "instrumentation_targets": [
+   *     {
+   *       "class_name": "com/fasterxml/jackson/databind/ObjectMapper",
+   *       "method_name": "readValue"
+   *     }
+   *   ]
+   * }
+   * }</pre>
+   *
+   * <p>TODO(APPSEC-57815): Remove debugging URL support once backend properly implements
+   * product-specific routing: {@code GET /api/unstable/remote-config/{product}/configs/{id}}
    */
   private void subscribeSCA() {
     if (subscribedToSCA.compareAndSet(false, true)) {

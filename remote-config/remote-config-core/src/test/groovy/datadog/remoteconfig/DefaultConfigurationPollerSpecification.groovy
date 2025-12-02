@@ -1689,4 +1689,218 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     version: 23337393
   ]
   ))
+
+  void 'POC: remaps DEBUG product with SCA_ prefix to ASM_SCA'() {
+    setup:
+    def scaConfigContent = '{"enabled":true,"instrumentation_targets":[{"class_name":"com/fasterxml/jackson/databind/ObjectMapper","method_name":"readValue"}]}'
+    def scaConfigKey = 'datadog/2/DEBUG/SCA_my_service_123/config'
+    def respBody = JsonOutput.toJson(
+      client_configs: [scaConfigKey],
+      roots: [],
+      target_files: [
+        [
+          path: scaConfigKey,
+          raw: Base64.encoder.encodeToString(scaConfigContent.getBytes('UTF-8'))
+        ]
+      ],
+      targets: signAndBase64EncodeTargets(
+        signed: [
+          expires: '2022-09-17T12:49:15Z',
+          spec_version: '1.0.0',
+          targets: [
+            (scaConfigKey): [
+              custom: [v: 1],
+              hashes: [
+                sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
+              ],
+              length: scaConfigContent.size(),
+            ]
+          ],
+          version: 1
+        ]
+      ))
+
+    ConfigurationChangesTypedListener scaListener = Mock()
+
+    when:
+    poller.addListener(Product.ASM_SCA,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      scaListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+    1 * scaListener.accept(scaConfigKey, _, _ as PollingRateHinter)
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+    0 * _._
+
+    def body = parseBody(request.body())
+    with(body.client.state.config_states[0]) {
+      id == 'SCA_my_service_123'
+      product == 'ASM_SCA'
+      version == 1
+    }
+  }
+
+  void 'POC: DEBUG product without SCA_ prefix throws error'() {
+    setup:
+    def debugConfigKey = 'datadog/2/DEBUG/some_other_config/config'
+    def respBody = JsonOutput.toJson(
+      client_configs: [debugConfigKey],
+      roots: [],
+      target_files: [
+        [
+          path: debugConfigKey,
+          raw: Base64.encoder.encodeToString('{"test":"data"}'.getBytes('UTF-8'))
+        ]
+      ],
+      targets: signAndBase64EncodeTargets(
+        signed: [
+          expires: '2022-09-17T12:49:15Z',
+          spec_version: '1.0.0',
+          targets: [
+            (debugConfigKey): [
+              custom: [v: 1],
+              hashes: [sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
+              length: 15,
+            ]
+          ],
+          version: 1
+        ]
+      ))
+
+    when:
+    poller.addListener(Product.ASM_DD,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      { Object[] args -> } as ConfigurationChangesTypedListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    def body = parseBody(request.body())
+    with(body.client.state) {
+      has_error == true
+      error == 'Told to handle config key datadog/2/DEBUG/some_other_config/config, but the product DEBUG is not being handled'
+    }
+  }
+
+  void 'POC: multiple products including DEBUG with SCA_ are handled correctly'() {
+    setup:
+    def scaConfigContent = '{"enabled":true}'
+    def scaConfigKey = 'datadog/2/DEBUG/SCA_service/config'
+    def asmConfigKey = 'employee/ASM_DD/1.recommended.json/config'
+    def respBody = JsonOutput.toJson(
+      client_configs: [asmConfigKey, scaConfigKey],
+      roots: [],
+      target_files: [
+        [
+          path: asmConfigKey,
+          raw: Base64.encoder.encodeToString(SAMPLE_APPSEC_CONFIG.getBytes('UTF-8'))
+        ],
+        [
+          path: scaConfigKey,
+          raw: Base64.encoder.encodeToString(scaConfigContent.getBytes('UTF-8'))
+        ]
+      ],
+      targets: signAndBase64EncodeTargets(
+        signed: [
+          expires: '2022-09-17T12:49:15Z',
+          spec_version: '1.0.0',
+          targets: [
+            (asmConfigKey): [
+              custom: [v: 1],
+              hashes: [sha256: '6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819'],
+              length: 919,
+            ],
+            (scaConfigKey): [
+              custom: [v: 1],
+              hashes: [
+                sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
+              ],
+              length: scaConfigContent.size(),
+            ]
+          ],
+          version: 1
+        ]
+      ))
+
+    ConfigurationChangesTypedListener asmListener = Mock()
+    ConfigurationChangesTypedListener scaListener = Mock()
+
+    when:
+    poller.addListener(Product.ASM_DD,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      asmListener)
+    poller.addListener(Product.ASM_SCA,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      scaListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+    1 * asmListener.accept(asmConfigKey, _, _ as PollingRateHinter)
+    1 * scaListener.accept(scaConfigKey, _, _ as PollingRateHinter)
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+    0 * _._
+
+    def body = parseBody(request.body())
+    body.client.state.config_states.size() == 2
+    def asmConfig = body.client.state.config_states.find { it.product == 'ASM_DD' }
+    def scaConfig = body.client.state.config_states.find { it.product == 'ASM_SCA' }
+    with(asmConfig) {
+      id == '1.recommended.json'
+      product == 'ASM_DD'
+      version == 1
+    }
+    with(scaConfig) {
+      id == 'SCA_service'
+      product == 'ASM_SCA'
+      version == 1
+    }
+  }
 }

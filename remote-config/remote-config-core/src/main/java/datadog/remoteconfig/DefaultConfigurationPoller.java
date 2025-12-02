@@ -399,12 +399,36 @@ public class DefaultConfigurationPoller
 
     List<ReportableException> errors = new ArrayList<>();
 
-    Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
+    // TODO(POC): Revert to Map<Product, List<ParsedConfigKey>> once DEBUG endpoint is removed
+    // Changed to ConfigKey to support RemappedConfigKey wrapper for DEBUG->ASM_SCA remapping
+    // Original: Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
+    Map<Product, List<datadog.remoteconfig.state.ConfigKey>> parsedKeysByProduct = new HashMap<>();
 
     for (String configKey : fleetResponse.getClientConfigs()) {
       try {
         ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
         Product product = parsedConfigKey.getProduct();
+        // TODO(POC): Remove this variable once DEBUG endpoint is removed
+        // This allows using RemappedConfigKey wrapper for DEBUG->ASM_SCA remapping
+        // After removal, directly add parsedConfigKey to the map
+        datadog.remoteconfig.state.ConfigKey configKeyToAdd = parsedConfigKey;
+
+        // POC/TEMPORARY: Detect SCA configs from debugging endpoint
+        // Backend serves SCA configs via: GET /api/unstable/remote-config/debugging/configs/SCA_{id}
+        // These arrive as DEBUG product (which maps to _UNKNOWN since DEBUG is not in Product enum)
+        // with "SCA_" prefix in config ID. Remap to ASM_SCA product so existing ASM_SCA listeners
+        // receive them.
+        // TODO: Remove this once backend supports proper product-specific routing
+        if (product == Product._UNKNOWN
+            && "DEBUG".equalsIgnoreCase(parsedConfigKey.getProductName())
+            && parsedConfigKey.getConfigId().startsWith("SCA_")) {
+          product = Product.ASM_SCA;
+          configKeyToAdd = new RemappedConfigKey(parsedConfigKey, Product.ASM_SCA);
+          log.debug(
+              "POC: Detected SCA config from DEBUG endpoint, remapping to ASM_SCA: {}",
+              configKey);
+        }
+
         if (!(productStates.containsKey(product))) {
           throw new ReportableException(
               "Told to handle config key "
@@ -413,7 +437,7 @@ public class DefaultConfigurationPoller
                   + parsedConfigKey.getProductName()
                   + " is not being handled");
         }
-        parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
+        parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(configKeyToAdd);
       } catch (ReportableException e) {
         errors.add(e);
       }
@@ -423,7 +447,9 @@ public class DefaultConfigurationPoller
     for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
       Product product = entry.getKey();
       ProductState state = entry.getValue();
-      List<ParsedConfigKey> relevantKeys =
+      // TODO(POC): Revert to List<ParsedConfigKey> once DEBUG endpoint is removed
+      // Original: List<ParsedConfigKey> relevantKeys = ...
+      List<datadog.remoteconfig.state.ConfigKey> relevantKeys =
           parsedKeysByProduct.getOrDefault(product, Collections.EMPTY_LIST);
       appliedAny = state.apply(fleetResponse, relevantKeys, this) || appliedAny;
       if (state.hasError()) {
@@ -574,6 +600,68 @@ public class DefaultConfigurationPoller
         throw new ReportableException(
             "Path " + file.path + " is in target_files, but not in targets.signed");
       }
+    }
+  }
+
+  /**
+   * POC/TEMPORARY: Wrapper for ParsedConfigKey that overrides the product.
+   *
+   * <p>This is used to remap DEBUG product configs with SCA_ prefix to ASM_SCA product. The
+   * wrapper delegates all calls to the original ParsedConfigKey except getProduct() which returns
+   * the remapped product.
+   *
+   * <p><b>TODO(POC): DELETE THIS ENTIRE CLASS once DEBUG endpoint is removed.</b>
+   *
+   * <p>This class was created specifically for the POC where SCA configs arrive via the DEBUG
+   * product endpoint. Once the backend sends SCA configs directly with the correct product
+   * (ASM_SCA), this wrapper class and all ConfigKey generalization in ProductState should be
+   * removed.
+   *
+   * <p>When removing this class:
+   * <ul>
+   *   <li>Delete the entire RemappedConfigKey class
+   *   <li>Remove the DEBUG product detection logic in handleAgentResponse()
+   *   <li>Revert all ConfigKey types back to ParsedConfigKey in ProductState.java
+   *   <li>Revert the parsedKeysByProduct map type back to Map&lt;Product, List&lt;ParsedConfigKey&gt;&gt;
+   * </ul>
+   */
+  private static class RemappedConfigKey implements datadog.remoteconfig.state.ConfigKey {
+    private final ParsedConfigKey delegate;
+    private final Product remappedProduct;
+
+    RemappedConfigKey(ParsedConfigKey delegate, Product remappedProduct) {
+      this.delegate = delegate;
+      this.remappedProduct = remappedProduct;
+    }
+
+    @Override
+    public Product getProduct() {
+      return remappedProduct;
+    }
+
+    @Override
+    public String getProductName() {
+      return delegate.getProductName();
+    }
+
+    @Override
+    public String getOrg() {
+      return delegate.getOrg();
+    }
+
+    @Override
+    public Integer getVersion() {
+      return delegate.getVersion();
+    }
+
+    @Override
+    public String getConfigId() {
+      return delegate.getConfigId();
+    }
+
+    @Override
+    public String toString() {
+      return delegate.toString();
     }
   }
 }
