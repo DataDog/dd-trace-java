@@ -178,8 +178,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       prefix("/evp_proxy/v2/") {
         try {
           final path = request.path.toString()
-          final body = request.getBody()
-          final decoded = decodeEvpMessage?.call(path, body)
+          final decoded = decodeEvpMessage?.call(path, request)
           if (decoded) {
             evpProxyMessages.add(new Tuple2<>(path, decoded))
           }

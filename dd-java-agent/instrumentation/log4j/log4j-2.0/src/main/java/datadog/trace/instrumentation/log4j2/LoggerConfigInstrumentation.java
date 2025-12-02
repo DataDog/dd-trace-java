@@ -24,8 +24,9 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
+    return (super.isApplicable(enabledSystems)
+            && InstrumenterConfig.get().isAgentlessLogSubmissionEnabled())
+        || Config.get().isAppLogsCollectionEnabled();
   }
 
   @Override
@@ -62,10 +63,10 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
         }
       }
 
-      DatadogAppender appender = new DatadogAppender("datadog", null);
+      Config config = Config.get();
+      DatadogAppender appender = new DatadogAppender("datadog", null, config);
       appender.start();
 
-      Config config = Config.get();
       Level level = Level.valueOf(config.getAgentlessLogSubmissionLevel());
       loggerConfig.addAppender(appender, level, null);
     }
