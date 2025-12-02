@@ -33,12 +33,12 @@ abstract class JDBCDecoratorParseDBInfoTestBase extends InstrumentationSpecifica
 
     then:
     if (shouldFetchMetadata()) {
-      result.type == "postgresql"
-      result.host == "testhost"
-      result.port == 5432
-      result.db == "testdb"
+      assert result.type == "postgresql"
+      assert result.host == "testhost"
+      assert result.port == 5432
+      assert result.db == "testdb"
     } else {
-      result == DBInfo.DEFAULT
+      assert result == DBInfo.DEFAULT
     }
   }
 
@@ -50,6 +50,7 @@ abstract class JDBCDecoratorParseDBInfoTestBase extends InstrumentationSpecifica
     clientInfo.setProperty("warehouse", "my-test-warehouse") // we'll check that property to know if clientInfo were used
     def connection = Mock(Connection) {
       getMetaData() >> (shouldFetchMetadata() ? metadata : { assert false })
+      getClientInfo() >> clientInfo
     }
 
     when:
@@ -57,13 +58,13 @@ abstract class JDBCDecoratorParseDBInfoTestBase extends InstrumentationSpecifica
 
     then:
     if (shouldFetchMetadata()) {
-      result.type == "postgresql"
-      result.host == "testhost"
-      result.port == 5432
-      result.db == "testdb"
-      result.warehouse == "my-test-warehouse"
+      assert result.type == "postgresql"
+      assert result.host == "testhost"
+      assert result.port == 5432
+      assert result.db == "testdb"
+      assert result.warehouse == "my-test-warehouse"
     } else {
-      result == DBInfo.DEFAULT
+      assert result == DBInfo.DEFAULT
     }
   }
 
