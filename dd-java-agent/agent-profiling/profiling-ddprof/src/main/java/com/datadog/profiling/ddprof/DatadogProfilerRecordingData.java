@@ -36,4 +36,9 @@ final class DatadogProfilerRecordingData extends RecordingData {
   public String getName() {
     return "ddprof";
   }
+
+  @Override
+  public Path getFile() {
+    return recordingFile;
+  }
 }
