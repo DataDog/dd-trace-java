@@ -66,40 +66,6 @@ private fun loadConfigFields(
   }
 }
 
-// Data class for fields from generated class
-private data class LoadedConfigFields(
-  val supported: Set<String>,
-  val aliasMapping: Map<String, String> = emptyMap()
-)
-
-// Cache for fields from generated class
-private var cachedConfigFields: LoadedConfigFields? = null
-
-// Helper function to load fields from the generated class
-private fun loadConfigFields(
-  mainSourceSetOutput: org.gradle.api.file.FileCollection,
-  generatedClassName: String
-): LoadedConfigFields {
-  return cachedConfigFields ?: run {
-    val urls = mainSourceSetOutput.files.map { it.toURI().toURL() }.toTypedArray()
-    URLClassLoader(urls, LoadedConfigFields::class.java.classLoader).use { cl ->
-      val clazz = Class.forName(generatedClassName, true, cl)
-
-      val supportedField = clazz.getField("SUPPORTED").get(null)
-      @Suppress("UNCHECKED_CAST")
-      val supportedSet = when (supportedField) {
-        is Set<*> -> supportedField as Set<String>
-        is Map<*, *> -> supportedField.keys as Set<String>
-        else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
-      }
-
-      @Suppress("UNCHECKED_CAST")
-      val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
-      LoadedConfigFields(supportedSet, aliasMappingMap)
-    }.also { cachedConfigFields = it }
-  }
-}
-
 /** Registers `logEnvVarUsages` (scan for DD_/OTEL_ tokens and fail if unsupported). */
 private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerConfigurations) {
   val ownerPath = extension.configOwnerPath
